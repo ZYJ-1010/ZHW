@@ -1,0 +1,7 @@
+<view class="page-shell">
+  <view class="module-card">
+    <text class="module-kicker">第 3 批</text>
+    <text class="module-title">{{title}}</text>
+    <text class="module-desc">{{desc}}</text>
+  </view>
+</view>

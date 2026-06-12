@@ -1,0 +1,10 @@
+<view class="page-shell">
+  <view class="module-card">
+    <text class="module-kicker">{{group.batch}}</text>
+    <text class="module-title">局前大厅</text>
+    <text class="module-desc">局列表、同城筛选、附近推荐和局详情入口从这里展开。</text>
+  </view>
+  <view class="screen-list">
+    <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
+  </view>
+</view>

@@ -1,0 +1,64 @@
+<view class="page">
+  <view class="login-wrap">
+    <view class="brand">
+      <text class="brand-name">Enjoy</text>
+      <text class="brand-subtitle">微信授权登录</text>
+    </view>
+
+    <view class="auth-card">
+      <view class="wechat-icon">微</view>
+      <text class="auth-title">是否同意微信授权登录</text>
+      <text class="auth-desc">授权后将使用你的微信身份进入 Enjoy，并用于识别本次登录状态。</text>
+
+      <view class="auth-note">
+        <text>授权内容：微信登录状态、头像与昵称</text>
+      </view>
+
+      <view class="agreement" bindtap="toggleAgreement">
+        <view class="checkbox {{agreed ? 'checked' : ''}}">
+          <text wx:if="{{agreed}}">✓</text>
+        </view>
+        <text>我已了解并同意使用微信授权登录</text>
+      </view>
+
+      <button
+        class="primary-button {{!agreed || hasWechatLogin || isLoggingIn ? 'button-disabled' : ''}}"
+        bindtap="handleWechatLogin"
+        disabled="{{!agreed || hasWechatLogin || isLoggingIn}}"
+      >
+        {{hasWechatLogin ? '已同意授权' : isLoggingIn ? '授权中...' : '同意并微信登录'}}
+      </button>
+
+      <button class="secondary-button" bindtap="declineAuth">暂不授权</button>
+    </view>
+
+    <view class="invite-box">
+      <view class="invite-head">
+        <text class="invite-title">已有邀请码？</text>
+        <text class="invite-status {{inviteStatus === 'valid' ? 'success' : inviteStatus === 'invalid' ? 'error' : ''}}">
+          {{inviteStatusText}}
+        </text>
+      </view>
+
+      <view class="invite-row">
+        <input
+          class="invite-input"
+          value="{{inviteCode}}"
+          placeholder="输入邀请码，可跳过"
+          placeholder-class="placeholder"
+          maxlength="16"
+          bindinput="onInviteInput"
+        />
+        <button class="invite-button" bindtap="verifyInvite">
+          {{isVerifyingInvite ? '...' : '确认'}}
+        </button>
+      </view>
+
+      <text class="invite-tip">{{inviteTip}}</text>
+    </view>
+
+    <view wx:if="{{hasWechatLogin}}" class="result">
+      <text>微信授权登录已完成</text>
+    </view>
+  </view>
+</view>

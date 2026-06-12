@@ -1,0 +1,44 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+
+  <block wx:else>
+    <view class="intro">
+      <text class="title">选择你的身份</text>
+      <text class="desc">玩家为默认身份。行家和领路人需提交申请，审核通过后开放对应能力。</text>
+    </view>
+
+    <view wx:for="{{applications}}" wx:key="roleType" class="role-card">
+      <view class="role-head">
+        <view>
+          <text class="role-title">{{item.title}}</text>
+          <text class="role-desc">{{item.desc}}</text>
+        </view>
+        <text class="role-status {{item.status === 'pending_audit' ? 'pending' : ''}}">{{item.statusText}}</text>
+      </view>
+
+      <view class="requirements">
+        <text wx:for="{{item.requirements}}" wx:key="*this" class="requirement">• {{item}}</text>
+      </view>
+
+      <view wx:if="{{item.qualification}}" class="qualification">
+        <view class="qual-item">
+          <text>条件达成</text>
+          <text class="{{item.qualification.conditionMet ? 'ok' : 'warn'}}">{{item.qualification.conditionText}}</text>
+        </view>
+        <view class="qual-item">
+          <text>付费状态</text>
+          <text class="{{item.qualification.paymentMet ? 'ok' : 'warn'}}">{{item.qualification.paymentText}}</text>
+        </view>
+      </view>
+
+      <button
+        class="apply-button {{item.status === 'pending_audit' ? 'disabled' : ''}}"
+        data-role="{{item.roleType}}"
+        bindtap="submitApplication"
+        disabled="{{item.status === 'pending_audit' || submittingRole === item.roleType}}"
+      >
+        {{item.status === 'pending_audit' ? '已进入审核' : submittingRole === item.roleType ? '提交中...' : '提交申请'}}
+      </button>
+    </view>
+  </block>
+</view>

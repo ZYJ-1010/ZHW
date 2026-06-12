@@ -1,0 +1,47 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+
+  <block wx:else>
+    <view class="profile-card">
+      <view class="avatar">{{user.avatarText}}</view>
+      <view class="profile-copy">
+        <text class="name">{{user.nickname}}</text>
+        <text class="meta">实名：{{user.realnameStatus}} · 角色：{{user.roleText}}</text>
+      </view>
+    </view>
+
+    <view class="stats">
+      <view wx:for="{{stats}}" wx:key="label" class="stat">
+        <text class="stat-value">{{item.value}}</text>
+        <text class="stat-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="growth">
+      <view>
+        <text class="growth-title">成长信用</text>
+        <text class="growth-desc">Lv.{{user.level}} · 信用 {{user.creditScore}} · 积分 {{user.points}}</text>
+      </view>
+      <view class="income">
+        <text>{{incomeSummary.pendingAmountText}}</text>
+        <text>待结算</text>
+      </view>
+    </view>
+
+    <view class="menu">
+      <view
+        wx:for="{{menuItems}}"
+        wx:key="id"
+        class="menu-item"
+        data-route="{{item.route}}"
+        bindtap="goMenu"
+      >
+        <view>
+          <text class="menu-title">{{item.title}}</text>
+          <text class="menu-desc">{{item.desc}}</text>
+        </view>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+  </block>
+</view>

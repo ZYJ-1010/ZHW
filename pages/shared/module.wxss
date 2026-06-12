@@ -1,0 +1,54 @@
+.page-shell {
+  min-height: 100vh;
+  padding: 40rpx 30rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.module-card {
+  padding: 34rpx 30rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.08);
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-shadow: 0 14rpx 34rpx rgba(17, 17, 17, 0.06);
+}
+
+.module-kicker,
+.module-title,
+.module-desc,
+.screen-item {
+  display: block;
+}
+
+.module-kicker {
+  color: #07c160;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.module-title {
+  margin-top: 12rpx;
+  color: #111111;
+  font-size: 38rpx;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.module-desc {
+  margin-top: 18rpx;
+  color: rgba(17, 17, 17, 0.62);
+  font-size: 27rpx;
+  line-height: 1.55;
+}
+
+.screen-list {
+  margin-top: 26rpx;
+  border-top: 2rpx solid rgba(17, 17, 17, 0.08);
+}
+
+.screen-item {
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid rgba(17, 17, 17, 0.06);
+  color: #111111;
+  font-size: 28rpx;
+}

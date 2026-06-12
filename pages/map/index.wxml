@@ -1,0 +1,10 @@
+<view class="page-shell">
+  <view class="module-card">
+    <text class="module-kicker">{{group.batch}}</text>
+    <text class="module-title">{{group.title}}</text>
+    <text class="module-desc">先实现同城、附近、定位和距离角标；地图玩法作为扩展能力逐步补齐。</text>
+  </view>
+  <view class="screen-list">
+    <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
+  </view>
+</view>

@@ -1,0 +1,29 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/home/index",
+    "pages/role/apply/index",
+    "pages/role/status/index",
+    "pages/game/hall/index",
+    "pages/game/create/index",
+    "pages/game/detail/index",
+    "pages/game/applications/index",
+    "pages/game/delivery/index",
+    "pages/game/review/index",
+    "pages/map/index",
+    "pages/message/index",
+    "pages/im/room/index",
+    "pages/profile/index",
+    "pages/profile/member/index",
+    "pages/profile/achievements/index",
+    "pages/placeholder/metaverse/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "Enjoy",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFFFFF"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,60 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+
+  <block wx:else>
+    <view class="header">
+      <view>
+        <text class="hello">你好，{{user.nickname}}</text>
+        <text class="sub">今日信用 {{user.todayCreditScore}} · Lv.{{user.level}} · {{user.member.planName}}</text>
+      </view>
+      <view class="status {{user.needRealname ? 'warn' : 'ok'}}">
+        {{user.needRealname ? '待实名' : '已实名'}}
+      </view>
+    </view>
+
+    <view wx:for="{{notices}}" wx:key="id" class="notice">
+      <text>{{item.title}}</text>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">下一步</text>
+        <text class="section-more">入口</text>
+      </view>
+      <view class="actions">
+        <view
+          wx:for="{{quickActions}}"
+          wx:key="id"
+          class="action"
+          data-route="{{item.route}}"
+          bindtap="goAction"
+        >
+          <text>{{item.title}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">推荐组局</text>
+        <text class="section-more">{{nearbySummary.cityName}} · {{nearbySummary.count}} 个附近局</text>
+      </view>
+      <view
+        wx:for="{{recommendedGames}}"
+        wx:key="id"
+        class="game-card"
+        data-route="pages/game/detail/index"
+        bindtap="goAction"
+      >
+        <view class="game-top">
+          <text class="game-title">{{item.title}}</text>
+          <text class="game-status">{{item.statusText}}</text>
+        </view>
+        <text class="game-meta">{{item.cityName}} · {{item.distanceText}} · {{item.memberText}}</text>
+        <view class="tags">
+          <text wx:for="{{item.tags}}" wx:key="*this" class="tag">{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

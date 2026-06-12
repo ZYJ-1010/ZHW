@@ -1,0 +1,10 @@
+<view class="page-shell">
+  <view class="module-card">
+    <text class="module-kicker">{{group.priority}}</text>
+    <text class="module-title">审核状态</text>
+    <text class="module-desc">承载审核进度、通过、驳回和申请状态提示。</text>
+  </view>
+  <view class="screen-list">
+    <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
+  </view>
+</view>
