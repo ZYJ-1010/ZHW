@@ -2,16 +2,30 @@
   min-height: 100vh;
   padding: 34rpx 28rpx 56rpx;
   box-sizing: border-box;
-  background: #ffffff;
+  background: #f7f7f8;
 }
 
 .loading,
 .hello,
-.sub,
+.hero-sub,
+.online,
 .section-title,
 .section-more,
 .game-title,
-.game-meta {
+.game-meta,
+.game-status,
+.game-price,
+.game-joined,
+.player-role,
+.player-name,
+.xp,
+.progress-tip,
+.stat-value,
+.stat-label,
+.rank-name,
+.rank-desc,
+.metaverse-title,
+.metaverse-desc {
   display: block;
 }
 
@@ -22,59 +36,59 @@
   text-align: center;
 }
 
-.header {
+.hero {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20rpx;
-  padding: 18rpx 0 28rpx;
+  padding: 20rpx 0 18rpx;
 }
 
 .hello {
   color: #111111;
-  font-size: 40rpx;
+  font-size: 38rpx;
   font-weight: 700;
   line-height: 1.25;
 }
 
-.sub {
-  margin-top: 12rpx;
-  color: rgba(17, 17, 17, 0.58);
-  font-size: 25rpx;
+.hero-sub {
+  margin-top: 10rpx;
+  color: rgba(17, 17, 17, 0.56);
+  font-size: 24rpx;
 }
 
-.status {
+.online {
   flex: 0 0 auto;
-  padding: 10rpx 18rpx;
-  border-radius: 8rpx;
-  color: #ffffff;
-  background: #07c160;
+  margin-top: 6rpx;
+  color: #07c160;
   font-size: 24rpx;
   font-weight: 700;
 }
 
-.status.warn {
-  color: #111111;
-  background: rgba(17, 17, 17, 0.06);
-}
-
 .notice,
-.section {
-  margin-top: 22rpx;
-  padding: 26rpx;
-  border: 2rpx solid rgba(17, 17, 17, 0.08);
+.section,
+.player-card,
+.metaverse {
+  margin-top: 20rpx;
+  padding: 24rpx;
   border-radius: 8rpx;
   background: #ffffff;
+  box-sizing: border-box;
 }
 
 .notice {
-  color: rgba(17, 17, 17, 0.72);
-  font-size: 26rpx;
+  color: rgba(17, 17, 17, 0.68);
+  font-size: 25rpx;
   line-height: 1.5;
 }
 
 .section-head,
-.game-top {
+.game-main,
+.game-bottom,
+.player-head,
+.rank-row,
+.achievement,
+.metaverse {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -83,34 +97,17 @@
 
 .section-title {
   color: #111111;
-  font-size: 32rpx;
+  font-size: 31rpx;
   font-weight: 700;
 }
 
 .section-more {
-  color: rgba(17, 17, 17, 0.48);
+  color: rgba(17, 17, 17, 0.46);
   font-size: 23rpx;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14rpx;
-  margin-top: 24rpx;
-}
-
-.action {
-  min-height: 78rpx;
-  padding: 0 12rpx;
-  border-radius: 8rpx;
-  color: #111111;
-  background: rgba(17, 17, 17, 0.04);
-  font-size: 25rpx;
-  line-height: 78rpx;
-  text-align: center;
-}
-
-.game-card {
+.game-card,
+.friend-card {
   margin-top: 22rpx;
   padding-top: 22rpx;
   border-top: 2rpx solid rgba(17, 17, 17, 0.06);
@@ -120,19 +117,52 @@
   color: #111111;
   font-size: 29rpx;
   font-weight: 700;
-}
-
-.game-status {
-  flex: 0 0 auto;
-  color: #07c160;
-  font-size: 24rpx;
-  font-weight: 700;
+  line-height: 1.35;
 }
 
 .game-meta {
-  margin-top: 12rpx;
-  color: rgba(17, 17, 17, 0.56);
+  margin-top: 10rpx;
+  color: rgba(17, 17, 17, 0.55);
+  font-size: 23rpx;
+  line-height: 1.4;
+}
+
+.join-pill {
+  flex: 0 0 auto;
+  min-width: 82rpx;
+  height: 54rpx;
+  border-radius: 8rpx;
+  color: #ffffff;
+  background: #07c160;
   font-size: 24rpx;
+  font-weight: 700;
+  line-height: 54rpx;
+  text-align: center;
+}
+
+.game-bottom {
+  justify-content: flex-start;
+  margin-top: 16rpx;
+}
+
+.game-status,
+.game-price,
+.game-joined {
+  font-size: 23rpx;
+}
+
+.game-status {
+  color: #07c160;
+  font-weight: 700;
+}
+
+.game-price {
+  color: #111111;
+  font-weight: 700;
+}
+
+.game-joined {
+  color: rgba(17, 17, 17, 0.46);
 }
 
 .tags {
@@ -148,4 +178,152 @@
   color: #07c160;
   background: rgba(7, 193, 96, 0.08);
   font-size: 22rpx;
+}
+
+.player-role {
+  color: #111111;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.player-name,
+.progress-tip {
+  margin-top: 8rpx;
+  color: rgba(17, 17, 17, 0.54);
+  font-size: 23rpx;
+}
+
+.xp {
+  color: #07c160;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.progress {
+  height: 12rpx;
+  margin-top: 22rpx;
+  border-radius: 999rpx;
+  background: rgba(17, 17, 17, 0.06);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: #07c160;
+}
+
+.stats,
+.actions {
+  display: grid;
+  gap: 14rpx;
+  margin-top: 22rpx;
+}
+
+.stats {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.stat {
+  padding: 18rpx 10rpx;
+  border-radius: 8rpx;
+  background: rgba(17, 17, 17, 0.04);
+  text-align: center;
+}
+
+.stat-value {
+  color: #111111;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.stat-label {
+  margin-top: 6rpx;
+  color: rgba(17, 17, 17, 0.48);
+  font-size: 22rpx;
+}
+
+.actions {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.action {
+  min-height: 74rpx;
+  padding: 0 10rpx;
+  border-radius: 8rpx;
+  color: #111111;
+  background: rgba(17, 17, 17, 0.04);
+  font-size: 24rpx;
+  line-height: 74rpx;
+  text-align: center;
+}
+
+.rank-row {
+  margin-top: 20rpx;
+}
+
+.rank-no {
+  flex: 0 0 44rpx;
+  color: #07c160;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.rank-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-name {
+  color: #111111;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.rank-desc,
+.rank-xp {
+  color: rgba(17, 17, 17, 0.48);
+  font-size: 22rpx;
+}
+
+.rank-xp {
+  flex: 0 0 auto;
+}
+
+.achievement-block {
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx solid rgba(17, 17, 17, 0.06);
+}
+
+.achievement {
+  margin-top: 16rpx;
+  color: rgba(17, 17, 17, 0.68);
+  font-size: 24rpx;
+}
+
+.metaverse {
+  color: #ffffff;
+  background: #111111;
+}
+
+.metaverse-title {
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.metaverse-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 23rpx;
+}
+
+.metaverse-action {
+  flex: 0 0 auto;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  color: #111111;
+  background: #ffffff;
+  font-size: 23rpx;
+  font-weight: 700;
 }

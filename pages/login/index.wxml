@@ -1,64 +1,313 @@
-<view class="page">
-  <view class="login-wrap">
-    <view class="brand">
-      <text class="brand-name">Enjoy</text>
-      <text class="brand-subtitle">微信授权登录</text>
+<view wx:if="{{isUiPreview}}" class="page ui-preview-page" bindtap="handleUiPreviewTap">
+  <view wx:if="{{uiPreviewStep === 'invite'}}" class="modao-screen">
+    <view class="modao-hero">
+      <view class="modao-hi-wrap">
+        <text class="modao-hi">HI</text>
+        <text class="modao-star">✦</text>
+      </view>
+      <text class="modao-welcome">欢迎进入真好玩~</text>
     </view>
 
-    <view class="auth-card">
-      <view class="wechat-icon">微</view>
-      <text class="auth-title">是否同意微信授权登录</text>
-      <text class="auth-desc">授权后将使用你的微信身份进入 Enjoy，并用于识别本次登录状态。</text>
-
-      <view class="auth-note">
-        <text>授权内容：微信登录状态、头像与昵称</text>
+    <view class="modao-form">
+      <view class="modao-field">
+        <text class="modao-value">+86 ›</text>
+      </view>
+      <view class="modao-field">
+        <text class="modao-placeholder">获取验证码</text>
+        <text class="modao-field-action">获取验证码</text>
+      </view>
+      <view class="modao-field">
+        <text class="modao-value">Px****ON</text>
       </view>
 
-      <view class="agreement" bindtap="toggleAgreement">
-        <view class="checkbox {{agreed ? 'checked' : ''}}">
-          <text wx:if="{{agreed}}">✓</text>
-        </view>
-        <text>我已了解并同意使用微信授权登录</text>
+      <view class="modao-primary">登录/注册</view>
+      <view class="modao-secondary-row">
+        <view class="modao-secondary">密码登录</view>
+        <view class="modao-secondary">微信登录</view>
       </view>
 
-      <button
-        class="primary-button {{!agreed || hasWechatLogin || isLoggingIn ? 'button-disabled' : ''}}"
-        bindtap="handleWechatLogin"
-        disabled="{{!agreed || hasWechatLogin || isLoggingIn}}"
-      >
-        {{hasWechatLogin ? '已同意授权' : isLoggingIn ? '授权中...' : '同意并微信登录'}}
-      </button>
-
-      <button class="secondary-button" bindtap="declineAuth">暂不授权</button>
-    </view>
-
-    <view class="invite-box">
-      <view class="invite-head">
-        <text class="invite-title">已有邀请码？</text>
-        <text class="invite-status {{inviteStatus === 'valid' ? 'success' : inviteStatus === 'invalid' ? 'error' : ''}}">
-          {{inviteStatusText}}
-        </text>
+      <text class="modao-invite-tip">已注册用户无需重复输入邀请码</text>
+      <view class="modao-agreement">
+        <view class="modao-check">✓</view>
+        <text class="modao-agree-muted">登录即表明同意</text>
+        <text class="modao-agree-link">用户协议</text>
+        <text class="modao-agree-link">及隐私协议</text>
       </view>
-
-      <view class="invite-row">
-        <input
-          class="invite-input"
-          value="{{inviteCode}}"
-          placeholder="输入邀请码，可跳过"
-          placeholder-class="placeholder"
-          maxlength="16"
-          bindinput="onInviteInput"
-        />
-        <button class="invite-button" bindtap="verifyInvite">
-          {{isVerifyingInvite ? '...' : '确认'}}
-        </button>
-      </view>
-
-      <text class="invite-tip">{{inviteTip}}</text>
-    </view>
-
-    <view wx:if="{{hasWechatLogin}}" class="result">
-      <text>微信授权登录已完成</text>
     </view>
   </view>
+
+  <view wx:elif="{{uiPreviewStep === 'entry'}}" class="modao-screen modao-entry-screen">
+    <text class="modao-entry-online">3999人在线</text>
+    <view class="modao-entry-orbit">
+      <view class="modao-entry-glow"></view>
+      <view class="modao-entry-ring ring-one"></view>
+      <view class="modao-entry-ring ring-two"></view>
+      <view class="modao-entry-core">
+        <text class="modao-entry-go">GO</text>
+      </view>
+    </view>
+    <text class="modao-entry-title">真好玩</text>
+    <text class="modao-entry-subtitle">ZHEN HAO WAN</text>
+  </view>
+
+  <view wx:elif="{{uiPreviewStep === 'realnameModal'}}" class="modao-screen">
+    <view class="realname-modal-mask"></view>
+    <view class="realname-modal-card">
+      <view class="realname-modal-icon">
+        <view class="realname-modal-shield">
+          <view class="realname-modal-shield-panel"></view>
+          <view class="realname-modal-shield-point"></view>
+          <view class="realname-modal-shield-slash"></view>
+        </view>
+      </view>
+      <text class="realname-modal-title">需要实名认证</text>
+      <text class="realname-modal-desc">为了保障平台安全与信任体系</text>
+      <text class="realname-modal-desc second">请完成实名认证后再继续使用</text>
+      <view class="realname-modal-primary">去实名认证</view>
+      <view class="realname-modal-secondary">稍后再说</view>
+    </view>
+  </view>
+
+  <view wx:elif="{{uiPreviewStep === 'realnameGuide'}}" class="modao-screen">
+    <view class="realname-guide-hero">
+      <view class="realname-guide-icon-card">
+        <text>✦</text>
+      </view>
+      <text class="realname-guide-title">实名认证</text>
+      <text class="realname-guide-copy">完成实名认证，解锁完整平台功能</text>
+      <text class="realname-guide-copy sub">让每一次连接都更值得信赖</text>
+    </view>
+
+    <view class="realname-guide-list">
+      <view class="realname-guide-item">
+        <view class="realname-guide-icon">🔒</view>
+        <text class="realname-guide-text">身份可信，交易更安心</text>
+      </view>
+      <view class="realname-guide-item">
+        <view class="realname-guide-icon">⚡</view>
+        <text class="realname-guide-text">快速匹配，优先推荐</text>
+      </view>
+      <view class="realname-guide-item">
+        <view class="realname-guide-icon">🎯</view>
+        <text class="realname-guide-text">解锁全部组局与引荐功能</text>
+      </view>
+    </view>
+
+    <view class="realname-guide-button">开始认证</view>
+  </view>
+
+  <view wx:else class="modao-screen newbie-task-screen">
+    <view class="newbie-task-card">
+      <text class="newbie-task-kicker">新手福利</text>
+      <text class="newbie-task-title">完成新手任务</text>
+      <text class="newbie-task-desc">解锁更多平台权益</text>
+
+      <view class="newbie-task-list">
+        <view class="newbie-task-item done">
+          <view class="newbie-task-check">✓</view>
+          <view class="newbie-task-copy">
+            <text class="newbie-task-name">完成实名认证</text>
+            <text class="newbie-task-reward">+50 经验值</text>
+          </view>
+          <text class="newbie-task-status">已完成</text>
+        </view>
+        <view class="newbie-task-item">
+          <view class="newbie-task-check muted"></view>
+          <view class="newbie-task-copy">
+            <text class="newbie-task-name">完善个人资料</text>
+            <text class="newbie-task-reward">+30 经验值</text>
+          </view>
+          <text class="newbie-task-action">去完成</text>
+        </view>
+        <view class="newbie-task-item">
+          <view class="newbie-task-check muted"></view>
+          <view class="newbie-task-copy">
+            <text class="newbie-task-name">发布第一个局</text>
+            <text class="newbie-task-reward">+100 经验值</text>
+          </view>
+          <text class="newbie-task-action">去完成</text>
+        </view>
+      </view>
+
+      <view class="newbie-task-progress-bar">
+        <view class="newbie-task-progress-fill"></view>
+      </view>
+      <text class="newbie-task-progress">已完成 1/3 个任务</text>
+      <view class="newbie-task-button">进入首页</view>
+    </view>
+  </view>
+</view>
+
+<view wx:else class="page">
+  <view class="login-wrap landing-wrap" wx:if="{{loginMode === 'home'}}">
+    <view class="hero">
+      <view class="hi-row">
+        <text class="hi-text">HI</text>
+        <text class="hi-mark">✦</text>
+      </view>
+      <text class="welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view wx:if="{{inviteContext}}" class="invite-banner landing-invite">
+      <view class="invite-copy">
+        <text class="invite-title">已识别邀请</text>
+        <text class="invite-desc">
+          {{inviteContext.inviterName ? inviteContext.inviterName + ' 邀请你加入' : '邀请码 ' + inviteContext.code + ' 已记录'}}
+        </text>
+      </view>
+      <button class="invite-clear" bindtap="clearInvite">普通登录</button>
+    </view>
+
+    <view class="landing-actions">
+      <view class="primary-login landing-primary" bindtap="startPhoneLogin">手机号登录</view>
+      <view class="password-link" bindtap="startPasswordLogin">账号密码登录</view>
+    </view>
+
+    <view class="agreement landing-agreement" bindtap="toggleAgreement">
+      <view class="checkbox {{agreed ? 'checked' : ''}}">
+        <text wx:if="{{agreed}}">✓</text>
+      </view>
+      <view class="agreement-copy">
+        <text class="agreement-normal">我已阅读并同意</text>
+        <text class="agreement-link">《隐私协议》</text>
+        <text class="agreement-normal">和</text>
+        <text class="agreement-link">《用户协议》</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="login-wrap code-verify-wrap" wx:elif="{{loginMode === 'codeVerify'}}">
+    <view class="hero verify-hero">
+      <view class="hi-row">
+        <text class="hi-text">HI</text>
+        <text class="hi-mark">✦</text>
+      </view>
+      <text class="welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view class="verify-phone">{{maskedPhone}}</view>
+    <text class="verify-tip">验证码已发送至该手机号</text>
+
+    <view class="code-entry" bindtap="focusCodeInput">
+      <block wx:for="{{codeDigits}}" wx:key="index">
+        <view class="code-box {{item ? 'filled' : ''}}">{{item}}</view>
+      </block>
+      <input
+        class="code-hidden-input"
+        value="{{verifyCode}}"
+        type="number"
+        maxlength="6"
+        focus="{{codeInputFocus}}"
+        bindinput="onCodeInput"
+      />
+    </view>
+
+    <view class="resend-row">
+      <text wx:if="{{!canResend}}" class="resend-muted">{{resendSeconds}}s 后可 </text>
+      <text class="resend-link {{canResend ? 'active' : ''}}" bindtap="resendCode">重新获取</text>
+    </view>
+
+    <view
+      class="verify-login-button {{isCodeComplete ? 'ready' : ''}}"
+      bindtap="handlePhoneLogin"
+    >
+      {{isPhoneLoggingIn ? '登录中...' : '登录'}}
+    </view>
+
+    <view class="verify-back" bindtap="backToLogin">← 返回登录方式</view>
+  </view>
+
+  <view class="login-wrap account-wrap" wx:elif="{{loginMode === 'account'}}">
+    <view class="hero account-hero">
+      <view class="hi-row">
+        <text class="hi-text">HI</text>
+        <text class="hi-mark">✦</text>
+      </view>
+      <text class="welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view class="form account-form">
+      <view wx:if="{{inviteContext}}" class="invite-banner">
+        <view class="invite-copy">
+          <text class="invite-title">已识别邀请</text>
+          <text class="invite-desc">
+            {{inviteContext.inviterName ? inviteContext.inviterName + ' 邀请你加入' : '邀请码 ' + inviteContext.code + ' 已记录'}}
+          </text>
+        </view>
+        <button class="invite-clear" bindtap="clearInvite">普通登录</button>
+      </view>
+
+      <view class="field account-field">
+        <input
+          class="field-input"
+          value="{{phone}}"
+          maxlength="32"
+          placeholder="请输入账号"
+          placeholder-class="placeholder"
+          bindinput="onPhoneInput"
+        />
+      </view>
+
+      <view class="field password-field">
+        <input
+          class="field-input"
+          value="{{password}}"
+          password
+          maxlength="24"
+          placeholder="请输入密码"
+          placeholder-class="placeholder"
+          bindinput="onPasswordInput"
+        />
+      </view>
+
+      <view class="form-helper account-form-helper">
+        <text class="forgot-link" bindtap="goForgot">找回密码</text>
+      </view>
+    </view>
+
+    <view
+      class="primary-login account-submit"
+      bindtap="handlePasswordLogin"
+    >
+      {{isPasswordLoggingIn ? '登录中...' : '登录/注册'}}
+    </view>
+
+    <view class="account-switches">
+      <view class="account-switch" bindtap="startPhoneLogin">验证码登录</view>
+      <view class="account-switch" bindtap="startWechatAuth">微信登录</view>
+    </view>
+
+    <view class="agreement" bindtap="toggleAgreement">
+      <view class="checkbox {{agreed ? 'checked' : ''}}">
+        <text wx:if="{{agreed}}">✓</text>
+      </view>
+      <view class="agreement-copy">
+        <text class="agreement-normal">登录即表明同意</text>
+        <text class="agreement-link">用户协议</text>
+        <text class="agreement-normal">及</text>
+        <text class="agreement-link">隐私协议</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="login-wrap auth-wrap" wx:elif="{{loginMode === 'wechatAuth'}}">
+    <view class="auth-content">
+      <view class="auth-wechat-icon">微</view>
+      <text class="auth-title">微信登录</text>
+      <text class="auth-desc">真好玩 申请获取你的微信头像、昵称</text>
+      <text class="auth-subdesc">用于完善个人资料</text>
+
+      <view class="auth-actions">
+        <view
+          class="allow-button"
+          bindtap="handleWechatLogin"
+        >
+          {{hasWechatLogin ? '已允许' : isLoggingIn ? '授权中...' : '允许'}}
+        </view>
+
+        <view class="reject-button" bindtap="declineAuth">拒绝</view>
+      </view>
+    </view>
+  </view>
+
 </view>

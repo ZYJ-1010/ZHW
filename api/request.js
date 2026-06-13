@@ -92,6 +92,66 @@ function loginWithWechat(payload) {
   })
 }
 
+function sendPhoneCode(payload) {
+  if (env.isMock) {
+    return mockApi.sendPhoneCode(payload)
+  }
+
+  return request({
+    url: '/api/app/auth/phone-code',
+    method: 'POST',
+    data: payload
+  })
+}
+
+function verifyPhoneCode(payload) {
+  if (env.isMock) {
+    return mockApi.verifyPhoneCode(payload)
+  }
+
+  return request({
+    url: '/api/app/auth/phone-code/verify',
+    method: 'POST',
+    data: payload
+  })
+}
+
+function loginWithPhone(payload) {
+  if (env.isMock) {
+    return mockApi.loginWithPhone(payload)
+  }
+
+  return request({
+    url: '/api/app/auth/phone-login',
+    method: 'POST',
+    data: payload
+  })
+}
+
+function loginWithPassword(payload) {
+  if (env.isMock) {
+    return mockApi.loginWithPassword(payload)
+  }
+
+  return request({
+    url: '/api/app/auth/password-login',
+    method: 'POST',
+    data: payload
+  })
+}
+
+function resetPassword(payload) {
+  if (env.isMock) {
+    return mockApi.resetPassword(payload)
+  }
+
+  return request({
+    url: '/api/app/auth/password/reset',
+    method: 'POST',
+    data: payload
+  })
+}
+
 function verifyInvite(code) {
   if (env.isMock) {
     return mockApi.verifyInvite(code)
@@ -109,5 +169,10 @@ module.exports = {
   post,
   put,
   loginWithWechat,
+  sendPhoneCode,
+  verifyPhoneCode,
+  loginWithPhone,
+  loginWithPassword,
+  resetPassword,
   verifyInvite
 }

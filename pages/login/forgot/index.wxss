@@ -1,0 +1,254 @@
+.page {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.forgot-wrap {
+  position: relative;
+  min-height: 1624rpx;
+  padding: 0 62rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.forgot-title {
+  position: absolute;
+  top: 168rpx;
+  left: 0;
+  width: 100%;
+  color: #171627;
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 54rpx;
+  text-align: center;
+}
+
+.step-bars {
+  position: absolute;
+  top: 300rpx;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 24rpx;
+  width: 100%;
+}
+
+.step-bar {
+  width: 84rpx;
+  height: 8rpx;
+  border-radius: 8rpx;
+  background: #dedede;
+}
+
+.step-bar.active {
+  background: linear-gradient(90deg, #8f56f5 0%, #ee4f96 100%);
+}
+
+.step-title {
+  position: absolute;
+  top: 416rpx;
+  left: 0;
+  width: 100%;
+  color: rgba(23, 22, 39, 0.62);
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 42rpx;
+  text-align: center;
+}
+
+.forgot-form {
+  position: absolute;
+  top: 544rpx;
+  left: 62rpx;
+  width: 626rpx;
+}
+
+.forgot-field {
+  display: flex;
+  align-items: center;
+  width: 626rpx;
+  height: 104rpx;
+  margin-bottom: 28rpx;
+  padding: 0 44rpx;
+  border-radius: 28rpx;
+  box-sizing: border-box;
+  background: #f5f5f7;
+}
+
+.country-code {
+  flex: 0 0 auto;
+  margin-right: 18rpx;
+  color: #171627;
+  font-size: 30rpx;
+  line-height: 40rpx;
+}
+
+.field-input {
+  flex: 1;
+  height: 104rpx;
+  color: #171627;
+  font-size: 30rpx;
+  line-height: 104rpx;
+}
+
+.placeholder {
+  color: rgba(23, 22, 39, 0.32);
+}
+
+.code-field {
+  padding-right: 28rpx;
+}
+
+.code-button {
+  flex: 0 0 auto;
+  color: #22b979;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 104rpx;
+}
+
+.primary-button {
+  position: absolute;
+  top: 830rpx;
+  left: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 626rpx;
+  height: 104rpx;
+  border-radius: 28rpx;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: linear-gradient(90deg, #8f56f5 0%, #ee4f96 100%);
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 104rpx;
+}
+
+.phone-next-button {
+  top: 830rpx;
+}
+
+.password-submit-button {
+  top: 1050rpx;
+}
+
+.back-link {
+  position: absolute;
+  top: 992rpx;
+  left: 0;
+  width: 100%;
+  color: rgba(23, 22, 39, 0.42);
+  font-size: 28rpx;
+  line-height: 38rpx;
+  text-align: center;
+}
+
+.password-back-link {
+  top: 1210rpx;
+}
+
+.password-form {
+  top: 560rpx;
+}
+
+.strength-bars {
+  display: flex;
+  gap: 16rpx;
+  width: 626rpx;
+  margin: 30rpx 0 26rpx;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 8rpx;
+  border-radius: 8rpx;
+  background: #dedede;
+}
+
+.strength-bar.active {
+  background: #ff5b5f;
+}
+
+.password-tip {
+  display: block;
+  margin-bottom: 40rpx;
+  color: rgba(23, 22, 39, 0.46);
+  font-size: 26rpx;
+  line-height: 36rpx;
+}
+
+.confirm-field {
+  margin-bottom: 0;
+}
+
+.success-wrap {
+  min-height: 100vh;
+  padding: 0;
+}
+
+.success-icon {
+  position: absolute;
+  top: 304rpx;
+  left: 295rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(135deg, #8f56f5 0%, #ee4f96 100%);
+  font-size: 76rpx;
+  font-weight: 700;
+  line-height: 160rpx;
+}
+
+.success-title,
+.success-desc,
+.success-subdesc {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: block;
+  text-align: center;
+}
+
+.success-title {
+  top: 536rpx;
+  color: #171627;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 52rpx;
+}
+
+.success-desc {
+  top: 604rpx;
+  color: rgba(23, 22, 39, 0.48);
+  font-size: 26rpx;
+  line-height: 36rpx;
+}
+
+.success-subdesc {
+  top: 654rpx;
+  color: rgba(23, 22, 39, 0.48);
+  font-size: 26rpx;
+  line-height: 36rpx;
+}
+
+.success-button {
+  position: absolute;
+  top: 766rpx;
+  left: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 626rpx;
+  height: 104rpx;
+  border-radius: 28rpx;
+  color: #ffffff;
+  background: linear-gradient(90deg, #8f56f5 0%, #ee4f96 100%);
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 104rpx;
+}

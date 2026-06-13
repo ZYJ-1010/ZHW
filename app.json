@@ -1,6 +1,10 @@
 {
   "pages": [
+    "pages/entry/index",
+    "pages/home/guest/index",
     "pages/login/index",
+    "pages/login/invite/index",
+    "pages/login/forgot/index",
     "pages/home/index",
     "pages/role/apply/index",
     "pages/role/status/index",

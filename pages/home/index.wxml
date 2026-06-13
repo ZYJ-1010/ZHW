@@ -2,14 +2,12 @@
   <view wx:if="{{loading}}" class="loading">加载中...</view>
 
   <block wx:else>
-    <view class="header">
+    <view class="hero">
       <view>
-        <text class="hello">你好，{{user.nickname}}</text>
-        <text class="sub">今日信用 {{user.todayCreditScore}} · Lv.{{user.level}} · {{user.member.planName}}</text>
+        <text class="hello">HELLO, {{hero.roleName}}!</text>
+        <text class="hero-sub">{{hero.dateLabel}} | {{hero.subtitle}}</text>
       </view>
-      <view class="status {{user.needRealname ? 'warn' : 'ok'}}">
-        {{user.needRealname ? '待实名' : '已实名'}}
-      </view>
+      <text class="online">{{hero.onlineText}}</text>
     </view>
 
     <view wx:for="{{notices}}" wx:key="id" class="notice">
@@ -18,8 +16,60 @@
 
     <view class="section">
       <view class="section-head">
-        <text class="section-title">下一步</text>
-        <text class="section-more">入口</text>
+        <text class="section-title">今日推荐</text>
+        <text class="section-more">附近正在发生</text>
+      </view>
+
+      <view
+        wx:for="{{recommendedGames}}"
+        wx:key="id"
+        class="game-card"
+        data-route="{{item.route}}"
+        bindtap="goAction"
+      >
+        <view class="game-main">
+          <view>
+            <text class="game-title">{{item.title}}</text>
+            <text class="game-meta">📍{{item.cityName}} · {{item.distanceText}} · {{item.memberText}}</text>
+            <text class="game-meta">⏰{{item.timeText}}</text>
+          </view>
+          <text class="join-pill">{{item.actionText}}</text>
+        </view>
+        <view class="game-bottom">
+          <text class="game-status">{{item.statusText}}</text>
+          <text class="game-price">{{item.priceText}}</text>
+          <text class="game-joined">{{item.joinedText}}</text>
+        </view>
+        <view class="tags">
+          <text wx:for="{{item.tags}}" wx:key="*this" class="tag">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="player-card">
+      <view class="player-head">
+        <view>
+          <text class="player-role">{{playerSummary.roleLabel}}</text>
+          <text class="player-name">{{playerSummary.title}} · {{playerSummary.displayName}}</text>
+        </view>
+        <text class="xp">{{playerSummary.xpText}}</text>
+      </view>
+      <view class="progress">
+        <view class="progress-bar" style="width: {{playerSummary.progressPercent}}%;"></view>
+      </view>
+      <text class="progress-tip">{{playerSummary.nextLevelText}}</text>
+      <view class="stats">
+        <view wx:for="{{playerSummary.stats}}" wx:key="label" class="stat">
+          <text class="stat-value">{{item.value}}</text>
+          <text class="stat-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">快捷入口</text>
+        <text class="section-more">下一步</text>
       </view>
       <view class="actions">
         <view
@@ -34,27 +84,55 @@
       </view>
     </view>
 
+    <view class="section two-col">
+      <view>
+        <view class="section-head">
+          <text class="section-title">本周玩霸榜</text>
+          <text class="section-more">XP</text>
+        </view>
+        <view wx:for="{{rankingList}}" wx:key="rank" class="rank-row">
+          <text class="rank-no">{{item.rank}}</text>
+          <view class="rank-copy">
+            <text class="rank-name">{{item.name}}</text>
+            <text class="rank-desc">{{item.desc}}</text>
+          </view>
+          <text class="rank-xp">{{item.xpText}}</text>
+        </view>
+      </view>
+
+      <view class="achievement-block">
+        <text class="section-title">我的成就</text>
+        <view wx:for="{{achievementList}}" wx:key="id" class="achievement">
+          <text>{{item.title}}</text>
+          <text>{{item.statusText}}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="section">
       <view class="section-head">
-        <text class="section-title">推荐组局</text>
-        <text class="section-more">{{nearbySummary.cityName}} · {{nearbySummary.count}} 个附近局</text>
+        <text class="section-title">朋友在玩</text>
+        <text class="section-more">查看全部</text>
       </view>
       <view
-        wx:for="{{recommendedGames}}"
+        wx:for="{{friendGames}}"
         wx:key="id"
-        class="game-card"
-        data-route="pages/game/detail/index"
+        class="friend-card"
+        data-route="{{item.route}}"
         bindtap="goAction"
       >
-        <view class="game-top">
-          <text class="game-title">{{item.title}}</text>
-          <text class="game-status">{{item.statusText}}</text>
-        </view>
-        <text class="game-meta">{{item.cityName}} · {{item.distanceText}} · {{item.memberText}}</text>
-        <view class="tags">
-          <text wx:for="{{item.tags}}" wx:key="*this" class="tag">{{item}}</text>
-        </view>
+        <text class="game-title">{{item.title}}</text>
+        <text class="game-meta">📍{{item.cityName}} · {{item.distanceText}} · {{item.memberText}}</text>
+        <text class="game-meta">{{item.timeText}} · {{item.priceText}}</text>
       </view>
+    </view>
+
+    <view class="metaverse" data-route="{{metaverseEntry.route}}" bindtap="goAction">
+      <view>
+        <text class="metaverse-title">{{metaverseEntry.title}}</text>
+        <text class="metaverse-desc">{{metaverseEntry.desc}}</text>
+      </view>
+      <text class="metaverse-action">{{metaverseEntry.actionText}}</text>
     </view>
   </block>
 </view>

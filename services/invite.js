@@ -28,6 +28,25 @@ async function verifyInviteCode(code) {
   }
 }
 
+function saveInviteContext(invite) {
+  if (!invite || !invite.code) {
+    return
+  }
+
+  wx.setStorageSync('enjoy_invite_context', invite)
+}
+
+function getInviteContext() {
+  return wx.getStorageSync('enjoy_invite_context') || null
+}
+
+function clearInviteContext() {
+  wx.removeStorageSync('enjoy_invite_context')
+}
+
 module.exports = {
-  verifyInviteCode
+  verifyInviteCode,
+  saveInviteContext,
+  getInviteContext,
+  clearInviteContext
 }

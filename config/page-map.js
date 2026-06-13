@@ -4,8 +4,9 @@ const PAGE_GROUPS = [
     title: '邀请注册与登录',
     priority: 'P0',
     batch: '第 1 批：入口闭环',
-    route: '/pages/login/index',
-    screens: ['新用户邀请注册登录', '已注册用户登录', '忘记密码找回']
+    route: '/pages/entry/index',
+    routes: ['/pages/entry/index', '/pages/home/guest/index', '/pages/login/index', '/pages/login/invite/index', '/pages/login/forgot/index'],
+    screens: ['进入页面', '登录前首页', '用户注册登录', '新用户邀请注册登录', '微信授权登录（登录页内部流程）', '忘记密码找回']
   },
   {
     code: 'home',
@@ -13,7 +14,8 @@ const PAGE_GROUPS = [
     priority: 'P0',
     batch: '第 1 批：入口闭环',
     route: '/pages/home/index',
-    screens: ['玩家首页', '行家首页', '领路人首页', '无行家权限提示页', '无领路人权限提示页', '权益对比页', '首页调色说明页']
+    routes: ['/pages/home/index', '/pages/home/guest/index'],
+    screens: ['登录后玩家首页', '登录前首页', '行家首页', '领路人首页', '无行家权限提示页', '无领路人权限提示页', '权益对比页', '首页调色说明页']
   },
   {
     code: 'role',

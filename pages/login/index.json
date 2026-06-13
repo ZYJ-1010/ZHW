@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "登录注册",
+  "navigationBarTitleText": "邀请注册",
+  "navigationStyle": "custom",
+  "backgroundColor": "#FFFFFF",
   "enablePullDownRefresh": false
 }

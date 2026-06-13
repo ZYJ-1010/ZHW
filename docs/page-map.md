@@ -6,8 +6,8 @@
 
 | 业务域 | 墨刀页面 | 小程序路由 |
 | --- | --- | --- |
-| 邀请注册与登录 | 新用户邀请注册登录、已注册用户登录、忘记密码找回 | `pages/login/index` |
-| 首页与角色入口 | 玩家首页、行家首页、领路人首页、权限提示、权益对比 | `pages/home/index` |
+| 邀请注册与登录 | 进入页面、登录前首页、用户注册登录、新用户邀请注册登录、微信授权登录（登录页内部流程）、找回密码 | `pages/entry/index`、`pages/home/guest/index`、`pages/login/index`、`pages/login/invite/index`、`pages/login/forgot/index` |
+| 首页与角色入口 | 登录后玩家首页、行家首页、领路人首页、权限提示、权益对比 | `pages/home/index` |
 | 我的基础 | 我的 | `pages/profile/index` |
 
 目标：用户能进入、识别身份、看到角色和下一步动作。
@@ -49,4 +49,4 @@
 
 ## 当前说明
 
-墨刀完整 50 个画布尚未全部导出，当前映射基于已读取到的页面树。后续拿到完整截图或标注后，只在本文和 `config/page-map.js` 中补齐，不改 `00.文档`。
+墨刀完整 50 个画布尚未全部导出，当前映射基于已读取到的页面树。当前普通登录先按“第一个用户不需要邀请码”处理；默认启动链路为 `pages/entry/index` -> `pages/home/guest/index` -> `pages/login/index`。邀请码注册已拆到 `pages/login/invite/index`，作为分享/扫码进入后的单独链路。后续拿到完整截图或标注后，只在本文和 `config/page-map.js` 中补齐，不改 `00.文档`。
