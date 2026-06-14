@@ -237,6 +237,34 @@ function handleRequest(options) {
   const method = options.method || 'GET'
   const url = options.url
 
+  if (method === 'POST' && url === '/api/app/auth/wechat-login') {
+    return loginWithWechat(options.data || {})
+  }
+
+  if (method === 'POST' && url === '/api/app/auth/phone-code') {
+    return sendPhoneCode(options.data || {})
+  }
+
+  if (method === 'POST' && url === '/api/app/auth/phone-code/verify') {
+    return verifyPhoneCode(options.data || {})
+  }
+
+  if (method === 'POST' && url === '/api/app/auth/phone-login') {
+    return loginWithPhone(options.data || {})
+  }
+
+  if (method === 'POST' && url === '/api/app/auth/password-login') {
+    return loginWithPassword(options.data || {})
+  }
+
+  if (method === 'POST' && url === '/api/app/auth/password/reset') {
+    return resetPassword(options.data || {})
+  }
+
+  if (method === 'POST' && url === '/api/app/invites/verify') {
+    return verifyInvite(String(options.data && options.data.code || '').trim().toUpperCase())
+  }
+
   if (method === 'GET' && url === '/api/app/users/me') {
     return wait(ok(buildCurrentUser()))
   }

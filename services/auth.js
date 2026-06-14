@@ -1,10 +1,30 @@
 const api = require('../api/request')
+const logger = require('../utils/logger')
+
+const authLogger = logger.createLogger('auth')
 
 function wxLogin() {
   return new Promise((resolve, reject) => {
     wx.login({
-      success: (res) => resolve(res.code || ''),
-      fail: reject
+      success: (res) => {
+        const code = res.code || ''
+
+        if (!code) {
+          authLogger.error('wx.login missing code', {
+            result: res
+          })
+          reject(new Error('wx.login returned empty code'))
+          return
+        }
+
+        resolve(code)
+      },
+      fail: (error) => {
+        authLogger.error('wx.login failed', {
+          error
+        })
+        reject(error)
+      }
     })
   })
 }

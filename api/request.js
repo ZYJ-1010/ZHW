@@ -1,24 +1,101 @@
 const env = require('../config/env')
+const logger = require('../utils/logger')
 const mockApi = require('./mock')
 
-function request(options) {
-  return new Promise((resolve, reject) => {
-    const token = wx.getStorageSync('enjoy_token')
-    const method = options.method || 'GET'
-    const data = options.data || {}
-    const query = method === 'GET' && data ? buildQuery(data) : ''
+const requestLogger = logger.createLogger('request')
+const APP_VERSION = '0.1.0'
 
+function request(options) {
+  const method = String(options.method || 'GET').toUpperCase()
+  const data = options.data || {}
+  const url = options.url || ''
+  const startedAt = Date.now()
+  const token = typeof wx !== 'undefined' && typeof wx.getStorageSync === 'function'
+    ? wx.getStorageSync('enjoy_token')
+    : ''
+  const header = Object.assign({
+    'X-Client-Type': 'mp-wechat',
+    'X-App-Version': APP_VERSION
+  }, token ? {
+    Authorization: `Bearer ${token}`
+  } : {}, options.header || {})
+
+  requestLogger.debug('request start', {
+    method,
+    url,
+    data
+  })
+
+  return executeRequest({
+    method,
+    url,
+    data,
+    header
+  }).then((response) => {
+    const body = response ? response.data : undefined
+    const statusCode = response && typeof response.statusCode === 'number' ? response.statusCode : 0
+    const requestId = extractRequestId(body, response)
+    const code = getBusinessCode(body)
+    const message = getBusinessMessage(body)
+    const logPayload = {
+      method,
+      url,
+      duration: Date.now() - startedAt,
+      statusCode,
+      requestId,
+      code,
+      message
+    }
+
+    if (statusCode >= 500) {
+      requestLogger.error('request http error', logPayload)
+    } else if (statusCode >= 400) {
+      requestLogger.warn('request http error', logPayload)
+    } else if (typeof code === 'number' && code !== 0) {
+      requestLogger.warn('request business error', logPayload)
+    } else {
+      requestLogger.info('request success', logPayload)
+    }
+
+    return body
+  }).catch((error) => {
+    requestLogger.error('request network error', {
+      method,
+      url,
+      duration: Date.now() - startedAt,
+      error
+    })
+
+    throw error
+  })
+}
+
+function executeRequest(options) {
+  const method = options.method
+  const url = options.url
+  const data = options.data || {}
+  const header = options.header || {}
+  const query = method === 'GET' ? buildQuery(data) : ''
+
+  if (env.isMock) {
+    return mockApi.handleRequest({
+      url,
+      method,
+      data
+    }).then((result) => ({
+      statusCode: 200,
+      header: {},
+      data: result
+    }))
+  }
+
+  return new Promise((resolve, reject) => {
     wx.request({
-      url: `${env.baseUrl}${options.url}${query}`,
+      url: `${env.baseUrl}${url}${query}`,
       method,
       data: method === 'GET' ? {} : data,
-      header: Object.assign({
-        'X-Client-Type': 'mp-wechat',
-        'X-App-Version': '0.1.0'
-      }, token ? {
-        Authorization: `Bearer ${token}`
-      } : {}, options.header || {}),
-      success: (res) => resolve(res.data),
+      header,
+      success: resolve,
       fail: reject
     })
   })
@@ -32,15 +109,25 @@ function buildQuery(data) {
   return pairs.length ? `?${pairs.join('&')}` : ''
 }
 
-function get(url, data) {
-  if (env.isMock) {
-    return mockApi.handleRequest({
-      url,
-      method: 'GET',
-      data
-    })
+function extractRequestId(body, response) {
+  if (body && typeof body === 'object' && body.requestId) {
+    return body.requestId
   }
 
+  const header = response && (response.header || response.headers) ? (response.header || response.headers) : {}
+
+  return header['x-request-id'] || header['X-Request-Id'] || header.requestId || ''
+}
+
+function getBusinessCode(body) {
+  return body && typeof body.code === 'number' ? body.code : null
+}
+
+function getBusinessMessage(body) {
+  return body && typeof body.message === 'string' ? body.message : ''
+}
+
+function get(url, data) {
   return request({
     url,
     method: 'GET',
@@ -49,14 +136,6 @@ function get(url, data) {
 }
 
 function post(url, data) {
-  if (env.isMock) {
-    return mockApi.handleRequest({
-      url,
-      method: 'POST',
-      data
-    })
-  }
-
   return request({
     url,
     method: 'POST',
@@ -65,14 +144,6 @@ function post(url, data) {
 }
 
 function put(url, data) {
-  if (env.isMock) {
-    return mockApi.handleRequest({
-      url,
-      method: 'PUT',
-      data
-    })
-  }
-
   return request({
     url,
     method: 'PUT',
@@ -81,10 +152,6 @@ function put(url, data) {
 }
 
 function loginWithWechat(payload) {
-  if (env.isMock) {
-    return mockApi.loginWithWechat(payload)
-  }
-
   return request({
     url: '/api/app/auth/wechat-login',
     method: 'POST',
@@ -93,10 +160,6 @@ function loginWithWechat(payload) {
 }
 
 function sendPhoneCode(payload) {
-  if (env.isMock) {
-    return mockApi.sendPhoneCode(payload)
-  }
-
   return request({
     url: '/api/app/auth/phone-code',
     method: 'POST',
@@ -105,10 +168,6 @@ function sendPhoneCode(payload) {
 }
 
 function verifyPhoneCode(payload) {
-  if (env.isMock) {
-    return mockApi.verifyPhoneCode(payload)
-  }
-
   return request({
     url: '/api/app/auth/phone-code/verify',
     method: 'POST',
@@ -117,10 +176,6 @@ function verifyPhoneCode(payload) {
 }
 
 function loginWithPhone(payload) {
-  if (env.isMock) {
-    return mockApi.loginWithPhone(payload)
-  }
-
   return request({
     url: '/api/app/auth/phone-login',
     method: 'POST',
@@ -129,10 +184,6 @@ function loginWithPhone(payload) {
 }
 
 function loginWithPassword(payload) {
-  if (env.isMock) {
-    return mockApi.loginWithPassword(payload)
-  }
-
   return request({
     url: '/api/app/auth/password-login',
     method: 'POST',
@@ -141,10 +192,6 @@ function loginWithPassword(payload) {
 }
 
 function resetPassword(payload) {
-  if (env.isMock) {
-    return mockApi.resetPassword(payload)
-  }
-
   return request({
     url: '/api/app/auth/password/reset',
     method: 'POST',
@@ -153,10 +200,6 @@ function resetPassword(payload) {
 }
 
 function verifyInvite(code) {
-  if (env.isMock) {
-    return mockApi.verifyInvite(code)
-  }
-
   return request({
     url: '/api/app/invites/verify',
     method: 'POST',
