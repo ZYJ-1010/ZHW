@@ -1,7 +1,30 @@
 {
   "libVersion": "3.16.1",
   "projectname": "01enjoy",
-  "condition": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "玩家首页单页查看",
+          "pathName": "pages/home/index",
+          "query": "ui=1&single=1",
+          "scene": null
+        },
+        {
+          "name": "首页组UI走查",
+          "pathName": "pages/home/index",
+          "query": "ui=1",
+          "scene": null
+        },
+        {
+          "name": "邀请注册5页走查",
+          "pathName": "pages/login/index",
+          "query": "ui=1&mode=home",
+          "scene": null
+        }
+      ]
+    }
+  },
   "setting": {
     "urlCheck": false,
     "coverView": false,

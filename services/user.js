@@ -10,6 +10,17 @@ async function getCurrentUser() {
   return result.data
 }
 
+async function startRealnameAuth() {
+  const result = await userApi.startRealnameAuth()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '实名认证页面打开失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
-  getCurrentUser
+  getCurrentUser,
+  startRealnameAuth
 }

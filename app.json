@@ -5,6 +5,7 @@
     "pages/login/index",
     "pages/login/invite/index",
     "pages/login/forgot/index",
+    "pages/login/realname/index",
     "pages/home/index",
     "pages/role/apply/index",
     "pages/role/status/index",

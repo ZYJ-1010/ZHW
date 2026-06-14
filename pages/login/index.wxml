@@ -1,56 +1,84 @@
 <view wx:if="{{isUiPreview}}" class="page ui-preview-page" bindtap="handleUiPreviewTap">
-  <view wx:if="{{uiPreviewStep === 'invite'}}" class="modao-screen">
-    <view class="modao-hero">
-      <view class="modao-hi-wrap">
-        <text class="modao-hi">HI</text>
-        <text class="modao-star">✦</text>
+  <view wx:if="{{uiPreviewStep === 'invite'}}" class="invite-flow-screen" catchtap="noop">
+    <view class="invite-flow-hero">
+      <view class="invite-flow-hi-wrap">
+        <text class="invite-flow-hi">HI</text>
+        <text class="invite-flow-star">✦</text>
       </view>
-      <text class="modao-welcome">欢迎进入真好玩~</text>
+      <text class="invite-flow-welcome">欢迎进入真好玩~</text>
     </view>
 
-    <view class="modao-form">
-      <view class="modao-field">
-        <text class="modao-value">+86 ›</text>
+    <view class="invite-flow-form">
+      <view class="invite-flow-field">
+        <text class="invite-flow-value">+86 ›</text>
+        <input
+          class="invite-flow-field-input"
+          value="{{phone}}"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          placeholder-class="invite-flow-input-placeholder"
+          bindinput="onPhoneInput"
+        />
       </view>
-      <view class="modao-field">
-        <text class="modao-placeholder">获取验证码</text>
-        <text class="modao-field-action">获取验证码</text>
+      <view class="invite-flow-field invite-flow-code-field">
+        <input
+          class="invite-flow-field-input"
+          value="{{verifyCode}}"
+          type="number"
+          maxlength="6"
+          placeholder="请输入验证码"
+          placeholder-class="invite-flow-input-placeholder"
+          bindinput="onCodeInput"
+        />
+        <text class="invite-flow-field-action {{canResend ? 'active' : 'disabled'}}" catchtap="sendUiPreviewInviteCode">
+          {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's'}}
+        </text>
       </view>
-      <view class="modao-field">
-        <text class="modao-value">Px****ON</text>
+      <view class="invite-flow-field">
+        <input
+          class="invite-flow-field-input"
+          value="{{inviteCode}}"
+          maxlength="20"
+          placeholder="请输入邀请码"
+          placeholder-class="invite-flow-input-placeholder"
+          bindinput="onInviteCodeInput"
+        />
       </view>
 
-      <view class="modao-primary">登录/注册</view>
-      <view class="modao-secondary-row">
-        <view class="modao-secondary">密码登录</view>
-        <view class="modao-secondary">微信登录</view>
+      <view class="invite-flow-primary" catchtap="handleUiPreviewInviteLogin">
+        {{isPhoneLoggingIn ? '登录中...' : '登录/注册'}}
+      </view>
+      <view class="invite-flow-secondary-row">
+        <view class="invite-flow-secondary" catchtap="startPasswordLogin">密码登录</view>
+        <view class="invite-flow-secondary" catchtap="startWechatAuth">微信登录</view>
       </view>
 
-      <text class="modao-invite-tip">已注册用户无需重复输入邀请码</text>
-      <view class="modao-agreement">
-        <view class="modao-check">✓</view>
-        <text class="modao-agree-muted">登录即表明同意</text>
-        <text class="modao-agree-link">用户协议</text>
-        <text class="modao-agree-link">及隐私协议</text>
+      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
+      <view class="invite-flow-agreement">
+        <view class="invite-flow-check">✓</view>
+        <text class="invite-flow-agree-muted">登录即表明同意</text>
+        <text class="invite-flow-agree-link">用户协议</text>
+        <text class="invite-flow-agree-link">及隐私协议</text>
       </view>
     </view>
   </view>
 
-  <view wx:elif="{{uiPreviewStep === 'entry'}}" class="modao-screen modao-entry-screen">
-    <text class="modao-entry-online">3999人在线</text>
-    <view class="modao-entry-orbit">
-      <view class="modao-entry-glow"></view>
-      <view class="modao-entry-ring ring-one"></view>
-      <view class="modao-entry-ring ring-two"></view>
-      <view class="modao-entry-core">
-        <text class="modao-entry-go">GO</text>
+  <view wx:elif="{{uiPreviewStep === 'entry'}}" class="invite-flow-screen invite-flow-entry-screen">
+    <text class="invite-flow-entry-online">3999人在线</text>
+    <view class="invite-flow-entry-orbit">
+      <view class="invite-flow-entry-glow"></view>
+      <view class="invite-flow-entry-ring ring-one"></view>
+      <view class="invite-flow-entry-ring ring-two"></view>
+      <view class="invite-flow-entry-core">
+        <text class="invite-flow-entry-go">GO</text>
       </view>
     </view>
-    <text class="modao-entry-title">真好玩</text>
-    <text class="modao-entry-subtitle">ZHEN HAO WAN</text>
+    <text class="invite-flow-entry-title">真好玩</text>
+    <text class="invite-flow-entry-subtitle">ZHEN HAO WAN</text>
   </view>
 
-  <view wx:elif="{{uiPreviewStep === 'realnameModal'}}" class="modao-screen">
+  <view wx:elif="{{uiPreviewStep === 'realnameModal'}}" class="invite-flow-screen">
     <view class="realname-modal-mask"></view>
     <view class="realname-modal-card">
       <view class="realname-modal-icon">
@@ -63,12 +91,12 @@
       <text class="realname-modal-title">需要实名认证</text>
       <text class="realname-modal-desc">为了保障平台安全与信任体系</text>
       <text class="realname-modal-desc second">请完成实名认证后再继续使用</text>
-      <view class="realname-modal-primary">去实名认证</view>
-      <view class="realname-modal-secondary">稍后再说</view>
+      <view class="realname-modal-primary" catchtap="goRealnameGuide">去实名认证</view>
+      <view class="realname-modal-secondary disabled">稍后认证</view>
     </view>
   </view>
 
-  <view wx:elif="{{uiPreviewStep === 'realnameGuide'}}" class="modao-screen">
+  <view wx:elif="{{uiPreviewStep === 'realnameGuide'}}" class="invite-flow-screen">
     <view class="realname-guide-hero">
       <view class="realname-guide-icon-card">
         <text>✦</text>
@@ -93,47 +121,40 @@
       </view>
     </view>
 
-    <view class="realname-guide-button">开始认证</view>
+    <view class="realname-guide-button" catchtap="startRealnameAuth">
+      {{isStartingRealname ? '打开中...' : '开始认证'}}
+    </view>
   </view>
 
-  <view wx:else class="modao-screen newbie-task-screen">
+  <view wx:else class="invite-flow-screen newbie-task-screen">
     <view class="newbie-task-card">
       <text class="newbie-task-kicker">新手福利</text>
       <text class="newbie-task-title">完成新手任务</text>
       <text class="newbie-task-desc">解锁更多平台权益</text>
 
       <view class="newbie-task-list">
-        <view class="newbie-task-item done">
-          <view class="newbie-task-check">✓</view>
+        <view
+          wx:for="{{newbieTasks}}"
+          wx:key="id"
+          class="newbie-task-item {{item.itemClass}}"
+          catchtap="goNewbieTask"
+          data-id="{{item.id}}"
+          data-type="{{item.type}}"
+        >
+          <view class="newbie-task-check {{item.checkClass}}">{{item.checkText}}</view>
           <view class="newbie-task-copy">
-            <text class="newbie-task-name">完成实名认证</text>
-            <text class="newbie-task-reward">+50 经验值</text>
+            <text class="newbie-task-name">{{item.title}}</text>
+            <text class="newbie-task-reward">{{item.rewardText}}</text>
           </view>
-          <text class="newbie-task-status">已完成</text>
-        </view>
-        <view class="newbie-task-item">
-          <view class="newbie-task-check muted"></view>
-          <view class="newbie-task-copy">
-            <text class="newbie-task-name">完善个人资料</text>
-            <text class="newbie-task-reward">+30 经验值</text>
-          </view>
-          <text class="newbie-task-action">去完成</text>
-        </view>
-        <view class="newbie-task-item">
-          <view class="newbie-task-check muted"></view>
-          <view class="newbie-task-copy">
-            <text class="newbie-task-name">发布第一个局</text>
-            <text class="newbie-task-reward">+100 经验值</text>
-          </view>
-          <text class="newbie-task-action">去完成</text>
+          <text class="{{item.statusClass}}">{{item.statusText}}</text>
         </view>
       </view>
 
       <view class="newbie-task-progress-bar">
-        <view class="newbie-task-progress-fill"></view>
+        <view class="newbie-task-progress-fill" style="width: {{newbieProgressPercent}}%;"></view>
       </view>
-      <text class="newbie-task-progress">已完成 1/3 个任务</text>
-      <view class="newbie-task-button">进入首页</view>
+      <text class="newbie-task-progress">已完成 {{newbieCompletedCount}}/{{newbieTotalCount}} 个任务</text>
+      <view class="newbie-task-button" catchtap="goHomeFromNewbieTasks">进入首页</view>
     </view>
   </view>
 </view>
@@ -292,7 +313,10 @@
 
   <view class="login-wrap auth-wrap" wx:elif="{{loginMode === 'wechatAuth'}}">
     <view class="auth-content">
-      <view class="auth-wechat-icon">微</view>
+      <view class="auth-wechat-icon">
+        <view class="wechat-bubble bubble-main"></view>
+        <view class="wechat-bubble bubble-sub"></view>
+      </view>
       <text class="auth-title">微信登录</text>
       <text class="auth-desc">真好玩 申请获取你的微信头像、昵称</text>
       <text class="auth-subdesc">用于完善个人资料</text>

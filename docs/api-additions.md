@@ -207,3 +207,94 @@ POST /api/app/auth/password/reset
 2. 是否允许账号密码登录，账号字段使用 `phone`、`account` 还是用户名。
 3. 找回密码是否需要先返回一次性 `resetToken`，再提交新密码。
 4. 手机验证码是否按 `scene` 区分登录、找回密码、绑定手机号。
+
+## 3. 实名认证页面入口接口
+
+记录日期：2026-06-14
+
+模块：邀请注册 / 实名认证
+
+页面：`pages/login/index` 邀请注册 5 页走查中的 `实名认证弹窗`、`实名认证引导`
+
+功能：未实名用户点击 `开始认证` 时，由后台返回实名认证页面地址；已实名用户通过 `GET /api/app/users/me` 判断后不弹窗，直接进入个人首页。
+
+状态：候选接口，待后端确认。
+
+候选路径：
+
+```text
+POST /api/app/users/me/realname-auth
+```
+
+建议入参：无。
+
+建议返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "url": "/pages/login/realname/index",
+    "provider": "mock"
+  },
+  "requestId": "req_xxx"
+}
+```
+
+待确认：
+
+1. 后台返回的是小程序内页面路径、H5 链接，还是第三方小程序跳转参数。
+2. 如果返回 H5 链接，前端需要新增或复用 `web-view` 承载页，并确认业务域名白名单。
+
+## 4. 新手任务状态接口
+
+记录日期：2026-06-14
+
+模块：邀请注册 / 新手任务
+
+页面：`pages/login/index` 邀请注册 5 页走查中的 `完成新手任务` 弹窗
+
+功能：实名认证完成后，由后台返回新手任务列表、任务类型、完成数量、总数量和进度；前端根据每条任务的完成状态把右侧文案显示为 `已完成` 或 `去完成`。
+
+状态：候选接口，正式接口文档中暂未找到已定稿的新手任务列表接口，待后端确认。
+
+候选路径：
+
+```text
+GET /api/app/newbie-tasks
+```
+
+建议返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "completedCount": 1,
+    "totalCount": 3,
+    "progressPercent": 33,
+    "tasks": [
+      {
+        "id": "newbie-realname",
+        "type": "realname",
+        "title": "完成实名认证",
+        "rewardText": "+50 经验值",
+        "completed": true,
+        "status": "completed",
+        "statusText": "已完成",
+        "actionText": "去完成",
+        "route": "pages/profile/index"
+      }
+    ]
+  },
+  "requestId": "req_xxx"
+}
+```
+
+待确认：
+
+1. 是否需要独立新手任务接口，还是由 `GET /api/app/dashboard/me` 或 `GET /api/app/growth/me` 扩展返回。
+2. 任务类型枚举是否固定为 `realname`、`profile`、`first_game`，以及奖励文案是否由后台直接返回。
+3. 未完成任务点击 `去完成` 时是否由后台返回 `route`，当前前端兜底为：`profile` -> `pages/profile/index`，`first_game` -> `pages/game/create/index`，`realname` -> `pages/login/index?ui=1&mode=realnameGuide`。

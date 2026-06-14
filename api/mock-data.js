@@ -179,6 +179,36 @@ const mockProfileHome = {
   }
 }
 
+const mockNewbieTasks = [
+  {
+    id: 'newbie-realname',
+    type: 'realname',
+    title: '完成实名认证',
+    rewardText: '+50 经验值',
+    completed: false,
+    route: 'pages/login/index?ui=1&mode=realnameGuide',
+    actionText: '去完成'
+  },
+  {
+    id: 'newbie-profile',
+    type: 'profile',
+    title: '完善个人资料',
+    rewardText: '+30 经验值',
+    completed: false,
+    route: 'pages/profile/index',
+    actionText: '去完成'
+  },
+  {
+    id: 'newbie-first-game',
+    type: 'first_game',
+    title: '发布第一个局',
+    rewardText: '+100 经验值',
+    completed: false,
+    route: 'pages/game/create/index',
+    actionText: '去完成'
+  }
+]
+
 const mockRoleApplications = [
   {
     roleType: 'expert',
@@ -210,5 +240,6 @@ module.exports = {
   mockCurrentUser,
   mockHome,
   mockProfileHome,
+  mockNewbieTasks,
   mockRoleApplications
 }

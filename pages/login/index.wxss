@@ -514,53 +514,92 @@
 
 .auth-content {
   position: absolute;
-  top: 330rpx;
-  left: 62rpx;
-  width: 626rpx;
+  top: 488rpx;
+  left: 115rpx;
+  width: 520rpx;
   text-align: center;
 }
 
 .auth-wechat-icon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 112rpx;
-  height: 112rpx;
+  width: 132rpx;
+  height: 132rpx;
   margin: 0 auto 42rpx;
-  border-radius: 50%;
+  border-radius: 32rpx;
   color: #ffffff;
-  background: #45c58a;
-  font-size: 42rpx;
-  font-weight: 700;
-  line-height: 112rpx;
+  background: #45c06f;
+  line-height: 132rpx;
+}
+
+.wechat-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: #050505;
+}
+
+.bubble-main {
+  top: 36rpx;
+  left: 30rpx;
+  width: 52rpx;
+  height: 40rpx;
+}
+
+.bubble-main::after,
+.bubble-sub::after {
+  position: absolute;
+  content: '';
+  width: 14rpx;
+  height: 14rpx;
+  background: #050505;
+  transform: rotate(45deg);
+}
+
+.bubble-main::after {
+  left: 8rpx;
+  bottom: -4rpx;
+}
+
+.bubble-sub {
+  top: 54rpx;
+  left: 60rpx;
+  width: 46rpx;
+  height: 36rpx;
+}
+
+.bubble-sub::after {
+  right: 8rpx;
+  bottom: -4rpx;
 }
 
 .auth-wrap .auth-title {
   color: #171627;
-  font-size: 40rpx;
+  font-size: 32rpx;
   font-weight: 700;
-  line-height: 50rpx;
+  line-height: 44rpx;
 }
 
 .auth-wrap .auth-desc {
-  margin-top: 28rpx;
-  color: rgba(23, 22, 39, 0.72);
-  font-size: 26rpx;
-  line-height: 36rpx;
+  margin-top: 24rpx;
+  color: #999999;
+  font-size: 22rpx;
+  line-height: 32rpx;
 }
 
 .auth-wrap .auth-subdesc {
-  margin-top: 8rpx;
-  color: rgba(23, 22, 39, 0.48);
-  font-size: 24rpx;
-  line-height: 34rpx;
+  margin-top: 4rpx;
+  color: #999999;
+  font-size: 22rpx;
+  line-height: 32rpx;
 }
 
 .auth-wrap .auth-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18rpx;
-  margin-top: 88rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+  margin-top: 72rpx;
 }
 
 .auth-wrap .allow-button,
@@ -568,25 +607,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
+  width: 520rpx;
+  height: 84rpx;
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 18rpx;
+  border-radius: 22rpx;
   box-sizing: border-box;
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 700;
-  line-height: 88rpx;
+  line-height: 84rpx;
 }
 
 .auth-wrap .allow-button {
   color: #ffffff;
-  background: #45c58a;
+  background: #45c06f;
 }
 
 .auth-wrap .reject-button {
   color: rgba(23, 22, 39, 0.72);
-  background: #f2f2f4;
+  background: #f6f7f9;
 }
 
 .landing-wrap {
@@ -905,7 +945,7 @@
   color: #171627;
 }
 
-.modao-screen {
+.invite-flow-screen {
   position: absolute;
   top: 0;
   left: 0;
@@ -917,24 +957,24 @@
   background: #ffffff;
 }
 
-.modao-hero {
+.invite-flow-hero {
   position: absolute;
   top: 126rpx;
   left: 62rpx;
   width: 626rpx;
 }
 
-.modao-hero.compact {
+.invite-flow-hero.compact {
   top: 116rpx;
 }
 
-.modao-hi-wrap {
+.invite-flow-hi-wrap {
   position: relative;
   width: 132rpx;
   height: 94rpx;
 }
 
-.modao-hi {
+.invite-flow-hi {
   display: block;
   color: #1a1a2e;
   font-size: 76rpx;
@@ -943,7 +983,7 @@
   letter-spacing: 0;
 }
 
-.modao-star {
+.invite-flow-star {
   position: absolute;
   top: -10rpx;
   right: 0;
@@ -952,7 +992,7 @@
   line-height: 34rpx;
 }
 
-.modao-welcome {
+.invite-flow-welcome {
   display: block;
   margin-top: 18rpx;
   color: #1a1a2e;
@@ -961,18 +1001,18 @@
   line-height: 44rpx;
 }
 
-.modao-form {
+.invite-flow-form {
   position: absolute;
-  top: 456rpx;
+  top: 420rpx;
   left: 62rpx;
   width: 626rpx;
 }
 
-.modao-form.account-preview {
+.invite-flow-form.account-preview {
   top: 448rpx;
 }
 
-.modao-field {
+.invite-flow-field {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -985,27 +1025,62 @@
   background: #f4f4f6;
 }
 
-.modao-value,
-.modao-placeholder,
-.modao-field-action {
+.invite-flow-value,
+.invite-flow-placeholder,
+.invite-flow-field-action {
   display: block;
   font-size: 24rpx;
   line-height: 32rpx;
 }
 
-.modao-value {
+.invite-flow-value {
+  flex: 0 0 auto;
   color: #1a1a2e;
 }
 
-.modao-placeholder {
+.invite-flow-placeholder {
   color: #c1c1c8;
 }
 
-.modao-field-action {
-  color: #a8a8b2;
+.invite-flow-field-action {
+  display: block;
+  align-self: center;
+  flex: 0 0 148rpx;
+  color: #b65bd2;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  text-align: center;
 }
 
-.modao-primary {
+.invite-flow-field-action.active {
+  color: #b65bd2;
+  font-weight: 700;
+}
+
+.invite-flow-field-action.disabled {
+  color: #a8a8b2;
+  font-weight: 500;
+}
+
+.invite-flow-field-input {
+  flex: 1;
+  min-width: 0;
+  height: 80rpx;
+  margin-left: 18rpx;
+  color: #1a1a2e;
+  font-size: 24rpx;
+  line-height: 80rpx;
+}
+
+.invite-flow-field .invite-flow-field-input:first-child {
+  margin-left: 0;
+}
+
+.invite-flow-input-placeholder {
+  color: #c1c1c8;
+}
+
+.invite-flow-primary {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1021,7 +1096,7 @@
   line-height: 82rpx;
 }
 
-.modao-secondary-row {
+.invite-flow-secondary-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14rpx;
@@ -1029,7 +1104,7 @@
   margin-top: 18rpx;
 }
 
-.modao-secondary {
+.invite-flow-secondary {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1042,7 +1117,7 @@
   line-height: 68rpx;
 }
 
-.modao-invite-tip {
+.invite-flow-invite-tip {
   display: block;
   margin-top: 54rpx;
   color: #9a9aa3;
@@ -1051,7 +1126,7 @@
   text-align: center;
 }
 
-.modao-agreement {
+.invite-flow-agreement {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1062,11 +1137,11 @@
   line-height: 28rpx;
 }
 
-.modao-agreement.account-agree {
+.invite-flow-agreement.account-agree {
   margin-top: 48rpx;
 }
 
-.modao-check {
+.invite-flow-check {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1081,16 +1156,16 @@
   line-height: 24rpx;
 }
 
-.modao-agree-muted {
+.invite-flow-agree-muted {
   color: #9a9aa3;
 }
 
-.modao-agree-link {
+.invite-flow-agree-link {
   color: #11b88a;
   font-weight: 700;
 }
 
-.modao-code-panel {
+.invite-flow-code-panel {
   position: absolute;
   top: 430rpx;
   left: 62rpx;
@@ -1098,34 +1173,34 @@
   text-align: center;
 }
 
-.modao-phone,
-.modao-code-copy,
-.modao-resend {
+.invite-flow-phone,
+.invite-flow-code-copy,
+.invite-flow-resend {
   display: block;
 }
 
-.modao-phone {
+.invite-flow-phone {
   color: #1a1a2e;
   font-size: 34rpx;
   font-weight: 800;
   line-height: 44rpx;
 }
 
-.modao-code-copy {
+.invite-flow-code-copy {
   margin-top: 12rpx;
   color: #999999;
   font-size: 22rpx;
   line-height: 30rpx;
 }
 
-.modao-code-boxes {
+.invite-flow-code-boxes {
   display: flex;
   justify-content: space-between;
   width: 626rpx;
   margin-top: 64rpx;
 }
 
-.modao-code-box {
+.invite-flow-code-box {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1140,7 +1215,7 @@
   line-height: 44rpx;
 }
 
-.modao-resend {
+.invite-flow-resend {
   margin-top: 46rpx;
   color: #9b5cf6;
   font-size: 24rpx;
@@ -1151,7 +1226,7 @@
   margin-top: 72rpx;
 }
 
-.modao-forgot {
+.invite-flow-forgot {
   display: block;
   margin: -14rpx 8rpx 36rpx 0;
   color: #999999;
@@ -1160,7 +1235,7 @@
   text-align: right;
 }
 
-.modao-auth-card {
+.invite-flow-auth-card {
   position: absolute;
   top: 280rpx;
   left: 62rpx;
@@ -1168,7 +1243,7 @@
   text-align: center;
 }
 
-.modao-wechat-icon {
+.invite-flow-wechat-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1183,34 +1258,34 @@
   line-height: 112rpx;
 }
 
-.modao-auth-title,
-.modao-auth-desc,
-.modao-auth-subdesc {
+.invite-flow-auth-title,
+.invite-flow-auth-desc,
+.invite-flow-auth-subdesc {
   display: block;
 }
 
-.modao-auth-title {
+.invite-flow-auth-title {
   color: #1a1a2e;
   font-size: 40rpx;
   font-weight: 800;
   line-height: 52rpx;
 }
 
-.modao-auth-desc {
+.invite-flow-auth-desc {
   margin-top: 34rpx;
   color: #666666;
   font-size: 26rpx;
   line-height: 38rpx;
 }
 
-.modao-auth-subdesc {
+.invite-flow-auth-subdesc {
   margin-top: 8rpx;
   color: #999999;
   font-size: 24rpx;
   line-height: 34rpx;
 }
 
-.modao-auth-actions {
+.invite-flow-auth-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18rpx;
@@ -1218,8 +1293,8 @@
   margin-top: 108rpx;
 }
 
-.modao-auth-allow,
-.modao-auth-reject {
+.invite-flow-auth-allow,
+.invite-flow-auth-reject {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1230,23 +1305,23 @@
   line-height: 82rpx;
 }
 
-.modao-auth-allow {
+.invite-flow-auth-allow {
   color: #ffffff;
   background: #21c45d;
 }
 
-.modao-auth-reject {
+.invite-flow-auth-reject {
   color: #666666;
   background: #f2f2f4;
 }
 
-.modao-entry-screen {
+.invite-flow-entry-screen {
   overflow: hidden;
   background: #050507;
   color: #ffffff;
 }
 
-.modao-entry-online {
+.invite-flow-entry-online {
   position: absolute;
   top: 152rpx;
   left: 0;
@@ -1258,7 +1333,7 @@
   text-align: center;
 }
 
-.modao-entry-orbit {
+.invite-flow-entry-orbit {
   position: absolute;
   top: 396rpx;
   left: 92rpx;
@@ -1266,7 +1341,7 @@
   height: 566rpx;
 }
 
-.modao-entry-glow {
+.invite-flow-entry-glow {
   position: absolute;
   top: 56rpx;
   left: 56rpx;
@@ -1276,13 +1351,13 @@
   background: radial-gradient(circle, rgba(244, 84, 169, 0.92) 0%, rgba(137, 87, 246, 0.78) 42%, rgba(0, 201, 167, 0.18) 70%, rgba(5, 5, 7, 0) 100%);
 }
 
-.modao-entry-ring {
+.invite-flow-entry-ring {
   position: absolute;
   border-radius: 50%;
   box-sizing: border-box;
 }
 
-.modao-entry-ring.ring-one {
+.invite-flow-entry-ring.ring-one {
   top: 54rpx;
   left: 54rpx;
   width: 458rpx;
@@ -1290,7 +1365,7 @@
   border: 2rpx solid rgba(255, 255, 255, 0.24);
 }
 
-.modao-entry-ring.ring-two {
+.invite-flow-entry-ring.ring-two {
   top: 118rpx;
   left: 118rpx;
   width: 330rpx;
@@ -1298,7 +1373,7 @@
   border: 2rpx solid rgba(255, 255, 255, 0.34);
 }
 
-.modao-entry-core {
+.invite-flow-entry-core {
   position: absolute;
   top: 162rpx;
   left: 162rpx;
@@ -1312,14 +1387,14 @@
   box-shadow: 0 22rpx 70rpx rgba(236, 72, 153, 0.42);
 }
 
-.modao-entry-go {
+.invite-flow-entry-go {
   color: #ffffff;
   font-size: 72rpx;
   font-weight: 900;
   line-height: 88rpx;
 }
 
-.modao-entry-title {
+.invite-flow-entry-title {
   position: absolute;
   top: 1040rpx;
   left: 0;
@@ -1331,7 +1406,7 @@
   text-align: center;
 }
 
-.modao-entry-subtitle {
+.invite-flow-entry-subtitle {
   position: absolute;
   top: 1106rpx;
   left: 0;
@@ -1471,6 +1546,12 @@
   margin-top: 18rpx;
   color: #777783;
   background: #f4f4f6;
+}
+
+.realname-modal-secondary.disabled {
+  color: #b8b8c0;
+  background: #f1f1f4;
+  opacity: 0.72;
 }
 
 .realname-guide-hero {
@@ -1719,7 +1800,7 @@
 }
 
 .newbie-task-progress-fill {
-  width: 33%;
+  width: 0;
   height: 8rpx;
   border-radius: 999rpx;
   background: linear-gradient(100deg, #8a5cf6 0%, #e44f9b 100%);

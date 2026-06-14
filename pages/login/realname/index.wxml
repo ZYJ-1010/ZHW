@@ -1,0 +1,3 @@
+<view class="page" bindtap="completeRealname">
+  <text class="realname-test-hint">{{isCompleting ? '认证完成...' : '点击完成实名认证'}}</text>
+</view>

@@ -1,4 +1,347 @@
-<view class="page">
+<view wx:if="{{isHomePreview}}" class="home-preview-page {{currentHomePreview.mode}}" bindtap="handleHomePreviewTap">
+  <block wx:if="{{currentHomePreview.mode === 'playerHome'}}">
+    <scroll-view class="home-player-scroll" scroll-y enhanced show-scrollbar="false">
+      <view class="home-player-canvas">
+      <view class="home-player-top">
+        <view>
+          <text class="home-player-flag"></text>
+          <text class="home-player-brand">{{currentHomePreview.brand}}</text>
+          <text class="home-player-online">{{currentHomePreview.onlineText}}</text>
+        </view>
+        <view class="home-player-tools">
+          <text class="home-player-tool-dot"></text>
+          <text class="home-player-tool-search">⌕</text>
+          <text class="home-player-avatar"></text>
+        </view>
+      </view>
+
+      <view class="home-player-content">
+        <view class="home-player-greeting">
+          <text class="home-player-title">{{currentHomePreview.title}}</text>
+          <text class="home-player-date">{{currentHomePreview.subtitle}}</text>
+        </view>
+
+        <view class="home-player-game home-player-featured">
+          <view class="home-player-game-image">{{currentHomePreview.featuredGame.imageText}}</view>
+          <view class="home-player-game-body">
+            <view class="home-player-game-head">
+              <text class="home-player-game-tag">{{currentHomePreview.featuredGame.tag}}</text>
+              <text class="home-player-game-price">{{currentHomePreview.featuredGame.price}}</text>
+            </view>
+            <text class="home-player-game-title">{{currentHomePreview.featuredGame.title}}</text>
+            <text class="home-player-game-meta location">{{currentHomePreview.featuredGame.location}}</text>
+            <text class="home-player-game-meta time">{{currentHomePreview.featuredGame.time}}</text>
+            <view class="home-player-game-foot">
+              <view class="home-player-avatars">
+                <text></text>
+                <text></text>
+                <text></text>
+              </view>
+              <text class="home-player-joined">{{currentHomePreview.featuredGame.joinedText}}</text>
+              <view class="home-player-card-actions">
+                <text wx:for="{{currentHomePreview.featuredGame.actions}}" wx:key="*this">{{item}}</text>
+              </view>
+            </view>
+          </view>
+          <text class="home-player-join-pill">{{currentHomePreview.featuredGame.action}}</text>
+        </view>
+
+        <view class="home-player-nearby-head">
+          <text class="home-player-section-title">附近正在发生</text>
+          <view class="home-player-nearby-tabs">
+            <text wx:for="{{currentHomePreview.nearbyTabs}}" wx:key="name" class="{{item.active ? 'active' : ''}}">{{item.name}}</text>
+          </view>
+        </view>
+
+        <view class="home-player-nearby-list">
+          <view wx:for="{{currentHomePreview.nearby}}" wx:key="title" class="home-player-game home-player-nearby-card">
+            <view class="home-player-game-image small">{{item.imageText}}</view>
+            <view class="home-player-game-body">
+              <view class="home-player-game-head">
+                <text class="home-player-game-tag explore">{{item.tag}}</text>
+                <text class="home-player-game-price">{{item.price}}</text>
+              </view>
+              <text class="home-player-game-title">{{item.title}}</text>
+              <text class="home-player-game-meta location">{{item.location}}</text>
+              <text class="home-player-game-meta time">{{item.time}}</text>
+              <view class="home-player-game-foot">
+                <view class="home-player-avatars">
+                  <text></text>
+                  <text></text>
+                  <text></text>
+                </view>
+                <text class="home-player-joined">{{item.joinedText}}</text>
+                <view class="home-player-card-actions">
+                  <text wx:for="{{item.actions}}" wx:key="*this">{{item}}</text>
+                </view>
+              </view>
+            </view>
+            <text class="home-player-join-pill">{{item.action}}</text>
+          </view>
+        </view>
+
+        <view class="home-player-rank-panel">
+          <view class="home-player-panel-head">
+            <view>
+              <text class="home-player-panel-icon">🏆</text>
+              <text class="home-player-panel-title">本周玩霸榜</text>
+            </view>
+            <view class="home-player-role-tabs">
+              <text wx:for="{{currentHomePreview.rankingTabs}}" wx:key="name" class="{{item.active ? 'active' : ''}}">{{item.name}}</text>
+            </view>
+          </view>
+          <view wx:for="{{currentHomePreview.rankingList}}" wx:key="rank" class="home-player-rank-row">
+            <text class="home-player-rank-no">{{item.rank}}</text>
+            <text class="home-player-rank-avatar">{{item.avatar}}</text>
+            <view class="home-player-rank-copy">
+              <text class="home-player-rank-name">{{item.name}}</text>
+              <text class="home-player-rank-desc">{{item.desc}}</text>
+            </view>
+            <view class="home-player-rank-xp">
+              <text>{{item.xp}}</text>
+              <text>XP</text>
+            </view>
+          </view>
+          <view class="home-player-rank-me">
+            <text class="home-player-rank-no">{{currentHomePreview.myRank.rank}}</text>
+            <text class="home-player-rank-avatar me">{{currentHomePreview.myRank.avatar}}</text>
+            <view class="home-player-rank-copy">
+              <text class="home-player-rank-name">{{currentHomePreview.myRank.name}}</text>
+              <text class="home-player-rank-desc">{{currentHomePreview.myRank.desc}}</text>
+            </view>
+            <view class="home-player-rank-xp">
+              <text>{{currentHomePreview.myRank.xp}}</text>
+              <text>XP</text>
+            </view>
+          </view>
+          <text class="home-player-rank-more">查看完整榜单</text>
+        </view>
+
+        <view class="home-player-achievement-panel">
+          <view class="home-player-panel-head">
+            <view>
+              <text class="home-player-panel-icon">💎</text>
+              <text class="home-player-panel-title">我的成就</text>
+            </view>
+          </view>
+          <view class="home-player-achievement-grid">
+            <view wx:for="{{currentHomePreview.achievements}}" wx:key="title" class="home-player-achievement">
+              <text class="home-player-achievement-icon">{{item.icon}}</text>
+              <text class="home-player-achievement-title">{{item.title}}</text>
+              <text class="home-player-achievement-status">{{item.status}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="home-player-profile-card">
+          <view class="home-player-profile-head">
+            <view class="home-player-profile-avatar">A</view>
+            <view>
+              <text class="home-player-profile-role">{{currentHomePreview.playerCard.role}}</text>
+              <text class="home-player-profile-title">{{currentHomePreview.playerCard.title}}</text>
+              <text class="home-player-profile-name">{{currentHomePreview.playerCard.name}}</text>
+            </view>
+            <text class="home-player-profile-xp">{{currentHomePreview.playerCard.xp}}</text>
+          </view>
+          <view class="home-player-progress">
+            <view class="home-player-progress-bar" style="width: {{currentHomePreview.playerCard.progress}}%;"></view>
+          </view>
+          <view class="home-player-profile-stats">
+            <view wx:for="{{currentHomePreview.playerCard.stats}}" wx:key="label">
+              <text>{{item.value}}</text>
+              <text>{{item.label}}</text>
+            </view>
+          </view>
+          <text class="home-player-next">{{currentHomePreview.playerCard.next}}</text>
+        </view>
+
+        <view class="home-player-earth">
+          <view>
+            <text class="home-player-earth-title">{{currentHomePreview.onlineCard.title}}</text>
+            <text class="home-player-earth-desc">{{currentHomePreview.onlineCard.desc}}</text>
+            <view class="home-player-tags">
+              <text>{{currentHomePreview.onlineCard.leftTag}}</text>
+              <text>{{currentHomePreview.onlineCard.rightTag}}</text>
+            </view>
+          </view>
+          <view class="home-player-globe">🌍</view>
+        </view>
+
+        <view class="home-player-entry-grid">
+          <view wx:for="{{currentHomePreview.entries}}" wx:key="title" class="home-player-entry {{item.theme}}">
+            <text class="home-player-entry-icon">{{item.icon}}</text>
+            <text class="home-player-entry-title">{{item.title}}</text>
+            <text class="home-player-entry-desc">{{item.desc}}</text>
+          </view>
+        </view>
+
+        <view class="home-player-role-switch">
+          <text wx:for="{{currentHomePreview.roleTabs}}" wx:key="name" class="{{item.active ? 'active' : ''}}">{{item.name}}</text>
+        </view>
+
+        <view class="home-player-friends-head">
+          <view>
+            <text class="home-player-panel-title">朋友在玩</text>
+            <text class="home-player-friend-count">2</text>
+          </view>
+          <text>查看全部</text>
+        </view>
+
+        <view class="home-player-nearby-list friend-list">
+          <view wx:for="{{currentHomePreview.friendGames}}" wx:key="title" class="home-player-game home-player-nearby-card">
+            <view class="home-player-game-image small warm">{{item.imageText}}</view>
+            <view class="home-player-game-body">
+              <view class="home-player-game-head">
+                <text class="home-player-game-tag explore">{{item.tag}}</text>
+                <text class="home-player-game-price">{{item.price}}</text>
+              </view>
+              <text class="home-player-game-title">{{item.title}}</text>
+              <text class="home-player-game-meta location">{{item.location}}</text>
+              <text class="home-player-game-meta time">{{item.time}}</text>
+              <view class="home-player-game-foot">
+                <view class="home-player-avatars">
+                  <text></text>
+                  <text></text>
+                  <text></text>
+                </view>
+                <text class="home-player-joined">{{item.joinedText}}</text>
+                <view class="home-player-card-actions">
+                  <text wx:for="{{item.actions}}" wx:key="*this">{{item}}</text>
+                </view>
+              </view>
+            </view>
+            <text class="home-player-join-pill">{{item.action}}</text>
+          </view>
+        </view>
+
+        <view class="home-player-metaverse">
+          <view>
+            <text class="home-player-metaverse-desc">{{currentHomePreview.metaverse.desc}}</text>
+            <view class="home-player-metaverse-tags">
+              <text wx:for="{{currentHomePreview.metaverse.tags}}" wx:key="*this">{{item}}</text>
+            </view>
+            <text class="home-player-metaverse-title">{{currentHomePreview.metaverse.title}}</text>
+          </view>
+          <view class="home-player-metaverse-stack">
+            <text></text>
+            <text></text>
+            <text></text>
+            <text>{{currentHomePreview.metaverse.badge}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="home-player-dock">
+        <view class="home-player-pad">
+          <text class="up">▲</text>
+          <text class="left">◀</text>
+          <text class="right">▶</text>
+          <text class="down">▼</text>
+        </view>
+        <view class="home-player-home">首页</view>
+        <view class="home-player-message">消息</view>
+        <view class="home-player-orbits">
+          <text class="orbit purple">{{currentHomePreview.navItems[1].name}}</text>
+          <text class="orbit green">{{currentHomePreview.navItems[0].name}}</text>
+          <text class="orbit pink">{{currentHomePreview.navItems[2].name}}</text>
+          <text class="home-player-join">{{currentHomePreview.joinText}}</text>
+        </view>
+      </view>
+
+      </view>
+    </scroll-view>
+  </block>
+
+  <view wx:else class="home-preview-screen {{currentHomePreview.mode}}">
+    <view class="home-preview-head">
+      <view>
+        <text class="home-preview-badge">{{currentHomePreview.roleBadge}}</text>
+        <text class="home-preview-title">{{currentHomePreview.title}}</text>
+        <text class="home-preview-subtitle">{{currentHomePreview.subtitle}}</text>
+      </view>
+      <text class="home-preview-count">{{homePreviewNo}}/{{homePreviewTotal}}</text>
+    </view>
+
+    <text class="home-preview-desc">{{currentHomePreview.desc || currentHomePreview.status}}</text>
+
+    <view wx:if="{{currentHomePreview.mode === 'dashboard'}}" class="home-preview-dashboard">
+      <view class="home-preview-stats">
+        <view wx:for="{{currentHomePreview.stats}}" wx:key="label" class="home-preview-stat">
+          <text class="home-preview-stat-value">{{item.value}}</text>
+          <text class="home-preview-stat-label">{{item.label}}</text>
+        </view>
+      </view>
+
+      <view class="home-preview-card-list">
+        <view wx:for="{{currentHomePreview.cards}}" wx:key="title" class="home-preview-card">
+          <view>
+            <text class="home-preview-card-title">{{item.title}}</text>
+            <text class="home-preview-card-meta">{{item.meta}}</text>
+          </view>
+          <text class="home-preview-card-tag">{{item.tag}}</text>
+        </view>
+      </view>
+
+      <view class="home-preview-actions">
+        <view wx:for="{{currentHomePreview.actions}}" wx:key="*this" class="home-preview-action">{{item}}</view>
+      </view>
+    </view>
+
+    <view wx:elif="{{currentHomePreview.mode === 'permission'}}" class="home-preview-permission">
+      <view class="home-preview-icon">!</view>
+      <view class="home-preview-benefits">
+        <view wx:for="{{currentHomePreview.benefits}}" wx:key="*this" class="home-preview-benefit">
+          <text class="home-preview-dot"></text>
+          <text>{{item}}</text>
+        </view>
+      </view>
+      <view class="home-preview-primary">{{currentHomePreview.primary}}</view>
+      <view class="home-preview-secondary">{{currentHomePreview.secondary}}</view>
+    </view>
+
+    <view wx:elif="{{currentHomePreview.mode === 'compare'}}" class="home-preview-compare">
+      <view wx:for="{{currentHomePreview.plans}}" wx:key="name" class="home-preview-plan">
+        <text class="home-preview-plan-name">{{item.name}}</text>
+        <text class="home-preview-plan-desc">{{item.desc}}</text>
+        <view class="home-preview-plan-tags">
+          <text wx:for="{{item.highlights}}" wx:key="*this" class="home-preview-plan-tag">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:elif="{{currentHomePreview.mode === 'apply'}}" class="home-preview-apply">
+      <view wx:for="{{currentHomePreview.formItems}}" wx:key="*this" class="home-preview-form-row">
+        <text>{{item}}</text>
+        <text class="home-preview-form-placeholder">待填写</text>
+      </view>
+      <view class="home-preview-primary">{{currentHomePreview.primary}}</view>
+    </view>
+
+    <view wx:elif="{{currentHomePreview.mode === 'review'}}" class="home-preview-review">
+      <view class="home-preview-status-card">
+        <text>{{currentHomePreview.status}}</text>
+      </view>
+      <view class="home-preview-steps">
+        <view wx:for="{{currentHomePreview.steps}}" wx:key="*this" class="home-preview-step">
+          <text class="home-preview-step-dot">{{index + 1}}</text>
+          <text>{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="home-preview-theme">
+      <view wx:for="{{currentHomePreview.colors}}" wx:key="name" class="home-preview-color-row">
+        <text>{{item.name}}</text>
+        <text>{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="home-preview-hit left" data-direction="-1" catchtap="handleHomePreviewTap"></view>
+  <view class="home-preview-hit right" data-direction="1" catchtap="handleHomePreviewTap"></view>
+</view>
+
+<view wx:else class="page">
   <view wx:if="{{loading}}" class="loading">加载中...</view>
 
   <block wx:else>

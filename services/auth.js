@@ -28,9 +28,13 @@ async function loginByWechat(options = {}) {
   return result.data
 }
 
-async function sendPhoneCode(phone) {
+async function sendPhoneCode(options) {
+  const payload = options && typeof options === 'object' ? options : {
+    phone: options
+  }
   const result = await api.sendPhoneCode({
-    phone
+    phone: payload.phone || '',
+    scene: payload.scene || 'login'
   })
 
   if (result.code !== 0) {
