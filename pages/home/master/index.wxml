@@ -1,0 +1,35 @@
+<scroll-view class="home-master-scroll" scroll-y enhanced show-scrollbar="false">
+  <view class="home-master-canvas">
+    <view class="home-master-content"></view>
+
+    <image class="home-master-logo" src="./assets/master-logo.png" mode="widthFix"></image>
+    <view class="home-master-online-wrap">
+      <text class="home-master-online-dot"></text>
+      <text class="home-master-online">{{onlineText}}</text>
+    </view>
+    <view class="home-master-toolbar">
+      <image class="home-master-avatar" src="./assets/master-avatar.png" mode="aspectFit"></image>
+      <image class="home-master-search" src="./assets/master-search.png" mode="aspectFit"></image>
+      <image class="home-master-chat" src="./assets/master-chat-button.png" mode="aspectFit"></image>
+    </view>
+
+    <view class="home-master-dock">
+      <view class="home-master-dpad">
+        <text class="up">▲</text>
+        <text class="left">◀</text>
+        <text class="right">▶</text>
+        <text class="down">▼</text>
+      </view>
+      <view class="home-master-home-key">
+        <image src="./assets/master-home-button.png" mode="aspectFit"></image>
+        <text>{{navItems[4].name}}</text>
+      </view>
+      <text class="home-master-message">{{navItems[3].name}}</text>
+      <view class="home-master-action-pad">
+        <text class="metaverse">{{navItems[1].name}}</text>
+        <text class="mine">{{navItems[0].name}}</text>
+        <text class="map">{{navItems[2].name}}</text>
+      </view>
+    </view>
+  </view>
+</scroll-view>

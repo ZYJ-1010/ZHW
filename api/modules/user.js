@@ -12,8 +12,13 @@ function startRealnameAuth() {
   return request.post('/api/app/users/me/realname-auth', {})
 }
 
+function submitRealnameAuth(data) {
+  return request.post('/api/app/users/me/realname-auth/submit', data)
+}
+
 module.exports = {
   getCurrentUser,
   updateProfile,
-  startRealnameAuth
+  startRealnameAuth,
+  submitRealnameAuth
 }

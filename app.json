@@ -7,6 +7,7 @@
     "pages/login/forgot/index",
     "pages/login/realname/index",
     "pages/home/index",
+    "pages/home/master/index",
     "pages/role/apply/index",
     "pages/role/status/index",
     "pages/game/hall/index",

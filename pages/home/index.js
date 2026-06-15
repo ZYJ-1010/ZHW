@@ -1,6 +1,116 @@
 const homeService = require('../../services/home')
 const toast = require('../../utils/toast')
 
+const HOME_CONVERTED_PAGES = [
+  {
+    name: '启动动画',
+    mode: 'launchAnimation',
+    brand: '眞好玩',
+    onlineText: '2999+人在线',
+    title: '真好玩',
+    subtitle: 'Zhen Hao Wan',
+    actionText: 'GO',
+    featureDots: ['pink', 'purple', 'cyan']
+  },
+  {
+    name: '角色权益对比',
+    mode: 'roleComparison',
+    roleBadge: '权益',
+    title: '角色权益对比',
+    subtitle: '选择适合你的角色，开启不同玩法',
+    roles: [
+      { name: '玩家', level: 'Lv.1+', icon: '🎮', active: true },
+      { name: '领路人', level: 'Lv.5+', icon: '🧭', active: false },
+      { name: '行家', level: 'Lv.20+', icon: '💎', active: false }
+    ],
+    benefits: [
+      { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
+      { name: '加入组局', player: '✓', leader: '✓', expert: '✓' },
+      { name: '创建路线', player: '✓', leader: '—', expert: '✓' },
+      { name: '分润收益', player: '—', leader: '基础会员40%', expert: '高级会员40%' },
+      { name: '服务交易', player: '—', leader: '—', expert: '✓' },
+      { name: '数据看板', player: '—', leader: '✓', expert: '✓' },
+      { name: '信用背书', player: '—', leader: '✓', expert: '✓' }
+    ],
+    primary: '立即申请角色'
+  },
+  {
+    name: '领路人申请进度',
+    mode: 'leaderProgress',
+    roleBadge: '领路人',
+    title: '申请进度',
+    subtitle: '平台正在审核您的申请资料',
+    heroTitle: '领路人申请',
+    status: '审核中',
+    progress: 66,
+    timelineTitle: '申请进度',
+    timeline: [
+      { title: '提交申请', desc: '已成功提交领路人申请', time: '2024.06.08 10:30', state: 'done', hasLine: true },
+      { title: '资料初审', desc: '平台已完成基础资料核验', time: '2024.06.08 11:15', state: 'done', hasLine: true },
+      { title: '深度审核', desc: '正在对您的资质进行深层验证，请耐心等待反馈', time: '进行中...', state: 'active', hasLine: true },
+      { title: '结果通知', desc: '审核完成后将通过通知中心告知您', time: '待完成', state: 'pending', hasLine: false }
+    ],
+    detailsTitle: '申请凭证',
+    details: [
+      { label: '申请身份', value: '领路人', highlight: true },
+      { label: '申请时间', value: '2024.06.08 10:30' },
+      { label: '申请编号', value: 'LR20240608001' },
+      { label: '当前状态', value: '深度审核中', highlight: true },
+      { label: '预计完成时间', value: '2024.06.12 18:00' }
+    ],
+    helperText: '如有疑问请联系 App 内在线客服咨询协助',
+    actions: ['返回玩家首页', '查看权益对比']
+  },
+  {
+    name: '领路人审核通过',
+    mode: 'roleAuditPassed',
+    roleBadge: '审核结果',
+    roleType: 'leader',
+    title: '审核结果',
+    headline: '恭喜审核通过！',
+    roleText: '你已成为「领路人」',
+    desc: ['你的申请已通过平台审核', '现在可以开始邀约玩家进入组局'],
+    certNo: 'ZHW-00115-2026',
+    certTime: '2026.06.10 14:30',
+    giftTitle: '新手礼包',
+    gifts: [
+      { icon: '＋', name: '每月添加行家15位', tag: '限时' },
+      { icon: '📌', name: '首页推荐7天', tag: '流量' },
+      { icon: '◆', name: '赠送200经验值', tag: '奖励' }
+    ],
+    actions: [
+      { icon: '网', name: '关系网开启' },
+      { icon: '邀', name: '邀请玩家' },
+      { icon: '人', name: '完善资料' }
+    ],
+    primary: '开启领路人之旅'
+  },
+  {
+    name: '行家审核通过',
+    mode: 'roleAuditPassed',
+    roleBadge: '审核结果',
+    roleType: 'expert',
+    title: '审核结果',
+    headline: '恭喜审核通过！',
+    roleText: '你已成为「行家」',
+    desc: ['你的申请已通过平台审核', '现在可以开始创建新局、交付服务'],
+    certNo: 'ZHW-00126-2026',
+    certTime: '2026.06.10 14:30',
+    giftTitle: '新手礼包',
+    gifts: [
+      { icon: '证', name: '每月添加行家30位', tag: '限时' },
+      { icon: '📌', name: '首页推荐7天', tag: '流量' },
+      { icon: '◆', name: '赠送200经验值', tag: '奖励' }
+    ],
+    actions: [
+      { icon: '图', name: '关系网开启' },
+      { icon: '邀', name: '邀请玩家' },
+      { icon: '证', name: '完善资料' }
+    ],
+    primary: '开启行家之旅'
+  }
+]
+
 const HOME_PREVIEW_PAGES = [
   {
     name: '玩家首页',
@@ -152,6 +262,7 @@ const HOME_PREVIEW_PAGES = [
     ],
     actions: ['邀请玩家', '引荐记录', '收益概览']
   },
+  ...HOME_CONVERTED_PAGES,
   {
     name: '无行家权限提示页',
     mode: 'permission',
@@ -397,8 +508,6 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    toast.developing()
   }
 })

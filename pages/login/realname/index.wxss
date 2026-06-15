@@ -1,13 +1,124 @@
 .page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
   min-height: 100vh;
-  background: #ffffff;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
 }
 
-.realname-test-hint {
-  color: #c6c6cc;
+.realname-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.realname-sheet {
+  position: absolute;
+  top: 150rpx;
+  left: 62rpx;
+  width: 626rpx;
+  padding: 42rpx 42rpx 46rpx;
+  border-radius: 34rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+  box-shadow: 0 28rpx 80rpx rgba(0, 0, 0, 0.16);
+}
+
+.realname-sheet-handle {
+  display: none;
+}
+
+.realname-head {
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+
+.realname-title {
+  display: block;
+  color: #1a1a2e;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 46rpx;
+}
+
+.realname-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #777783;
   font-size: 24rpx;
   line-height: 34rpx;
+}
+
+.realname-form {
+  width: 500rpx;
+  margin: 0 auto;
+  border-radius: 22rpx;
+  overflow: hidden;
+  background: #f4f4f6;
+}
+
+.realname-row {
+  display: flex;
+  align-items: center;
+  min-height: 86rpx;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  gap: 24rpx;
+}
+
+.realname-row + .realname-row {
+  border-top: 1rpx solid rgba(23, 22, 39, 0.08);
+}
+
+.realname-label {
+  display: flex;
+  align-items: center;
+  /*flex: 0 0 162rpx;*/
+  min-width: 134rpx;
+  color: #1a1a2e;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 38rpx;
+  text-align: justify;
+  white-space: nowrap;
+}
+
+.realname-label--name {
+  justify-content: space-between;
+}
+
+.realname-field {
+  width: 100%;
+}
+
+.realname-input {
+  flex: 1;
+  min-width: 0;
+  height: 86rpx;
+  color: #1a1a2e;
+  font-size: 28rpx;
+  line-height: 86rpx;
+}
+
+.realname-placeholder {
+  color: #b8b8c0;
+}
+
+.realname-note {
+  width: 500rpx;
+  margin: 22rpx auto 0;
+}
+
+.realname-note-line {
+  display: block;
+  color: #858590;
+  font-size: 20rpx;
+  line-height: 30rpx;
+}
+
+.realname-submit {
+  width: 500rpx;
+  margin: 30rpx auto 0;
+  border-radius: 22rpx;
 }

@@ -144,6 +144,22 @@ function resetPassword(payload) {
   }))
 }
 
+function submitRealnameAuth(payload) {
+  const realname = String(payload.realname || '').trim()
+  const idNumber = String(payload.idNumber || '').trim().toUpperCase()
+
+  if (!/^[\u4e00-\u9fa5A-Za-z·\s]{2,20}$/.test(realname) || !/(^\d{15}$)|(^\d{17}[\dX]$)/.test(idNumber)) {
+    return wait(fail(40007, '实名认证失败，请重新核对后填写'))
+  }
+
+  setMockRealnameStatus('verified')
+
+  return wait(ok({
+    realnameStatus: 'verified',
+    verified: true
+  }))
+}
+
 function verifyInvite(code) {
   const invite = validInvites[code]
 
@@ -276,6 +292,10 @@ function handleRequest(options) {
     }))
   }
 
+  if (method === 'POST' && url === '/api/app/users/me/realname-auth/submit') {
+    return submitRealnameAuth(options.data || {})
+  }
+
   if (method === 'GET' && url === '/api/app/newbie-tasks') {
     return wait(ok(buildNewbieTaskSummary()))
   }
@@ -312,5 +332,6 @@ module.exports = {
   loginWithPhone,
   loginWithPassword,
   resetPassword,
+  submitRealnameAuth,
   verifyInvite
 }

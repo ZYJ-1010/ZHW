@@ -20,7 +20,18 @@ async function startRealnameAuth() {
   return result.data
 }
 
+async function submitRealnameAuth(data) {
+  const result = await userApi.submitRealnameAuth(data)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '实名认证失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
   getCurrentUser,
-  startRealnameAuth
+  startRealnameAuth,
+  submitRealnameAuth
 }

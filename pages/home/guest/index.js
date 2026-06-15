@@ -1,5 +1,5 @@
-const { ROUTES } = require('../../../config/routes')
 const homeService = require('../../../services/home')
+const toast = require('../../../utils/toast')
 
 Page({
   data: {
@@ -33,14 +33,10 @@ Page({
   },
 
   goLogin() {
-    wx.navigateTo({
-      url: `/${ROUTES.login}?ui=1&mode=home`
-    })
+    toast.developing()
   },
 
   goInvite() {
-    wx.navigateTo({
-      url: `/${ROUTES.loginInvite}`
-    })
+    toast.developing()
   }
 })

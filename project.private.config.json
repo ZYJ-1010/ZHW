@@ -5,21 +5,21 @@
     "miniprogram": {
       "list": [
         {
-          "name": "玩家首页单页查看",
-          "pathName": "pages/home/index",
-          "query": "ui=1&single=1",
-          "scene": null
-        },
-        {
-          "name": "首页组UI走查",
-          "pathName": "pages/home/index",
-          "query": "ui=1",
-          "scene": null
-        },
-        {
-          "name": "邀请注册5页走查",
+          "name": "邀请注册走查",
           "pathName": "pages/login/index",
-          "query": "ui=1&mode=home",
+          "query": "ui=1&mode=invite&inviteCode=ENJOY2026",
+          "scene": null
+        },
+        {
+          "name": "首页走查-从玩家首页开始",
+          "pathName": "pages/home/index",
+          "query": "ui=1&single=0",
+          "scene": null
+        },
+        {
+          "name": "母版走查",
+          "pathName": "pages/home/master/index",
+          "query": "",
           "scene": null
         }
       ]
