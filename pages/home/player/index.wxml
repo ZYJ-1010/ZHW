@@ -1,0 +1,185 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  toolbar-style="{{toolbarStyle}}"
+  canvas-style="{{canvasStyle}}"
+  content-style="{{contentStyle}}"
+  dock-style="{{dockStyle}}"
+  bindnavtap="handleShellNavTap"
+>
+  <scroll-view class="player-home-scroll" scroll-y enhanced show-scrollbar="false">
+  <view class="player-home-page">
+    <view class="player-hero">
+      <text class="player-hero-title">{{hero.title}}</text>
+      <text class="player-hero-date">{{hero.date}}</text>
+    </view>
+
+    <view class="player-summary-card">
+      <text class="player-level-pill">{{playerCard.role}}</text>
+      <view class="player-summary-copy">
+        <text class="player-summary-title">{{playerCard.title}}</text>
+        <text class="player-summary-name">{{playerCard.name}}</text>
+      </view>
+      <view class="player-level-progress">
+        <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
+      </view>
+      <text class="player-summary-xp">{{playerCard.xp}}</text>
+      <text class="player-next-level">{{playerCard.next}}</text>
+      <view class="player-summary-stats">
+        <view wx:for="{{playerCard.stats}}" wx:key="label">
+          <text>{{item.value}}</text>
+          <text>{{item.label}}</text>
+        </view>
+      </view>
+      <view class="player-summary-device">
+        <text>🎮</text>
+        <text>⚡</text>
+      </view>
+      <view class="player-summary-divider"></view>
+      <view class="player-summary-divider player-summary-divider-bottom"></view>
+      <view class="player-summary-stat-divider player-summary-stat-divider-left"></view>
+      <view class="player-summary-stat-divider player-summary-stat-divider-right"></view>
+      <view class="player-role-tags">
+        <view
+          wx:for="{{roleTags}}"
+          wx:key="key"
+          class="player-role-tag {{item.active ? 'active' : ''}}"
+        >
+          <text>{{item.icon}} {{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="player-action-grid">
+      <view wx:for="{{entries}}" wx:key="title" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
+        <view class="player-action-icon">
+          <view wx:if="{{item.routeIcon}}" class="player-lobby-icon">
+            <view class="player-lobby-icon-group">
+              <image class="player-lobby-icon-piece player-lobby-icon-pin-start" src="/pages/home/player/assets/lobby-route-pin-start.png" mode="scaleToFill" />
+              <image class="player-lobby-icon-piece player-lobby-icon-line" src="/pages/home/player/assets/lobby-route-line.png" mode="scaleToFill" />
+              <image class="player-lobby-icon-piece player-lobby-icon-pin-end" src="/pages/home/player/assets/lobby-route-pin-end.png" mode="scaleToFill" />
+            </view>
+          </view>
+          <text wx:else class="player-action-icon-text">{{item.icon}}</text>
+        </view>
+        <text class="player-action-title">{{item.title}}</text>
+        <text class="player-action-desc">{{item.desc}}</text>
+      </view>
+    </view>
+
+    <view class="player-world-card" bindtap="handleActionTap">
+      <view>
+        <text class="player-world-title">{{onlineCard.title}}</text>
+        <text class="player-world-desc">{{onlineCard.desc}}</text>
+        <view class="player-world-tags">
+          <text wx:for="{{onlineCard.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+        </view>
+      </view>
+      <view class="player-world-globe">
+        <view class="player-world-map-track">
+          <image class="player-world-map-image" src="/pages/home/player/assets/earth-map-texture.png" mode="scaleToFill" />
+          <image class="player-world-map-image" src="/pages/home/player/assets/earth-map-texture.png" mode="scaleToFill" />
+        </view>
+      </view>
+    </view>
+
+    <view class="player-section-head nearby">
+      <text class="player-section-title">附近正在发生</text>
+      <view class="player-tabs nearby-tabs">
+        <view wx:for="{{nearbyTabs}}" wx:for-item="tab" wx:key="key" data-key="{{tab.key}}" bindtap="handleNearbyTabTap" class="player-tab {{tab.active ? 'active' : ''}}">{{tab.name}}</view>
+      </view>
+    </view>
+
+    <block wx:for="{{nearbyGames}}" wx:key="title">
+      <game-card wx:if="{{nearbyFilter === 'all' || item.scope === nearbyFilter}}" item="{{item}}" bind:cardtap="handleActionTap" />
+    </block>
+
+    <view class="player-ranking-panel">
+      <view class="player-panel-head">
+        <view>
+          <text class="player-panel-icon">🏆</text>
+          <text class="player-panel-title">本周玩霸榜</text>
+        </view>
+        <view class="player-tabs role">
+          <text wx:for="{{rankingTabs}}" wx:for-item="tab" wx:key="name" class="{{tab.active ? 'active' : ''}}">{{tab.name}}</text>
+        </view>
+      </view>
+
+      <view wx:for="{{rankingList}}" wx:key="rank" class="player-rank-row">
+        <text class="player-rank-no">{{item.rank}}</text>
+        <text class="player-rank-avatar">{{item.avatar}}</text>
+        <view class="player-rank-copy">
+          <text class="player-rank-name">{{item.name}}</text>
+          <text class="player-rank-desc">{{item.desc}}</text>
+        </view>
+        <view class="player-rank-xp">
+          <text>{{item.xp}}</text>
+          <text>XP</text>
+        </view>
+      </view>
+
+      <view class="player-rank-row me">
+        <text class="player-rank-no">{{myRank.rank}}</text>
+        <text class="player-rank-avatar me">{{myRank.avatar}}</text>
+        <view class="player-rank-copy">
+          <text class="player-rank-name">{{myRank.name}}</text>
+          <text class="player-rank-desc">{{myRank.desc}}</text>
+        </view>
+        <view class="player-rank-xp">
+          <text>{{myRank.xp}}</text>
+          <text>XP</text>
+        </view>
+      </view>
+
+      <text class="player-rank-more">查看完整榜单</text>
+    </view>
+
+    <view class="player-achievement-panel">
+      <view class="player-panel-head">
+        <view>
+          <text class="player-panel-icon">🏅</text>
+          <text class="player-panel-title">我的成就</text>
+        </view>
+      </view>
+      <view class="player-achievement-grid">
+        <view wx:for="{{achievements}}" wx:key="title" class="player-achievement">
+          <text class="player-achievement-icon">{{item.icon}}</text>
+          <text class="player-achievement-title">{{item.title}}</text>
+          <text class="player-achievement-status">{{item.status}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="player-tabs role-switch">
+      <text class="active">玩家 Lv.5</text>
+      <text>🎮 玩家</text>
+    </view>
+
+    <view class="player-section-head friends">
+      <view>
+        <text class="player-panel-icon">🎮</text>
+        <text class="player-section-title">朋友在玩</text>
+      </view>
+      <text class="player-friend-more">查看全部</text>
+    </view>
+
+    <game-card wx:for="{{friendGames}}" wx:key="title" item="{{item}}" bind:cardtap="handleActionTap" />
+
+    <view class="player-metaverse-card" bindtap="handleActionTap">
+      <view>
+        <view class="player-metaverse-tags">
+          <text wx:for="{{metaverse.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+        </view>
+        <text class="player-metaverse-title">{{metaverse.title}}</text>
+        <text class="player-metaverse-desc">{{metaverse.desc}}</text>
+      </view>
+      <view class="player-metaverse-stack">
+        <text></text>
+        <text></text>
+        <text></text>
+        <text>{{metaverse.badge}}</text>
+      </view>
+    </view>
+  </view>
+  </scroll-view>
+</home-shell>

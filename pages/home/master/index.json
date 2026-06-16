@@ -1,4 +1,7 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "首页母版走查"
+  "navigationBarTitleText": "首页母版走查",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
 }

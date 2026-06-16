@@ -1,0 +1,67 @@
+<scroll-view class="home-shell-scroll {{shellClass}}" scroll-y enhanced show-scrollbar="false">
+  <view class="home-shell-canvas" style="{{canvasStyle}}">
+    <view class="home-shell-content" style="{{contentStyle}}">
+      <slot></slot>
+    </view>
+
+    <view class="home-shell-topbar">
+      <view class="home-shell-status-fill"></view>
+      <view class="home-shell-nav">
+        <view class="home-shell-brand">
+          <image
+            class="home-shell-brand__icon"
+            mode="aspectFit"
+            src="/pages/entry/assets/entry-ticket-icon.svg"
+          />
+          <image
+            class="home-shell-brand__mark"
+            mode="aspectFit"
+            src="/pages/entry/assets/entry-brand-wordmark.svg"
+          />
+          <view class="home-shell-brand__online">
+            <view class="home-shell-brand__online-dot"></view>
+            <text class="home-shell-brand__online-text">{{onlineText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="home-shell-toolbar" style="{{toolbarStyle}}">
+      <image class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
+      <image class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
+      <image class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap" src="./assets/master-avatar.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="home-shell-dock" style="{{dockStyle}}">
+      <view class="home-shell-dpad">
+        <view class="home-shell-dpad-key up" data-key="up" bindtap="handleNavTap">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+        <view class="home-shell-dpad-key left" data-key="left" bindtap="handleNavTap">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+        <view class="home-shell-dpad-key right" data-key="right" bindtap="handleNavTap">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+        <view class="home-shell-dpad-key down" data-key="down" bindtap="handleNavTap">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+      </view>
+      <button class="home-shell-nav-button home-shell-home-key" data-key="home" bindtap="handleNavTap">
+        <view class="home-shell-home-disc">
+          <text>{{shellNavItems[4].name}}</text>
+        </view>
+      </button>
+      <button class="home-shell-nav-button home-shell-message" data-key="message" bindtap="handleNavTap">
+        <view class="home-shell-message__shadow"></view>
+        <view class="home-shell-message__face"></view>
+        <text class="home-shell-message__label">{{shellNavItems[3].name}}</text>
+      </button>
+      <view class="home-shell-action-pad">
+        <button class="home-shell-nav-button metaverse" data-key="metaverse" bindtap="handleNavTap">{{shellNavItems[1].name}}</button>
+        <button class="home-shell-nav-button mine" data-key="mine" bindtap="handleNavTap">{{shellNavItems[0].name}}</button>
+        <button class="home-shell-nav-button map" data-key="map" bindtap="handleNavTap">{{shellNavItems[2].name}}</button>
+      </view>
+    </view>
+  </view>
+</scroll-view>

@@ -109,12 +109,23 @@ const mockHome = {
     }
   ],
   playerSummary: {
+    currentRole: 'player',
+    roleType: 'player',
     displayName: 'Alex Chen',
+    nickname: 'Alex Chen',
     roleLabel: '玩家 Lv.5',
-    title: '探险家',
+    title: '活跃达人',
+    level: 5,
+    nextLevel: 6,
+    experience: 580,
+    nextLevelExperience: 1000,
+    expToNextLevel: 420,
     xpText: '580/1000 XP',
     progressPercent: 58,
     nextLevelText: '距离下一等级还需 420 经验值',
+    joinCount: 12,
+    monthlyMvpCount: 3,
+    participationRate: '98%',
     stats: [
       { label: '参与局数', value: '12' },
       { label: '本月MVP', value: '3' },
@@ -153,6 +164,8 @@ const mockHome = {
   },
   nearbySummary: {
     count: 12,
+    nearbyGameCount: 12,
+    checkedInCount: 8,
     cityName: '上海',
     accuracyText: '定位精度 300m 内'
   }

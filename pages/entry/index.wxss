@@ -1,132 +1,378 @@
-.page {
+page {
+  --entry-top-bg: #168cd0;
+  min-height: 100%;
+  background: #000000;
+}
+
+.entry-page {
   min-height: 100vh;
   overflow: hidden;
-  background: #020406;
-  color: #ffffff;
+  background: #000000;
+  color: #168cd0;
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  height: 96rpx;
-  padding: 0 28rpx;
-  background: #0d8bd3;
-  box-sizing: border-box;
-}
-
-.brand-dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36rpx;
-  height: 26rpx;
-  margin-right: 12rpx;
-  border-radius: 4rpx;
-  background: #e94498;
-  color: #ffffff;
-  font-size: 18rpx;
-  font-weight: 800;
-  line-height: 26rpx;
-}
-
-.brand-name,
-.brand-sub,
-.title,
-.subtitle {
-  display: block;
-}
-
-.brand-name {
-  color: #b7ff52;
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.brand-sub {
-  margin-top: 4rpx;
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 18rpx;
-}
-
-.stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 170rpx;
-}
-
-.portal {
+.entry-phone {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 312rpx;
-  height: 312rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ff2c9c 0%, #7447ff 52%, #0fb8ff 100%);
-  box-shadow: 36rpx 54rpx 74rpx rgba(0, 201, 255, 0.35);
+  width: 750rpx;
+  min-height: 100vh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #000000;
 }
 
-.ticket {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 132rpx;
+.entry-topbar {
+  height: 182rpx;
+  background: var(--entry-top-bg);
+}
+
+.entry-status-fill {
   height: 88rpx;
-  border-radius: 12rpx;
-  background: #ffffff;
+  background: var(--entry-top-bg);
 }
 
-.plus {
-  color: #8c56f4;
-  font-size: 58rpx;
-  font-weight: 800;
-  line-height: 1;
+.entry-nav {
+  position: static;
+  display: flex;
+  align-items: flex-start;
+  height: 94rpx;
+  padding: 24rpx 20rpx 0;
+  box-sizing: border-box;
+  background: var(--entry-top-bg);
 }
 
-.dot {
-  width: 18rpx;
-  height: 18rpx;
-  margin-left: 26rpx;
-  border-radius: 50%;
-  background: #8c56f4;
-}
-
-.go-button {
+.entry-brand {
   position: absolute;
-  right: -38rpx;
-  bottom: -12rpx;
-  width: 88rpx;
-  height: 88rpx;
+  left: -40rpx;
+  top: 80rpx;
+  width: 142rpx;
+  height: 60rpx;
+}
+
+.entry-brand__icon {
+  position: absolute;
+  left: 0rpx;
+  top: 0rpx;
+  width: 200rpx;
+  height: 120rpx;
+}
+
+.entry-brand__mark {
+  position: absolute;
+  left: 115rpx;
+  top: -5rpx;
+  width: 120rpx;
+  height: 120rpx;
+}
+
+.entry-brand__online {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  left: 135rpx;
+  top: 70rpx;
+  width: 140rpx;
+}
+
+.entry-brand__online-dot {
+  flex: none;
+  width: 8rpx;
+  height: 8rpx;
+  margin-right: 6rpx;
+  border-radius: 50%;
+  background: #FEFA83;
+}
+
+.entry-brand__online-text {
+  color: #00F2FF;
+  font-size: 16rpx;
+  line-height: 16rpx;
+  white-space: nowrap;
+}
+
+.entry-content {
+  position: relative;
+  min-height: calc(100vh - 182rpx);
+  background: #000000;
+}
+
+.entry-hero {
+  position: relative;
+  width: 400rpx;
+  height: 400rpx;
+  margin: 184rpx 176rpx 0 auto;
+}
+
+.entry-orb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 400rpx;
+  height: 400rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f92b91 5%, #8247f9 55%, #10b8ff 100%);
+}
+
+.entry-ticket-panel {
+  position: absolute;
+  left: 100rpx;
+  top: 142rpx;
+  width: 200rpx;
+  height: 120rpx;
+  border-radius: 24rpx;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.2);
+  transform-origin: center bottom;
+  animation: entry-ticket-panel-bounce 1700ms ease-in-out 0s infinite both;
+  will-change: transform;
+}
+
+.entry-ticket-panel__bar {
+  position: absolute;
+  left: 18rpx;
+  top: 54rpx;
+  width: 60rpx;
+  height: 16rpx;
+  line-height: 40rpx;
+  background-color: rgba(151, 93, 235, 1);
+  color: rgba(248, 218, 119, 1);
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.entry-ticket-panel__bar--vertical {
+  transform: rotate(90deg);
+  transform-origin: center;
+}
+
+.entry-ticket-panel__dot {
+  position: absolute;
+  left: 96rpx;
+  top: 44rpx;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 16rpx;
+  background-color: rgba(131, 56, 236, 1);
+}
+
+.entry-ticket-panel__dot--small {
+  left: 144rpx;
+  top: 48rpx;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 12rpx;
+}
+
+.entry-go {
+  position: absolute;
+  left: 292rpx;
+  top: 298rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120rpx;
+  height: 120rpx;
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  border: 4rpx solid #020406;
-  border-radius: 50%;
-  background: #22d9ff;
-  color: #020406;
+  border: 8rpx solid #000000;
+  border-radius: 60rpx;
+  background: linear-gradient(135deg, rgba(0, 210, 255, 1) 14.6%, rgba(58, 123, 213, 1) 85.4%);
+  overflow: hidden;
+  color: #000000;
+  box-shadow: 0 10.34rpx 51.72rpx rgba(0, 210, 255, 0.62);
+}
+
+.entry-go__label {
   font-size: 28rpx;
-  font-weight: 900;
-  line-height: 80rpx;
-  box-shadow: 16rpx 22rpx 44rpx rgba(34, 217, 255, 0.4);
-}
-
-.go-button::after {
-  border: 0;
-}
-
-.title {
-  margin-top: 84rpx;
-  color: #ffffff;
-  font-size: 54rpx;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
-  text-shadow: 4rpx 6rpx 0 #7d44ff;
 }
 
-.subtitle {
-  margin-top: 34rpx;
-  color: rgba(255, 255, 255, 0.36);
-  font-size: 22rpx;
+.entry-go--active {
+  transform: scale(0.96);
+}
+
+.entry-title {
+  display: block;
+  width: 400rpx;
+  height: 260rpx;
+  margin: 20rpx auto 0;
+}
+
+.entry-subtitle {
+  display: block;
+  margin-top: -50rpx;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 24rpx;
   letter-spacing: 12rpx;
+  text-align: center;
+}
+
+.entry-accent-dot {
+  position: absolute;
+  left: 312rpx;
+  top: 800rpx;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 12rpx;
+  background-color: rgba(255, 0, 110, 1);
+  transform-origin: center;
+  animation: entry-dot-blink-left 4400ms linear infinite;
+}
+
+.entry-accent-dot--violet {
+  left: 360rpx;
+  top: 800rpx;
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 10rpx;
+  background-color: rgba(131, 56, 236, 1);
+  transform-origin: center;
+  animation: entry-dot-blink-middle 4400ms linear infinite;
+}
+
+.entry-accent-dot--cyan {
+  left: 404rpx;
+  top: 800rpx;
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 10rpx;
+  background-color: rgba(0, 210, 255, 1);
+  transform-origin: center;
+  animation: entry-dot-blink-right 4400ms linear infinite;
+}
+
+@keyframes entry-ticket-panel-bounce {
+  0% {
+    transform: translateY(0);
+  }
+
+  18% {
+    transform: translateY(0);
+  }
+
+  42% {
+    transform: translateY(-72rpx);
+  }
+
+  54% {
+    transform: translateY(0);
+  }
+
+  68% {
+    transform: translateY(-35rpx);
+  }
+
+  84% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes entry-dot-blink-left {
+  0%,
+  12%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  12.01% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  12.3% {
+    opacity: 0.18;
+    transform: scale(0.45);
+  }
+
+  22% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes entry-dot-blink-middle {
+  0%,
+  10%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  10.01% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  10.3% {
+    opacity: 0.18;
+    transform: scale(0.45);
+  }
+
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  32% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  32.01% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  32.3% {
+    opacity: 0.18;
+    transform: scale(0.45);
+  }
+
+  42% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes entry-dot-blink-right {
+  0%,
+  8%,
+  18%,
+  28%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  8.01%,
+  18.01%,
+  28.01%,
+  38.01% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  8.3%,
+  18.3%,
+  28.3%,
+  38.3% {
+    opacity: 0.16;
+    transform: scale(0.42);
+  }
+
+  14%,
+  24%,
+  34%,
+  44% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

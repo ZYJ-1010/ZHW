@@ -17,8 +17,20 @@
           "scene": null
         },
         {
+          "name": "启动动画走查",
+          "pathName": "pages/entry/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "母版走查",
           "pathName": "pages/home/master/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "玩家首页独立页",
+          "pathName": "pages/home/player/index",
           "query": "",
           "scene": null
         }
@@ -39,7 +51,7 @@
     "showES6CompileOption": false,
     "compileHotReLoad": true,
     "checkInvalidKey": true,
-    "ignoreDevUnusedFiles": true,
+    "ignoreDevUnusedFiles": false,
     "bigPackageSizeSupport": false
   }
 }

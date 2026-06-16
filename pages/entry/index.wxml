@@ -1,22 +1,51 @@
-<view class="page">
-  <view class="topbar">
-    <text class="brand-dot">++</text>
-    <view>
-      <text class="brand-name">真好玩</text>
-      <text class="brand-sub">3009人在线</text>
-    </view>
-  </view>
-
-  <view class="stage">
-    <view class="portal">
-      <view class="ticket">
-        <text class="plus">+</text>
-        <text class="dot"></text>
+<view class="entry-page">
+  <view class="entry-phone">
+    <view class="entry-topbar">
+      <view class="entry-status-fill"></view>
+      <view class="entry-nav">
+        <view class="entry-brand">
+          <image
+            class="entry-brand__icon"
+            mode="aspectFit"
+            src="./assets/entry-ticket-icon.svg"
+          />
+          <image
+            class="entry-brand__mark"
+            mode="aspectFit"
+            src="./assets/entry-brand-wordmark.svg"
+          />
+          <view class="entry-brand__online">
+            <view class="entry-brand__online-dot"></view>
+            <text class="entry-brand__online-text">{{onlineCount}}人在线</text>
+          </view>
+        </view>
       </view>
-      <button class="go-button" bindtap="goGuestHome">GO</button>
     </view>
 
-    <text class="title">真好玩</text>
-    <text class="subtitle">ZHEN HAO WAN</text>
+    <view class="entry-content">
+      <view class="entry-hero">
+        <view class="entry-orb"></view>
+        <view class="entry-ticket-panel">
+          <view class="entry-ticket-panel__bar"></view>
+          <view class="entry-ticket-panel__bar entry-ticket-panel__bar--vertical"></view>
+          <view class="entry-ticket-panel__dot"></view>
+          <view class="entry-ticket-panel__dot entry-ticket-panel__dot--small"></view>
+        </view>
+        <view class="entry-go" hover-class="entry-go--active" bindtap="goGuestHome">
+          <text class="entry-go__label">GO</text>
+        </view>
+      </view>
+
+      <image
+        class="entry-title"
+        mode="aspectFit"
+        src="./assets/entry-title-mark.svg"
+      />
+
+      <text class="entry-subtitle">ZHEN HAO WAN</text>
+      <view class="entry-accent-dot"></view>
+      <view class="entry-accent-dot entry-accent-dot--violet"></view>
+      <view class="entry-accent-dot entry-accent-dot--cyan"></view>
+    </view>
   </view>
 </view>

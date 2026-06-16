@@ -21,6 +21,8 @@
 | 新增页面注册 | `app.json` |
 | 页面跳转路径 | `config/routes.js` |
 | 页面与业务模块关系 | `config/page-map.js`、`docs/page-map.md` |
+| 首页母版外框 / 底部圆按钮 / 顶部品牌栏 | `components/home-shell/index.*` |
+| 组局公共卡片 / 附近正在发生卡片 | `components/game-card/index.*` |
 | 业务逻辑 | `services/*.js` |
 | 接口调用 | `api/modules/*.js`、`api/request.js` |
 | mock 数据 | `api/mock-data.js` |
@@ -36,7 +38,7 @@
 | --- | --- | --- | --- |
 | 启动 / 登录前首页 | `pages/entry/index`、`pages/home/guest/index` | - | - |
 | 登录 / 邀请注册 / 找回密码 | `pages/login/index`、`pages/login/invite/index`、`pages/login/forgot/index`、`pages/login/realname/index` | `services/auth.js`、`services/invite.js`、`services/user.js`、`services/newbie.js` | `api/request.js`、`api/modules/user.js`、`api/modules/newbie.js` |
-| 首页 | `pages/home/index` | `services/home.js` | `api/modules/home.js` |
+| 首页 | `pages/home/index`、`pages/home/master/index`、`pages/home/player/index`、`components/home-shell/index.*`、`components/game-card/index.*` | `services/home.js` | `api/modules/home.js` |
 | 角色申请 | `pages/role/apply/index`、`pages/role/status/index` | `services/role.js` | `api/modules/role.js` |
 | 组局 | `pages/game/hall/index`、`pages/game/create/index`、`pages/game/detail/index`、`pages/game/applications/index`、`pages/game/delivery/index`、`pages/game/review/index` | `services/game.js`、`services/review.js` | `api/modules/game.js`、`api/modules/review.js` |
 | 地图 | `pages/map/index` | `services/location.js` | `api/modules/location.js` |
@@ -51,6 +53,20 @@
 3. 请求日志统一在 `api/request.js`。
 4. 全局异常在 `app.js`。
 5. `wx.login` 这类不走接口层的兜底在对应 `services/`。
+
+## 首页母版组件
+
+1. 首页 / 角色页共用外框已抽成 `components/home-shell/index.*`，负责顶部品牌栏、在线人数、右上图标、底部方向键和底部五个圆按钮。
+2. 角色内容不要复制母版外框，页面里注册并使用 `<home-shell>`，把玩家 / 行家 / 领路人内容放进默认 slot。
+3. 母版走查页 `pages/home/master/index` 现在只是组件示例和调试入口；外框位置、字体、按钮样式优先改 `components/home-shell/index.wxss`。
+4. 母版按钮行为暂未接真实业务，组件内统一弹 `功能正在开发中`；后续接正式跳转时可在组件 `navtap` 事件或调用页 `handleShellNavTap` 中按 key 分发。
+5. 不要在 `app.wxss` 重新加入本地路径 `@font-face`；当前只使用 `"Noto Sans SC"` 字体名和系统兜底字体。
+
+## 组局公共卡片
+
+1. `components/game-card/index.*` 用于玩家首页的 `附近正在发生` 和 `朋友都在玩` 卡片，后续其他组局列表如果样式一致，优先复用这个组件。
+2. 卡片内容通过 `item` 传入，当前支持 `coverSrc`、`avatarUrls`、`tag`、`price`、`title`、`location`、`time`、`action`、`joinedText`、`actions`。
+3. 右侧操作图标已放在 `components/game-card/assets/`；参与者头像正式阶段应由后台返回 `avatarUrls`，测试阶段组件内有默认占位。
 
 ## 注释规则
 
