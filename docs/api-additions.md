@@ -456,44 +456,100 @@ GET /api/app/home
 2. 附近组局数量字段使用现有 `count`，还是改为更明确的 `nearbyGameCount`。
 3. 已打卡数量字段命名使用 `checkedInCount`、`checkinCount` 还是由后台直接返回展示文案。
 
-## 8. 玩家首页组局卡封面和参与者头像字段
+## 8. 玩家首页组局卡列表接口字段
 
 记录日期：2026-06-17
+
+更新日期：2026-06-18
 
 模块：首页 / 玩家首页 / 组局卡片
 
 页面：`pages/home/player/index`、`components/game-card/index.*`
 
-功能：`附近正在发生`、`朋友都在玩` 等组局卡片需要展示封面图、参与者头像、入局人数文案和右侧操作项。当前公共组件已支持通过数据填充，测试阶段使用本地默认封面和头像占位。
+功能：玩家首页 `附近正在发生` 和 `朋友在玩` 都使用公共组局卡。区块标题、`全部 / 附近` tab、`查看全部`、朋友数量和卡片列表都需要由后台返回。卡片需要由后台返回不同组局的数据，包括局类型、封面图、标题、地点距离、人数、时间、价格、参与玩家头像和当前用户可执行动作。
 
-状态：待后端确认。用户指定的 HTML 目录和对外资料包中未找到截图里的三枚卡通头像原图；正式阶段建议后台直接返回参与者头像 URL 列表。
+状态：待后端确认。当前页面仍使用本地静态测试数据；公共组件已支持 `coverSrc`、`avatarUrls`、`joinedText`、`actions` 等字段。用户指定的 HTML 目录和对外资料包中未找到截图里的三枚卡通头像原图，正式阶段建议后台返回真实参与者头像 URL。
 
-候选路径：
+推荐接口方案：
 
 ```text
 GET /api/app/home
-GET /api/app/games/nearby
 ```
 
-建议字段：
+用于首页首屏聚合，直接返回玩家首页需要的 `nearbyGames` 和 `friendGames`。如果后续附近列表需要分页、筛选或地图联动，再补独立列表接口：
+
+```text
+GET /api/app/games/nearby?scope=all|nearby&page=1&pageSize=10
+GET /api/app/games/friends?page=1&pageSize=10
+```
+
+推荐响应结构：
 
 ```json
 {
   "code": 0,
   "message": "ok",
   "data": {
-    "recommendedGames": [
+    "nearbySection": {
+      "title": "附近正在发生",
+      "tabs": [
+        { "key": "all", "name": "全部" },
+        { "key": "nearby", "name": "附近" }
+      ]
+    },
+    "nearbyGames": [
       {
         "id": "game_001",
-        "title": "城市探索夜跑",
+        "scope": "nearby",
+        "title": "苏州河“记忆碎片”采集",
+        "type": "explore",
+        "typeText": "探索局",
         "coverUrl": "https://cdn.example.com/games/game_001-cover.jpg",
-        "avatarUrls": [
+        "priceText": "￥0/人",
+        "cityName": "静安区",
+        "distanceText": "3.2km",
+        "memberText": "5/8人",
+        "timeText": "2026年5月1日 20:00--22:00",
+        "joinedCount": 5,
+        "joinedText": "+5位玩家已入局",
+        "participantAvatars": [
           "https://cdn.example.com/users/u001-avatar.jpg",
           "https://cdn.example.com/users/u002-avatar.jpg",
           "https://cdn.example.com/users/u003-avatar.jpg"
         ],
-        "joinedText": "+5位玩家已入局",
-        "actions": ["分享", "关注", "引荐", "打招呼"]
+        "actionText": "加入",
+        "actions": ["share", "follow", "refer", "greet"],
+        "route": "pages/game/detail/index?id=game_001"
+      }
+    ],
+    "friendSection": {
+      "icon": "🎲",
+      "title": "朋友在玩",
+      "count": 2,
+      "moreText": "查看全部"
+    },
+    "friendGames": [
+      {
+        "id": "game_friend_001",
+        "title": "盲盒路线：3小时点亮天际线",
+        "type": "explore",
+        "typeText": "探索局",
+        "coverUrl": "https://cdn.example.com/games/game_friend_001-cover.jpg",
+        "priceText": "￥29/人",
+        "cityName": "梧桐山",
+        "distanceText": "1.5km",
+        "memberText": "3/8人",
+        "timeText": "2026年5月1日 14:00--16:00",
+        "joinedCount": 3,
+        "participantAvatars": [
+          "https://cdn.example.com/users/u101-avatar.jpg",
+          "https://cdn.example.com/users/u102-avatar.jpg",
+          "https://cdn.example.com/users/u103-avatar.jpg"
+        ],
+        "friendContextText": "好友正在玩",
+        "actionText": "加入",
+        "actions": ["share", "follow", "refer", "greet"],
+        "route": "pages/game/detail/index?id=game_friend_001"
       }
     ]
   },
@@ -501,9 +557,142 @@ GET /api/app/games/nearby
 }
 ```
 
+字段分工：
+
+| 字段 | 来源 | 用途 | 说明 |
+| --- | --- | --- | --- |
+| `nearbySection.title` | 后台 | 附近区块标题 | 当前文案为 `附近正在发生`。 |
+| `nearbySection.tabs` | 后台 | 附近区块筛选 tab | 当前为 `全部 / 附近`；前端按 `key` 过滤。 |
+| `friendSection.icon` | 后台 | 朋友在玩标题图标 | 当前为骰子图标。 |
+| `friendSection.title` | 后台 | 朋友区块标题 | 当前文案为 `朋友在玩`。 |
+| `friendSection.count` | 后台 | 朋友在玩数量角标 | 当前 HTML 显示 `2`。 |
+| `friendSection.moreText` | 后台 | 查看全部文案 | 当前文案为 `查看全部`。 |
+| `id` | 后台 | 跳转详情、埋点 | 必传。 |
+| `scope` | 后台 | `全部 / 附近` 筛选 | `nearbyGames` 中建议返回，取值如 `nearby`、`city`。 |
+| `title` | 后台 | 卡片标题 | 必传。 |
+| `type`、`typeText` | 后台 | 局类型标签 | 前端按 `type` 或 `typeText` 判断颜色；当前 `task=任务局` 黄橙底白字，`explore=探索局` 绿底白字。 |
+| `coverUrl` | 后台 / CDN | 卡片左侧封面 | 当前前端测试字段为 `coverSrc`，正式建议统一为 `coverUrl`。 |
+| `priceText` | 后台 | 价格展示 | 直接返回展示文案，避免前端拼货币和免费规则。 |
+| `cityName`、`distanceText`、`memberText` | 后台 | 地址栏 | 前端可拼成 `📍静安区 · 3.2km · 5/8人`。 |
+| `timeText` | 后台 | 时间栏 | 建议后台返回已格式化文案，前端只加图标。 |
+| `joinedCount`、`joinedText` | 后台 | 已入局说明 | 后台可返回完整文案；前端卡片窄位可压缩显示为 `+5已入局`。 |
+| `participantAvatars` | 后台 / CDN | 参与玩家头像 | 每个组局返回自己的头像列表，避免不同卡片头像相同。前端最多展示 3 个。 |
+| `actionText` | 后台 | 主按钮 | 当前为 `加入`。 |
+| `actions` | 前端固定或后台返回 | 分享、关注、引荐、打招呼 | 如果不同卡片能力一致，可前端固定；如果权限不同，后台返回 action key。 |
+| `friendContextText` | 后台 | 朋友在玩上下文 | 可选，例如 `好友正在玩`、`3位好友参与`。 |
+| `route` | 后台或前端拼接 | 跳转详情 | 建议前端基于 `id` 拼详情路径，后台可只返回 `id`。 |
+
+前端派生规则：
+
+1. `nearbySection.tabs` 由后台返回，前端只按 `key` 更新当前筛选态。
+2. `friendSection.title`、`friendSection.count`、`friendSection.moreText` 由后台返回，前端不写死文案。
+3. 标签颜色由 `type` 或 `typeText` 决定，不建议后台返回颜色值；除非运营需要后台配置主题色。
+4. 地址栏可由 `cityName`、`distanceText`、`memberText` 拼接，也可后端直接返回 `locationText`。
+5. 时间栏可由 `timeText` 直接展示；如果后端返回开始/结束时间戳，前端需要统一格式化。
+6. `joinedText` 在后台可保持完整文案，卡片内前端按窄位压缩成 `+N已入局`。
+7. 分享、关注、引荐、打招呼图标由前端固定，后台只需要返回 action key 或权限状态。
+
 待确认：
 
-1. 首页卡片列表是否继续放在 `GET /api/app/home`，还是附近组局改用独立 `GET /api/app/games/nearby`。
-2. 封面字段命名使用 `coverUrl`、`coverSrc` 还是后端已有字段。
-3. 参与者头像字段命名使用 `avatarUrls`、`participantAvatarUrls` 还是跟随参与者对象数组返回。
-4. 右侧操作项是由前端固定，还是由后台返回 `actions` 以支持不同卡片能力。
+1. 首页首屏是否定稿为 `GET /api/app/home` 聚合返回 `nearbySection`、`nearbyGames`、`friendSection`、`friendGames`。
+2. 附近正在发生是否需要独立分页接口 `GET /api/app/games/nearby`。
+3. 朋友在玩是否需要独立分页接口 `GET /api/app/games/friends`，以及“朋友”关系由哪个服务判定。
+4. 封面字段命名使用 `coverUrl` 还是沿用当前前端测试字段 `coverSrc`。
+5. 参与者头像字段命名使用 `participantAvatars`、`avatarUrls` 还是参与者对象数组。
+6. 右侧操作项是否所有卡片固定一致，还是由后台按权限返回可用 action。
+
+## 9. 玩家首页本周玩霸榜接口字段
+
+记录日期：2026-06-18
+
+模块：首页 / 玩家首页 / 本周玩霸榜
+
+页面：`pages/home/player/index`
+
+功能：玩家首页 `本周玩霸榜` 的榜单数据由后台接口返回，包括标题、角色 tab、当前默认榜单、当前用户排名、头像、昵称、榜单说明、经验 XP 和查看全部榜单文案。`玩家 / 行家 / 领路人` 的 key、展示文案、顺序和是否展示都由后台返回，前端只按接口结果渲染和点亮。当前 mock 仅用于本地占位，默认返回当前用户所属角色的榜单；没有对应角色榜单数据时，tab 点击只切换 active 样式，不硬造当前用户排名。
+
+状态：候选字段，待后端确认。
+
+推荐接口：
+
+```text
+GET /api/app/home
+```
+
+推荐响应结构：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "rankingSection": {
+      "icon": "🏆",
+      "title": "本周玩霸榜",
+      "moreText": "查看全部榜单",
+      "defaultTab": "player",
+      "tabs": [
+        { "key": "player", "name": "玩家" },
+        { "key": "expert", "name": "行家" },
+        { "key": "guide", "name": "领路人" }
+      ]
+    },
+    "rankingBoards": {
+      "player": {
+        "list": [
+          {
+            "id": "rank_player_001",
+            "userId": "user_001",
+            "rank": 1,
+            "nickname": "领域专家 PRO",
+            "avatarUrl": "https://cdn.example.com/users/user_001-avatar.jpg",
+            "desc": "本周组局 12 · MVP 5次",
+            "xpText": "2,450 XP"
+          }
+        ],
+        "myRank": {
+          "rank": 52,
+          "nickname": "我（Alex）",
+          "avatarUrl": "https://cdn.example.com/users/me-avatar.jpg",
+          "desc": "上周排名 65",
+          "xpText": "520 XP"
+        }
+      }
+    }
+  },
+  "requestId": "req_xxx"
+}
+```
+
+字段分工：
+
+| 字段 | 来源 | 用途 | 说明 |
+| --- | --- | --- | --- |
+| `rankingSection.icon` | 后台或前端固定 | 榜单标题图标 | 当前为奖杯图标。 |
+| `rankingSection.title` | 后台 | 榜单标题 | 当前文案为 `本周玩霸榜`。 |
+| `rankingSection.moreText` | 后台 | 查看全部榜单文案 | 当前文案为 `查看全部榜单`。 |
+| `rankingSection.defaultTab` | 后台 | 默认点亮角色 tab | 取值应匹配 `rankingSection.tabs[].key`，通常为当前用户所属角色。 |
+| `rankingSection.tabs` | 后台 | 榜单角色 tab | 后台返回 key、文案、顺序和是否展示；前端不固定写死 `玩家/行家/领路人`。 |
+| `rankingSection.tabs[].key` | 后台 | 角色 tab key | 用于 active 状态、请求榜单和匹配 `rankingBoards`。 |
+| `rankingSection.tabs[].name` | 后台 | 角色 tab 文案 | 例如 `玩家`、`行家`、`领路人`，以前端实际收到为准。 |
+| `rankingBoards` | 后台 | 分角色排行榜数据 | 可返回默认角色榜单，也可预载多个角色榜单；前端按角色 key 读取。 |
+| `rankingBoards.{role}.list` | 后台 | 当前角色榜单前三名 | 当前 UI 只展示前三名；后续完整榜单页可分页。 |
+| `rankingBoards.{role}.myRank` | 后台 | 当前用户在该角色榜单中的排名 | 用户不属于该角色或没有排名时可返回 `null`；前端不能为其它角色硬造“我的排名”。 |
+| `id` | 后台 | 榜单记录 ID | 用于埋点、跳转或后续详情。 |
+| `userId` | 后台 | 用户 ID | 用于跳转用户主页或埋点。 |
+| `rank` | 后台 | 排名 | 数字或 `01` 字符串均可；前端会把 1-9 格式化为两位。 |
+| `nickname` / `displayName` | 后台 | 昵称 | 前端优先展示昵称字段。 |
+| `avatarUrl` | 后台 / CDN | 玩家头像 | 前端优先展示图片；没有图片时用 `avatarFallback` 或昵称前两字兜底。 |
+| `avatarFallback` | 后台或前端兜底 | 头像占位文字 | 可选，用于 mock 或头像为空场景。 |
+| `desc` | 后台 | 榜单说明 | 建议后台直接返回展示文案，例如 `本周组局 12 · MVP 5次`。 |
+| `weeklyGameCount`、`weeklyMvpCount` | 后台 | 榜单说明派生字段 | 可选；如果不返回 `desc`，前端可临时拼说明。 |
+| `xpText` | 后台 | 经验展示 | 推荐直接返回 `2,450 XP`；前端会拆出数字和单位展示。 |
+| `xp`、`xpUnit` | 后台 | 经验展示备用字段 | 如果不用 `xpText`，可返回数字和单位。 |
+
+待确认：
+
+1. `本周玩霸榜` 默认榜单是否继续放在 `GET /api/app/home` 聚合接口中，还是拆成独立榜单接口。
+2. 如果拆独立接口，是否使用 `GET /api/app/rankings/weekly?roleType={rankingSection.tabs[].key}`；tab 的 key 必须来自后台返回。
+3. 首页是否只需要返回前三名和当前用户排名，完整榜单是否另走分页接口。
+4. 榜单说明由后台直接返回 `desc`，还是返回 `weeklyGameCount/weeklyMvpCount` 等结构字段由前端拼接。
+5. 榜单 tab 是否需要支持后台调整顺序、改文案、隐藏某个 tab，或返回更多角色 tab。

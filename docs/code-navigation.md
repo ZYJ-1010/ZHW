@@ -66,7 +66,8 @@
 
 1. `components/game-card/index.*` 用于玩家首页的 `附近正在发生` 和 `朋友都在玩` 卡片，后续其他组局列表如果样式一致，优先复用这个组件。
 2. 卡片内容通过 `item` 传入，当前支持 `coverSrc`、`avatarUrls`、`tag`、`price`、`title`、`location`、`time`、`action`、`joinedText`、`actions`。
-3. 右侧操作图标已放在 `components/game-card/assets/`；参与者头像正式阶段应由后台返回 `avatarUrls`，测试阶段组件内有默认占位。
+3. 正式接口建议返回 `coverUrl`、`type/typeText`、`participantAvatars`、`joinedCount/joinedText`、`actionText`、`actions`，详细字段见 `docs/api-additions.md` 第 8 节。
+4. 右侧操作图标已放在 `components/game-card/assets/`；参与者头像正式阶段应由后台返回每个组局自己的头像 URL，测试阶段组件内有默认占位。
 
 ## 注释规则
 

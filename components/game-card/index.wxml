@@ -1,6 +1,8 @@
 <view class="game-card" bindtap="handleTap">
   <image class="game-card-cover" src="{{item.coverSrc || defaultCover}}" mode="aspectFill" />
-  <view class="game-card-tag {{item.tagTone}}">{{item.tag}}</view>
+  <view class="game-card-tag {{tagTone}}">
+    <text class="game-card-tag-text">{{item.tag}}</text>
+  </view>
   <text class="game-card-price">{{item.price}}</text>
   <text class="game-card-title">{{item.title}}</text>
   <text class="game-card-meta location">{{item.location}}</text>
@@ -10,18 +12,21 @@
     <block wx:if="{{item.avatarUrls && item.avatarUrls.length}}">
       <image wx:for="{{item.avatarUrls}}" wx:for-item="avatar" wx:key="*this" src="{{avatar}}" mode="aspectFill" />
     </block>
+    <block wx:elif="{{item.avatarFallbacks && item.avatarFallbacks.length}}">
+      <view wx:for="{{item.avatarFallbacks}}" wx:for-item="avatar" wx:for-index="avatarIndex" wx:key="*this" class="game-card-avatar-fallback tone-{{avatarIndex}}">{{avatar}}</view>
+    </block>
     <block wx:else>
-      <view wx:for="{{defaultAvatars}}" wx:for-item="avatar" wx:key="*this" class="game-card-avatar-fallback">{{avatar}}</view>
+      <view wx:for="{{defaultAvatars}}" wx:for-item="avatar" wx:for-index="avatarIndex" wx:key="*this" class="game-card-avatar-fallback tone-{{avatarIndex}}">{{avatar}}</view>
     </block>
   </view>
-  <text class="game-card-joined">{{item.joinedText}}</text>
+  <text class="game-card-joined">{{joinedText}}</text>
   <view class="game-card-actions">
     <view wx:for="{{item.actions}}" wx:for-item="action" wx:key="*this" class="game-card-action">
       <image wx:if="{{action === '分享'}}" class="game-card-action-icon" src="/components/game-card/assets/action-share.png" mode="aspectFit" />
       <image wx:elif="{{action === '关注'}}" class="game-card-action-icon" src="/components/game-card/assets/action-follow.png" mode="aspectFit" />
       <image wx:elif="{{action === '引荐'}}" class="game-card-action-icon" src="/components/game-card/assets/action-refer.png" mode="aspectFit" />
       <image wx:elif="{{action === '打招呼'}}" class="game-card-action-icon" src="/components/game-card/assets/action-greet.png" mode="aspectFit" />
-      <text>{{action}}</text>
+      <text class="game-card-action-text">{{action}}</text>
     </view>
   </view>
 </view>

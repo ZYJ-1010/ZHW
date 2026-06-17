@@ -78,6 +78,13 @@ const mockHome = {
     { id: 'message', title: '消息', route: 'pages/message/index' },
     { id: 'profile', title: '我的', route: 'pages/profile/index' }
   ],
+  nearbySection: {
+    title: '附近正在发生',
+    tabs: [
+      { key: 'all', name: '全部' },
+      { key: 'nearby', name: '附近' }
+    ]
+  },
   recommendedGames: [
     {
       id: '20001',
@@ -90,6 +97,9 @@ const mockHome = {
       priceText: '¥0/人',
       joinedText: '+3位玩家已入局',
       actionText: '加入',
+      coverUrl: '/components/game-card/assets/cover-sunset.png',
+      scope: 'city',
+      actions: ['share', 'follow', 'refer', 'greet'],
       route: 'pages/game/detail/index',
       tags: ['AI', '系统搭建', '交流']
     },
@@ -104,6 +114,9 @@ const mockHome = {
       priceText: '¥0/人',
       joinedText: '+5位玩家已入局',
       actionText: '加入',
+      coverUrl: '/components/game-card/assets/cover-city.png',
+      scope: 'nearby',
+      actions: ['share', 'follow', 'refer', 'greet'],
       route: 'pages/game/detail/index',
       tags: ['城市故事', '探索', '同城']
     }
@@ -132,16 +145,74 @@ const mockHome = {
       { label: '参与率', value: '98%' }
     ]
   },
+  rankingSection: {
+    icon: '🏆',
+    title: '本周玩霸榜',
+    moreText: '查看全部榜单',
+    defaultTab: 'player',
+    tabs: [
+      { key: 'player', name: '玩家' },
+      { key: 'expert', name: '行家' },
+      { key: 'guide', name: '领路人' }
+    ]
+  },
+  rankingBoards: {
+    player: {
+      list: [
+        {
+          id: 'rank-player-01',
+          rank: 1,
+          nickname: '领域专家 PRO',
+          avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png',
+          avatarFallback: 'PRO',
+          desc: '本周组局 12 · MVP 5次',
+          xpText: '2,450 XP'
+        },
+        {
+          id: 'rank-player-02',
+          rank: 2,
+          nickname: '社交达人',
+          avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png',
+          avatarFallback: '星',
+          desc: '本周组局 8 次',
+          xpText: '1,890 XP'
+        },
+        {
+          id: 'rank-player-03',
+          rank: 3,
+          nickname: '探险家',
+          avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png',
+          avatarFallback: '探',
+          desc: '本周组局 6 次',
+          xpText: '1,560 XP'
+        }
+      ],
+      myRank: {
+        rank: 52,
+        nickname: '我（Alex）',
+        avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
+        avatarFallback: 'A',
+        desc: '上周排名 65 ↑',
+        xpText: '520 XP'
+      }
+    }
+  },
   rankingList: [
-    { rank: '01', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xpText: '2,450 XP' },
-    { rank: '02', name: '社交达人', desc: '本周组局 8 次', xpText: '1,890 XP' },
-    { rank: '03', name: '探险家', desc: '本周组局 6 次', xpText: '1,560 XP' }
+    { rank: '01', name: '领域专家 PRO', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', desc: '本周组局 12 · MVP 5次', xpText: '2,450 XP' },
+    { rank: '02', name: '社交达人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', desc: '本周组局 8 次', xpText: '1,890 XP' },
+    { rank: '03', name: '探险家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', desc: '本周组局 6 次', xpText: '1,560 XP' }
   ],
   achievementList: [
     { id: 'hundred', title: '百场王者', statusText: '等级' },
     { id: 'guide', title: '引航王者', statusText: '等级' },
     { id: 'earth', title: '地球漫游者', statusText: '进度20%' }
   ],
+  friendSection: {
+    icon: '🎲',
+    title: '朋友在玩',
+    count: 2,
+    moreText: '查看全部'
+  },
   friendGames: [
     {
       id: 'friend-1',
@@ -153,6 +224,9 @@ const mockHome = {
       priceText: '¥29/人',
       statusText: '探索局',
       joinedText: '+3位玩家已入局',
+      coverUrl: '/components/game-card/assets/cover-sunset.png',
+      actionText: '加入',
+      actions: ['share', 'follow', 'refer', 'greet'],
       route: 'pages/game/detail/index'
     }
   ],

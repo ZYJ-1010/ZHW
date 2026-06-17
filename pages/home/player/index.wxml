@@ -84,7 +84,7 @@
     </view>
 
     <view class="player-section-head nearby">
-      <text class="player-section-title">附近正在发生</text>
+      <text class="player-section-title">{{nearbySection.title}}</text>
       <view class="player-tabs nearby-tabs">
         <view wx:for="{{nearbyTabs}}" wx:for-item="tab" wx:key="key" data-key="{{tab.key}}" bindtap="handleNearbyTabTap" class="player-tab {{tab.active ? 'active' : ''}}">{{tab.name}}</view>
       </view>
@@ -94,44 +94,68 @@
       <game-card wx:if="{{nearbyFilter === 'all' || item.scope === nearbyFilter}}" item="{{item}}" bind:cardtap="handleActionTap" />
     </block>
 
+    <view class="player-section-head friends">
+      <view>
+        <text class="player-panel-icon">{{friendSection.icon}}</text>
+        <text class="player-section-title">{{friendSection.title}}</text>
+        <text wx:if="{{friendSection.count}}" class="player-friend-count">{{friendSection.count}}</text>
+      </view>
+      <text class="player-friend-more">{{friendSection.moreText}}</text>
+    </view>
+
+    <game-card wx:for="{{friendGames}}" wx:key="title" item="{{item}}" bind:cardtap="handleActionTap" />
+
     <view class="player-ranking-panel">
-      <view class="player-panel-head">
+      <view class="player-panel-head player-ranking-head">
         <view>
-          <text class="player-panel-icon">🏆</text>
-          <text class="player-panel-title">本周玩霸榜</text>
+          <text class="player-panel-icon">{{rankingSection.icon}}</text>
+          <text class="player-panel-title">{{rankingSection.title}}</text>
         </view>
-        <view class="player-tabs role">
-          <text wx:for="{{rankingTabs}}" wx:for-item="tab" wx:key="name" class="{{tab.active ? 'active' : ''}}">{{tab.name}}</text>
+        <view class="player-tabs role player-ranking-tabs">
+          <view
+            wx:for="{{rankingTabs}}"
+            wx:for-item="tab"
+            wx:key="key"
+            data-key="{{tab.key}}"
+            bindtap="handleRankingTabTap"
+            class="player-ranking-tab {{tab.active ? 'active' : ''}}"
+          >{{tab.name}}</view>
         </view>
       </view>
 
-      <view wx:for="{{rankingList}}" wx:key="rank" class="player-rank-row">
+      <view wx:for="{{rankingList}}" wx:key="rank" class="player-rank-row rank-{{index}}">
         <text class="player-rank-no">{{item.rank}}</text>
-        <text class="player-rank-avatar">{{item.avatar}}</text>
+        <view class="player-rank-avatar">
+          <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" />
+          <text wx:else>{{item.avatarFallback}}</text>
+        </view>
         <view class="player-rank-copy">
           <text class="player-rank-name">{{item.name}}</text>
           <text class="player-rank-desc">{{item.desc}}</text>
         </view>
         <view class="player-rank-xp">
           <text>{{item.xp}}</text>
-          <text>XP</text>
+          <text>{{item.xpUnit}}</text>
         </view>
       </view>
 
       <view class="player-rank-row me">
         <text class="player-rank-no">{{myRank.rank}}</text>
-        <text class="player-rank-avatar me">{{myRank.avatar}}</text>
+        <view class="player-rank-avatar me">
+          <image wx:if="{{myRank.avatarUrl}}" src="{{myRank.avatarUrl}}" mode="aspectFill" />
+          <text wx:else>{{myRank.avatarFallback}}</text>
+        </view>
         <view class="player-rank-copy">
           <text class="player-rank-name">{{myRank.name}}</text>
           <text class="player-rank-desc">{{myRank.desc}}</text>
         </view>
         <view class="player-rank-xp">
           <text>{{myRank.xp}}</text>
-          <text>XP</text>
+          <text>{{myRank.xpUnit}}</text>
         </view>
       </view>
 
-      <text class="player-rank-more">查看完整榜单</text>
+      <view class="player-rank-more" bindtap="handleActionTap">{{rankingSection.moreText}}</view>
     </view>
 
     <view class="player-achievement-panel">
@@ -155,29 +179,36 @@
       <text>🎮 玩家</text>
     </view>
 
-    <view class="player-section-head friends">
-      <view>
-        <text class="player-panel-icon">🎮</text>
-        <text class="player-section-title">朋友在玩</text>
-      </view>
-      <text class="player-friend-more">查看全部</text>
-    </view>
-
-    <game-card wx:for="{{friendGames}}" wx:key="title" item="{{item}}" bind:cardtap="handleActionTap" />
-
     <view class="player-metaverse-card" bindtap="handleActionTap">
-      <view>
-        <view class="player-metaverse-tags">
-          <text wx:for="{{metaverse.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+      <view class="player-metaverse-copy">
+        <view class="player-metaverse-heading">
+          <view class="player-metaverse-dot"></view>
+          <text class="player-metaverse-title">{{metaverse.title}}</text>
         </view>
-        <text class="player-metaverse-title">{{metaverse.title}}</text>
         <text class="player-metaverse-desc">{{metaverse.desc}}</text>
+        <view class="player-metaverse-footer">
+          <view class="player-metaverse-tags">
+            <text
+              wx:for="{{metaverse.tags}}"
+              wx:for-item="tag"
+              wx:key="*this"
+              class="{{index === 1 ? 'purple' : 'cyan'}}"
+            >{{tag}}</text>
+          </view>
+          <view class="player-metaverse-avatars">
+            <text wx:for="{{metaverse.avatars}}" wx:key="*this">{{item}}</text>
+            <text class="player-metaverse-badge">{{metaverse.badge}}</text>
+          </view>
+        </view>
       </view>
-      <view class="player-metaverse-stack">
-        <text></text>
-        <text></text>
-        <text></text>
-        <text>{{metaverse.badge}}</text>
+      <view class="player-metaverse-symbol">
+        <view class="player-metaverse-ring outer"></view>
+        <view class="player-metaverse-ring inner"></view>
+        <view class="player-metaverse-axis horizontal"></view>
+        <view class="player-metaverse-axis vertical"></view>
+        <view class="player-metaverse-node one"></view>
+        <view class="player-metaverse-node two"></view>
+        <view class="player-metaverse-node three"></view>
       </view>
     </view>
   </view>
