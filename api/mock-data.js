@@ -18,6 +18,8 @@ const mockUser = {
   roleStatusMap: {
     player: 'approved'
   },
+  defaultRole: 'player',
+  default_role: 'player',
   needInvite: false,
   needRealname: true,
   creditScore: 100,
@@ -32,6 +34,8 @@ const mockCurrentUser = {
   realnameStatus: 'pending',
   roles: mockUser.roles,
   roleStatusMap: mockUser.roleStatusMap,
+  defaultRole: mockUser.defaultRole,
+  default_role: mockUser.default_role,
   member: {
     planCode: 'basic',
     planName: '基础会员',
@@ -202,10 +206,15 @@ const mockHome = {
     { rank: '02', name: '社交达人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', desc: '本周组局 8 次', xpText: '1,890 XP' },
     { rank: '03', name: '探险家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', desc: '本周组局 6 次', xpText: '1,560 XP' }
   ],
+  achievementSection: {
+    icon: '💎',
+    title: '我的成就'
+  },
   achievementList: [
-    { id: 'hundred', title: '百场王者', statusText: '等级' },
-    { id: 'guide', title: '引航王者', statusText: '等级' },
-    { id: 'earth', title: '地球漫游者', statusText: '进度20%' }
+    { id: 'hundred', code: 'hundred_king', title: '百场王者', icon: '🏆', statusText: '等级', unlocked: true },
+    { id: 'pilot', code: 'pilot_king', title: '引航王者', icon: '🏆', statusText: '等级', unlocked: true },
+    { id: 'earth', code: 'earth_roamer', title: '地球漫游者', icon: '🌍', statusText: '进度20%', progressPercent: 20, unlocked: true },
+    { id: 'hidden', code: 'hidden_badge', title: '隐藏徽章', icon: '🔒', statusText: '未解锁', unlocked: false }
   ],
   friendSection: {
     icon: '🎲',
@@ -231,8 +240,15 @@ const mockHome = {
     }
   ],
   metaverseEntry: {
-    title: '共创数字街区｜全球联机互动',
-    desc: '3D空间 · NFT徽章',
+    title: '进入元宇宙',
+    desc: '共创数字街区｜全球联机互动',
+    tags: ['3D空间', 'NFT徽章'],
+    avatars: [
+      { avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: 'A' },
+      { avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: 'L' },
+      { avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: 'M' }
+    ],
+    joinedCount: 99,
     actionText: '进入元宇宙',
     route: 'pages/placeholder/metaverse/index'
   },
@@ -242,6 +258,220 @@ const mockHome = {
     checkedInCount: 8,
     cityName: '上海',
     accuracyText: '定位精度 300m 内'
+  }
+}
+
+const mockRoleHomes = {
+  expert: {
+    user: mockCurrentUser,
+    hero: {
+      roleName: '行家',
+      dateLabel: '2026.05.15',
+      subtitle: '开启你的今日副本',
+      onlineText: '3999人在线'
+    },
+    roleDashboard: {
+      roleName: '行家',
+      roleEmoji: '🎯',
+      deviceBadge: '💎',
+      profileName: '摄影咖 小李',
+      identity: '认证DM',
+      levelText: '行家 ⭐️',
+      scoreText: '650/1000 XP',
+      nextLevelText: '距离下一等级还需 350 经验值',
+      primaryTitle: '我的开局',
+      primaryDesc: '管理进行中的局',
+      sectionTitle: '即将带局',
+      sectionMore: '查看全部 →',
+      sectionCount: '2',
+      stats: [
+        { value: '156', label: '服务玩家' },
+        { value: '99%', label: '复购率' },
+        { value: '98%', label: '被选率' },
+        { value: '3', label: '本月MVP' }
+      ],
+      roleTabs: [
+        { label: '🎮 玩家', active: false },
+        { label: '🎯 行家', active: true },
+        { label: '🌐 领路人', active: false }
+      ],
+      quickActions: [
+        { id: 'create-game', icon: '📍', title: '发起组局', desc: '创建新的一局', tone: 'cyan', route: 'pages/game/create/index' },
+        { id: 'lobby', icon: '🎲', title: '我的开局', desc: '管理进行中的局', tone: 'blue', route: 'pages/game/hall/index' }
+      ],
+      onlineCard: {
+        title: '地球online',
+        desc: '管理我的组局足迹与城市打卡',
+        ownedGameCount: 12,
+        checkinCount: 8,
+        tags: ['我的组局 12 个', '已打卡 8 处']
+      },
+      events: [
+        {
+          id: 'expert-game-1',
+          time: '14:00',
+          day: '今天',
+          title: '《血染钟楼》10人局',
+          meta: '星巴克(万科店) · 1.2km · 3/10人',
+          dateText: '2026年5月1日 14:00--16:00',
+          tags: ['专业场', '探索局'],
+          status: '即将满员',
+          statusTone: 'green',
+          income: '¥200',
+          joinedText: '+3位玩家已入局',
+          participantAvatars: [
+            '/pages/home/player/assets/ranking-avatar-01.png',
+            '/pages/home/player/assets/ranking-avatar-02.png',
+            '/pages/home/player/assets/ranking-avatar-03.png'
+          ]
+        },
+        {
+          id: 'expert-game-2',
+          time: '19:30',
+          day: '今天',
+          title: '苏州河“记忆碎片”采集',
+          meta: '黄浦区 · 8.2km · 3/8人',
+          dateText: '2026年5月1日 14:00--16:00',
+          tags: ['专业场', '任务局'],
+          status: '新手友好',
+          statusTone: 'lime',
+          income: '¥240',
+          joinedText: '+3位玩家已入局',
+          participantAvatars: [
+            '/pages/home/player/assets/ranking-avatar-01.png',
+            '/pages/home/player/assets/ranking-avatar-02.png',
+            '/pages/home/player/assets/ranking-avatar-03.png'
+          ]
+        }
+      ],
+      skills: [
+        { id: 'dm-basic', icon: '🎲', title: 'DM入门', stateText: '已解锁', locked: false },
+        { id: 'story', icon: '🎭', title: '沉浸演绎', stateText: '待解锁', locked: true },
+        { id: 'control', icon: '🔒', title: '控场大师', stateText: '待解锁', locked: true }
+      ],
+      review: {
+        title: '最新评价',
+        count: 156,
+        playerLevel: '萌新玩家',
+        avatarText: '🎮',
+        timeText: '2小时前',
+        rating: 4,
+        content: 'DM非常专业，带本节奏很好，气氛拉满！第一次玩血染就上瘾了，下次还找小王带局。💯'
+      }
+    },
+    rankingSection: {
+      ...mockHome.rankingSection,
+      defaultTab: 'expert'
+    },
+    rankingBoards: {
+      ...mockHome.rankingBoards,
+      expert: {
+        list: [
+          { id: 'rank-expert-01', rank: 1, nickname: '领域专家 PRO', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: 'PRO', desc: '本周服务玩家 90 位', xpText: '2,450 XP' },
+          { id: 'rank-expert-02', rank: 2, nickname: '社交达人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: '星', desc: '本周服务玩家 10 位', xpText: '1,890 XP' },
+          { id: 'rank-expert-03', rank: 3, nickname: '探险家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: '探', desc: '本周服务玩家 1 位', xpText: '1,560 XP' }
+        ],
+        myRank: {
+          rank: 52,
+          nickname: '我（Alex）',
+          avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
+          avatarFallback: 'A',
+          desc: '上周排名 65 ↑',
+          xpText: '520 XP'
+        }
+      }
+    },
+    achievementSection: mockHome.achievementSection,
+    achievementList: mockHome.achievementList,
+    metaverseEntry: mockHome.metaverseEntry
+  },
+  guide: {
+    user: mockCurrentUser,
+    hero: {
+      roleName: '领路人',
+      dateLabel: '2026.05.15',
+      subtitle: '开启你的今日副本',
+      onlineText: '3999人在线'
+    },
+    roleDashboard: {
+      roleName: '领路人',
+      roleEmoji: '🌐',
+      profileName: '摄影咖 萧飒',
+      identity: '百场辅助',
+      levelText: '领路人 🐑',
+      scoreText: '580/1000 XP',
+      experience: 580,
+      nextLevelExperience: 1000,
+      progress: 58,
+      nextLevelText: '距离下一等级还需 420 经验值',
+      primaryTitle: '我的邀请',
+      primaryDesc: '管理连接的玩家',
+      sectionTitle: '热玩组局',
+      sectionDesc: '附近正在发生',
+      sectionMore: '查看全部',
+      stats: [
+        { value: '99', label: '连接玩家' },
+        { value: '99%', label: '玩家再玩率' },
+        { value: '98%', label: '玩家完局率' },
+        { value: '3', label: '本月MVP' }
+      ],
+      roleTabs: [
+        { label: '🎮 玩家', active: false },
+        { label: '🎯 行家', active: false },
+        { label: '🌐 领路人', active: true }
+      ],
+      quickActions: [
+        { id: 'lobby', icon: '📍', title: '局前大厅', desc: '准备加入一局', tone: 'pink', routeIcon: true, route: 'pages/game/hall/index' },
+        { id: 'invite', icon: '📍', title: '我的邀约', desc: '管理连接的玩家', tone: 'cyan', routeIcon: true, route: 'pages/game/applications/index' }
+      ],
+      filterTabs: [
+        { label: '全部', active: true },
+        { label: '附近', active: false }
+      ],
+      events: [
+        {
+          id: 'guide-game-1',
+          price: '¥0/人',
+          title: '苏州河“记忆碎片”采集',
+          meta: '静安区 · 3.2km · 5/8人',
+          dateText: '2026年5月1日 20:00--22:00',
+          tags: ['社交局', '探索局'],
+          actionText: '加入',
+          peopleText: '+5位玩家已入局'
+        },
+        {
+          id: 'guide-game-2',
+          price: '¥0/人',
+          title: 'AI赋能系统搭建交流局',
+          meta: '黄浦区 · 8.2km · 3/8人',
+          dateText: '2026年5月1日 14:00--16:00',
+          tags: ['社交局', '任务局'],
+          actionText: '加入',
+          peopleText: '+3位玩家已入局'
+        }
+      ],
+      recommendation: {
+        title: '推荐行家',
+        tabs: [
+          { label: '行家', active: true },
+          { label: '玩家', active: false }
+        ],
+        items: [
+          { id: 'guide-reco-1', icon: '👑', name: '剧本杀小王', desc: '贡献¥320', tag: '查看分润' },
+          { id: 'guide-reco-2', icon: '🎓', name: '大学生DM', desc: '宁大节点', tag: '管理我的连接' },
+          { id: 'guide-reco-3', icon: '🔬', name: '研究员阿伟', desc: '中科院', tag: '周活跃' }
+        ]
+      },
+      network: {
+        title: '我的关系网络',
+        status: '实时连接中',
+        summary: '● 已连接 156 位玩家',
+        actionText: '查看全部',
+        income: '本周收益 ¥1,240',
+        location: '📍 镇海区'
+      }
+    },
+    metaverseEntry: mockHome.metaverseEntry
   }
 }
 
@@ -326,6 +556,7 @@ module.exports = {
   mockUser,
   mockCurrentUser,
   mockHome,
+  mockRoleHomes,
   mockProfileHome,
   mockNewbieTasks,
   mockRoleApplications

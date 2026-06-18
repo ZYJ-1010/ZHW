@@ -3,6 +3,7 @@ const {
   mockUser,
   mockCurrentUser,
   mockHome,
+  mockRoleHomes,
   mockProfileHome,
   mockNewbieTasks,
   mockRoleApplications
@@ -186,6 +187,8 @@ function buildInviteRelation(invite) {
 function buildLoginUser(isRealnameVerified) {
   return Object.assign({}, mockUser, {
     authStatus: isRealnameVerified ? 'verified' : 'pending',
+    defaultRole: mockUser.defaultRole || 'player',
+    default_role: mockUser.default_role || mockUser.defaultRole || 'player',
     needRealname: !isRealnameVerified
   })
 }
@@ -224,6 +227,12 @@ function buildNewbieTaskSummary() {
     progressPercent: totalCount ? Math.round((completedCount / totalCount) * 100) : 0,
     tasks
   }
+}
+
+function buildHome(data) {
+  const roleType = String(data && data.roleType || 'player').trim()
+
+  return mockRoleHomes[roleType] || mockHome
 }
 
 function setMockRealnameStatus(status) {
@@ -301,7 +310,7 @@ function handleRequest(options) {
   }
 
   if (method === 'GET' && url === '/api/app/home') {
-    return wait(ok(mockHome))
+    return wait(ok(buildHome(options.data || {})))
   }
 
   if (method === 'GET' && url === '/api/app/profile/home') {

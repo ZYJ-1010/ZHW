@@ -1,7 +1,7 @@
 const request = require('../request')
 
-function getHome() {
-  return request.get('/api/app/home')
+function getHome(params) {
+  return request.get('/api/app/home', params || {})
 }
 
 module.exports = {

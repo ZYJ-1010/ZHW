@@ -439,7 +439,7 @@ Page({
   },
 
   enterHomePreview(mode, single = false) {
-    const index = HOME_PREVIEW_PAGES.findIndex((page) => page.name === mode)
+    const index = HOME_PREVIEW_PAGES.findIndex((page) => page.name === mode || page.mode === mode)
     const previewWindowWidth = wx.getSystemInfoSync ? wx.getSystemInfoSync().windowWidth : 375
 
     this.setData({

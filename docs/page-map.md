@@ -7,7 +7,7 @@
 | 业务域 | 墨刀页面 | 小程序路由 |
 | --- | --- | --- |
 | 邀请注册与登录 | 进入页面、登录前首页、用户注册登录、新用户邀请注册登录、微信授权登录（登录页内部流程）、找回密码 | `pages/entry/index`、`pages/home/guest/index`、`pages/login/index`、`pages/login/invite/index`、`pages/login/forgot/index` |
-| 首页与角色入口 | 登录后玩家首页、行家首页、领路人首页、权限提示、权益对比 | `pages/home/index` |
+| 首页与角色入口 | 登录后玩家首页、行家首页、领路人首页、权限提示、权益对比 | `pages/home/index`、`pages/home/player/index`、`pages/home/expert/index`、`pages/home/guide/index` |
 | 我的基础 | 我的 | `pages/profile/index` |
 
 目标：用户能进入、识别身份、看到角色和下一步动作。

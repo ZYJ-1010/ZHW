@@ -48,6 +48,10 @@ Component({
     shellClass: {
       type: String,
       value: ''
+    },
+    navToastEnabled: {
+      type: Boolean,
+      value: true
     }
   },
 
@@ -82,12 +86,26 @@ Component({
     handleNavTap(event) {
       const { key } = event.currentTarget.dataset
 
-      wx.showToast({
-        title: '功能正在开发中',
-        icon: 'none'
-      })
+      if (this.properties.navToastEnabled) {
+        wx.showToast({
+          title: '功能正在开发中',
+          icon: 'none'
+        })
+      }
 
       this.triggerEvent('navtap', { key })
+    },
+
+    handleNavLongPress(event) {
+      const { key } = event.currentTarget.dataset
+
+      this.triggerEvent('navlongpress', { key })
+    },
+
+    handleNavTouchEnd(event) {
+      const { key } = event.currentTarget.dataset
+
+      this.triggerEvent('navtouchend', { key })
     }
   }
 })

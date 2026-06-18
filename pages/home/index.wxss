@@ -1293,16 +1293,15 @@
 
 .home-launch-orb {
   position: absolute;
-  left: 50%;
-  top: 142rpx;
+  left: 174rpx;
+  top: 272rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 400rpx;
   height: 400rpx;
-  margin-left: -200rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+  border-radius: 200rpx;
+  background: linear-gradient(135deg, #ff006e 14.6%, #8338ec 50%, #3a86ff 85.4%);
   animation: homePulseGlow 3s infinite ease-in-out;
 }
 

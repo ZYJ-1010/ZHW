@@ -21,18 +21,18 @@
   z-index: 20;
   width: 750rpx;
   height: 182rpx;
-  background: #168cd0;
+  background: #007bd3;
 }
 
 .home-shell-status-fill {
   height: 88rpx;
-  background: #168cd0;
+  background: #007bd3;
 }
 
 .home-shell-nav {
   position: relative;
   height: 94rpx;
-  background: #168cd0;
+  background: #007bd3;
 }
 
 .home-shell-brand {
@@ -305,7 +305,7 @@
   width: 74rpx;
   height: 74rpx;
   border-radius: 50%;
-  background: #ff8927;
+  background: linear-gradient(180deg, #ffbe0b 0%, #fb5607 100%);
 }
 
 .home-shell-message__label {
@@ -349,18 +349,18 @@
 .home-shell-action-pad .metaverse {
   left: 0;
   top: 0;
-  background: #7564ff;
+  background: linear-gradient(180deg, #3a86ff 0%, #8338ec 100%);
 }
 
 .home-shell-action-pad .mine {
   left: 88rpx;
   top: 40rpx;
   color: #ffffff;
-  background: #55e0c7;
+  background: linear-gradient(180deg, #06ffa5 0%, #00b4d8 100%);
 }
 
 .home-shell-action-pad .map {
   left: 0;
   top: 88rpx;
-  background: #ff2b68;
+  background: linear-gradient(180deg, #ff4d6d 0%, #ff006e 100%);
 }

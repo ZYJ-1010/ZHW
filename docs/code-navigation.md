@@ -38,7 +38,7 @@
 | --- | --- | --- | --- |
 | 启动 / 登录前首页 | `pages/entry/index`、`pages/home/guest/index` | - | - |
 | 登录 / 邀请注册 / 找回密码 | `pages/login/index`、`pages/login/invite/index`、`pages/login/forgot/index`、`pages/login/realname/index` | `services/auth.js`、`services/invite.js`、`services/user.js`、`services/newbie.js` | `api/request.js`、`api/modules/user.js`、`api/modules/newbie.js` |
-| 首页 | `pages/home/index`、`pages/home/master/index`、`pages/home/player/index`、`components/home-shell/index.*`、`components/game-card/index.*` | `services/home.js` | `api/modules/home.js` |
+| 首页 | `pages/home/index`、`pages/home/master/index`、`pages/home/player/index`、`pages/home/expert/index`、`pages/home/guide/index`、`components/home-shell/index.*`、`components/role-dashboard-home/index.*`、`components/game-card/index.*` | `services/home.js` | `api/modules/home.js` |
 | 角色申请 | `pages/role/apply/index`、`pages/role/status/index` | `services/role.js` | `api/modules/role.js` |
 | 组局 | `pages/game/hall/index`、`pages/game/create/index`、`pages/game/detail/index`、`pages/game/applications/index`、`pages/game/delivery/index`、`pages/game/review/index` | `services/game.js`、`services/review.js` | `api/modules/game.js`、`api/modules/review.js` |
 | 地图 | `pages/map/index` | `services/location.js` | `api/modules/location.js` |
@@ -58,9 +58,13 @@
 
 1. 首页 / 角色页共用外框已抽成 `components/home-shell/index.*`，负责顶部品牌栏、在线人数、右上图标、底部方向键和底部五个圆按钮。
 2. 角色内容不要复制母版外框，页面里注册并使用 `<home-shell>`，把玩家 / 行家 / 领路人内容放进默认 slot。
-3. 母版走查页 `pages/home/master/index` 现在只是组件示例和调试入口；外框位置、字体、按钮样式优先改 `components/home-shell/index.wxss`。
-4. 母版按钮行为暂未接真实业务，组件内统一弹 `功能正在开发中`；后续接正式跳转时可在组件 `navtap` 事件或调用页 `handleShellNavTap` 中按 key 分发。
-5. 不要在 `app.wxss` 重新加入本地路径 `@font-face`；当前只使用 `"Noto Sans SC"` 字体名和系统兜底字体。
+3. 行家 / 领路人首页入口分别是 `pages/home/expert/index`、`pages/home/guide/index`，主体复用 `components/role-dashboard-home/index.*`，通过 `role-type` 切换工作台内容。
+4. 后续接真实入口时，优先查看 `GET /api/app/users/me` 的默认角色字段和角色列表；字段待确认记录见 `docs/api-additions.md` 第 13 节。
+5. 母版走查页 `pages/home/master/index` 现在只是组件示例和调试入口；外框位置、字体、按钮样式优先改 `components/home-shell/index.wxss`。
+6. 底部中间 `首页` 按钮的目标页面记录为 `config/routes.js` 中的 `ROUTES.playerHome`，即 `pages/home/player/index`；当前页点击时回到内容顶部。
+7. 玩家 / 行家 / 领路人首页底部方向键：上/下用于滚动黑色内容区，左/右暂未开发，仅提示占位。
+8. 母版按钮行为可在组件 `navtap` 事件或调用页 `handleShellNavTap` 中按 key 分发；未接业务的按钮显示 `功能正在开发中`。
+9. 不要在 `app.wxss` 重新加入本地路径 `@font-face`；当前只使用 `"Noto Sans SC"` 字体名和系统兜底字体。
 
 ## 组局公共卡片
 

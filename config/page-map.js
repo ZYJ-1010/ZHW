@@ -14,7 +14,7 @@ const PAGE_GROUPS = [
     priority: 'P0',
     batch: '第 1 批：入口闭环',
     route: '/pages/home/index',
-    routes: ['/pages/home/index', '/pages/home/guest/index'],
+    routes: ['/pages/home/index', '/pages/home/guest/index', '/pages/home/player/index', '/pages/home/expert/index', '/pages/home/guide/index'],
     screens: ['登录后玩家首页', '登录前首页', '行家首页', '领路人首页', '无行家权限提示页', '无领路人权限提示页', '权益对比页', '首页调色说明页']
   },
   {

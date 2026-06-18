@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "game-card": "/components/game-card/index"
+  }
+}

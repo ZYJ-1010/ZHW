@@ -1,5 +1,10 @@
 const homeService = require('../../../services/home')
 
+const HOME_SCROLL_TAP_STEP_RPX = 360
+const HOME_SCROLL_HOLD_STEP_RPX = 72
+const HOME_SCROLL_HOLD_INTERVAL_MS = 80
+const HOME_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
+
 const ROLE_TYPE_MAP = {
   player: 'player',
   玩家: 'player',
@@ -25,6 +30,7 @@ Page({
     canvasStyle: '',
     contentStyle: '',
     dockStyle: '',
+    homeScrollTop: 0,
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -117,11 +123,15 @@ Page({
       xp: '520',
       xpUnit: 'XP'
     },
+    achievementSection: {
+      icon: '💎',
+      title: '我的成就'
+    },
     achievements: [
-      { icon: '🏆', title: '百场王者', status: '▲ 等级' },
-      { icon: '🏆', title: '引航王者', status: '▲ 等级' },
-      { icon: '🔒', title: '隐藏徽章', status: '▲ 未解锁' },
-      { icon: '🌍', title: '地球漫游者', status: '▲ 进度20%' }
+      { id: 'hundred', icon: '🏆', title: '百场王者', status: '▲ 等级', tone: 'gold', unlocked: true },
+      { id: 'pilot', icon: '🏆', title: '引航王者', status: '▲ 等级', tone: 'gold', unlocked: true },
+      { id: 'earth', icon: '🌍', title: '地球漫游者', status: '▲ 进度20%', tone: 'blue', unlocked: true, progressPercent: 20, showProgress: true },
+      { id: 'hidden', icon: '🔒', title: '隐藏徽章', status: '▲ 未解锁', tone: 'locked', unlocked: false }
     ],
     playerCard: {
       role: '玩家 Lv.5',
@@ -174,14 +184,27 @@ Page({
       title: '进入元宇宙',
       desc: '共创数字街区｜全球联机互动',
       tags: ['3D空间', 'NFT徽章'],
-      avatars: ['A', 'L', 'M'],
-      badge: '+99'
+      avatars: [
+        { text: 'A', imageUrl: '/pages/home/player/assets/ranking-avatar-01.png' },
+        { text: 'L', imageUrl: '/pages/home/player/assets/ranking-avatar-02.png' },
+        { text: 'M', imageUrl: '/pages/home/player/assets/ranking-avatar-03.png' }
+      ],
+      badge: '+99',
+      route: 'pages/placeholder/metaverse/index'
     }
   },
 
   onLoad() {
     this.alignToolbarToCapsule()
     this.loadPlayerHome()
+  },
+
+  onHide() {
+    this.clearHomeScrollTimers()
+  },
+
+  onUnload() {
+    this.clearHomeScrollTimers()
   },
 
   async loadPlayerHome() {
@@ -192,6 +215,7 @@ Page({
       const nearbySummary = home && home.nearbySummary ? home.nearbySummary : {}
       const nearbySection = home && home.nearbySection ? home.nearbySection : {}
       const friendSection = home && home.friendSection ? home.friendSection : {}
+      const achievementState = this.formatAchievementState(home || {})
       const rankingState = this.formatRankingState(home || {})
       const roleName = hero.roleName || '玩家'
       const date = this.formatHeroDate(hero.dateLabel, hero.subtitle) || this.data.hero.date
@@ -222,7 +246,10 @@ Page({
         rankingTabs: rankingState.tabs,
         rankingBoards: rankingState.boards,
         rankingList: rankingState.list,
-        myRank: rankingState.myRank
+        myRank: rankingState.myRank,
+        achievementSection: achievementState.section,
+        achievements: achievementState.list,
+        metaverse: this.formatMetaverseEntry(home.metaverseEntry || home.metaverse || {})
       })
     } catch (error) {
       // 首页静态内容可兜底展示，接口失败时不打断用户浏览。
@@ -358,6 +385,136 @@ Page({
       count,
       moreText: section.moreText || section.moreLabel || section.actionText || current.moreText
     }
+  },
+
+  formatAchievementState(source = {}) {
+    const section = source.achievementSection || source.achievementsSection || {}
+    const list = source.achievements || source.achievementList || source.badges || []
+
+    return {
+      section: {
+        ...this.data.achievementSection,
+        icon: section.icon || this.data.achievementSection.icon,
+        title: section.title || section.name || this.data.achievementSection.title
+      },
+      list: this.formatAchievements(list, this.data.achievements)
+    }
+  },
+
+  formatAchievements(list, fallbackList) {
+    if (!Array.isArray(list) || list.length === 0) {
+      return fallbackList
+    }
+
+    return list
+      .map((item, index) => this.formatAchievement(item, fallbackList[index]))
+      .sort((prev, next) => Number(prev.unlocked === false) - Number(next.unlocked === false))
+  },
+
+  formatAchievement(item, fallback = {}) {
+    const title = item.title || item.name || item.displayName || fallback.title || ''
+    const status = item.statusText || item.statusLabel || item.status || this.formatAchievementStatus(item) || fallback.status || ''
+    const unlocked = item.unlocked != null ? Boolean(item.unlocked) : fallback.unlocked !== false
+
+    const progressPercent = this.normalizeProgress(
+      this.pickFirstValue(item.progressPercent, item.progress),
+      fallback.progressPercent || 0
+    )
+
+    return {
+      id: item.id || item.code || fallback.id || title,
+      icon: item.icon || item.iconText || fallback.icon || '🏆',
+      title,
+      status: status ? (status.startsWith('▲') ? status : `▲ ${status}`) : '',
+      tone: this.resolveAchievementTone(item, fallback, unlocked),
+      unlocked,
+      progressPercent,
+      showProgress: progressPercent > 0 && unlocked
+    }
+  },
+
+  resolveAchievementTone(item, fallback = {}, unlocked = true) {
+    if (!unlocked) {
+      return 'locked'
+    }
+
+    const text = `${item.code || ''} ${item.title || item.name || ''}`
+
+    if (item.progressPercent != null || item.progress != null || /earth|地球/.test(text)) {
+      return 'blue'
+    }
+
+    return fallback.tone || 'gold'
+  },
+
+  formatAchievementStatus(item) {
+    const progress = this.pickFirstValue(item.progressPercent, item.progress)
+
+    if (progress != null && progress !== '') {
+      return `进度${progress}%`
+    }
+
+    if (item.unlocked === false) {
+      return '未解锁'
+    }
+
+    return ''
+  },
+
+  formatMetaverseEntry(entry = {}) {
+    const current = this.data.metaverse
+    const tags = Array.isArray(entry.tags) && entry.tags.length > 0
+      ? entry.tags
+      : this.splitMetaverseTags(entry.desc || entry.subtitle) || current.tags
+
+    return {
+      ...current,
+      title: entry.actionText || entry.title || current.title,
+      desc: entry.summary || entry.description || entry.desc || current.desc,
+      tags,
+      avatars: this.formatMetaverseAvatars(entry.avatars || entry.users || current.avatars),
+      badge: this.formatMetaverseBadge(entry, current.badge),
+      route: entry.route || current.route
+    }
+  },
+
+  formatMetaverseBadge(entry = {}, fallback = '') {
+    const joinedCount = this.pickFirstValue(entry.joinedCount, entry.onlineCount, entry.participantCount)
+
+    if (joinedCount != null && joinedCount !== '') {
+      return `+${joinedCount}`
+    }
+
+    return entry.badge || entry.badgeText || entry.onlineText || fallback
+  },
+
+  splitMetaverseTags(text) {
+    if (!text || typeof text !== 'string') {
+      return null
+    }
+
+    return text
+      .split(/[·｜|、,，]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+  },
+
+  formatMetaverseAvatars(avatars) {
+    if (!Array.isArray(avatars) || avatars.length === 0) {
+      return this.data.metaverse.avatars
+    }
+
+    return avatars.slice(0, 3).map((item, index) => {
+      if (typeof item === 'string') {
+        return { text: item }
+      }
+
+      return {
+        text: item.text || item.avatarFallback || item.initial || item.nickname || `${index + 1}`,
+        imageUrl: item.imageUrl || item.avatarUrl || item.url || ''
+      }
+    })
   },
 
   formatRankingState(home = {}) {
@@ -661,7 +818,119 @@ Page({
     })
   },
 
-  handleShellNavTap() {},
+  handleShellNavTap(event) {
+    const key = event.detail && event.detail.key
+
+    if (key === 'up' || key === 'down') {
+      if (!this.suppressNextNavTap) {
+        this.scrollPlayerHome(key, HOME_SCROLL_TAP_STEP_RPX)
+      }
+      return
+    }
+
+    if (key === 'left' || key === 'right') {
+      wx.showToast({
+        title: '功能正在开发中',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (key === 'home') {
+      this.scrollPlayerHomeToTop()
+      return
+    }
+
+    this.handleActionTap()
+  },
+
+  handleShellNavLongPress(event) {
+    const key = event.detail && event.detail.key
+
+    if (key !== 'up' && key !== 'down') {
+      return
+    }
+
+    this.suppressNextNavTap = true
+    this.stopHomeScrollHold(false)
+    this.scrollPlayerHome(key, HOME_SCROLL_HOLD_STEP_RPX)
+
+    this.homeScrollHoldTimer = setInterval(() => {
+      this.scrollPlayerHome(key, HOME_SCROLL_HOLD_STEP_RPX)
+    }, HOME_SCROLL_HOLD_INTERVAL_MS)
+  },
+
+  handleShellNavTouchEnd() {
+    this.stopHomeScrollHold(true)
+  },
+
+  stopHomeScrollHold(resetTapSuppress) {
+    if (this.homeScrollHoldTimer) {
+      clearInterval(this.homeScrollHoldTimer)
+      this.homeScrollHoldTimer = null
+    }
+
+    if (resetTapSuppress && this.suppressNextNavTap) {
+      if (this.homeScrollSuppressTimer) {
+        clearTimeout(this.homeScrollSuppressTimer)
+      }
+
+      this.homeScrollSuppressTimer = setTimeout(() => {
+        this.suppressNextNavTap = false
+        this.homeScrollSuppressTimer = null
+      }, HOME_SCROLL_HOLD_SUPPRESS_TAP_MS)
+    }
+  },
+
+  clearHomeScrollTimers() {
+    this.stopHomeScrollHold(false)
+
+    if (this.homeScrollSuppressTimer) {
+      clearTimeout(this.homeScrollSuppressTimer)
+      this.homeScrollSuppressTimer = null
+    }
+
+    this.suppressNextNavTap = false
+  },
+
+  handleHomeScroll(event) {
+    const scrollTop = event.detail && event.detail.scrollTop
+
+    if (typeof scrollTop === 'number') {
+      this.homeScrollTopValue = scrollTop
+    }
+  },
+
+  scrollPlayerHome(direction, stepRpx = HOME_SCROLL_TAP_STEP_RPX) {
+    const current = Number(this.homeScrollTopValue || this.data.homeScrollTop || 0)
+    const distance = this.rpxToPx(stepRpx)
+    const nextTop = direction === 'up'
+      ? Math.max(0, current - distance)
+      : current + distance
+
+    this.homeScrollTopValue = nextTop
+    this.setData({
+      homeScrollTop: nextTop
+    })
+  },
+
+  scrollPlayerHomeToTop() {
+    this.homeScrollTopValue = 0
+    this.setData({
+      homeScrollTop: 0
+    })
+  },
+
+  rpxToPx(value) {
+    if (!wx.getSystemInfoSync) {
+      return value / 2
+    }
+
+    const system = wx.getSystemInfoSync()
+    const windowWidth = system && system.windowWidth ? system.windowWidth : 375
+
+    return Math.round((value * windowWidth) / 750)
+  },
 
   handleNearbyTabTap(event) {
     const key = event.currentTarget.dataset.key || 'all'

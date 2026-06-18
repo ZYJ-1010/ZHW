@@ -1,8 +1,10 @@
+@import "styles/enjoy-ui.wxss";
+
 page {
   min-height: 100%;
   color: #162033;
   background: #f4f7fb;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 button {

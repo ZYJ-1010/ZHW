@@ -9,6 +9,8 @@
     "pages/home/index",
     "pages/home/master/index",
     "pages/home/player/index",
+    "pages/home/expert/index",
+    "pages/home/guide/index",
     "pages/role/apply/index",
     "pages/role/status/index",
     "pages/game/hall/index",

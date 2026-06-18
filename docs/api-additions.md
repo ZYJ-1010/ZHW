@@ -696,3 +696,219 @@ GET /api/app/home
 3. 首页是否只需要返回前三名和当前用户排名，完整榜单是否另走分页接口。
 4. 榜单说明由后台直接返回 `desc`，还是返回 `weeklyGameCount/weeklyMvpCount` 等结构字段由前端拼接。
 5. 榜单 tab 是否需要支持后台调整顺序、改文案、隐藏某个 tab，或返回更多角色 tab。
+
+## 10. 玩家首页我的成就字段
+
+记录日期：2026-06-18
+
+模块：首页 / 玩家首页 / 我的成就
+
+页面：`pages/home/player/index`
+
+功能：玩家首页进入时只请求首页聚合接口，不为 `我的成就` 额外重复请求。后台在首页聚合响应中返回成就标题、图标和成就列表；前端按 React 参考样式固定渲染，不从后台获取颜色、尺寸、圆角等样式。
+
+状态：候选字段，待后端确认是否并入首页聚合接口。后台文档中已有 `GET /api/app/growth/me` 返回成长和成就的说明，但玩家首页为了减少请求次数，建议首页聚合接口同步返回用于当前模块展示的精简成就列表。
+
+推荐接口：
+
+```text
+GET /api/app/home
+```
+
+推荐响应片段：
+
+```json
+{
+  "achievementSection": {
+    "icon": "💎",
+    "title": "我的成就"
+  },
+  "achievementList": [
+    {
+      "id": "hundred",
+      "code": "hundred_king",
+      "title": "百场王者",
+      "icon": "🏆",
+      "statusText": "等级",
+      "unlocked": true
+    },
+    {
+      "id": "earth",
+      "code": "earth_roamer",
+      "title": "地球漫游者",
+      "icon": "🌍",
+      "statusText": "进度20%",
+      "progressPercent": 20,
+      "unlocked": true
+    }
+  ]
+}
+```
+
+字段分工：
+
+| 字段 | 来源 | 用途 | 说明 |
+| --- | --- | --- | --- |
+| `achievementSection.icon` | 后台或前端固定 | 成就标题图标 | 当前视觉为 `💎`。 |
+| `achievementSection.title` | 后台 | 成就标题 | 当前文案为 `我的成就`。 |
+| `achievementList` / `achievements` | 后台 | 首页展示的成就列表 | 当前 UI 展示 4 个；排序由后台返回。 |
+| `id` | 后台 | 成就记录 ID | 用于跳转详情或埋点。 |
+| `code` | 后台 | 成就编码 | 前端可用作业务类型识别，但不由后台直接下发样式。 |
+| `title` / `name` | 后台 | 成就名称 | 例如 `百场王者`。 |
+| `icon` | 后台或前端配置 | 成就图标 | 可返回 emoji 或后续扩展为图标 URL。 |
+| `statusText` | 后台 | 成就状态文案 | 例如 `等级`、`未解锁`、`进度20%`，前端统一补 `▲` 展示。 |
+| `progressPercent` | 后台 | 成就进度 | 可选；用于进度型成就。 |
+| `unlocked` | 后台 | 是否已解锁 | 未解锁时前端按固定灰/虚线视觉展示。 |
+
+注意：成就卡颜色、徽章边框、阴影、字号、圆角和横向排布由前端 WXSS 按 React 参考固定实现；后台不要返回颜色值、尺寸值或 CSS 类名。
+
+## 11. 玩家首页元宇宙入口字段
+
+记录日期：2026-06-18
+
+模块：首页 / 玩家首页 / 元宇宙入口
+
+页面：`pages/home/player/index`
+
+功能：玩家首页进入时通过首页聚合接口返回元宇宙入口展示数据；前端按 React 参考样式固定渲染入口卡片，不为该模块额外请求接口。
+
+状态：候选字段，待后端确认是否并入首页聚合接口。
+
+推荐接口：
+
+```text
+GET /api/app/home
+```
+
+推荐响应片段：
+
+```json
+{
+  "metaverseEntry": {
+    "title": "进入元宇宙",
+    "desc": "共创数字街区｜全球联机互动",
+    "tags": ["3D空间", "NFT徽章"],
+    "avatars": [
+      { "avatarUrl": "https://cdn.example.com/users/a.png", "avatarFallback": "A" },
+      { "avatarUrl": "https://cdn.example.com/users/l.png", "avatarFallback": "L" },
+      { "avatarUrl": "https://cdn.example.com/users/m.png", "avatarFallback": "M" }
+    ],
+    "joinedCount": 99,
+    "route": "pages/placeholder/metaverse/index"
+  }
+}
+```
+
+字段分工：
+
+| 字段 | 来源 | 用途 | 说明 |
+| --- | --- | --- | --- |
+| `metaverseEntry.title` / `actionText` | 后台 | 入口主标题 | 当前文案为 `进入元宇宙`。 |
+| `metaverseEntry.desc` | 后台 | 入口说明 | 当前文案为 `共创数字街区｜全球联机互动`。 |
+| `metaverseEntry.tags` | 后台 | 标签列表 | 当前展示前 2 个，例如 `3D空间`、`NFT徽章`。 |
+| `metaverseEntry.avatars` | 后台 | 参与用户头像 | 当前展示前 3 个；支持 `avatarUrl` 和 `avatarFallback`，mock 复用排行榜头像，正式由后台/CDN 返回。 |
+| `metaverseEntry.joinedCount` / `onlineCount` / `participantCount` | 后台 | 头像组角标数字 | 前端格式化为 `+99`；当前 mock 为 `99`。 |
+| `metaverseEntry.badgeText` / `badge` / `onlineText` | 后台可选 | 头像组角标兜底文案 | 若后台只能返回完整文案，前端可直接展示。 |
+| `metaverseEntry.route` | 后台 | 点击跳转目标 | 当前仍是预留页，后续按真实元宇宙入口调整。 |
+
+注意：卡片尺寸、蓝色渐变背景、标签颜色、头像叠放、右侧地球轨道图案等样式由前端固定实现；后台不要返回颜色、圆角、阴影或 CSS 类名。
+
+## 12. 行家 / 领路人首页工作台字段
+
+记录日期：2026-06-18
+
+模块：首页 / 行家首页 / 领路人首页
+
+页面：`pages/home/expert/index`、`pages/home/guide/index`、`components/role-dashboard-home/index.*`
+
+功能：行家和领路人首页复用同一个工作台组件，通过 `roleType=expert|guide` 从首页聚合接口返回不同角色的标题、统计、快捷动作、待办卡和洞察面板。样式由前端固定，后台只返回内容、数字、排序和跳转目标。
+
+状态：候选字段，待后端确认是否并入首页聚合接口。当前 mock 已按 `GET /api/app/home?roleType=expert` 和 `GET /api/app/home?roleType=guide` 返回不同工作台数据。
+
+推荐接口：
+
+```text
+GET /api/app/home?roleType=expert
+GET /api/app/home?roleType=guide
+```
+
+推荐响应片段：
+
+```json
+{
+  "roleDashboard": {
+    "roleName": "行家",
+    "badge": "行家 Lv.20",
+    "stateText": "今日待处理 7",
+    "title": "行家工作台",
+    "subtitle": "管理邀约与审核",
+    "desc": "处理玩家入局申请，维护高质量局内体验",
+    "icon": "🎯",
+    "actionTitle": "快捷处理",
+    "cardTitle": "待办提醒",
+    "moreText": "查看全部",
+    "stats": [
+      { "value": "5", "label": "待审核" },
+      { "value": "18", "label": "已交付" },
+      { "value": "4.9", "label": "评分" }
+    ],
+    "actions": [
+      { "id": "audit", "icon": "✅", "title": "审核列表", "desc": "处理玩家入局申请", "route": "pages/game/applications/index" }
+    ],
+    "cards": [
+      { "id": "expert-card-1", "tag": "审核", "title": "玩家入局申请", "meta": "3 条新申请等待处理", "count": "3", "route": "pages/game/applications/index" }
+    ],
+    "insight": {
+      "title": "本周服务质量",
+      "desc": "交付及时率保持稳定，继续关注待审核申请。",
+      "progress": 76,
+      "metrics": ["及时率 96%", "好评 18", "待反馈 2"]
+    }
+  }
+}
+```
+
+字段分工：
+
+| 字段 | 来源 | 用途 | 说明 |
+| --- | --- | --- | --- |
+| `roleDashboard.roleName` / `badge` / `stateText` | 后台 | 角色身份和今日状态 | 行家、领路人展示不同文案。 |
+| `roleDashboard.title` / `subtitle` / `desc` / `icon` | 后台 | 工作台主卡内容 | 不返回颜色、圆角、阴影等样式。 |
+| `roleDashboard.stats` | 后台 | 三个核心指标 | 行家示例：待审核、已交付、评分；领路人示例：待接收、成功引荐、活跃城市。 |
+| `roleDashboard.actions` | 后台 | 快捷入口 | 前端按返回顺序展示；`route` 目前只记录目标，正式跳转后再接。 |
+| `roleDashboard.cards` | 后台 | 待办提醒卡 | 包含标签、标题、说明和数量角标。 |
+| `roleDashboard.insight` | 后台 | 周维度状态面板 | `progress` 为 0-100，`metrics` 为标签列表。 |
+
+注意：当前阶段只实现行家 / 领路人首页工作台骨架；右侧底部按钮除 `首页` 外暂不接真实跳转。
+
+## 13. 首页入口角色分流字段
+
+记录日期：2026-06-18
+
+模块：首页 / 角色首页入口
+
+页面：`pages/home/player/index`、`pages/home/expert/index`、`pages/home/guide/index`
+
+功能：后续真实入口不应由前端固定猜测进入哪个角色首页，应由后台返回当前默认角色或已开通角色后决定进入玩家、行家或领路人首页。当前阶段只完成三个首页页面和对应 mock 数据，不在登录页或其它入口里扩展真实跳转。
+
+状态：待后端确认。对外后台资料中 `users` 表已包含 `default_role` 字段，`GET /api/app/users/me` 已声明返回用户角色信息，但 `CurrentUserDTO` 中首页默认角色字段名仍待确认；本次没有改登录页跳转逻辑。
+
+当前前端兼容字段：
+
+```text
+defaultRole / default_role / homeRole / home_role / currentRole / current_role / roleType / role_type
+```
+
+建议分流规则：
+
+1. 优先使用后台明确返回的默认角色字段。
+2. 若默认角色为空或未通过审核，则从 `roles` + `roleStatusMap` 中选择已通过角色。
+3. 若后台未返回可用角色，则兜底进入玩家首页。
+4. 角色枚举统一兼容 `player`、`expert`、`guide`；历史 `leader` 会归一为 `guide`。
+
+待后端确认：
+
+1. `GET /api/app/users/me` 是否正式返回 `defaultRole`，或沿用数据库字段 `default_role`。
+2. `roles` 是字符串数组，还是 `{ roleType, status }` 对象数组。
+3. `roleStatusMap` 的通过状态枚举是否固定为 `approved`，还是还有 `passed/active/enabled` 等值。
+4. 用户同时拥有多个角色时，是否完全以后端 `defaultRole/default_role` 为准。

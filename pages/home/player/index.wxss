@@ -7,7 +7,8 @@
 .player-home-page {
   position: relative;
   width: 704rpx;
-  min-height: 3882rpx;
+  min-height: 100%;
+  padding-bottom: 40rpx;
   box-sizing: border-box;
   background: #000000;
   font-family: "Noto Sans SC", sans-serif;
@@ -212,11 +213,11 @@ page {
   min-height: 1038rpx;
   margin-top: 42rpx;
   padding: 44rpx 36rpx 38rpx;
-  border: 2rpx solid rgba(52, 136, 178, 0.78);
+  border: 2rpx solid rgba(255, 255, 255, 0.25);
   border-radius: 28rpx;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.96) 0%, rgba(2, 22, 28, 0.96) 47%, rgba(7, 92, 139, 0.96) 100%);
-  box-shadow: 0 8rpx 22rpx rgba(0, 0, 0, 0.42);
+    linear-gradient(180deg, #000000 0%, #034373 100%);
+  box-shadow: 0 8rpx 22rpx rgba(0, 0, 0, 0.3);
 }
 
 .player-panel-head {
@@ -478,47 +479,242 @@ page {
 }
 
 .player-achievement-panel {
-  margin-top: 28rpx;
-  padding: 30rpx 30rpx 34rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.18);
-  border-radius: 32rpx;
-  background: rgba(2, 123, 211, 0.2);
+  margin-top: 40rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.player-achievement-head {
+  min-height: 54rpx;
+  padding-left: 2rpx;
+}
+
+.player-achievement-head .player-panel-icon {
+  margin-right: 6rpx;
+  color: #00d2ff;
+  font-size: 40rpx;
+  line-height: 52rpx;
+}
+
+.player-achievement-head .player-panel-title {
+  color: #22e2ee;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 44rpx;
 }
 
 .player-achievement-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18rpx;
-  margin-top: 22rpx;
+  grid-template-columns: repeat(4, 136rpx);
+  column-gap: 34rpx;
+  width: 648rpx;
+  min-height: 172rpx;
+  margin-top: 32rpx;
 }
 
 .player-achievement {
-  min-height: 118rpx;
-  padding: 18rpx;
-  border-radius: 24rpx;
-  background: rgba(26, 39, 62, 0.92);
+  position: relative;
+  width: 136rpx;
+  height: 172rpx;
   box-sizing: border-box;
+  text-align: center;
+}
+
+.player-achievement-medal {
+  position: relative;
+  width: 136rpx;
+  height: 142rpx;
+  margin: 0 auto;
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 231, 151, 0.32) 0%, rgba(255, 231, 151, 0) 33%),
+    linear-gradient(136deg, #ffe38a 0%, #d28a16 37%, #5a2b0b 62%, #f4a225 100%);
+  box-shadow: 0 4rpx 12rpx rgba(235, 178, 68, 0.4);
+  overflow: visible;
+}
+
+.player-achievement-medal::before {
+  content: "";
+  position: absolute;
+  left: 4rpx;
+  top: 4rpx;
+  width: 128rpx;
+  height: 136rpx;
+  border-radius: 22rpx;
+  background: #000000;
+}
+
+.player-achievement-medal::after {
+  content: "";
+  position: absolute;
+  left: 8rpx;
+  top: 6rpx;
+  width: 120rpx;
+  height: 132rpx;
+  border-radius: 20rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 24%),
+    #000000;
+}
+
+.player-achievement-face {
+  position: absolute;
+  z-index: 1;
+  left: 2rpx;
+  top: 0;
+  width: 132rpx;
+  height: 142rpx;
+}
+
+.player-achievement.blue .player-achievement-medal {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(125, 231, 255, 0.32) 0%, rgba(125, 231, 255, 0) 34%),
+    linear-gradient(136deg, #78e8ff 0%, #1e91d0 38%, #0d3e67 62%, #45bdff 100%);
+  box-shadow: 0 4rpx 12rpx rgba(59, 182, 254, 0.35);
+}
+
+.player-achievement.locked .player-achievement-medal {
+  background: linear-gradient(135deg, #c48cf4 0%, #99d8f2 48%, #7ce4b9 100%);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.player-achievement.locked .player-achievement-medal::before {
+  display: none;
+}
+
+.player-achievement.locked .player-achievement-medal::after {
+  left: 0;
+  top: 0;
+  width: 136rpx;
+  height: 142rpx;
+  border: 2rpx dashed rgba(0, 0, 0, 0.86);
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.player-achievement-icon-wrap {
+  position: absolute;
+  left: 37rpx;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 78rpx;
+  overflow: hidden;
 }
 
 .player-achievement-icon {
-  font-size: 28rpx;
-  line-height: 34rpx;
+  font-size: 56rpx;
+  line-height: 86rpx;
+}
+
+.player-achievement-lock-icon {
+  position: absolute;
+  left: 44rpx;
+  top: 32rpx;
+  width: 54rpx;
+  height: 70rpx;
+}
+
+.player-achievement-lock-shackle {
+  position: absolute;
+  left: 7rpx;
+  top: 0;
+  width: 40rpx;
+  height: 44rpx;
+  border: 8rpx solid #111111;
+  border-bottom: 0;
+  border-radius: 24rpx 24rpx 0 0;
+  box-sizing: border-box;
+}
+
+.player-achievement-lock-shackle::after {
+  content: "";
+  position: absolute;
+  left: 5rpx;
+  top: 5rpx;
+  width: 14rpx;
+  height: 30rpx;
+  border: 4rpx solid #b9c0c6;
+  border-bottom: 0;
+  border-radius: 14rpx 14rpx 0 0;
+}
+
+.player-achievement-lock-body {
+  position: absolute;
+  left: 1rpx;
+  top: 34rpx;
+  width: 52rpx;
+  height: 38rpx;
+  border: 6rpx solid #111111;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  background: #ffd15f;
 }
 
 .player-achievement-title {
-  margin-top: 6rpx;
-  color: #ffffff;
-  font-size: 22rpx;
-  font-weight: 900;
-  line-height: 30rpx;
+  position: absolute;
+  left: 4rpx;
+  right: 4rpx;
+  top: 80rpx;
+  color: #f39e1e;
+  font-size: 16rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-achievement.blue .player-achievement-title {
+  color: #3bb6fe;
+}
+
+.player-achievement.locked .player-achievement-title {
+  display: none;
+}
+
+.player-achievement-progress {
+  position: absolute;
+  left: 30rpx;
+  top: 114rpx;
+  width: 73rpx;
+  height: 2rpx;
+  border-radius: 4rpx;
+  background: rgba(255, 255, 255, 0.19);
+  overflow: hidden;
+}
+
+.player-achievement-progress-fill {
+  height: 100%;
+  border-radius: 4rpx;
+  background: #3bb6fe;
 }
 
 .player-achievement-status {
-  margin-top: 4rpx;
-  color: #a2ef4d;
-  font-size: 18rpx;
-  font-weight: 800;
-  line-height: 24rpx;
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: -28rpx;
+  display: block;
+  color: #bebebe;
+  font-size: 14rpx;
+  font-weight: 400;
+  line-height: 26rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.player-achievement.locked .player-achievement-status {
+  bottom: -28rpx;
 }
 
 /* source: HTML 2_1715 */
@@ -785,14 +981,14 @@ page {
 
 .player-action-card.pink {
   left: 0;
-  border: 2rpx solid rgba(255, 0, 110, 0.49);
-  background: linear-gradient(135deg, #3b0630 0%, #25112f 100%);
+  border: 2rpx solid rgba(255, 0, 110, 0.5);
+  background: linear-gradient(135deg, rgba(255, 0, 110, 0.2) 0%, rgba(131, 56, 236, 0.2) 100%);
 }
 
 .player-action-card.cyan {
   right: 0;
-  border: 2rpx solid rgba(2, 123, 211, 0.56);
-  background: linear-gradient(135deg, #06283f 0%, #061d2f 100%);
+  border: 2rpx solid rgba(2, 123, 211, 0.5);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
 }
 
 .player-action-icon {
@@ -904,7 +1100,7 @@ page {
   margin-top: 44rpx;
   border: 2rpx solid rgba(51, 255, 0, 0.4);
   border-radius: 32rpx;
-  background: rgb(26, 39, 62);
+  background: rgba(2, 123, 211, 0.2);
   overflow: hidden;
 }
 
@@ -1012,19 +1208,6 @@ page {
   }
 }
 
-.player-tabs.role-switch {
-  justify-content: center;
-  width: 662rpx;
-  margin: 24rpx auto 0;
-}
-
-.player-tabs.role-switch text {
-  height: 46rpx;
-  padding: 0 24rpx;
-  font-size: 22rpx;
-  font-weight: 400;
-}
-
 .player-friend-more {
   color: #16c0f6;
   font-size: 22rpx;
@@ -1033,45 +1216,45 @@ page {
 
 .player-metaverse-card {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   width: 662rpx;
   height: 204rpx;
-  margin-top: 34rpx;
+  margin-top: 50rpx;
   margin-right: auto;
   margin-left: auto;
-  padding: 22rpx 24rpx 14rpx 36rpx;
   overflow: hidden;
   border: 2rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 32rpx;
   box-sizing: border-box;
   background:
     radial-gradient(circle at 82% 50%, rgba(52, 241, 241, 0.2) 0%, rgba(52, 241, 241, 0) 34%),
-    linear-gradient(135deg, #0c1d34 0%, #14243d 46%, #122033 100%);
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.4);
+    linear-gradient(135deg, #0161a6 0%, #034373 100%);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
 }
 
 .player-metaverse-copy {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  width: 402rpx;
+  left: 0;
+  top: 0;
+  width: 458rpx;
+  height: 204rpx;
 }
 
 .player-metaverse-heading {
-  display: flex;
-  align-items: center;
+  position: absolute;
+  left: 70rpx;
+  top: 34rpx;
   height: 48rpx;
 }
 
 .player-metaverse-dot {
-  flex: 0 0 auto;
+  position: absolute;
+  left: -38rpx;
+  top: 10rpx;
   width: 30rpx;
   height: 30rpx;
-  margin-right: 8rpx;
   border-radius: 50%;
   background: #75f9fd;
-  box-shadow: 0 0 0 10rpx rgba(26, 58, 90, 0.86);
 }
 
 .player-metaverse-title {
@@ -1083,7 +1266,10 @@ page {
 }
 
 .player-metaverse-desc {
-  margin-top: 10rpx;
+  position: absolute;
+  left: 36rpx;
+  top: 92rpx;
+  width: 264rpx;
   color: #9ca3af;
   font-size: 20rpx;
   font-weight: 400;
@@ -1092,9 +1278,11 @@ page {
 }
 
 .player-metaverse-footer {
+  position: absolute;
+  left: 24rpx;
+  top: 150rpx;
   display: flex;
   align-items: center;
-  margin-top: 18rpx;
 }
 
 .player-metaverse-tags {
@@ -1115,7 +1303,7 @@ page {
   border-radius: 16rpx;
   box-sizing: border-box;
   color: #22d3ee;
-  background: #1a3a5a;
+  background: rgba(26, 58, 90, 0.88);
   font-size: 16rpx;
   font-weight: 400;
   line-height: 30rpx;
@@ -1124,6 +1312,7 @@ page {
 .player-metaverse-tags text.purple {
   border-color: rgba(168, 85, 247, 0.3);
   color: #c084fc;
+  background: rgba(49, 38, 94, 0.82);
 }
 
 .player-metaverse-avatars {
@@ -1134,7 +1323,7 @@ page {
   height: 40rpx;
 }
 
-.player-metaverse-avatars text {
+.player-metaverse-avatar {
   position: relative;
   z-index: 1;
   display: flex;
@@ -1152,102 +1341,244 @@ page {
   font-weight: 900;
   line-height: 40rpx;
   text-align: center;
+  overflow: hidden;
 }
 
-.player-metaverse-avatars text:nth-child(2) {
+.player-metaverse-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.player-metaverse-avatar text {
+  display: block;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.player-metaverse-avatar:nth-child(2) {
   background: linear-gradient(135deg, #f0abfc 0%, #a855f7 100%);
 }
 
-.player-metaverse-avatars text:nth-child(3) {
+.player-metaverse-avatar:nth-child(3) {
   background: linear-gradient(135deg, #fda4af 0%, #fb7185 100%);
 }
 
 .player-metaverse-avatars .player-metaverse-badge {
   z-index: 2;
-  width: 36rpx;
-  height: 36rpx;
-  margin-left: -2rpx;
+  width: auto;
+  height: 40rpx;
+  margin-left: 2rpx;
   margin-right: 0;
   border: 0;
   color: #bebebe;
-  background: #215476;
+  background: transparent;
   font-size: 16rpx;
   font-weight: 400;
-  line-height: 36rpx;
+  line-height: 40rpx;
 }
 
 .player-metaverse-symbol {
   position: absolute;
-  right: 24rpx;
-  top: 22rpx;
+  right: 36rpx;
+  top: 18rpx;
   width: 160rpx;
   height: 160rpx;
-  border-radius: 50%;
+  overflow: visible;
+  box-sizing: border-box;
 }
 
-.player-metaverse-ring,
-.player-metaverse-axis {
+.player-metaverse-symbol::before {
+  display: none;
+}
+
+.player-metaverse-symbol::after {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  left: 48rpx;
+  top: 113rpx;
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: rgba(73, 244, 255, 0.92);
+  box-shadow: 0 0 8rpx rgba(73, 244, 255, 0.55);
+}
+
+.player-metaverse-planet {
+  position: absolute;
+  z-index: 1;
+  left: 39rpx;
+  top: 40rpx;
+  width: 82rpx;
+  height: 82rpx;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 30%, rgba(221, 255, 255, 0.5) 0%, rgba(148, 235, 255, 0.22) 42%, rgba(64, 196, 234, 0.1) 72%, rgba(48, 176, 226, 0.04) 100%);
+  box-shadow: inset 0 0 16rpx rgba(144, 244, 255, 0.18), 0 0 14rpx rgba(84, 232, 255, 0.12);
+}
+
+.player-metaverse-planet::before,
+.player-metaverse-planet::after {
+  display: none;
+}
+
+.player-metaverse-outer-ring {
+  position: absolute;
+  z-index: 4;
+  left: 9rpx;
+  top: 9rpx;
+  width: 142rpx;
+  height: 142rpx;
+  border: 1rpx solid rgba(180, 108, 255, 0.78);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: transparent;
+  box-shadow:
+    inset 22rpx 0 0 -21rpx rgba(255, 83, 223, 0.7),
+    inset -22rpx 0 0 -21rpx rgba(95, 141, 255, 0.72),
+    0 0 12rpx rgba(177, 70, 255, 0.18);
+}
+
+.player-metaverse-outer-ring::before {
+  display: none;
+}
+
+.player-metaverse-orbit {
+  position: absolute;
+  z-index: 2;
+  left: 42rpx;
+  top: 68rpx;
+  width: 76rpx;
+  height: 24rpx;
+  border: 1rpx solid rgba(82, 198, 241, 0.34);
+  border-radius: 50%;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.player-metaverse-orbit.orbit-one {
+  transform: rotate(0deg);
+}
+
+.player-metaverse-orbit.orbit-two {
+  left: 66rpx;
+  top: 43rpx;
+  width: 28rpx;
+  height: 76rpx;
+  border-width: 1rpx;
+  border-color: rgba(82, 198, 241, 0.34);
+  transform: rotate(0deg);
+}
+
+.player-metaverse-orbit.orbit-three {
+  left: 20rpx;
+  top: 59rpx;
+  width: 120rpx;
+  height: 42rpx;
+  border-width: 1rpx;
+  border-color: rgba(86, 244, 255, 0.66);
+  transform: rotate(45deg);
+}
+
+.player-metaverse-link {
+  position: absolute;
+  z-index: 5;
+  height: 0;
+  border-top: 1rpx dashed rgba(73, 244, 255, 0.68);
+  transform-origin: left center;
+}
+
+.player-metaverse-link.link-triangle {
+  left: 51rpx;
+  top: 116rpx;
+  width: 46rpx;
+  border-color: rgba(73, 244, 255, 0.68);
+  transform: rotate(-50deg);
+}
+
+.player-metaverse-link.link-diamond {
+  left: 109rpx;
+  top: 53rpx;
+  width: 40rpx;
+  border-color: rgba(255, 54, 205, 0.62);
+  transform: rotate(136deg);
+}
+
+.player-metaverse-point {
+  position: absolute;
+  z-index: 6;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #23f5ff;
+  box-shadow: 0 0 9rpx rgba(35, 245, 255, 0.72);
+}
+
+.player-metaverse-point.point-top {
+  left: 76rpx;
+  top: 6rpx;
+  background: #ff35c9;
+  box-shadow: 0 0 10rpx rgba(255, 53, 201, 0.76);
+}
+
+.player-metaverse-point.point-bottom {
+  left: 76rpx;
+  bottom: 6rpx;
+  background: #ff35c9;
+  box-shadow: 0 0 10rpx rgba(255, 53, 201, 0.76);
+}
+
+.player-metaverse-point.point-left {
+  left: 6rpx;
+  top: 76rpx;
+}
+
+.player-metaverse-point.point-right {
+  right: 6rpx;
+  top: 76rpx;
+}
+
+.player-metaverse-diamond {
+  position: absolute;
+  z-index: 7;
+  right: 44rpx;
+  top: 45rpx;
+  width: 15rpx;
+  height: 15rpx;
+  border: 3rpx solid rgba(255, 54, 205, 0.96);
+  box-sizing: border-box;
+  background: rgba(255, 54, 205, 0.08);
+  box-shadow:
+    0 0 4rpx rgba(255, 54, 205, 0.95),
+    0 0 12rpx rgba(255, 54, 205, 0.78),
+    0 0 22rpx rgba(255, 54, 205, 0.42);
+  transform: rotate(45deg);
+}
+
+.player-metaverse-diamond::after {
+  content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  border: 4rpx solid rgba(52, 241, 241, 0.9);
-  border-radius: 50%;
-  box-sizing: border-box;
+  width: 5rpx;
+  height: 5rpx;
+  background: rgba(255, 54, 205, 0.96);
+  box-shadow:
+    0 0 4rpx rgba(255, 54, 205, 0.9),
+    0 0 10rpx rgba(255, 54, 205, 0.62);
   transform: translate(-50%, -50%);
 }
 
-.player-metaverse-ring.outer {
-  width: 132rpx;
-  height: 132rpx;
-  box-shadow:
-    0 0 18rpx rgba(52, 241, 241, 0.38),
-    inset 0 0 22rpx rgba(52, 241, 241, 0.16);
-}
-
-.player-metaverse-ring.inner {
-  width: 78rpx;
-  height: 78rpx;
-  border-color: rgba(192, 132, 252, 0.86);
-}
-
-.player-metaverse-axis {
-  border-radius: 999rpx;
-}
-
-.player-metaverse-axis.horizontal {
-  width: 126rpx;
-  height: 32rpx;
-  border-color: rgba(34, 211, 238, 0.68);
-}
-
-.player-metaverse-axis.vertical {
-  width: 32rpx;
-  height: 126rpx;
-  border-color: rgba(168, 85, 247, 0.64);
-}
-
-.player-metaverse-node {
+.player-metaverse-triangle {
   position: absolute;
-  width: 18rpx;
-  height: 18rpx;
-  border-radius: 50%;
-  background: #75f9fd;
-  box-shadow: 0 0 12rpx rgba(117, 249, 253, 0.8);
-}
-
-.player-metaverse-node.one {
-  left: 26rpx;
-  top: 44rpx;
-}
-
-.player-metaverse-node.two {
-  right: 30rpx;
-  top: 38rpx;
-  background: #c084fc;
-}
-
-.player-metaverse-node.three {
-  left: 74rpx;
-  bottom: 20rpx;
-  background: #22d3ee;
+  z-index: 7;
+  left: 39rpx;
+  bottom: 37rpx;
+  color: rgba(73, 244, 255, 0.9);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 24rpx;
+  text-shadow: 0 0 10rpx rgba(73, 244, 255, 0.55);
 }
