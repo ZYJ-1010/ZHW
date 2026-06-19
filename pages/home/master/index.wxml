@@ -1,6 +1,25 @@
+<view wx:if="{{masterMode === 'apply'}}" class="home-master-apply-page">
+  <view class="home-master-apply-stage">
+    <text class="home-master-apply-caption">{{applyMaster.caption}}</text>
+    <view class="home-master-apply-frame">
+      <view class="home-master-apply-phone">
+        <view class="home-master-apply-nav">
+          <text class="home-master-apply-back">‹</text>
+          <text class="home-master-apply-nav-title">{{applyMaster.navTitle}}</text>
+        </view>
+        <view class="home-master-apply-main"></view>
+      </view>
+    </view>
+  </view>
+</view>
+
 <home-shell
+  wx:else
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
+  dock-visible="{{dockVisible}}"
+  content-scroll-y="{{contentScrollY}}"
+  shell-class="{{shellClass}}"
   bindnavtap="handleShellNavTap"
 >
   <view class="home-master-placeholder"></view>

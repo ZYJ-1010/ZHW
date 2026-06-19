@@ -108,44 +108,55 @@
     </view>
   </view>
 
-  <view wx:elif="{{currentHomePreview.mode === 'roleComparison'}}" class="home-game-shell home-role-compare">
-    <view class="home-game-appbar">
-      <text class="home-game-back">‹</text>
-      <text class="home-game-app-title">{{currentHomePreview.title}}</text>
+  <home-shell
+    wx:elif="{{currentHomePreview.mode === 'roleComparison'}}"
+    online-text="{{roleComparisonShell.onlineText}}"
+    nav-items="{{roleComparisonShell.navItems}}"
+    dock-visible="{{false}}"
+    content-scroll-y="{{true}}"
+    nav-toast-enabled="{{false}}"
+    shell-class="home-shell--content-only"
+  >
+    <view class="home-role-compare">
+      <view class="home-game-appbar">
+        <text class="home-game-back" bindtap="handleRoleCompareBackTap">‹</text>
+        <text class="home-game-app-title">{{currentHomePreview.title}}</text>
+      </view>
+      <view class="home-role-compare-content">
+        <view class="home-role-hero">
+          <view class="home-role-title-row">
+            <text class="home-role-title-icon">🎯</text>
+            <text class="home-role-title">{{currentHomePreview.title}}</text>
+          </view>
+          <text class="home-role-subtitle">{{currentHomePreview.subtitle}}</text>
+        </view>
+        <view class="home-role-cards">
+          <view wx:for="{{currentHomePreview.roles}}" wx:key="name" class="home-role-card {{item.key}} {{item.active ? 'active' : ''}}">
+            <text class="home-role-icon">{{item.icon}}</text>
+            <text class="home-role-name">{{item.name}}</text>
+            <text class="home-role-level">{{item.level}}</text>
+          </view>
+        </view>
+        <view class="home-role-table">
+          <view class="home-role-row head">
+            <text>权益功能</text>
+            <text class="player">玩家</text>
+            <text class="guide">领路人</text>
+            <text class="expert">行家</text>
+          </view>
+          <view wx:for="{{currentHomePreview.benefits}}" wx:for-index="benefitIndex" wx:key="name" class="home-role-row {{benefitIndex === 4 ? 'spaced' : ''}}">
+            <text>{{item.name}}</text>
+            <text class="player {{item.player === '✓' ? 'ok' : 'muted'}}">{{item.player}}</text>
+            <text class="guide {{item.leader === '✓' ? 'ok' : item.leader === '—' ? 'muted' : 'rate'}}">{{item.leader}}</text>
+            <text class="expert {{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
+          </view>
+        </view>
+        <view class="home-game-bottom-action">
+          <text>{{currentHomePreview.primary}}</text>
+        </view>
+      </view>
     </view>
-    <scroll-view class="home-game-scroll" scroll-y enhanced show-scrollbar="false">
-      <view class="home-role-hero">
-        <text class="home-role-star">★</text>
-        <text class="home-role-title">{{currentHomePreview.title}}</text>
-        <text class="home-role-subtitle">{{currentHomePreview.subtitle}}</text>
-      </view>
-      <view class="home-role-cards">
-        <view wx:for="{{currentHomePreview.roles}}" wx:key="name" class="home-role-card {{item.active ? 'active' : ''}}">
-          <text class="home-role-icon">{{item.icon}}</text>
-          <text class="home-role-name">{{item.name}}</text>
-          <text class="home-role-level">{{item.level}}</text>
-        </view>
-      </view>
-      <view class="home-role-table">
-        <view class="home-role-row head">
-          <text>权益功能</text>
-          <text>玩家</text>
-          <text>领路人</text>
-          <text>行家</text>
-        </view>
-        <view wx:for="{{currentHomePreview.benefits}}" wx:key="name" class="home-role-row">
-          <text>{{item.name}}</text>
-          <text class="{{item.player === '✓' ? 'ok' : 'muted'}}">{{item.player}}</text>
-          <text class="{{item.leader === '✓' ? 'ok' : item.leader === '—' ? 'muted' : 'rate'}}">{{item.leader}}</text>
-          <text class="{{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
-        </view>
-      </view>
-    </scroll-view>
-    <view class="home-game-bottom-action">
-      <text>{{currentHomePreview.primary}}</text>
-      <text>»</text>
-    </view>
-  </view>
+  </home-shell>
 
   <view wx:elif="{{currentHomePreview.mode === 'leaderProgress'}}" class="home-game-shell home-leader-progress">
     <view class="home-game-appbar">
@@ -229,6 +240,102 @@
       </view>
     </scroll-view>
     <view class="home-audit-primary">{{currentHomePreview.primary}}</view>
+  </view>
+
+  <view wx:elif="{{currentHomePreview.mode === 'expertApplyForm' || currentHomePreview.mode === 'expertApplyOverview'}}" class="home-expert-apply">
+    <view class="home-expert-apply-appbar">
+      <text class="home-expert-apply-back">‹</text>
+      <text class="home-expert-apply-title">{{currentHomePreview.navTitle}}</text>
+      <text class="home-expert-apply-save">{{currentHomePreview.saveText}}</text>
+    </view>
+
+    <scroll-view class="home-expert-apply-scroll" scroll-y enhanced show-scrollbar="false">
+      <view class="home-expert-apply-hero">
+        <view class="home-expert-apply-icon">{{currentHomePreview.icon}}</view>
+        <text class="home-expert-apply-heading">{{currentHomePreview.title}}</text>
+        <text class="home-expert-apply-tagline">{{currentHomePreview.tagline}}</text>
+      </view>
+
+      <block wx:if="{{currentHomePreview.mode === 'expertApplyForm'}}">
+        <view class="home-expert-apply-panel">
+          <block wx:for="{{currentHomePreview.fields}}" wx:for-item="field" wx:key="label">
+            <view class="home-expert-field">
+              <view class="home-expert-field-label">
+                <text>{{field.label}}</text>
+                <text wx:if="{{field.required}}" class="required">*</text>
+              </view>
+
+              <view wx:if="{{field.type === 'chips'}}" class="home-expert-chip-grid">
+                <text wx:for="{{currentHomePreview.skillOptions}}" wx:for-item="skill" wx:key="name" class="home-expert-chip {{skill.active ? 'active' : ''}}">{{skill.name}}</text>
+              </view>
+
+              <view wx:elif="{{field.type === 'textarea'}}" class="home-expert-textarea">
+                <text>{{field.placeholder}}</text>
+              </view>
+
+              <view wx:elif="{{field.type === 'upload'}}" class="home-expert-upload">
+                <text class="home-expert-upload-icon">{{field.icon}}</text>
+                <text class="home-expert-upload-title">{{field.title}}</text>
+                <text class="home-expert-field-helper">{{field.helper}}</text>
+              </view>
+
+              <view wx:else class="home-expert-input">
+                <text>{{field.placeholder}}</text>
+              </view>
+              <text wx:if="{{field.helper && field.type !== 'upload'}}" class="home-expert-field-helper">{{field.helper}}</text>
+            </view>
+          </block>
+
+          <view wx:for="{{currentHomePreview.priceRows}}" wx:for-item="priceRow" wx:key="label" class="home-expert-field">
+            <view class="home-expert-field-label">
+              <text>{{priceRow.label}}</text>
+              <text wx:if="{{priceRow.required}}" class="required">*</text>
+            </view>
+            <view class="home-expert-input price">
+              <text>{{priceRow.value}}</text>
+            </view>
+          </view>
+          <text class="home-expert-field-helper price">{{currentHomePreview.priceHint}}</text>
+        </view>
+      </block>
+
+      <block wx:else>
+        <view class="home-expert-overview-shell">
+          <view class="home-expert-section-title">
+            <text>📋</text>
+            <text>{{currentHomePreview.requirementsTitle}}</text>
+          </view>
+          <view wx:for="{{currentHomePreview.requirements}}" wx:for-item="requirement" wx:key="title" class="home-expert-requirement">
+            <view class="home-expert-check">✓</view>
+            <view>
+              <text class="home-expert-requirement-title">{{requirement.title}}</text>
+              <text class="home-expert-requirement-status">{{requirement.status}}</text>
+            </view>
+          </view>
+
+          <view class="home-expert-plan-card">
+            <view class="home-expert-plan-mark">○</view>
+            <view>
+              <text class="home-expert-plan-title">{{currentHomePreview.planTask.title}}</text>
+              <text class="home-expert-plan-desc">{{currentHomePreview.planTask.desc}}</text>
+            </view>
+            <text class="home-expert-plan-action">{{currentHomePreview.planTask.action}}</text>
+          </view>
+
+          <view class="home-expert-section-title crown">
+            <text>👑</text>
+            <text>{{currentHomePreview.benefitsTitle}}</text>
+          </view>
+          <view wx:for="{{currentHomePreview.benefits}}" wx:for-item="benefit" wx:key="text" class="home-expert-benefit">
+            <text class="home-expert-benefit-icon">{{benefit.icon}}</text>
+            <text class="home-expert-benefit-text">{{benefit.text}}</text>
+          </view>
+        </view>
+      </block>
+
+      <text class="home-expert-apply-hint">{{currentHomePreview.reviewHint}}</text>
+      <view class="home-expert-primary">{{currentHomePreview.primary}}</view>
+    </scroll-view>
   </view>
 
   <view wx:else class="home-preview-screen {{currentHomePreview.mode}}">

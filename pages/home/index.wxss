@@ -700,6 +700,397 @@
   color: #ffffff;
 }
 
+.home-preview-page.expertApplyForm,
+.home-preview-page.expertApplyOverview {
+  background: #101010;
+  color: #ffffff;
+}
+
+.home-expert-apply {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #101010;
+  color: #ffffff;
+}
+
+.home-expert-apply-appbar {
+  display: grid;
+  grid-template-columns: 64rpx 1fr 90rpx;
+  align-items: center;
+  height: 104rpx;
+  padding: 32rpx 26rpx 16rpx;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.home-expert-apply-back,
+.home-expert-apply-title,
+.home-expert-apply-save,
+.home-expert-apply-heading,
+.home-expert-apply-tagline,
+.home-expert-field-label text,
+.home-expert-field-helper,
+.home-expert-upload-title,
+.home-expert-requirement-title,
+.home-expert-requirement-status,
+.home-expert-plan-title,
+.home-expert-plan-desc,
+.home-expert-plan-action,
+.home-expert-benefit-text,
+.home-expert-apply-hint {
+  display: block;
+}
+
+.home-expert-apply-back {
+  color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 400;
+  line-height: 48rpx;
+}
+
+.home-expert-apply-title {
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 400;
+  line-height: 42rpx;
+  text-align: center;
+}
+
+.home-expert-apply-save {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+  text-align: right;
+}
+
+.home-expert-apply-scroll {
+  height: calc(100vh - 104rpx);
+  padding: 22rpx 30rpx 48rpx;
+  box-sizing: border-box;
+}
+
+.home-expert-apply-hero {
+  padding: 0 0 30rpx;
+  text-align: center;
+}
+
+.home-expert-apply-icon {
+  width: 80rpx;
+  height: 88rpx;
+  margin: 0 auto 24rpx;
+  font-size: 72rpx;
+  line-height: 88rpx;
+}
+
+.home-expert-apply-heading {
+  color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 58rpx;
+}
+
+.home-expert-apply-tagline {
+  margin-top: 14rpx;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.home-expert-apply-panel,
+.home-expert-overview-shell {
+  width: 622rpx;
+  max-width: 100%;
+  margin: 0 auto;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: rgba(20, 25, 50, 0.8);
+}
+
+.home-expert-apply-panel {
+  padding: 24rpx 24rpx 28rpx;
+}
+
+.home-expert-field {
+  margin-bottom: 26rpx;
+}
+
+.home-expert-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-bottom: 14rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.home-expert-field-label .required {
+  color: #ff6b35;
+}
+
+.home-expert-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.home-expert-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92rpx;
+  height: 44rpx;
+  padding: 0 18rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+}
+
+.home-expert-chip.active {
+  border-color: rgba(0, 212, 255, 0.7);
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.12);
+}
+
+.home-expert-input,
+.home-expert-textarea,
+.home-expert-upload {
+  display: flex;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.home-expert-input {
+  align-items: center;
+  min-height: 72rpx;
+  padding: 0 24rpx;
+}
+
+.home-expert-input text,
+.home-expert-textarea text {
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.home-expert-input.price text {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 32rpx;
+}
+
+.home-expert-textarea {
+  min-height: 150rpx;
+  padding: 20rpx 24rpx;
+}
+
+.home-expert-upload {
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 158rpx;
+  border-style: dashed;
+  text-align: center;
+}
+
+.home-expert-upload-icon {
+  color: #ffffff;
+  font-size: 44rpx;
+  line-height: 52rpx;
+}
+
+.home-expert-upload-title {
+  margin-top: 10rpx;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 28rpx;
+  line-height: 36rpx;
+}
+
+.home-expert-field-helper {
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.home-expert-field-helper.price {
+  margin-top: -10rpx;
+}
+
+.home-expert-overview-shell {
+  padding: 24rpx;
+}
+
+.home-expert-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 22rpx;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 400;
+  line-height: 40rpx;
+}
+
+.home-expert-section-title text:first-child {
+  color: #00d4ff;
+  font-size: 34rpx;
+  line-height: 40rpx;
+}
+
+.home-expert-section-title.crown text:first-child {
+  color: #ffd166;
+}
+
+.home-expert-requirement {
+  display: grid;
+  grid-template-columns: 44rpx 1fr;
+  gap: 18rpx;
+  align-items: center;
+  min-height: 128rpx;
+  margin-bottom: 12rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.home-expert-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+  color: #00e676;
+  background: rgba(0, 230, 118, 0.16);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.home-expert-requirement-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.home-expert-requirement-status {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.home-expert-plan-card {
+  display: grid;
+  grid-template-columns: 44rpx 1fr 96rpx;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 96rpx;
+  margin: 30rpx 0 34rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.home-expert-plan-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 18rpx;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.home-expert-plan-title {
+  color: #ffffff;
+  font-size: 28rpx;
+  line-height: 36rpx;
+}
+
+.home-expert-plan-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.home-expert-plan-action {
+  color: #00d4ff;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  text-align: right;
+}
+
+.home-expert-benefit {
+  display: grid;
+  grid-template-columns: 44rpx 1fr;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 74rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 26rpx;
+  line-height: 34rpx;
+}
+
+.home-expert-benefit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 10rpx;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 30rpx;
+  line-height: 40rpx;
+}
+
+.home-expert-apply-hint {
+  margin: 26rpx 0 16rpx;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 24rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.home-expert-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 622rpx;
+  max-width: 100%;
+  height: 92rpx;
+  margin: 0 auto;
+  border-radius: 44rpx;
+  color: #ffffff;
+  background: linear-gradient(180deg, #33d9ff 0%, #15bfe8 100%);
+  box-shadow: 0 0 28rpx rgba(0, 212, 255, 0.32);
+  font-size: 32rpx;
+  font-weight: 400;
+  line-height: 38rpx;
+}
+
 .home-player-stage {
   position: relative;
   width: 100%;
@@ -1431,34 +1822,58 @@
   box-shadow: 0 0 26rpx rgba(0, 210, 255, 0.6);
 }
 
-.home-role-compare,
 .home-leader-progress,
 .home-audit-passed {
   background: #101010;
 }
 
-.home-role-compare .home-game-scroll {
-  height: calc(100vh - 96rpx);
-  padding: 28rpx 32rpx 150rpx;
+.home-role-compare {
+  min-height: 100%;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.home-role-compare .home-game-appbar {
+  height: 96rpx;
+  padding: 0 24rpx;
+  background: #000000;
+}
+
+.home-role-compare .home-game-app-title {
+  font-size: 34rpx;
+  font-weight: 400;
+  line-height: 38rpx;
+}
+
+.home-role-compare .home-game-back {
+  width: 44rpx;
+  height: 44rpx;
+  margin-top: -22rpx;
+  font-size: 44rpx;
+  line-height: 44rpx;
+}
+
+.home-role-compare-content {
+  padding: 20rpx 28rpx 32rpx;
+  box-sizing: border-box;
 }
 
 .home-role-hero {
-  padding: 12rpx 0 30rpx;
+  padding: 16rpx 0 28rpx;
   text-align: center;
 }
 
-.home-role-star {
+.home-role-title-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 78rpx;
-  height: 78rpx;
-  margin: 0 auto 18rpx;
-  border-radius: 50%;
-  color: #00ced1;
-  background: rgba(0, 206, 209, 0.18);
-  font-size: 44rpx;
-  line-height: 78rpx;
+  gap: 14rpx;
+}
+
+.home-role-title-icon {
+  display: block;
+  font-size: 50rpx;
+  line-height: 50rpx;
 }
 
 .home-role-title,
@@ -1471,86 +1886,149 @@
 
 .home-role-title {
   color: #ffffff;
-  font-size: 46rpx;
-  font-weight: 900;
-  line-height: 58rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 52rpx;
 }
 
 .home-role-subtitle {
-  margin-top: 8rpx;
-  color: #c1c6d5;
-  font-size: 24rpx;
+  margin-top: 16rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 28rpx;
   line-height: 34rpx;
 }
 
 .home-role-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 18rpx;
+  gap: 14rpx;
 }
 
 .home-role-card {
-  min-height: 176rpx;
-  padding: 22rpx 10rpx;
+  min-height: 180rpx;
+  padding: 24rpx 8rpx 20rpx;
   border: 2rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 32rpx;
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.05);
-  opacity: 0.62;
+  background: rgba(20, 25, 50, 0.6);
+  opacity: 1;
   text-align: center;
 }
 
 .home-role-card.active {
-  border: 4rpx solid #00ced1;
-  box-shadow: 0 0 30rpx rgba(0, 206, 209, 0.3);
+  border-width: 2rpx;
+  box-shadow: 0 0 24rpx rgba(0, 206, 209, 0.24);
   opacity: 1;
 }
 
+.home-role-card.player {
+  border-color: rgba(0, 212, 255, 0.5);
+  background: rgba(0, 212, 255, 0.1);
+}
+
+.home-role-card.guide {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 25, 50, 0.6);
+}
+
+.home-role-card.expert {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 25, 50, 0.6);
+}
+
+.home-role-card.player.active {
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: none;
+}
+
+.home-role-card.guide.active {
+  border-color: #ff8a2c;
+  box-shadow: 0 0 24rpx rgba(255, 138, 44, 0.28);
+}
+
+.home-role-card.expert.active {
+  border-color: #4ddbff;
+  box-shadow: 0 0 24rpx rgba(77, 219, 255, 0.28);
+}
+
 .home-role-icon {
-  font-size: 48rpx;
-  line-height: 56rpx;
+  font-size: 56rpx;
+  line-height: 62rpx;
 }
 
 .home-role-name {
-  margin-top: 10rpx;
+  margin-top: 8rpx;
   color: #ffffff;
-  font-size: 26rpx;
-  font-weight: 900;
+  font-size: 28rpx;
+  font-weight: 400;
   line-height: 34rpx;
 }
 
 .home-role-level {
-  margin-top: 4rpx;
-  color: #00ced1;
-  font-size: 20rpx;
-  font-weight: 800;
+  margin-top: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  font-weight: 400;
   line-height: 28rpx;
 }
 
+.home-role-row.head .player {
+  color: #ffffff;
+}
+
+.home-role-row .guide.ok,
+.home-role-row .guide.rate {
+  color: #00e676;
+}
+
+.home-role-row.head .guide {
+  color: #fd780f;
+}
+
+.home-role-row .expert.ok,
+.home-role-row .expert.rate {
+  color: #00e676;
+}
+
+.home-role-row.head .expert {
+  color: #16c0f6;
+}
+
 .home-role-table {
-  margin-top: 34rpx;
-  padding: 28rpx 24rpx;
+  margin-top: 42rpx;
+  padding: 0;
   border: 2rpx solid rgba(255, 255, 255, 0.1);
-  border-radius: 44rpx;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 32rpx;
+  background: rgba(0, 0, 0, 0);
+  overflow: hidden;
 }
 
 .home-role-row {
   display: grid;
-  grid-template-columns: 1.25fr 0.72fr 0.95fr 0.82fr;
+  grid-template-columns: 1.18fr 0.84fr 1.1fr 1.1fr;
   align-items: center;
-  min-height: 82rpx;
-  color: #ffffff;
-  font-size: 23rpx;
-  line-height: 30rpx;
+  min-height: 54rpx;
+  padding: 0 30rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 34rpx;
 }
 
 .home-role-row.head {
-  min-height: 58rpx;
-  color: #c1c6d5;
-  font-size: 20rpx;
-  font-weight: 800;
+  min-height: 54rpx;
+  border-top: 0;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 28rpx;
+  font-weight: 400;
   text-transform: uppercase;
+}
+
+.home-role-row.spaced {
+  margin-top: 52rpx;
 }
 
 .home-role-row text:not(:first-child) {
@@ -1558,39 +2036,37 @@
 }
 
 .home-role-row .ok {
-  color: #4ade80;
-  font-size: 30rpx;
-  font-weight: 900;
+  color: #00e676;
+  font-size: 28rpx;
+  font-weight: 400;
 }
 
 .home-role-row .muted {
-  color: #717785;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .home-role-row .rate {
-  color: #86efac;
-  font-size: 18rpx;
-  font-weight: 800;
+  color: #00e676;
+  font-size: 24rpx;
+  font-weight: 400;
 }
 
-.home-game-bottom-action {
-  position: absolute;
-  left: 32rpx;
-  right: 32rpx;
-  bottom: 34rpx;
-  z-index: 5;
+.home-role-compare .home-game-bottom-action {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14rpx;
-  height: 104rpx;
-  border-radius: 28rpx;
-  color: #181c22;
-  background: #00ced1;
-  box-shadow: 0 0 40rpx rgba(0, 206, 209, 0.4);
-  font-size: 30rpx;
-  font-weight: 900;
-  line-height: 104rpx;
+  width: 620rpx;
+  height: 92rpx;
+  margin-top: 26rpx;
+  margin-right: auto;
+  margin-left: auto;
+  border-radius: 50rpx;
+  color: #ffffff;
+  background: linear-gradient(180deg, #33d9ff 0%, #15bfe8 100%);
+  box-shadow: 0 0 32rpx rgba(0, 206, 209, 0.34);
+  font-size: 32rpx;
+  font-weight: 400;
+  line-height: 38rpx;
 }
 
 .home-game-scroll.progress {

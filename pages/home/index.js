@@ -1,5 +1,29 @@
 const homeService = require('../../services/home')
 const toast = require('../../utils/toast')
+const { ROUTES } = require('../../config/routes')
+
+const ROLE_COMPARISON_PREVIEW_PAGE = {
+  name: '角色权益对比',
+  mode: 'roleComparison',
+  roleBadge: '权益',
+  title: '角色权益对比',
+  subtitle: '选择适合你的角色，开启不同玩法',
+  roles: [
+    { key: 'player', name: '玩家', level: 'Lv.1+', icon: '🎮', active: true },
+    { key: 'guide', name: '领路人', level: 'Lv.5+', icon: '🧭', active: false },
+    { key: 'expert', name: '行家', level: 'Lv.20+', icon: '💎', active: false }
+  ],
+  benefits: [
+    { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
+    { name: '加入组局', player: '✓', leader: '✓', expert: '✓' },
+    { name: '创建路线', player: '✓', leader: '—', expert: '✓' },
+    { name: '分润收益', player: '—', leader: '基础会员40%', expert: '高级会员40%' },
+    { name: '服务交易', player: '—', leader: '—', expert: '✓' },
+    { name: '数据看板', player: '—', leader: '✓', expert: '✓' },
+    { name: '信用背书', player: '—', leader: '✓', expert: '✓' }
+  ],
+  primary: '立即申请角色'
+}
 
 const HOME_CONVERTED_PAGES = [
   {
@@ -11,28 +35,6 @@ const HOME_CONVERTED_PAGES = [
     subtitle: 'Zhen Hao Wan',
     actionText: 'GO',
     featureDots: ['pink', 'purple', 'cyan']
-  },
-  {
-    name: '角色权益对比',
-    mode: 'roleComparison',
-    roleBadge: '权益',
-    title: '角色权益对比',
-    subtitle: '选择适合你的角色，开启不同玩法',
-    roles: [
-      { name: '玩家', level: 'Lv.1+', icon: '🎮', active: true },
-      { name: '领路人', level: 'Lv.5+', icon: '🧭', active: false },
-      { name: '行家', level: 'Lv.20+', icon: '💎', active: false }
-    ],
-    benefits: [
-      { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
-      { name: '加入组局', player: '✓', leader: '✓', expert: '✓' },
-      { name: '创建路线', player: '✓', leader: '—', expert: '✓' },
-      { name: '分润收益', player: '—', leader: '基础会员40%', expert: '高级会员40%' },
-      { name: '服务交易', player: '—', leader: '—', expert: '✓' },
-      { name: '数据看板', player: '—', leader: '✓', expert: '✓' },
-      { name: '信用背书', player: '—', leader: '✓', expert: '✓' }
-    ],
-    primary: '立即申请角色'
   },
   {
     name: '领路人申请进度',
@@ -109,6 +111,107 @@ const HOME_CONVERTED_PAGES = [
     ],
     primary: '开启行家之旅'
   }
+]
+
+const EXPERT_APPLY_PREVIEW_PAGES = [
+  {
+    name: '申请行家内页',
+    mode: 'expertApplyForm',
+    roleBadge: '申请',
+    navTitle: '申请行家',
+    saveText: '保存',
+    title: '申请成为行家',
+    icon: '💎',
+    tagline: '我懂玩家需要什么！我申请成为行家',
+    reviewHint: '审核预计 1-3 个工作日',
+    primary: '提交行家申请',
+    skillOptions: [
+      { name: '摄影', active: true },
+      { name: '户外', active: false },
+      { name: '美食', active: false },
+      { name: '文化', active: false },
+      { name: '手工', active: false },
+      { name: '运动', active: false },
+      { name: '音乐', active: false },
+      { name: '+ 自定义', active: false }
+    ],
+    fields: [
+      {
+        type: 'chips',
+        label: '选择技能领域',
+        required: true
+      },
+      {
+        type: 'input',
+        label: '技能标签',
+        required: true,
+        placeholder: '如：人像摄影、风光摄影、夜景拍摄',
+        helper: '添加具体标签，让用户更容易找到你'
+      },
+      {
+        type: 'select',
+        label: '从业年限',
+        required: true,
+        placeholder: '请选择从业年限'
+      },
+      {
+        type: 'textarea',
+        label: '个人简介',
+        required: true,
+        placeholder: '不少于 50 字，突出你的专业优势'
+      },
+      {
+        type: 'upload',
+        label: '资质证明',
+        required: true,
+        icon: '📎',
+        title: '点击上传作品集及凭证',
+        helper: '支持 JPG、PNG、PDF，最多 5 张'
+      }
+    ],
+    priceRows: [
+      { label: '服务定价（元/小时）', required: true, value: '业务：___________' },
+      { label: '服务成本', required: false, value: '业务：___________' }
+    ],
+    priceHint: '平台将收取 10% 服务费'
+  },
+  {
+    name: '申请行家浏览页',
+    mode: 'expertApplyOverview',
+    roleBadge: '申请',
+    navTitle: '申请行家',
+    saveText: '保存',
+    title: '申请成为行家',
+    icon: '💎',
+    tagline: '我懂玩家需要什么！我申请成为行家',
+    reviewHint: '审核预计 1-3 个工作日',
+    primary: '下一步',
+    requirementsTitle: '申请条件',
+    requirements: [
+      { title: '玩家等级达到 Lv.20', status: '当前等级: Lv.21 ✓ 已满足' },
+      { title: '完成实名认证', status: '认证状态: 已通过 ✓ 已满足' },
+      { title: '完成企业认证', status: '认证状态: 已通过 ✓ 已满足' },
+      { title: '发起过 5次以上组局', status: '当前: 5 次 ✓ 已满足' },
+      { title: '信用分 ≥ 90 分', status: '当前: 92 分 ✓ 已满足' },
+      { title: '会员等级≥ 高级会员', status: '当前: 高级会员 ✓ 已满足' }
+    ],
+    planTask: {
+      title: '提交行家计划书',
+      desc: '需描述你的资源、能力和项目说明书',
+      action: '去填写 ›'
+    },
+    benefitsTitle: '行家特权',
+    benefits: [
+      { icon: '💰', text: '有权益的行家可发起有偿局并可获得相应收入' },
+      { icon: '⭐', text: '专属行家标识与优先推荐位' },
+      { icon: '📊', text: '数据看板：查看服务数据与收益分析' }
+    ]
+  }
+]
+
+const EXPERT_APPLY_WALKTHROUGH_PAGES = [
+  EXPERT_APPLY_PREVIEW_PAGES[1],
+  EXPERT_APPLY_PREVIEW_PAGES[0]
 ]
 
 const HOME_PREVIEW_PAGES = [
@@ -297,16 +400,7 @@ const HOME_PREVIEW_PAGES = [
       { name: '领路人', desc: '邀请推荐、完成撮合', highlights: ['发起邀请', '引荐记录', '收益概览'] }
     ]
   },
-  {
-    name: '申请行家操作页',
-    mode: 'apply',
-    roleBadge: '申请',
-    title: '申请成为行家',
-    subtitle: '提交你的能力信息',
-    desc: '平台将根据资料完整度、过往经历和实名认证状态审核。',
-    formItems: ['真实身份', '专业标签', '可服务城市', '代表经历'],
-    primary: '提交行家申请'
-  },
+  ...EXPERT_APPLY_WALKTHROUGH_PAGES,
   {
     name: '申请领路人操作页',
     mode: 'apply',
@@ -377,15 +471,36 @@ const HOME_PREVIEW_PAGES = [
   }
 ]
 
+const HOME_PREVIEW_LOOKUP_PAGES = [
+  ...HOME_PREVIEW_PAGES,
+  ROLE_COMPARISON_PREVIEW_PAGE
+]
+
+const HOME_PREVIEW_GROUPS = {
+  expertApplyWalkthrough: EXPERT_APPLY_WALKTHROUGH_PAGES
+}
+
 Page({
   data: {
     isHomePreview: false,
     homePreviewIndex: 0,
     homePreviewNo: 1,
     homePreviewTotal: HOME_PREVIEW_PAGES.length,
+    homePreviewPages: HOME_PREVIEW_PAGES,
     currentHomePreview: HOME_PREVIEW_PAGES[0],
     homePreviewSingle: false,
     previewWindowWidth: 375,
+    roleComparisonReturnTo: '',
+    roleComparisonShell: {
+      onlineText: '3999人在线',
+      navItems: [
+        { name: '我的', active: false },
+        { name: '元宇宙', active: false },
+        { name: '地图', active: false },
+        { name: '消息', active: false },
+        { name: '首页', active: true }
+      ]
+    },
     loading: true,
     user: {
       nickname: '',
@@ -431,6 +546,9 @@ Page({
 
   onLoad(options = {}) {
     if (options.ui === '1') {
+      this.setData({
+        roleComparisonReturnTo: decodeURIComponent(options.returnTo || '')
+      })
       this.enterHomePreview(options.mode || '', options.single === '1')
       return
     }
@@ -439,7 +557,14 @@ Page({
   },
 
   enterHomePreview(mode, single = false) {
-    const index = HOME_PREVIEW_PAGES.findIndex((page) => page.name === mode || page.mode === mode)
+    const previewPages = HOME_PREVIEW_GROUPS[mode] || HOME_PREVIEW_PAGES
+    const index = previewPages.findIndex((page) => page.name === mode || page.mode === mode)
+    const lookupIndex = index >= 0
+      ? index
+      : HOME_PREVIEW_LOOKUP_PAGES.findIndex((page) => page.name === mode || page.mode === mode)
+    const currentHomePreview = lookupIndex >= 0
+      ? HOME_PREVIEW_LOOKUP_PAGES[lookupIndex]
+      : previewPages[0]
     const previewWindowWidth = wx.getSystemInfoSync ? wx.getSystemInfoSync().windowWidth : 375
 
     this.setData({
@@ -447,14 +572,20 @@ Page({
       loading: false,
       previewWindowWidth,
       homePreviewSingle: single,
+      homePreviewPages: previewPages,
       homePreviewIndex: index >= 0 ? index : 0,
       homePreviewNo: index >= 0 ? index + 1 : 1,
-      currentHomePreview: HOME_PREVIEW_PAGES[index >= 0 ? index : 0]
+      homePreviewTotal: previewPages.length,
+      currentHomePreview
     })
   },
 
   handleHomePreviewTap(event) {
     if (!this.data.isHomePreview) {
+      return
+    }
+
+    if (this.data.currentHomePreview && this.data.currentHomePreview.mode === 'roleComparison') {
       return
     }
 
@@ -466,14 +597,32 @@ Page({
     const touch = event.changedTouches && event.changedTouches[0]
     const x = touch ? touch.clientX : event.detail.x
     const direction = datasetDirection || (x < this.data.previewWindowWidth / 2 ? -1 : 1)
-    const total = HOME_PREVIEW_PAGES.length
+    const previewPages = this.data.homePreviewPages || HOME_PREVIEW_PAGES
+    const total = previewPages.length
     const nextIndex = (this.data.homePreviewIndex + direction + total) % total
 
     this.setData({
       homePreviewIndex: nextIndex,
       homePreviewNo: nextIndex + 1,
-      currentHomePreview: HOME_PREVIEW_PAGES[nextIndex]
+      currentHomePreview: previewPages[nextIndex]
     })
+  },
+
+  handleRoleCompareBackTap() {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+    if (pages.length > 1 && typeof wx.navigateBack === 'function') {
+      wx.navigateBack()
+      return
+    }
+
+    if (this.data.roleComparisonReturnTo && typeof wx.redirectTo === 'function') {
+      wx.redirectTo({
+        url: this.data.roleComparisonReturnTo.startsWith('/')
+          ? this.data.roleComparisonReturnTo
+          : `/${this.data.roleComparisonReturnTo}`
+      })
+    }
   },
 
   async loadHome() {
