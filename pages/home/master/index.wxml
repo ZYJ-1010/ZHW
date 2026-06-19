@@ -1,7 +1,6 @@
 <home-shell
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
-  toolbar-style="{{toolbarStyle}}"
   bindnavtap="handleShellNavTap"
 >
   <view class="home-master-placeholder"></view>

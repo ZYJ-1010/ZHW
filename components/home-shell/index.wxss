@@ -24,21 +24,32 @@
   background: #007bd3;
 }
 
+.home-shell-topbar::after {
+  position: absolute;
+  left: 27rpx;
+  bottom: 0;
+  width: 704rpx;
+  height: 34rpx;
+  background: linear-gradient(180deg, rgba(0, 123, 211, 0) 0%, rgba(0, 72, 112, 0.72) 58%, #000000 100%);
+  pointer-events: none;
+  content: '';
+}
+
 .home-shell-status-fill {
   height: 88rpx;
-  background: #007bd3;
+  background: transparent;
 }
 
 .home-shell-nav {
   position: relative;
   height: 94rpx;
-  background: #007bd3;
+  background: transparent;
 }
 
 .home-shell-brand {
   position: absolute;
   left: -40rpx;
-  top: -8rpx;
+  top: -3rpx;
   width: 142rpx;
   height: 60rpx;
 }
@@ -62,7 +73,7 @@
 .home-shell-brand__online {
   position: absolute;
   left: 135rpx;
-  top: 70rpx;
+  top: 66rpx;
   display: flex;
   align-items: center;
   width: 140rpx;
@@ -87,11 +98,12 @@
 
 .home-shell-toolbar {
   position: absolute;
-  right: 24rpx;
+  right: 172rpx;
   top: 70rpx;
   z-index: 30;
-  width: 178rpx;
+  width: 172rpx;
   height: 58rpx;
+  filter: drop-shadow(0 2rpx 6rpx rgba(0, 0, 0, 0.18));
 }
 
 .home-shell-search {
@@ -104,10 +116,21 @@
 
 .home-shell-comment {
   position: absolute;
-  left: 58rpx;
-  top: 13rpx;
-  width: 32rpx;
-  height: 32rpx;
+  left: 50rpx;
+  top: 12rpx;
+  width: 34rpx;
+  height: 34rpx;
+}
+
+.home-shell-comment-dot {
+  position: absolute;
+  left: 83rpx;
+  top: 5rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #ff4fa6;
+  pointer-events: none;
 }
 
 .home-shell-avatar {
@@ -127,6 +150,7 @@
   height: 1227rpx;
   background: #000000;
   overflow: hidden;
+  box-shadow: 0 -12rpx 26rpx rgba(0, 0, 0, 0.22);
 }
 
 .home-shell-dock {

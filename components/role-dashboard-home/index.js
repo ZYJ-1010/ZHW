@@ -72,7 +72,6 @@ Component({
 
   data: {
     onlineText: '3999人在线',
-    toolbarStyle: '',
     homeScrollTop: 0,
     navItems: [
       { name: '我的', active: false },
@@ -167,7 +166,6 @@ Component({
       this.setData({
         currentRoleType: roleType
       })
-      this.alignToolbarToCapsule()
       this.loadRoleHome(roleType)
     },
 
@@ -270,8 +268,55 @@ Component({
         skills: Array.isArray(dashboard.skills) ? dashboard.skills : source.skills,
         review: this.formatReview(dashboard, source),
         recommendation: dashboard.recommendation || source.recommendation,
-        network: dashboard.network || source.network
+        network: this.formatNetwork(dashboard.network || source.network)
       }
+    },
+
+    formatNetwork(network) {
+      if (!network) {
+        return null
+      }
+
+      const summary = this.pickFirstValue(
+        network.summary,
+        network.summaryText,
+        this.formatConnectedSummary(network.connectedCount || network.playerCount)
+      )
+      const items = Array.isArray(network.items) && network.items.length
+        ? network.items
+        : [
+          { id: 'connected', icon: '●', name: '已连接', desc: summary || '156 位玩家' },
+          { id: 'income', icon: '¥', name: '本周收益', desc: network.income || '¥1,240' },
+          { id: 'location', icon: '📍', name: '核心区域', desc: network.location || '镇海区' }
+        ]
+      const buttons = Array.isArray(network.buttons) && network.buttons.length
+        ? network.buttons
+        : [
+          { text: network.actionText || network.moreText || '查看全部', primary: true, route: network.route },
+          { text: network.secondaryText || '管理连接', route: network.manageRoute }
+        ]
+
+      return {
+        ...network,
+        title: network.title || '我的关系网络',
+        status: network.status || '实时连接中',
+        hubTitle: network.hubTitle || network.centerTitle || '我',
+        hubDesc: network.hubDesc || network.centerDesc || '领路人',
+        summary,
+        income: network.income || '本周收益 ¥1,240',
+        location: network.location || '📍 镇海区',
+        locationText: network.locationText || String(network.location || '镇海区').replace(/^📍\s*/, ''),
+        items: items.slice(0, 5),
+        buttons: buttons.slice(0, 2)
+      }
+    },
+
+    formatConnectedSummary(count) {
+      if (count == null || count === '') {
+        return ''
+      }
+
+      return `● 已连接 ${count} 位玩家`
     },
 
     formatReview(dashboard = {}, source = DEFAULT_ROLE_HOME) {
@@ -572,7 +617,7 @@ Component({
         price: item.priceText || item.price || item.income || '',
         income: item.income || item.priceText || item.price || '',
         action: item.actionText || item.action || '查看',
-        location: item.locationText || item.meta || item.location || '',
+        location: item.locationText || this.formatGameLocation(item) || item.meta || item.location || '',
         time: item.timeText || item.dateText || item.time || '',
         joinedText: item.joinedText || item.peopleText || this.formatJoinedText(item.joinedCount) || '+3位玩家已入局',
         playerAvatars: this.formatSessionAvatars(item),
@@ -586,6 +631,13 @@ Component({
       const statusTag = item.statusText || item.status || item.tagText || tags[1] || ''
 
       return [typeTag, statusTag].filter(Boolean).slice(0, 2)
+    },
+
+    formatGameLocation(item = {}) {
+      const parts = [item.cityName || item.locationName, item.distanceText, item.memberText]
+        .filter((value) => value != null && value !== '')
+
+      return parts.length ? `📍${parts.join(' · ')}` : ''
     },
 
     formatSessionAvatars(item = {}) {
@@ -633,11 +685,17 @@ Component({
     },
 
     formatGameTag(item = {}) {
-      if (Array.isArray(item.tags) && item.tags.length) {
-        return item.tags.slice(0, 2).join(' · ')
+      const primaryTag = item.typeText || item.statusText || item.tagText || item.tag || item.status || item.typeName
+
+      if (primaryTag) {
+        return primaryTag
       }
 
-      return item.typeText || item.statusText || item.tag || item.status || ''
+      if (Array.isArray(item.tags) && item.tags.length) {
+        return item.tags[0]
+      }
+
+      return ''
     },
 
     formatJoinedText(joinedCount) {
@@ -953,24 +1011,6 @@ Component({
       }
 
       return name.trim().slice(0, 2)
-    },
-
-    alignToolbarToCapsule() {
-      if (!wx.getMenuButtonBoundingClientRect || !wx.getSystemInfoSync) {
-        return
-      }
-
-      const menuButton = wx.getMenuButtonBoundingClientRect()
-      const system = wx.getSystemInfoSync()
-      const ratio = 750 / system.windowWidth
-      const iconCenterOffset = 29
-      const capsuleCenterTop = (menuButton.top + menuButton.height / 2) * ratio
-      const toolbarTop = capsuleCenterTop - iconCenterOffset
-      const toolbarRight = (system.windowWidth - menuButton.left + 10) * ratio
-
-      this.setData({
-        toolbarStyle: `top: ${toolbarTop}rpx; right: ${toolbarRight}rpx;`
-      })
     },
 
     handleShellNavTap(event) {

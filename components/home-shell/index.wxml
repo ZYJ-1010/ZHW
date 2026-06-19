@@ -1,13 +1,13 @@
 <scroll-view class="home-shell-scroll {{shellClass}}" scroll-y enhanced show-scrollbar="false">
-  <view class="home-shell-canvas" style="{{canvasStyle}}">
-    <view class="home-shell-content" style="{{contentStyle}}">
+  <view class="home-shell-canvas" style="{{shellCanvasStyle}}">
+    <view class="home-shell-content" style="{{shellContentStyle}}">
       <slot></slot>
     </view>
 
-    <view class="home-shell-topbar">
-      <view class="home-shell-status-fill"></view>
-      <view class="home-shell-nav">
-        <view class="home-shell-brand">
+    <view class="home-shell-topbar" style="{{shellTopbarStyle}}">
+      <view class="home-shell-status-fill" style="{{shellStatusFillStyle}}"></view>
+      <view class="home-shell-nav" style="{{shellNavStyle}}">
+        <view class="home-shell-brand" style="{{shellBrandStyle}}">
           <image
             class="home-shell-brand__icon"
             mode="aspectFit"
@@ -26,9 +26,10 @@
       </view>
     </view>
 
-    <view class="home-shell-toolbar" style="{{toolbarStyle}}">
+    <view class="home-shell-toolbar" style="{{shellToolbarStyle}}">
       <image class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
       <image class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
+      <view class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
       <image class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap" src="./assets/master-avatar.svg" mode="aspectFit"></image>
     </view>
 

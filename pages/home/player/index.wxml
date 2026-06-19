@@ -1,7 +1,6 @@
 <home-shell
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
-  toolbar-style="{{toolbarStyle}}"
   canvas-style="{{canvasStyle}}"
   content-style="{{contentStyle}}"
   dock-style="{{dockStyle}}"

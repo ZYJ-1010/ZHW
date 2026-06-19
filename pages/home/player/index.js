@@ -26,7 +26,6 @@ Page({
   data: {
     onlineText: '3999人在线',
     roleType: 'player',
-    toolbarStyle: '',
     canvasStyle: '',
     contentStyle: '',
     dockStyle: '',
@@ -195,7 +194,6 @@ Page({
   },
 
   onLoad() {
-    this.alignToolbarToCapsule()
     this.loadPlayerHome()
   },
 
@@ -798,24 +796,6 @@ Page({
       .filter((item) => typeof item === 'string' && item.trim())
       .map((item) => item.trim())
       .join(' | ')
-  },
-
-  alignToolbarToCapsule() {
-    if (!wx.getMenuButtonBoundingClientRect || !wx.getSystemInfoSync) {
-      return
-    }
-
-    const menuButton = wx.getMenuButtonBoundingClientRect()
-    const system = wx.getSystemInfoSync()
-    const ratio = 750 / system.windowWidth
-    const iconCenterOffset = 29
-    const capsuleCenterTop = (menuButton.top + menuButton.height / 2) * ratio
-    const toolbarTop = capsuleCenterTop - iconCenterOffset
-    const toolbarRight = (system.windowWidth - menuButton.left + 10) * ratio
-
-    this.setData({
-      toolbarStyle: `top: ${toolbarTop}rpx; right: ${toolbarRight}rpx;`
-    })
   },
 
   handleShellNavTap(event) {

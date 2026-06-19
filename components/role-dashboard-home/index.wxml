@@ -1,7 +1,6 @@
 <home-shell
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
-  toolbar-style="{{toolbarStyle}}"
   nav-toast-enabled="{{false}}"
   bindnavtap="handleShellNavTap"
   bindnavlongpress="handleShellNavLongPress"
@@ -81,41 +80,51 @@
             <text class="role-network-title-icon">🌐</text>
             <text class="role-network-title">{{network.title}}</text>
           </view>
-          <text class="role-network-status">{{network.status}}</text>
+          <view class="role-network-status">
+            <text class="role-network-status-text">{{network.status}}</text>
+          </view>
         </view>
 
         <view class="role-network-card">
           <view class="role-network-graph">
-            <view class="role-network-map">
-              <view class="role-network-line line-1"></view>
-              <view class="role-network-line line-2"></view>
-              <view class="role-network-line line-3"></view>
-              <view class="role-network-line line-4"></view>
-              <view class="role-network-line line-5"></view>
-              <view class="role-network-line line-6"></view>
-              <view class="role-network-line line-7"></view>
-              <view class="role-network-line line-8"></view>
-              <view class="role-network-dot center"></view>
-              <view class="role-network-dot dot-1"></view>
-              <view class="role-network-dot dot-2"></view>
-              <view class="role-network-dot dot-3"></view>
-              <view class="role-network-dot dot-4"></view>
-              <view class="role-network-dot dot-5"></view>
-              <view class="role-network-dot dot-6"></view>
-              <view class="role-network-dot dot-7"></view>
-              <view class="role-network-dot dot-8"></view>
-            </view>
-            <view class="role-network-pulse"></view>
+            <view class="role-network-line center-to-left-mid"></view>
+            <view class="role-network-line center-to-left-top"></view>
+            <view class="role-network-line center-to-top"></view>
+            <view class="role-network-line center-to-right-top"></view>
+            <view class="role-network-line center-to-right-mid"></view>
+            <view class="role-network-line center-to-left-bottom"></view>
+            <view class="role-network-line center-to-right-bottom"></view>
+            <view class="role-network-line center-to-bottom"></view>
+            <view class="role-network-line outer-top-left"></view>
+            <view class="role-network-line outer-top-right"></view>
+            <view class="role-network-line outer-right-top"></view>
+            <view class="role-network-line outer-right-bottom"></view>
+            <view class="role-network-line outer-bottom-left"></view>
+            <view class="role-network-line outer-bottom-right"></view>
+            <view class="role-network-line outer-left-top-to-right-top"></view>
+            <view class="role-network-line outer-top-to-right-bottom"></view>
+            <view class="role-network-line outer-left-bottom-to-right-mid"></view>
+            <view class="role-network-dot center"></view>
+            <view class="role-network-dot dot-1"></view>
+            <view class="role-network-dot dot-2"></view>
+            <view class="role-network-dot dot-3"></view>
+            <view class="role-network-dot dot-4"></view>
+            <view class="role-network-dot dot-5"></view>
+            <view class="role-network-dot dot-6"></view>
+            <view class="role-network-dot dot-7"></view>
+            <view class="role-network-dot dot-8"></view>
           </view>
-          <view class="role-network-graph-meta">
-            <text class="role-network-location">{{network.location}}</text>
-            <text class="role-network-income">{{network.income}}</text>
+          <view class="role-network-location-pill">
+            <text class="role-network-location-icon">📍</text>
+            <text class="role-network-location-text">{{network.locationText}}</text>
           </view>
+          <text wx:if="{{network.summary}}" class="role-network-count-pill">{{network.summary}}</text>
+          <text class="role-network-income-pill">{{network.income}}</text>
         </view>
 
         <view class="role-network-tags">
           <view wx:for="{{network.items}}" wx:key="id" class="role-network-tag">
-            <view class="role-network-tag-icon">{{item.icon}}</view>
+            <view class="role-network-tag-icon {{item.dashed ? 'dashed' : ''}}">{{item.icon}}</view>
             <text class="role-network-tag-name">{{item.name}}</text>
             <text class="role-network-tag-desc">{{item.desc}}</text>
           </view>
@@ -126,6 +135,7 @@
             wx:for="{{network.buttons}}"
             wx:key="text"
             class="role-network-button {{item.primary ? 'primary' : ''}}"
+            data-route="{{item.route}}"
             bindtap="handleActionTap"
           >{{item.text}}</view>
         </view>
@@ -282,28 +292,22 @@
             <text class="player-panel-title">{{recommendation.title}}</text>
           </view>
         </view>
-        <view class="role-recommend-tabs">
-          <view
-            wx:for="{{recommendation.tabs}}"
-            wx:key="label"
-            class="role-recommend-tab {{item.active ? 'active' : ''}}"
-          >
-            <text>{{item.label}}</text>
-          </view>
-        </view>
         <view class="role-recommend-list">
-          <view wx:for="{{recommendation.items}}" wx:key="id" class="role-recommend-item">
-            <text class="role-recommend-icon">{{item.icon}}</text>
-            <view class="role-recommend-copy">
-              <text class="role-recommend-name">{{item.name}}</text>
-              <text class="role-recommend-desc">{{item.desc}}</text>
+          <view wx:for="{{recommendation.items}}" wx:key="id" class="role-recommend-item avatar-{{index}}">
+            <view class="role-recommend-avatar">
+              <view class="role-recommend-avatar-hair"></view>
+              <view class="role-recommend-avatar-face">
+                <view class="role-recommend-avatar-eye left"></view>
+                <view class="role-recommend-avatar-eye right"></view>
+                <view class="role-recommend-avatar-mouth"></view>
+              </view>
+              <view class="role-recommend-avatar-shirt"></view>
             </view>
-            <text class="role-recommend-tag">{{item.tag}}</text>
           </view>
         </view>
       </view>
 
-      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert'}}" class="player-ranking-panel">
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-ranking-panel">
         <view class="player-panel-head player-ranking-head">
           <view>
             <text class="player-panel-icon">{{rankingSection.icon}}</text>
@@ -356,7 +360,7 @@
         <view class="player-rank-more" bindtap="handleActionTap">{{rankingSection.moreText}}</view>
       </view>
 
-      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert'}}" class="player-achievement-panel">
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-achievement-panel">
         <view class="player-panel-head player-achievement-head">
           <view>
             <text class="player-panel-icon">{{achievementSection.icon}}</text>
@@ -392,7 +396,7 @@
         </view>
       </view>
 
-      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert'}}" class="player-metaverse-card" bindtap="handleActionTap">
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-metaverse-card" bindtap="handleActionTap">
         <view class="player-metaverse-copy">
           <view class="player-metaverse-heading">
             <view class="player-metaverse-dot"></view>
