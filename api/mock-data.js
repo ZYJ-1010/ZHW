@@ -406,8 +406,8 @@ const mockRoleHomes = {
       nextLevelText: '距离下一等级还需 420 经验值',
       primaryTitle: '我的邀请',
       primaryDesc: '管理连接的玩家',
-      sectionTitle: '热玩组局',
-      sectionDesc: '附近正在发生',
+      sectionTitle: '附近正在发生',
+      sectionDesc: '',
       sectionMore: '查看全部',
       stats: [
         { value: '99', label: '连接玩家' },
@@ -431,23 +431,37 @@ const mockRoleHomes = {
       events: [
         {
           id: 'guide-game-1',
-          price: '¥0/人',
           title: '苏州河“记忆碎片”采集',
-          meta: '静安区 · 3.2km · 5/8人',
+          cityName: '静安区',
+          distanceText: '3.2km',
+          memberText: '5/8人',
           dateText: '2026年5月1日 20:00--22:00',
-          tags: ['社交局', '探索局'],
+          statusText: '探索局',
+          priceText: '¥0/人',
           actionText: '加入',
-          peopleText: '+5位玩家已入局'
+          joinedText: '+5位玩家已入局',
+          coverUrl: '/components/game-card/assets/cover-city.png',
+          scope: 'nearby',
+          actions: ['share', 'follow', 'refer', 'greet'],
+          route: 'pages/game/detail/index',
+          tags: ['城市故事', '探索', '同城']
         },
         {
           id: 'guide-game-2',
-          price: '¥0/人',
           title: 'AI赋能系统搭建交流局',
-          meta: '黄浦区 · 8.2km · 3/8人',
+          cityName: '黄浦区',
+          distanceText: '8.2km',
+          memberText: '3/8人',
           dateText: '2026年5月1日 14:00--16:00',
-          tags: ['社交局', '任务局'],
+          statusText: '任务局',
+          priceText: '¥0/人',
           actionText: '加入',
-          peopleText: '+3位玩家已入局'
+          joinedText: '+3位玩家已入局',
+          coverUrl: '/components/game-card/assets/cover-sunset.png',
+          scope: 'city',
+          actions: ['share', 'follow', 'refer', 'greet'],
+          route: 'pages/game/detail/index',
+          tags: ['AI', '系统搭建', '交流']
         }
       ],
       recommendation: {
@@ -465,12 +479,50 @@ const mockRoleHomes = {
       network: {
         title: '我的关系网络',
         status: '实时连接中',
+        hubTitle: '萧飒',
+        hubDesc: '领路人',
+        connectedCount: 156,
         summary: '● 已连接 156 位玩家',
         actionText: '查看全部',
         income: '本周收益 ¥1,240',
-        location: '📍 镇海区'
+        location: '📍 镇海区',
+        items: [
+          { id: 'script-master', icon: '👑', name: '剧本杀小王', desc: '贡献¥320' },
+          { id: 'student-dm', icon: '🎓', name: '大学生DM', desc: '宁大节点' },
+          { id: 'mama-group', icon: '👶', name: '宝妈组局', desc: '周活跃' },
+          { id: 'researcher', icon: '🔬', name: '研究员阿伟', desc: '中科院' },
+          { id: 'all', icon: '+', name: '查看全部', desc: '156人', dashed: true }
+        ],
+        buttons: [
+          { text: '管理我的连接', primary: true, route: 'pages/message/index' },
+          { text: '查看分润', route: 'pages/profile/index' }
+        ]
       }
     },
+    rankingSection: {
+      ...mockHome.rankingSection,
+      defaultTab: 'guide'
+    },
+    rankingBoards: {
+      ...mockHome.rankingBoards,
+      guide: {
+        list: [
+          { id: 'rank-guide-01', rank: 1, nickname: '城市连接官', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: '城', desc: '本周连接玩家 156 位', xpText: '2,450 XP' },
+          { id: 'rank-guide-02', rank: 2, nickname: '社群引路人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: '社', desc: '本周成功引荐 32 次', xpText: '1,890 XP' },
+          { id: 'rank-guide-03', rank: 3, nickname: '活动发现家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: '活', desc: '本周活跃节点 18 个', xpText: '1,560 XP' }
+        ],
+        myRank: {
+          rank: 52,
+          nickname: '我（萧飒）',
+          avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
+          avatarFallback: '萧',
+          desc: '上周排名 65 ↑',
+          xpText: '520 XP'
+        }
+      }
+    },
+    achievementSection: mockHome.achievementSection,
+    achievementList: mockHome.achievementList,
     metaverseEntry: mockHome.metaverseEntry
   }
 }

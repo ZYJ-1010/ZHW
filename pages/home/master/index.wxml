@@ -1,12 +1,11 @@
 <view wx:if="{{masterMode === 'apply'}}" class="home-master-apply-page">
   <view class="home-master-apply-stage">
-    <text class="home-master-apply-caption">{{applyMaster.caption}}</text>
-    <view class="home-master-apply-frame">
-      <view class="home-master-apply-phone">
-        <view class="home-master-apply-nav">
-          <text class="home-master-apply-back">‹</text>
-          <text class="home-master-apply-nav-title">{{applyMaster.navTitle}}</text>
-        </view>
+    <view class="home-master-apply-frame" style="{{applyShellLayout.frameStyle}}">
+      <view class="home-master-apply-top-bg" style="{{applyShellLayout.topBgStyle}}"></view>
+      <view class="home-master-apply-nav" style="{{applyShellLayout.navStyle}}">
+        <text class="home-master-apply-nav-title">{{applyMaster.navTitle}}</text>
+      </view>
+      <view class="home-master-apply-phone" style="{{applyShellLayout.phoneStyle}}">
         <view class="home-master-apply-main"></view>
       </view>
     </view>

@@ -20,10 +20,11 @@ async function getMyRoleApplications() {
   return result.data
 }
 
-async function submitRoleApplication(roleType) {
-  const result = await roleApi.submitRoleApplication({
-    roleType
-  })
+async function submitRoleApplication(payload) {
+  const data = typeof payload === 'string'
+    ? { roleType: payload }
+    : payload
+  const result = await roleApi.submitRoleApplication(data)
 
   if (result.code !== 0) {
     throw new Error(result.message || '提交角色申请失败')
@@ -32,8 +33,19 @@ async function submitRoleApplication(roleType) {
   return result.data
 }
 
+async function getExpertApplyConfig() {
+  const result = await roleApi.getExpertApplyConfig()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取行家申请配置失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
   getMyRoles,
   getMyRoleApplications,
-  submitRoleApplication
+  submitRoleApplication,
+  getExpertApplyConfig
 }

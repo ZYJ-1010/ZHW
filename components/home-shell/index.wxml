@@ -1,6 +1,16 @@
-<scroll-view class="home-shell-scroll {{shellClass}}" scroll-y enhanced show-scrollbar="false">
+<scroll-view class="home-shell-scroll {{shellClass}}" scroll-y="{{!contentScrollY}}" enhanced show-scrollbar="false">
   <view class="home-shell-canvas" style="{{shellCanvasStyle}}">
-    <view class="home-shell-content" style="{{shellContentStyle}}">
+    <scroll-view
+      wx:if="{{contentScrollY}}"
+      class="home-shell-content"
+      style="{{shellContentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <slot></slot>
+    </scroll-view>
+    <view wx:else class="home-shell-content" style="{{shellContentStyle}}">
       <slot></slot>
     </view>
 
@@ -33,7 +43,7 @@
       <image class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap" src="./assets/master-avatar.svg" mode="aspectFit"></image>
     </view>
 
-    <view class="home-shell-dock" style="{{dockStyle}}">
+    <view class="home-shell-dock" style="{{shellDockStyle}}">
       <view class="home-shell-dpad">
         <view class="home-shell-dpad-key up" data-key="up" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
           <view class="home-shell-dpad-arrow"></view>

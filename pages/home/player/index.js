@@ -1,4 +1,5 @@
 const homeService = require('../../../services/home')
+const { ROUTES } = require('../../../config/routes')
 
 const HOME_SCROLL_TAP_STEP_RPX = 360
 const HOME_SCROLL_HOLD_STEP_RPX = 72
@@ -21,6 +22,68 @@ const ROLE_TAGS = [
   { key: 'expert', icon: '🎯', name: '行家' },
   { key: 'guide', icon: '🌐', name: '领路人' }
 ]
+
+const ROLE_PERMISSION_PROMPTS = {
+  expert: {
+    roleType: 'expert',
+    title: '我懂玩家需要什么！我申请成为行家',
+    primary: '申请成为行家',
+    secondary: '查看权益对比'
+  },
+  guide: {
+    roleType: 'guide',
+    title: '我愿意带领更多人一起玩！我申请成为领路人',
+    primary: '申请成为领路人',
+    secondary: '查看权益对比'
+  }
+}
+
+const ROLE_PENDING_STATUSES = ['pending', 'reviewing', 'auditing', 'pending_audit']
+
+const DEFAULT_ROLE_STATUS_STATE = {
+  player: 'approved',
+  expert: 'none',
+  guide: 'none'
+}
+
+const ROLE_AUDIT_PROMPTS = {
+  expert: {
+    roleType: 'expert',
+    roleName: '行家',
+    title: '行家身份申请审核中',
+    icon: '⏳',
+    detailText: '查看详细进度 →',
+    helperText: '审核期间你的玩家身份不受影响，所有功能不受影响'
+  },
+  guide: {
+    roleType: 'guide',
+    roleName: '领路人',
+    title: '领路人身份申请审核中',
+    icon: '⏳',
+    detailText: '查看详细进度 →',
+    helperText: '审核期间你的玩家身份不受影响，所有功能不受影响'
+  }
+}
+
+const ROLE_AUDIT_STEPS = [
+  { key: 'submitted', name: '已提交', state: 'done' },
+  { key: 'reviewing', name: '审核中', state: 'active' },
+  { key: 'approved', name: '已通过', state: 'waiting' }
+]
+
+function createEmptyRoleAuditPrompt() {
+  return {
+    visible: false,
+    roleType: '',
+    title: '',
+    icon: '',
+    submittedText: '',
+    detailText: '',
+    helperText: '',
+    done: false,
+    steps: []
+  }
+}
 
 Page({
   data: {
@@ -149,6 +212,17 @@ Page({
       ...item,
       active: item.key === 'player'
     })),
+    selectedRoleTag: 'player',
+    rolePermissionPrompt: {
+      visible: false,
+      roleType: '',
+      title: '',
+      primary: '',
+      secondary: ''
+    },
+    roleStatusState: DEFAULT_ROLE_STATUS_STATE,
+    roleApplicationList: [],
+    roleAuditPrompt: createEmptyRoleAuditPrompt(),
     onlineCard: {
       title: '地球online',
       desc: '探索城市副本 · 解锁地图成就',
@@ -209,30 +283,39 @@ Page({
     try {
       const home = await homeService.getHome()
       const hero = home && home.hero ? home.hero : {}
+      const currentUser = home && home.user ? home.user : {}
       const playerSummary = home && home.playerSummary ? home.playerSummary : {}
       const nearbySummary = home && home.nearbySummary ? home.nearbySummary : {}
       const nearbySection = home && home.nearbySection ? home.nearbySection : {}
       const friendSection = home && home.friendSection ? home.friendSection : {}
       const achievementState = this.formatAchievementState(home || {})
       const rankingState = this.formatRankingState(home || {})
+      const roleStatusState = this.formatRoleStatusState(home || {})
+      const roleApplicationList = this.formatRoleApplicationList(home || {})
       const roleName = hero.roleName || '玩家'
       const date = this.formatHeroDate(hero.dateLabel, hero.subtitle) || this.data.hero.date
       const activeRole = this.normalizeRoleType(
         playerSummary.currentRole || playerSummary.roleType || hero.currentRole || hero.roleType || roleName
       )
+      const selectedRole = this.resolveSelectedRole(activeRole, roleStatusState, roleApplicationList)
       const nearbyGames = this.formatGameCards(home.nearbyGames || home.recommendedGames, this.data.nearbyGames)
       const friendGames = this.formatGameCards(home.friendGames, this.data.friendGames)
 
       this.setData({
         onlineText: hero.onlineText || this.data.onlineText,
         roleType: activeRole,
+        selectedRoleTag: selectedRole,
         hero: {
           ...this.data.hero,
           title: `HELLO, ${roleName}!`,
           date
         },
         playerCard: this.formatPlayerCard(playerSummary),
-        roleTags: this.formatRoleTags(activeRole),
+        roleStatusState,
+        roleApplicationList,
+        roleTags: this.formatRoleTags(selectedRole, roleStatusState),
+        rolePermissionPrompt: this.formatRolePermissionPrompt(selectedRole, roleStatusState),
+        roleAuditPrompt: this.formatRoleAuditPrompt(selectedRole, roleStatusState, roleApplicationList, currentUser),
         onlineCard: this.formatOnlineCard(nearbySummary),
         nearbySection: this.formatNearbySection(nearbySection),
         nearbyTabs: this.formatNearbyTabs(nearbySection.tabs || nearbySection.filters),
@@ -780,15 +863,224 @@ Page({
     return Math.max(0, Math.min(100, percent))
   },
 
+  formatRoleStatusState(home = {}) {
+    const user = home.user || {}
+    const state = Object.assign({}, DEFAULT_ROLE_STATUS_STATE)
+
+    this.mergeRoleStatusMap(state, user.roleStatusMap || home.roleStatusMap)
+    this.mergeRoleStatusList(state, user.roles || home.roles)
+    this.mergeRoleStatusList(state, home.roleApplications || home.roleApplicationList || home.applications, true)
+
+    return state
+  },
+
+  mergeRoleStatusMap(state, roleStatusMap) {
+    if (!roleStatusMap || typeof roleStatusMap !== 'object' || Array.isArray(roleStatusMap)) {
+      return
+    }
+
+    Object.keys(roleStatusMap).forEach((key) => {
+      const roleType = this.normalizeRoleType(key)
+
+      if (roleType) {
+        state[roleType] = this.normalizeRoleStatus(roleStatusMap[key])
+      }
+    })
+  },
+
+  mergeRoleStatusList(state, roles, isApplicationList = false) {
+    if (!Array.isArray(roles)) {
+      return
+    }
+
+    roles.forEach((item) => {
+      if (typeof item === 'string') {
+        const roleType = this.normalizeRoleType(item)
+
+        if (roleType && !isApplicationList && state[roleType] === 'none') {
+          state[roleType] = 'approved'
+        }
+        return
+      }
+
+      const roleType = this.normalizeRoleType(item.roleType || item.role_type || item.type || item.key || item.name)
+      const status = this.normalizeRoleStatus(
+        item.status || item.applyStatus || item.applicationStatus || item.roleStatus || item.role_status
+      )
+
+      if (roleType && status !== 'none') {
+        state[roleType] = status
+      }
+    })
+  },
+
+  formatRoleApplicationList(home = {}) {
+    const source = home.roleApplications || home.roleApplicationList || home.applications
+
+    if (!Array.isArray(source)) {
+      return []
+    }
+
+    return source
+      .map((item) => ({
+        roleType: this.normalizeRoleType(item.roleType || item.role_type || item.type || item.key || item.name),
+        status: this.normalizeRoleStatus(
+          item.status || item.applyStatus || item.applicationStatus || item.roleStatus || item.role_status
+        ),
+        statusText: item.statusText || item.statusLabel || item.applyStatusText || '',
+        submittedAt: item.submittedAt || item.createdAt || item.applyTime || item.created_at || '',
+        reviewedAt: item.reviewedAt || item.reviewed_at || '',
+        expectedReviewAt:
+          item.expectedReviewAt ||
+          item.expectedReviewedAt ||
+          item.estimatedReviewAt ||
+          item.estimatedReviewedAt ||
+          item.expectedReviewTime ||
+          '',
+        applicationId: item.applicationId || item.id || item.application_id || '',
+        rejectReason: item.rejectReason || item.reject_reason || ''
+      }))
+      .filter((item) => item.roleType)
+  },
+
+  normalizeRoleStatus(status) {
+    if (status == null || status === '') {
+      return 'none'
+    }
+
+    const value = String(status).trim()
+    const statusMap = {
+      active: 'approved',
+      enabled: 'approved',
+      passed: 'approved',
+      success: 'approved',
+      waiting: 'pending',
+      reviewing: 'pending',
+      auditing: 'pending',
+      pending_audit: 'pending',
+      rejected_audit: 'rejected',
+      reject: 'rejected',
+      disabled: 'disabled',
+      none: 'none',
+      unavailable: 'none',
+      available: 'none'
+    }
+
+    return statusMap[value] || value
+  },
+
+  isRolePending(status) {
+    return ROLE_PENDING_STATUSES.includes(this.normalizeRoleStatus(status))
+  },
+
+  resolveSelectedRole(activeRole, roleStatusState = this.data.roleStatusState, applications = []) {
+    if (this.isRolePending(roleStatusState[activeRole])) {
+      return activeRole
+    }
+
+    const pendingApplication = applications.find((item) => this.isRolePending(item.status))
+
+    if (pendingApplication && pendingApplication.roleType) {
+      return pendingApplication.roleType
+    }
+
+    const pendingRole = ROLE_TAGS.find((item) => this.isRolePending(roleStatusState[item.key]))
+
+    return pendingRole ? pendingRole.key : activeRole
+  },
+
   normalizeRoleType(roleType) {
     return ROLE_TYPE_MAP[roleType] || this.data.roleType || 'player'
   },
 
-  formatRoleTags(activeRole) {
+  formatRoleTags(activeRole, roleStatusState = this.data.roleStatusState) {
     return ROLE_TAGS.map((item) => ({
       ...item,
+      name: this.isRolePending(roleStatusState[item.key]) ? '审核中' : item.name,
+      status: this.normalizeRoleStatus(roleStatusState[item.key]),
       active: item.key === activeRole
     }))
+  },
+
+  formatRolePermissionPrompt(roleType, roleStatusState = this.data.roleStatusState) {
+    if (this.isRolePending(roleStatusState[roleType])) {
+      return {
+        visible: false,
+        roleType: '',
+        title: '',
+        primary: '',
+        secondary: ''
+      }
+    }
+
+    const prompt = ROLE_PERMISSION_PROMPTS[roleType]
+
+    if (!prompt) {
+      return {
+        visible: false,
+        roleType: '',
+        title: '',
+        primary: '',
+        secondary: ''
+      }
+    }
+
+    return {
+      ...prompt,
+      visible: true
+    }
+  },
+
+  formatRoleAuditPrompt(roleType, roleStatusState = this.data.roleStatusState, applications = this.data.roleApplicationList, user = {}) {
+    const status = roleStatusState[roleType]
+    const template = ROLE_AUDIT_PROMPTS[roleType]
+
+    if (!template || !this.isRolePending(status)) {
+      return createEmptyRoleAuditPrompt()
+    }
+
+    const application = applications.find((item) => item.roleType === roleType) || {}
+
+    return {
+      ...template,
+      visible: true,
+      submittedText: this.formatRoleAuditSubmittedText(application, user, template.roleName),
+      done: this.normalizeRoleStatus(status) === 'approved',
+      steps: ROLE_AUDIT_STEPS
+    }
+  },
+
+  formatRoleAuditSubmittedText(application = {}) {
+    const submittedAt = this.formatCompactDateTime(application.submittedAt)
+    const expectedReviewAt = this.formatCompactDateTime(application.expectedReviewAt)
+
+    if (!submittedAt && !expectedReviewAt) {
+      return '身份申请已提交，请耐心等待审核'
+    }
+
+    if (!submittedAt) {
+      return `身份申请已提交 预计 ${expectedReviewAt} 完成审核`
+    }
+
+    if (!expectedReviewAt) {
+      return `你于 ${submittedAt} 提交了身份申请`
+    }
+
+    return `你于 ${submittedAt} 提交了身份申请 预计 ${expectedReviewAt} 完成审核`
+  },
+
+  formatCompactDateTime(value) {
+    if (!value || typeof value !== 'string') {
+      return ''
+    }
+
+    return value
+      .replace(/-/g, '.')
+      .replace('T', ' ')
+      .replace(/\+.*$/, '')
+      .replace(/Z$/, '')
+      .replace(/(\d{2}:\d{2}):\d{2}(?:\.\d+)?$/, '$1')
+      .trim()
   },
 
   formatHeroDate(dateLabel, subtitle) {
@@ -941,6 +1233,56 @@ Page({
     }
 
     this.setData(patch)
+  },
+
+  handleRoleTagTap(event) {
+    const key = this.normalizeRoleType(event.currentTarget.dataset.key || 'player')
+
+    this.setData({
+      selectedRoleTag: key,
+      roleTags: this.formatRoleTags(key, this.data.roleStatusState),
+      rolePermissionPrompt: this.formatRolePermissionPrompt(key, this.data.roleStatusState),
+      roleAuditPrompt: this.formatRoleAuditPrompt(key, this.data.roleStatusState, this.data.roleApplicationList)
+    })
+  },
+
+  handleRoleApplyTap() {
+    const prompt = this.data.rolePermissionPrompt || {}
+    const roleType = prompt.roleType || this.data.selectedRoleTag
+    const url = `/${ROUTES.roleApply}?roleType=${roleType}`
+
+    if (typeof wx.navigateTo === 'function') {
+      wx.navigateTo({ url })
+      return
+    }
+
+    wx.showToast({
+      title: '功能正在开发中',
+      icon: 'none'
+    })
+  },
+
+  handleRoleCompareTap() {
+    if (typeof wx.navigateTo === 'function') {
+      wx.navigateTo({
+        url: `/${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(ROUTES.playerHome)}`
+      })
+      return
+    }
+
+    wx.showToast({
+      title: '权益对比正在开发中',
+      icon: 'none'
+    })
+  },
+
+  handleRoleAuditDetailTap() {
+    const prompt = this.data.roleAuditPrompt || {}
+    const roleType = prompt.roleType || this.data.selectedRoleTag || 'guide'
+
+    wx.navigateTo({
+      url: `/${ROUTES.homeOther}?page=pendingCards&roleType=${roleType}`
+    })
   },
 
   handleActionTap() {

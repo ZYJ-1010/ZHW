@@ -29,12 +29,18 @@
 }
 
 .role-home-page.expert .role-level-pill {
-  background: #16c0f6;
+  background: #35c8f5;
 }
 
 .role-home-page.expert .player-role-tag.active {
   border-color: rgba(180, 253, 255, 0.42);
   background: linear-gradient(180deg, #007bd3 0%, #034373 100%);
+  opacity: 1;
+}
+
+.role-home-page.expert .player-summary-card.permission .player-role-tag.active {
+  border-color: rgba(231, 244, 255, 0.96);
+  background: linear-gradient(180deg, rgba(4, 19, 31, 0.96) 0%, rgba(2, 37, 58, 0.98) 100%);
   opacity: 1;
 }
 

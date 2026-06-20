@@ -21,26 +21,37 @@
         <text class="player-hero-date">{{hero.date}}</text>
       </view>
 
-      <view class="player-summary-card">
-        <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
-        <view class="player-summary-copy">
-          <text class="player-summary-title">{{playerCard.title}}</text>
-          <text class="player-summary-name">{{playerCard.name}}</text>
-        </view>
-        <view class="player-level-progress">
-          <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
-        </view>
-        <text class="player-summary-xp">{{playerCard.xp}}</text>
-        <text class="player-next-level">{{playerCard.next}}</text>
-        <view class="player-summary-stats">
-          <view wx:for="{{playerCard.stats}}" wx:key="label">
-            <text>{{item.value}}</text>
-            <text>{{item.label}}</text>
+      <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{rolePermissionPrompt.roleType}}">
+        <block wx:if="{{!rolePermissionPrompt.visible}}">
+          <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
+          <view class="player-summary-copy">
+            <text class="player-summary-title">{{playerCard.title}}</text>
+            <text class="player-summary-name">{{playerCard.name}}</text>
           </view>
-        </view>
-        <view class="player-summary-device role-summary-device">
-          <text>{{playerCard.deviceIcon}}</text>
-          <text>{{playerCard.deviceBadge}}</text>
+          <view class="player-level-progress">
+            <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
+          </view>
+          <text class="player-summary-xp">{{playerCard.xp}}</text>
+          <text class="player-next-level">{{playerCard.next}}</text>
+          <view class="player-summary-stats">
+            <view wx:for="{{playerCard.stats}}" wx:key="label">
+              <text>{{item.value}}</text>
+              <text>{{item.label}}</text>
+            </view>
+          </view>
+          <view class="player-summary-device role-summary-device">
+            <text>{{playerCard.deviceIcon}}</text>
+            <text>{{playerCard.deviceBadge}}</text>
+          </view>
+        </block>
+        <view wx:else class="player-permission-card">
+          <text class="player-permission-title">{{rolePermissionPrompt.title}}</text>
+          <button class="player-permission-primary" bindtap="handleRoleApplyTap">
+            {{rolePermissionPrompt.primary}}
+          </button>
+          <text class="player-permission-secondary" bindtap="handleRoleCompareTap">
+            {{rolePermissionPrompt.secondary}}
+          </text>
         </view>
         <view class="player-summary-divider"></view>
         <view class="player-summary-divider player-summary-divider-bottom"></view>
@@ -50,6 +61,8 @@
           <view
             wx:for="{{roleTags}}"
             wx:key="key"
+            data-key="{{item.key}}"
+            catchtap="handleRoleTagTap"
             class="player-role-tag {{item.active ? 'active' : ''}}"
           >
             <text>{{item.icon}} {{item.name}}</text>

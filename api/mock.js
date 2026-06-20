@@ -10,6 +10,10 @@ const {
 } = require('./mock-data')
 
 let mockCurrentRealnameStatus = 'pending'
+let mockRoleStatusMap = Object.assign({}, mockCurrentUser.roleStatusMap)
+let mockSubmittedRoleApplications = []
+const MOCK_ROLE_APPLICATION_SUBMITTED_AT = '2026-06-08T10:30:00+08:00'
+const MOCK_ROLE_APPLICATION_EXPECTED_REVIEW_AT = '2026-06-12T18:00:00+08:00'
 
 function ok(data) {
   return {
@@ -187,6 +191,7 @@ function buildInviteRelation(invite) {
 function buildLoginUser(isRealnameVerified) {
   return Object.assign({}, mockUser, {
     authStatus: isRealnameVerified ? 'verified' : 'pending',
+    roleStatusMap: mockRoleStatusMap,
     defaultRole: mockUser.defaultRole || 'player',
     default_role: mockUser.default_role || mockUser.defaultRole || 'player',
     needRealname: !isRealnameVerified
@@ -199,9 +204,11 @@ function buildCurrentUser() {
   return Object.assign({}, mockCurrentUser, {
     authStatus: isRealnameVerified ? 'verified' : 'pending',
     realnameStatus: isRealnameVerified ? 'verified' : 'pending',
+    roleStatusMap: mockRoleStatusMap,
     needRealname: !isRealnameVerified,
     todoCounts: Object.assign({}, mockCurrentUser.todoCounts, {
-      realname: isRealnameVerified ? 0 : 1
+      realname: isRealnameVerified ? 0 : 1,
+      roleApplications: mockSubmittedRoleApplications.filter((item) => item.status === 'pending').length
     })
   })
 }
@@ -232,7 +239,44 @@ function buildNewbieTaskSummary() {
 function buildHome(data) {
   const roleType = String(data && data.roleType || 'player').trim()
 
-  return mockRoleHomes[roleType] || mockHome
+  return Object.assign({}, mockRoleHomes[roleType] || mockHome, {
+    user: buildCurrentUser(),
+    roleApplications: mockSubmittedRoleApplications
+  })
+}
+
+function buildRoleApplications() {
+  return mockRoleApplications.map((item) => {
+    const submitted = mockSubmittedRoleApplications.find((application) => application.roleType === item.roleType)
+
+    if (!submitted) {
+      return item
+    }
+
+    return Object.assign({}, item, submitted)
+  })
+}
+
+function submitMockRoleApplication(data = {}) {
+  const roleType = data.roleType || 'expert'
+  const application = {
+    applicationId: `mock-role-${Date.now()}`,
+    roleType,
+    status: 'pending',
+    statusText: '已进入审核',
+    submittedAt: MOCK_ROLE_APPLICATION_SUBMITTED_AT,
+    expectedReviewAt: MOCK_ROLE_APPLICATION_EXPECTED_REVIEW_AT,
+    submitted: data
+  }
+
+  mockRoleStatusMap = Object.assign({}, mockRoleStatusMap, {
+    [roleType]: 'pending'
+  })
+  mockSubmittedRoleApplications = mockSubmittedRoleApplications
+    .filter((item) => item.roleType !== roleType)
+    .concat(application)
+
+  return application
 }
 
 function setMockRealnameStatus(status) {
@@ -318,16 +362,70 @@ function handleRequest(options) {
   }
 
   if (method === 'GET' && url === '/api/app/role-applications/my') {
-    return wait(ok(mockRoleApplications))
+    return wait(ok(buildRoleApplications()))
+  }
+
+  if (method === 'GET' && url === '/api/app/roles/my') {
+    return wait(ok(buildCurrentUser()))
+  }
+
+  if (method === 'GET' && url === '/api/app/role-applications/expert/config') {
+    return wait(ok({
+      skillOptions: [
+        { name: '摄影', active: true },
+        { name: '户外', active: false },
+        { name: '美食', active: false },
+        { name: '文化', active: false },
+        { name: '手工', active: false },
+        { name: '运动', active: false },
+        { name: '音乐', active: false },
+        { name: '+ 自定义', custom: true }
+      ],
+      fields: [
+        { type: 'chips', key: 'skillDomain', label: '选择技能领域', required: true },
+        {
+          type: 'input',
+          key: 'skillTags',
+          label: '技能标签',
+          required: true,
+          placeholder: '如：人像摄影、风光摄影、夜景拍摄',
+          helper: '添加具体标签，让用户更容易找到你',
+          maxlength: 30
+        },
+        { type: 'select', key: 'experienceYears', label: '从业年限', required: true, placeholder: '请选择从业年限' },
+        {
+          type: 'textarea',
+          key: 'intro',
+          label: '个人简介',
+          required: true,
+          placeholder: '介绍你的专业背景、服务风格、擅长领域...',
+          helper: '不少于 50 字，突出你的专业优势',
+          maxlength: 300
+        }
+      ],
+      uploadField: {
+        label: '资质证明',
+        required: true,
+        icon: '📎',
+        title: '点击上传作品集及凭证',
+        acceptTypes: ['JPG', 'PNG', 'PDF'],
+        maxCount: 5
+      },
+      validationRules: {
+        skillTags: { minLength: 2, maxLength: 30 },
+        intro: { minLength: 50, maxLength: 300 },
+        serviceName: { minLength: 2, maxLength: 20 },
+        customSkill: { minLength: 2, maxLength: 8 },
+        money: { integerMaxLength: 8, decimalMaxLength: 2 }
+      },
+      yearOptions: Array.from({ length: 30 }, (_, index) => `${index + 1}年`).concat('30年以上'),
+      serviceCount: 3,
+      priceHint: '平台将收取 10% 服务费'
+    }))
   }
 
   if (method === 'POST' && url === '/api/app/role-applications') {
-    return wait(ok({
-      applicationId: `mock-role-${Date.now()}`,
-      roleType: options.data.roleType,
-      status: 'pending_audit',
-      statusText: '已进入审核'
-    }))
+    return wait(ok(submitMockRoleApplication(options.data || {})))
   }
 
   return wait(fail(40401, `mock 未配置接口：${method} ${url}`))

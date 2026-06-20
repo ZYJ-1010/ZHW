@@ -1,0 +1,27 @@
+<view class="home-master-apply-page {{shellClass}}">
+  <view class="home-master-apply-stage">
+    <view class="home-master-apply-frame" style="{{applyShellLayout.frameStyle}}">
+      <view class="home-master-apply-top-bg" style="{{applyShellLayout.topBgStyle}}"></view>
+      <view class="home-master-apply-nav" style="{{applyShellLayout.navStyle}}">
+        <text class="home-master-apply-nav-title">{{navTitle}}</text>
+      </view>
+      <view
+        wx:if="{{previewSwitchEnabled}}"
+        class="home-apply-shell-switch-hit left"
+        style="{{applyShellLayout.switchStyle}}"
+        data-direction="-1"
+        catchtap="handlePreviewSwitch"
+      ></view>
+      <view
+        wx:if="{{previewSwitchEnabled}}"
+        class="home-apply-shell-switch-hit right"
+        style="{{applyShellLayout.switchStyle}}"
+        data-direction="1"
+        catchtap="handlePreviewSwitch"
+      ></view>
+      <view class="home-master-apply-phone" style="{{applyShellLayout.phoneStyle}}">
+        <slot></slot>
+      </view>
+    </view>
+  </view>
+</view>

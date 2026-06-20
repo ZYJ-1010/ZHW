@@ -1,4 +1,5 @@
 const homeService = require('../../services/home')
+const { ROUTES } = require('../../config/routes')
 
 const HOME_SCROLL_TAP_STEP_RPX = 360
 const HOME_SCROLL_HOLD_STEP_RPX = 72
@@ -12,8 +13,66 @@ const ROLE_TAGS = [
 ]
 
 const ROLE_NAMES = {
+  player: '玩家',
   expert: '行家',
   guide: '领路人'
+}
+
+const PLAYER_ROLE_HOME = {
+  roleName: '玩家',
+  roleEmoji: '🎮',
+  deviceBadge: '⚡',
+  profileName: 'Alex Chen',
+  identity: '活跃达人',
+  levelText: '玩家 Lv.5',
+  scoreText: '580/1000 XP',
+  progress: 58,
+  nextLevelText: '距离下一等级还需 420 经验值',
+  sectionTitle: '附近正在发生',
+  sectionMore: '',
+  stats: [
+    { value: '12', label: '参与局数' },
+    { value: '3', label: '本月MVP' },
+    { value: '98%', label: '参与率' }
+  ],
+  entries: [
+    { title: '发起组局', desc: '创建你的带局房间', icon: '📍', theme: 'pink' },
+    { title: '局前大厅', desc: '准备就绪加入一局', routeIcon: true, theme: 'cyan' }
+  ],
+  onlineCard: {
+    title: '地球online',
+    desc: '探索城市副本 · 解锁地图成就',
+    tags: ['附近 12 个组局', '已打卡 8 处']
+  },
+  mainSection: {
+    title: '附近正在发生',
+    moreText: '',
+    desc: ''
+  },
+  mainTabs: [
+    { key: 'all', name: '全部', active: true },
+    { key: 'nearby', name: '附近', active: false }
+  ],
+  mainGames: [],
+  skills: [],
+  review: null,
+  recommendation: null,
+  network: null
+}
+
+const ROLE_PERMISSION_PROMPTS = {
+  expert: {
+    roleType: 'expert',
+    title: '我懂玩家需要什么！我申请成为行家',
+    primary: '申请成为行家',
+    secondary: '查看权益对比'
+  },
+  guide: {
+    roleType: 'guide',
+    title: '我愿意带领更多人一起玩！我申请成为领路人',
+    primary: '申请成为领路人',
+    secondary: '查看权益对比'
+  }
 }
 
 const DEFAULT_ROLE_HOME = {
@@ -100,6 +159,14 @@ Component({
       ...item,
       active: item.key === 'expert'
     })),
+    selectedRoleTag: 'expert',
+    rolePermissionPrompt: {
+      visible: false,
+      roleType: '',
+      title: '',
+      primary: '',
+      secondary: ''
+    },
     entries: DEFAULT_ROLE_HOME.entries,
     onlineCard: DEFAULT_ROLE_HOME.onlineCard,
     mainSection: DEFAULT_ROLE_HOME.mainSection,
@@ -203,10 +270,12 @@ Component({
 
         this.setData({
           currentRoleType: roleType,
+          selectedRoleTag: roleType,
           onlineText: hero.onlineText || this.data.onlineText,
           hero: this.formatHero(hero, dashboard, roleType),
           playerCard: this.formatPlayerCard(dashboard),
           roleTags: this.formatRoleTags(roleType),
+          rolePermissionPrompt: this.formatRolePermissionPrompt('', roleType),
           entries: dashboard.entries,
           onlineCard: dashboard.onlineCard,
           mainSection: dashboard.mainSection,
@@ -231,9 +300,11 @@ Component({
         const fallback = this.formatRoleDashboard({}, roleType)
 
         this.setData({
+          selectedRoleTag: roleType,
           hero: this.formatHero({}, fallback, roleType),
           playerCard: this.formatPlayerCard(fallback),
           roleTags: this.formatRoleTags(roleType),
+          rolePermissionPrompt: this.formatRolePermissionPrompt('', roleType),
           entries: fallback.entries,
           onlineCard: fallback.onlineCard,
           mainSection: fallback.mainSection,
@@ -249,8 +320,9 @@ Component({
 
     formatRoleDashboard(dashboard = {}, roleType = 'expert') {
       const roleName = ROLE_NAMES[roleType] || '行家'
+      const defaultHome = roleType === 'player' ? PLAYER_ROLE_HOME : DEFAULT_ROLE_HOME
       const source = {
-        ...DEFAULT_ROLE_HOME,
+        ...defaultHome,
         ...dashboard,
         roleName: dashboard.roleName || roleName
       }
@@ -979,6 +1051,35 @@ Component({
       }))
     },
 
+    formatRolePermissionPrompt(roleType, currentRoleType = this.data.currentRoleType) {
+      if (!roleType || roleType === currentRoleType || roleType === 'player') {
+        return {
+          visible: false,
+          roleType: '',
+          title: '',
+          primary: '',
+          secondary: ''
+        }
+      }
+
+      const prompt = ROLE_PERMISSION_PROMPTS[roleType]
+
+      if (!prompt) {
+        return {
+          visible: false,
+          roleType: '',
+          title: '',
+          primary: '',
+          secondary: ''
+        }
+      }
+
+      return {
+        ...prompt,
+        visible: true
+      }
+    },
+
     pickFirstValue(...values) {
       return values.find((value) => value != null && value !== '')
     },
@@ -1131,6 +1232,68 @@ Component({
           ...item,
           active: item.key === key
         }))
+      })
+    },
+
+    handleRoleTagTap(event) {
+      const key = this.normalizeRoleType(event.currentTarget.dataset.key || this.data.currentRoleType)
+      const currentRoleType = this.data.currentRoleType
+
+      if (key === 'player') {
+        this.setData({
+          selectedRoleTag: currentRoleType,
+          roleTags: this.formatRoleTags(currentRoleType),
+          rolePermissionPrompt: this.formatRolePermissionPrompt('', currentRoleType)
+        })
+        return
+      }
+
+      if (currentRoleType === 'guide' && key === 'expert') {
+        this.setData({
+          selectedRoleTag: currentRoleType,
+          roleTags: this.formatRoleTags(currentRoleType),
+          rolePermissionPrompt: this.formatRolePermissionPrompt('', currentRoleType)
+        })
+        return
+      }
+
+      this.setData({
+        selectedRoleTag: key,
+        roleTags: this.formatRoleTags(key),
+        rolePermissionPrompt: this.formatRolePermissionPrompt(key)
+      })
+    },
+
+    handleRoleApplyTap() {
+      const prompt = this.data.rolePermissionPrompt || {}
+      const roleType = prompt.roleType || this.data.selectedRoleTag
+
+      if (typeof wx.navigateTo === 'function') {
+        wx.navigateTo({
+          url: `/${ROUTES.roleApply}?roleType=${roleType}`
+        })
+        return
+      }
+
+      wx.showToast({
+        title: '功能正在开发中',
+        icon: 'none'
+      })
+    },
+
+    handleRoleCompareTap() {
+      if (typeof wx.navigateTo === 'function') {
+        const returnRoute = this.data.currentRoleType === 'guide' ? ROUTES.guideHome : ROUTES.expertHome
+
+        wx.navigateTo({
+          url: `/${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(returnRoute)}`
+        })
+        return
+      }
+
+      wx.showToast({
+        title: '权益对比正在开发中',
+        icon: 'none'
       })
     },
 

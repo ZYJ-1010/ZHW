@@ -1,3 +1,9 @@
 {
-  "navigationBarTitleText": ""
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "home-apply-shell": "/components/home-apply-shell/index",
+    "role-dashboard-home": "/components/role-dashboard-home/index"
+  }
 }

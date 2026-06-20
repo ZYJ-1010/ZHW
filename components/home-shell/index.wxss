@@ -7,8 +7,8 @@
 .home-shell-canvas {
   position: relative;
   width: 750rpx;
-  height: 1624rpx;
-  min-height: 1624rpx;
+  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
   box-sizing: border-box;
   background: #007bd3;

@@ -1,0 +1,19 @@
+@import "../../pages/home/master/index.wxss";
+
+.home-apply-shell-switch-hit {
+  position: absolute;
+  top: 0;
+  z-index: 12;
+  width: 180rpx;
+  height: 73rpx;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.home-apply-shell-switch-hit.left {
+  left: 0;
+}
+
+.home-apply-shell-switch-hit.right {
+  right: 0;
+}

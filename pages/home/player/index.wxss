@@ -728,6 +728,261 @@ page {
   overflow: hidden;
 }
 
+.player-summary-card.permission .player-summary-divider {
+  top: 318rpx;
+}
+
+.player-summary-card.audit .player-summary-divider {
+  top: 318rpx;
+}
+
+.player-summary-card.permission .player-summary-divider-bottom,
+.player-summary-card.permission .player-summary-stat-divider,
+.player-summary-card.audit .player-summary-divider-bottom,
+.player-summary-card.audit .player-summary-stat-divider {
+  display: none;
+}
+
+.player-summary-card.permission .player-role-tag,
+.player-summary-card.audit .player-role-tag {
+  border-color: rgba(29, 162, 224, 0.62);
+  background: rgba(14, 126, 195, 0.66);
+}
+
+.player-summary-card.permission .player-role-tag.active,
+.player-summary-card.audit .player-role-tag.active {
+  border-color: rgba(231, 244, 255, 0.96);
+  background: linear-gradient(180deg, rgba(4, 19, 31, 0.96) 0%, rgba(2, 37, 58, 0.98) 100%);
+  opacity: 1;
+}
+
+.player-summary-card.permission .player-role-tag text,
+.player-summary-card.audit .player-role-tag text {
+  color: #eaf9ff;
+  font-weight: 700;
+}
+
+.player-permission-card {
+  position: absolute;
+  left: 40rpx;
+  right: 40rpx;
+  top: 96rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.player-permission-title,
+.player-permission-secondary {
+  display: block;
+  text-align: center;
+}
+
+.player-permission-title {
+  width: 100%;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 36rpx;
+}
+
+.player-permission-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 306rpx;
+  height: 70rpx;
+  margin: 28rpx 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #2fc2ef;
+  box-shadow: 0 8rpx 18rpx rgba(47, 194, 239, 0.22);
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 70rpx;
+}
+
+.player-permission-primary::after {
+  display: none;
+}
+
+.player-summary-card.guide .player-permission-primary {
+  background: #ff7a2f;
+  box-shadow: 0 8rpx 18rpx rgba(255, 122, 47, 0.24);
+}
+
+.player-permission-secondary {
+  margin-top: 5rpx;
+  color: rgba(164, 205, 222, 0.82);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.player-summary-card.guide .player-permission-secondary {
+  color: #ff8a2c;
+}
+
+.player-role-audit-card {
+  position: absolute;
+  left: 28rpx;
+  right: 28rpx;
+  top: 24rpx;
+}
+
+.player-role-audit-title {
+  display: inline-flex;
+  align-items: center;
+  max-width: 340rpx;
+  height: 56rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: linear-gradient(90deg, #5de9ff 0%, rgba(93, 233, 255, 0.42) 100%);
+  font-size: 26rpx;
+  font-weight: 900;
+  line-height: 56rpx;
+}
+
+.player-summary-card.audit.guide .player-role-audit-title {
+  background: linear-gradient(90deg, #ff8a1f 0%, rgba(255, 138, 31, 0.44) 100%);
+  box-shadow: 0 0 20rpx rgba(255, 138, 31, 0.22);
+}
+
+.player-role-audit-subtitle {
+  display: block;
+  width: 100%;
+  margin: 22rpx 0 0;
+  padding: 0 38rpx;
+  box-sizing: border-box;
+  color: rgba(196, 235, 255, 0.82);
+  font-size: 18rpx;
+  font-weight: 400;
+  line-height: 26rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.player-role-audit-steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 30rpx 42rpx 0;
+}
+
+.player-role-audit-steps::before,
+.player-role-audit-steps::after {
+  content: "";
+  position: absolute;
+  top: 15rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+}
+
+.player-role-audit-steps::before {
+  left: calc(50% + 15rpx);
+  width: calc(33.333% - 30rpx);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.player-role-audit-steps.done::before {
+  background: linear-gradient(90deg, rgba(0, 255, 136, 1) 0%, rgba(255, 149, 0, 1) 100%);
+  box-shadow: 0 0 8rpx rgba(255, 138, 31, 0.18);
+}
+
+.player-role-audit-steps::after {
+  left: calc(16.666% + 15rpx);
+  width: calc(33.333% - 30rpx);
+  background: linear-gradient(90deg, rgba(0, 255, 136, 1) 0%, rgba(255, 149, 0, 1) 100%);
+  box-shadow: 0 0 8rpx rgba(255, 138, 31, 0.18);
+}
+
+.player-role-audit-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.player-role-audit-dot {
+  position: relative;
+  z-index: 2;
+  width: 30rpx;
+  height: 30rpx;
+  border: 4rpx solid rgba(46, 153, 205, 0.65);
+  border-radius: 50%;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.player-role-audit-step.done .player-role-audit-dot {
+  border-color: #4cfa78;
+  background: #4cfa78;
+}
+
+.player-role-audit-steps.done .player-role-audit-step:last-child .player-role-audit-dot {
+  border-color: #4cfa78;
+  background: #4cfa78;
+}
+
+.player-role-audit-step.active .player-role-audit-dot {
+  border-color: rgba(255, 138, 31, 0.22);
+  background: #ff8a1f;
+  box-shadow: 0 0 0 17rpx rgba(255, 138, 31, 0.14);
+}
+
+.player-role-audit-steps.done .player-role-audit-step.active .player-role-audit-dot {
+  border-color: #4cfa78;
+  background: #4cfa78;
+  box-shadow: none;
+}
+
+.player-role-audit-step text {
+  display: block;
+  margin-top: 10rpx;
+  color: rgba(180, 220, 242, 0.66);
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 28rpx;
+}
+
+.player-role-audit-step.done text {
+  color: #4cfa78;
+}
+
+.player-role-audit-step.active text {
+  color: #ff8a1f;
+}
+
+.player-role-audit-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52rpx;
+  margin: 22rpx 14rpx 0;
+  border: 2rpx solid rgba(112, 214, 255, 0.42);
+  border-radius: 14rpx;
+  color: #ff7a1f;
+  font-size: 18rpx;
+  font-weight: 900;
+  line-height: 52rpx;
+  text-align: center;
+}
+
+.player-role-audit-helper {
+  display: block;
+  margin-top: 2rpx;
+  color: rgba(154, 207, 232, 0.42);
+  font-size: 12rpx;
+  font-weight: 400;
+  line-height: 20rpx;
+  text-align: center;
+}
+
 .player-level-pill {
   position: absolute;
   left: 40rpx;
@@ -947,6 +1202,11 @@ page {
   border-color: rgba(229, 231, 235, 1);
   background: rgba(255, 255, 255, 0.18);
   opacity: 0.8;
+}
+
+.player-role-tag.pending {
+  border-color: rgba(255, 138, 31, 0.78);
+  background: rgba(255, 138, 31, 0.14);
 }
 
 .player-role-tag text {

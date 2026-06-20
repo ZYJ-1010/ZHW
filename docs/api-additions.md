@@ -912,3 +912,300 @@ defaultRole / default_role / homeRole / home_role / currentRole / current_role /
 2. `roles` 是字符串数组，还是 `{ roleType, status }` 对象数组。
 3. `roleStatusMap` 的通过状态枚举是否固定为 `approved`，还是还有 `passed/active/enabled` 等值。
 4. 用户同时拥有多个角色时，是否完全以后端 `defaultRole/default_role` 为准。
+
+## 14. 行家首页最新评价数量字段
+
+记录日期：2026-06-19
+
+模块：首页 / 行家首页 / 最新评价
+
+页面：`pages/home/expert/index`、`components/role-dashboard-home/index.*`
+
+功能：行家首页“最新评价”模块只在首页展示最新一条评价，右侧展示全部评价数量，点击后进入全部评价列表页。
+
+接口：
+
+```text
+GET /api/app/home?roleType=expert
+```
+
+建议响应片段：
+
+```json
+{
+  "roleDashboard": {
+    "review": {
+      "title": "最新评价",
+      "count": 156,
+      "avatarUrl": "https://example.com/avatar.png",
+      "playerLevel": "萌新玩家",
+      "timeText": "2小时前",
+      "rating": 4,
+      "content": "DM非常专业，带本节奏很好，气氛拉满！"
+    }
+  }
+}
+```
+
+状态：待后端确认。当前前端优先读取 `roleDashboard.review.count`，并兼容 `roleDashboard.review.total`、`roleDashboard.review.totalCount`、`roleDashboard.review.reviewCount`、`roleDashboard.reviewCount`、`roleDashboard.reviewTotal`、`roleDashboard.reviewTotalCount`。评价卡片字段来自后台：头像优先读取 `avatarUrl/avatar/userAvatar/playerAvatar`，玩家等级读取 `playerLevel/levelText/userLevel/authorLevel`，时间读取 `timeText/createdAtText/reviewTimeText/createdAt`，星级读取 `rating/score/star/stars`，内容读取 `content/comment/text/reviewContent`。首页只渲染最新一条评价；如后端返回 `review.items`、`review.list`、`review.reviews`、`review.latest` 或 `review.latestReview`，前端会取第一条/最新条展示。
+
+## 15. 行家首页后半段复用玩家首页模块
+
+记录日期：2026-06-19
+
+模块：首页 / 行家首页 / 本周玩霸榜、我的成就、进入元宇宙
+
+页面：`pages/home/expert/index`、`components/role-dashboard-home/index.*`
+
+接口：
+
+```text
+GET /api/app/home?roleType=expert
+```
+
+状态：前端已复用玩家首页的榜单、成就和元宇宙模块结构。行家首页榜单默认高亮 `expert`，建议后台返回 `rankingSection.defaultTab: "expert"`，并在 `rankingBoards.expert` 下返回行家榜单列表和当前用户排名。`achievementSection`、`achievementList`、`metaverseEntry` 沿用玩家首页字段结构即可。
+
+## 16. 领路人首页关系网络字段
+
+记录日期：2026-06-19
+
+模块：首页 / 领路人首页 / 我的关系网络
+
+页面：`pages/home/guide/index`、`components/role-dashboard-home/index.*`
+
+接口：
+
+```text
+GET /api/app/home?roleType=guide
+```
+
+功能：领路人首页“我的关系网络”模块由首页聚合接口返回展示文案、中心节点、连接数量、收益、区域、指标卡和操作按钮。关系图连线、节点位置、颜色、圆角和卡片样式由前端固定实现，后台只返回内容、数字、排序和跳转目标。
+
+建议响应片段：
+
+```json
+{
+  "roleDashboard": {
+    "network": {
+      "title": "我的关系网络",
+      "status": "实时连接中",
+      "hubTitle": "萧飒",
+      "hubDesc": "领路人",
+      "connectedCount": 156,
+      "summary": "● 已连接 156 位玩家",
+      "income": "本周收益 ¥1,240",
+      "location": "📍 镇海区",
+      "items": [
+        { "id": "players", "icon": "●", "name": "已连接", "desc": "156 位玩家" },
+        { "id": "income", "icon": "¥", "name": "本周收益", "desc": "¥1,240" },
+        { "id": "area", "icon": "📍", "name": "核心区域", "desc": "镇海区" }
+      ],
+      "buttons": [
+        { "text": "查看全部", "primary": true, "route": "pages/profile/index" },
+        { "text": "管理连接", "route": "pages/message/index" }
+      ]
+    }
+  }
+}
+```
+
+状态：待后端确认。当前前端已兼容 `summary/summaryText`、`connectedCount/playerCount`、`hubTitle/centerTitle`、`hubDesc/centerDesc`、`actionText/moreText`、`secondaryText` 等字段；若后端暂未返回 `items/buttons`，前端会用连接数、收益和区域生成兜底指标卡与按钮。
+
+## 17. 申请行家条件预检字段
+
+记录日期：2026-06-20
+
+模块：首页 / 申请行家
+
+页面：`pages/home/index` 的 `申请行家浏览页`
+
+功能：申请行家浏览页的申请条件列表需要由后台返回逐项状态。左侧圆圈状态由后台字段控制：满足时显示勾选圆，不满足、未提交或未完成时显示空圆。当前前端静态走查先写死 `checked` 字段，生产联调时替换为后台返回。
+
+现有资料核对：项目已有 `GET /api/app/role-applications/my`、`POST /api/app/role-applications` 和 `GET /api/app/roles/my`，旧角色申请页只使用 `qualification.conditionMet`、`paymentMet` 这类粗粒度字段；未找到行家申请浏览页“条件逐项状态 + 行家计划书状态”的正式接口。
+
+候选接口：
+
+```text
+GET /api/app/role-applications/expert/precheck
+```
+
+也可并入：
+
+```text
+GET /api/app/role-applications/my
+```
+
+建议响应片段：
+
+```json
+{
+  "roleType": "expert",
+  "requirements": [
+    { "key": "level", "title": "玩家等级达到 Lv.20", "status": "当前等级: Lv.21 / 已满足", "checked": true },
+    { "key": "realname", "title": "完成实名认证", "status": "认证状态: 已通过 / 已满足", "checked": true },
+    { "key": "enterprise", "title": "完成企业认证", "status": "认证状态: 已通过 / 已满足", "checked": true },
+    { "key": "games", "title": "发起过 5次以上组局", "status": "当前: 5 次 / 已满足", "checked": true },
+    { "key": "credit", "title": "信用分 ≥ 90 分", "status": "当前: 92 分 / 已满足", "checked": true },
+    { "key": "member", "title": "会员等级≥ 高级会员", "status": "当前: 高级会员 / 已满足", "checked": true }
+  ],
+  "planTask": {
+    "key": "expertPlan",
+    "title": "提交行家计划书",
+    "desc": "需描述你的资源、能力和项目说明书",
+    "action": "去填写 ›",
+    "checked": false,
+    "route": "pages/role/apply/index?roleType=expert&step=plan"
+  }
+}
+```
+
+待确认：
+
+1. 条件预检是新增独立接口，还是扩展 `GET /api/app/role-applications/my`。
+2. 逐项状态字段是否统一使用 `checked`，或使用 `met/status/completed`。
+3. 行家计划书是否作为第 7 个 requirement 返回，还是单独返回 `planTask`。
+4. `去填写` 当前前端按用户要求不接跳转；生产需要后台确认目标 `route`。
+
+## 18. 申请行家表单配置接口
+
+记录日期：2026-06-20
+
+模块：首页 / 申请行家
+
+页面：`pages/home/index` 的 `申请行家内页`
+
+接口：
+
+```text
+GET /api/app/role-applications/expert/config
+```
+
+功能：申请行家内页的限制条件、已有技能领域、字段提示内容、技能标签规则、作品类型和作品数量由后台配置返回；如果后台暂未提供或请求失败，前端使用当前静态默认配置兜底。
+
+建议响应片段：
+
+```json
+{
+  "skillOptions": [
+    { "name": "摄影", "active": true },
+    { "name": "户外" },
+    { "name": "美食" },
+    { "name": "文化" },
+    { "name": "手工" },
+    { "name": "运动" },
+    { "name": "音乐" },
+    { "name": "+ 自定义", "custom": true }
+  ],
+  "fields": [
+    { "type": "chips", "key": "skillDomain", "label": "选择技能领域", "required": true },
+    {
+      "type": "input",
+      "key": "skillTags",
+      "label": "技能标签",
+      "required": true,
+      "placeholder": "如：人像摄影、风光摄影、夜景拍摄",
+      "helper": "添加具体标签，让用户更容易找到你",
+      "maxlength": 30
+    },
+    { "type": "select", "key": "experienceYears", "label": "从业年限", "required": true, "placeholder": "请选择从业年限" },
+    {
+      "type": "textarea",
+      "key": "intro",
+      "label": "个人简介",
+      "required": true,
+      "placeholder": "介绍你的专业背景、服务风格、擅长领域...",
+      "helper": "不少于 50 字，突出你的专业优势",
+      "maxlength": 300
+    }
+  ],
+  "uploadField": {
+    "label": "资质证明",
+    "required": true,
+    "icon": "📎",
+    "title": "点击上传作品集及凭证",
+    "acceptTypes": ["JPG", "PNG", "PDF"],
+    "maxCount": 5
+  },
+  "validationRules": {
+    "skillTags": { "minLength": 2, "maxLength": 30 },
+    "intro": { "minLength": 50, "maxLength": 300 },
+    "serviceName": { "minLength": 2, "maxLength": 20 },
+    "customSkill": { "minLength": 2, "maxLength": 8 },
+    "money": { "integerMaxLength": 8, "decimalMaxLength": 2 }
+  },
+  "yearOptions": ["1年", "2年", "3年", "30年以上"],
+  "serviceCount": 3,
+  "priceHint": "平台将收取 10% 服务费"
+}
+```
+
+状态：待后端确认。当前前端已接入该候选接口，并在 mock 和接口失败时使用本地默认配置。
+
+## 19. 申请行家表单提交字段
+
+记录日期：2026-06-20
+
+模块：首页 / 申请行家
+
+页面：`pages/home/index` 的 `申请行家内页`
+
+现有接口：
+
+```text
+POST /api/app/role-applications
+```
+
+现有资料核对：项目已有该接口，旧角色申请页只明确传入 `{ "roleType": "expert" }` 或 `{ "roleType": "guide" }`。未在当前项目文档中找到“行家申请内页”完整字段表。当前前端先按配置 key 和业务语义提交完整表单，后端字段名需要确认。
+
+当前前端提交 payload：
+
+```json
+{
+  "roleType": "expert",
+  "skillDomain": "摄影",
+  "skillDomains": ["摄影"],
+  "skillTags": "人像摄影、风光摄影、夜景拍摄",
+  "experienceYears": "3年",
+  "intro": "不少于 50 字的个人简介内容",
+  "personalIntro": "不少于 50 字的个人简介内容",
+  "uploadFiles": [
+    {
+      "name": "作品集.pdf",
+      "fileName": "作品集.pdf",
+      "path": "wxfile://tmp_xxx",
+      "tempFilePath": "wxfile://tmp_xxx",
+      "size": 102400,
+      "type": "file",
+      "extension": "PDF"
+    }
+  ],
+  "qualifications": [
+    {
+      "name": "作品集.pdf",
+      "fileName": "作品集.pdf",
+      "path": "wxfile://tmp_xxx",
+      "tempFilePath": "wxfile://tmp_xxx",
+      "size": 102400,
+      "type": "file",
+      "extension": "PDF"
+    }
+  ],
+  "services": [
+    {
+      "name": "摄影陪拍",
+      "serviceName": "摄影陪拍",
+      "price": "299.00",
+      "hourlyPrice": "299.00",
+      "cost": "80.00"
+    }
+  ]
+}
+```
+
+待确认：
+
+1. `POST /api/app/role-applications` 是否直接接收文件临时路径/文件元信息，还是需要先上传文件并提交文件 ID/URL。
+2. 技能领域字段使用单值 `skillDomain` 还是数组 `skillDomains`。
+3. 个人简介字段使用 `intro` 还是 `personalIntro`。
+4. 服务定价字段使用 `price` 还是 `hourlyPrice`，金额类型是字符串还是 number。
+5. 资质文件字段使用 `uploadFiles` 还是 `qualifications`。

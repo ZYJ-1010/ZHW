@@ -18,54 +18,64 @@ page {
 }
 
 .home-master-apply-stage {
-  width: 638rpx;
+  width: 750rpx;
+  max-width: 100%;
   margin: 0 auto;
-}
-
-.home-master-apply-caption {
-  display: block;
-  margin: 0 0 14rpx 0;
-  color: #333333;
-  font-size: 28rpx;
-  font-weight: 400;
-  line-height: 40rpx;
+  box-sizing: border-box;
 }
 
 .home-master-apply-frame {
-  width: 638rpx;
-  padding: 18rpx;
+  position: relative;
+  width: 750rpx;
+  max-width: 100%;
+  padding: 73rpx 0 10rpx;
   box-sizing: border-box;
   background: #0089dc;
 }
 
+.home-master-apply-top-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -172rpx;
+  z-index: 0;
+  height: 172rpx;
+  background: #0089dc;
+}
+
 .home-master-apply-phone {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 704rpx;
+  margin: 0 auto;
+  min-height: calc(100vh - 181rpx);
   overflow: hidden;
   background: #000000;
   color: #ffffff;
 }
 
 .home-master-apply-nav {
+  position: absolute;
+  left: 23rpx;
+  z-index: 3;
   display: grid;
   grid-template-columns: 80rpx 1fr 80rpx;
   align-items: center;
-  height: 96rpx;
+  width: 704rpx;
+  height: 64rpx;
   padding: 0 24rpx;
   box-sizing: border-box;
-  background: #000000;
+  background: transparent;
 }
 
-.home-master-apply-back,
 .home-master-apply-nav-title {
   display: block;
 }
 
-.home-master-apply-back {
-  color: #ffffff;
-  font-size: 42rpx;
-  line-height: 42rpx;
-}
-
 .home-master-apply-nav-title {
+  grid-column: 2;
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 700;
@@ -74,6 +84,7 @@ page {
 }
 
 .home-master-apply-main {
+  flex: 1;
   padding: 24rpx 34rpx 36rpx;
   box-sizing: border-box;
 }

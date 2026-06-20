@@ -12,8 +12,13 @@ function getMyRoles() {
   return request.get('/api/app/roles/my')
 }
 
+function getExpertApplyConfig() {
+  return request.get('/api/app/role-applications/expert/config')
+}
+
 module.exports = {
   submitRoleApplication,
   getMyRoleApplications,
-  getMyRoles
+  getMyRoles,
+  getExpertApplyConfig
 }

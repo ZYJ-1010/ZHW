@@ -24,26 +24,55 @@
       <text class="player-hero-date">{{hero.date}}</text>
     </view>
 
-    <view class="player-summary-card">
-      <text class="player-level-pill">{{playerCard.role}}</text>
-      <view class="player-summary-copy">
-        <text class="player-summary-title">{{playerCard.title}}</text>
-        <text class="player-summary-name">{{playerCard.name}}</text>
-      </view>
-      <view class="player-level-progress">
-        <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
-      </view>
-      <text class="player-summary-xp">{{playerCard.xp}}</text>
-      <text class="player-next-level">{{playerCard.next}}</text>
-      <view class="player-summary-stats">
-        <view wx:for="{{playerCard.stats}}" wx:key="label">
-          <text>{{item.value}}</text>
-          <text>{{item.label}}</text>
+    <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{roleAuditPrompt.visible ? 'audit' : ''}} {{rolePermissionPrompt.roleType}} {{roleAuditPrompt.roleType}}">
+      <block wx:if="{{roleAuditPrompt.visible}}">
+        <view class="player-role-audit-card">
+          <text class="player-role-audit-title">{{roleAuditPrompt.icon}}{{roleAuditPrompt.title}}</text>
+          <text class="player-role-audit-subtitle">{{roleAuditPrompt.submittedText}}</text>
+          <view class="player-role-audit-steps {{roleAuditPrompt.done ? 'done' : ''}}">
+            <view
+              wx:for="{{roleAuditPrompt.steps}}"
+              wx:key="key"
+              class="player-role-audit-step {{item.state}}"
+            >
+              <view class="player-role-audit-dot"></view>
+              <text>{{item.name}}</text>
+            </view>
+          </view>
+          <view class="player-role-audit-detail" bindtap="handleRoleAuditDetailTap">{{roleAuditPrompt.detailText}}</view>
+          <text class="player-role-audit-helper">{{roleAuditPrompt.helperText}}</text>
         </view>
-      </view>
-      <view class="player-summary-device">
-        <text>🎮</text>
-        <text>⚡</text>
+      </block>
+      <block wx:elif="{{!rolePermissionPrompt.visible}}">
+        <text class="player-level-pill">{{playerCard.role}}</text>
+        <view class="player-summary-copy">
+          <text class="player-summary-title">{{playerCard.title}}</text>
+          <text class="player-summary-name">{{playerCard.name}}</text>
+        </view>
+        <view class="player-level-progress">
+          <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
+        </view>
+        <text class="player-summary-xp">{{playerCard.xp}}</text>
+        <text class="player-next-level">{{playerCard.next}}</text>
+        <view class="player-summary-stats">
+          <view wx:for="{{playerCard.stats}}" wx:key="label">
+            <text>{{item.value}}</text>
+            <text>{{item.label}}</text>
+          </view>
+        </view>
+        <view class="player-summary-device">
+          <text>🎮</text>
+          <text>⚡</text>
+        </view>
+      </block>
+      <view wx:else class="player-permission-card">
+        <text class="player-permission-title">{{rolePermissionPrompt.title}}</text>
+        <button class="player-permission-primary" bindtap="handleRoleApplyTap">
+          {{rolePermissionPrompt.primary}}
+        </button>
+        <text class="player-permission-secondary" bindtap="handleRoleCompareTap">
+          {{rolePermissionPrompt.secondary}}
+        </text>
       </view>
       <view class="player-summary-divider"></view>
       <view class="player-summary-divider player-summary-divider-bottom"></view>
@@ -53,7 +82,9 @@
         <view
           wx:for="{{roleTags}}"
           wx:key="key"
-          class="player-role-tag {{item.active ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="handleRoleTagTap"
+          class="player-role-tag {{item.active ? 'active' : ''}} {{item.status === 'pending' ? 'pending' : ''}}"
         >
           <text>{{item.icon}} {{item.name}}</text>
         </view>

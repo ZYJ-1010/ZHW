@@ -38,62 +38,71 @@ function getApplyShellLayoutStyles() {
     APPLY_FRAME_BOTTOM_PADDING_RPX,
     roundRpx(contentTop - APPLY_STAGE_TOP_RPX)
   )
+
   return {
     frameStyle: `padding-top: ${frameTopPadding}rpx; padding-bottom: ${APPLY_FRAME_BOTTOM_PADDING_RPX}rpx;`,
     topBgStyle: `top: -${contentTop}rpx; height: ${contentTop}rpx;`,
     navStyle: `top: ${roundRpx(navTop - APPLY_STAGE_TOP_RPX)}rpx; height: ${navHeight}rpx;`,
-    phoneStyle: `min-height: calc(100vh - ${contentTop}rpx);`
+    phoneStyle: `min-height: calc(100vh - ${contentTop}rpx);`,
+    switchStyle: `height: ${frameTopPadding}rpx;`
   }
 }
 
-Page({
-  data: {
-    masterMode: 'default',
-    brand: '真好玩',
-    onlineText: '3999人在线',
-    dockVisible: true,
-    contentScrollY: false,
-    shellClass: '',
-    applyMaster: {
-      navTitle: '标题'
-    },
-    applyShellLayout: getApplyShellLayoutStyles(),
-    navItems: [
-      { name: '我的', active: false },
-      { name: '元宇宙', active: false },
-      { name: '地图', active: false },
-      { name: '消息', active: false },
-      { name: '首页', active: true }
-    ]
+Component({
+  options: {
+    multipleSlots: true,
+    addGlobalClass: true,
+    styleIsolation: 'shared'
   },
 
-  onLoad(options = {}) {
-    if (options.mode === 'apply') {
+  properties: {
+    navTitle: {
+      type: String,
+      value: '标题'
+    },
+    shellClass: {
+      type: String,
+      value: ''
+    },
+    previewSwitchEnabled: {
+      type: Boolean,
+      value: false
+    }
+  },
+
+  data: {
+    applyShellLayout: getApplyShellLayoutStyles()
+  },
+
+  lifetimes: {
+    attached() {
+      this.updateApplyShellLayout()
+    },
+    ready() {
+      this.updateApplyShellLayout()
+    }
+  },
+
+  pageLifetimes: {
+    show() {
+      this.updateApplyShellLayout()
+    },
+    resize() {
+      this.updateApplyShellLayout()
+    }
+  },
+
+  methods: {
+    updateApplyShellLayout() {
       this.setData({
-        masterMode: 'apply',
-        dockVisible: false,
-        contentScrollY: false,
-        shellClass: '',
         applyShellLayout: getApplyShellLayoutStyles()
       })
-      return
-    }
+    },
 
-    if (options.mode === 'contentOnly') {
-      this.setData({
-        masterMode: 'contentOnly',
-        dockVisible: false,
-        contentScrollY: true,
-        shellClass: 'home-shell--content-only'
-      })
-    }
-  },
+    handlePreviewSwitch(event) {
+      const direction = Number(event.currentTarget.dataset.direction) || 1
 
-  handleShellNavTap(event) {
-    const { key } = event.detail
-
-    if (!key) {
-      return
+      this.triggerEvent('previewswitch', { direction })
     }
   }
 })

@@ -1,10 +1,164 @@
-<view class="page-shell">
-  <view class="module-card">
-    <text class="module-kicker">{{group.priority}}</text>
-    <text class="module-title">审核状态</text>
-    <text class="module-desc">承载审核进度、通过、驳回和申请状态提示。</text>
+<view class="role-status-page {{roleType}} {{status}}">
+  <view class="role-status-appbar">
+    <view class="role-status-back" bindtap="handleBackTap">‹</view>
+    <text>{{pageTitle}}</text>
+    <view></view>
   </view>
-  <view class="screen-list">
-    <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
-  </view>
+
+  <view wx:if="{{loading}}" class="role-status-loading">加载中...</view>
+
+  <block wx:else>
+    <scroll-view class="role-status-scroll" scroll-y enhanced show-scrollbar="false">
+      <view wx:if="{{isPending}}" class="role-status-content pending">
+        <view class="role-status-hero">
+          <view class="role-status-hourglass">
+            <text>⏳</text>
+          </view>
+          <text class="role-status-title">{{statusTitle}}</text>
+          <text class="role-status-subtitle">{{statusSubTitle}}</text>
+          <text class="role-status-desc">{{statusDesc}}</text>
+        </view>
+
+        <view class="role-status-estimate">
+          <view>
+            <text>⏱</text>
+            <text>预计完成时间</text>
+          </view>
+          <text>{{expectedText}}</text>
+        </view>
+
+        <view class="role-status-timeline">
+          <view
+            wx:for="{{timeline}}"
+            wx:key="title"
+            class="role-status-timeline-item {{item.state}}"
+          >
+            <view class="role-status-timeline-line"></view>
+            <view class="role-status-timeline-dot"></view>
+            <view class="role-status-timeline-copy">
+              <text>{{item.title}}</text>
+              <text>{{item.desc}}</text>
+              <text>{{item.time}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="role-status-detail-card">
+          <view class="role-status-card-title">
+            <text>📋</text>
+            <text>申请详情</text>
+          </view>
+          <view
+            wx:for="{{details}}"
+            wx:key="label"
+            class="role-status-detail-row"
+          >
+            <text>{{item.label}}</text>
+            <text class="{{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+          </view>
+        </view>
+
+        <text class="role-status-helper">审核期间你可以继续使用玩家身份</text>
+      </view>
+
+      <view wx:elif="{{isApproved}}" class="role-status-content approved {{meta.successAccent}}">
+        <view class="role-status-success-hero">
+          <view class="role-status-success-icon">
+            <text>🎉</text>
+          </view>
+          <text class="role-status-success-title">{{statusTitle}}</text>
+          <text class="role-status-success-role">{{statusSubTitle}}</text>
+          <text class="role-status-success-desc">你的申请已通过平台审核</text>
+          <text class="role-status-success-desc">{{statusDesc}}</text>
+        </view>
+
+        <view class="role-status-cert-card">
+          <text>认证编号</text>
+          <text>{{certNo}}</text>
+          <text>认证时间: {{certTime}}</text>
+        </view>
+
+        <view class="role-status-gift-card">
+          <view class="role-status-card-title">
+            <text>🎁</text>
+            <text>新手礼包</text>
+          </view>
+          <view wx:for="{{rewards}}" wx:key="name" class="role-status-gift-row">
+            <view>
+              <text class="role-status-gift-icon">{{item.icon}}</text>
+              <text>{{item.name}}</text>
+            </view>
+            <text class="{{item.tone}}">{{item.tag}}</text>
+          </view>
+        </view>
+
+        <view class="role-status-action-grid">
+          <view wx:for="{{nextActions}}" wx:key="*this">
+            <text>{{index === 0 ? '◇' : index === 1 ? '+' : '●'}}</text>
+            <text>{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:else class="role-status-content rejected">
+        <view class="role-status-reject-hero">
+          <view class="role-status-reject-icon">
+            <text>😔</text>
+          </view>
+          <text class="role-status-reject-title">{{statusTitle}}</text>
+          <text class="role-status-reject-desc">{{statusDesc}}</text>
+          <text class="role-status-reject-desc">{{statusSubTitle}}</text>
+        </view>
+
+        <view class="role-status-reason-card">
+          <view class="role-status-card-title reject">
+            <text>!</text>
+            <text>驳回原因</text>
+          </view>
+          <text wx:for="{{rejectReasons}}" wx:key="*this" class="role-status-reason-item">{{item}}</text>
+        </view>
+
+        <view class="role-status-suggestion-card">
+          <view class="role-status-card-title">
+            <text>💡</text>
+            <text>改进建议</text>
+          </view>
+          <text wx:for="{{suggestions}}" wx:key="*this" class="role-status-suggestion-item">{{index + 1}}. {{item}}</text>
+        </view>
+
+        <view class="role-status-reapply-card">
+          <view class="role-status-card-title">
+            <text>📝</text>
+            <text>重新申请</text>
+          </view>
+          <text>完善资料后可再次提交申请。建议根据驳回原因逐项改进，提高通过率。</text>
+        </view>
+
+        <view class="role-status-detail-card rejected">
+          <view class="role-status-card-title">
+            <text>📋</text>
+            <text>申请记录</text>
+          </view>
+          <view wx:for="{{history}}" wx:key="label" class="role-status-detail-row">
+            <text>{{item.label}}</text>
+            <text class="{{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{isPending}}" class="role-status-footer pending">
+      <button bindtap="handleBackHomeTap">返回玩家首页</button>
+      <button bindtap="handleBenefitsTap">查看权益对比</button>
+    </view>
+
+    <view wx:elif="{{isApproved}}" class="role-status-footer approved {{meta.successAccent}}">
+      <button bindtap="handleBackHomeTap">{{meta.primaryText}}</button>
+    </view>
+
+    <view wx:else class="role-status-footer rejected">
+      <button bindtap="handleHelpTap">查看帮助</button>
+      <button bindtap="handleImproveTap">完善资料</button>
+    </view>
+  </block>
 </view>

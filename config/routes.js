@@ -5,6 +5,7 @@ const ROUTES = {
   loginInvite: 'pages/login/invite/index',
   loginForgot: 'pages/login/forgot/index',
   home: 'pages/home/index',
+  homeOther: 'pages/home-other/index',
   playerHome: 'pages/home/player/index',
   expertHome: 'pages/home/expert/index',
   guideHome: 'pages/home/guide/index',
