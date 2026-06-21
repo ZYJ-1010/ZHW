@@ -41,6 +41,12 @@
           "scene": null
         },
         {
+          "name": "组局-分享",
+          "pathName": "pages/game/share/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

@@ -1,0 +1,112 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="game-share-shell">
+    <scroll-view
+      class="game-share-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{shareScrollTop}}"
+      bindscroll="handleShareScroll"
+      enable-back-to-top
+    >
+      <view class="game-share-page">
+        <view class="share-hero">
+          <image class="share-hero-image" src="{{gameInfo.bannerImage}}" mode="aspectFill" />
+          <view class="share-hero-wash"></view>
+        </view>
+
+        <view class="event-card">
+          <text class="event-title">{{gameInfo.title}}</text>
+
+          <view class="event-meta-row">
+            <view class="meta-icon clock"></view>
+            <text class="meta-text">{{gameInfo.startTime}}</text>
+          </view>
+
+          <view class="event-meta-row address" bindtap="onCopyLocation">
+            <view class="meta-icon pin"></view>
+            <text class="meta-text address-text">{{gameInfo.location}}</text>
+            <text class="copy-mark">复制</text>
+          </view>
+
+          <view class="event-card-line"></view>
+
+          <view class="event-card-foot">
+            <view class="registered-info">
+              <view class="meta-icon users"></view>
+              <text class="registered-text">{{currentJoinedCount}}/{{gameInfo.maxPlayers}}人已报</text>
+            </view>
+            <button
+              class="interest-button {{isInterested ? 'active' : ''}}"
+              hover-class="none"
+              bindtap="onToggleInterest"
+            >
+              <text class="interest-mark">{{isInterested ? '✓' : '+'}}</text>
+              <text>{{isInterested ? '已感兴趣' : '感兴趣'}}</text>
+            </button>
+          </view>
+        </view>
+
+        <view class="share-section">
+          <text class="section-title">活动介绍</text>
+          <view class="intro-card">
+            <text class="intro-text">{{gameInfo.introText}}</text>
+          </view>
+        </view>
+
+        <view class="share-section organizer-section">
+          <text class="section-title">组局者</text>
+          <view class="organizer-card">
+            <view class="organizer-avatar">{{gameInfo.organizerAvatarText}}</view>
+            <view class="organizer-body">
+              <view class="organizer-name-row">
+                <text class="organizer-name">{{gameInfo.organizerName}}</text>
+                <text class="organizer-title">{{gameInfo.organizerTitle}}</text>
+              </view>
+              <text class="organizer-stats">已组局 {{gameInfo.groupCreatedCount}}次 · 引荐 {{gameInfo.recommendCount}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="share-bottom-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view class="bottom-action-bar">
+      <button class="share-main-button" hover-class="none" bindtap="onOpenShare">分享给朋友</button>
+    </view>
+
+    <view wx:if="{{showShareWindow}}" class="share-mask" bindtap="onCloseShare" catchtouchmove="onPreventTouch">
+      <view class="share-sheet" catchtap="onPreventBubble">
+        <view class="share-sheet-handle"></view>
+        <text class="share-sheet-title">分享给朋友</text>
+
+        <view class="share-options">
+          <button class="share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
+            <view class="share-option-icon wechat">
+              <image class="share-option-image" src="/pages/game/share/assets/share-wechat.png" mode="aspectFit" />
+            </view>
+            <text class="share-option-label">微信好友</text>
+          </button>
+
+          <button class="share-option" hover-class="none" bindtap="onShareDirect">
+            <view class="share-option-icon direct">
+              <image class="share-option-image" src="/pages/game/share/assets/share-private-message.png" mode="aspectFit" />
+            </view>
+            <text class="share-option-label">私信好友</text>
+          </button>
+        </view>
+
+        <button class="cancel-button" hover-class="none" bindtap="onCloseShare">取消</button>
+      </view>
+    </view>
+  </view>
+</home-shell>
