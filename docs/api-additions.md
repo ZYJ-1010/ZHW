@@ -1247,3 +1247,75 @@ POST /api/app/role-applications
 3. 正式业务预算最大值是否仍为 `99999999` 元，还是需要按局类型、用户身份或会员等级动态返回。
 4. 分成比例字段是否命名为 `rewardRateConfig`，以及比例值使用百分数 `10` 还是小数 `0.1`。
 5. 各项金额是否按当前前端的四舍五入口径取整，还是由后台直接返回最终金额。
+
+## 22. 组局发起邀请页玩家选择规则与列表接口
+
+记录日期：2026-06-22
+
+模块：组局 / 发起邀请
+
+页面：`pages/game/invite/index` 第 2 步 `选择玩家`
+
+功能：进入发起邀请第 2 步时，页面需要从后台获取可邀请玩家数量规则，并加载最近联系玩家列表；点击“添加新的玩家”时打开玩家列表，展示形式与最近联系一致。当前按用户要求先以最多 1 位玩家处理，最少 1 位固定生效，后续最多可添加人数待产品确认后由后台配置返回。
+
+候选接口：
+
+```text
+GET /api/app/game-invites/player-config
+GET /api/app/game-invites/recent-players
+GET /api/app/game-invites/players
+```
+
+建议 `GET /api/app/game-invites/player-config` 返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "minPlayerCount": 1,
+    "maxPlayerCount": 1
+  },
+  "requestId": "req_xxx"
+}
+```
+
+建议玩家列表返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "list": [
+      {
+        "id": "user_001",
+        "name": "李明",
+        "avatarUrl": "https://cdn.example.com/avatar.png",
+        "avatarText": "LM",
+        "tag": "需求匹配",
+        "desc": "某互联网公司 · 产品总监",
+        "meta": "预算: ¥500-1000 | 时间: 本周"
+      }
+    ],
+    "total": 1
+  },
+  "requestId": "req_xxx"
+}
+```
+
+当前前端接入口径：
+
+- `minPlayerCount` 兜底为 `1`，确认发起前必须至少选中 1 位玩家。
+- `maxPlayerCount` 当前 mock 与页面兜底均为 `1`，因此选择新玩家时会替换当前玩家。
+- 页面展示 `已添加 X/N 位玩家`，其中 `N` 来自 `maxPlayerCount`。
+- `GET /api/app/game-invites/recent-players` 用于第 2 步最近联系列表，可接受 `keyword` 搜索参数。
+- `GET /api/app/game-invites/players` 用于“添加新的玩家”弹层，可接受 `keyword` 搜索参数。
+
+待后端 / 产品确认：
+
+1. 最多可添加玩家数是否仍为 1，还是后续按局类型、角色、会员等级或后台配置动态返回。
+2. 选择玩家是否只允许单选；如果 `maxPlayerCount > 1`，前端需要改为多选和批量确认。
+3. 玩家列表字段命名使用 `id/name/avatarUrl/tag/desc/meta`，还是沿用用户资料 DTO 字段。
+4. 最近联系列表排序依据是最近沟通时间、合作次数，还是后台推荐分。
+5. “添加新的玩家”列表是否需要分页字段 `page/pageSize/hasMore`。

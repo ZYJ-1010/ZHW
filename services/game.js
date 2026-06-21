@@ -10,6 +10,39 @@ async function getGameList(params) {
   return result.data
 }
 
+async function getInvitePlayerConfig(params) {
+  const result = await gameApi.getInvitePlayerConfig(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取邀请玩家配置失败')
+  }
+
+  return result.data
+}
+
+async function getInviteRecentPlayers(params) {
+  const result = await gameApi.getInviteRecentPlayers(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取最近联系玩家失败')
+  }
+
+  return result.data
+}
+
+async function getInvitePlayers(params) {
+  const result = await gameApi.getInvitePlayers(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取玩家列表失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
-  getGameList
+  getGameList,
+  getInvitePlayerConfig,
+  getInviteRecentPlayers,
+  getInvitePlayers
 }

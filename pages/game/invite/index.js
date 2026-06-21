@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 
 const INVITE_SCROLL_TAP_STEP_RPX = 360
 const INVITE_SCROLL_HOLD_STEP_RPX = 72
@@ -14,6 +15,11 @@ const DEFAULT_REWARD_RATE_CONFIG = {
 }
 const WORK_IMAGE_MAX_COUNT = 3
 const WORK_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+const PLAYER_INTRO_DEFAULT = '李明，这位张专家是我认识的产品大牛，正好符合你之前说的产品架构咨询需求，我帮你们牵个线！'
+const DEFAULT_INVITE_PLAYER_RULE = {
+  minPlayerCount: 1,
+  maxPlayerCount: 1
+}
 
 function formatRateText(rate) {
   return `${rate}%`
@@ -136,12 +142,78 @@ function createWorkImageSlots(images = []) {
   })
 }
 
+function normalizeInvitePlayerRule(config = {}) {
+  const minPlayerCount = Math.max(1, parsePositiveInteger(config.minPlayerCount, DEFAULT_INVITE_PLAYER_RULE.minPlayerCount))
+  const maxPlayerCount = Math.max(minPlayerCount, parsePositiveInteger(config.maxPlayerCount, DEFAULT_INVITE_PLAYER_RULE.maxPlayerCount))
+
+  return {
+    minPlayerCount,
+    maxPlayerCount
+  }
+}
+
+function parsePositiveInteger(value, fallback) {
+  const number = Number(value)
+
+  return Number.isInteger(number) && number > 0 ? number : fallback
+}
+
+function getAvatarText(player = {}) {
+  if (player.avatarText) {
+    return player.avatarText
+  }
+
+  const name = String(player.name || player.nickname || '').trim()
+
+  if (!name) {
+    return '玩'
+  }
+
+  return /^[A-Za-z]/.test(name) ? name.slice(0, 2).toUpperCase() : name.slice(0, 1)
+}
+
+function normalizeInvitePlayer(player = {}, index = 0) {
+  const id = String(player.id || player.userId || player.playerId || `invite-player-${index}`)
+
+  return {
+    id,
+    avatarText: getAvatarText(player),
+    avatarClass: player.avatarClass || ['pink', 'teal', 'purple', 'blue', 'orange'][index % 5],
+    name: player.name || player.nickname || '玩家',
+    tag: player.tag || player.tagText || '',
+    desc: player.desc || player.description || player.title || '',
+    meta: player.meta || player.metaText || player.extraText || ''
+  }
+}
+
+function normalizeInvitePlayers(result) {
+  const list = Array.isArray(result) ? result : (result && result.list) || []
+
+  return list.map(normalizeInvitePlayer)
+}
+
 Page({
   data: {
     onlineText: '3999人在线',
+    inviteStep: 1,
     inviteScrollTop: 0,
     selectedType: 'product',
     detailCount: 0,
+    playerSearchKeyword: '',
+    selectedPlayerId: '',
+    selectedPlayerIds: [],
+    selectedPlayerCount: 0,
+    minPlayerCount: DEFAULT_INVITE_PLAYER_RULE.minPlayerCount,
+    maxPlayerCount: DEFAULT_INVITE_PLAYER_RULE.maxPlayerCount,
+    playerRuleText: '至少 1 位，最多 1 位',
+    playerCountText: '已添加 0/1 位玩家',
+    invitePlayerLoading: false,
+    playerPickerVisible: false,
+    playerPickerLoading: false,
+    allPlayerSearchKeyword: '',
+    allPlayers: [],
+    playerIntroMessage: PLAYER_INTRO_DEFAULT,
+    playerIntroCount: PLAYER_INTRO_DEFAULT.length,
     rewardRateConfig: DEFAULT_REWARD_RATE_CONFIG,
     reward: calculateReward(DEFAULT_BUDGET, DEFAULT_REWARD_RATE_CONFIG),
     navItems: [
@@ -163,6 +235,7 @@ Page({
       { key: 'design', name: '设计服务' },
       { key: 'tech', name: '技术开发' }
     ],
+    players: [],
     form: {
       title: '产品架构梳理咨询',
       detail: '需要资深产品经理帮忙梳理B端产品架构，预计咨询时长2小时，涉及模块划分和数据流转设计。',
@@ -181,10 +254,28 @@ Page({
     }
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    const inviteStep = this.resolveInviteStep(options)
+
     this.setData({
-      detailCount: String(this.data.form.detail || '').length
+      inviteStep,
+      detailCount: String(this.data.form.detail || '').length,
+      playerIntroCount: String(this.data.playerIntroMessage || '').length
     })
+
+    if (inviteStep === 2) {
+      this.loadInvitePlayerStep()
+    }
+  },
+
+  resolveInviteStep(options = {}) {
+    const step = Number(options.step)
+
+    if (step === 2 || options.mode === 'invite2') {
+      return 2
+    }
+
+    return 1
   },
 
   onTypeTap(event) {
@@ -223,6 +314,69 @@ Page({
     })
 
     return budget
+  },
+
+  onPlayerSearchInput(event) {
+    const keyword = event.detail.value || ''
+
+    this.setData({
+      playerSearchKeyword: keyword
+    })
+    this.loadInviteRecentPlayers({ keyword })
+  },
+
+  onPlayerTap(event) {
+    const id = event.currentTarget.dataset.id
+
+    if (!id) {
+      return
+    }
+
+    this.selectInvitePlayer(id)
+  },
+
+  onAddPlayer() {
+    this.setData({
+      playerPickerVisible: true
+    })
+    this.loadAllInvitePlayers()
+  },
+
+  onClosePlayerPicker() {
+    this.setData({
+      playerPickerVisible: false,
+      allPlayerSearchKeyword: ''
+    })
+  },
+
+  onAllPlayerSearchInput(event) {
+    const keyword = event.detail.value || ''
+
+    this.setData({
+      allPlayerSearchKeyword: keyword
+    })
+    this.loadAllInvitePlayers({ keyword })
+  },
+
+  onAllPlayerTap(event) {
+    const id = event.currentTarget.dataset.id
+
+    if (!id) {
+      return
+    }
+
+    this.selectInvitePlayer(id)
+    this.ensurePlayerVisible(id)
+    this.onClosePlayerPicker()
+  },
+
+  onPlayerIntroInput(event) {
+    const value = event.detail.value || ''
+
+    this.setData({
+      playerIntroMessage: value,
+      playerIntroCount: value.length
+    })
   },
 
   applyInvitePricingConfig(config = {}) {
@@ -474,7 +628,155 @@ Page({
   },
 
   onNextTap() {
-    this.showInfo('选择玩家待接入')
+    this.setInviteStep(2)
+  },
+
+  onPrevTap() {
+    this.setInviteStep(1)
+  },
+
+  onConfirmInviteTap() {
+    if (this.data.selectedPlayerCount < this.data.minPlayerCount) {
+      this.showInfo(`请至少添加${this.data.minPlayerCount}位玩家`)
+      return
+    }
+
+    this.showInfo('邀请已发起')
+  },
+
+  setInviteStep(inviteStep) {
+    this.inviteScrollTopValue = 0
+    this.setData({
+      inviteStep,
+      inviteScrollTop: 0
+    })
+
+    if (inviteStep === 2) {
+      this.loadInvitePlayerStep()
+    }
+  },
+
+  async loadInvitePlayerStep() {
+    if (this.invitePlayerStepLoaded) {
+      return
+    }
+
+    this.invitePlayerStepLoaded = true
+    this.setData({
+      invitePlayerLoading: true
+    })
+
+    try {
+      const [config, playersResult] = await Promise.all([
+        gameService.getInvitePlayerConfig(),
+        gameService.getInviteRecentPlayers()
+      ])
+      const rule = normalizeInvitePlayerRule(config)
+      const players = normalizeInvitePlayers(playersResult)
+      const selectedPlayerIds = this.normalizeSelectedPlayerIds(this.data.selectedPlayerIds, rule, players)
+
+      this.setData({
+        players,
+        invitePlayerLoading: false,
+        ...this.buildPlayerRuleData(rule, selectedPlayerIds)
+      })
+    } catch (error) {
+      this.invitePlayerStepLoaded = false
+      this.setData({
+        invitePlayerLoading: false,
+        ...this.buildPlayerRuleData(DEFAULT_INVITE_PLAYER_RULE, this.data.selectedPlayerIds)
+      })
+      this.showInfo(error.message || '玩家规则加载失败')
+    }
+  },
+
+  async loadInviteRecentPlayers(params = {}) {
+    try {
+      const result = await gameService.getInviteRecentPlayers(params)
+      const players = normalizeInvitePlayers(result)
+
+      this.setData({
+        players
+      })
+    } catch (error) {
+      this.showInfo(error.message || '最近联系加载失败')
+    }
+  },
+
+  async loadAllInvitePlayers(params = {}) {
+    this.setData({
+      playerPickerLoading: true
+    })
+
+    try {
+      const result = await gameService.getInvitePlayers(params)
+
+      this.setData({
+        allPlayers: normalizeInvitePlayers(result),
+        playerPickerLoading: false
+      })
+    } catch (error) {
+      this.setData({
+        playerPickerLoading: false
+      })
+      this.showInfo(error.message || '玩家列表加载失败')
+    }
+  },
+
+  selectInvitePlayer(id) {
+    const rule = {
+      minPlayerCount: this.data.minPlayerCount,
+      maxPlayerCount: this.data.maxPlayerCount
+    }
+    const selectedPlayerIds = this.normalizeSelectedPlayerIds([id], rule)
+
+    this.setData(this.buildPlayerRuleData(rule, selectedPlayerIds))
+  },
+
+  ensurePlayerVisible(id) {
+    const existsInRecent = (this.data.players || []).some((player) => player.id === id)
+
+    if (existsInRecent) {
+      return
+    }
+
+    const selectedPlayer = (this.data.allPlayers || []).find((player) => player.id === id)
+
+    if (!selectedPlayer) {
+      return
+    }
+
+    this.setData({
+      players: [selectedPlayer].concat(this.data.players || [])
+    })
+  },
+
+  normalizeSelectedPlayerIds(selectedPlayerIds = [], rule = DEFAULT_INVITE_PLAYER_RULE, players = []) {
+    const maxCount = Math.max(1, Number(rule.maxPlayerCount) || 1)
+    let ids = Array.from(new Set((selectedPlayerIds || []).filter(Boolean))).slice(0, maxCount)
+
+    if (!ids.length && players.length) {
+      ids = [players[0].id]
+    }
+
+    return ids
+  },
+
+  buildPlayerRuleData(rule = DEFAULT_INVITE_PLAYER_RULE, selectedPlayerIds = []) {
+    const normalizedRule = normalizeInvitePlayerRule(rule)
+    const selectedIds = selectedPlayerIds.slice(0, normalizedRule.maxPlayerCount)
+    const selectedPlayerCount = selectedIds.length
+    const selectedPlayerId = selectedIds[0] || ''
+
+    return {
+      minPlayerCount: normalizedRule.minPlayerCount,
+      maxPlayerCount: normalizedRule.maxPlayerCount,
+      selectedPlayerId,
+      selectedPlayerIds: selectedIds,
+      selectedPlayerCount,
+      playerRuleText: `至少 ${normalizedRule.minPlayerCount} 位，最多 ${normalizedRule.maxPlayerCount} 位`,
+      playerCountText: `已添加 ${selectedPlayerCount}/${normalizedRule.maxPlayerCount} 位玩家`
+    }
   },
 
   handleShellNavTap(event) {

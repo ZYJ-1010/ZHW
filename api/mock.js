@@ -6,7 +6,9 @@ const {
   mockRoleHomes,
   mockProfileHome,
   mockNewbieTasks,
-  mockRoleApplications
+  mockRoleApplications,
+  mockInvitePlayerConfig,
+  mockInvitePlayers
 } = require('./mock-data')
 
 let mockCurrentRealnameStatus = 'pending'
@@ -279,6 +281,23 @@ function submitMockRoleApplication(data = {}) {
   return application
 }
 
+function buildInvitePlayers(data = {}, recentOnly = false) {
+  const keyword = String(data.keyword || data.search || '').trim().toLowerCase()
+  const source = recentOnly ? mockInvitePlayers.slice(0, 3) : mockInvitePlayers
+  const list = keyword
+    ? source.filter((item) => {
+      const text = `${item.name || ''} ${item.desc || ''} ${item.meta || ''}`.toLowerCase()
+
+      return text.includes(keyword)
+    })
+    : source
+
+  return {
+    list,
+    total: list.length
+  }
+}
+
 function setMockRealnameStatus(status) {
   mockCurrentRealnameStatus = status
 
@@ -426,6 +445,18 @@ function handleRequest(options) {
 
   if (method === 'POST' && url === '/api/app/role-applications') {
     return wait(ok(submitMockRoleApplication(options.data || {})))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/player-config') {
+    return wait(ok(mockInvitePlayerConfig))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/recent-players') {
+    return wait(ok(buildInvitePlayers(options.data || {}, true)))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/players') {
+    return wait(ok(buildInvitePlayers(options.data || {}, false)))
   }
 
   return wait(fail(40401, `mock 未配置接口：${method} ${url}`))

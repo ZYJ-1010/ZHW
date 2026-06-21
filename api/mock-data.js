@@ -603,6 +603,59 @@ const mockRoleApplications = [
   }
 ]
 
+const mockInvitePlayerConfig = {
+  minPlayerCount: 1,
+  maxPlayerCount: 1
+}
+
+const mockInvitePlayers = [
+  {
+    id: 'liming',
+    avatarText: 'LM',
+    avatarClass: 'pink',
+    name: '李明',
+    tag: '需求匹配',
+    desc: '某互联网公司 · 产品总监',
+    meta: '预算: ¥500-1000 | 时间: 本周'
+  },
+  {
+    id: 'wanghua',
+    avatarText: 'WH',
+    avatarClass: 'teal',
+    name: '王华',
+    tag: '',
+    desc: '寻找UI设计合作',
+    meta: '预算: ¥2000+ | 长期合作'
+  },
+  {
+    id: 'chenzhe',
+    avatarText: 'CZ',
+    avatarClass: 'purple',
+    name: '陈哲',
+    tag: '',
+    desc: '需要技术顾问',
+    meta: '预算: 面议 | 长期需求'
+  },
+  {
+    id: 'zhaomin',
+    avatarText: 'ZM',
+    avatarClass: 'blue',
+    name: '赵敏',
+    tag: '常合作',
+    desc: '品牌运营 · 社群增长',
+    meta: '预算: ¥1000-2000 | 下周可约'
+  },
+  {
+    id: 'sunyan',
+    avatarText: 'SY',
+    avatarClass: 'orange',
+    name: '孙岩',
+    tag: '',
+    desc: '独立开发者 · 技术顾问',
+    meta: '预算: 面议 | 晚间方便'
+  }
+]
+
 module.exports = {
   validInvites,
   mockUser,
@@ -611,5 +664,7 @@ module.exports = {
   mockRoleHomes,
   mockProfileHome,
   mockNewbieTasks,
-  mockRoleApplications
+  mockRoleApplications,
+  mockInvitePlayerConfig,
+  mockInvitePlayers
 }

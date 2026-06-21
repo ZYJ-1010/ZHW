@@ -53,6 +53,12 @@
           "scene": null
         },
         {
+          "name": "组局-发起邀请2",
+          "pathName": "pages/game/invite/index",
+          "query": "step=2",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",
