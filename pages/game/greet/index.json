@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "玩家的姓名",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}
