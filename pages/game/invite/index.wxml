@@ -1,0 +1,216 @@
+<home-shell
+  online-text="{{onlineText}}"
+  topbar-title="发起邀请"
+  shell-variant="joinApply"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="game-invite-shell">
+    <scroll-view
+      class="game-invite-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{inviteScrollTop}}"
+      bindscroll="handleInviteScroll"
+      enable-back-to-top
+    >
+      <view class="game-invite-page">
+        <view class="stepper">
+          <view class="stepper-bar"></view>
+          <view class="stepper-dot"></view>
+          <view class="stepper-dot"></view>
+          <text class="stepper-text">步骤 1/2</text>
+        </view>
+
+        <view class="form-card">
+          <view class="section-head">
+            <text class="section-index">1</text>
+            <text class="section-title">选择行家</text>
+          </view>
+
+          <view class="expert-card">
+            <view class="expert-avatar">{{expert.avatarText}}</view>
+            <view class="expert-info">
+              <view class="expert-name-row">
+                <text class="expert-name">{{expert.name}}</text>
+                <text class="expert-badge">{{expert.roleName}}</text>
+              </view>
+              <text class="expert-desc">{{expert.desc}}</text>
+              <view class="expert-tags">
+                <text wx:for="{{expert.tags}}" wx:key="*this" class="expert-tag">{{item}}</text>
+              </view>
+            </view>
+            <view class="expert-check"></view>
+          </view>
+
+          <view class="replace-row">
+            <view class="replace-line"></view>
+            <button class="replace-button" hover-class="none" bindtap="onReplaceExpert">
+              <text class="replace-plus">+</text>
+              <text>更换行家</text>
+            </button>
+          </view>
+        </view>
+
+        <view class="form-card">
+          <view class="section-head">
+            <text class="section-index">2</text>
+            <text class="section-title">局信息</text>
+          </view>
+
+          <view class="form-field">
+            <text class="field-label">活动类型</text>
+            <view class="type-row">
+              <button
+                wx:for="{{activityTypes}}"
+                wx:key="key"
+                class="type-button {{selectedType === item.key ? 'active' : ''}}"
+                hover-class="none"
+                data-key="{{item.key}}"
+                bindtap="onTypeTap"
+              >{{item.name}}</button>
+            </view>
+          </view>
+
+          <view class="form-field">
+            <text class="field-label">需求标题</text>
+            <input
+              class="form-input"
+              value="{{form.title}}"
+              placeholder="产品架构梳理咨询"
+              placeholder-class="form-placeholder"
+              bindinput="onTitleInput"
+            />
+          </view>
+
+          <view class="form-field">
+            <text class="field-label">详细需求</text>
+            <view class="textarea-wrap">
+              <textarea
+                class="form-textarea"
+                value="{{form.detail}}"
+                maxlength="200"
+                auto-height="{{false}}"
+                placeholder="需要资深产品经理帮忙梳理B端产品架构，预计咨询时长2小时，涉及模块划分和数据流转设计。"
+                placeholder-class="form-placeholder"
+                bindinput="onDetailInput"
+              />
+              <text class="textarea-count">{{detailCount}}/200</text>
+            </view>
+          </view>
+
+        </view>
+
+        <view class="work-card">
+          <text class="work-card-title">相关经历/作品</text>
+          <view class="work-image-row">
+            <button
+              class="upload-tile"
+              hover-class="none"
+              bindtap="onAddWorkImage"
+            >
+              <text class="upload-plus">+</text>
+              <text class="upload-text">添加图片</text>
+            </button>
+            <view
+              wx:for="{{workImageSlots}}"
+              wx:key="slotId"
+              class="work-thumb {{item.empty ? 'empty' : 'filled'}} {{activeWorkImageId === item.id ? 'active' : ''}}"
+              data-id="{{item.id}}"
+              bindtap="onWorkImageTap"
+            >
+              <block wx:if="{{!item.empty}}">
+                <image class="work-thumb-image" src="{{item.src}}" mode="aspectFill"></image>
+                <view wx:if="{{activeWorkImageId === item.id}}" class="work-image-menu" catchtap="noop">
+                  <view
+                    class="work-menu-item"
+                    data-id="{{item.id}}"
+                    catchtap="onWorkImageDescAction"
+                  >{{item.desc ? '查看说明' : '添加说明'}}</view>
+                  <view
+                    class="work-menu-item danger"
+                    data-id="{{item.id}}"
+                    catchtap="onDeleteWorkImage"
+                  >删除图片</view>
+                </view>
+              </block>
+            </view>
+          </view>
+          <text class="field-help">点击图片可添加说明</text>
+        </view>
+
+        <view class="form-card">
+          <view class="section-head">
+            <text class="section-index">3</text>
+            <text class="section-title">预算与奖励</text>
+          </view>
+
+          <view class="form-field">
+            <text class="field-label">费用预算（人民币元）</text>
+            <view class="budget-input-wrap">
+              <text class="budget-prefix">¥</text>
+              <input
+                class="form-input budget-input"
+                type="number"
+                value="{{form.budget}}"
+                placeholder="请输入整数金额"
+                placeholder-class="form-placeholder"
+                bindinput="onBudgetInput"
+              />
+              <text class="budget-suffix">元</text>
+            </view>
+          </view>
+
+          <view class="reward-card">
+            <view class="reward-row">
+              <text class="reward-label">平台服务费 ({{reward.platformServiceRateText}})</text>
+              <text class="reward-value">¥{{reward.serviceFee}}</text>
+            </view>
+            <view class="reward-row">
+              <text class="reward-label">系统级领路人奖励（{{reward.systemGuideRewardRateText}}）</text>
+              <text class="reward-value">¥{{reward.systemReward}}</text>
+            </view>
+            <view class="reward-row">
+              <text class="reward-label strong">你的邀请奖励 ({{reward.inviteRewardRateText}})</text>
+              <text class="reward-value orange">¥{{reward.inviteReward}}</text>
+            </view>
+            <view class="reward-line"></view>
+            <view class="reward-total-row">
+              <text class="reward-total-label">行家实收</text>
+              <text class="reward-total-value">¥{{reward.expertIncome}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="invite-bottom-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{workDescEditor.visible}}" class="work-desc-mask" catchtap="closeWorkDescEditor"></view>
+    <view wx:if="{{workDescEditor.visible}}" class="work-desc-editor" catchtap="noop">
+      <input
+        class="work-desc-input"
+        value="{{workDescEditor.value}}"
+        maxlength="20"
+        placeholder="最多20个字"
+        placeholder-class="work-desc-placeholder"
+        bindinput="onWorkDescInput"
+        focus="{{true}}"
+      />
+      <text class="work-desc-count">{{workDescEditor.count}}/20</text>
+      <view class="work-desc-save" bindtap="onSaveWorkDesc">保存</view>
+    </view>
+
+    <view class="invite-bottom-bar">
+      <button class="next-button" hover-class="none" bindtap="onNextTap">
+        <text>下一步：选择玩家</text>
+        <text class="next-arrow">→</text>
+      </button>
+    </view>
+  </view>
+</home-shell>

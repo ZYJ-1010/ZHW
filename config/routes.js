@@ -15,6 +15,7 @@ const ROUTES = {
   gameCreate: 'pages/game/create/index',
   gameDetail: 'pages/game/detail/index',
   gameShare: 'pages/game/share/index',
+  gameInvite: 'pages/game/invite/index',
   gameApplications: 'pages/game/applications/index',
   gameDelivery: 'pages/game/delivery/index',
   gameReview: 'pages/game/review/index',

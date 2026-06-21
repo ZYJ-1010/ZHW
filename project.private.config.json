@@ -47,6 +47,12 @@
           "scene": null
         },
         {
+          "name": "组局-发起邀请",
+          "pathName": "pages/game/invite/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",
