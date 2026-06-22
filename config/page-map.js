@@ -31,6 +31,7 @@ const PAGE_GROUPS = [
     priority: 'P0',
     batch: '第 2-3 批：组局基础与交付闭环',
     route: '/pages/game/hall/index',
+    routes: ['/pages/game/hall/index', '/pages/game/create/index', '/pages/game/detail/index', '/pages/game/audit/index', '/pages/game/applications/index', '/pages/game/delivery/index', '/pages/game/review/index'],
     screens: ['局前大厅', '发起组局', '玩家自申请入局', '领路人发起引荐页', '玩家被邀约确认页', '行家审核列表页', '行家审核详情页', '领路人接收页', '组局支付页', '组局成功页', '组局取消页', '交付操作页', '交付确认页', '评价页面']
   },
   {

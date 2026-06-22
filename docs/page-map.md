@@ -28,7 +28,8 @@
 
 | 业务域 | 墨刀页面 | 小程序路由 |
 | --- | --- | --- |
-| 入局申请 | 玩家自申请入局、行家审核列表、行家审核详情 | `pages/game/applications/index` |
+| 入局申请 | 玩家自申请入局 | `pages/game/applications/index` |
+| 审核申请 | 行家审核列表、行家审核详情 | `pages/game/audit/index`、`pages/game/applications/index` |
 | 领路人邀约 | 领路人发起引荐页、玩家被邀约确认页、领路人接收页 | `pages/game/applications/index` |
 | 交付确认 | 交付操作页、交付确认页 | `pages/game/delivery/index` |
 | 评价 | 评价页面 | `pages/game/review/index` |

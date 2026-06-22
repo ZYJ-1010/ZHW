@@ -17,6 +17,7 @@
     "pages/game/hall/index",
     "pages/game/create/index",
     "pages/game/detail/index",
+    "pages/game/audit/index",
     "pages/game/greet/index",
     "pages/game/guide-chat/index",
     "pages/game/share/index",

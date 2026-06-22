@@ -47,6 +47,12 @@
           "scene": null
         },
         {
+          "name": "组局-审核列表",
+          "pathName": "pages/game/audit/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局邀请通知",
           "pathName": "pages/game/greet/index",
           "query": "",

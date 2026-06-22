@@ -1,0 +1,68 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="审核申请列表"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="game-audit-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{auditScrollTop}}"
+    bindscroll="handleAuditScroll"
+    enable-back-to-top
+  >
+    <view class="game-audit-page">
+      <view class="audit-tabs">
+        <view
+          wx:for="{{filters}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          class="audit-tab {{activeFilter === item.key ? 'active' : ''}}"
+          bindtap="handleFilterTap"
+        >
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+
+      <view class="audit-list">
+        <view wx:for="{{displayApplications}}" wx:key="id" class="audit-card">
+          <view class="audit-initiator">
+            <view class="audit-initiator-avatar">
+              <text>{{item.initiator.avatarText}}</text>
+            </view>
+            <view class="audit-initiator-copy">
+              <view class="audit-initiator-head">
+                <text class="audit-initiator-name">{{item.initiator.nickname}}</text>
+                <text class="audit-initiator-role {{item.roleKey}}">{{item.initiator.roleName}}</text>
+              </view>
+              <text class="audit-initiator-time">申请时间: {{item.applyTime}}</text>
+            </view>
+          </view>
+          <text class="audit-card-status {{item.statusKey}}">{{item.statusText}}</text>
+          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-approve-button" data-id="{{item.id}}" bindtap="handleApproveTap">通过申请</view>
+          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-reject-button" data-id="{{item.id}}" bindtap="handleRejectTap">拒绝</view>
+          <view wx:else class="audit-reviewed-button">已完成审核</view>
+          <view class="audit-detail-button" data-id="{{item.id}}" bindtap="handleDetailTap">详情</view>
+        </view>
+      </view>
+
+      <view class="audit-batch-bar">
+        <label class="audit-select-all" bindtap="handleSelectAllTap">
+          <view class="audit-checkbox {{allSelected ? 'checked' : ''}}">
+            <view wx:if="{{allSelected}}" class="audit-checkmark"></view>
+          </view>
+          <text>全选</text>
+        </label>
+        <view class="audit-batch-button reject" bindtap="handleBatchRejectTap">批量拒绝</view>
+        <view class="audit-batch-button approve" bindtap="handleBatchApproveTap">批量通过</view>
+      </view>
+    </view>
+  </scroll-view>
+</home-shell>
