@@ -1,91 +1,46 @@
 <home-shell
   online-text="{{onlineText}}"
-  nav-items="{{navItems}}"
-  topbar-title="{{player.name}}"
+  topbar-title="{{pageTitle}}"
   toolbar-actions-visible="{{false}}"
+  dock-visible="{{false}}"
+  content-bottom-gap="{{36}}"
   nav-toast-enabled="{{false}}"
   bindnavtap="handleShellNavTap"
-  bindnavlongpress="handleShellNavLongPress"
-  bindnavtouchend="handleShellNavTouchEnd"
 >
-  <view class="greet-shell">
-    <scroll-view
-      class="greet-message-scroll"
-      scroll-y
-      enhanced
-      show-scrollbar="false"
-      scroll-with-animation
-      scroll-top="{{greetScrollTop}}"
-      bindscroll="handleGreetScroll"
-      enable-back-to-top
-    >
-      <view class="greet-message-page">
-        <view class="message-row">
-          <view class="self-avatar">{{sender.avatarText}}</view>
+  <view class="game-greet-shell">
+    <scroll-view class="greet-canvas-scroll" scroll-y enhanced show-scrollbar="false">
+      <view class="greet-canvas" style="min-height: {{canvasMinHeight}}rpx;">
+        <view class="contact-avatar">{{contact.avatarText}}</view>
 
-          <view class="message-stack">
-            <view class="invite-card">
-              <view class="card-header">
-                <text class="assistant-badge">GR</text>
-                <text class="assistant-name">组局助手</text>
-              </view>
+        <view class="game-info-card-wrap">
+          <game-info-card info="{{groupInfo}}" bindconfirm="onConfirmTap" />
+        </view>
 
-              <view class="card-body">
-                <view class="invite-title-row">
-                  <view class="invite-icon">
-                    <view class="handshake-icon"></view>
-                  </view>
-                  <view class="invite-title-copy">
-                    <text class="invite-title">收到组局邀请</text>
-                    <text class="invite-subtitle">领路人：{{referrer.name}}</text>
-                  </view>
-                </view>
+        <view class="referrer-bubble">
+          <text>{{messageText}}</text>
+        </view>
 
-                <view class="player-info-box">
-                  <text class="player-info-label">玩家信息</text>
-                  <view class="player-info-row">
-                    <view class="player-avatar">{{player.avatarText}}</view>
-                    <view class="player-copy">
-                      <text class="player-name">{{player.name}}</text>
-                      <text class="player-desc">{{player.desc}}</text>
-                    </view>
-                  </view>
-                </view>
-
-                <view class="event-detail-list">
-                  <view class="event-detail-row">
-                    <view class="detail-icon calendar"></view>
-                    <text>{{gameInfo.dateText}}</text>
-                  </view>
-                  <view class="event-detail-row">
-                    <view class="detail-icon pin"></view>
-                    <text>{{gameInfo.location}}</text>
-                  </view>
-                </view>
-              </view>
-
-              <view class="card-actions">
-                <button class="card-button primary" hover-class="none" bindtap="onAcceptTap">确认参加</button>
-                <button class="card-button secondary" hover-class="none" bindtap="onDeclineTap">婉拒</button>
-              </view>
-            </view>
-
-            <view class="referrer-bubble-wrap">
-              <view class="bubble-caret"></view>
-              <view class="referrer-bubble">
-                <text>{{referrer.message}}</text>
-              </view>
-            </view>
+        <view class="sent-message-list">
+          <view
+            wx:for="{{sentMessages}}"
+            wx:key="id"
+            class="sent-bubble"
+          >
+            <text>{{item.text}}</text>
           </view>
         </view>
       </view>
     </scroll-view>
 
-    <view class="chat-input-bar">
-      <button class="input-tool voice" hover-class="none" bindtap="onInputToolTap" data-type="voice"></button>
-      <view class="message-input"></view>
-      <button class="input-tool emoji" hover-class="none" bindtap="onInputToolTap" data-type="emoji"></button>
-      <button class="input-tool add" hover-class="none" bindtap="onInputToolTap" data-type="add"></button>
+    <view class="greet-input-wrap">
+      <chat-input-bar
+        bindsendtext="onSendMessage"
+        bindrecordstart="onRecordStart"
+        bindrecordstop="onRecordStop"
+        bindrecorderror="onRecordError"
+        bindchooseimage="onChooseImage"
+        bindchoosefile="onChooseFile"
+      />
     </view>
   </view>
 </home-shell>

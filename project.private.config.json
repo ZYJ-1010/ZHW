@@ -53,6 +53,12 @@
           "scene": null
         },
         {
+          "name": "组局-领路人聊天",
+          "pathName": "pages/game/guide-chat/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-分享",
           "pathName": "pages/game/share/index",
           "query": "",

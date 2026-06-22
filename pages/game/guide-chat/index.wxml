@@ -1,0 +1,63 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{pageTitle}}"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="guide-chat-shell">
+    <scroll-view
+      class="guide-chat-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{chatScrollTop}}"
+      bindscroll="handleChatScroll"
+      enable-back-to-top
+    >
+      <view class="guide-chat-page">
+        <view class="message-row">
+          <view class="self-avatar">{{sender.avatarText}}</view>
+
+          <view class="message-stack">
+            <guide-assistant-card
+              card="{{guideAssistantCard}}"
+              bindaccept="onAcceptTap"
+              binddecline="onDeclineTap"
+            />
+
+            <view class="referrer-bubble-wrap">
+              <view class="bubble-caret"></view>
+              <view class="referrer-bubble">
+                <text>{{guideMessageText}}</text>
+              </view>
+            </view>
+
+            <view
+              wx:for="{{sentMessages}}"
+              wx:key="id"
+              class="sent-bubble"
+            >
+              <text>{{item.text}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="guide-chat-input-wrap">
+      <chat-input-bar
+        bindsendtext="onSendMessage"
+        bindrecordstart="onRecordStart"
+        bindrecordstop="onRecordStop"
+        bindrecorderror="onRecordError"
+        bindchooseimage="onChooseImage"
+        bindchoosefile="onChooseFile"
+      />
+    </view>
+  </view>
+</home-shell>

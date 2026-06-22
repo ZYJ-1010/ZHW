@@ -1,0 +1,50 @@
+<view class="game-info-card">
+  <view class="game-info-card-header">
+    <image class="header-icon" src="/components/game-info-card/assets/header-info.png" mode="aspectFit" />
+    <text class="header-title">{{resolvedInfo.headerTitle}}</text>
+    <image class="header-chevron" src="/components/game-info-card/assets/chevron-right.png" mode="aspectFit" />
+  </view>
+
+  <view class="game-info-card-body">
+    <view class="info-summary">
+      <view class="info-summary-icon">
+        <image src="/components/game-info-card/assets/title-info.png" mode="aspectFit" />
+      </view>
+      <view class="info-summary-copy">
+        <text class="info-title">{{resolvedInfo.title}}</text>
+        <text class="info-guide">{{resolvedInfo.guideLabel}}：{{resolvedInfo.guideName}}</text>
+      </view>
+    </view>
+
+    <view class="expert-panel">
+      <view class="expert-head">
+        <view class="expert-avatar">{{resolvedInfo.expert.avatarText}}</view>
+        <view class="expert-copy">
+          <text class="expert-name">{{resolvedInfo.expert.name}}</text>
+          <text class="expert-desc">{{resolvedInfo.expert.desc}}</text>
+        </view>
+        <text class="expert-role">{{resolvedInfo.expertLabel}}</text>
+      </view>
+
+      <text class="expert-intro">{{resolvedInfo.expert.intro}}</text>
+
+      <view class="expert-tags">
+        <text wx:for="{{resolvedInfo.expert.tags}}" wx:key="*this" class="expert-tag">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="info-meta">
+      <view wx:for="{{resolvedInfo.stats}}" wx:key="label" class="info-meta-item">
+        <image class="info-meta-icon" src="{{item.icon}}" mode="aspectFit" />
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+
+    <button class="confirm-button" hover-class="none" bindtap="handleConfirmTap">{{resolvedInfo.confirmText}}</button>
+  </view>
+
+  <view class="game-info-card-footer">
+    <image class="mini-program-icon" src="/components/game-info-card/assets/mini-program.png" mode="aspectFit" />
+    <text>{{resolvedInfo.miniProgramText}}</text>
+  </view>
+</view>
