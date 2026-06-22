@@ -9,13 +9,15 @@
     </view>
   </view>
   <view class="referral-quote">"{{status.quote}}"</view>
-  <view class="referral-copy">
-    <text>领路人 </text>
-    <text class="referral-name">{{status.guideName}}</text>
-    <text> 邀请你参与组局</text>
-  </view>
-  <view class="countdown-row">
-    <text>响应倒计时</text>
-    <text class="countdown-value">{{status.countdown}}</text>
+  <view class="status-meta-box">
+    <view class="referral-copy">
+      <text>领路人 </text>
+      <text class="referral-name">{{status.guideName}}</text>
+      <text> {{referralText}}</text>
+    </view>
+    <view class="countdown-row">
+      <text>响应倒计时</text>
+      <text class="countdown-value">{{status.countdown}}</text>
+    </view>
   </view>
 </view>

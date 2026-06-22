@@ -110,8 +110,13 @@ Page({
     toast.info('拒绝申请功能开发中')
   },
 
-  handleDetailTap() {
-    toast.info('审核详情功能开发中')
+  handleDetailTap(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const query = id ? `?auditId=${id}` : ''
+
+    wx.navigateTo({
+      url: `/${ROUTES.gameAuditDetail}${query}`
+    })
   },
 
   handleBatchApproveTap() {

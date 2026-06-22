@@ -8,6 +8,14 @@ Component({
     items: {
       type: Array,
       value: []
+    },
+    titleWeight: {
+      type: String,
+      value: ''
+    },
+    cardClass: {
+      type: String,
+      value: ''
     }
   },
 

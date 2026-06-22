@@ -1,0 +1,34 @@
+<view class="detail-card relation-card">
+  <view class="card-head relation-head">
+    <text class="card-title relation-title">{{resolvedRelation.title}}</text>
+    <text class="card-tip relation-count">{{resolvedRelation.confirmedText}}</text>
+  </view>
+  <view class="relation-map">
+    <view class="relation-node relation-node-expert">
+      <view class="relation-avatar expert">{{resolvedRelation.expert.avatarText}}</view>
+      <text class="relation-name">{{resolvedRelation.expert.name}}</text>
+      <text class="relation-badge expert">{{resolvedRelation.expert.roleText}}</text>
+    </view>
+    <view class="relation-node relation-node-guide">
+      <view class="guide-hub">
+        <image class="handshake-icon" src="{{resolvedRelation.guide.iconSrc}}" mode="aspectFit"></image>
+        <view wx:if="{{resolvedRelation.guide.online}}" class="guide-online-dot"></view>
+      </view>
+      <view class="guide-stem"></view>
+      <view class="guide-avatar-small">{{resolvedRelation.guide.avatarText}}</view>
+      <text class="relation-guide-name">{{resolvedRelation.guide.name}}</text>
+    </view>
+    <view class="relation-node relation-node-player">
+      <view class="relation-avatar player">
+        <text>{{resolvedRelation.player.avatarText}}</text>
+        <view wx:if="{{resolvedRelation.player.confirmed}}" class="confirmed-mark"></view>
+      </view>
+      <text class="relation-name">{{resolvedRelation.player.name}}</text>
+      <text class="relation-badge player">{{resolvedRelation.player.statusText}}</text>
+    </view>
+  </view>
+  <view wx:if="{{resolvedRelation.noticeVisible}}" class="blue-note">
+    <view class="note-info">i</view>
+    <text>{{resolvedRelation.noticeText}}</text>
+  </view>
+</view>

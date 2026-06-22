@@ -6,7 +6,7 @@
     </view>
     <view class="detail-action primary {{loading ? 'loading' : ''}}" bindtap="handleConfirm">
       <image class="action-icon-image" src="/pages/game/detail/assets/icon-confirm.png" mode="aspectFit"></image>
-      <text>{{loading ? loadingText : '确认参加'}}</text>
+      <text>{{loading ? loadingText : confirmText}}</text>
     </view>
   </view>
   <text class="action-tip">{{tip}}</text>

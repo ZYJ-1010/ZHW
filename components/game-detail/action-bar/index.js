@@ -16,6 +16,10 @@ Component({
     loadingText: {
       type: String,
       value: '处理中...'
+    },
+    confirmText: {
+      type: String,
+      value: '确认参加'
     }
   },
 

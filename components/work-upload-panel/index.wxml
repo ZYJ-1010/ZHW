@@ -1,0 +1,12 @@
+<view class="work-upload-panel {{panelClass}}">
+  <view class="work-upload-row">
+    <button class="work-upload-button" hover-class="none" bindtap="handleImageTap">
+      <view class="work-upload-icon">+</view>
+      <text>{{imageText}}</text>
+    </button>
+    <button class="work-upload-button" hover-class="none" bindtap="handleFileTap">
+      <view class="work-upload-icon">+</view>
+      <text>{{fileText}}</text>
+    </button>
+  </view>
+</view>
