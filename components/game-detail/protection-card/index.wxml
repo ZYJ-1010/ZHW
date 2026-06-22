@@ -1,0 +1,7 @@
+<view class="protection-card">
+  <image class="shield-icon" src="/pages/game/detail/assets/icon-shield.png" mode="aspectFit"></image>
+  <view class="notice-copy">
+    <text class="protection-title">平台保障</text>
+    <text class="protection-text">{{protectionText}}</text>
+  </view>
+</view>

@@ -16,6 +16,10 @@ function applyGame(gameId, data) {
   return request.post(`/api/app/games/${gameId}/apply`, data)
 }
 
+function respondGameInvitation(invitationId, data) {
+  return request.post(`/api/app/game-invitations/${invitationId}/respond`, data)
+}
+
 function getInvitePlayerConfig(params) {
   return request.get('/api/app/game-invites/player-config', params)
 }
@@ -33,6 +37,7 @@ module.exports = {
   getGameDetail,
   createGame,
   applyGame,
+  respondGameInvitation,
   getInvitePlayerConfig,
   getInviteRecentPlayers,
   getInvitePlayers

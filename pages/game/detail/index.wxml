@@ -1,7 +1,51 @@
-<view class="page-shell">
-  <view class="module-card">
-    <text class="module-kicker">P0</text>
-    <text class="module-title">{{title}}</text>
-    <text class="module-desc">{{desc}}</text>
+<home-shell
+  online-text="{{onlineText}}"
+  topbar-title="组局详情"
+  shell-variant="joinApply"
+  toolbar-actions-visible="{{false}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="game-detail-shell">
+    <scroll-view
+      class="game-detail-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{detailScrollTop}}"
+      bindscroll="handleDetailScroll"
+      enable-back-to-top
+    >
+      <view class="game-detail-page">
+        <game-detail-status-card status="{{status}}" />
+        <game-detail-expert-card expert="{{expert}}" />
+        <game-detail-party-card party="{{party}}" />
+        <game-detail-session-card items="{{sessionInfo}}" bind:maptap="onMapTap" />
+        <game-detail-list-card
+          title="局详情"
+          rows="{{detailRows}}"
+          card-class="game-info-detail-card"
+        />
+        <game-detail-list-card
+          title="费用明细"
+          rows="{{costRows}}"
+          card-class="cost-detail-card"
+          list-class="cost-list"
+        />
+        <game-detail-protection-card protection-text="{{protectionText}}" />
+        <game-detail-notice-card bullets="{{noticeBullets}}" />
+        <game-detail-action-bar
+          tip="确认后将通知行家进行最终审核"
+          loading="{{actionLoading}}"
+          loading-text="处理中..."
+          bind:decline="onDecline"
+          bind:confirm="onConfirmAttend"
+        />
+      </view>
+    </scroll-view>
   </view>
-</view>
+</home-shell>

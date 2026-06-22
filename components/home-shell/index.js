@@ -25,6 +25,8 @@ Component({
     shellBrandStyle: '',
     shellContentStyle: '',
     shellDockStyle: '',
+    resolvedTopbarTitle: '',
+    resolvedToolbarActionsVisible: true,
     shellNavItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },
@@ -38,6 +40,20 @@ Component({
     onlineText: {
       type: String,
       value: ''
+    },
+    topbarTitle: {
+      type: String,
+      value: '',
+      observer() {
+        this.updateShellVariant()
+      }
+    },
+    shellVariant: {
+      type: String,
+      value: '',
+      observer() {
+        this.updateShellVariant()
+      }
     },
     navItems: {
       type: Array,
@@ -69,6 +85,13 @@ Component({
         this.updateShellLayout()
       }
     },
+    contentBottomGap: {
+      type: Number,
+      value: 0,
+      observer() {
+        this.updateShellLayout()
+      }
+    },
     dockStyle: {
       type: String,
       value: '',
@@ -83,6 +106,13 @@ Component({
     navToastEnabled: {
       type: Boolean,
       value: true
+    },
+    toolbarActionsVisible: {
+      type: Boolean,
+      value: true,
+      observer() {
+        this.updateShellVariant()
+      }
     },
     dockVisible: {
       type: Boolean,
@@ -102,6 +132,7 @@ Component({
       this.setData({
         shellNavItems: this.mergeNavItems(this.properties.navItems)
       })
+      this.updateShellVariant()
       this.updateShellLayout()
     },
     ready() {
@@ -145,12 +176,22 @@ Component({
       return null
     },
 
+    updateShellVariant() {
+      const isJoinApply = this.properties.shellVariant === 'joinApply'
+
+      this.setData({
+        resolvedTopbarTitle: this.properties.topbarTitle || (isJoinApply ? '申请加入' : ''),
+        resolvedToolbarActionsVisible: isJoinApply ? false : this.properties.toolbarActionsVisible !== false
+      })
+    },
+
     updateShellLayout() {
       const canvasStyle = this.properties.canvasStyle || ''
       const toolbarStyle = this.properties.toolbarStyle || ''
       const contentStyle = this.properties.contentStyle || ''
       const dockStyle = this.properties.dockStyle || ''
       const dockVisible = this.properties.dockVisible !== false
+      const contentBottomGap = Math.max(0, Number(this.properties.contentBottomGap || 0))
 
       if (!wx.getMenuButtonBoundingClientRect) {
         this.setData({
@@ -197,7 +238,7 @@ Component({
       const contentTop = Math.max(DEFAULT_CONTENT_TOP_RPX, this.roundRpx(navBottomRpx + NAV_BOTTOM_GAP_RPX))
       const topbarHeight = Math.max(DEFAULT_TOPBAR_HEIGHT_RPX, this.roundRpx(contentTop + 1))
       const dockTop = Math.max(0, this.roundRpx(canvasHeight - DEFAULT_DOCK_HEIGHT_RPX + DEFAULT_DOCK_BOTTOM_OVERFLOW_RPX))
-      const contentBottom = dockVisible ? dockTop : canvasHeight
+      const contentBottom = dockVisible ? dockTop : Math.max(contentTop, canvasHeight - contentBottomGap)
       const contentHeight = Math.max(0, this.roundRpx(contentBottom - contentTop))
       const toolbarTop = this.roundRpx((menuButton.top + menuButton.height / 2) * ratio - TOOLBAR_HEIGHT_RPX / 2)
       const toolbarRight = this.roundRpx((windowInfo.windowWidth - menuButton.left) * ratio + TOOLBAR_CAPSULE_GAP_RPX)

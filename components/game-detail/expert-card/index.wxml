@@ -1,0 +1,33 @@
+<view class="detail-card expert-detail-card">
+  <view class="card-head">
+    <text class="blue-pill">推荐专家</text>
+    <view class="verify-pill">
+      <view class="verify-dot"></view>
+      <text>已实名认证</text>
+    </view>
+  </view>
+
+  <view class="expert-profile">
+    <view class="expert-avatar">{{expert.avatarText}}</view>
+    <view class="expert-copy">
+      <text class="expert-name">{{expert.name}}</text>
+      <text class="expert-desc">{{expert.desc}}</text>
+      <view class="expert-meta">
+        <text class="rating-badge">★ {{expert.rating}}</text>
+        <text class="service-badge">{{expert.serviceText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="field-block">
+    <text class="field-title">专业领域</text>
+    <view class="tag-row">
+      <text wx:for="{{expert.tags}}" wx:key="*this" class="expert-tag">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="service-intro">
+    <text class="service-title">服务介绍</text>
+    <text class="service-text">{{expert.intro}}</text>
+  </view>
+</view>

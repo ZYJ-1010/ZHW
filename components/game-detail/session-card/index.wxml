@@ -1,0 +1,25 @@
+<view class="detail-card session-detail-card">
+  <view class="section-title-row left">
+    <image class="section-title-icon" src="/pages/game/detail/assets/icon-calendar.png" mode="aspectFit"></image>
+    <text class="section-title">组局信息</text>
+  </view>
+  <view class="info-list">
+    <view wx:for="{{items}}" wx:key="label" class="info-row">
+      <view class="info-icon {{item.iconClass}} {{item.iconSrc ? 'image' : ''}}">
+        <image wx:if="{{item.iconSrc}}" class="info-icon-image" src="{{item.iconSrc}}" mode="aspectFit"></image>
+        <text wx:else>{{item.iconText}}</text>
+      </view>
+      <view class="info-copy">
+        <text class="info-label">{{item.label}}</text>
+        <text class="info-value">{{item.value}}</text>
+        <button
+          wx:if="{{item.actionText}}"
+          class="map-button"
+          hover-class="none"
+          data-item="{{item}}"
+          bindtap="handleMapTap"
+        >{{item.actionText}}</button>
+      </view>
+    </view>
+  </view>
+</view>

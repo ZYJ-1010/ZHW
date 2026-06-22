@@ -1,1 +1,34 @@
-@import "../../shared/module.wxss";
+@import "../../../components/game-detail/index.wxss";
+
+page {
+  background: #007bd3;
+}
+
+.game-detail-shell {
+  --game-detail-panel-background-color: #ffffff;
+  --game-detail-panel-text-color: #111827;
+  --game-detail-panel-muted-color: #6b7280;
+  --game-detail-panel-border-color: rgba(17, 24, 39, 0.08);
+  --game-detail-panel-soft-color: #f3f4f6;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+.game-detail-scroll {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.game-detail-page {
+  min-height: 100%;
+  padding: 45rpx 0 0;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: #000000;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}

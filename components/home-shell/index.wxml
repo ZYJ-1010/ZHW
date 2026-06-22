@@ -33,13 +33,14 @@
             <text class="home-shell-brand__online-text">{{onlineText}}</text>
           </view>
         </view>
+        <text wx:if="{{resolvedTopbarTitle}}" class="home-shell-page-title">{{resolvedTopbarTitle}}</text>
       </view>
     </view>
 
     <view class="home-shell-toolbar" style="{{shellToolbarStyle}}">
-      <image class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
-      <image class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
-      <view class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
+      <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
+      <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
+      <view wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
       <image class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap" src="./assets/master-avatar.svg" mode="aspectFit"></image>
     </view>
 

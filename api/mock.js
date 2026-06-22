@@ -298,6 +298,19 @@ function buildInvitePlayers(data = {}, recentOnly = false) {
   }
 }
 
+function respondGameInvitation(data = {}) {
+  const action = String(data.action || '').trim()
+
+  if (action !== 'accept' && action !== 'reject') {
+    return wait(fail(40001, '邀约处理动作错误'))
+  }
+
+  return wait(ok({
+    invitationStatus: action === 'accept' ? 'accepted' : 'rejected',
+    applicationStatus: action === 'accept' ? 'pending' : null
+  }))
+}
+
 function setMockRealnameStatus(status) {
   mockCurrentRealnameStatus = status
 
@@ -457,6 +470,10 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/game-invites/players') {
     return wait(ok(buildInvitePlayers(options.data || {}, false)))
+  }
+
+  if (method === 'POST' && /^\/api\/app\/game-invitations\/[^/]+\/respond$/.test(url)) {
+    return respondGameInvitation(options.data || {})
   }
 
   return wait(fail(40401, `mock 未配置接口：${method} ${url}`))

@@ -1,3 +1,15 @@
 {
-  "navigationBarTitleText": "局详情"
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "组局详情",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "game-detail-status-card": "/components/game-detail/status-card/index",
+    "game-detail-expert-card": "/components/game-detail/expert-card/index",
+    "game-detail-party-card": "/components/game-detail/party-card/index",
+    "game-detail-session-card": "/components/game-detail/session-card/index",
+    "game-detail-list-card": "/components/game-detail/list-card/index",
+    "game-detail-protection-card": "/components/game-detail/protection-card/index",
+    "game-detail-notice-card": "/components/game-detail/notice-card/index",
+    "game-detail-action-bar": "/components/game-detail/action-bar/index"
+  }
 }

@@ -96,6 +96,24 @@
   white-space: nowrap;
 }
 
+.home-shell-page-title {
+  position: absolute;
+  left: 214rpx;
+  right: 214rpx;
+  top: 24rpx;
+  z-index: 2;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: "Noto Sans SC", sans-serif;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .home-shell-toolbar {
   position: absolute;
   right: 172rpx;

@@ -40,8 +40,25 @@ async function getInvitePlayers(params) {
   return result.data
 }
 
+async function respondGameInvitation(invitationId, action) {
+  if (!invitationId) {
+    throw new Error('缺少邀约信息，无法处理')
+  }
+
+  const result = await gameApi.respondGameInvitation(invitationId, {
+    action
+  })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '处理邀约失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
   getGameList,
+  respondGameInvitation,
   getInvitePlayerConfig,
   getInviteRecentPlayers,
   getInvitePlayers
