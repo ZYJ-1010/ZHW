@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "我的引荐记录",
+  "usingComponents": {
+    "business-summary-card": "/components/business-summary-card/index"
+  }
+}

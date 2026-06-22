@@ -1610,3 +1610,208 @@ POST /api/app/games/{gameId}/deal-conversions
 3. 玩家与行家的反馈是否需要分别记录，是否需要回传反馈状态或积分奖励状态。
 4. 促成交易是否创建交易记录 / 合作记录，接口路径、请求字段和状态枚举待确认。
 5. 三个入口是否需要积分奖励发放规则，以及奖励是否由接口返回。
+
+## 29. 我的引荐记录页列表与操作接口
+
+记录日期：2026-06-23
+
+模块：组局 / 我的引荐记录 - 领路人
+
+页面：`pages/game/referral-record/index`
+
+功能：领路人查看自己的引荐收益统计和引荐服务记录。页面中的收益统计、tab 数量、玩家信息、行家信息、引荐编号、服务标题、引荐奖励、预计交付时间、取消原因、评价状态等都应来自后台，当前前端只做静态走查占位。
+
+候选接口：
+
+```text
+GET /api/app/game-referrals/my-records
+POST /api/app/game-referrals/{referralId}/remind-delivery
+POST /api/app/im/conversations
+```
+
+建议列表入参：
+
+```json
+{
+  "status": "processing",
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+说明：`status` 对应页面 tab，取值建议为 `processing`、`completed`、`canceled`。如果后台希望一次返回三类记录，也可以返回 `records` 全量列表，由前端按 `state/statusType` 筛选。
+
+建议列表返回：
+
+```json
+{
+  "summary": {
+    "label": "本月引荐收益",
+    "amountText": "¥2,450",
+    "successCount": 12,
+    "processingCount": 3,
+    "reviewCount": 2
+  },
+  "tabs": [
+    { "key": "processing", "label": "进行中", "count": 3 },
+    { "key": "completed", "label": "已完成", "count": 12 },
+    { "key": "canceled", "label": "已取消", "count": 2 }
+  ],
+  "records": [
+    {
+      "id": "referral_001",
+      "referralId": "referral_001",
+      "ref": "REF-20260320-001",
+      "status": "processing",
+      "statusText": "服务进行中",
+      "timeText": "3天前",
+      "expert": {
+        "id": "expert_001",
+        "name": "张专家",
+        "avatarUrl": "",
+        "avatarText": "ZH"
+      },
+      "player": {
+        "id": "player_001",
+        "name": "李明",
+        "avatarUrl": "",
+        "avatarText": "LI"
+      },
+      "service": {
+        "title": "产品架构咨询",
+        "amountText": "¥800",
+        "expectedDeliveryText": "预计交付时间：2026-03-25（剩余2天）"
+      },
+      "rewardText": "¥80",
+      "actions": {
+        "canRemindDelivery": true,
+        "canViewGroupChat": true,
+        "canReviewBoth": false
+      },
+      "groupChat": {
+        "groupId": "group_001",
+        "conversationId": "conversation_001"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "hasMore": false
+  }
+}
+```
+
+当前前端接入口径：
+
+- 页面顶部收益卡复用 `components/business-summary-card`，但引荐页传入自定义统计项：`成功 / 进行中 / 待评价`。
+- 页面 tab 与服务记录状态一一对应：`进行中` 只展示 `processing`，`已完成` 只展示 `completed`，`已取消` 只展示 `canceled`。
+- 服务记录卡中的玩家、行家、编号、预计交付时间等均应以后端返回为准。
+- 已完成服务的评价状态以后端返回为准；`reviewed/hasReviewed/hasEvaluated` 为真，或 `canReviewBoth/canReview` 为假时，前端显示 `已评价` 并禁用评价按钮，不能再次评价。
+- 当前 `提醒交付` 和 `查看群聊` 只保留按钮和待接入提示；正式实现需要调用接口或进入 IM 会话。
+- 当前 `评价双方` 只保留按钮和待接入提示；正式实现需要进入评价页或弹出评价表单，提交成功后刷新当前服务的评价状态。
+- 列表需要支持按 tab 下拉刷新和分页 / 加载更多；分页字段、每个 tab 是否独立请求，以及刷新后是否同步更新顶部收益统计和 tab 数量均待后端确认。
+
+### 提醒交付
+
+候选路径：
+
+```text
+POST /api/app/game-referrals/{referralId}/remind-delivery
+```
+
+建议入参：
+
+```json
+{
+  "gameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "targetRole": "expert"
+}
+```
+
+待确认：
+
+1. 提醒交付是直接发送提醒，还是进入聊天页并预填提醒话术。
+2. 提醒对象是行家、玩家，还是按服务状态由后台决定。
+3. 是否需要限制提醒频率，后台是否返回下次可提醒时间。
+
+### 查看群聊
+
+候选路径：
+
+```text
+POST /api/app/im/conversations
+```
+
+建议入参：
+
+```json
+{
+  "scene": "game_referral_group",
+  "gameId": "game_001",
+  "referralId": "referral_001",
+  "conversationId": "conversation_001"
+}
+```
+
+待确认：
+
+1. 查看群聊是直接使用列表返回的 `conversationId`，还是每次调用接口获取 / 创建会话。
+2. 进入群聊时需要携带当前用户角色 `guide`，以及玩家 ID、行家 ID、组局 ID。
+3. 群聊页是否复用 `pages/im/room/index`，还是需要单独的三方群聊页。
+
+### 评价双方
+
+候选路径：
+
+```text
+POST /api/app/game-referrals/{referralId}/reviews
+```
+
+备选路径：
+
+```text
+POST /api/app/game-services/{serviceOrderId}/reviews
+```
+
+建议入参：
+
+```json
+{
+  "gameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "expertRating": 5,
+  "playerRating": 5,
+  "expertComment": "行家交付及时，服务专业",
+  "playerComment": "玩家沟通顺畅，需求明确"
+}
+```
+
+建议返回：
+
+```json
+{
+  "reviewStatus": "reviewed",
+  "reviewed": true,
+  "canReviewBoth": false,
+  "reviewedAt": "2026-03-20T12:00:00+08:00"
+}
+```
+
+待确认：
+
+1. 评价入口是跳转独立评价页，还是当前页弹出评价表单。
+2. 领路人是否需要分别评价玩家和行家，还是只提交一次综合评价。
+3. 评分、标签、文字评价、匿名评价等字段是否必填。
+4. 提交成功后是否由接口返回新的记录项，还是前端重新请求列表。
+5. 已评价服务是否需要展示评价详情入口，还是只置灰显示 `已评价`。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/game-referrals/my-records`。
+2. 列表是否分页；如果分页，tab 数量由 summary 返回还是每个 tab 分别请求。
+3. 金额单位使用元、分还是后端直接返回 `amountText/rewardText`。
+4. 状态枚举是否固定为 `processing/completed/canceled`。
+5. 已完成卡片的 `待评价` 状态是否由 `reviewStatus` 或 `canReviewBoth` 返回。
+6. 已取消卡片是否展示取消原因、取消方、赔付 / 退款金额，以及这些字段命名。

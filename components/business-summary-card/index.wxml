@@ -1,0 +1,20 @@
+<view class="business-summary-card {{resolvedCard.themeClass}}" style="{{resolvedCard.cardStyle}}">
+  <view class="summary-header">
+    <view class="summary-copy">
+      <text class="summary-label">{{resolvedCard.label}}</text>
+      <text class="summary-amount">{{resolvedCard.amount}}</text>
+    </view>
+    <view class="summary-card-icon {{resolvedCard.iconClass}}">
+      <image
+        wx:if="{{resolvedCard.iconSrc}}"
+        class="summary-icon-image"
+        src="{{resolvedCard.iconSrc}}"
+        mode="aspectFit"
+      />
+      <view wx:else class="summary-icon-mark"></view>
+    </view>
+  </view>
+  <view class="summary-stats">
+    <text wx:for="{{resolvedCard.stats}}" wx:key="key" class="summary-stat">{{item.text}}</text>
+  </view>
+</view>

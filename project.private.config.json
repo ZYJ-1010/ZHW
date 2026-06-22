@@ -119,6 +119,12 @@
           "scene": null
         },
         {
+          "name": "组局-我的引荐记录-领路人",
+          "pathName": "pages/game/referral-record/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

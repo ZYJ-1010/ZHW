@@ -28,6 +28,7 @@
     "pages/game/payment/index",
     "pages/game/success-expert/index",
     "pages/game/success-guide/index",
+    "pages/game/referral-record/index",
     "pages/game/applications/index",
     "pages/game/delivery/index",
     "pages/game/review/index",
