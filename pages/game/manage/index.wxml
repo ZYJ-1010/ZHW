@@ -1,0 +1,168 @@
+<view class="manage-page">
+  <view class="manage-frame" style="{{shellLayout.frameStyle}}">
+    <view class="manage-top-bg"></view>
+    <view class="manage-nav">
+      <view class="manage-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="manage-back-icon"></view>
+      </view>
+      <text class="manage-title" style="{{shellLayout.titleStyle}}">我的业务管理</text>
+    </view>
+
+    <scroll-view
+      class="manage-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="manage-inner">
+        <business-summary-card summary="{{summary}}" role-type="{{roleType}}" />
+
+        <view class="manage-tabs">
+          <view
+            wx:for="{{tabs}}"
+            wx:key="key"
+            class="manage-tab {{item.active ? 'active' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="onTabTap"
+          >
+            <text>{{item.text}}</text>
+          </view>
+        </view>
+
+        <view wx:for="{{displayOrders}}" wx:key="id" class="manage-order-card {{item.cardClass}}">
+          <block wx:if="{{item.isActive}}">
+            <view class="order-card-header">
+              <view class="status-pill active">
+                <image class="status-icon active" src="./assets/status-active.png" mode="aspectFit"></image>
+                <text>{{item.statusText}}</text>
+              </view>
+              <text class="order-ref">{{item.ref}}</text>
+            </view>
+
+            <view class="client-row">
+              <view class="avatar {{item.avatarClass}}">{{item.avatar}}</view>
+              <view class="client-copy">
+                <view class="client-title-line">
+                  <text class="client-name">{{item.name}}</text>
+                  <text wx:if="{{item.roleTag}}" class="client-role-tag">{{item.roleTag}}</text>
+                </view>
+                <view class="client-service-line">
+                  <text class="client-service">{{item.title}}</text>
+                  <text wx:if="{{item.amount}}" class="client-separator">·</text>
+                  <text wx:if="{{item.amount}}" class="client-amount">{{item.amount}}</text>
+                </view>
+                <text wx:if="{{item.guideText}}" class="client-guide {{item.guideTone}}">{{item.guideText}}</text>
+              </view>
+            </view>
+
+            <view class="timeline-panel">
+              <view
+                wx:for="{{item.timeline}}"
+                wx:for-item="stage"
+                wx:key="id"
+                class="timeline-item {{stage.state}} {{stage.last ? 'last' : ''}}"
+              >
+                <view class="timeline-dot {{stage.state}}"></view>
+                <view class="timeline-copy">
+                  <text class="timeline-title">{{stage.title}}</text>
+                  <text wx:if="{{stage.time}}" class="timeline-time">{{stage.time}}</text>
+                </view>
+              </view>
+            </view>
+
+            <view class="operation-group">
+              <text class="operation-label">管理操作</text>
+              <view class="operation-row">
+                <button class="operation-action finish" data-id="{{item.id}}" hover-class="none" bindtap="onEndDelivery">
+                  <view class="operation-icon finish"></view>
+                  <text class="action-text">{{item.primaryActionText}}</text>
+                </button>
+                <button class="operation-action cancel" data-id="{{item.id}}" hover-class="none" bindtap="onCancelWithCompensation">
+                  <view class="operation-icon cancel"></view>
+                  <text class="action-text">{{item.secondaryActionText}}</text>
+                </button>
+              </view>
+              <view class="contact-row">
+                <button class="contact-action player" data-id="{{item.id}}" hover-class="none" bindtap="onContactPlayer">
+                  <image class="contact-icon" src="./assets/contact-player.png" mode="aspectFit"></image>
+                  <text class="action-text">{{item.playerActionText}}</text>
+                </button>
+                <button class="contact-action guide" data-id="{{item.id}}" hover-class="none" bindtap="onContactGuide">
+                  <image class="contact-icon" src="./assets/contact-guide.png" mode="aspectFit"></image>
+                  <text class="action-text">{{item.guideActionText}}</text>
+                </button>
+              </view>
+            </view>
+          </block>
+
+          <block wx:elif="{{item.isComplete}}">
+            <view class="order-card-header">
+              <view class="status-pill complete">
+                <view class="status-dot complete"></view>
+                <text>{{item.statusText}}</text>
+              </view>
+              <text class="order-ref">{{item.ref}}</text>
+            </view>
+
+            <view class="client-row compact">
+              <view class="avatar {{item.avatarClass}}">{{item.avatar}}</view>
+              <view class="client-copy">
+                <view class="client-title-line">
+                  <text class="client-name">{{item.name}}</text>
+                  <text wx:if="{{item.roleTag}}" class="client-role-tag">{{item.roleTag}}</text>
+                </view>
+                <view class="client-service-line">
+                  <text class="client-service">{{item.title}}</text>
+                  <text wx:if="{{item.amount}}" class="client-separator">·</text>
+                  <text wx:if="{{item.amount}}" class="client-amount">{{item.amount}}</text>
+                </view>
+                <text wx:if="{{item.guideText}}" class="client-guide {{item.guideTone}}">{{item.guideText}}</text>
+              </view>
+            </view>
+
+            <view wx:if="{{item.hasSettlementRows}}" class="settlement-panel">
+              <view wx:for="{{item.settlementRows}}" wx:key="label" class="settlement-row">
+                <text class="settlement-label">{{item.label}}</text>
+                <text class="settlement-value {{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+              </view>
+            </view>
+            <button
+              class="review-action {{item.reviewDisabled ? 'disabled' : ''}}"
+              data-id="{{item.id}}"
+              disabled="{{item.reviewDisabled}}"
+              hover-class="none"
+              bindtap="onReviewBoth"
+            >
+              <view class="review-icon"></view>
+              <text class="action-text">{{item.reviewActionText}}</text>
+            </button>
+          </block>
+
+          <block wx:elif="{{item.isCanceled}}">
+            <view class="order-card-header">
+              <view class="status-pill canceled">
+                <view class="status-dot canceled"></view>
+                <text>{{item.statusText}}</text>
+              </view>
+              <text class="order-ref">{{item.ref}}</text>
+            </view>
+            <view class="refund-panel">
+              <view class="refund-top">
+                <text>{{item.reasonSummary}}</text>
+                <text class="refund-amount">{{item.amount}}</text>
+              </view>
+              <text class="refund-reason">{{item.reasonText}}</text>
+            </view>
+          </block>
+        </view>
+
+        <view wx:if="{{!hasDisplayOrders}}" class="manage-empty">
+          <text>{{emptyText}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="manage-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

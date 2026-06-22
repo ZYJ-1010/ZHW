@@ -47,6 +47,12 @@
           "scene": null
         },
         {
+          "name": "组局-我的业务管理-专家",
+          "pathName": "pages/game/manage/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-审核列表",
           "pathName": "pages/game/audit/index",
           "query": "",

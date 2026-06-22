@@ -751,6 +751,78 @@ const mockGuideProgress = {
   ]
 }
 
+const mockGameManage = {
+  summary: {
+    label: '本月服务收入',
+    amount: 5280,
+    amountText: '¥5,280',
+    activeCount: 2,
+    pendingSettlementCount: 1,
+    completedCount: 8,
+    disputeCount: 0
+  },
+  orders: [
+    {
+      id: 'business-active-001',
+      statusType: 'active',
+      statusText: '服务进行中',
+      ref: 'REF-20260320-001',
+      avatarText: 'LI',
+      avatarClass: 'pink',
+      name: '李明',
+      roleTag: '玩家',
+      serviceText: '产品架构咨询 · ¥800',
+      guideName: '王引荐',
+      timeline: [
+        { id: 'group-success', title: '组局成功', time: '03-20 14:30', state: 'done' },
+        { id: 'service-active', title: '服务进行中', time: '预计交付：03-25', state: 'current' },
+        { id: 'waiting-confirm', title: '等待确认完成', state: 'future' }
+      ],
+      primaryActionText: '提前结束交付',
+      secondaryActionText: '取消并赔付',
+      playerActionText: '联系玩家',
+      guideActionText: '联系领路人'
+    },
+    {
+      id: 'business-early-001',
+      statusType: 'early',
+      statusText: '已提前交付',
+      ref: 'REF-20260318-004',
+      avatarText: 'ZH',
+      avatarClass: 'purple',
+      name: '赵经理',
+      serviceText: '技术咨询 · ¥600',
+      guideText: '提前2天完成',
+      guideTone: 'success',
+      settlementRows: [
+        { label: '实际服务时长', value: '1.5小时 (原定2小时)' },
+        { label: '实际收入', value: '¥450 (按比例结算)', highlight: true }
+      ],
+      reviewStatus: 'pending',
+      reviewActionText: '评价双方'
+    },
+    {
+      id: 'business-complete-001',
+      statusType: 'complete',
+      statusText: '已完成',
+      ref: 'REF-20260312-006',
+      avatarText: 'WA',
+      avatarClass: 'green',
+      name: '王同学',
+      serviceText: '品牌定位咨询 · ¥1,200',
+      guideName: '陈引荐',
+      completeSummary: '服务已完成',
+      amountText: '¥1,200',
+      completedAtText: '完成时间：03-15 18:30',
+      actualDurationText: '2小时',
+      actualIncomeText: '¥1,200',
+      resultText: '双方已确认，收入已进入结算',
+      reviewStatus: 'reviewed',
+      reviewedActionText: '已评价'
+    }
+  ]
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -762,5 +834,6 @@ module.exports = {
   mockRoleApplications,
   mockInvitePlayerConfig,
   mockInvitePlayers,
-  mockGuideProgress
+  mockGuideProgress,
+  mockGameManage
 }
