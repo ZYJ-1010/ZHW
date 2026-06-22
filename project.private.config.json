@@ -113,6 +113,12 @@
           "scene": null
         },
         {
+          "name": "组局-领路人收到的提示",
+          "pathName": "pages/game/success-guide/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

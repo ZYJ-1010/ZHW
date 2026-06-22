@@ -1,33 +1,33 @@
-<view class="detail-card party-detail-card">
+<view class="detail-card party-detail-card {{party.cardClass}}" style="{{party.cardStyle}}">
   <view class="section-title-row">
-    <text class="section-title">成局双方</text>
-    <text class="section-tip">{{party.confirmedText}}</text>
+    <text class="section-title {{party.titleClass}}">成局双方</text>
+    <text wx:if="{{party.confirmedText}}" class="section-tip">{{party.confirmedText}}</text>
   </view>
   <view class="party-row">
     <view class="party-person">
-      <view class="party-avatar pink">
+      <view class="party-avatar {{party.player.avatarClass ? party.player.avatarClass : 'pink'}}">
         <text>{{party.player.avatarText}}</text>
         <view class="party-check"></view>
       </view>
       <text class="party-name">{{party.player.name}}</text>
       <text class="party-role">{{party.player.role}}</text>
-      <text class="party-state">{{party.player.state}}</text>
+      <text class="party-state {{party.player.stateClass}}">{{party.player.state}}</text>
     </view>
     <view class="party-link">
       <view class="link-circle">
         <image class="link-icon-image" src="/pages/game/detail/assets/icon-link.png" mode="aspectFit"></image>
       </view>
       <view class="link-line"></view>
-      <text class="link-text">已连接</text>
+      <text class="link-text">{{party.linkText ? party.linkText : '已连接'}}</text>
     </view>
     <view class="party-person">
-      <view class="party-avatar blue">
+      <view class="party-avatar {{party.expert.avatarClass ? party.expert.avatarClass : 'blue'}}">
         <text>{{party.expert.avatarText}}</text>
         <view class="party-check"></view>
       </view>
       <text class="party-name">{{party.expert.name}}</text>
       <text class="party-role">{{party.expert.role}}</text>
-      <text class="party-state">{{party.expert.state}}</text>
+      <text class="party-state {{party.expert.stateClass}}">{{party.expert.state}}</text>
     </view>
   </view>
 </view>

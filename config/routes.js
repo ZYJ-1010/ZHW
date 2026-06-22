@@ -24,6 +24,7 @@ const ROUTES = {
   gameInvite: 'pages/game/invite/index',
   gamePayment: 'pages/game/payment/index',
   gameSuccessExpert: 'pages/game/success-expert/index',
+  gameSuccessGuide: 'pages/game/success-guide/index',
   gameApplications: 'pages/game/applications/index',
   gameDelivery: 'pages/game/delivery/index',
   gameReview: 'pages/game/review/index',
