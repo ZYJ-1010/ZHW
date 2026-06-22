@@ -1,0 +1,143 @@
+<view class="success-expert-page">
+  <view class="success-expert-frame" style="{{shellLayout.frameStyle}}">
+    <view class="success-expert-top-bg"></view>
+    <view class="success-expert-nav">
+      <view class="success-expert-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="success-expert-back-icon"></view>
+      </view>
+      <text class="success-expert-title" style="{{shellLayout.titleStyle}}">组局成功</text>
+      <view class="success-expert-more" style="{{shellLayout.moreStyle}}" bindtap="onMoreTap">
+        <view class="more-dot"></view>
+        <view class="more-dot"></view>
+        <view class="more-dot"></view>
+      </view>
+    </view>
+
+    <scroll-view
+      class="success-expert-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="success-expert-inner">
+        <view class="success-banner">
+          <view class="success-mark">
+            <image class="success-icon" src="./assets/success-icon.png" mode="aspectFit"></image>
+          </view>
+          <text class="success-heading">组局成功!</text>
+          <text class="success-subtitle">三方连接已建立，活动正式开始</text>
+        </view>
+
+        <view class="section group-section">
+          <view class="group-card">
+            <text class="group-section-title">三方连接群</text>
+
+            <view class="group-panel">
+              <view class="group-head">
+                <view class="group-icon">
+                  <view class="group-person main"></view>
+                  <view class="group-person left"></view>
+                  <view class="group-person right"></view>
+                </view>
+                <view class="group-copy">
+                  <view class="group-title-row">
+                    <text class="group-title">{{group.title}}</text>
+                    <view class="online-pill">
+                      <view class="online-dot"></view>
+                      <text>在线</text>
+                    </view>
+                  </view>
+                  <text class="group-subtitle">{{group.roles}}</text>
+                </view>
+              </view>
+
+              <view class="participants-row">
+                <view class="avatar-stack">
+                  <view
+                    wx:for="{{participants}}"
+                    wx:key="id"
+                    class="participant-avatar {{item.colorClass}}"
+                  >{{item.avatar}}</view>
+                </view>
+                <text class="participant-count">3人</text>
+              </view>
+
+              <button class="chat-button" hover-class="none" bindtap="onEnterChatTap">
+                <image class="chat-icon" src="./assets/chat-entry-icon.png" mode="aspectFit"></image>
+                <text>进入群聊</text>
+              </button>
+            </view>
+
+            <view class="hint-box">
+              <view class="hint-icon"></view>
+              <text class="hint-text">{{group.hint}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section info-section">
+          <view class="info-card">
+            <text class="info-card-title">活动信息</text>
+            <view wx:for="{{activityRows}}" wx:key="label" class="info-row {{item.highlight ? 'highlight' : ''}}">
+              <text class="info-label">{{item.label}}</text>
+              <text class="info-value">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section fund-section">
+          <view class="fund-card">
+            <text class="fund-card-title">资金状态</text>
+            <view class="fund-head">
+              <view class="fund-status">
+                <view class="fund-lock">
+                  <image class="fund-lock-icon" src="./assets/fund-lock-icon.png" mode="aspectFit"></image>
+                </view>
+                <view class="fund-copy">
+                  <text class="fund-title">资金已托管</text>
+                  <text class="fund-desc">服务完成后自动结算</text>
+                </view>
+              </view>
+              <text class="fund-amount">¥800</text>
+            </view>
+            <view class="fund-progress">
+              <view class="fund-progress-fill"></view>
+            </view>
+            <view class="fund-steps">
+              <text class="active">已托管</text>
+              <text>服务中</text>
+              <text>已完成</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section steps-section">
+          <view class="steps-card">
+            <text class="steps-card-title">下一步</text>
+            <view
+              wx:for="{{nextSteps}}"
+              wx:key="index"
+              class="step-item {{item.active ? 'active' : ''}}"
+            >
+              <view class="step-index">{{item.index}}</view>
+              <view class="step-copy">
+                <text class="step-title">{{item.title}}</text>
+                <text class="step-desc">{{item.desc}}</text>
+              </view>
+              <view wx:if="{{item.active}}" class="step-arrow"></view>
+            </view>
+          </view>
+        </view>
+
+        <view class="section manage-section">
+          <button class="manage-button" hover-class="none" bindtap="onManageTap">进入局管理</button>
+        </view>
+
+        <view class="bottom-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view class="success-expert-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

@@ -26,6 +26,7 @@
     "pages/game/share/index",
     "pages/game/invite/index",
     "pages/game/payment/index",
+    "pages/game/success-expert/index",
     "pages/game/applications/index",
     "pages/game/delivery/index",
     "pages/game/review/index",

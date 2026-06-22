@@ -1503,3 +1503,76 @@ POST /api/app/game-payments/wechat
 5. 支付成功后应跳转到组局成功页、组局详情页，还是保留当前页等待订单状态轮询。
 6. 是否需要支付结果查询接口，例如 `GET /api/app/game-payments/{paymentOrderId}`。
 7. 微信支付参数字段是否统一包在 `paymentParams` 下，签名算法 `signType` 使用 `RSA` 还是 `MD5`。
+## 25. 组局成功行家提示页详情接口
+
+记录日期：2026-06-22
+
+模块：组局 / 成功行家提示
+
+页面：`pages/game/success-expert/index`
+
+功能：组局成功后展示三方连接群、活动信息、资金状态和下一步。当前页面仍按静态设计稿还原，正式联调时这些数据必须由后台返回，不能由前端写死。
+
+候选接口：
+
+```text
+GET /api/app/games/{gameId}/success-expert
+```
+
+建议返回：
+
+```json
+{
+  "group": {
+    "id": "group_001",
+    "title": "产品架构咨询 - 三方群",
+    "rolesText": "行家、领路人、玩家",
+    "online": true,
+    "memberCount": 3,
+    "hintText": "领路人王引荐将持续跟进活动进度，确保双方顺利对接"
+  },
+  "viewer": {
+    "role": "expert",
+    "roleText": "行家"
+  },
+  "activity": {
+    "ref": "REF-20260323-001",
+    "createdAtText": "2026-03-23 10:23",
+    "successAtText": "2026-03-23 14:30",
+    "stageText": "待交付服务"
+  },
+  "fund": {
+    "title": "资金已托管",
+    "desc": "服务完成后自动结算",
+    "amountText": "¥800",
+    "status": "escrowed",
+    "progressPercent": 33,
+    "steps": ["已托管", "服务中", "已完成"]
+  },
+  "nextSteps": [
+    { "index": 1, "title": "联系玩家确认具体时间", "desc": "建议24小时内完成", "active": true },
+    { "index": 2, "title": "按时交付服务", "desc": "等待确认时间" },
+    { "index": 3, "title": "确认完成并收款", "desc": "等待服务完成" }
+  ]
+}
+```
+
+当前前端接入口径：
+
+- `group` 用于三方连接群卡片，群聊入口后续需要携带 `group.id`、`gameId` 和 `viewer.role`。
+- `viewer.role` 表示当前点击者在此组局中的角色，例如 `expert/guide/player`，进入群聊页时需要传递。
+- `activity` 用于活动信息卡片，包含活动编号、创建时间、组局成功时间和当前阶段。
+- `fund` 用于资金状态卡片，包含托管状态、金额、进度和步骤文案。
+- `nextSteps` 用于下一步列表，是否高亮由后台返回。
+- 当前静态页仍用本地数据占位，后续联调时应替换为接口数据。
+- 前端实现建议先保持页面级数据驱动，不优先抽组件：新增 `successDetail` 和 `normalizeSuccessDetail(data)`，把接口数据归一化为当前页面结构；待页面稳定或其他页面复用后，再考虑抽 `fund-status-card`、`next-steps-card` 等组件。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/games/{gameId}/success-expert`，还是复用组局详情接口扩展成功态字段。
+2. 活动时间字段是否返回格式化文案，还是返回时间戳由前端格式化。
+3. 资金金额单位使用元、分还是后端直接返回 `amountText`。
+4. 资金状态枚举是否使用 `escrowed/serving/completed`。
+5. 三方群是否已有独立群 ID，进入局内群聊时需要传哪些参数。
+6. 当前用户在组局中的角色字段使用 `viewer.role`、`currentRole` 还是成员列表中的角色推导。
+7. 下一步列表是否由后台返回，还是前端按状态枚举本地生成。
