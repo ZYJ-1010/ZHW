@@ -1,19 +1,19 @@
 <view class="session-card detail-card session-detail-card {{cardClass}}">
-  <view class="session-card-title-row section-title-row left">
-    <image class="session-card-title-icon section-title-icon" src="/pages/game/detail/assets/icon-calendar.png" mode="aspectFit"></image>
+  <view class="session-card-title-row section-title-row left {{showTitleIcon ? '' : 'without-icon'}}">
+    <image wx:if="{{showTitleIcon}}" class="session-card-title-icon section-title-icon" src="/pages/game/detail/assets/icon-calendar.png" mode="aspectFit"></image>
     <text class="session-card-title section-title {{titleWeight === 'regular' ? 'regular' : ''}}">组局信息</text>
   </view>
-  <view class="session-card-info-list info-list">
+  <view class="session-card-info-list info-list {{showItemIcon ? '' : 'without-icons'}}">
     <view wx:for="{{items}}" wx:key="label" class="session-card-info-row info-row">
-      <view class="session-card-info-icon info-icon {{item.iconClass}} {{item.iconSrc ? 'image' : ''}}">
+      <view wx:if="{{showItemIcon}}" class="session-card-info-icon info-icon {{item.iconClass}} {{item.iconSrc ? 'image' : ''}}">
         <image wx:if="{{item.iconSrc}}" class="session-card-info-icon-image info-icon-image" src="{{item.iconSrc}}" mode="aspectFit"></image>
         <text wx:else>{{item.iconText}}</text>
       </view>
-      <view class="session-card-info-copy info-copy">
+      <view class="session-card-info-copy info-copy {{showItemIcon ? '' : 'without-icon'}}">
         <text class="session-card-info-label info-label">{{item.label}}</text>
         <text class="session-card-info-value info-value">{{item.value}}</text>
         <button
-          wx:if="{{item.actionText}}"
+          wx:if="{{showMapButton && item.actionText}}"
           class="session-card-map-button map-button"
           hover-class="none"
           data-item="{{item}}"

@@ -40,6 +40,16 @@ async function getInvitePlayers(params) {
   return result.data
 }
 
+async function getGuideProgress(params) {
+  const result = await gameApi.getGuideProgress(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取组局进度失败')
+  }
+
+  return result.data
+}
+
 async function respondGameInvitation(invitationId, action) {
   if (!invitationId) {
     throw new Error('缺少邀约信息，无法处理')
@@ -61,5 +71,6 @@ module.exports = {
   respondGameInvitation,
   getInvitePlayerConfig,
   getInviteRecentPlayers,
-  getInvitePlayers
+  getInvitePlayers,
+  getGuideProgress
 }

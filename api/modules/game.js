@@ -32,6 +32,10 @@ function getInvitePlayers(params) {
   return request.get('/api/app/game-invites/players', params)
 }
 
+function getGuideProgress(params) {
+  return request.get('/api/app/game-invites/guide-progress', params)
+}
+
 module.exports = {
   getGames,
   getGameDetail,
@@ -40,5 +44,6 @@ module.exports = {
   respondGameInvitation,
   getInvitePlayerConfig,
   getInviteRecentPlayers,
-  getInvitePlayers
+  getInvitePlayers,
+  getGuideProgress
 }

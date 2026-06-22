@@ -16,6 +16,18 @@ Component({
     cardClass: {
       type: String,
       value: ''
+    },
+    showTitleIcon: {
+      type: Boolean,
+      value: true
+    },
+    showItemIcon: {
+      type: Boolean,
+      value: true
+    },
+    showMapButton: {
+      type: Boolean,
+      value: true
     }
   },
 

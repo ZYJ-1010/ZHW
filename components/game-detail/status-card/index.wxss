@@ -133,3 +133,110 @@
   font-weight: 800;
   letter-spacing: 0;
 }
+
+.status-card.progress {
+  width: 666rpx;
+  min-height: 0;
+  padding: 56rpx 56rpx 54rpx;
+  border-radius: 32rpx;
+  background: linear-gradient(154.26deg, #fb923c 12.58%, #ef4b1f 87.42%);
+  box-shadow: 0 16rpx 34rpx rgba(249, 115, 22, 0.22);
+}
+
+.progress-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.progress-status-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.progress-status-label {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 25rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.progress-status-title {
+  margin-top: 10rpx;
+  color: #ffffff;
+  font-size: 40rpx;
+  font-weight: 800;
+  line-height: 52rpx;
+}
+
+.progress-hourglass {
+  flex: none;
+  width: 110rpx;
+  height: 110rpx;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.progress-hourglass .hourglass {
+  width: 40rpx;
+  height: 54rpx;
+}
+
+.progress-hourglass .hourglass::before,
+.progress-hourglass .hourglass::after {
+  left: 5rpx;
+  width: 30rpx;
+  height: 20rpx;
+  border-left-width: 15rpx;
+  border-right-width: 15rpx;
+}
+
+.progress-hourglass .hourglass::before {
+  border-top-width: 20rpx;
+}
+
+.progress-hourglass .hourglass::after {
+  border-bottom-width: 20rpx;
+}
+
+.progress-countdown-box {
+  margin-top: 32rpx;
+  padding: 22rpx 28rpx 26rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.progress-countdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 26rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.progress-countdown-value {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 38rpx;
+}
+
+.progress-track {
+  width: 100%;
+  height: 16rpx;
+  margin-top: 18rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.progress-fill {
+  width: 74%;
+  height: 100%;
+  border-radius: 999rpx;
+  background: #ffffff;
+}

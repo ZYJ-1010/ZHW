@@ -656,6 +656,101 @@ const mockInvitePlayers = [
   }
 ]
 
+const mockGuideProgress = {
+  activeCount: 2,
+  activeParties: [
+    {
+      id: 'invite-progress-001',
+      status: 'waiting_expert',
+      statusText: '进行中',
+      timeText: '剩余23小时',
+      progressText: '等待行家确认',
+      progressPercent: 49,
+      noticeText: '行家尚未查看邀请，可发送提醒',
+      players: [
+        {
+          id: 'player-lina',
+          name: '李娜',
+          avatarText: 'LN',
+          avatarClass: 'pink',
+          confirmStatus: 'confirmed',
+          statusText: '已确认'
+        }
+      ],
+      experts: [
+        {
+          id: 'expert-wangqiang',
+          name: '王强',
+          avatarText: 'WQ',
+          avatarClass: 'blue',
+          confirmStatus: 'pending',
+          statusText: '待确认'
+        }
+      ]
+    },
+    {
+      id: 'invite-progress-002',
+      status: 'waiting_all',
+      statusText: '待双方确认',
+      timeText: '刚刚',
+      progressText: '等待双方确认',
+      progressPercent: 0,
+      players: [
+        {
+          id: 'player-chenming',
+          name: '陈明',
+          avatarText: 'CM',
+          avatarClass: 'blue',
+          confirmStatus: 'pending',
+          statusText: '待确认'
+        }
+      ],
+      experts: [
+        {
+          id: 'expert-liuying',
+          name: '刘颖',
+          avatarText: 'LY',
+          avatarClass: 'green',
+          confirmStatus: 'pending',
+          statusText: '待确认'
+        }
+      ]
+    }
+  ],
+  completedParties: [
+    {
+      id: 'invite-complete-001',
+      resultStatus: 'success',
+      title: '组局成功',
+      timeText: '昨天',
+      summaryPrefix: '你引荐的',
+      completedMemberText: '张伟 与 李娜',
+      players: [
+        { id: 'player-zhangwei', name: '张伟' }
+      ],
+      experts: [
+        { id: 'expert-lina', name: '李娜' }
+      ],
+      summarySuffix: '已成功组局',
+      rewardText: '+50积分',
+      gameTitle: '产品经理交流会'
+    },
+    {
+      id: 'invite-complete-002',
+      resultStatus: 'canceled',
+      title: '组局已取消',
+      timeText: '3天前',
+      players: [
+        { id: 'player-wangfang', name: '王芳' }
+      ],
+      rejectName: '王芳',
+      rejectRoleText: '玩家',
+      rejectText: '婉拒了组局邀请',
+      reasonText: '原因：时间冲突'
+    }
+  ]
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -666,5 +761,6 @@ module.exports = {
   mockNewbieTasks,
   mockRoleApplications,
   mockInvitePlayerConfig,
-  mockInvitePlayers
+  mockInvitePlayers,
+  mockGuideProgress
 }

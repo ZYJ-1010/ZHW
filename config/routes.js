@@ -18,6 +18,8 @@ const ROUTES = {
   gameAuditDetail: 'pages/game/audit-detail/index',
   gameGreet: 'pages/game/greet/index',
   gameGuideChat: 'pages/game/guide-chat/index',
+  gameGuideProgress: 'pages/game/guide-progress/index',
+  gameGuideProgressDetail: 'pages/game/guide-progress-detail/index',
   gameShare: 'pages/game/share/index',
   gameInvite: 'pages/game/invite/index',
   gameApplications: 'pages/game/applications/index',

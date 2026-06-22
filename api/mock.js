@@ -8,7 +8,8 @@ const {
   mockNewbieTasks,
   mockRoleApplications,
   mockInvitePlayerConfig,
-  mockInvitePlayers
+  mockInvitePlayers,
+  mockGuideProgress
 } = require('./mock-data')
 
 let mockCurrentRealnameStatus = 'pending'
@@ -470,6 +471,10 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/game-invites/players') {
     return wait(ok(buildInvitePlayers(options.data || {}, false)))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/guide-progress') {
+    return wait(ok(mockGuideProgress))
   }
 
   if (method === 'POST' && /^\/api\/app\/game-invitations\/[^/]+\/respond$/.test(url)) {

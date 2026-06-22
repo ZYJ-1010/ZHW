@@ -1,0 +1,27 @@
+<view class="complete-card {{item.muted ? 'muted' : ''}}" bindtap="onCardTap">
+  <view class="complete-icon-box">
+    <image class="complete-icon" src="{{item.icon}}" mode="aspectFit"></image>
+  </view>
+  <view class="complete-body">
+    <view class="complete-head">
+      <text class="complete-title">{{item.title}}</text>
+      <text class="complete-time">{{item.time}}</text>
+    </view>
+    <view wx:if="{{!item.isCanceled}}" class="complete-summary success-summary">
+      <text wx:if="{{item.summaryPrefix}}" class="summary-normal">{{item.summaryPrefix}}</text>
+      <text wx:if="{{item.memberText}}" class="summary-name">{{item.memberText}}</text>
+      <text class="summary-normal">{{item.summarySuffix}}</text>
+    </view>
+    <view wx:else class="complete-summary cancel-summary">
+      <text wx:if="{{item.rejectName}}" class="summary-name cancel-name">{{item.rejectName}}</text>
+      <text wx:if="{{item.rejectRole}}" class="summary-normal">{{item.rejectRole}}</text>
+      <text wx:if="{{item.rejectText}}" class="summary-normal">{{item.rejectText}}</text>
+    </view>
+    <view wx:if="{{!item.isCanceled && (item.reward || item.gameTitle)}}" class="complete-extra">
+      <text wx:if="{{item.reward}}" class="complete-reward">{{item.reward}}</text>
+      <text wx:if="{{item.reward && item.gameTitle}}" class="complete-divider">|</text>
+      <text wx:if="{{item.gameTitle}}" class="complete-topic">{{item.gameTitle}}</text>
+    </view>
+    <text wx:if="{{item.reason}}" class="complete-reason">{{item.reason}}</text>
+  </view>
+</view>

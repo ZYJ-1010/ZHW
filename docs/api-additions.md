@@ -1319,3 +1319,103 @@ GET /api/app/game-invites/players
 3. 玩家列表字段命名使用 `id/name/avatarUrl/tag/desc/meta`，还是沿用用户资料 DTO 字段。
 4. 最近联系列表排序依据是最近沟通时间、合作次数，还是后台推荐分。
 5. “添加新的玩家”列表是否需要分页字段 `page/pageSize/hasMore`。
+
+## 23. 领路人组局进度查询页列表接口
+
+记录日期：2026-06-22
+
+模块：组局 / 领路人组局进度查询
+
+页面：`pages/game/guide-progress/index`
+
+功能：进入“组局消息”页时从后台获取进行中组局数量、进行中卡片和最近完成卡片。当前页面只按 1 个玩家对 1 个行家展示，卡片左侧为玩家，右侧为行家；卡片外框颜色按确认状态渲染：已有任一方确认时使用橙色外框，双方均未确认时使用蓝色外框。多玩家 / 多行家的展示形式另记在 `docs/follow-ups.md`，待甲方补充。
+
+候选接口：
+
+```text
+GET /api/app/game-invites/guide-progress
+```
+
+建议返回：
+
+```json
+{
+  "activeCount": 2,
+  "activeParties": [
+    {
+      "id": "invite-progress-001",
+      "status": "waiting_expert",
+      "statusText": "进行中",
+      "timeText": "剩余23小时",
+      "progressText": "等待行家确认",
+      "progressPercent": 49,
+      "noticeText": "行家尚未查看邀请，可发送提醒",
+      "players": [
+        {
+          "id": "player_001",
+          "name": "李娜",
+          "avatarUrl": "",
+          "avatarText": "LN",
+          "confirmStatus": "confirmed",
+          "statusText": "已确认"
+        }
+      ],
+      "experts": [
+        {
+          "id": "expert_001",
+          "name": "王强",
+          "avatarUrl": "",
+          "avatarText": "WQ",
+          "confirmStatus": "pending",
+          "statusText": "待确认"
+        }
+      ]
+    }
+  ],
+  "completedParties": [
+    {
+      "id": "invite-complete-001",
+      "resultStatus": "success",
+      "title": "组局成功",
+      "timeText": "昨天",
+      "summaryPrefix": "你引荐的",
+      "completedMemberText": "张伟 与 李娜",
+      "players": [{ "id": "player_001", "name": "张伟" }],
+      "experts": [{ "id": "expert_001", "name": "李娜" }],
+      "summarySuffix": "已成功组局",
+      "rewardText": "+50积分",
+      "gameTitle": "产品经理交流会"
+    },
+    {
+      "id": "invite-complete-002",
+      "resultStatus": "canceled",
+      "title": "组局已取消",
+      "timeText": "3天前",
+      "players": [{ "id": "player_002", "name": "王芳" }],
+      "rejectName": "王芳",
+      "rejectRoleText": "玩家",
+      "rejectText": "婉拒了组局邀请",
+      "reasonText": "原因：时间冲突"
+    }
+  ]
+}
+```
+
+当前前端接入口径：
+
+- `activeCount` 用于标题 `进行中的组局 X`，进入页面时请求接口获取。
+- `activeParties[].players[0]` 展示在卡片左侧，`experts[0]` 展示在右侧。
+- `confirmStatus/statusText` 用于每个人的确认状态展示。
+- `progressPercent/progressText` 由后台返回；后台未返回百分比时前端按已确认人数做兜底推算。
+- `noticeText` 当前只展示提示，不在列表页发送提醒；提醒功能后续放到领路人查看组局详情页处理。
+- `completedParties` 作为最近完成卡片列表渲染，页面只展示后台给出的卡片信息。
+- 成功卡展示 `title`、`completedMemberText`、`summaryPrefix`、`summarySuffix`、`rewardText`、`gameTitle` 和 `timeText`。
+- 取消卡展示 `title`、`rejectName`、`rejectRoleText`、`rejectText`、`reasonText` 和 `timeText`。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/game-invites/guide-progress`。
+2. 状态枚举是否使用 `waiting_expert`、`waiting_all`、`success`、`canceled`。
+3. 进行中数量是否由 `activeCount` 返回，还是以前端按 `activeParties.length` 兜底即可。
+4. 进入详情页需要的详情页 ID 使用 `id`、`invitationId` 还是独立 `gameInviteId`。
+5. 列表页是否需要分页；如果需要，补充 `page/pageSize/hasMore` 字段。
