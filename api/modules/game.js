@@ -36,6 +36,10 @@ function getGuideProgress(params) {
   return request.get('/api/app/game-invites/guide-progress', params)
 }
 
+function createGamePayment(data) {
+  return request.post('/api/app/game-payments/wechat', data)
+}
+
 module.exports = {
   getGames,
   getGameDetail,
@@ -45,5 +49,6 @@ module.exports = {
   getInvitePlayerConfig,
   getInviteRecentPlayers,
   getInvitePlayers,
-  getGuideProgress
+  getGuideProgress,
+  createGamePayment
 }

@@ -101,6 +101,12 @@
           "scene": null
         },
         {
+          "name": "组局-支付页",
+          "pathName": "pages/game/payment/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

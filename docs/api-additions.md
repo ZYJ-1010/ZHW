@@ -1419,3 +1419,87 @@ GET /api/app/game-invites/guide-progress
 3. 进行中数量是否由 `activeCount` 返回，还是以前端按 `activeParties.length` 兜底即可。
 4. 进入详情页需要的详情页 ID 使用 `id`、`invitationId` 还是独立 `gameInviteId`。
 5. 列表页是否需要分页；如果需要，补充 `page/pageSize/hasMore` 字段。
+
+## 24. 组局支付页微信支付下单接口
+
+记录日期：2026-06-22
+
+模块：组局 / 支付
+
+页面：`pages/game/payment/index`
+
+功能：用户在组局支付页点击 `微信支付` 时，前端需要先校验是否勾选 `我已了解并同意押金局规则`。未勾选时前端弹窗提示勾选；已勾选时，前端把支付金额和分成明细提交后台，由后台创建微信支付订单并返回 `wx.requestPayment` 所需参数。
+
+现有资料核对：
+
+- 当前项目代码和工程文档中未发现已定稿的组局微信支付接口。
+- `docs/architecture.md` 目前记录“一期免费局为主，支付相关页面只做状态和二期预留”。
+- 因此本接口为候选接口，待后端确认正式路径、字段、金额口径、分成口径和支付完成后的跳转规则。
+
+候选接口：
+
+```text
+POST /api/app/game-payments/wechat
+```
+
+当前前端提交 payload：
+
+```json
+{
+  "gameId": "game_001",
+  "scene": "deposit_game",
+  "payChannel": "wechat",
+  "amount": 100,
+  "currency": "CNY",
+  "agreementChecked": true,
+  "splits": [
+    { "key": "serviceFee", "label": "服务费", "amount": 10, "desc": "" },
+    { "key": "platformServiceFee", "label": "平台服务费", "amount": 2.5, "desc": "" },
+    { "key": "inviterReward", "label": "邀请人奖励", "amount": 5, "desc": "" },
+    { "key": "partnerReward", "label": "合伙人奖励", "amount": 2.5, "desc": "" },
+    { "key": "depositPool", "label": "押金池", "amount": 90, "desc": "完成任务后返还" }
+  ]
+}
+```
+
+建议返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "paymentOrderId": "pay_001",
+    "gameId": "game_001",
+    "amount": 100,
+    "currency": "CNY",
+    "paymentParams": {
+      "timeStamp": "1719000000",
+      "nonceStr": "nonce_xxx",
+      "package": "prepay_id=wx_xxx",
+      "signType": "RSA",
+      "paySign": "sign_xxx"
+    }
+  },
+  "requestId": "req_xxx"
+}
+```
+
+当前前端接入口径：
+
+- 未勾选同意规则时，不请求后台，直接弹窗提示用户勾选。
+- 已勾选时，请求 `POST /api/app/game-payments/wechat`。
+- 后台返回 `paymentParams` 后，前端调用 `wx.requestPayment`。
+- 微信支付面板中用户取消时，前端保留在当前支付页并提示 `已取消支付`，方便重新发起支付。
+- 页面底部 `取消` 按钮：若有上一页则 `navigateBack`；若编译模式直开且有 `gameId`，则跳转到 `pages/game/detail/index?gameId=...`；若没有 `gameId`，则跳转到 `pages/game/hall/index`。
+- 当前 mock 环境返回 `mockPayment: true`，只表示支付请求已提交，不调用真实 `wx.requestPayment`。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/game-payments/wechat`，还是放在 `/api/app/games/{gameId}/payments`。
+2. 金额单位使用元、分还是 decimal 字符串；当前前端展示和提交为人民币元。
+3. 分成明细是否允许前端提交，还是应由后台根据局模板、角色关系和业务规则重新计算并返回。
+4. `splits` 中 `serviceFee/platformServiceFee/inviterReward/partnerReward/depositPool` 的 key 是否符合后端命名。
+5. 支付成功后应跳转到组局成功页、组局详情页，还是保留当前页等待订单状态轮询。
+6. 是否需要支付结果查询接口，例如 `GET /api/app/game-payments/{paymentOrderId}`。
+7. 微信支付参数字段是否统一包在 `paymentParams` 下，签名算法 `signType` 使用 `RSA` 还是 `MD5`。

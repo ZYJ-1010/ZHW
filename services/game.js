@@ -66,11 +66,22 @@ async function respondGameInvitation(invitationId, action) {
   return result.data
 }
 
+async function createGamePayment(payload) {
+  const result = await gameApi.createGamePayment(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '创建支付订单失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
   getGameList,
   respondGameInvitation,
   getInvitePlayerConfig,
   getInviteRecentPlayers,
   getInvitePlayers,
-  getGuideProgress
+  getGuideProgress,
+  createGamePayment
 }

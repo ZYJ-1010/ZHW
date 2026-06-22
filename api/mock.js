@@ -312,6 +312,30 @@ function respondGameInvitation(data = {}) {
   }))
 }
 
+function createGamePayment(data = {}) {
+  const amount = Number(data.amount || 0)
+  const splits = Array.isArray(data.splits) ? data.splits : []
+
+  if (!data.agreementChecked) {
+    return wait(fail(40002, '请先同意押金局规则'))
+  }
+
+  if (!amount || amount <= 0) {
+    return wait(fail(40003, '支付金额错误'))
+  }
+
+  return wait(ok({
+    paymentOrderId: `mock_game_payment_${Date.now()}`,
+    gameId: data.gameId || '',
+    scene: data.scene || 'deposit_game',
+    payChannel: data.payChannel || 'wechat',
+    amount,
+    currency: data.currency || 'CNY',
+    splits,
+    mockPayment: true
+  }))
+}
+
 function setMockRealnameStatus(status) {
   mockCurrentRealnameStatus = status
 
@@ -477,6 +501,10 @@ function handleRequest(options) {
     return wait(ok(mockGuideProgress))
   }
 
+  if (method === 'POST' && url === '/api/app/game-payments/wechat') {
+    return createGamePayment(options.data || {})
+  }
+
   if (method === 'POST' && /^\/api\/app\/game-invitations\/[^/]+\/respond$/.test(url)) {
     return respondGameInvitation(options.data || {})
   }
@@ -493,5 +521,6 @@ module.exports = {
   loginWithPassword,
   resetPassword,
   submitRealnameAuth,
-  verifyInvite
+  verifyInvite,
+  createGamePayment
 }

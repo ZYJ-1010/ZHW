@@ -22,6 +22,7 @@ const ROUTES = {
   gameGuideProgressDetail: 'pages/game/guide-progress-detail/index',
   gameShare: 'pages/game/share/index',
   gameInvite: 'pages/game/invite/index',
+  gamePayment: 'pages/game/payment/index',
   gameApplications: 'pages/game/applications/index',
   gameDelivery: 'pages/game/delivery/index',
   gameReview: 'pages/game/review/index',

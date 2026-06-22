@@ -1,0 +1,255 @@
+page {
+  width: 100%;
+  height: 100%;
+  background: #efefef;
+}
+
+.game-payment-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+.game-payment-scroll {
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+.game-payment-page {
+  min-height: 100%;
+  padding: 40rpx 36rpx 72rpx;
+  box-sizing: border-box;
+  color: #f6f7fb;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.payment-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-bottom: 28rpx;
+}
+
+.payment-title {
+  color: #f6f7fb;
+  font-size: 40rpx;
+  font-weight: 400;
+  line-height: 48rpx;
+}
+
+.payment-subtitle {
+  color: #aeb5d6;
+  font-size: 24rpx;
+  line-height: 28rpx;
+}
+
+.payment-card {
+  width: 100%;
+  padding: 28rpx 30rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 36rpx;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.payment-card + .payment-card,
+.agreement-row + .payment-card,
+.agreement-row,
+.payment-actions {
+  margin-top: 24rpx;
+}
+
+.deposit-card {
+  min-height: 304rpx;
+}
+
+.rule-card {
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.points-card {
+  min-height: 204rpx;
+}
+
+.payment-card-title {
+  display: block;
+  color: #f6f7fb;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 42rpx;
+}
+
+.payment-card-title.compact {
+  font-size: 32rpx;
+  line-height: 38rpx;
+}
+
+.payment-muted {
+  display: block;
+  margin-top: 14rpx;
+  color: #aeb5d6;
+  font-size: 24rpx;
+  line-height: 38rpx;
+}
+
+.payment-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  margin-top: 18rpx;
+}
+
+.payment-breakdown-row {
+  display: flex;
+  align-items: flex-start;
+  min-height: 34rpx;
+  color: #aeb5d6;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.payment-breakdown-marker {
+  flex: none;
+  width: 34rpx;
+}
+
+.payment-breakdown-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.payment-breakdown-value {
+  flex: none;
+  margin-left: 16rpx;
+  color: #c7cceb;
+}
+
+.payment-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin-top: 18rpx;
+}
+
+.payment-rule-item {
+  display: flex;
+  align-items: flex-start;
+  color: #aeb5d6;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.payment-rule-icon {
+  flex: none;
+  width: 38rpx;
+  color: #62d283;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.payment-rule-icon.warning {
+  color: #f1bd42;
+}
+
+.payment-rule-icon.danger {
+  color: #ff6b7d;
+}
+
+.payment-rule-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.agreement-row {
+  display: flex;
+  align-items: center;
+  min-height: 82rpx;
+  padding: 0 26rpx;
+  border: 2rpx solid rgba(94, 160, 255, 0.4);
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background: rgba(94, 160, 255, 0.15);
+}
+
+.agreement-check {
+  position: relative;
+  flex: none;
+  width: 30rpx;
+  height: 30rpx;
+  margin-right: 14rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.agreement-check.checked {
+  border-color: #ffffff;
+  background: #5ea0ff;
+}
+
+.agreement-check.checked::after {
+  position: absolute;
+  left: 8rpx;
+  top: 3rpx;
+  width: 8rpx;
+  height: 15rpx;
+  border-right: 3rpx solid #ffffff;
+  border-bottom: 3rpx solid #ffffff;
+  transform: rotate(42deg);
+  content: '';
+}
+
+.agreement-text {
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.payment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.payment-actions .payment-button {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  height: 96rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 28rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.payment-actions .payment-button + .payment-button {
+  margin-left: 20rpx;
+}
+
+.payment-actions .payment-button::after {
+  border: 0;
+}
+
+.payment-button.secondary {
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  color: #aeb5d6;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.payment-button.primary {
+  color: #251600;
+  background: linear-gradient(90deg, #f3c44f 0%, #e4a72f 100%);
+}

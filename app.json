@@ -25,6 +25,7 @@
     "pages/game/guide-progress-detail/index",
     "pages/game/share/index",
     "pages/game/invite/index",
+    "pages/game/payment/index",
     "pages/game/applications/index",
     "pages/game/delivery/index",
     "pages/game/review/index",

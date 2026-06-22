@@ -1,0 +1,60 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="game-payment-shell">
+    <scroll-view class="game-payment-scroll" scroll-y enhanced show-scrollbar="false">
+      <view class="game-payment-page">
+        <view class="payment-heading">
+          <text class="payment-title">确认支付</text>
+          <text class="payment-subtitle">押金局支付说明</text>
+        </view>
+
+        <view class="payment-card deposit-card">
+          <text class="payment-card-title">你正在参与一个【押金局】</text>
+          <text class="payment-muted">支付金额：{{payment.amount}}元</text>
+          <view class="payment-breakdown">
+            <view wx:for="{{feeBreakdown}}" wx:key="label" class="payment-breakdown-row">
+              <text class="payment-breakdown-marker">{{item.marker}}</text>
+              <text class="payment-breakdown-label">{{item.label}}</text>
+              <text class="payment-breakdown-value">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="payment-card rule-card">
+          <text class="payment-card-title compact">规则说明</text>
+          <view class="payment-rule-list">
+            <view wx:for="{{rules}}" wx:key="text" class="payment-rule-item">
+              <text class="payment-rule-icon {{item.type}}">{{item.icon}}</text>
+              <text class="payment-rule-text">{{item.text}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="agreement-row" bindtap="toggleAgreement">
+          <view class="agreement-check {{agreementChecked ? 'checked' : ''}}"></view>
+          <text class="agreement-text">我已了解并同意押金局规则</text>
+        </view>
+
+        <view class="payment-card points-card">
+          <text class="payment-card-title">本次预计获得积分</text>
+          <text class="payment-muted">{{pointsDescription}}</text>
+        </view>
+
+        <view class="payment-actions">
+          <button class="payment-button secondary" hover-class="none" bindtap="handleCancel">取消</button>
+          <button
+            class="payment-button primary"
+            hover-class="none"
+            loading="{{paymentSubmitting}}"
+            disabled="{{paymentSubmitting}}"
+            bindtap="handleWechatPay"
+          >微信支付</button>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</home-shell>
