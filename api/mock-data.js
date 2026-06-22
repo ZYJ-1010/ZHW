@@ -823,6 +823,81 @@ const mockGameManage = {
   ]
 }
 
+const mockPlayerGameManage = {
+  currentTime: '2026-03-19T14:00:00+08:00',
+  summary: {
+    label: '本月服务支出',
+    amount: 3200,
+    amountText: '¥3,200',
+    activeCount: 1,
+    completedCount: 4,
+    canceledCount: 1
+  },
+  orders: [
+    {
+      id: 'player-manage-active-001',
+      statusType: 'active',
+      statusText: '服务进行中',
+      ref: 'REF-20260320-001',
+      serviceOrderId: 'SO-20260320-001',
+      fundAmount: 800,
+      expert: {
+        id: 'expert-zhang',
+        name: '张专家',
+        avatarText: 'ZH'
+      },
+      guide: {
+        id: 'guide-wang',
+        name: '王引荐'
+      },
+      serviceTitle: '产品架构咨询',
+      startedAt: '2026-03-10T14:00:00+08:00',
+      expectedDeliveryAt: '2026-03-25T14:00:00+08:00',
+      noticeText: '取消需赔付一定比例金额给行家',
+      canContactExpert: true,
+      canCancel: true
+    },
+    {
+      id: 'player-manage-complete-001',
+      statusType: 'complete',
+      statusText: '已完成',
+      ref: 'REF-20260318-002',
+      fundAmount: 1200,
+      expert: {
+        id: 'expert-wang',
+        name: '王导师',
+        avatarText: 'WM'
+      },
+      guide: {
+        id: 'guide-chen',
+        name: '陈引荐'
+      },
+      serviceTitle: '品牌定位咨询',
+      completeSummary: '服务已完成',
+      completedAtText: '完成时间：2026-03-19 18:30',
+      resultText: '已完成验收，可查看服务记录',
+      reviewStatus: 'pending',
+      canReview: true,
+      reviewActionText: '评价双方'
+    },
+    {
+      id: 'player-manage-canceled-001',
+      statusType: 'canceled',
+      statusText: '已取消（已赔付）',
+      ref: 'REF-20260310-003',
+      compensationAmountText: '¥120',
+      expert: {
+        id: 'expert-liu',
+        name: '刘设计师',
+        avatarText: 'LI'
+      },
+      serviceTitle: 'UI设计服务',
+      reasonSummary: '我主动取消 · 赔付15%',
+      reasonText: '取消原因：需求变更，不再需要服务'
+    }
+  ]
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -835,5 +910,6 @@ module.exports = {
   mockInvitePlayerConfig,
   mockInvitePlayers,
   mockGuideProgress,
-  mockGameManage
+  mockGameManage,
+  mockPlayerGameManage
 }

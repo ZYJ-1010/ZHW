@@ -1815,3 +1815,87 @@ POST /api/app/game-services/{serviceOrderId}/reviews
 4. 状态枚举是否固定为 `processing/completed/canceled`。
 5. 已完成卡片的 `待评价` 状态是否由 `reviewStatus` 或 `canReviewBoth` 返回。
 6. 已取消卡片是否展示取消原因、取消方、赔付 / 退款金额，以及这些字段命名。
+## 30. 玩家组局管理页列表与服务进度接口
+
+记录日期：2026-06-23
+
+模块：组局 / 组局管理 - 玩家
+
+页面：`pages/game/player-manage/index`
+
+功能：玩家侧“组局-组局管理”页面的顶部服务支出统计、tab 数量、服务卡片、服务进度和评价状态需要由后台返回。前端只负责展示和按时间计算进度百分比。
+
+候选接口：
+
+```text
+GET /api/app/games/player/manage
+```
+
+建议返回：
+
+```json
+{
+  "currentTime": "2026-03-19T14:00:00+08:00",
+  "summary": {
+    "label": "本月服务支出",
+    "amount": 3200,
+    "amountText": "¥3,200",
+    "activeCount": 1,
+    "completedCount": 4,
+    "canceledCount": 1
+  },
+  "orders": [
+    {
+      "id": "player-manage-active-001",
+      "statusType": "active",
+      "statusText": "服务进行中",
+      "ref": "REF-20260320-001",
+      "serviceOrderId": "SO-20260320-001",
+      "fundAmount": 800,
+      "expert": { "id": "expert-zhang", "name": "张专家", "avatarText": "ZH" },
+      "guide": { "id": "guide-wang", "name": "王引荐" },
+      "serviceTitle": "产品架构咨询",
+      "startedAt": "2026-03-10T14:00:00+08:00",
+      "expectedDeliveryAt": "2026-03-25T14:00:00+08:00",
+      "noticeText": "取消需赔付一定比例金额给行家",
+      "canContactExpert": true,
+      "canCancel": true
+    },
+    {
+      "id": "player-manage-complete-001",
+      "statusType": "complete",
+      "statusText": "已完成",
+      "ref": "REF-20260318-002",
+      "fundAmount": 1200,
+      "expert": { "id": "expert-wang", "name": "王导师", "avatarText": "WM" },
+      "guide": { "id": "guide-chen", "name": "陈引荐" },
+      "serviceTitle": "品牌定位咨询",
+      "completedAtText": "完成时间：2026-03-19 18:30",
+      "reviewStatus": "pending",
+      "canReview": true,
+      "reviewActionText": "评价双方"
+    }
+  ]
+}
+```
+
+当前前端接入口径：
+
+- 页面进入时请求 `GET /api/app/games/player/manage`。
+- 统计卡和 tab 数量读取 `summary`。
+- 卡片编号读取 `ref/refNo/orderNo/serviceNo/gameNo/groupNo`。
+- 资金金额优先读取 `amountText/serviceAmountText/fundAmountText/expertAmountText/serviceFeeText/priceText`；若只返回 `amount/fundAmount/expertAmount/serviceFee` 数字，前端格式化为人民币。
+- 专家信息优先读取 `expert.name/expert.nickname/expert.avatarText`，也兼容平铺的 `expertName/avatarText`。
+- 领路人信息优先读取 `guide.name/guide.nickname`，也兼容平铺的 `guideName`。
+- 预计交付时间读取 `expectedDeliveryAt/deliveryDeadlineAt/deliveryAt/dueAt`，显示为 `预计交付：YYYY-MM-DD HH:mm`。
+- 服务进度百分比和进度条由前端根据 `startedAt`、`expectedDeliveryAt` 与 `currentTime/serverTime` 计算；如果后台不返回 `currentTime/serverTime`，前端用本机当前时间。后台也可返回 `remainingDays/leftDays` 覆盖剩余天数显示。
+- 已完成服务的评价按钮由后台字段控制：`reviewStatus/evaluateStatus/commentStatus`、`reviewed/hasReviewed/hasEvaluated`、`canReview/canReviewBoth`。未评价显示 `评价双方`，已评价显示 `已评价` 并禁用。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/games/player/manage`。
+2. 进度计算的起点应使用 `startedAt`、组局成功时间，还是行家确认服务开始时间。
+3. 剩余天数以后端 `remainingDays` 为准，还是前端按交付时间实时计算。
+4. 评价状态枚举使用 `pending/reviewed`，还是使用现有评价模块状态。
+5. 点击 `联系行家` 后应进入已有会话还是调用创建会话接口。
+6. 点击 `申请取消` 后取消窗口需要展示哪些赔付规则、取消原因和确认接口字段。

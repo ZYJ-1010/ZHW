@@ -10,7 +10,8 @@ const {
   mockInvitePlayerConfig,
   mockInvitePlayers,
   mockGuideProgress,
-  mockGameManage
+  mockGameManage,
+  mockPlayerGameManage
 } = require('./mock-data')
 
 let mockCurrentRealnameStatus = 'pending'
@@ -506,6 +507,9 @@ function handleRequest(options) {
     return wait(ok(mockGameManage))
   }
 
+  if (method === 'GET' && url === '/api/app/games/player/manage') {
+    return wait(ok(mockPlayerGameManage))
+  }
 
   if (method === 'POST' && url === '/api/app/game-payments/wechat') {
     return createGamePayment(options.data || {})

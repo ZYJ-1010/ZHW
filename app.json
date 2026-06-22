@@ -18,6 +18,7 @@
     "pages/game/create/index",
     "pages/game/detail/index",
     "pages/game/manage/index",
+    "pages/game/player-manage/index",
     "pages/game/audit/index",
     "pages/game/audit-detail/index",
     "pages/game/greet/index",

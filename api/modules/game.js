@@ -40,6 +40,9 @@ function getGameManage(params) {
   return request.get('/api/app/games/my/manage', params)
 }
 
+function getPlayerGameManage(params) {
+  return request.get('/api/app/games/player/manage', params)
+}
 
 function createGamePayment(data) {
   return request.post('/api/app/game-payments/wechat', data)
@@ -56,5 +59,6 @@ module.exports = {
   getInvitePlayers,
   getGuideProgress,
   getGameManage,
+  getPlayerGameManage,
   createGamePayment
 }

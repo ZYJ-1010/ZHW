@@ -53,6 +53,12 @@
           "scene": null
         },
         {
+          "name": "组局-组局管理",
+          "pathName": "pages/game/player-manage/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-审核列表",
           "pathName": "pages/game/audit/index",
           "query": "",

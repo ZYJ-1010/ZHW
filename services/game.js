@@ -60,6 +60,15 @@ async function getGameManage(params) {
   return result.data
 }
 
+async function getPlayerGameManage(params) {
+  const result = await gameApi.getPlayerGameManage(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取玩家组局管理失败')
+  }
+
+  return result.data
+}
 
 async function respondGameInvitation(invitationId, action) {
   if (!invitationId) {
@@ -95,5 +104,6 @@ module.exports = {
   getInvitePlayers,
   getGuideProgress,
   getGameManage,
+  getPlayerGameManage,
   createGamePayment
 }
