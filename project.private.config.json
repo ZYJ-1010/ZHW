@@ -179,6 +179,18 @@
           "scene": null
         },
         {
+          "name": "组局-服务评价-玩家",
+          "pathName": "pages/game/review/index",
+          "query": "role=player",
+          "scene": null
+        },
+        {
+          "name": "组局-服务评价-领路人",
+          "pathName": "pages/game/review/index",
+          "query": "role=guide",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

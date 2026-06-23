@@ -4,52 +4,76 @@ const SATISFACTION_OPTIONS = [
   { id: 'bad', emoji: '☹️', title: '不好玩', desc: '有待改进' }
 ]
 
-const EVALUATION_SECTIONS = [
-  {
+const TARGET_EVALUATION_MAP = {
+  expert: {
+    id: 'expert',
+    avatarText: 'ZH',
+    avatarTheme: 'blue',
+    title: '评价行家：张专家',
+    desc: '产品架构咨询 · 已完成',
+    ratingTitle: '服务质量',
+    tagTitle: '行家标签（多选）',
+    tags: ['专业能力强', '交付及时', '沟通顺畅', '超出预期', '性价比高', '推荐再合作'],
+    placeholder: '分享你的服务体验...'
+  },
+  player: {
     id: 'player',
     avatarText: 'WA',
     avatarTheme: 'pink',
     title: '评价玩家：王总',
     desc: '需求确认 · 配合度',
     ratingTitle: '合作满意度',
-    score: 0,
     tagTitle: '玩家标签（多选）',
-    tags: [
-      { label: '需求明确', selected: false },
-      { label: '配合度高', selected: false },
-      { label: '付款及时', selected: false },
-      { label: '沟通友好', selected: false },
-      { label: '长期合作潜力', selected: false }
-    ],
-    comment: '',
+    tags: ['需求明确', '配合度高', '付款及时', '沟通友好', '长期合作潜力'],
     placeholder: '写下对需求方的评价...'
   },
-  {
+  guide: {
     id: 'guide',
     avatarText: 'WA',
     avatarTheme: 'orange',
     title: '评价领路人：王引荐',
     desc: '撮合匹配度 · 协助交付',
     ratingTitle: '引荐满意度',
-    score: 0,
     tagTitle: '邀请标签（多选）',
-    tags: [
-      { label: '匹配精准', selected: false },
-      { label: '响应及时', selected: false },
-      { label: '协助积极', selected: false },
-      { label: '沟通高效', selected: false },
-      { label: '值得信赖', selected: false }
-    ],
-    comment: '',
+    tags: ['匹配精准', '响应及时', '协助积极', '沟通高效', '值得信赖'],
     placeholder: '评价引荐人的服务质量...'
   }
-]
+}
 
-function cloneEvaluationSections() {
-  return EVALUATION_SECTIONS.map((section) => ({
+const ROLE_TARGETS = {
+  expert: ['player', 'guide'],
+  player: ['expert', 'guide'],
+  guide: ['expert', 'player']
+}
+
+const ROLE_ALIASES = {
+  master: 'expert',
+  specialist: 'expert',
+  leader: 'guide',
+  referrer: 'guide'
+}
+
+function normalizeRole(role) {
+  const normalized = String(role || '').trim()
+
+  return ROLE_TARGETS[normalized]
+    ? normalized
+    : ROLE_ALIASES[normalized] || 'expert'
+}
+
+function cloneEvaluationSection(targetType) {
+  const section = TARGET_EVALUATION_MAP[targetType]
+
+  return {
     ...section,
-    tags: section.tags.map((tag) => ({ ...tag }))
-  }))
+    score: 0,
+    tags: section.tags.map((label) => ({ label, selected: false })),
+    comment: ''
+  }
+}
+
+function getEvaluationSectionsByRole(role) {
+  return ROLE_TARGETS[role].map(cloneEvaluationSection)
 }
 
 Page({
@@ -60,9 +84,19 @@ Page({
     storyLength: 0,
     storyMaxLength: 100,
     stars: [1, 2, 3, 4, 5],
-    evaluationSections: cloneEvaluationSections(),
+    viewerRole: 'expert',
+    evaluationSections: getEvaluationSectionsByRole('expert'),
     npsScores: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     npsScore: 7
+  },
+
+  onLoad(options = {}) {
+    const viewerRole = normalizeRole(options.role)
+
+    this.setData({
+      viewerRole,
+      evaluationSections: getEvaluationSectionsByRole(viewerRole)
+    })
   },
 
   onSatisfactionTap(event) {

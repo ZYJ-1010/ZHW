@@ -324,6 +324,10 @@ page {
   background: #f97316;
 }
 
+.avatar.blue {
+  background: #3b82f6;
+}
+
 .person-copy {
   display: flex;
   flex: 1;
