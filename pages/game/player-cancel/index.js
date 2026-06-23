@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const toast = require('../../../utils/toast')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -203,50 +204,8 @@ function buildSmartSuggestion(detail) {
   return `行家已投入${detail.servedDurationText}服务，建议设置${detail.suggestionMinRate}%-${detail.suggestionMaxRate}%赔付比例，体现对行家时间成本的尊重。`
 }
 
-function getChineseSurnameInitials(name) {
-  const surname = String(name || '').trim().charAt(0)
-  const initialsMap = {
-    张: 'ZH',
-    王: 'WA',
-    李: 'LI',
-    刘: 'LI',
-    陈: 'CH',
-    杨: 'YA',
-    黄: 'HU',
-    赵: 'ZH',
-    吴: 'WU',
-    周: 'ZH',
-    徐: 'XU',
-    孙: 'SU',
-    马: 'MA',
-    朱: 'ZH',
-    胡: 'HU',
-    郭: 'GU',
-    何: 'HE',
-    林: 'LI',
-    高: 'GA',
-    罗: 'LU',
-    郑: 'ZH'
-  }
-
-  return initialsMap[surname] || ''
-}
-
 function getAvatarText(name, fallback) {
-  const text = String(name || '').trim()
-  const chineseInitials = getChineseSurnameInitials(text)
-
-  if (chineseInitials) {
-    return chineseInitials
-  }
-
-  const letters = text.match(/[A-Za-z]/g)
-
-  if (letters && letters.length) {
-    return letters.slice(0, 2).join('').toUpperCase()
-  }
-
-  return fallback
+  return getSurnameInitials(name, fallback)
 }
 
 function buildCancelDetail(options = {}) {
@@ -255,9 +214,9 @@ function buildCancelDetail(options = {}) {
     DEFAULT_CANCEL_DETAIL.contractAmount
   )
   const playerName = decodeOption(options.playerName) || DEFAULT_CANCEL_DETAIL.playerName
-  const playerAvatarText = decodeOption(options.playerAvatarText) || getAvatarText(playerName, DEFAULT_CANCEL_DETAIL.playerAvatarText)
+  const playerAvatarText = getAvatarText(playerName, decodeOption(options.playerAvatarText) || DEFAULT_CANCEL_DETAIL.playerAvatarText)
   const expertName = decodeOption(options.expertName) || DEFAULT_CANCEL_DETAIL.expertName
-  const avatarText = decodeOption(options.expertAvatarText) || getAvatarText(expertName, DEFAULT_CANCEL_DETAIL.expertAvatarText)
+  const avatarText = getAvatarText(expertName, decodeOption(options.expertAvatarText) || DEFAULT_CANCEL_DETAIL.expertAvatarText)
   const minRate = getRateNumber(options.minRate, DEFAULT_CANCEL_DETAIL.minRate)
   const maxRate = getRateNumber(options.maxRate, DEFAULT_CANCEL_DETAIL.maxRate)
   const suggestedRate = clampRate(options.suggestedRate || options.rate, minRate, maxRate)

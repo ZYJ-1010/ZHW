@@ -1,6 +1,11 @@
 const authService = require('../../../services/auth')
 const toast = require('../../../utils/toast')
-const { ROUTES } = require('../../../config/routes')
+const env = require('../../../config/env')
+
+const TEST_PHONE = '13888888888'
+const TEST_CODE = '123456'
+const TEST_PASSWORD = 'Test123456'
+const FORGOT_WALKTHROUGH_STEPS = ['phone', 'password', 'success']
 
 Page({
   data: {
@@ -9,9 +14,42 @@ Page({
     verifyCode: '',
     password: '',
     confirmPassword: '',
+    isUiPreview: false,
     isSendingCode: false,
     isCheckingCode: false,
     isSubmitting: false
+  },
+
+  onLoad(options = {}) {
+    const previewStepMap = {
+      phone: 'phone',
+      password: 'password',
+      success: 'success'
+    }
+
+    if (!env.isMock) {
+      if (options.ui === '1') {
+        this.setData({
+          isUiPreview: true,
+          step: previewStepMap[options.step] || 'phone',
+          phone: TEST_PHONE,
+          verifyCode: TEST_CODE,
+          password: TEST_PASSWORD,
+          confirmPassword: TEST_PASSWORD
+        })
+      }
+
+      return
+    }
+
+    this.setData({
+      isUiPreview: options.ui === '1',
+      step: previewStepMap[options.step] || 'phone',
+      phone: TEST_PHONE,
+      verifyCode: TEST_CODE,
+      password: TEST_PASSWORD,
+      confirmPassword: TEST_PASSWORD
+    })
   },
 
   onPhoneInput(event) {
@@ -36,6 +74,30 @@ Page({
     this.setData({
       confirmPassword: String(event.detail.value || '')
     })
+  },
+
+  showForgotWalkthroughStep(step) {
+    if (!this.data.isUiPreview || !FORGOT_WALKTHROUGH_STEPS.includes(step)) {
+      return
+    }
+
+    this.setData({
+      step
+    })
+  },
+
+  showPreviousForgotWalkthrough() {
+    const currentIndex = FORGOT_WALKTHROUGH_STEPS.indexOf(this.data.step)
+    const nextIndex = Math.max(0, currentIndex - 1)
+
+    this.showForgotWalkthroughStep(FORGOT_WALKTHROUGH_STEPS[nextIndex])
+  },
+
+  showNextForgotWalkthrough() {
+    const currentIndex = FORGOT_WALKTHROUGH_STEPS.indexOf(this.data.step)
+    const nextIndex = Math.min(FORGOT_WALKTHROUGH_STEPS.length - 1, currentIndex + 1)
+
+    this.showForgotWalkthroughStep(FORGOT_WALKTHROUGH_STEPS[nextIndex])
   },
 
   async getVerifyCode() {
@@ -148,15 +210,6 @@ Page({
   },
 
   backToLogin() {
-    const pages = getCurrentPages()
-
-    if (pages.length > 1) {
-      wx.navigateBack()
-      return
-    }
-
-    wx.redirectTo({
-      url: `/${ROUTES.login}`
-    })
+    toast.developing()
   }
 })

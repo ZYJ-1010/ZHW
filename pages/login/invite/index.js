@@ -2,6 +2,9 @@ const inviteService = require('../../../services/invite')
 const toast = require('../../../utils/toast')
 const { INVITE_STATUS_TEXT, INVITE_TIP } = require('../../../config/constants')
 const { ROUTES } = require('../../../config/routes')
+const env = require('../../../config/env')
+
+const TEST_INVITE_CODE = 'ENJOY2026'
 
 function getInviteCodeFromOptions(options) {
   const directCode = String(options.code || options.inviteCode || '').trim()
@@ -36,7 +39,7 @@ Page({
   },
 
   onLoad(options) {
-    const inviteCode = getInviteCodeFromOptions(options)
+    const inviteCode = getInviteCodeFromOptions(options) || (env.isMock ? TEST_INVITE_CODE : '')
 
     if (!inviteCode) {
       return
@@ -109,7 +112,7 @@ Page({
 
     inviteService.saveInviteContext(this.data.invite)
     wx.redirectTo({
-      url: `/${ROUTES.login}?inviteCode=${this.data.invite.code}`
+      url: `/${ROUTES.login}?ui=1&mode=invite&inviteCode=${this.data.invite.code}`
     })
   },
 

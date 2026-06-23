@@ -1209,7 +1209,77 @@ POST /api/app/role-applications
 3. 个人简介字段使用 `intro` 还是 `personalIntro`。
 4. 服务定价字段使用 `price` 还是 `hourlyPrice`，金额类型是字符串还是 number。
 5. 资质文件字段使用 `uploadFiles` 还是 `qualifications`。
-## 20. 组局发起邀请页预算上限与分成比例字段
+
+
+## 20. 组局申请加入页微信授权信息字段
+
+记录日期：2026-06-21
+
+模块：组局 / 入局申请
+
+页面：`pages/game/apply/index`
+
+功能：申请加入页顶部“微信信息”卡片需要展示用户的微信授权头像和微信授权昵称。该卡片文案当前为“微信信息 / 昵称：张伟 · 头像已同步”，生产环境不应简单假设等同于小程序平台个人资料昵称和头像。
+
+现有资料核对：
+
+- `GET /api/app/users/me` 已返回 `CurrentUserDTO`，包含用户资料类字段。
+- 登录/注册接口中有 `nickname`、`avatarUrl` 入参和 `user.nickname`、`user.avatarUrl` 返回字段。
+- 当前文档未明确 `CurrentUserDTO.nickname/avatarUrl` 是“微信授权信息”，还是“平台个人资料信息”。若用户在小程序内修改昵称/头像，这两个来源可能不一致。
+- 入局申请最终口径为 `POST /api/app/games/{gameId}/apply`，入参目前为 `applyReason`、`fromGuideId`，与微信信息卡片预填数据无直接字段关系。
+
+建议后端明确一种方案：
+
+```text
+GET /api/app/users/me
+```
+
+在 `CurrentUserDTO` 中补充分离字段：
+
+```json
+{
+  "nickname": "平台昵称",
+  "avatarUrl": "平台头像",
+  "wechatProfile": {
+    "nickname": "微信授权昵称",
+    "avatarUrl": "微信授权头像",
+    "synced": true,
+    "authorizedAt": "2026-06-21T12:00:00+08:00"
+  }
+}
+```
+
+或新增独立接口：
+
+```text
+GET /api/app/users/me/wechat-profile
+```
+
+建议返回：
+
+```json
+{
+  "nickname": "微信授权昵称",
+  "avatarUrl": "微信授权头像",
+  "synced": true,
+  "authorizedAt": "2026-06-21T12:00:00+08:00"
+}
+```
+
+前端接入建议：
+
+- 申请加入页“微信信息”卡片优先展示微信授权信息：`wechatProfile.nickname`、`wechatProfile.avatarUrl`。
+- 如果微信授权信息为空，展示授权缺失态或引导同步，不自动用平台资料冒充微信授权信息，除非产品明确允许兜底。
+- 当前静态开发阶段仍使用写死默认值，后续联调时替换为后端返回字段。
+
+待后端 / 产品确认：
+
+1. `/api/app/users/me` 中的 `nickname/avatarUrl` 是否表示微信授权信息，还是平台个人资料信息。
+2. 是否需要把微信授权信息和平台个人资料信息分开返回。
+3. 微信头像昵称同步状态字段命名使用 `synced`、`wechatSynced` 还是 `avatarSynced`。
+4. 若用户未授权或授权过期，申请加入页应展示默认头像、平台资料兜底，还是弹出微信授权引导。
+
+## 21. 组局发起邀请页预算上限字段
 记录日期：2026-06-21
 
 模块：组局 / 发起邀请
@@ -1503,7 +1573,103 @@ POST /api/app/game-payments/wechat
 5. 支付成功后应跳转到组局成功页、组局详情页，还是保留当前页等待订单状态轮询。
 6. 是否需要支付结果查询接口，例如 `GET /api/app/game-payments/{paymentOrderId}`。
 7. 微信支付参数字段是否统一包在 `paymentParams` 下，签名算法 `signType` 使用 `RSA` 还是 `MD5`。
-## 25. 组局成功行家提示页详情接口
+
+## 25. 我的组局管理页统计与卡片列表接口
+
+记录日期：2026-06-22
+
+模块：组局 / 我的组局管理
+
+页面：`pages/game/manage/index`
+
+功能：页面顶部紫色统计卡中的 `本月服务支出`、`进行中 N单`、`已完成 N单`、`已取消 N单`，下方 tab 数量，以及 tab 下的组局卡片列表需要由后台返回，不能由前端写死。
+
+候选接口：
+
+```text
+GET /api/app/games/my/manage
+```
+
+建议返回：
+
+```json
+{
+  "summary": {
+    "label": "本月服务支出",
+    "amount": 3200,
+    "amountText": "¥3,200",
+    "activeCount": 1,
+    "completedCount": 4,
+    "canceledCount": 1
+  },
+  "orders": [
+    {
+      "id": "manage-active-001",
+      "statusType": "active",
+      "statusText": "服务进行中",
+      "ref": "REF-20260320-001",
+      "avatarText": "ZH",
+      "expertName": "张专家",
+      "serviceText": "产品架构咨询 · ¥800",
+      "guideName": "王引荐",
+      "progressPercent": 60,
+      "progressText": "60%",
+      "deliveryText": "预计交付：2026-03-25 14:00",
+      "elapsedText": "已进行 6/15 天",
+      "remainingText": "剩余 9 天",
+      "noticeText": "取消需赔付一定比例金额给行家"
+    },
+    {
+      "id": "manage-complete-001",
+      "statusType": "complete",
+      "statusText": "已完成",
+      "ref": "REF-20260318-002",
+      "avatarText": "WM",
+      "expertName": "王导师",
+      "serviceText": "品牌定位咨询 · ¥1,200",
+      "completeSummary": "服务已完成",
+      "amountText": "¥1,200",
+      "completedAtText": "完成时间：2026-03-19 18:30",
+      "resultText": "已完成验收，可查看服务记录"
+    },
+    {
+      "id": "manage-canceled-001",
+      "statusType": "canceled",
+      "statusText": "已取消（已赔付）",
+      "ref": "REF-20260310-003",
+      "avatarText": "LI",
+      "expertName": "刘设计师",
+      "serviceText": "UI设计服务",
+      "reasonSummary": "我主动取消 · 赔付15%",
+      "compensationAmountText": "¥120",
+      "reasonText": "取消原因：需求变更，不再需要服务"
+    }
+  ]
+}
+```
+
+当前前端接入口径：
+
+- 页面进入时请求 `GET /api/app/games/my/manage`。
+- `summary.label` 展示统计标题，默认兜底为 `本月服务支出`。
+- 金额优先使用 `amountText`；若只返回 `amount/serviceExpense/monthlyServiceExpense` 数字，前端格式化为 `¥3,200`。
+- 数量优先使用 `activeCount/completedCount/canceledCount`；前端也兼容 `ongoingCount/processingCount`、`completeCount/doneCount`、`cancelledCount/refundCount/refundCancelCount`。
+- 统计卡底部和 tab 数量共用同一组后台计数。
+- `orders` 用于渲染下方组局卡片列表，当前支持三种 `statusType`：`active`（服务进行中）、`complete`（已完成）、`canceled`（取消 / 退款）。
+- tab 切换时前端按 `statusType` 过滤：`active` 进入 `进行中`，`complete` 进入 `已完成`，`canceled` 进入 `退款/取消`。
+- 当前 mock 已按上述候选接口返回三种状态静态卡片，正式字段待后端确认后收敛。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/games/my/manage`。
+2. 金额单位使用元、分还是 decimal 字符串。
+3. 金额字段以后端直接返回 `amountText` 为准，还是前端按数值格式化。
+4. `已取消` 是否包含所有退款 / 取消单，还是仅包含已赔付取消单。
+5. 页面卡片列表是否由同一接口返回，还是拆分为统计接口和列表接口。
+6. 卡片状态枚举是否使用 `active/complete/canceled`，还是使用后端现有订单状态枚举。
+7. 已完成卡片是否需要展示评价入口、服务记录入口或再次邀约入口。
+
+## 26. 组局成功行家提示页详情接口
 
 记录日期：2026-06-22
 
@@ -1577,7 +1743,7 @@ GET /api/app/games/{gameId}/success-expert
 6. 当前用户在组局中的角色字段使用 `viewer.role`、`currentRole` 还是成员列表中的角色推导。
 7. 下一步列表是否由后台返回，还是前端按状态枚举本地生成。
 
-## 26. 组局成功领路人提示页后续跟进接口
+## 27. 组局成功领路人提示页后续跟进接口
 
 记录日期：2026-06-22
 
@@ -1610,6 +1776,244 @@ POST /api/app/games/{gameId}/deal-conversions
 3. 玩家与行家的反馈是否需要分别记录，是否需要回传反馈状态或积分奖励状态。
 4. 促成交易是否创建交易记录 / 合作记录，接口路径、请求字段和状态枚举待确认。
 5. 三个入口是否需要积分奖励发放规则，以及奖励是否由接口返回。
+
+## 28. 专家业务管理页进行中服务操作接口
+
+记录日期：2026-06-22
+
+模块：组局 / 我的业务管理 - 专家
+
+页面：`pages/game/manage/index`
+
+功能：专家角色进入“我的业务管理”后，进行中服务卡片的 4 个按钮后续需要接真实业务逻辑。当前页面只做静态 UI 和待接入提示，不实现真实状态变更、赔付取消或发消息。
+
+涉及按钮：
+
+```text
+提前结束交付
+取消并赔付
+联系玩家
+联系领路人
+```
+
+候选接口：
+
+```text
+POST /api/app/game-services/{serviceOrderId}/finish-delivery
+POST /api/app/game-services/{serviceOrderId}/cancel-with-compensation
+POST /api/app/im/conversations
+POST /api/app/im/messages
+```
+
+建议 `GET /api/app/games/my/manage` 中补充的进行中服务字段：
+
+```json
+{
+  "orders": [
+    {
+      "id": "business-active-001",
+      "serviceOrderId": "service_order_001",
+      "gameId": "game_001",
+      "statusType": "active",
+      "statusText": "服务进行中",
+      "player": {
+        "id": "player_001",
+        "name": "李明",
+        "avatarUrl": "",
+        "avatarText": "LI"
+      },
+      "guide": {
+        "id": "guide_001",
+        "name": "王引荐",
+        "avatarUrl": ""
+      },
+      "service": {
+        "title": "产品架构咨询",
+        "amountText": "¥800",
+        "expectedDeliveryText": "预计交付：03-25"
+      },
+      "timeline": [
+        { "id": "group-success", "title": "组局成功", "time": "03-20 14:30", "state": "done" },
+        { "id": "service-active", "title": "服务进行中", "time": "预计交付：03-25", "state": "current" },
+        { "id": "waiting-confirm", "title": "等待确认完成", "state": "future" }
+      ],
+      "actions": {
+        "canFinishDelivery": true,
+        "canCancelWithCompensation": true,
+        "canContactPlayer": true,
+        "canContactGuide": true
+      }
+    }
+  ]
+}
+```
+
+### 提前结束交付
+
+交互口径：
+
+- 点击 `提前结束交付` 后，前端弹出确认交付按钮 / 确认弹窗。
+- 用户确认后调用接口改变服务状态。
+- 状态变化后刷新当前卡片，或由接口直接返回新的 `statusType/statusText/timeline/actions`。
+
+候选路径：
+
+```text
+POST /api/app/game-services/{serviceOrderId}/finish-delivery
+```
+
+建议入参：
+
+```json
+{
+  "gameId": "game_001",
+  "confirm": true
+}
+```
+
+建议返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "serviceOrderId": "service_order_001",
+    "statusType": "complete",
+    "statusText": "已提前交付",
+    "timeline": [
+      { "id": "group-success", "title": "组局成功", "time": "03-20 14:30", "state": "done" },
+      { "id": "service-finished", "title": "服务已交付", "time": "03-23 16:00", "state": "done" },
+      { "id": "waiting-confirm", "title": "等待确认完成", "state": "current" }
+    ]
+  },
+  "requestId": "req_xxx"
+}
+```
+
+待确认：
+
+1. 提前结束交付后状态应进入 `已提前交付`、`等待玩家确认`，还是直接 `已完成`。
+2. 是否需要玩家确认后才结算。
+3. 接口是否需要提交交付说明、附件或实际服务时长。
+
+### 取消并赔付
+
+交互口径：
+
+- 点击 `取消并赔付` 后，前端弹出专家赔付取消界面。
+- 取消界面需要展示赔付规则、预计赔付金额、取消原因输入 / 选择和确认按钮。
+- 合同金额、赔付金额、平台手续费、实际扣款需要由后台返回或以后端规则计算；前端当前仅支持从页面参数读取金额并做静态预览兜底，不能作为正式结算依据。
+- 取消原因由后台返回可编辑的默认原因列表，前端单选，至少需要有 1 个可选原因并默认选中 1 个；用户填写的详细说明最多 50 字。
+- `pages/game/expert-cancel/index` 当前确认按钮只做必填项校验和静态提示，真实取消赔付提交接口后续添加。
+- 用户确认后应调用取消赔付接口，并刷新当前服务状态。
+
+候选路径：
+
+```text
+POST /api/app/game-services/{serviceOrderId}/cancel-with-compensation
+```
+
+建议入参：
+
+```json
+{
+  "gameId": "game_001",
+  "reasonCode": "schedule_conflict",
+  "reasonText": "时间冲突，无法继续服务",
+  "reasonRemark": "本周临时出差，无法继续交付",
+  "compensationRate": 20,
+  "compensationAmount": 160,
+  "platformFee": 16,
+  "totalDebitAmount": 176
+}
+```
+
+建议返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "serviceOrderId": "service_order_001",
+    "statusType": "canceled",
+    "statusText": "已取消（已赔付）",
+    "compensationAmountText": "¥120",
+    "reasonText": "时间冲突，无法继续服务"
+  },
+  "requestId": "req_xxx"
+}
+```
+
+待确认：
+
+1. 赔付金额由后台计算并返回，还是前端根据规则展示预估。
+2. 取消原因使用固定枚举还是自由文本。
+3. 取消后是否进入争议、已取消，还是单独状态 `canceled_with_compensation`。
+4. 是否需要二次确认、风控校验或客服介入。
+5. 专家取消页中的合同金额、平台手续费、实际扣款是否由预览接口完整返回；若仅返回费率，字段名使用 `platformFeeRate` 还是 `serviceFeeRate`，金额单位使用元还是分。
+6. 专家取消原因列表是否由后台运营配置返回，字段名使用 `reasonOptions` 还是 `cancelReasons`；详细说明最大长度当前按 50 字处理。
+
+### 联系玩家 / 联系领路人
+
+交互口径：
+
+- 点击 `联系玩家` 后，应进入或创建当前专家与玩家的一对一消息会话，并支持给玩家发消息。
+- 点击 `联系领路人` 后，应进入或创建当前专家与领路人的一对一消息会话，并支持给领路人发消息。
+- 当前先不实现真实 IM，只记录需要补充会话创建 / 消息发送能力。
+
+候选路径：
+
+```text
+POST /api/app/im/conversations
+POST /api/app/im/messages
+```
+
+建议创建会话入参：
+
+```json
+{
+  "scene": "game_service",
+  "gameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "targetUserId": "player_001",
+  "targetRole": "player"
+}
+```
+
+建议创建会话返回：
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "conversationId": "conversation_001",
+    "targetUserId": "player_001",
+    "targetRole": "player",
+    "route": "pages/im/room/index?conversationId=conversation_001"
+  },
+  "requestId": "req_xxx"
+}
+```
+
+建议发送消息入参：
+
+```json
+{
+  "conversationId": "conversation_001",
+  "contentType": "text",
+  "content": "你好，我来和你确认本次服务安排。"
+}
+```
+
+待确认：
+
+1. 联系玩家 / 领路人是先进入聊天页由用户手动发送，还是直接发送默认话术。
+2. IM 会话是否已有正式接口和会话 ID 规则，当前候选路径需后端确认。
+3. `GET /api/app/games/my/manage` 是否返回 `player.id`、`guide.id` 和当前专家 `viewer.role`。
+4. 是否允许在服务取消、完成后继续联系玩家 / 领路人，按钮权限应由后台 `actions` 返回。
 
 ## 29. 我的引荐记录页列表与操作接口
 
@@ -1815,6 +2219,7 @@ POST /api/app/game-services/{serviceOrderId}/reviews
 4. 状态枚举是否固定为 `processing/completed/canceled`。
 5. 已完成卡片的 `待评价` 状态是否由 `reviewStatus` 或 `canReviewBoth` 返回。
 6. 已取消卡片是否展示取消原因、取消方、赔付 / 退款金额，以及这些字段命名。
+
 ## 30. 玩家组局管理页列表与服务进度接口
 
 记录日期：2026-06-23
@@ -1850,16 +2255,14 @@ GET /api/app/games/player/manage
       "statusType": "active",
       "statusText": "服务进行中",
       "ref": "REF-20260320-001",
-      "serviceOrderId": "SO-20260320-001",
       "fundAmount": 800,
       "expert": { "id": "expert-zhang", "name": "张专家", "avatarText": "ZH" },
       "guide": { "id": "guide-wang", "name": "王引荐" },
       "serviceTitle": "产品架构咨询",
       "startedAt": "2026-03-10T14:00:00+08:00",
       "expectedDeliveryAt": "2026-03-25T14:00:00+08:00",
-      "noticeText": "取消需赔付一定比例金额给行家",
-      "canContactExpert": true,
-      "canCancel": true
+      "remainingDays": 6,
+      "noticeText": "取消需赔付一定比例金额给行家"
     },
     {
       "id": "player-manage-complete-001",
@@ -1908,21 +2311,155 @@ GET /api/app/games/player/manage
 
 页面：`pages/game/guide-cancel/index`
 
-功能：领路人查看已取消组局结果。取消方可能是玩家，也可能是行家，因此系统设定理由、取消方解释话语、提出取消的角色信息、取消时间和取消历程均需要由后台返回。
+功能：领路人查看某次组局取消结果。取消方可能是玩家，也可能是行家，因此取消方、角色、原因、说明话语、取消时间和取消历程均需要由后台返回，前端不写死“玩家婉拒”。
 
-候选接口：`GET /api/app/game-invites/guide-cancel-detail`
+候选接口：
 
-建议入参：`id`。
+```text
+GET /api/app/game-invites/guide-cancel-detail
+```
 
-建议返回字段：`statusTitle`、`statusDesc`、`canceledBy`、`reason`、`message`、`messageTimeText`、`timeline`。其中 `canceledBy.roleType` 建议使用 `player/expert/guide`，`reason.title/reason.desc` 为系统设定理由，`message` 为取消方解释话语。
+建议入参：
 
-待后端 / 产品确认：
+```json
+{
+  "id": "invite-complete-002"
+}
+```
+
+建议返回：
+
+```json
+{
+  "id": "invite-complete-002",
+  "statusTitle": "组局已取消",
+  "statusDesc": "行家取消了此次组局邀请",
+  "canceledBy": {
+    "id": "expert_001",
+    "name": "王强",
+    "roleType": "expert",
+    "roleLabel": "行家",
+    "avatarUrl": "",
+    "avatarText": "WQ"
+  },
+  "reason": {
+    "title": "档期冲突",
+    "desc": "行家临时档期调整，无法按时参加"
+  },
+  "message": "抱歉，临时档期有冲突，本次无法继续参加。",
+  "messageTimeText": "2小时前",
+  "timeline": [
+    {
+      "key": "invite",
+      "title": "发起邀请",
+      "desc": "你向双方发送了组局邀请",
+      "timeText": "03-21 10:23",
+      "state": "active"
+    },
+    {
+      "key": "cancel",
+      "title": "行家取消",
+      "desc": "王强因档期冲突取消本次组局",
+      "timeText": "03-21 16:45",
+      "state": "error"
+    },
+    {
+      "key": "canceled",
+      "title": "组局取消",
+      "desc": "因一方取消，组局自动取消",
+      "state": "pending"
+    }
+  ]
+}
+```
+
+待确认：
 
 1. 接口路径是否使用 `/api/app/game-invites/guide-cancel-detail`，还是复用进度详情接口返回取消态字段。
 2. 取消方角色枚举是否固定为 `player/expert/guide`。
 3. `reason.title`、`reason.desc`、`message` 是否均由后台返回展示文案。
 4. 取消历程是否由后台完整返回，还是前端按取消状态本地生成。
-## 32. 局内协作页数据与操作接口
+
+## 32. 玩家申请取消服务确认接口
+
+记录日期：2026-06-23
+
+模块：组局 / 取消申请 - 玩家
+
+页面：`pages/game/player-cancel/index`
+
+功能：玩家从“组局管理”点击 `申请取消` 后进入取消服务确认页，展示活动信息、建议赔付比例、赔付金额、平台手续费、实际支付、剩余可退金额、取消原因和赔付协议。取消原因由后台返回可编辑的默认原因列表，前端单选，至少需要有 1 个可选原因并默认选中 1 个；用户填写的详细说明最多 50 字。当前页面按用户提供的 `申请取消服务.txt` 静态设计稿落地白色母版走查，提交按钮只做静态提示，未接真实赔付取消接口。
+
+数据口径：活动信息中的合同金额、服务时长必须在进入 `pages/game/player-cancel/index` 前明确给出。当前入口由 `pages/game/player-manage/index` 点击 `申请取消` 时携带订单金额和服务时长参数；正式联调时也可由 `GET /api/app/game-services/{serviceOrderId}/player-cancel-preview` 返回 `contractAmount` / `contractAmountText`、`servedDurationText`、`totalDurationText` 或组合后的 `servedText`。服务时长展示中 `/` 左边为已经服务时长，右边为活动总时长。玩家取消页只展示和消费这些数据，静态兜底仅用于走查，不能在进入页面后再临时猜测或推算合同金额、已服务时长和活动总时长。
+
+交互口径：`自定义赔付比例` 标题行中的 `可协商` 标签需要放在右侧；后续点击该标签应进入与行家 / 专家的聊天界面，让玩家先沟通赔付比例。当前先记录交互要求，不接真实聊天跳转、会话创建或消息预填逻辑。
+
+赔付比例口径：建议赔付比例当前暂定为页面展示值 `15%`，比例滑块当前静态范围为最低 `5%`、最高 `30%`。正式联调时最低比例、最高比例、默认建议比例应支持由后台返回；玩家调整比例后可调用赔付预览 / 调整接口重新计算赔付金额、平台手续费、实际支付和剩余可退金额。
+
+候选接口：
+
+```text
+GET /api/app/game-services/{serviceOrderId}/player-cancel-preview
+POST /api/app/game-services/{serviceOrderId}/player-cancel-with-compensation
+```
+
+建议预览返回：
+
+```json
+{
+  "serviceOrderId": "SO-20260320-001",
+  "gameId": "game_001",
+  "ref": "REF-20260320-001",
+  "expert": { "id": "expert_001", "name": "张专家", "avatarText": "ZH" },
+  "serviceTitle": "产品架构咨询",
+  "contractAmount": 800,
+  "contractAmountText": "¥800",
+  "servedDurationText": "1.5小时",
+  "totalDurationText": "2小时",
+  "servedText": "1.5小时 / 2小时",
+  "minRate": 5,
+  "maxRate": 30,
+  "suggestedRate": 15,
+  "platformFeeRate": 10,
+  "reasonOptions": [
+    { "key": "need_changed", "text": "需求变更，不再需要服务" },
+    { "key": "other_solution", "text": "找到其他解决方案" }
+  ],
+  "agreements": [
+    "我理解主动取消需承担行家的时间成本损失",
+    "我同意按设置比例赔付行家，金额从托管资金扣除"
+  ]
+}
+```
+
+建议提交入参：
+
+```json
+{
+  "gameId": "game_001",
+  "reasonCode": "other_solution",
+  "reasonText": "已找到其他解决方案",
+  "compensationRate": 15,
+  "compensationAmount": 120,
+  "platformFee": 12,
+  "payAmount": 132
+}
+```
+
+待确认：
+
+1. 赔付预览是否由后台返回完整金额，还是前端仅根据后台规则估算展示。
+2. 赔付比例是否允许玩家拖动调整，调整范围是否固定为 `5% - 30%`。
+3. 平台手续费是否固定为赔付金额的 `10%`，以及金额单位使用元还是分。
+4. 提交后是否需要发起微信支付、直接从托管资金扣除，还是进入客服 / 行家确认流程。
+5. 取消原因枚举、协议文案、信用分影响是否全部由后台返回。
+6. 玩家取消原因列表是否由后台运营配置返回，字段名使用 `reasonOptions` 还是 `cancelReasons`；详细说明最大长度当前按 50 字处理。
+7. 上一页订单列表或取消预览接口必须在进入玩家取消页前提供合同金额；若订单列表没有金额字段，需要先调用预览接口拿到金额后再跳转。
+8. 上一页订单列表或取消预览接口必须在进入玩家取消页前提供已服务时长和活动总时长；展示格式为 `已服务时长 / 活动总时长`，若订单列表没有完整时长字段，需要先调用预览接口拿到时长后再跳转。
+9. `可协商` 标签点击后的聊天入口需要确认使用已有 `conversationId` 进入会话，还是由接口按 `serviceOrderId/gameId/expertId` 创建或获取与行家 / 专家的会话。
+10. 赔付比例是否需要独立调整接口，或复用取消预览接口传入 `compensationRate` 后返回重算结果；最低比例、最高比例和默认建议比例应以后端返回为准，当前 `5% - 30%`、`15%` 仅为静态走查口径。
+
+## 33. 局内协作页数据与操作接口
 
 记录日期：2026-06-23
 
@@ -2013,29 +2550,6 @@ GET /api/app/games/{gameId}/messages
 3. 成员管理使用独立页面、底部弹层还是弹窗；成员列表是否支持移除成员、变更角色、转让发起人等操作。
 4. 聊天区是否复用正式 IM 会话接口，还是只展示当前局内留言摘要。
 5. 结束确认页面路径是否新增 `pages/game/end-confirm/index`，以及结束本局需要哪些确认信息、权限校验和提交接口。
-
-## 33. 服务交付确认页操作接口
-
-记录日期：2026-06-23
-模块：组局 / 服务交付 - 免费
-页面：`pages/game/delivery/index`
-功能：服务交付免费页当前为静态 UI。快捷操作中的 `联系玩家`、`联系领路人` 后续需要进入对应人员的消息界面；确认状态里的 `提醒确认` 后续需要给玩家发消息 / 提醒玩家确认服务完成；底部 `确认服务完成` 后续需要提交服务完成确认，并触发玩家确认、状态刷新和免费局归档流程。
-
-建议接口 / 能力：
-
-```text
-GET /api/app/services/{serviceId}/delivery-detail
-POST /api/app/services/{serviceId}/remind-confirmation
-POST /api/app/services/{serviceId}/complete-confirmation
-GET /api/app/messages/session?targetUserId={userId}&serviceId={serviceId}
-```
-
-待确认：
-
-1. 服务交付确认页是否使用独立详情接口，还是复用业务管理 / 玩家管理的服务订单详情。
-2. 点击 `联系玩家`、`联系领路人` 是先进入聊天页由用户手动发送，还是直接发送默认话术。
-3. `提醒确认` 是进入玩家聊天页预填话术，还是直接调用提醒接口给玩家发送确认消息。
-4. `确认服务完成` 是由行家单方提交后等待玩家确认，还是玩家 / 行家任一方都可确认。
 
 ## 34. 服务交付确认页操作接口
 
@@ -2281,6 +2795,7 @@ POST /api/app/reviews
 3. 评分、标签、文字评价、NPS 是否必填；未填写时后端是否允许提交。
 4. `评价奖励 50PX + 优先推荐权益` 是否由提交接口同步返回发放状态。
 5. 已评价后再次进入页面时，是展示评价详情、禁用提交，还是直接跳转已完成状态页。
+
 ## 36. 再次组局确认页接口
 
 记录日期：2026-06-24

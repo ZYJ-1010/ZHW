@@ -31,7 +31,7 @@ page {
 }
 
 .entry-nav {
-  position: static;
+  position: relative;
   display: flex;
   align-items: flex-start;
   height: 94rpx;
@@ -43,7 +43,7 @@ page {
 .entry-brand {
   position: absolute;
   left: -40rpx;
-  top: 80rpx;
+  top: -3rpx;
   width: 142rpx;
   height: 60rpx;
 }

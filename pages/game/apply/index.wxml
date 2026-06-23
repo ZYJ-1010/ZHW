@@ -1,0 +1,92 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  shell-variant="joinApply"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="game-apply-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{applyScrollTop}}"
+    bindscroll="handleApplyScroll"
+    enable-back-to-top
+  >
+    <view class="game-apply-page">
+      <view class="apply-heading">
+        <text class="apply-subtitle">你的信息将展示给发起人</text>
+      </view>
+
+      <view class="wechat-card">
+        <image
+          wx:if="{{wechatInfo.avatarUrl}}"
+          class="wechat-avatar-image"
+          src="{{wechatInfo.avatarUrl}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="wechat-avatar">{{wechatInfo.avatarFallback}}</view>
+        <view class="wechat-copy">
+          <text class="wechat-title">微信信息</text>
+          <text class="wechat-desc">昵称：{{wechatInfo.nickname}} · {{wechatInfo.syncText}}</text>
+        </view>
+      </view>
+
+      <view class="apply-section">
+        <view class="apply-section-label required">
+          <text>自我介绍</text>
+          <text class="required-mark">*</text>
+        </view>
+        <textarea
+          class="apply-textarea intro"
+          value="{{form.intro}}"
+          maxlength="300"
+          auto-height="{{false}}"
+          bindinput="onIntroInput"
+          placeholder="介绍你的背景、能力和参与动机"
+          placeholder-class="apply-placeholder"
+        />
+      </view>
+
+      <view class="apply-section">
+        <text class="apply-section-label">相关经历/作品</text>
+        <work-upload-panel panel-class="framed" bind:imageupload="onUploadImage" bind:fileupload="onUploadFile" />
+      </view>
+
+      <view class="apply-section">
+        <text class="apply-section-label">申请留言</text>
+        <textarea
+          class="apply-textarea message"
+          value="{{form.message}}"
+          maxlength="120"
+          auto-height="{{false}}"
+          bindinput="onMessageInput"
+          placeholder="给发起人留一句话"
+          placeholder-class="apply-placeholder"
+        />
+      </view>
+
+      <checkbox-group class="agreement-group" bindchange="onAgreementChange">
+        <label class="agreement-row">
+          <checkbox class="agreement-checkbox-native" value="agreed" checked="{{form.agreed}}" />
+          <view class="agreement-checkbox-visual {{form.agreed ? 'checked' : ''}}">
+            <view wx:if="{{form.agreed}}" class="agreement-check-mark"></view>
+          </view>
+          <view class="agreement-copy">
+            <text>我已阅读并同意</text>
+            <text class="agreement-link" catchtap="onAgreementTap">《真好玩平台协议》</text>
+          </view>
+        </label>
+      </checkbox-group>
+
+      <view class="action-row">
+        <button class="action-button secondary" hover-class="none" bindtap="onCancel">取消</button>
+        <button class="action-button primary" hover-class="none" bindtap="onSubmit">提交申请</button>
+      </view>
+    </view>
+  </scroll-view>
+</home-shell>

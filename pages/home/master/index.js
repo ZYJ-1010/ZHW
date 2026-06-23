@@ -4,6 +4,15 @@ const APPLY_NAV_BOTTOM_GAP_RPX = 13
 const APPLY_FRAME_BOTTOM_PADDING_RPX = 10
 const APPLY_DEFAULT_NAV_TOP_RPX = 108
 const APPLY_DEFAULT_NAV_HEIGHT_RPX = 64
+const WHITE_CONTENT_LEFT_RPX = 2
+const WHITE_CONTENT_TOP_RPX = 160
+const WHITE_CONTENT_WIDTH_RPX = 750
+const WHITE_DESIGN_FRAME_HEIGHT_PT = 810
+const WHITE_DESIGN_BOTTOM_HEIGHT_PT = 78
+const WHITE_NAV_TITLE_HEIGHT_RPX = 50
+const WHITE_BACK_BUTTON_SIZE_RPX = 40
+const WHITE_DEFAULT_CAPSULE_BOTTOM_RPX = 142
+const WHITE_DEFAULT_FRAME_HEIGHT_RPX = WHITE_DESIGN_FRAME_HEIGHT_PT * 2
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -46,6 +55,59 @@ function getApplyShellLayoutStyles() {
   }
 }
 
+function getMenuCapsuleBottomRpx() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getSystemInfoSync && wx.getMenuButtonBoundingClientRect) {
+      const menuButton = wx.getMenuButtonBoundingClientRect()
+      const systemInfo = wx.getSystemInfoSync()
+
+      if (menuButton && systemInfo && systemInfo.windowWidth) {
+        return roundRpx((menuButton.top + menuButton.height) * 750 / systemInfo.windowWidth)
+      }
+    }
+  } catch (error) {
+    return WHITE_DEFAULT_CAPSULE_BOTTOM_RPX
+  }
+
+  return WHITE_DEFAULT_CAPSULE_BOTTOM_RPX
+}
+
+function getWhiteShellLayoutStyles() {
+  const capsuleBottom = getMenuCapsuleBottomRpx()
+  const titleTop = Math.max(0, roundRpx(capsuleBottom - WHITE_NAV_TITLE_HEIGHT_RPX))
+  const backTop = Math.max(0, roundRpx(capsuleBottom - WHITE_BACK_BUTTON_SIZE_RPX))
+  let frameHeight = WHITE_DEFAULT_FRAME_HEIGHT_RPX
+
+  try {
+    if (typeof wx !== 'undefined' && wx.getSystemInfoSync) {
+      const systemInfo = wx.getSystemInfoSync()
+
+      if (systemInfo && systemInfo.windowWidth && systemInfo.windowHeight) {
+        frameHeight = roundRpx(systemInfo.windowHeight * 750 / systemInfo.windowWidth)
+      }
+    }
+  } catch (error) {
+    frameHeight = WHITE_DEFAULT_FRAME_HEIGHT_RPX
+  }
+
+  const bottomHeight = roundRpx(frameHeight * WHITE_DESIGN_BOTTOM_HEIGHT_PT / WHITE_DESIGN_FRAME_HEIGHT_PT)
+  const bottomTop = Math.max(WHITE_CONTENT_TOP_RPX, roundRpx(frameHeight - bottomHeight))
+  const contentHeight = Math.max(0, roundRpx(bottomTop - WHITE_CONTENT_TOP_RPX))
+
+  return {
+    frameStyle: `height: ${frameHeight}rpx; min-height: ${frameHeight}rpx;`,
+    contentStyle: [
+      `left: ${WHITE_CONTENT_LEFT_RPX}rpx`,
+      `top: ${WHITE_CONTENT_TOP_RPX}rpx`,
+      `width: ${WHITE_CONTENT_WIDTH_RPX}rpx`,
+      `height: ${contentHeight}rpx`
+    ].join('; '),
+    bottomStyle: `top: ${bottomTop}rpx; height: ${bottomHeight}rpx;`,
+    titleStyle: `top: ${titleTop}rpx; height: ${WHITE_NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${WHITE_NAV_TITLE_HEIGHT_RPX}rpx;`,
+    backStyle: `top: ${backTop}rpx; width: ${WHITE_BACK_BUTTON_SIZE_RPX}rpx; height: ${WHITE_BACK_BUTTON_SIZE_RPX}rpx;`
+  }
+}
+
 Page({
   data: {
     masterMode: 'default',
@@ -54,10 +116,16 @@ Page({
     dockVisible: true,
     contentScrollY: false,
     shellClass: '',
+    shellVariant: '',
+    toolbarActionsVisible: true,
     applyMaster: {
       navTitle: '标题'
     },
+    whiteMaster: {
+      navTitle: '标题'
+    },
     applyShellLayout: getApplyShellLayoutStyles(),
+    whiteShellLayout: getWhiteShellLayoutStyles(),
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -74,7 +142,21 @@ Page({
         dockVisible: false,
         contentScrollY: false,
         shellClass: '',
+        shellVariant: '',
         applyShellLayout: getApplyShellLayoutStyles()
+      })
+      return
+    }
+
+    if (options.mode === 'whiteBackground') {
+      this.setData({
+        masterMode: 'whiteBackground',
+        dockVisible: false,
+        contentScrollY: false,
+        shellClass: '',
+        shellVariant: '',
+        toolbarActionsVisible: false,
+        whiteShellLayout: getWhiteShellLayoutStyles()
       })
       return
     }
@@ -84,7 +166,33 @@ Page({
         masterMode: 'contentOnly',
         dockVisible: false,
         contentScrollY: true,
-        shellClass: 'home-shell--content-only'
+        shellClass: 'home-shell--content-only',
+        shellVariant: '',
+        toolbarActionsVisible: true
+      })
+      return
+    }
+
+    if (options.mode === 'joinApply') {
+      this.setData({
+        masterMode: 'joinApply',
+        dockVisible: true,
+        contentScrollY: false,
+        shellClass: '',
+        shellVariant: 'joinApply',
+        toolbarActionsVisible: false
+      })
+      return
+    }
+
+    if (options.mode === 'topNoBrand') {
+      this.setData({
+        masterMode: 'topNoBrand',
+        dockVisible: true,
+        contentScrollY: false,
+        shellClass: '',
+        shellVariant: 'topNoBrand',
+        toolbarActionsVisible: false
       })
     }
   },

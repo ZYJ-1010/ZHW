@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const DEFAULT_CONTACT = {
   name: '王引荐',
@@ -16,17 +17,7 @@ function decodeQueryText(value = '') {
 }
 
 function getAvatarText(name = '') {
-  const value = String(name).trim()
-
-  if (!value) {
-    return DEFAULT_CONTACT.avatarText
-  }
-
-  if (/^[A-Za-z]+$/.test(value)) {
-    return value.slice(0, 2).toUpperCase()
-  }
-
-  return value.slice(0, 1)
+  return getSurnameInitials(name, DEFAULT_CONTACT.avatarText)
 }
 
 function getDisplayName(contact) {
@@ -47,7 +38,7 @@ Page({
       miniProgramText: '小程序 · 真好玩',
       expert: {
         name: '张专家',
-        avatarText: 'ZE',
+        avatarText: getSurnameInitials('张专家', 'ZH'),
         desc: '资深产品经理 · 10年经验',
         intro: '擅长产品架构设计、MVP规划，10年大厂经验，服务过50+企业客户...',
         tags: ['产品咨询', '架构梳理']

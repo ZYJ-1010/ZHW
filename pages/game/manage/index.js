@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -264,62 +265,20 @@ function splitTitleAndAmount(value) {
   }
 }
 
-function getChineseSurnameInitials(name) {
-  const surname = String(name || '').trim().charAt(0)
-  const initialsMap = {
-    张: 'ZH',
-    王: 'WA',
-    李: 'LI',
-    刘: 'LI',
-    陈: 'CH',
-    杨: 'YA',
-    黄: 'HU',
-    赵: 'ZH',
-    吴: 'WU',
-    周: 'ZH',
-    徐: 'XU',
-    孙: 'SU',
-    马: 'MA',
-    朱: 'ZH',
-    胡: 'HU',
-    郭: 'GU',
-    何: 'HE',
-    林: 'LI',
-    高: 'GA',
-    罗: 'LU',
-    郑: 'ZH'
-  }
-
-  return initialsMap[surname] || ''
-}
-
 function buildAvatarText(rawOrder, fallback) {
-  const value = firstDefined(
+  const name = String(firstDefined(rawOrder.name, rawOrder.playerName, rawOrder.expertName, fallback.name) || '').trim()
+  const fallbackText = firstDefined(
     rawOrder.avatar,
     rawOrder.avatarText,
     rawOrder.initials,
     rawOrder.playerInitials,
-    rawOrder.expertInitials
+    rawOrder.expertInitials,
+    fallback.avatarText,
+    fallback.avatar,
+    'EN'
   )
 
-  if (value) {
-    return String(value).trim().slice(0, 2).toUpperCase()
-  }
-
-  const name = String(firstDefined(rawOrder.name, rawOrder.playerName, rawOrder.expertName, fallback.name) || '').trim()
-  const chineseInitials = getChineseSurnameInitials(name)
-
-  if (chineseInitials) {
-    return chineseInitials
-  }
-
-  const letters = name.match(/[A-Za-z]/g)
-
-  if (letters && letters.length) {
-    return letters.slice(0, 2).join('').toUpperCase()
-  }
-
-  return fallback.avatarText || fallback.avatar || 'EN'
+  return getSurnameInitials(name, fallbackText)
 }
 
 function normalizeTimeline(rawTimeline, fallbackTimeline) {

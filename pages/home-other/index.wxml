@@ -191,10 +191,10 @@
               </view>
             </block>
 
-            <block wx:elif="{{currentPage.id === 'rejected'}}">
+            <block wx:elif="{{currentPage.rejected}}">
               <view class="home-other-panel reject-reasons">
                 <view class="home-other-panel-title warn">
-                  <image class="home-other-panel-icon" src="/pages/home-other/assets/panel-reason.png" mode="aspectFit"></image>
+                  <image class="home-other-warning-icon" src="/pages/home-other/assets/panel-warning.png" mode="aspectFit"></image>
                   <text>驳回原因</text>
                 </view>
                 <text wx:for="{{currentPage.reasons}}" wx:key="*this" class="home-other-list-line">{{item}}</text>
@@ -211,7 +211,7 @@
 
               <view class="home-other-panel retry">
                 <view class="home-other-panel-title">
-                  <image class="home-other-panel-icon" src="/pages/home-other/assets/panel-edit.png" mode="aspectFit"></image>
+                  <text class="home-other-section-symbol">📋</text>
                   <text>重新申请</text>
                 </view>
                 <text class="home-other-card-text">{{currentPage.retryText}}</text>
@@ -300,6 +300,7 @@
             <view wx:if="{{currentPage.details}}" class="home-other-panel details">
               <view class="home-other-panel-title">
                 <text wx:if="{{currentPage.detailsIconText}}" class="home-other-section-symbol">{{currentPage.detailsIconText}}</text>
+                <text wx:elif="{{currentPage.rejected}}" class="home-other-section-symbol">📋</text>
                 <image wx:else class="home-other-panel-icon" src="/pages/home-other/assets/panel-doc.png" mode="aspectFit"></image>
                 <text>{{currentPage.detailsTitle || (currentPage.id === 'pendingCards' ? '申请详情' : '申请信')}}</text>
               </view>

@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const toast = require('../../../utils/toast')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const DETAIL_SCROLL_TAP_STEP_RPX = 360
 const DETAIL_SCROLL_HOLD_STEP_RPX = 72
@@ -11,8 +12,8 @@ const GAME_PLAYER = {
   requirementStatusText: '已确认需求',
   confirmed: true,
   statusText: '玩家已确认',
-  avatarText: 'LM',
   name: '李明',
+  avatarText: getSurnameInitials('李明', 'LI'),
   desc: '某互联网公司 · 产品总监',
   tags: ['B端产品', '金融科技'],
   needText: '需求描述：需要资深产品经理帮忙梳理产品架构，预计咨询时长2小时，预算800元。',

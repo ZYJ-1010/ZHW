@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CHAT_SCROLL_TAP_STEP_RPX = 360
 const CHAT_SCROLL_HOLD_STEP_RPX = 72
@@ -14,17 +15,7 @@ function decodeQueryText(value = '') {
 }
 
 function getAvatarText(name = '') {
-  const value = String(name).trim()
-
-  if (!value) {
-    return '李'
-  }
-
-  if (/^[A-Za-z]+$/.test(value)) {
-    return value.slice(0, 2).toUpperCase()
-  }
-
-  return value.slice(0, 1)
+  return getSurnameInitials(name, 'LI')
 }
 
 function buildGuideMessage(card) {
@@ -55,7 +46,7 @@ Page({
       guideName: '我',
       player: {
         name: '李娜',
-        avatarText: '李',
+        avatarText: getSurnameInitials('李娜', 'LI'),
         role: '产品总监',
         desc: '寻找产品经理合作'
       },

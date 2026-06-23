@@ -1,5 +1,6 @@
 const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -179,22 +180,7 @@ function getRoleClass(role) {
 }
 
 function getInitials(name, fallback) {
-  const text = normalizeText(name, fallback)
-
-  if (!text) {
-    return ''
-  }
-
-  if (/^[A-Za-z\s]+$/.test(text)) {
-    return text
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2)
-  }
-
-  return text.slice(0, 2)
+  return getSurnameInitials(name, fallback)
 }
 
 function getSourceData(data = {}) {
@@ -233,11 +219,11 @@ function normalizeCancelUser(source = {}) {
     roleLabel,
     roleClass,
     avatarUrl: user.avatarUrl || user.avatar || source.cancelAvatarUrl || '',
-    avatarText: firstText([
+    avatarText: getInitials(name, firstText([
       user.avatarText,
       user.initials,
       source.cancelAvatarText
-    ], getInitials(name, roleLabel)),
+    ], roleLabel)),
     avatarClass: user.avatarClass || roleClass
   }
 }

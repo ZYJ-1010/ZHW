@@ -13,7 +13,7 @@
           <text class="role-title">{{item.title}}</text>
           <text class="role-desc">{{item.desc}}</text>
         </view>
-        <text class="role-status {{item.status === 'pending_audit' ? 'pending' : ''}}">{{item.statusText}}</text>
+        <text class="role-status {{item.status === 'pending' ? 'pending' : ''}}">{{item.statusText}}</text>
       </view>
 
       <view class="requirements">
@@ -32,12 +32,12 @@
       </view>
 
       <button
-        class="apply-button {{item.status === 'pending_audit' ? 'disabled' : ''}}"
+        class="apply-button {{item.status === 'pending' ? 'disabled' : ''}}"
         data-role="{{item.roleType}}"
         bindtap="submitApplication"
-        disabled="{{item.status === 'pending_audit' || submittingRole === item.roleType}}"
+        disabled="{{item.status === 'pending' || submittingRole === item.roleType}}"
       >
-        {{item.status === 'pending_audit' ? '已进入审核' : submittingRole === item.roleType ? '提交中...' : '提交申请'}}
+        {{item.status === 'pending' ? '已进入审核' : submittingRole === item.roleType ? '提交中...' : '提交申请'}}
       </button>
     </view>
   </block>

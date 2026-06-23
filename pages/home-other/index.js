@@ -102,6 +102,35 @@ const PROGRESS_ROLE_META = {
   }
 }
 
+const REJECTED_PAGE_META = {
+  expert: {
+    roleName: '行家',
+    roleClass: 'role-expert',
+    applicationNo: 'HJ20240608001',
+    reasons: ['服务案例材料不足（需 ≥ 3 个，当前 1 个）', '专业能力说明不完整，需补充资质证明'],
+    suggestions: [
+      '补充更多可验证的服务案例和项目经历',
+      '完善个人资料，突出专业能力与服务边界',
+      '重新撰写行家申请说明，详细描述服务内容',
+      '上传资质证明或过往成果可提升审核通过率'
+    ],
+    suggestionNote: '行家申请说明与资质证明不够完整，需补充具体服务案例和证明材料'
+  },
+  guide: {
+    roleName: '领路人',
+    roleClass: 'role-guide',
+    applicationNo: 'LR20240608001',
+    reasons: ['组局参与次数不足（需 ≥ 3 次，当前 2 次）', '信用分未达到要求（需 ≥ 80 分，当前 75 分）'],
+    suggestions: [
+      '多参与平台组局活动，积累带队经验',
+      '完善个人资料，提升信用评分',
+      '重新撰写领路计划书，详细描述你的服务优势',
+      '获得其他领路人的推荐背书可加速审核'
+    ],
+    suggestionNote: '领路计划书描述过于简单，需补充具体战绩和规划说明'
+  }
+}
+
 function getPositiveInteger(value, fallback) {
   const number = Number(value)
 
@@ -271,6 +300,37 @@ function createPendingCardsPage(roleType = 'guide') {
   }
 }
 
+function createRejectedPage(roleType = 'guide') {
+  const normalizedRoleType = normalizeProgressRoleType(roleType)
+  const meta = REJECTED_PAGE_META[normalizedRoleType] || REJECTED_PAGE_META.guide
+
+  return {
+    id: `${normalizedRoleType}Rejected`,
+    title: '审核结果',
+    variant: `rejected ${meta.roleClass}`,
+    rejected: true,
+    roleType: normalizedRoleType,
+    statusIconSrc: '/pages/home-other/assets/status-rejected.png',
+    statusTitle: '审核未通过',
+    description: ['感谢你的申请，但本次审核未通过', '查看原因并完善后可再次申请'],
+    reasons: meta.reasons,
+    suggestions: meta.suggestions,
+    suggestionNote: meta.suggestionNote,
+    retryText: '完善资料后可在 7 天后重新提交申请。建议根据驳回原因逐项改进，提高通过率。',
+    detailsTitle: '申请记录',
+    details: [
+      { label: '申请角色', value: meta.roleName, accent: true },
+      { label: '申请时间', value: '2024.06.08 10:30' },
+      { label: '驳回时间', value: '2024.06.10 16:45' },
+      { label: '可重新申请', value: '2024.06.17 后', cyan: true }
+    ],
+    footerButtons: [
+      { text: '查看帮助', ghost: true },
+      { text: '完善资料' }
+    ]
+  }
+}
+
 function applyProgressRoleToPage(page, roleType) {
   if (!page || page.id !== 'pendingSimple' && page.id !== 'pendingCards') {
     return page
@@ -328,6 +388,8 @@ function getApplyShellLayoutStyles() {
 }
 
 const HOME_OTHER_PAGES = [
+  createRejectedPage('guide'),
+  createRejectedPage('expert'),
   createPendingCardsPage('expert'),
   {
     id: 'guideApply',
@@ -473,33 +535,6 @@ const HOME_OTHER_PAGES = [
       { iconSrc: '/pages/home-other/assets/action-profile.png', text: '完善资料' }
     ],
     primaryText: '开启领路人之旅'
-  },
-  {
-    id: 'rejected',
-    title: '审核结果',
-    variant: 'rejected',
-    statusIconSrc: '/pages/home-other/assets/status-rejected.png',
-    statusTitle: '审核未通过',
-    description: ['感谢你的申请，但本次审核未通过', '查看原因并完善后可再次申请'],
-    reasons: ['组局参与次数不足（需 ≥ 3 次，当前 2 次）', '信用分未达到要求（需 ≥ 80 分，当前 75 分）'],
-    suggestions: [
-      '多参与平台组局活动，积累带队经验',
-      '完善个人资料，提升信用评分',
-      '重新撰写领路计划书，详细描述你的服务优势',
-      '获得其他领路人的推荐背书可加速审核'
-    ],
-    suggestionNote: '领路计划书描述过于简单，需补充具体战绩和规划说明',
-    retryText: '完善资料后可在 7 天后重新提交申请。建议根据驳回原因逐项改进，提高通过率。',
-    details: [
-      { label: '申请角色', value: '领路人', accent: true },
-      { label: '申请时间', value: '2024.06.08 10:30' },
-      { label: '驳回时间', value: '2024.06.10 16:45' },
-      { label: '可重新申请', value: '2024.06.17 后', cyan: true }
-    ],
-    footerButtons: [
-      { text: '查看帮助', ghost: true },
-      { text: '完善资料' }
-    ]
   },
   createPendingCardsPage('guide'),
   createPendingSimplePage('guide'),

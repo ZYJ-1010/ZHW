@@ -54,8 +54,6 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    toast.developing()
   }
 })

@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -354,13 +355,10 @@ function splitTitleAndAmount(value) {
 }
 
 function getAvatarText(rawOrder, fallback) {
-  const value = firstDefined(rawOrder.avatar, rawOrder.avatarText, rawOrder.initials, rawOrder.expertInitials)
+  const name = firstDefined(rawOrder.name, rawOrder.expertName, rawOrder.playerName, fallback.name)
+  const fallbackText = firstDefined(rawOrder.avatar, rawOrder.avatarText, rawOrder.initials, rawOrder.expertInitials, fallback.avatar)
 
-  if (value) {
-    return String(value).trim().slice(0, 2).toUpperCase()
-  }
-
-  return fallback.avatar
+  return getSurnameInitials(name, fallbackText)
 }
 
 function getNestedValue(source, path) {
@@ -512,11 +510,12 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
     avatarClass: statusType === 'active' ? 'active' : statusType === 'complete' ? 'complete' : 'canceled',
     muted: statusType === 'canceled',
     ref: firstDefined(rawOrder.ref, rawOrder.refNo, rawOrder.orderNo, rawOrder.serviceNo, rawOrder.gameNo, rawOrder.groupNo, fallback.ref),
+    name: firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name),
     avatar: getAvatarText({
       ...rawOrder,
-      avatar: firstDefined(rawOrder.avatar, rawOrder.avatarText, expert.avatarText, expert.initials)
+      avatar: firstDefined(rawOrder.avatar, rawOrder.avatarText, expert.avatarText, expert.initials),
+      name: firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name)
     }, fallback),
-    name: firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name),
     title: firstDefined(rawOrder.gameTitle, rawOrder.title, rawOrder.serviceTitle, rawOrder.serviceName, serviceParts.title, fallback.title),
     servedDurationText,
     totalDurationText,

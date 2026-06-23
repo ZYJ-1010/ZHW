@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -123,60 +124,14 @@ function formatCurrency(value) {
   return `¥${Math.round(amount).toLocaleString('zh-CN')}`
 }
 
-function getChineseSurnameInitials(name) {
-  const surname = String(name || '').trim().charAt(0)
-  const initialsMap = {
-    张: 'ZH',
-    王: 'WA',
-    李: 'LI',
-    刘: 'LI',
-    陈: 'CH',
-    杨: 'YA',
-    黄: 'HU',
-    赵: 'ZH',
-    吴: 'WU',
-    周: 'ZH',
-    徐: 'XU',
-    孙: 'SU',
-    马: 'MA',
-    朱: 'ZH',
-    胡: 'HU',
-    郭: 'GU',
-    何: 'HE',
-    林: 'LI',
-    高: 'GA',
-    罗: 'LU',
-    郑: 'ZH'
-  }
-
-  return initialsMap[surname] || ''
-}
-
 function getAvatarText(name, fallback = 'LI') {
-  const text = String(name || '').trim()
-  const chineseInitials = getChineseSurnameInitials(text)
-
-  if (chineseInitials) {
-    return chineseInitials
-  }
-
-  const letters = text.match(/[A-Za-z]/g)
-
-  if (letters && letters.length) {
-    return letters.slice(0, 2).join('').toUpperCase()
-  }
-
-  return fallback
+  return getSurnameInitials(name, fallback)
 }
 
 function normalizeAvatarText(value, name, fallback = 'LI') {
   const text = decodeOption(value).trim()
 
-  if (!text) {
-    return getAvatarText(name, fallback)
-  }
-
-  return getAvatarText(text, getAvatarText(name, fallback))
+  return getAvatarText(name, text || fallback)
 }
 
 function normalizeActivity(options = {}) {

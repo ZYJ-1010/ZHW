@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -114,22 +115,7 @@ function parsePercent(value) {
 }
 
 function getInitials(name, fallback) {
-  const text = normalizeText(name, fallback)
-
-  if (!text) {
-    return ''
-  }
-
-  if (/^[A-Za-z\s]+$/.test(text)) {
-    return text
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2)
-  }
-
-  return text.slice(0, 2)
+  return getSurnameInitials(name, fallback)
 }
 
 function getMemberStateClass(status, statusText) {
@@ -181,7 +167,7 @@ function normalizeMember(item, roleType, index) {
     roleType,
     roleLabel: member.roleText || member.roleLabel || (roleType === 'expert' ? '行家' : '玩家'),
     avatarUrl: member.avatarUrl || '',
-    avatarText: normalizeText(member.avatarText || member.initials, getInitials(name, roleType === 'expert' ? '行' : '玩')),
+    avatarText: getInitials(name, member.avatarText || member.initials || (roleType === 'expert' ? 'EX' : 'PL')),
     avatarClass,
     state: stateText,
     stateClass,

@@ -29,14 +29,14 @@
           "scene": null
         },
         {
-          "name": "首页-角色权益对比",
-          "pathName": "pages/home/index",
-          "query": "ui=1&mode=roleComparison&single=1",
+          "name": "首页-其他",
+          "pathName": "pages/home-other/index",
+          "query": "",
           "scene": null
         },
         {
-          "name": "首页-其他",
-          "pathName": "pages/home-other/index",
+          "name": "组局-大厅",
+          "pathName": "pages/game/hall/index",
           "query": "",
           "scene": null
         },
@@ -65,6 +65,12 @@
           "scene": null
         },
         {
+          "name": "组局-申请加入",
+          "pathName": "pages/game/apply/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-系统推荐适配局",
           "pathName": "pages/game/system-recommend/index",
           "query": "",
@@ -83,7 +89,7 @@
           "scene": null
         },
         {
-          "name": "组局邀请通知",
+          "name": "组局-站内打招呼",
           "pathName": "pages/game/greet/index",
           "query": "",
           "scene": null
@@ -236,6 +242,24 @@
           "name": "母版-申请页",
           "pathName": "pages/home/master/index",
           "query": "mode=apply",
+          "scene": null
+        },
+        {
+          "name": "母版-申请加入",
+          "pathName": "pages/home/master/index",
+          "query": "mode=joinApply",
+          "scene": null
+        },
+        {
+          "name": "母版-顶无品牌",
+          "pathName": "pages/home/master/index",
+          "query": "mode=topNoBrand",
+          "scene": null
+        },
+        {
+          "name": "母版-白色背景的",
+          "pathName": "pages/home/master/index",
+          "query": "mode=whiteBackground",
           "scene": null
         }
       ]

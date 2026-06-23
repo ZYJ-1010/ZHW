@@ -1,3 +1,5 @@
+const { getSurnameInitials } = require('../../utils/avatar')
+
 const DEFAULT_INFO = {
   headerTitle: '组局信息',
   title: '',
@@ -50,11 +52,15 @@ Component({
         ...DEFAULT_INFO.expert,
         ...(info.expert || {})
       }
+      const normalizedExpert = {
+        ...expert,
+        avatarText: getSurnameInitials(expert.name, expert.avatarText)
+      }
 
       return {
         ...DEFAULT_INFO,
         ...info,
-        expert,
+        expert: normalizedExpert,
         stats: Array.isArray(info.stats) ? info.stats : DEFAULT_INFO.stats
       }
     },

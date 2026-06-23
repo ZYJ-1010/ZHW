@@ -1,4 +1,5 @@
 const gameService = require('../../../services/game')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -25,7 +26,7 @@ const DEFAULT_DETAIL = {
   countdownProgressStyle: 'width: 74%;',
   startedAt: '今天 10:23',
   playerConfirmedAt: '今天 11:05',
-  playerConfirmedText: '李娜确认参加组局',
+    playerConfirmedText: '李娜确认参加组局',
   expertConfirmedText: '',
   primaryActionText: '提醒行家',
   player: {
@@ -38,7 +39,7 @@ const DEFAULT_DETAIL = {
     cardClass: 'confirmed',
     badgeClass: 'confirmed',
     badgeIcon: PARTICIPANT_CONFIRMED_ICON,
-    avatarText: 'LN',
+    avatarText: getSurnameInitials('李娜', 'LI'),
     avatarClass: 'pink'
   },
   expert: {
@@ -51,7 +52,7 @@ const DEFAULT_DETAIL = {
     cardClass: 'waiting',
     badgeClass: 'waiting',
     badgeIcon: PARTICIPANT_WAITING_ICON,
-    avatarText: 'WQ',
+    avatarText: getSurnameInitials('王强', 'WA'),
     avatarClass: 'blue'
   },
   game: {
@@ -146,22 +147,7 @@ function normalizeText(value, fallback = '') {
 }
 
 function getInitials(name, fallback) {
-  const text = normalizeText(name, fallback)
-
-  if (!text) {
-    return ''
-  }
-
-  if (/^[A-Za-z\s]+$/.test(text)) {
-    return text
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2)
-  }
-
-  return text.slice(0, 2)
+  return getSurnameInitials(name, fallback)
 }
 
 function getParticipantVisualState(statusSignal) {
@@ -212,7 +198,7 @@ function normalizeMember(member = {}, roleType, fallbackMember) {
     badgeClass: visualState,
     badgeIcon,
     avatarUrl: member.avatarUrl || fallback.avatarUrl || '',
-    avatarText: normalizeText(member.avatarText || member.initials, fallback.avatarText || getInitials(name, roleType === 'expert' ? '行' : '玩')),
+    avatarText: getInitials(name, member.avatarText || member.initials || fallback.avatarText || (roleType === 'expert' ? 'EX' : 'PL')),
     avatarClass: member.avatarClass || fallback.avatarClass || (roleType === 'expert' ? 'pink' : 'blue'),
     statusText: normalizeText(ownStateText || fallbackStateText)
   }

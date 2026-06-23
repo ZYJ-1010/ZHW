@@ -19,9 +19,19 @@
 每个阶段结束后应汇报：已完成什么、改了哪些文件、还剩什么、有没有风险或待确认事项；若用户不在线，也要把当前状态留在会话中，必要时补充到 docs/progress-日期.md 或 docs/follow-ups.md。
 不得擅自扩大任务范围；如果发现需要从“资料整理”切到“代码实现”、从“静态 UI”切到“真实业务逻辑”、或需要新增接口/页面，应先说明并等待用户确认。
 
+Git 保存 / 提交规则：
+- 提交前必须先执行 `git status --short` 和针对本任务文件的 `git diff`，确认工作区是否混有其他任务或用户未提交改动。
+- 禁止使用 `git add .`、`git add -A`、`git commit -a` 这类会把无关改动一起带入的命令。
+- 只暂存本任务新增或修改的文件；若 `app.json`、`config/routes.js`、`project.private.config.json`、`docs/api-additions.md` 等文件同时混有其他任务改动，必须只暂存本任务相关片段，不能把其他页面入口、其他文档条目一起提交。
+- 普通单任务文件可用 `git add -- path/to/file` 或 `git add -- path/to/dir` 暂存；混合文件优先使用精确片段暂存，例如 `git add -p path/to/file`。在非交互环境不适合 `git add -p` 时，可基于 `HEAD:path` 构造“只包含本任务改动”的内容，用 `git hash-object -w` 加 `git update-index --add --cacheinfo` 写入暂存区；这只写 Git 索引，不应覆盖工作区文件。
+- 写入 Git 索引会创建 / 修改 `.git/index.lock` 和 `.git/index`，如果沙箱提示无权限，应按工具要求申请执行 `git add`、`git apply --cached`、`git hash-object`、`git update-index` 或 `git commit` 的权限，不要改用会污染工作区的绕路方法。
+- 暂存后必须执行 `git diff --cached --name-status` 和 `git diff --cached --check`，并核对 staged diff 只包含本任务相关文件和片段。
+- 提交时使用清晰业务信息，例如 `feat: add game invite page`；提交成功后回报提交号，并说明未提交的其它工作区改动仍保留。
+
 邀请注册相关页面以墨刀原型为准，不要用旧截图、旧审计文档或自行推断的页面顺序替代墨刀当前画布。
-墨刀地址：https://modao.cc/proto/BJBH1Uptgioo7R81pGx2/sharing?view_mode=read_only&screen=rbpVFDJKkOR1Pi9Cf
-墨刀密码：9o04o7
+墨刀地址：https://modao.cc/proto/BJBH1Uptgioo7R81pGx2/sharing?view_mode=read_only&screen=rbpVMU6bjYrmWMsnN
+墨刀密码：vhni5m
+旧墨刀入口 `screen=rbpVFDJKkOR1Pi9Cf` 与旧密码 `9o04o7` 已过期，只作为历史记录参考。
 做邀请注册 5 页时，必须先从墨刀当前画布确认页面名称、顺序、尺寸、文案和点击关系，再修改小程序。
 若用户要求“点一下看下一页”，只做墨刀 5 页静态走查，不接验证码、微信登录、注册等真实业务逻辑，也不要和其他页面流程联动。
 墨刀密码不等于访问权限；若页面提示“链接无法访问，文件链接访问权限未开启”，不要继续猜测页面内容，也不要用旧资料替代，必须提示需要分享者开启链接访问权限、提供可访问链接，或改用已登录浏览器/导出的高清截图作为资料来源。

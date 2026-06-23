@@ -1,3 +1,5 @@
+const { getSurnameInitials } = require('../../utils/avatar')
+
 const DEFAULT_INFO = {
   title: '活动信息',
   avatarText: '',
@@ -39,9 +41,12 @@ Component({
 
   methods: {
     normalizeInfo(info = {}) {
+      const name = info.name || info.expertName || info.playerName || info.guideName || ''
+
       return {
         ...DEFAULT_INFO,
         ...info,
+        avatarText: getSurnameInitials(name, info.avatarText || DEFAULT_INFO.avatarText),
         rows: Array.isArray(info.rows) ? info.rows : []
       }
     }

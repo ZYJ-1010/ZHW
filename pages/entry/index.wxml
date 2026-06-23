@@ -1,9 +1,9 @@
 <view class="entry-page">
   <view class="entry-phone">
-    <view class="entry-topbar">
-      <view class="entry-status-fill"></view>
-      <view class="entry-nav">
-        <view class="entry-brand">
+    <view class="entry-topbar" style="{{entryTopbarStyle}}">
+      <view class="entry-status-fill" style="{{entryStatusFillStyle}}"></view>
+      <view class="entry-nav" style="{{entryNavStyle}}">
+        <view class="entry-brand" style="{{entryBrandStyle}}">
           <image
             class="entry-brand__icon"
             mode="aspectFit"
@@ -22,8 +22,8 @@
       </view>
     </view>
 
-    <view class="entry-content">
-      <view class="entry-hero">
+    <view class="entry-content" style="{{entryContentStyle}}">
+      <view class="entry-hero" style="{{entryHeroStyle}}">
         <view class="entry-orb"></view>
         <view class="entry-ticket-panel">
           <view class="entry-ticket-panel__bar"></view>
@@ -43,9 +43,9 @@
       />
 
       <text class="entry-subtitle">ZHEN HAO WAN</text>
-      <view class="entry-accent-dot"></view>
-      <view class="entry-accent-dot entry-accent-dot--violet"></view>
-      <view class="entry-accent-dot entry-accent-dot--cyan"></view>
+      <view class="entry-accent-dot" style="{{entryAccentStyle}}"></view>
+      <view class="entry-accent-dot entry-accent-dot--violet" style="{{entryAccentStyle}}"></view>
+      <view class="entry-accent-dot entry-accent-dot--cyan" style="{{entryAccentStyle}}"></view>
     </view>
   </view>
 </view>

@@ -12,13 +12,39 @@
   </view>
 </view>
 
+<view wx:elif="{{masterMode === 'whiteBackground'}}" class="home-master-white-page">
+  <view class="home-master-white-stage">
+    <view class="home-master-white-frame" style="{{whiteShellLayout.frameStyle}}">
+      <view class="home-master-white-top-bg"></view>
+      <view class="home-master-white-nav">
+        <view class="home-master-white-back-button" style="{{whiteShellLayout.backStyle}}">
+          <view class="home-master-white-back-icon"></view>
+        </view>
+        <text class="home-master-white-nav-title" style="{{whiteShellLayout.titleStyle}}">{{whiteMaster.navTitle}}</text>
+      </view>
+      <scroll-view
+        class="home-master-white-phone"
+        style="{{whiteShellLayout.contentStyle}}"
+        scroll-y
+        enhanced
+        show-scrollbar="false"
+      >
+        <view class="home-master-white-main"></view>
+      </scroll-view>
+      <view class="home-master-white-bottom-bg" style="{{whiteShellLayout.bottomStyle}}"></view>
+    </view>
+  </view>
+</view>
+
 <home-shell
   wx:else
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
+  shell-variant="{{shellVariant}}"
   dock-visible="{{dockVisible}}"
   content-scroll-y="{{contentScrollY}}"
   shell-class="{{shellClass}}"
+  toolbar-actions-visible="{{toolbarActionsVisible}}"
   bindnavtap="handleShellNavTap"
 >
   <view class="home-master-placeholder"></view>

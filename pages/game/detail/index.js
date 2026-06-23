@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const DETAIL_SCROLL_TAP_STEP_RPX = 360
 const DETAIL_SCROLL_HOLD_STEP_RPX = 72
@@ -27,8 +28,8 @@ Page({
       countdown: '23:45:12'
     },
     expert: {
-      avatarText: 'ZE',
       name: '张专家',
+      avatarText: getSurnameInitials('张专家', 'ZH'),
       desc: '资深产品经理 · 10年经验',
       rating: '4.9',
       serviceText: '服务50+客户',
@@ -38,14 +39,14 @@ Page({
     party: {
       confirmedText: '3/6人已确认',
       player: {
-        avatarText: 'LN',
         name: '李娜',
+        avatarText: getSurnameInitials('李娜', 'LI'),
         role: '玩家',
         state: '待确认'
       },
       expert: {
-        avatarText: 'WQ',
         name: '王强',
+        avatarText: getSurnameInitials('王强', 'WA'),
         role: '行家',
         state: '待确认'
       }

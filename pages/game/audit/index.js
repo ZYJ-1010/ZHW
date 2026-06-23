@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const toast = require('../../../utils/toast')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const AUDIT_SCROLL_TAP_STEP_RPX = 360
 const AUDIT_SCROLL_HOLD_STEP_RPX = 72
@@ -10,8 +11,8 @@ const applications = [
   {
     id: 'audit-001',
     initiator: {
-      avatarText: '强',
       nickname: '赛博导游阿强',
+      avatarText: getSurnameInitials('赛博导游阿强', 'SA'),
       roleName: '行家'
     },
     roleKey: 'expert',
@@ -22,8 +23,8 @@ const applications = [
   {
     id: 'audit-002',
     initiator: {
-      avatarText: '夏',
       nickname: '极客少女小夏',
+      avatarText: getSurnameInitials('极客少女小夏', 'JI'),
       roleName: '玩家'
     },
     roleKey: 'player',
@@ -34,8 +35,8 @@ const applications = [
   {
     id: 'audit-003',
     initiator: {
-      avatarText: 'G',
       nickname: '老顽童G',
+      avatarText: getSurnameInitials('老顽童G', 'LA'),
       roleName: '领路人'
     },
     roleKey: 'guide',
@@ -46,8 +47,8 @@ const applications = [
   {
     id: 'audit-004',
     initiator: {
-      avatarText: '林',
       nickname: '城市玩家小林',
+      avatarText: getSurnameInitials('城市玩家小林', 'CH'),
       roleName: '玩家'
     },
     roleKey: 'player',

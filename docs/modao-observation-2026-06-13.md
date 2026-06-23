@@ -3,8 +3,10 @@
 ## Access Status
 
 - Prototype: `小程序开发（对外）`
-- URL: `https://modao.cc/proto/BJBH1Uptgioo7R81pGx2/sharing?view_mode=read_only&screen=rbpVFDJKkOR1Pi9Cf`
-- Password used earlier: `9o04o7`
+- Current URL as of 2026-06-16: `https://modao.cc/proto/BJBH1Uptgioo7R81pGx2/sharing?view_mode=read_only&screen=rbpVMU6bjYrmWMsnN`
+- Current password as of 2026-06-16: `vhni5m`
+- Historical URL observed on 2026-06-13: `https://modao.cc/proto/BJBH1Uptgioo7R81pGx2/sharing?view_mode=read_only&screen=rbpVFDJKkOR1Pi9Cf`
+- Historical password used earlier: `9o04o7` (expired)
 - 2026-06-13 11:05 re-entered successfully after cache/session recovery.
 - Current canvas observed: `组局分布地球网`
 - Modao side tree shows: `画布（50）`

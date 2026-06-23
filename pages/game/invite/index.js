@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const INVITE_SCROLL_TAP_STEP_RPX = 360
 const INVITE_SCROLL_HOLD_STEP_RPX = 72
@@ -159,17 +160,9 @@ function parsePositiveInteger(value, fallback) {
 }
 
 function getAvatarText(player = {}) {
-  if (player.avatarText) {
-    return player.avatarText
-  }
-
   const name = String(player.name || player.nickname || '').trim()
 
-  if (!name) {
-    return '玩'
-  }
-
-  return /^[A-Za-z]/.test(name) ? name.slice(0, 2).toUpperCase() : name.slice(0, 1)
+  return getSurnameInitials(name, player.avatarText || 'WA')
 }
 
 function normalizeInvitePlayer(player = {}, index = 0) {
@@ -224,8 +217,8 @@ Page({
       { name: '首页', active: true }
     ],
     expert: {
-      avatarText: 'ZE',
       name: '张专家',
+      avatarText: getSurnameInitials('张专家', 'ZH'),
       roleName: '行家',
       desc: '资深产品经理·10年经验',
       tags: ['产品咨询', '架构梳理']

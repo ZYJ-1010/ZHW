@@ -1,9 +1,31 @@
 const authService = require('../../services/auth')
 const inviteService = require('../../services/invite')
-const userService = require('../../services/user')
 const newbieService = require('../../services/newbie')
+const userService = require('../../services/user')
 const toast = require('../../utils/toast')
-const { ROUTES } = require('../../config/routes')
+const env = require('../../config/env')
+
+const TEST_PHONE = '13888888888'
+const TEST_REGISTER_PHONE = '13700000000'
+const TEST_CODE = '123456'
+const TEST_PASSWORD = 'Test123456'
+const TEST_INVITE_CODE = 'ENJOY2026'
+const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account', 'wechatAuth']
+
+function getTestLoginDefaults() {
+  if (!env.isMock) {
+    return {}
+  }
+
+  return {
+    phone: TEST_PHONE,
+    verifyCode: TEST_CODE,
+    codeDigits: TEST_CODE.split(''),
+    isCodeComplete: true,
+    password: TEST_PASSWORD,
+    inviteCode: TEST_INVITE_CODE
+  }
+}
 
 const DEFAULT_NEWBIE_TASKS = [
   {
@@ -32,31 +54,13 @@ const DEFAULT_NEWBIE_TASKS = [
   }
 ]
 
-function getNewbieTaskRoute(type) {
-  if (type === 'profile') {
-    return ROUTES.profile
-  }
-
-  if (type === 'first_game') {
-    return ROUTES.gameCreate
-  }
-
-  if (type === 'realname') {
-    return `${ROUTES.login}?ui=1&mode=realnameGuide`
-  }
-
-  return ''
-}
-
 function toNewbieTaskView(task, index) {
   const completed = Boolean(task.completed || task.status === 'completed')
   const actionText = task.actionText || '去完成'
-  const route = task.route || getNewbieTaskRoute(task.type)
 
   return Object.assign({}, task, {
     id: task.id || `${task.type || 'task'}-${index}`,
     completed,
-    route,
     actionText,
     statusText: task.statusText || (completed ? '已完成' : actionText),
     itemClass: completed ? 'done' : '',
@@ -117,6 +121,7 @@ Page({
     inviteContext: null,
     userInfo: null,
     isUiPreview: false,
+    isLoginAuthPreview: false,
     uiPreviewStep: 'invite',
     newbieTasks: initialNewbieTaskData.newbieTasks,
     newbieCompletedCount: initialNewbieTaskData.newbieCompletedCount,
@@ -124,34 +129,24 @@ Page({
     newbieProgressPercent: initialNewbieTaskData.newbieProgressPercent
   },
 
-  onLoad(options) {
+  onLoad(options = {}) {
+    if (options.walkthrough === 'loginAuth' || options.preview === 'loginAuth') {
+      this.enterLoginAuthPreview()
+      return
+    }
+
     if (options.ui === '1') {
-      this.enterUiPreview(options.mode || 'home')
+      this.enterUiPreview(options.mode || 'home', options)
       return
     }
 
-    const inviteContext = inviteService.getInviteContext()
-    const inviteCode = String(options.inviteCode || '').trim().toUpperCase()
-
-    if (inviteContext && inviteContext.code) {
-      this.setData({
-        inviteContext
-      })
-      return
-    }
-
-    if (inviteCode) {
-      this.setData({
-        inviteContext: {
-          code: inviteCode
-        }
-      })
+    if (env.isMock) {
+      this.setData(getTestLoginDefaults())
     }
   },
 
   onUnload() {
     this.clearCodeTimer()
-    this.clearEntryTimer()
   },
 
   toggleAgreement() {
@@ -188,11 +183,75 @@ Page({
     })
   },
 
-  enterUiPreview(mode) {
+  enterLoginAuthPreview() {
+    const phone = env.isMock ? TEST_PHONE : ''
+    const verifyCode = env.isMock ? TEST_CODE : ''
+    const password = env.isMock ? TEST_PASSWORD : ''
+
+    this.clearCodeTimer()
+    this.setData({
+      isUiPreview: false,
+      isLoginAuthPreview: true,
+      loginMode: 'home',
+      accountMode: 'password',
+      agreed: true,
+      phone,
+      maskedPhone: this.maskPhone(phone),
+      verifyCode,
+      codeDigits: this.getCodeDigits(verifyCode),
+      isCodeComplete: verifyCode.length === 6,
+      codeInputFocus: false,
+      resendSeconds: 60,
+      canResend: true,
+      password,
+      hasWechatLogin: false,
+      isLoggingIn: false,
+      isSendingCode: false,
+      isPhoneLoggingIn: false,
+      isPasswordLoggingIn: false
+    })
+  },
+
+  showLoginWalkthroughMode(mode) {
+    if (!this.data.isLoginAuthPreview || !LOGIN_WALKTHROUGH_MODES.includes(mode)) {
+      return
+    }
+
+    const phone = this.data.phone || TEST_PHONE
+    const verifyCode = this.data.verifyCode || TEST_CODE
+
+    this.setData({
+      loginMode: mode,
+      accountMode: 'password',
+      agreed: true,
+      phone,
+      maskedPhone: this.maskPhone(phone),
+      verifyCode,
+      codeDigits: this.getCodeDigits(verifyCode),
+      isCodeComplete: verifyCode.length === 6,
+      codeInputFocus: false,
+      password: this.data.password || TEST_PASSWORD
+    })
+  },
+
+  showPreviousLoginWalkthrough() {
+    const currentIndex = LOGIN_WALKTHROUGH_MODES.indexOf(this.data.loginMode)
+    const nextIndex = Math.max(0, currentIndex - 1)
+
+    this.showLoginWalkthroughMode(LOGIN_WALKTHROUGH_MODES[nextIndex])
+  },
+
+  showNextLoginWalkthrough() {
+    const currentIndex = LOGIN_WALKTHROUGH_MODES.indexOf(this.data.loginMode)
+    const nextIndex = Math.min(LOGIN_WALKTHROUGH_MODES.length - 1, currentIndex + 1)
+
+    this.showLoginWalkthroughMode(LOGIN_WALKTHROUGH_MODES[nextIndex])
+  },
+
+  enterUiPreview(mode, options = {}) {
     const stepMap = {
       home: 'invite',
       invite: 'invite',
-      entry: 'entry',
       realnameModal: 'realnameModal',
       realnameGuide: 'realnameGuide',
       newbieTasks: 'newbieTasks'
@@ -200,25 +259,26 @@ Page({
     const uiPreviewStep = stepMap[mode] || 'invite'
     const loginMode = 'home'
     const newbieTaskData = getNewbieTaskData()
+    const optionInviteCode = String(options.inviteCode || options.code || '').trim().toUpperCase()
 
     this.clearCodeTimer()
-    this.clearEntryTimer()
     this.setData({
       isUiPreview: true,
+      isLoginAuthPreview: false,
       uiPreviewStep,
       loginMode,
       accountMode: 'password',
       agreed: false,
-      phone: '',
+      phone: env.isMock ? TEST_REGISTER_PHONE : '',
       maskedPhone: '',
-      verifyCode: '',
-      codeDigits: this.getCodeDigits(''),
-      isCodeComplete: false,
+      verifyCode: env.isMock ? TEST_CODE : '',
+      codeDigits: this.getCodeDigits(env.isMock ? TEST_CODE : ''),
+      isCodeComplete: env.isMock,
       codeInputFocus: false,
       resendSeconds: 60,
       canResend: true,
-      password: '',
-      inviteCode: '',
+      password: env.isMock ? TEST_PASSWORD : '',
+      inviteCode: optionInviteCode || (env.isMock ? TEST_INVITE_CODE : ''),
       hasWechatLogin: false,
       isLoggingIn: false,
       isSendingCode: false,
@@ -232,10 +292,6 @@ Page({
       newbieTotalCount: newbieTaskData.newbieTotalCount,
       newbieProgressPercent: newbieTaskData.newbieProgressPercent
     })
-
-    if (uiPreviewStep === 'entry') {
-      this.startEntryAutoTimer()
-    }
 
     if (uiPreviewStep === 'newbieTasks') {
       this.loadNewbieTasks()
@@ -257,16 +313,12 @@ Page({
       return
     }
 
-    if (this.data.uiPreviewStep === 'entry') {
-      this.checkRealnameAfterEntry()
-      return
-    }
-
     if (this.data.uiPreviewStep === 'realnameModal') {
       return
     }
 
     if (this.data.uiPreviewStep === 'realnameGuide') {
+      toast.developing()
       return
     }
   },
@@ -281,7 +333,7 @@ Page({
     return status === 'verified' || status === 'approved' || status === 'passed' || user.needRealname === false
   },
 
-  async checkRealnameAfterEntry() {
+  async checkRealnameAfterRegister() {
     if (this.data.isCheckingRealname) {
       return
     }
@@ -294,34 +346,17 @@ Page({
       const user = await userService.getCurrentUser()
 
       if (this.isRealnameVerified(user)) {
-        wx.redirectTo({
-          url: `/${ROUTES.profile}`
-        })
+        this.showUiPreviewMode('newbieTasks')
         return
       }
 
       this.showUiPreviewMode('realnameModal')
     } catch (error) {
-      toast.info(error.message || '获取实名状态失败')
+      this.showUiPreviewMode('realnameModal')
     } finally {
       this.setData({
         isCheckingRealname: false
       })
-    }
-  },
-
-  startEntryAutoTimer() {
-    this.clearEntryTimer()
-    this.entryTimer = setTimeout(() => {
-      this.entryTimer = null
-      this.checkRealnameAfterEntry()
-    }, 900)
-  },
-
-  clearEntryTimer() {
-    if (this.entryTimer) {
-      clearTimeout(this.entryTimer)
-      this.entryTimer = null
     }
   },
 
@@ -394,23 +429,15 @@ Page({
         userInfo: loginData.user
       })
       inviteService.clearInviteContext()
-      toast.success('登录成功')
-      this.showUiPreviewMode('entry')
+      toast.success('注册成功')
+      await this.checkRealnameAfterRegister()
     } catch (error) {
-      toast.info(error.message || '登录或注册失败')
+      toast.info(error.message || '注册失败')
     } finally {
       this.setData({
         isPhoneLoggingIn: false
       })
     }
-  },
-
-  goRealnameGuide() {
-    if (!this.data.isUiPreview) {
-      return
-    }
-
-    this.showUiPreviewMode('realnameGuide')
   },
 
   async startRealnameAuth() {
@@ -443,6 +470,10 @@ Page({
     }
   },
 
+  skipRealnameAuth() {
+    toast.developing()
+  },
+
   async loadNewbieTasks() {
     if (this.data.isLoadingNewbieTasks) {
       return
@@ -465,9 +496,7 @@ Page({
   },
 
   goHomeFromNewbieTasks() {
-    wx.redirectTo({
-      url: `/${ROUTES.home}`
-    })
+    toast.developing()
   },
 
   goNewbieTask(event) {
@@ -479,20 +508,11 @@ Page({
     }
 
     if (task.type === 'realname' && this.data.isUiPreview) {
-      this.showUiPreviewMode('realnameGuide')
+      toast.developing()
       return
     }
 
-    const route = task.route || getNewbieTaskRoute(task.type)
-
-    if (!route) {
-      toast.info('任务页面暂未配置')
-      return
-    }
-
-    wx.navigateTo({
-      url: route.charAt(0) === '/' ? route : `/${route}`
-    })
+    toast.developing()
   },
 
   async startPhoneLogin() {
@@ -506,15 +526,15 @@ Page({
       return
     }
 
-    const phone = this.data.phone || '13888888888'
+    const phone = this.data.phone || TEST_PHONE
 
     this.setData({
       loginMode: 'codeVerify',
       phone,
       maskedPhone: this.maskPhone(phone),
-      verifyCode: '',
-      codeDigits: this.getCodeDigits(''),
-      isCodeComplete: false,
+      verifyCode: env.isMock ? TEST_CODE : '',
+      codeDigits: this.getCodeDigits(env.isMock ? TEST_CODE : ''),
+      isCodeComplete: env.isMock,
       codeInputFocus: true
     })
 
@@ -594,7 +614,7 @@ Page({
       return
     }
 
-    await this.sendCodeForPhone(this.data.phone || '13888888888')
+    await this.sendCodeForPhone(this.data.phone || TEST_PHONE)
   },
 
   async sendCodeForPhone(phone) {
@@ -604,9 +624,9 @@ Page({
       isSendingCode: true,
       canResend: false,
       resendSeconds: 59,
-      verifyCode: '',
-      codeDigits: this.getCodeDigits(''),
-      isCodeComplete: false
+      verifyCode: env.isMock ? TEST_CODE : '',
+      codeDigits: this.getCodeDigits(env.isMock ? TEST_CODE : ''),
+      isCodeComplete: env.isMock
     })
 
     try {
@@ -711,7 +731,6 @@ Page({
       inviteService.clearInviteContext()
       this.clearCodeTimer()
       toast.success('登录成功')
-      this.goHome()
     } catch (error) {
       toast.info(error.message || '手机号登录失败')
     } finally {
@@ -756,7 +775,6 @@ Page({
       })
       inviteService.clearInviteContext()
       toast.success('登录成功')
-      this.goHome()
     } catch (error) {
       toast.info(error.message || '账号密码登录失败')
     } finally {
@@ -788,7 +806,7 @@ Page({
 
   async handleWechatLogin() {
     if (this.data.isUiPreview) {
-      this.showUiPreviewMode('entry')
+      toast.developing()
       return
     }
 
@@ -815,7 +833,7 @@ Page({
         userInfo: loginData.user
       })
       inviteService.clearInviteContext()
-      this.goEntryForLogin()
+      toast.success('登录成功')
     } catch (error) {
       this.setData({
         loginMode: 'wechatAuth'
@@ -829,19 +847,11 @@ Page({
   },
 
   goHome() {
-    setTimeout(() => {
-      wx.redirectTo({
-        url: `/${ROUTES.home}`
-      })
-    }, 500)
+    toast.developing()
   },
 
   goEntryForLogin() {
-    setTimeout(() => {
-      wx.redirectTo({
-        url: `/${ROUTES.entry}?mode=login`
-      })
-    }, 300)
+    toast.developing()
   },
 
   goForgot() {
@@ -849,9 +859,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.loginForgot}`
-    })
+    toast.developing()
   },
 
   clearInvite() {
@@ -864,7 +872,7 @@ Page({
 
   declineAuth() {
     if (this.data.isUiPreview) {
-      this.showUiPreviewMode('account')
+      toast.developing()
       return
     }
 

@@ -233,6 +233,12 @@ page {
   line-height: 36rpx;
 }
 
+.home-other-warning-icon {
+  flex: 0 0 auto;
+  width: 40rpx;
+  height: 40rpx;
+}
+
 .home-other-gift {
   display: grid;
   grid-template-columns: 72rpx 1fr auto;
@@ -374,9 +380,41 @@ page {
 }
 
 .reject-reasons {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
   margin-top: 62rpx;
-  border: 2rpx solid rgba(255, 88, 58, 0.38);
-  background: #2a0c08;
+  margin-bottom: 32rpx;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 32rpx;
+  width: 686rpx;
+  max-width: calc(100vw - 64rpx);
+  min-height: 262rpx;
+  border: 2rpx solid var(--reject-border, rgba(255, 107, 53, 0.2));
+  border-radius: 32rpx;
+  background: var(--reject-bg, rgba(255, 107, 53, 0.08));
+}
+
+.reject-reasons .home-other-panel-title {
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+  color: var(--theme);
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 40rpx;
+}
+
+.reject-reasons .home-other-list-line {
+  margin-top: 24rpx;
+  color: #e5e7eb;
+  font-size: 30rpx;
+  font-weight: 400;
+  line-height: 42rpx;
+}
+
+.reject-reasons .home-other-list-line:first-of-type {
+  margin-top: 0;
 }
 
 .suggestions,
@@ -385,8 +423,24 @@ page {
   background: #191b23;
 }
 
+.home-other-apply-page.rejected .suggestions,
+.home-other-apply-page.rejected .retry,
+.home-other-apply-page.rejected .details {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-left: 0;
+  margin-right: 0;
+  width: 686rpx;
+  max-width: calc(100vw - 64rpx);
+}
+
+.home-other-apply-page.rejected .retry {
+  background: transparent;
+}
+
 .retry {
-  border-left: 8rpx solid #ff6b42;
+  border-left: 8rpx solid var(--theme);
 }
 
 .home-other-list-line {
@@ -1211,6 +1265,27 @@ page {
 .home-other-apply-page.rejected {
   --theme: #ff6745;
   --button-bg: #ff6745;
+  --reject-bg: rgba(255, 107, 53, 0.08);
+  --reject-border: rgba(255, 107, 53, 0.2);
+  --reject-icon-bg: linear-gradient(135deg, rgba(255, 107, 53, 0.2) 14.6%, rgba(255, 107, 53, 0.05) 85.4%);
+}
+
+.home-other-apply-page.rejected.role-expert {
+  --theme: #12e6f0;
+  --button-bg: #17dce6;
+  --glow: rgba(18, 230, 240, 0.35);
+  --reject-bg: rgba(18, 230, 240, 0.08);
+  --reject-border: rgba(18, 230, 240, 0.2);
+  --reject-icon-bg: linear-gradient(135deg, rgba(18, 230, 240, 0.2) 14.6%, rgba(18, 230, 240, 0.05) 85.4%);
+}
+
+.home-other-apply-page.rejected.role-guide {
+  --theme: #ff6745;
+  --button-bg: #ff6745;
+  --glow: rgba(255, 107, 53, 0.3);
+  --reject-bg: rgba(255, 107, 53, 0.08);
+  --reject-border: rgba(255, 107, 53, 0.2);
+  --reject-icon-bg: linear-gradient(135deg, rgba(255, 107, 53, 0.2) 14.6%, rgba(255, 107, 53, 0.05) 85.4%);
 }
 
 .home-other-apply-page.cards.role-expert,
@@ -1260,7 +1335,6 @@ page {
   line-height: 32rpx;
 }
 
-.home-other-apply-page.rejected .home-other-status-icon,
 .home-other-apply-page.simple .home-other-status-icon,
 .home-other-apply-page.cards .home-other-status-icon {
   width: 132rpx;
@@ -1268,8 +1342,18 @@ page {
   margin-bottom: 56rpx;
 }
 
+.home-other-apply-page.rejected .home-other-status-icon {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 56rpx;
+  border: 6rpx solid var(--theme);
+  border-radius: 50%;
+  background: var(--reject-icon-bg, linear-gradient(135deg, rgba(255, 107, 53, 0.2) 14.6%, rgba(255, 107, 53, 0.05) 85.4%));
+  box-shadow: 0 0 80rpx var(--glow);
+}
+
 .home-other-apply-page.rejected .home-other-status-title {
-  color: #ff6745;
+  color: var(--theme);
   font-size: 40rpx;
   line-height: 50rpx;
 }

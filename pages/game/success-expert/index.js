@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -84,8 +85,8 @@ Page({
     },
     participants: [
       { id: 'me', avatar: 'ME', colorClass: 'blue' },
-      { id: 'wa', avatar: 'WA', colorClass: 'orange' },
-      { id: 'lm', avatar: 'LM', colorClass: 'pink' }
+      { id: 'wa', avatar: getSurnameInitials('王引荐', 'WA'), colorClass: 'orange' },
+      { id: 'lm', avatar: getSurnameInitials('李明', 'LI'), colorClass: 'pink' }
     ],
     activityRows: [
       { label: '活动编号', value: 'REF-20260323-001' },

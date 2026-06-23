@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -105,17 +106,17 @@ Page({
       cardStyle: 'width: 684rpx; height: 446rpx; margin: 32rpx auto 0; box-shadow: none;',
       titleClass: 'regular',
       player: {
-        avatarText: 'LN',
         avatarClass: 'pink',
         name: '李娜',
+        avatarText: getSurnameInitials('李娜', 'LI'),
         role: '玩家',
         state: '已确认',
         stateClass: 'confirmed'
       },
       expert: {
-        avatarText: 'WQ',
         avatarClass: 'blue',
         name: '王强',
+        avatarText: getSurnameInitials('王强', 'WA'),
         role: '行家',
         state: '已确认',
         stateClass: 'confirmed'
