@@ -1,0 +1,113 @@
+<home-apply-shell
+  nav-title="系统推荐适配局"
+  shell-class="system-recommend-master"
+  show-back="{{true}}"
+  bindbacktap="onBackTap"
+>
+  <view class="recommend-shell">
+    <scroll-view
+      class="recommend-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      enable-back-to-top
+    >
+      <view class="recommend-page">
+        <view class="recommend-banner">
+          <view class="banner-icon">
+            <view class="banner-icon-core">
+              <text class="banner-robot">🤖</text>
+            </view>
+          </view>
+          <view class="banner-copy">
+            <text class="banner-title">{{recommendationTitle}}</text>
+            <text class="banner-desc">{{recommendationDesc}}</text>
+          </view>
+        </view>
+
+        <scroll-view
+          class="category-scroll"
+          scroll-x
+          enhanced
+          show-scrollbar="false"
+        >
+          <view class="category-row">
+            <view
+              wx:for="{{categories}}"
+              wx:key="key"
+              class="category-chip {{activeCategory === item.key ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="onCategoryTap"
+            >{{item.name}}</view>
+          </view>
+        </scroll-view>
+
+        <view wx:if="{{loading}}" class="recommend-state">推荐数据加载中</view>
+
+        <view wx:elif="{{!visibleExperts.length}}" class="recommend-state">暂无匹配行家</view>
+
+        <view wx:else class="expert-list">
+          <view
+            wx:for="{{visibleExperts}}"
+            wx:key="id"
+            class="expert-card {{item.selected ? 'selected' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onExpertTap"
+          >
+            <view class="match-badge {{item.matchTone}}">匹配度 {{item.match}}%</view>
+            <view class="expert-head">
+              <view class="expert-avatar {{item.avatarClass}}">{{item.avatarText}}</view>
+              <view class="expert-title">
+                <text class="expert-name">{{item.name}}</text>
+                <text class="expert-role">{{item.role}}</text>
+              </view>
+            </view>
+            <view class="rating-row">
+              <text class="rating-stars">{{item.stars}}</text>
+              <text class="rating-score">{{item.rating}}</text>
+              <text class="rating-count">{{item.reviewCount}}条评价</text>
+            </view>
+            <view class="tag-row">
+              <text
+                wx:for="{{item.tags}}"
+                wx:for-item="tag"
+                wx:key="*this"
+                class="expert-tag {{index === 0 ? 'primary' : ''}}"
+              >{{tag}}</text>
+            </view>
+            <view class="expert-footer">
+              <view class="price-block">
+                <text class="price-value">¥{{item.price}}</text>
+                <text class="price-unit">/小时</text>
+              </view>
+              <view
+                class="select-button {{item.selected ? 'selected' : ''}}"
+                data-id="{{item.id}}"
+                catchtap="onExpertTap"
+              >{{item.selected ? '已选择' : '选择'}}</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="selection-summary">
+          <text class="summary-title">已选择 {{selectedExperts.length}} 位行家</text>
+          <view class="summary-avatar-row">
+            <view
+              wx:for="{{selectedExperts}}"
+              wx:key="id"
+              class="summary-avatar {{item.avatarClass}}"
+            >{{item.avatarText}}</view>
+          </view>
+          <text class="summary-desc">还可以选择多位行家组成顾问团，或搭配玩家共同组局</text>
+        </view>
+
+        <view class="recommend-bottom-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view class="recommend-action-bar">
+      <view class="action-button cancel" bindtap="onCancelTap">取消</view>
+      <view class="action-button primary" bindtap="onConfirmTap">确认组局</view>
+    </view>
+  </view>
+</home-apply-shell>

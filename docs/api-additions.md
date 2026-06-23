@@ -2362,3 +2362,80 @@ POST /api/app/game-invites/replay
 2. 如果当前发起人是上一局参与方，是否只邀请另外两方；若发起人不是上一局参与方，是否允许邀请上一局三方。
 3. 确认发起后应进入哪个流程页：当前先跳 `pages/game/guide-progress/index`，后续可改为再次组局专属进度页或后端返回 `nextAction`。
 4. 再次组局是否沿用上一局服务类型、预算、时间、分润规则，还是只复用成员关系并重新填写组局需求。
+
+## 37. 系统推荐适配局数据与确认组局接口
+
+记录日期：2026-06-24
+
+模块：组局 / 系统推荐适配局
+
+页面：`pages/game/system-recommend/index`
+
+功能：用户进入系统推荐适配局页后，应从后台获取推荐上下文、筛选标签、行家列表、默认选中行家和匹配度等数据，前端只负责展示、筛选和选择态。用户点击 `确认组局` 后，当前先跳转到 `pages/game/create/index` 并携带推荐 ID、已选行家 ID、上一局 / 服务订单上下文；正式联调时需要确认是先进入创建组局页预填，还是直接调用创建组局 / 创建邀请接口。
+
+候选接口：
+
+```text
+GET /api/app/game-invites/system-recommendations
+POST /api/app/games
+```
+
+`GET /api/app/game-invites/system-recommendations` 建议入参：
+
+```json
+{
+  "sourceGameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "recommendationId": "system-rec-001",
+  "category": "all"
+}
+```
+
+建议返回：
+
+```json
+{
+  "recommendationId": "system-rec-001",
+  "title": "系统推荐适配局",
+  "desc": "基于你的偏好，已找到5个高匹配度行家",
+  "defaultSelectedExpertIds": ["expert_001"],
+  "categories": [
+    { "key": "all", "name": "全部" },
+    { "key": "product", "name": "产品架构" },
+    { "key": "tech", "name": "技术咨询" },
+    { "key": "operation", "name": "运营策略" }
+  ],
+  "experts": [
+    {
+      "id": "expert_001",
+      "name": "李资深",
+      "role": "前阿里P8 · 产品架构专家",
+      "avatarUrl": "",
+      "avatarText": "LI",
+      "avatarClass": "purple",
+      "rating": "5.0",
+      "stars": "★★★★★",
+      "reviewCount": 128,
+      "match": 98,
+      "price": 800,
+      "category": "product",
+      "tags": ["产品架构", "技术方案", "团队管理", "响应及时"]
+    }
+  ]
+}
+```
+
+确认组局当前前端跳转：
+
+```text
+pages/game/create/index?source=systemRecommend&recommendationId=system-rec-001&selectedExpertIds=expert_001&sourceGameId=game_001&serviceOrderId=service_order_001
+```
+
+待确认：
+
+1. 推荐数据接口路径是否使用 `/api/app/game-invites/system-recommendations`，还是归入组局推荐 / 匹配服务接口。
+2. 筛选标签是否由后台返回并支持后台筛选，还是前端拿全量列表后本地筛选。
+3. `avatarText` 是否由后台返回；若未返回，前端会按统一头像规则用姓名姓氏拼音前两个字母生成。
+4. `price` 金额单位使用元还是分；当前页面按元展示 `¥800/小时`。
+5. 点击 `确认组局` 后，是进入创建组局页预填已选行家，还是直接创建系统推荐适配局并进入组局进度 / 支付 / 邀请流程。
+6. 若进入创建组局页，`pages/game/create/index` 需要补充接收 `source=recommendationId/selectedExpertIds/sourceGameId/serviceOrderId` 并预填推荐上下文的能力。

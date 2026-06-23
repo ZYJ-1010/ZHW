@@ -9,6 +9,7 @@ const {
   mockRoleApplications,
   mockInvitePlayerConfig,
   mockInvitePlayers,
+  mockSystemRecommendations,
   mockReplayConfirmContext,
   mockGuideProgress,
   mockGuideCancelDetail,
@@ -303,6 +304,20 @@ function buildInvitePlayers(data = {}, recentOnly = false) {
   }
 }
 
+function buildSystemRecommendations(data = {}) {
+  const category = String(data.category || 'all').trim()
+  const source = mockSystemRecommendations || {}
+  const experts = Array.isArray(source.experts) ? source.experts : []
+  const list = category && category !== 'all'
+    ? experts.filter((item) => item.category === category)
+    : experts
+
+  return Object.assign({}, source, {
+    activeCategory: category || 'all',
+    experts: list
+  })
+}
+
 function respondGameInvitation(data = {}) {
   const action = String(data.action || '').trim()
 
@@ -506,6 +521,10 @@ function handleRequest(options) {
       sourceGameId: options.data && (options.data.sourceGameId || options.data.gameId) || mockReplayConfirmContext.sourceGameId,
       serviceOrderId: options.data && options.data.serviceOrderId || mockReplayConfirmContext.serviceOrderId
     })))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/system-recommendations') {
+    return wait(ok(buildSystemRecommendations(options.data || {})))
   }
 
   if (method === 'POST' && url === '/api/app/game-invites/replay') {

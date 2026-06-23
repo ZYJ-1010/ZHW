@@ -50,6 +50,16 @@ async function getReplayConfirmContext(params) {
   return result.data
 }
 
+async function getSystemRecommendations(params) {
+  const result = await gameApi.getSystemRecommendations(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取系统推荐适配局失败')
+  }
+
+  return result.data
+}
+
 async function createReplayInvitation(payload) {
   const result = await gameApi.createReplayInvitation(payload)
 
@@ -133,6 +143,7 @@ module.exports = {
   getInviteRecentPlayers,
   getInvitePlayers,
   getReplayConfirmContext,
+  getSystemRecommendations,
   createReplayInvitation,
   getGuideProgress,
   getGuideCancelDetail,

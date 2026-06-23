@@ -656,6 +656,92 @@ const mockInvitePlayers = [
   }
 ]
 
+const mockSystemRecommendations = {
+  recommendationId: 'system-rec-20260624-001',
+  title: '系统推荐适配局',
+  desc: '基于你的偏好，已找到5个高匹配度行家',
+  defaultSelectedExpertIds: ['li-senior'],
+  categories: [
+    { key: 'all', name: '全部' },
+    { key: 'product', name: '产品架构' },
+    { key: 'tech', name: '技术咨询' },
+    { key: 'operation', name: '运营策略' }
+  ],
+  experts: [
+    {
+      id: 'li-senior',
+      name: '李资深',
+      role: '前阿里P8 · 产品架构专家',
+      avatarText: 'LI',
+      avatarClass: 'purple',
+      rating: '5.0',
+      stars: '★★★★★',
+      reviewCount: 128,
+      match: 98,
+      price: 800,
+      category: 'product',
+      tags: ['产品架构', '技术方案', '团队管理', '响应及时'],
+      selected: true
+    },
+    {
+      id: 'chen-consultant',
+      name: '陈顾问',
+      role: '腾讯T3 · 技术架构师',
+      avatarText: 'CH',
+      avatarClass: 'teal',
+      rating: '4.8',
+      stars: '★★★★☆',
+      reviewCount: 86,
+      match: 95,
+      price: 600,
+      category: 'tech',
+      tags: ['系统架构', '微服务', '云原生', '专业深度']
+    },
+    {
+      id: 'zhao-growth',
+      name: '赵顾问',
+      role: '字节跳动 · 增长专家',
+      avatarText: 'ZH',
+      avatarClass: 'indigo',
+      rating: '4.9',
+      stars: '★★★★★',
+      reviewCount: 64,
+      match: 88,
+      price: 700,
+      category: 'operation',
+      tags: ['用户增长', '数据分析', 'A/B测试']
+    },
+    {
+      id: 'meng-designer',
+      name: '孟设计师',
+      role: '独立设计顾问 · UI/UX',
+      avatarText: 'ME',
+      avatarClass: 'cyan',
+      rating: '4.7',
+      stars: '★★★★☆',
+      reviewCount: 52,
+      match: 85,
+      price: 500,
+      category: 'product',
+      tags: ['UI设计', '交互设计', '设计系统']
+    },
+    {
+      id: 'sun-operation',
+      name: '孙运营',
+      role: '美团 · 运营策略专家',
+      avatarText: 'SU',
+      avatarClass: 'orange',
+      rating: '5.0',
+      stars: '★★★★★',
+      reviewCount: 93,
+      match: 72,
+      price: 550,
+      category: 'operation',
+      tags: ['运营策略', '社群运营', '活动策划']
+    }
+  ]
+}
+
 const mockReplayConfirmContext = {
   sourceGameId: 'game-replay-001',
   serviceOrderId: 'SO-20260613-001',
@@ -984,6 +1070,7 @@ module.exports = {
   mockRoleApplications,
   mockInvitePlayerConfig,
   mockInvitePlayers,
+  mockSystemRecommendations,
   mockReplayConfirmContext,
   mockGuideProgress,
   mockGuideCancelDetail,

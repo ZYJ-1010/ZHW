@@ -65,6 +65,12 @@
           "scene": null
         },
         {
+          "name": "组局-系统推荐适配局",
+          "pathName": "pages/game/system-recommend/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-审核列表",
           "pathName": "pages/game/audit/index",
           "query": "",
