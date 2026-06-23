@@ -2013,3 +2013,26 @@ GET /api/app/games/{gameId}/messages
 3. 成员管理使用独立页面、底部弹层还是弹窗；成员列表是否支持移除成员、变更角色、转让发起人等操作。
 4. 聊天区是否复用正式 IM 会话接口，还是只展示当前局内留言摘要。
 5. 结束确认页面路径是否新增 `pages/game/end-confirm/index`，以及结束本局需要哪些确认信息、权限校验和提交接口。
+
+## 33. 服务交付确认页操作接口
+
+记录日期：2026-06-23
+模块：组局 / 服务交付 - 免费
+页面：`pages/game/delivery/index`
+功能：服务交付免费页当前为静态 UI。快捷操作中的 `联系玩家`、`联系领路人` 后续需要进入对应人员的消息界面；确认状态里的 `提醒确认` 后续需要给玩家发消息 / 提醒玩家确认服务完成；底部 `确认服务完成` 后续需要提交服务完成确认，并触发玩家确认、状态刷新和免费局归档流程。
+
+建议接口 / 能力：
+
+```text
+GET /api/app/services/{serviceId}/delivery-detail
+POST /api/app/services/{serviceId}/remind-confirmation
+POST /api/app/services/{serviceId}/complete-confirmation
+GET /api/app/messages/session?targetUserId={userId}&serviceId={serviceId}
+```
+
+待确认：
+
+1. 服务交付确认页是否使用独立详情接口，还是复用业务管理 / 玩家管理的服务订单详情。
+2. 点击 `联系玩家`、`联系领路人` 是先进入聊天页由用户手动发送，还是直接发送默认话术。
+3. `提醒确认` 是进入玩家聊天页预填话术，还是直接调用提醒接口给玩家发送确认消息。
+4. `确认服务完成` 是由行家单方提交后等待玩家确认，还是玩家 / 行家任一方都可确认。

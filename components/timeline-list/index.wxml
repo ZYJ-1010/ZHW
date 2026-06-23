@@ -4,6 +4,7 @@
     <view
       wx:for="{{items}}"
       wx:key="key"
+      wx:for-index="index"
       class="timeline-list-item {{item.state}} {{item.hasLine ? 'with-line' : ''}} line-{{item.lineState || 'default'}}"
     >
       <view class="timeline-list-rail">
@@ -13,8 +14,42 @@
         <view class="timeline-list-head">
           <text class="timeline-list-item-title">{{item.title}}</text>
           <text wx:if="{{item.timeText}}" class="timeline-list-time">{{item.timeText}}</text>
+          <button
+            wx:if="{{item.actionText && item.actionPlacement === 'head'}}"
+            class="timeline-list-action head-action {{item.actionClass || ''}}"
+            data-index="{{index}}"
+            hover-class="none"
+            bindtap="onActionTap"
+          >
+            <text wx:if="{{item.actionIconText}}" class="timeline-list-action-text-icon">{{item.actionIconText}}</text>
+            <image
+              wx:elif="{{item.actionIconSrc}}"
+              class="timeline-list-action-image"
+              src="{{item.actionIconSrc}}"
+              mode="aspectFit"
+            ></image>
+            <view wx:elif="{{item.actionIcon}}" class="timeline-list-action-icon {{item.actionIcon}}"></view>
+            <text>{{item.actionText}}</text>
+          </button>
         </view>
         <text wx:if="{{item.desc}}" class="timeline-list-desc">{{item.desc}}</text>
+        <button
+          wx:if="{{item.actionText && item.actionPlacement !== 'head'}}"
+          class="timeline-list-action {{item.actionClass || ''}}"
+          data-index="{{index}}"
+          hover-class="none"
+          bindtap="onActionTap"
+        >
+          <text wx:if="{{item.actionIconText}}" class="timeline-list-action-text-icon">{{item.actionIconText}}</text>
+          <image
+            wx:elif="{{item.actionIconSrc}}"
+            class="timeline-list-action-image"
+            src="{{item.actionIconSrc}}"
+            mode="aspectFit"
+          ></image>
+          <view wx:elif="{{item.actionIcon}}" class="timeline-list-action-icon {{item.actionIcon}}"></view>
+          <text>{{item.actionText}}</text>
+        </button>
       </view>
     </view>
   </view>

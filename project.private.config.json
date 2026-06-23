@@ -161,6 +161,12 @@
           "scene": null
         },
         {
+          "name": "组局-服务交付-免费",
+          "pathName": "pages/game/delivery/index",
+          "query": "mode=free",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

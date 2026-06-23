@@ -16,5 +16,16 @@ Component({
       type: String,
       value: ''
     }
+  },
+
+  methods: {
+    onActionTap(event) {
+      const { index } = event.currentTarget.dataset
+
+      this.triggerEvent('actiontap', {
+        index,
+        item: this.properties.items[index]
+      })
+    }
   }
 })

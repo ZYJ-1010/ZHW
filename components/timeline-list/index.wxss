@@ -176,3 +176,199 @@
 .timeline-list-component.compact .timeline-list-item {
   min-height: 106rpx;
 }
+
+.timeline-list-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 170rpx;
+  height: 56rpx;
+  margin: 14rpx 0 0;
+  padding: 0 24rpx;
+  border: 0;
+  border-radius: 999rpx;
+  color: #2563eb;
+  background: #dbeafe;
+  font-size: 23rpx;
+  font-weight: 600;
+  line-height: 56rpx;
+}
+
+.timeline-list-action::after {
+  border: 0;
+}
+
+.timeline-list-action-icon {
+  position: relative;
+  flex: none;
+  width: 24rpx;
+  height: 24rpx;
+  margin-right: 8rpx;
+}
+
+.timeline-list-action-image {
+  flex: none;
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 8rpx;
+}
+
+.timeline-list-action-text-icon {
+  flex: none;
+  margin-right: 6rpx;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.timeline-list-action-icon.bell {
+  border: 3rpx solid #2563eb;
+  border-top-left-radius: 14rpx;
+  border-top-right-radius: 14rpx;
+  box-sizing: border-box;
+}
+
+.timeline-list-action-icon.bell::before {
+  position: absolute;
+  left: -5rpx;
+  bottom: -7rpx;
+  width: 30rpx;
+  height: 3rpx;
+  border-radius: 3rpx;
+  background: #2563eb;
+  content: "";
+}
+
+.timeline-list-action-icon.bell::after {
+  position: absolute;
+  left: 7rpx;
+  bottom: -13rpx;
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: #2563eb;
+  content: "";
+}
+
+.timeline-list-component.service-confirm .timeline-list-title {
+  font-size: 32rpx;
+  font-weight: 400;
+  line-height: 44rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-body {
+  margin-top: 28rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item {
+  min-height: 114rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.with-line::after {
+  left: 20rpx;
+  top: 44rpx;
+  bottom: -12rpx;
+  width: 4rpx;
+  background: #e5e7eb;
+}
+
+.timeline-list-component.service-confirm .timeline-list-rail {
+  width: 44rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-dot {
+  width: 44rpx;
+  height: 44rpx;
+  border-width: 4rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-dot::after {
+  width: 18rpx;
+  height: 18rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.active .timeline-list-dot {
+  border-color: #3b82f6;
+  box-shadow: none;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.active .timeline-list-dot::after {
+  background: #3b82f6;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.confirmed .timeline-list-dot,
+.timeline-list-component.service-confirm .timeline-list-item.done .timeline-list-dot {
+  border-color: #10b981;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.confirmed .timeline-list-dot::after,
+.timeline-list-component.service-confirm .timeline-list-item.done .timeline-list-dot::after {
+  background: #10b981;
+}
+
+.timeline-list-component.service-confirm .timeline-list-main {
+  padding-left: 26rpx;
+  padding-bottom: 28rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-head {
+  align-items: center;
+  min-height: 40rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.active .timeline-list-item-title {
+  color: #2563eb;
+}
+
+.timeline-list-component.service-confirm .timeline-list-item.pending .timeline-list-item-title {
+  color: #9ca3af;
+}
+
+.timeline-list-component.service-confirm .timeline-list-desc {
+  margin-top: 2rpx;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-time {
+  max-width: none;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-action {
+  gap: 10rpx;
+  width: auto;
+  min-width: 154rpx;
+  height: 50rpx;
+  margin: 28rpx 0 0;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: #d8e8fb;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 50rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-action.head-action {
+  flex: none;
+  min-width: 158rpx;
+  height: 46rpx;
+  margin: 0 0 0 16rpx;
+  padding: 0 18rpx;
+  color: #2563eb;
+  background: #eff6ff;
+  font-size: 22rpx;
+  line-height: 46rpx;
+}
+
+.timeline-list-component.service-confirm .timeline-list-action.head-action .timeline-list-action-text-icon {
+  margin-right: 4rpx;
+  font-size: 22rpx;
+}
