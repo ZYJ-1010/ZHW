@@ -191,6 +191,12 @@
           "scene": null
         },
         {
+          "name": "组局-评价完成",
+          "pathName": "pages/game/review-complete/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",

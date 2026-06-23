@@ -26,7 +26,9 @@ Component({
     shellContentStyle: '',
     shellDockStyle: '',
     resolvedTopbarTitle: '',
+    resolvedBrandVisible: true,
     resolvedToolbarActionsVisible: true,
+    resolvedToolbarAvatarVisible: true,
     shellNavItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },
@@ -178,10 +180,13 @@ Component({
 
     updateShellVariant() {
       const isJoinApply = this.properties.shellVariant === 'joinApply'
+      const isTopNoBrand = this.properties.shellVariant === 'topNoBrand'
 
       this.setData({
-        resolvedTopbarTitle: this.properties.topbarTitle || (isJoinApply ? '申请加入' : ''),
-        resolvedToolbarActionsVisible: isJoinApply ? false : this.properties.toolbarActionsVisible !== false
+        resolvedTopbarTitle: this.properties.topbarTitle || (isJoinApply || isTopNoBrand ? '申请加入' : ''),
+        resolvedBrandVisible: !isTopNoBrand,
+        resolvedToolbarActionsVisible: (isJoinApply || isTopNoBrand) ? false : this.properties.toolbarActionsVisible !== false,
+        resolvedToolbarAvatarVisible: !isTopNoBrand
       })
     },
 

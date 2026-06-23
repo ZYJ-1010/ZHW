@@ -34,6 +34,7 @@ const ROUTES = {
   gameApplications: 'pages/game/applications/index',
   gameDelivery: 'pages/game/delivery/index',
   gameReview: 'pages/game/review/index',
+  gameReviewComplete: 'pages/game/review-complete/index',
   map: 'pages/map/index',
   message: 'pages/message/index',
   imRoom: 'pages/im/room/index',

@@ -1,0 +1,69 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="评价完成"
+  shell-variant="topNoBrand"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="review-complete-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{pageScrollTop}}"
+    bindscroll="handlePageScroll"
+    enable-back-to-top
+  >
+    <view class="review-complete-page">
+      <view class="success-section">
+        <view class="success-check">
+          <view class="success-check-mark"></view>
+        </view>
+        <text class="success-title">评价提交成功！</text>
+        <text class="success-desc">感谢你的反馈，让平台变得更好</text>
+      </view>
+
+      <view class="reward-card">
+        <view class="reward-icon">🎁</view>
+        <text class="reward-points">+50</text>
+        <text class="reward-title">PX已到账</text>
+        <text class="reward-desc">解锁优先推荐权益</text>
+      </view>
+
+      <view class="benefits-card">
+        <text class="section-title">获得的权益</text>
+        <view class="benefit-list">
+          <view wx:for="{{benefits}}" wx:key="title" class="benefit-item">
+            <view class="benefit-icon {{item.theme}}">{{item.iconText}}</view>
+            <view class="benefit-copy">
+              <text class="benefit-title">{{item.title}}</text>
+              <text class="benefit-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="play-again-card">
+        <text class="section-title play-title">愿意和这些小伙伴再玩一局吗？</text>
+        <view class="intent-grid">
+          <view
+            wx:for="{{playOptions}}"
+            wx:key="id"
+            class="intent-option {{item.theme}} {{selectedPlayIntent === item.id ? 'active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onPlayIntentTap"
+          >
+            <view class="intent-dot {{item.theme}}"></view>
+            <text class="intent-title">{{item.title}}</text>
+            <text class="intent-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</home-shell>

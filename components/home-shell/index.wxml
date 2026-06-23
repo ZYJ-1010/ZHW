@@ -17,7 +17,7 @@
     <view class="home-shell-topbar" style="{{shellTopbarStyle}}">
       <view class="home-shell-status-fill" style="{{shellStatusFillStyle}}"></view>
       <view class="home-shell-nav" style="{{shellNavStyle}}">
-        <view class="home-shell-brand" style="{{shellBrandStyle}}">
+        <view wx:if="{{resolvedBrandVisible}}" class="home-shell-brand" style="{{shellBrandStyle}}">
           <image
             class="home-shell-brand__icon"
             mode="aspectFit"
@@ -41,7 +41,7 @@
       <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
       <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
       <view wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
-      <image class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap" src="./assets/master-avatar.svg" mode="aspectFit"></image>
+      <image wx:if="{{resolvedToolbarAvatarVisible}}" class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap" src="./assets/master-avatar.svg" mode="aspectFit"></image>
     </view>
 
     <view class="home-shell-dock" style="{{shellDockStyle}}">

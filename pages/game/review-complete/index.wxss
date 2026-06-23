@@ -1,0 +1,309 @@
+page {
+  background: #007bd3;
+}
+
+.review-complete-scroll {
+  width: 100%;
+  height: 100%;
+  background: #f7f9fc;
+}
+
+.review-complete-page {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 76rpx 25rpx 96rpx;
+  color: #111827;
+  background: #f7f9fc;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.success-section {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-bottom: 89rpx;
+  text-align: center;
+}
+
+.success-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 158rpx;
+  height: 158rpx;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 18rpx 36rpx rgba(82, 196, 26, 0.18);
+}
+
+.success-check-mark {
+  width: 68rpx;
+  height: 40rpx;
+  border-left: 10rpx solid #ffffff;
+  border-bottom: 10rpx solid #ffffff;
+  box-sizing: border-box;
+  transform: translateY(-6rpx) rotate(-45deg);
+}
+
+.success-title {
+  display: block;
+  width: 100%;
+  margin-top: 44rpx;
+  color: #111827;
+  font-size: 50rpx;
+  font-weight: 700;
+  line-height: 50rpx;
+  text-align: center;
+}
+
+.success-desc {
+  display: block;
+  width: 100%;
+  margin-top: 16rpx;
+  color: #9ca3af;
+  font-size: 32rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.reward-card,
+.benefits-card,
+.play-again-card {
+  box-sizing: border-box;
+  border-radius: 48rpx;
+}
+
+.reward-card {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  width: 654rpx;
+  height: 356rpx;
+  margin-right: auto;
+  margin-bottom: 28rpx;
+  margin-left: auto;
+  padding: 40rpx 40rpx 34rpx;
+  border: 2rpx solid rgba(255, 224, 130, 1);
+  border-radius: 32rpx;
+  background: linear-gradient(135deg, rgba(255, 248, 225, 1) 14.6%, rgba(255, 236, 179, 1) 85.4%);
+  text-align: center;
+}
+
+.reward-icon {
+  color: inherit;
+  font-size: 72rpx;
+  line-height: 80rpx;
+  background: transparent;
+}
+
+.reward-points {
+  margin-top: 20rpx;
+  color: rgba(255, 152, 0, 1);
+  font-size: 82rpx;
+  font-weight: 700;
+  line-height: 82rpx;
+}
+
+.reward-title {
+  margin-top: 12rpx;
+  color: rgba(255, 152, 0, 1);
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 32rpx;
+}
+
+.reward-desc {
+  margin-top: 12rpx;
+  color: rgba(255, 152, 0, 1);
+  font-size: 28rpx;
+  line-height: 28rpx;
+}
+
+.benefits-card {
+  margin-bottom: 28rpx;
+  padding: 44rpx 40rpx 28rpx;
+  border: 1rpx solid #edf2f7;
+  background: #ffffff;
+  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
+}
+
+.benefits-card .section-title {
+  font-weight: 400;
+}
+
+.section-title {
+  display: block;
+  color: #111827;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 46rpx;
+}
+
+.benefit-list {
+  margin-top: 36rpx;
+}
+
+.benefit-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+  min-height: 96rpx;
+  padding-bottom: 32rpx;
+}
+
+.benefit-item + .benefit-item {
+  padding-top: 32rpx;
+}
+
+.benefit-item + .benefit-item::before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1rpx;
+  background: #f3f4f6;
+  content: '';
+}
+
+.benefit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 24rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 96rpx;
+}
+
+.benefit-icon.blue {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.benefit-icon.purple {
+  color: #7c3aed;
+  background: #faf5ff;
+}
+
+.benefit-icon.red {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.benefit-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.benefit-title {
+  color: #1f2937;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 40rpx;
+}
+
+.benefit-desc {
+  margin-top: 6rpx;
+  color: #9ca3af;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.play-again-card {
+  padding: 44rpx 28rpx 40rpx;
+  background: #f0f9eb;
+}
+
+.play-title {
+  color: #374151;
+  padding: 0 12rpx;
+}
+
+.intent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18rpx;
+  margin-top: 56rpx;
+}
+
+.intent-option {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 190rpx;
+  padding: 30rpx 12rpx 24rpx;
+  border: 2rpx solid transparent;
+  border-radius: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, 0.04);
+  text-align: center;
+}
+
+.intent-option.active {
+  box-shadow: none;
+}
+
+.intent-option.active.green {
+  border-color: #52c41a;
+}
+
+.intent-option.active.yellow {
+  border-color: #fadb14;
+}
+
+.intent-option.active.red {
+  border-color: #f5222d;
+}
+
+.intent-dot {
+  width: 64rpx;
+  height: 64rpx;
+  margin-bottom: 22rpx;
+  border-radius: 50%;
+}
+
+.intent-dot.green {
+  background: #52c41a;
+}
+
+.intent-dot.yellow {
+  background: #fadb14;
+}
+
+.intent-dot.red {
+  background: #f5222d;
+}
+
+.intent-title {
+  color: #4b5563;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.intent-option.active.green .intent-title {
+  color: #52c41a;
+}
+
+.intent-option.active.yellow .intent-title {
+  color: #fadb14;
+}
+
+.intent-option.active.red .intent-title {
+  color: #f5222d;
+}
+
+.intent-desc {
+  margin-top: 6rpx;
+  color: #9ca3af;
+  font-size: 20rpx;
+  line-height: 28rpx;
+}
