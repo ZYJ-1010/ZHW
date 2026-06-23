@@ -101,6 +101,12 @@
           "scene": null
         },
         {
+          "name": "组局-取消-专家",
+          "pathName": "pages/game/expert-cancel/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-分享",
           "pathName": "pages/game/share/index",
           "query": "",

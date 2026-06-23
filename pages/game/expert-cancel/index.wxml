@@ -1,0 +1,107 @@
+<view class="expert-cancel-page">
+  <view class="expert-cancel-frame" style="{{shellLayout.frameStyle}}">
+    <view class="expert-cancel-top-bg"></view>
+    <view class="expert-cancel-nav">
+      <view class="expert-cancel-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="expert-cancel-back-icon"></view>
+      </view>
+      <text class="expert-cancel-title" style="{{shellLayout.titleStyle}}">取消服务确认</text>
+    </view>
+
+    <scroll-view
+      class="expert-cancel-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      enable-back-to-top
+    >
+      <view class="expert-cancel-inner">
+        <view class="warning-card">
+          <view class="warning-icon">
+            <view class="warning-mark">!</view>
+          </view>
+          <view class="warning-copy">
+            <text class="warning-title">取消将产生赔付</text>
+            <text class="warning-desc">作为行家主动取消，需按约定比例赔付玩家损失。此记录将影响你的服务信用分。</text>
+          </view>
+        </view>
+
+        <service-activity-card info="{{activityCard}}"></service-activity-card>
+
+        <view class="section-card compensation-card">
+          <text class="section-title">赔付比例设置</text>
+          <view class="ratio-head">
+            <text class="ratio-label">赔付比例</text>
+            <text class="ratio-value">{{compensationRatio}}%</text>
+          </view>
+          <slider
+            class="ratio-slider"
+            min="10"
+            max="50"
+            step="1"
+            value="{{compensationRatio}}"
+            activeColor="#3b82f6"
+            backgroundColor="#e5e7eb"
+            block-color="#ffffff"
+            block-size="24"
+            bindchanging="onRatioChanging"
+            bindchange="onRatioChange"
+          />
+          <view class="ratio-limit-row">
+            <text>最低10%</text>
+            <text>最高50%</text>
+          </view>
+
+          <view class="suggestion-row">
+            <view class="suggestion-icon">i</view>
+            <text class="suggestion-text">建议设置20%-30%，体现诚意且不过度负担</text>
+          </view>
+
+          <view class="amount-panel">
+            <view class="amount-row">
+              <text class="amount-label">赔付金额</text>
+              <text class="amount-value danger">{{compensationAmountText}}</text>
+            </view>
+            <view class="amount-row fee">
+              <view class="fee-label">
+                <text>平台手续费</text>
+                <text class="fee-rate">（{{activity.platformFeeRate}}%）</text>
+              </view>
+              <text class="amount-value muted">{{serviceFeeText}}</text>
+            </view>
+            <view class="amount-row total">
+              <text class="total-label">实际扣款</text>
+              <text class="amount-value danger">{{totalDebitText}}</text>
+            </view>
+          </view>
+        </view>
+
+        <cancel-reason-card
+          card-class="expert"
+          options="{{reasonOptions}}"
+          selected-key="{{selectedReasonKey}}"
+          value="{{reasonDetail}}"
+          maxlength="{{50}}"
+          placeholder="详细说明取消原因..."
+          bindreasonchange="onReasonChange"
+          bindreasoninput="onReasonInput"
+        ></cancel-reason-card>
+
+        <cancel-agreement-row
+          checked="{{agreementChecked}}"
+          content="{{agreementText}}"
+          bindtoggle="onAgreementChange"
+        ></cancel-agreement-row>
+
+        <view class="content-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <cancel-action-buttons
+      bar-style="{{shellLayout.footerStyle}}"
+      bindsecondarytap="onReconsiderTap"
+      bindprimarytap="onConfirmCancelTap"
+    ></cancel-action-buttons>
+  </view>
+</view>

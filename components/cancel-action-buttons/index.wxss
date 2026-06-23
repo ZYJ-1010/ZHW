@@ -1,0 +1,97 @@
+.cancel-action-buttons {
+  position: absolute;
+  left: 0;
+  z-index: 5;
+  width: 750rpx;
+  padding: 24rpx 32rpx 0;
+  border-top: 2rpx solid #f3f4f6;
+  background: #ffffff;
+  box-sizing: border-box;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.cancel-action-buttons.player {
+  z-index: 4;
+  padding: 24rpx 32rpx;
+  border-top-color: #eeeeee;
+}
+
+.cancel-action-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  width: 686rpx;
+}
+
+.cancel-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border: 0;
+  border-radius: 999rpx;
+  font-size: 29rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.cancel-action-button::after {
+  border: 0;
+}
+
+.cancel-action-button.secondary {
+  flex: 1;
+  color: #374151;
+  background: #f3f4f6;
+}
+
+.cancel-action-button.primary {
+  flex: 1.45;
+  color: #ffffff;
+}
+
+.cancel-action-button.primary.danger {
+  background: #ef4444;
+}
+
+.cancel-action-button.primary.gradient {
+  background: linear-gradient(90deg, #e24991 0%, #c658d3 100%);
+}
+
+.cancel-action-button[disabled],
+.cancel-action-button.primary[disabled] {
+  color: rgba(255, 255, 255, 0.74);
+  background: #fca5a5;
+  opacity: 1;
+}
+
+.cancel-action-buttons.player .cancel-action-button {
+  flex: 1;
+  height: 92rpx;
+  padding: 0 20rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  line-height: 44rpx;
+}
+
+.cancel-action-buttons.player .cancel-action-button.secondary {
+  color: #333333;
+  background: #f7f8fa;
+}
+
+.cancel-action-buttons.player .cancel-action-button.primary[disabled] {
+  opacity: 0.72;
+}
+
+.cancel-action-tip {
+  display: block;
+  margin-top: 18rpx;
+  color: #999999;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  text-align: center;
+}

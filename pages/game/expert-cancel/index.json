@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "取消服务确认",
+  "usingComponents": {
+    "service-activity-card": "/components/service-activity-card/index",
+    "cancel-reason-card": "/components/cancel-reason-card/index",
+    "cancel-agreement-row": "/components/cancel-agreement-row/index",
+    "cancel-action-buttons": "/components/cancel-action-buttons/index"
+  }
+}

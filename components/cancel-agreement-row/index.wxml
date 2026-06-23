@@ -1,0 +1,4 @@
+<view class="cancel-agreement-row {{rowClass}}" bindtap="onToggle">
+  <view class="cancel-agreement-check {{checked ? 'checked' : ''}}"></view>
+  <text class="cancel-agreement-text">{{content}}</text>
+</view>

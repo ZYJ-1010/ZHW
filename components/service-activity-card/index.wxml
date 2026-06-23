@@ -1,0 +1,21 @@
+<view class="service-activity-card">
+  <text class="service-activity-title">{{resolvedInfo.title}}</text>
+
+  <view class="service-person-row">
+    <view class="service-avatar {{resolvedInfo.avatarClass}}">{{resolvedInfo.avatarText}}</view>
+    <view class="service-person-copy">
+      <view class="service-name-row">
+        <text class="service-person-name">{{resolvedInfo.name}}</text>
+        <text wx:if="{{resolvedInfo.roleLabel}}" class="service-role {{resolvedInfo.roleClass}}">{{resolvedInfo.roleLabel}}</text>
+      </view>
+      <text class="service-title">{{resolvedInfo.serviceTitle}}</text>
+    </view>
+  </view>
+
+  <view class="service-divider"></view>
+
+  <view wx:for="{{resolvedInfo.rows}}" wx:key="label" class="service-info-row {{item.divider ? 'with-divider' : ''}}">
+    <text class="service-info-label">{{item.label}}</text>
+    <text class="service-info-value {{item.tone}}">{{item.value}}</text>
+  </view>
+</view>

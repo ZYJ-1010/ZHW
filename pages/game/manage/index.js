@@ -669,8 +669,29 @@ Page({
     toast.info('提前结束交付功能开发中')
   },
 
-  onCancelWithCompensation() {
-    toast.info('取消并赔付功能开发中')
+  onCancelWithCompensation(event = {}) {
+    const orderId = event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.id : ''
+    const order = this.data.orders.find((item) => item.id === orderId) || this.data.displayOrders[0]
+
+    if (!order) {
+      toast.info('取消服务确认页待接入')
+      return
+    }
+
+    const params = [
+      `serviceOrderId=${encodeURIComponent(order.serviceOrderId || order.id || '')}`,
+      `gameId=${encodeURIComponent(order.gameId || '')}`,
+      `playerId=${encodeURIComponent(order.playerId || '')}`,
+      `playerName=${encodeURIComponent(order.name || '')}`,
+      `avatarText=${encodeURIComponent(order.avatar || '')}`,
+      `serviceTitle=${encodeURIComponent(order.title || '')}`,
+      `amountText=${encodeURIComponent(order.amount || '')}`,
+      `statusText=${encodeURIComponent(order.statusText || '')}`
+    ].join('&')
+
+    wx.navigateTo({
+      url: `/${ROUTES.gameExpertCancel}?${params}`
+    })
   },
 
   onContactPlayer() {
