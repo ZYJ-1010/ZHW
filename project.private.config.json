@@ -161,9 +161,21 @@
           "scene": null
         },
         {
+          "name": "组局-服务交付-有偿",
+          "pathName": "pages/game/delivery/index",
+          "query": "mode=paid",
+          "scene": null
+        },
+        {
           "name": "组局-服务交付-免费",
           "pathName": "pages/game/delivery/index",
           "query": "mode=free",
+          "scene": null
+        },
+        {
+          "name": "组局-服务评价-行家",
+          "pathName": "pages/game/review/index",
+          "query": "role=expert",
           "scene": null
         },
         {

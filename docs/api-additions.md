@@ -2036,3 +2036,248 @@ GET /api/app/messages/session?targetUserId={userId}&serviceId={serviceId}
 2. 点击 `联系玩家`、`联系领路人` 是先进入聊天页由用户手动发送，还是直接发送默认话术。
 3. `提醒确认` 是进入玩家聊天页预填话术，还是直接调用提醒接口给玩家发送确认消息。
 4. `确认服务完成` 是由行家单方提交后等待玩家确认，还是玩家 / 行家任一方都可确认。
+
+## 34. 服务交付确认页操作接口
+
+记录日期：2026-06-23
+
+模块：组局 / 服务交付 - 有偿 / 免费
+
+页面：`pages/game/delivery/index`
+
+功能：服务交付确认页当前为静态 UI。快捷操作中的 `联系玩家`、`联系领路人` 后续需要进入对应人员的消息界面；确认状态里的 `提醒确认` 后续需要给玩家发消息 / 提醒玩家确认服务完成；底部 `确认服务完成` 后续需要提交服务完成确认，并触发玩家确认、状态刷新，以及有偿局结算流程或免费局归档流程。
+
+候选接口：
+
+```text
+GET /api/app/game-services/{serviceOrderId}/delivery-detail
+POST /api/app/im/conversations
+POST /api/app/game-services/{serviceOrderId}/remind-player-confirm
+POST /api/app/game-services/{serviceOrderId}/confirm-delivery
+```
+
+建议详情返回：
+
+```json
+{
+  "serviceOrderId": "service_order_001",
+  "gameId": "game_001",
+  "orderNo": "REF-20260320-001",
+  "status": "waiting_player_confirm",
+  "expert": {
+    "id": "expert_001",
+    "name": "李明",
+    "avatarText": "LI"
+  },
+  "player": {
+    "id": "player_001",
+    "name": "玩家A"
+  },
+  "guide": {
+    "id": "guide_001",
+    "name": "领路人A"
+  },
+  "service": {
+    "title": "产品架构咨询",
+    "durationText": "2小时 (已完成)",
+    "startedAtText": "03-20 14:30",
+    "completedAtText": "03-20 16:30",
+    "contractAmountText": "¥800.00"
+  },
+  "serviceType": "paid",
+  "settlement": {
+    "contractAmountText": "¥800.00",
+    "settlementRatioText": "60% (扣除成本40%)",
+    "settlementAmountText": "¥480.00",
+    "platformFeeText": "-¥48.00",
+    "guideRewardText": "-¥192.00",
+    "systemGuideRewardText": "-¥48.00",
+    "actualAmountText": "¥192.00"
+  },
+  "actions": {
+    "canContactPlayer": true,
+    "canContactGuide": true,
+    "canConfirmDelivery": true
+  }
+}
+```
+
+快捷操作口径：
+
+- 点击 `联系玩家` 后，应进入或创建与玩家的一对一消息会话，并给玩家发消息。
+- 点击 `联系领路人` 后，应进入或创建与领路人的一对一消息会话，并给领路人发消息。
+- 会话创建可复用 IM 会话接口，返回 `conversationId` 或可跳转的 `route`。
+
+提醒确认口径：
+
+- 确认状态里的 `提醒确认` 按钮当前只做静态提示，后续应给玩家发消息 / 提醒玩家进行服务完成确认。
+- 产品需确认该动作是进入玩家聊天页并预填确认话术，还是直接调用提醒接口发送系统提醒。
+- 若直接发送提醒，建议后端返回提醒发送时间、冷却时间和按钮文案，避免重复频繁提醒。
+
+候选提醒接口：
+
+```text
+POST /api/app/game-services/{serviceOrderId}/remind-player-confirm
+```
+
+建议入参：
+
+```json
+{
+  "gameId": "game_001",
+  "targetUserId": "player_001",
+  "message": "服务已完成，请确认服务完成状态。"
+}
+```
+
+建议返回：
+
+```json
+{
+  "serviceOrderId": "service_order_001",
+  "reminded": true,
+  "remindedAtText": "刚刚",
+  "nextAllowedAt": "2026-06-23T18:30:00+08:00"
+}
+```
+
+建议创建会话入参：
+
+```json
+{
+  "scene": "game_service_delivery",
+  "gameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "targetUserId": "player_001",
+  "targetRole": "player"
+}
+```
+
+确认完成口径：
+
+- 底部 `确认服务完成` 按钮当前只做静态提示，后续应调用服务完成确认接口。
+- 提交前需要校验服务确认勾选项，确认后由接口返回最新服务状态、确认状态和结算状态。
+- 如果仍需玩家二次确认，状态应进入 `waiting_player_confirm`；若双方均已确认，有偿局进入结算 / 已完成状态，免费局进入归档 / 已完成状态。
+
+候选确认接口：
+
+```text
+POST /api/app/game-services/{serviceOrderId}/confirm-delivery
+```
+
+建议入参：
+
+```json
+{
+  "gameId": "game_001",
+  "confirmedItems": ["completed", "qualified", "communicated"]
+}
+```
+
+建议返回：
+
+```json
+{
+  "serviceOrderId": "service_order_001",
+  "status": "waiting_player_confirm",
+  "statusText": "等待玩家确认",
+  "timeline": [
+    { "key": "completed", "title": "服务已完成", "state": "done", "timeText": "03-20 16:35" },
+    { "key": "waiting-player", "title": "等待玩家确认", "state": "active" },
+    { "key": "settlement", "title": "资金结算", "state": "pending" }
+  ]
+}
+```
+
+待确认：
+
+1. 服务交付确认页是否使用独立详情接口，还是复用业务管理 / 玩家管理的服务订单详情。
+2. 点击 `联系玩家`、`联系领路人` 是先进入聊天页由用户手动发送，还是直接发送默认话术。
+3. `提醒确认` 是进入玩家聊天页预填话术，还是直接调用提醒接口给玩家发送确认消息。
+4. `提醒确认` 是否需要冷却时间、次数限制和重复提醒文案。
+5. `确认服务完成` 是由行家单方提交后等待玩家确认，还是玩家 / 行家任一方都可确认。
+6. 结算明细中的平台服务费、领路人奖励、系统级领路人奖励是否全部由后台返回，金额单位使用元还是分；免费局是否只返回免费局说明、积分 / 徽章 / 推荐权益和归档状态。
+7. 提交确认后是否立即刷新当前页，还是跳转到进度 / 管理页。
+
+## 35. 服务评价页提交接口
+
+记录日期：2026-06-23
+
+模块：组局 / 服务评价 - 行家
+
+页面：`pages/game/review/index`
+
+功能：服务评价页当前只完成静态表单和前端选中态。后续点击 `提交评价` 时，需要把页面中的满意度、故事文本、玩家评价、领路人评价、标签、NPS、当前用户角色、组局 ID / 服务订单 ID / 引荐 ID 等发送给后台；提交成功后跳转到哪里仍需产品确认，当前不在前端写死。
+
+候选接口：
+
+```text
+POST /api/app/reviews
+```
+
+建议入参：
+
+```json
+{
+  "source": "game-service-review",
+  "role": "expert",
+  "gameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "orderId": "order_001",
+  "referralId": "referral_001",
+  "satisfaction": {
+    "value": "great",
+    "label": "真好玩"
+  },
+  "story": "本次合作沟通顺畅，需求清晰，过程里有不少新启发。",
+  "evaluations": [
+    {
+      "targetType": "player",
+      "targetUserId": "player_001",
+      "score": 5,
+      "tags": ["需求明确", "配合度高"],
+      "comment": "写下对需求方的评价..."
+    },
+    {
+      "targetType": "guide",
+      "targetUserId": "guide_001",
+      "score": 5,
+      "tags": ["匹配精准", "响应及时"],
+      "comment": "评价引荐人的服务质量..."
+    }
+  ],
+  "npsScore": 7
+}
+```
+
+建议返回：
+
+```json
+{
+  "reviewId": "review_001",
+  "serviceOrderId": "service_order_001",
+  "reviewStatus": "reviewed",
+  "reviewed": true,
+  "reviewedAt": "2026-06-23T23:30:00+08:00",
+  "nextAction": {
+    "type": "navigate",
+    "route": "pages/game/manage/index",
+    "query": "tab=completed"
+  }
+}
+```
+
+提交后跳转待确认：
+
+1. 是否返回 `pages/game/delivery/index` 服务交付页，并刷新服务状态。
+2. 是否跳转 `pages/game/manage/index` 我的业务管理已完成列表。
+3. 是否跳转服务详情 / 评价成功页，并展示奖励发放结果。
+4. 后端是否直接返回 `nextAction.route` 和 `nextAction.query`，由前端按返回值跳转。
+
+待确认：
+
+1. 本页面是否只面向行家，还是玩家 / 领路人也复用同一提交接口。
+2. 玩家、领路人的 `targetUserId` 是否由进入页面时的订单详情接口返回，还是由提交接口根据 `serviceOrderId` 自动推断。
+3. 评分、标签、文字评价、NPS 是否必填；未填写时后端是否允许提交。
+4. `评价奖励 50PX + 优先推荐权益` 是否由提交接口同步返回发放状态。
+5. 已评价后再次进入页面时，是展示评价详情、禁用提交，还是直接跳转已完成状态页。

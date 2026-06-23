@@ -3,7 +3,16 @@
     <view class="home-master-apply-frame" style="{{applyShellLayout.frameStyle}}">
       <view class="home-master-apply-top-bg" style="{{applyShellLayout.topBgStyle}}"></view>
       <view class="home-master-apply-nav" style="{{applyShellLayout.navStyle}}">
+        <view wx:if="{{showBack}}" class="home-master-apply-nav-back" catchtap="handleBackTap">
+          <view class="home-master-apply-nav-back-icon"></view>
+        </view>
         <text class="home-master-apply-nav-title">{{navTitle}}</text>
+        <view
+          wx:if="{{rightText}}"
+          class="home-master-apply-nav-action"
+          style="{{applyShellLayout.rightActionStyle}}"
+          catchtap="handleRightTap"
+        >{{rightText}}</view>
       </view>
       <view
         wx:if="{{previewSwitchEnabled}}"

@@ -1,3 +1,7 @@
 {
-  "navigationBarTitleText": "评价"
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "服务评价",
+  "usingComponents": {
+    "home-apply-shell": "/components/home-apply-shell/index"
+  }
 }

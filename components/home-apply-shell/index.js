@@ -4,6 +4,10 @@ const APPLY_NAV_BOTTOM_GAP_RPX = 13
 const APPLY_FRAME_BOTTOM_PADDING_RPX = 10
 const APPLY_DEFAULT_NAV_TOP_RPX = 108
 const APPLY_DEFAULT_NAV_HEIGHT_RPX = 64
+const APPLY_NAV_LEFT_RPX = 23
+const APPLY_NAV_WIDTH_RPX = 704
+const APPLY_DEFAULT_RIGHT_ACTION_RIGHT_RPX = 170
+const APPLY_RIGHT_ACTION_CAPSULE_GAP_RPX = 16
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -13,6 +17,7 @@ function getApplyShellLayoutStyles() {
   let contentTop = APPLY_DEFAULT_CONTENT_TOP_RPX
   let navTop = APPLY_DEFAULT_NAV_TOP_RPX
   let navHeight = APPLY_DEFAULT_NAV_HEIGHT_RPX
+  let rightActionRight = APPLY_DEFAULT_RIGHT_ACTION_RIGHT_RPX
 
   try {
     if (typeof wx !== 'undefined' && wx.getSystemInfoSync && wx.getMenuButtonBoundingClientRect) {
@@ -28,6 +33,14 @@ function getApplyShellLayoutStyles() {
           APPLY_DEFAULT_CONTENT_TOP_RPX,
           roundRpx(capsuleBottom + APPLY_NAV_BOTTOM_GAP_RPX)
         )
+
+        if (typeof menuButton.left === 'number') {
+          const capsuleLeft = menuButton.left * ratio
+          rightActionRight = Math.max(
+            96,
+            roundRpx(APPLY_NAV_LEFT_RPX + APPLY_NAV_WIDTH_RPX - capsuleLeft + APPLY_RIGHT_ACTION_CAPSULE_GAP_RPX)
+          )
+        }
       }
     }
   } catch (error) {
@@ -44,7 +57,8 @@ function getApplyShellLayoutStyles() {
     topBgStyle: `top: -${contentTop}rpx; height: ${contentTop}rpx;`,
     navStyle: `top: ${roundRpx(navTop - APPLY_STAGE_TOP_RPX)}rpx; height: ${navHeight}rpx;`,
     phoneStyle: `min-height: calc(100vh - ${contentTop}rpx);`,
-    switchStyle: `height: ${frameTopPadding}rpx;`
+    switchStyle: `height: ${frameTopPadding}rpx;`,
+    rightActionStyle: `right: ${rightActionRight}rpx; height: ${navHeight}rpx;`
   }
 }
 
@@ -61,6 +75,14 @@ Component({
       value: '标题'
     },
     shellClass: {
+      type: String,
+      value: ''
+    },
+    showBack: {
+      type: Boolean,
+      value: false
+    },
+    rightText: {
       type: String,
       value: ''
     },
@@ -97,6 +119,14 @@ Component({
       this.setData({
         applyShellLayout: getApplyShellLayoutStyles()
       })
+    },
+
+    handleBackTap() {
+      this.triggerEvent('backtap')
+    },
+
+    handleRightTap() {
+      this.triggerEvent('righttap')
     },
 
     handlePreviewSwitch(event) {

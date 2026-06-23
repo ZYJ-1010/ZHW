@@ -1,7 +1,160 @@
-<view class="page-shell">
-  <view class="module-card">
-    <text class="module-kicker">P0</text>
-    <text class="module-title">{{title}}</text>
-    <text class="module-desc">{{desc}}</text>
-  </view>
-</view>
+<home-apply-shell
+  nav-title="服务评价"
+  shell-class="game-review-shell"
+  show-back="{{true}}"
+  right-text="跳过"
+  bindbacktap="onBackTap"
+  bindrighttap="onSkipTap"
+>
+  <scroll-view
+    class="review-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    enable-back-to-top
+  >
+    <view class="review-page">
+      <view class="status-header">
+        <view class="status-check">
+          <view class="status-check-mark"></view>
+        </view>
+        <text class="status-title">服务已完成！</text>
+        <text class="status-desc">请对本次服务进行评价</text>
+      </view>
+
+      <view class="review-card satisfaction-card">
+        <text class="card-question">这一局好玩吗？</text>
+        <view class="satisfaction-list">
+          <view
+            wx:for="{{satisfactionOptions}}"
+            wx:key="id"
+            class="satisfaction-option {{selectedSatisfaction === item.id ? 'active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onSatisfactionTap"
+          >
+            <text class="satisfaction-emoji">{{item.emoji}}</text>
+            <text class="satisfaction-title">{{item.title}}</text>
+            <text class="satisfaction-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="review-card story-card">
+        <text class="card-title">发生了什么有趣的事？</text>
+        <view class="ai-tip">
+          <image class="ai-icon" src="/pages/game/player-cancel/assets/i39@3x.png" mode="aspectFit"></image>
+          <text class="ai-copy">AI小助手提示：可以从收获、惊喜、合作感受等方面描述哦</text>
+        </view>
+        <textarea
+          class="story-textarea"
+          value="{{storyText}}"
+          maxlength="{{storyMaxLength}}"
+          auto-height="{{false}}"
+          placeholder="我们碰撞出了产品架构的新思路，张伟的经验帮了大忙！"
+          placeholder-class="review-placeholder"
+          bindinput="onStoryInput"
+        />
+        <view class="story-footer">
+          <text class="counter">{{storyLength}}/{{storyMaxLength}}</text>
+          <view class="ai-summary" bindtap="onAiSummaryTap">
+            <text class="summary-pen-icon">🖊</text>
+            <text>AI帮我总结</text>
+          </view>
+        </view>
+      </view>
+
+      <view
+        wx:for="{{evaluationSections}}"
+        wx:for-item="section"
+        wx:key="id"
+        class="review-card evaluation-card"
+      >
+        <view class="person-row">
+          <view class="avatar {{section.avatarTheme}}">{{section.avatarText}}</view>
+          <view class="person-copy">
+            <text class="person-title">{{section.title}}</text>
+            <text class="person-desc">{{section.desc}}</text>
+          </view>
+        </view>
+
+        <view class="rating-block">
+          <text class="rating-title">{{section.ratingTitle}}</text>
+          <view class="star-row">
+            <text
+              wx:for="{{stars}}"
+              wx:for-item="star"
+              wx:key="*this"
+              class="rating-star {{section.score >= star ? 'active' : ''}}"
+              data-section-id="{{section.id}}"
+              data-score="{{star}}"
+              bindtap="onStarTap"
+            >★</text>
+          </view>
+          <text class="rating-hint">点击星星评分</text>
+        </view>
+
+        <view class="tag-block">
+          <text class="tag-title">{{section.tagTitle}}</text>
+          <view class="tag-list">
+            <text
+              wx:for="{{section.tags}}"
+              wx:for-item="tag"
+              wx:for-index="tagIndex"
+              wx:key="label"
+              class="review-tag {{tag.selected ? 'selected' : ''}}"
+              data-section-id="{{section.id}}"
+              data-tag-index="{{tagIndex}}"
+              bindtap="onTagTap"
+            >{{tag.label}}</text>
+          </view>
+        </view>
+
+        <textarea
+          class="evaluation-textarea"
+          value="{{section.comment}}"
+          maxlength="120"
+          auto-height="{{false}}"
+          placeholder="{{section.placeholder}}"
+          placeholder-class="review-placeholder"
+          data-section-id="{{section.id}}"
+          bindinput="onEvaluationCommentInput"
+        />
+      </view>
+
+      <view class="reward-card">
+        <text class="reward-icon">🎁</text>
+        <view class="reward-copy">
+          <text class="reward-title">评价奖励</text>
+          <text class="reward-desc">完成评价可获得50PX + 优先推荐权益</text>
+        </view>
+      </view>
+
+      <view class="nps-card">
+        <view class="nps-head">
+          <text class="crown-icon">👑</text>
+          <text class="nps-title">发起人专属</text>
+        </view>
+        <text class="nps-question">你会推荐“真好玩”给朋友吗？ (NPS)</text>
+        <view class="nps-list">
+          <button
+            wx:for="{{npsScores}}"
+            wx:key="*this"
+            class="nps-button {{npsScore === item ? 'selected' : ''}}"
+            data-score="{{item}}"
+            hover-class="none"
+            bindtap="onNpsTap"
+          >{{item}}</button>
+        </view>
+        <view class="nps-labels">
+          <text>不可能</text>
+          <text>极有可能</text>
+        </view>
+      </view>
+
+      <view class="submit-area">
+        <button class="submit-button" hover-class="none" bindtap="onSubmitTap">提交评价</button>
+        <text class="submit-note">评价内容仅双方可见，请客观公正</text>
+      </view>
+    </view>
+  </scroll-view>
+</home-apply-shell>
