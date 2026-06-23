@@ -32,6 +32,14 @@ function getInvitePlayers(params) {
   return request.get('/api/app/game-invites/players', params)
 }
 
+function getReplayConfirmContext(params) {
+  return request.get('/api/app/game-invites/replay-context', params)
+}
+
+function createReplayInvitation(data) {
+  return request.post('/api/app/game-invites/replay', data)
+}
+
 function getGuideProgress(params) {
   return request.get('/api/app/game-invites/guide-progress', params)
 }
@@ -61,6 +69,8 @@ module.exports = {
   getInvitePlayerConfig,
   getInviteRecentPlayers,
   getInvitePlayers,
+  getReplayConfirmContext,
+  createReplayInvitation,
   getGuideProgress,
   getGuideCancelDetail,
   getGameManage,

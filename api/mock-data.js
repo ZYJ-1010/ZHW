@@ -656,6 +656,38 @@ const mockInvitePlayers = [
   }
 ]
 
+const mockReplayConfirmContext = {
+  sourceGameId: 'game-replay-001',
+  serviceOrderId: 'SO-20260613-001',
+  inviter: {
+    id: 'guide-wang',
+    name: '王引荐',
+    roleType: 'guide',
+    roleLabel: '领路人'
+  },
+  previousSession: {
+    serviceType: '产品架构咨询',
+    completedAtText: '2026-06-13 14:30',
+    participantText: '3人（行家+玩家+领路人）'
+  },
+  invitees: [
+    {
+      id: 'expert-zhang',
+      name: '张专家',
+      roleType: 'expert',
+      roleLabel: '行家',
+      desc: '产品架构咨询'
+    },
+    {
+      id: 'player-wang',
+      name: '王总',
+      roleType: 'player',
+      roleLabel: '玩家',
+      desc: '需求方'
+    }
+  ]
+}
+
 const mockGuideProgress = {
   activeCount: 2,
   activeParties: [
@@ -952,6 +984,7 @@ module.exports = {
   mockRoleApplications,
   mockInvitePlayerConfig,
   mockInvitePlayers,
+  mockReplayConfirmContext,
   mockGuideProgress,
   mockGuideCancelDetail,
   mockGameManage,

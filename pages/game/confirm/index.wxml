@@ -1,0 +1,106 @@
+<home-apply-shell
+  nav-title="组局确认"
+>
+  <view class="game-confirm-shell">
+    <scroll-view
+      class="game-confirm-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      enable-back-to-top
+    >
+      <view class="game-confirm-page">
+        <view class="confirm-banner">
+          <view class="banner-icon">
+            <text class="banner-emoji">👫</text>
+          </view>
+          <view class="banner-copy">
+            <text class="banner-title">同局好友再玩一局</text>
+            <text class="banner-desc">延续上局默契，快速开启新体验</text>
+          </view>
+        </view>
+
+        <view class="info-card">
+          <view class="card-heading">
+            <text class="card-heading-icon">📌</text>
+            <text class="card-title">上局信息</text>
+          </view>
+          <view class="info-list">
+            <view class="info-row">
+              <text class="info-label">服务类型</text>
+              <text class="service-chip">{{previousSession.serviceType}}</text>
+            </view>
+            <view class="info-row">
+              <text class="info-label">完成时间</text>
+              <text class="info-value">{{previousSession.completedAtText}}</text>
+            </view>
+            <view class="info-row">
+              <text class="info-label">参与人数</text>
+              <text class="info-value">{{previousSession.participantText}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="invite-section">
+          <view class="section-head">
+            <text class="section-title">选择邀请对象</text>
+            <text class="section-count">已选 {{selectedCount}}/{{maxInviteeCount}} 人</text>
+          </view>
+
+          <view
+            wx:for="{{invitees}}"
+            wx:key="id"
+            class="invitee-card {{item.selected ? 'selected' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onInviteeTap"
+          >
+            <view class="invitee-avatar {{item.avatarClass}}">{{item.avatarText}}</view>
+            <view class="invitee-copy">
+              <text class="invitee-name">{{item.name}}</text>
+              <view class="invitee-meta">
+                <text class="role-chip {{item.roleClass}}">{{item.role}}</text>
+                <text class="invitee-desc">{{item.desc}}</text>
+              </view>
+            </view>
+            <view class="invitee-check {{item.selected ? 'checked' : ''}}"></view>
+          </view>
+        </view>
+
+        <view class="message-card">
+          <text class="message-title">发送邀请消息（可选）</text>
+          <view class="message-options">
+            <button
+              wx:for="{{quickMessages}}"
+              wx:key="*this"
+              class="message-chip {{selectedMessage === item ? 'active' : ''}}"
+              hover-class="none"
+              data-text="{{item}}"
+              bindtap="onMessageTap"
+            >{{item}}</button>
+          </view>
+          <textarea
+            class="message-textarea"
+            value="{{customMessage}}"
+            maxlength="120"
+            auto-height="{{false}}"
+            placeholder="自定义消息..."
+            placeholder-class="message-placeholder"
+            bindinput="onCustomMessageInput"
+          />
+        </view>
+
+        <view class="confirm-bottom-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view class="confirm-action-bar">
+      <button class="confirm-action cancel" hover-class="none" bindtap="onCancelTap">取消</button>
+      <button
+        class="confirm-action primary"
+        hover-class="none"
+        loading="{{submitting}}"
+        bindtap="onConfirmTap"
+      >确认发起组局</button>
+    </view>
+  </view>
+</home-apply-shell>

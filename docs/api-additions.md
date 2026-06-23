@@ -2281,3 +2281,84 @@ POST /api/app/reviews
 3. 评分、标签、文字评价、NPS 是否必填；未填写时后端是否允许提交。
 4. `评价奖励 50PX + 优先推荐权益` 是否由提交接口同步返回发放状态。
 5. 已评价后再次进入页面时，是展示评价详情、禁用提交，还是直接跳转已完成状态页。
+## 36. 再次组局确认页接口
+
+记录日期：2026-06-24
+
+模块：组局 / 组局确认
+
+页面：`pages/game/confirm/index`
+
+功能：再次组局确认页需要先根据上一局信息展示服务类型、完成时间、参与人数，并展示当前发起人需要邀请的另外两方。当前测试默认按“领路人发起，再邀请行家和玩家”处理；正式逻辑需要后端返回当前发起人、发起人角色、可邀请成员列表和上一局上下文，前端不能固定展示 3 个上一局成员。
+
+候选接口：
+
+```text
+GET /api/app/game-invites/replay-context
+POST /api/app/game-invites/replay
+```
+
+`GET /api/app/game-invites/replay-context` 建议入参：
+
+```json
+{
+  "sourceGameId": "game_001",
+  "serviceOrderId": "service_order_001"
+}
+```
+
+建议返回：
+
+```json
+{
+  "sourceGameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "inviter": {
+    "id": "guide_001",
+    "name": "王引荐",
+    "roleType": "guide",
+    "roleLabel": "领路人"
+  },
+  "previousSession": {
+    "serviceType": "产品架构咨询",
+    "completedAtText": "2026-06-13 14:30",
+    "participantText": "3人（行家+玩家+领路人）"
+  },
+  "invitees": [
+    { "id": "expert_001", "name": "张专家", "roleType": "expert", "roleLabel": "行家", "desc": "产品架构咨询" },
+    { "id": "player_001", "name": "王总", "roleType": "player", "roleLabel": "玩家", "desc": "需求方" }
+  ]
+}
+```
+
+`POST /api/app/game-invites/replay` 建议入参：
+
+```json
+{
+  "sourceGameId": "game_001",
+  "serviceOrderId": "service_order_001",
+  "inviter": { "id": "guide_001", "roleType": "guide" },
+  "invitees": [
+    { "id": "expert_001", "roleType": "expert" },
+    { "id": "player_001", "roleType": "player" }
+  ],
+  "message": "再来一局？"
+}
+```
+
+建议返回：
+
+```json
+{
+  "replayInvitationId": "replay_invite_001",
+  "status": "pending",
+  "statusText": "等待双方确认"
+}
+```
+
+待确认：
+
+1. 再次组局的发起人是否固定为领路人，还是玩家 / 行家也可以从评价完成页或组局记录发起。
+2. 如果当前发起人是上一局参与方，是否只邀请另外两方；若发起人不是上一局参与方，是否允许邀请上一局三方。
+3. 确认发起后应进入哪个流程页：当前先跳 `pages/game/guide-progress/index`，后续可改为再次组局专属进度页或后端返回 `nextAction`。
+4. 再次组局是否沿用上一局服务类型、预算、时间、分润规则，还是只复用成员关系并重新填写组局需求。

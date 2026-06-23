@@ -131,6 +131,12 @@
           "scene": null
         },
         {
+          "name": "组局-组局确认",
+          "pathName": "pages/game/confirm/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-支付页",
           "pathName": "pages/game/payment/index",
           "query": "",

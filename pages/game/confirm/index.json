@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "组局确认",
+  "usingComponents": {
+    "home-apply-shell": "/components/home-apply-shell/index"
+  }
+}

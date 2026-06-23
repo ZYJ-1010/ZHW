@@ -30,6 +30,7 @@
     "pages/game/expert-cancel/index",
     "pages/game/share/index",
     "pages/game/invite/index",
+    "pages/game/confirm/index",
     "pages/game/payment/index",
     "pages/game/collaboration/index",
     "pages/game/success-expert/index",

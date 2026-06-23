@@ -26,6 +26,7 @@ const ROUTES = {
   gameExpertCancel: 'pages/game/expert-cancel/index',
   gameShare: 'pages/game/share/index',
   gameInvite: 'pages/game/invite/index',
+  gameConfirm: 'pages/game/confirm/index',
   gamePayment: 'pages/game/payment/index',
   gameCollaboration: 'pages/game/collaboration/index',
   gameSuccessExpert: 'pages/game/success-expert/index',

@@ -40,6 +40,26 @@ async function getInvitePlayers(params) {
   return result.data
 }
 
+async function getReplayConfirmContext(params) {
+  const result = await gameApi.getReplayConfirmContext(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取上局信息失败')
+  }
+
+  return result.data
+}
+
+async function createReplayInvitation(payload) {
+  const result = await gameApi.createReplayInvitation(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '再次组局发起失败')
+  }
+
+  return result.data
+}
+
 async function getGuideProgress(params) {
   const result = await gameApi.getGuideProgress(params)
 
@@ -112,6 +132,8 @@ module.exports = {
   getInvitePlayerConfig,
   getInviteRecentPlayers,
   getInvitePlayers,
+  getReplayConfirmContext,
+  createReplayInvitation,
   getGuideProgress,
   getGuideCancelDetail,
   getGameManage,

@@ -9,6 +9,7 @@ const {
   mockRoleApplications,
   mockInvitePlayerConfig,
   mockInvitePlayers,
+  mockReplayConfirmContext,
   mockGuideProgress,
   mockGuideCancelDetail,
   mockGameManage,
@@ -498,6 +499,24 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/game-invites/players') {
     return wait(ok(buildInvitePlayers(options.data || {}, false)))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/replay-context') {
+    return wait(ok(Object.assign({}, mockReplayConfirmContext, {
+      sourceGameId: options.data && (options.data.sourceGameId || options.data.gameId) || mockReplayConfirmContext.sourceGameId,
+      serviceOrderId: options.data && options.data.serviceOrderId || mockReplayConfirmContext.serviceOrderId
+    })))
+  }
+
+  if (method === 'POST' && url === '/api/app/game-invites/replay') {
+    return wait(ok({
+      replayInvitationId: `mock_replay_invite_${Date.now()}`,
+      status: 'pending',
+      statusText: '等待双方确认',
+      sourceGameId: options.data && options.data.sourceGameId || '',
+      serviceOrderId: options.data && options.data.serviceOrderId || '',
+      invitees: options.data && options.data.invitees || []
+    }))
   }
 
   if (method === 'GET' && url === '/api/app/game-invites/guide-progress') {
