@@ -27,6 +27,7 @@ const ROUTES = {
   gameShare: 'pages/game/share/index',
   gameInvite: 'pages/game/invite/index',
   gamePayment: 'pages/game/payment/index',
+  gameCollaboration: 'pages/game/collaboration/index',
   gameSuccessExpert: 'pages/game/success-expert/index',
   gameSuccessGuide: 'pages/game/success-guide/index',
   gameReferralRecord: 'pages/game/referral-record/index',

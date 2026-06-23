@@ -1922,3 +1922,94 @@ GET /api/app/games/player/manage
 2. 取消方角色枚举是否固定为 `player/expert/guide`。
 3. `reason.title`、`reason.desc`、`message` 是否均由后台返回展示文案。
 4. 取消历程是否由后台完整返回，还是前端按取消状态本地生成。
+## 32. 局内协作页数据与操作接口
+
+记录日期：2026-06-23
+
+模块：组局 / 局内协作
+
+页面：`pages/game/collaboration/index`
+
+功能：局内协作页已按白色母版加深色内容区静态落地。页面主体 3 个区域分别为 `进度情况`、`成员`、`聊天区`，三块都需要保持圆角卡片样式。正式联调时进度情况、成员列表、聊天区消息都必须从后台获取，不能继续写死静态数据。底部 `成员管理` 点击后应列出当前局成员；`结束本局` 点击后应跳转到结束确认页面。
+
+候选接口：
+
+```text
+GET /api/app/games/{gameId}/collaboration
+GET /api/app/games/{gameId}/members
+GET /api/app/games/{gameId}/messages
+```
+
+建议协作页聚合返回：
+
+```json
+{
+  "gameId": "game_001",
+  "statusText": "进行中",
+  "dayText": "第 6 天 / 共 15 天",
+  "progress": {
+    "percent": 46,
+    "title": "进度 46%",
+    "tasks": [
+      {
+        "key": "done",
+        "title": "已完成",
+        "desc": "确认产品方向",
+        "state": "completed"
+      },
+      {
+        "key": "doing",
+        "title": "进行中",
+        "desc": "完成用户旅程与页面结构",
+        "state": "active"
+      },
+      {
+        "key": "todo",
+        "title": "待完成",
+        "desc": "输出 PRD 与字段清单",
+        "state": "pending"
+      }
+    ]
+  },
+  "members": [
+    {
+      "id": "user_001",
+      "name": "佩娜",
+      "roleText": "发起人",
+      "avatarUrl": "",
+      "avatarText": "PN"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_001",
+      "senderId": "user_001",
+      "senderName": "佩娜",
+      "content": "欢迎大家加入，我们先把页面结构和MVP优先级收住。",
+      "createdAt": "2026-06-23T16:00:00+08:00"
+    }
+  ],
+  "actions": {
+    "canManageMembers": true,
+    "canEndGame": true,
+    "endConfirmRoute": "pages/game/end-confirm/index?gameId=game_001"
+  }
+}
+```
+
+当前前端接入口径：
+
+- 页面顶部标题为 `局内协作`，内容区为深色背景，`进度情况 / 成员 / 聊天区` 三个区域均保持圆角卡片。
+- `progress.percent` 控制进度条和进度标题；任务列表由 `progress.tasks` 渲染。
+- `members` 用于成员区域摘要，也用于点击 `成员管理` 后的成员列表页面 / 弹层。
+- `messages` 用于聊天区消息列表，消息发送、分页和实时刷新规则后续确认。
+- `成员管理` 不只是静态提示，后续应进入成员列表或弹出成员管理面板，并展示当前局所有成员。
+- `结束本局` 后续应跳转结束确认页面，确认页路径和参数以后端返回或前端路由约定为准。
+
+待确认：
+
+1. 协作页是否使用一个聚合接口 `/api/app/games/{gameId}/collaboration`，还是进度、成员、聊天分别请求。
+2. `progress.tasks` 是否固定三类状态，还是由后台按当前局阶段动态返回。
+3. 成员管理使用独立页面、底部弹层还是弹窗；成员列表是否支持移除成员、变更角色、转让发起人等操作。
+4. 聊天区是否复用正式 IM 会话接口，还是只展示当前局内留言摘要。
+5. 结束确认页面路径是否新增 `pages/game/end-confirm/index`，以及结束本局需要哪些确认信息、权限校验和提交接口。

@@ -1,0 +1,77 @@
+<view class="collab-page">
+  <view class="collab-frame" style="{{layout.frameStyle}}">
+    <view class="collab-top-bg"></view>
+
+    <view class="collab-nav">
+      <button
+        class="collab-back"
+        style="{{layout.backStyle}}"
+        hover-class="collab-back--hover"
+        bindtap="handleBack"
+      >
+        <view class="collab-back-icon"></view>
+      </button>
+      <text class="collab-nav-title" style="{{layout.titleStyle}}">局内协作</text>
+    </view>
+
+    <scroll-view
+      class="collab-content"
+      style="{{layout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="collab-main">
+        <view class="collab-header">
+          <text class="collab-title">局内协作</text>
+          <text class="collab-subtitle">进行中 · 第 6 天 / 共 15 天</text>
+        </view>
+
+        <view class="collab-card progress-card">
+          <text class="card-title">进度 {{progressPercent}}%</text>
+          <view class="progress-track">
+            <view class="progress-fill" style="width: {{progressPercent}}%;">
+              <view class="progress-glow"></view>
+            </view>
+          </view>
+
+          <view class="task-list">
+            <view wx:for="{{tasks}}" wx:key="title" class="task-item">
+              <view class="task-dot"></view>
+              <view class="task-copy">
+                <text class="task-title">{{item.title}}</text>
+                <text class="task-desc">{{item.desc}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="collab-card">
+          <text class="card-title">成员</text>
+          <text class="members-text">{{membersText}}</text>
+        </view>
+
+        <view class="collab-card chat-card">
+          <text class="card-title">聊天区</text>
+          <view class="chat-list">
+            <view wx:for="{{messages}}" wx:key="name" class="chat-line">
+              <text class="chat-name">{{item.name}}:</text>
+              <text class="chat-content"> {{item.content}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="collab-footer">
+      <button class="collab-button secondary" hover-class="collab-button--hover" bindtap="handleMemberManage">
+        成员管理
+      </button>
+      <button class="collab-button primary" hover-class="collab-button--active" bindtap="handleEndSession">
+        结束本局
+      </button>
+    </view>
+
+    <view class="collab-bottom-bg" style="{{layout.bottomStyle}}"></view>
+  </view>
+</view>

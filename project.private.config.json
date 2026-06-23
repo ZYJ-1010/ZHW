@@ -137,6 +137,12 @@
           "scene": null
         },
         {
+          "name": "组局-局内协作",
+          "pathName": "pages/game/collaboration/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-成功行家提示",
           "pathName": "pages/game/success-expert/index",
           "query": "",

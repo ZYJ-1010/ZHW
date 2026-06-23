@@ -31,6 +31,7 @@
     "pages/game/share/index",
     "pages/game/invite/index",
     "pages/game/payment/index",
+    "pages/game/collaboration/index",
     "pages/game/success-expert/index",
     "pages/game/success-guide/index",
     "pages/game/referral-record/index",
