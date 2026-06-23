@@ -25,6 +25,7 @@
     "pages/game/guide-chat/index",
     "pages/game/guide-progress/index",
     "pages/game/guide-progress-detail/index",
+    "pages/game/guide-cancel/index",
     "pages/game/share/index",
     "pages/game/invite/index",
     "pages/game/payment/index",

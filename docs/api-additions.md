@@ -1899,3 +1899,26 @@ GET /api/app/games/player/manage
 4. 评价状态枚举使用 `pending/reviewed`，还是使用现有评价模块状态。
 5. 点击 `联系行家` 后应进入已有会话还是调用创建会话接口。
 6. 点击 `申请取消` 后取消窗口需要展示哪些赔付规则、取消原因和确认接口字段。
+
+## 31. 组局取消领路人详情接口
+
+记录日期：2026-06-23
+
+模块：组局 / 组局取消 - 领路人
+
+页面：`pages/game/guide-cancel/index`
+
+功能：领路人查看已取消组局结果。取消方可能是玩家，也可能是行家，因此系统设定理由、取消方解释话语、提出取消的角色信息、取消时间和取消历程均需要由后台返回。
+
+候选接口：`GET /api/app/game-invites/guide-cancel-detail`
+
+建议入参：`id`。
+
+建议返回字段：`statusTitle`、`statusDesc`、`canceledBy`、`reason`、`message`、`messageTimeText`、`timeline`。其中 `canceledBy.roleType` 建议使用 `player/expert/guide`，`reason.title/reason.desc` 为系统设定理由，`message` 为取消方解释话语。
+
+待后端 / 产品确认：
+
+1. 接口路径是否使用 `/api/app/game-invites/guide-cancel-detail`，还是复用进度详情接口返回取消态字段。
+2. 取消方角色枚举是否固定为 `player/expert/guide`。
+3. `reason.title`、`reason.desc`、`message` 是否均由后台返回展示文案。
+4. 取消历程是否由后台完整返回，还是前端按取消状态本地生成。

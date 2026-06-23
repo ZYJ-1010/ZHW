@@ -751,6 +751,49 @@ const mockGuideProgress = {
   ]
 }
 
+const mockGuideCancelDetail = {
+  id: 'invite-complete-002',
+  invitationId: 'invite-complete-002',
+  statusTitle: '组局已取消',
+  statusDesc: '玩家取消了此次组局邀请',
+  canceledBy: {
+    id: 'player-wangfang',
+    name: '王芳',
+    roleType: 'player',
+    roleLabel: '玩家',
+    avatarText: 'WF',
+    avatarClass: 'player'
+  },
+  reason: {
+    title: '时间冲突',
+    desc: '临时有事，无法按时参加'
+  },
+  message: '抱歉，最近项目比较忙，时间上有冲突，希望下次有机会再合作。',
+  messageTimeText: '2小时前',
+  timeline: [
+    {
+      key: 'invite',
+      title: '发起邀请',
+      desc: '你向双方发送了组局邀请',
+      timeText: '03-21 10:23',
+      state: 'active'
+    },
+    {
+      key: 'cancel',
+      title: '玩家取消',
+      desc: '王芳因时间冲突取消本次组局',
+      timeText: '03-21 16:45',
+      state: 'error'
+    },
+    {
+      key: 'canceled',
+      title: '组局取消',
+      desc: '因一方取消，组局自动取消',
+      state: 'pending'
+    }
+  ]
+}
+
 const mockGameManage = {
   summary: {
     label: '本月服务收入',
@@ -910,6 +953,7 @@ module.exports = {
   mockInvitePlayerConfig,
   mockInvitePlayers,
   mockGuideProgress,
+  mockGuideCancelDetail,
   mockGameManage,
   mockPlayerGameManage
 }

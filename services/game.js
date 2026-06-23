@@ -50,6 +50,16 @@ async function getGuideProgress(params) {
   return result.data
 }
 
+async function getGuideCancelDetail(params) {
+  const result = await gameApi.getGuideCancelDetail(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取组局取消详情失败')
+  }
+
+  return result.data
+}
+
 async function getGameManage(params) {
   const result = await gameApi.getGameManage(params)
 
@@ -103,6 +113,7 @@ module.exports = {
   getInviteRecentPlayers,
   getInvitePlayers,
   getGuideProgress,
+  getGuideCancelDetail,
   getGameManage,
   getPlayerGameManage,
   createGamePayment

@@ -10,6 +10,7 @@ const {
   mockInvitePlayerConfig,
   mockInvitePlayers,
   mockGuideProgress,
+  mockGuideCancelDetail,
   mockGameManage,
   mockPlayerGameManage
 } = require('./mock-data')
@@ -501,6 +502,51 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/game-invites/guide-progress') {
     return wait(ok(mockGuideProgress))
+  }
+
+  if (method === 'GET' && url === '/api/app/game-invites/guide-cancel-detail') {
+    const data = Object.assign({}, mockGuideCancelDetail)
+
+    if (String(options.data && (options.data.cancelRole || options.data.role) || '').toLowerCase() === 'expert') {
+      data.statusDesc = '行家取消了此次组局邀请'
+      data.canceledBy = {
+        id: 'expert-wangqiang',
+        name: '王强',
+        roleType: 'expert',
+        roleLabel: '行家',
+        avatarText: 'WQ',
+        avatarClass: 'expert'
+      }
+      data.reason = {
+        title: '档期冲突',
+        desc: '行家临时档期调整，无法按时参加'
+      }
+      data.message = '抱歉，临时档期有冲突，本次无法继续参加。辛苦帮忙协调，下次有机会再合作。'
+      data.timeline = [
+        {
+          key: 'invite',
+          title: '发起邀请',
+          desc: '你向双方发送了组局邀请',
+          timeText: '03-21 10:23',
+          state: 'active'
+        },
+        {
+          key: 'cancel',
+          title: '行家取消',
+          desc: '王强因档期冲突取消本次组局',
+          timeText: '03-21 16:45',
+          state: 'error'
+        },
+        {
+          key: 'canceled',
+          title: '组局取消',
+          desc: '因一方取消，组局自动取消',
+          state: 'pending'
+        }
+      ]
+    }
+
+    return wait(ok(data))
   }
 
   if (method === 'GET' && url === '/api/app/games/my/manage') {

@@ -1,0 +1,21 @@
+<view class="timeline-list-component {{variant}} {{customClass}}">
+  <text wx:if="{{title}}" class="timeline-list-title">{{title}}</text>
+  <view class="timeline-list-body">
+    <view
+      wx:for="{{items}}"
+      wx:key="key"
+      class="timeline-list-item {{item.state}} {{item.hasLine ? 'with-line' : ''}} line-{{item.lineState || 'default'}}"
+    >
+      <view class="timeline-list-rail">
+        <view class="timeline-list-dot"></view>
+      </view>
+      <view class="timeline-list-main">
+        <view class="timeline-list-head">
+          <text class="timeline-list-item-title">{{item.title}}</text>
+          <text wx:if="{{item.timeText}}" class="timeline-list-time">{{item.timeText}}</text>
+        </view>
+        <text wx:if="{{item.desc}}" class="timeline-list-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+</view>
