@@ -1,0 +1,68 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="play-again-stage">
+    <view class="game-backdrop">
+      <view class="mock-header">
+        <view class="mock-game-logo"></view>
+        <view class="mock-game-title"></view>
+        <view class="mock-header-actions">
+          <view></view>
+          <view></view>
+        </view>
+      </view>
+      <view class="mock-game-screen">
+        <view class="mock-game-orbit">
+          <view class="mock-game-core"></view>
+        </view>
+      </view>
+      <view class="mock-controller">
+        <view class="mock-stick"></view>
+        <view class="mock-button-pair">
+          <view></view>
+          <view></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="dim-layer"></view>
+
+    <view class="recommend-panel">
+      <view class="drag-handle"></view>
+      <view class="panel-header">
+        <view class="panel-copy">
+          <text class="panel-title">太棒了！你想怎么开启下一局？</text>
+          <text class="panel-subtitle">基于你的偏好，为你准备了3种快速组局方式</text>
+        </view>
+        <button class="close-button" hover-class="none" aria-label="关闭" bindtap="onCloseTap">
+          <image class="close-icon" src="./assets/i8@3x.png" mode="aspectFit"></image>
+        </button>
+      </view>
+
+      <view class="option-list">
+        <view
+          wx:for="{{recommendOptions}}"
+          wx:key="id"
+          class="option-card {{item.theme}} {{selectedOption === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onOptionTap"
+        >
+          <view class="option-icon {{item.theme}}">
+            <text wx:if="{{item.iconText}}" class="option-emoji">{{item.iconText}}</text>
+            <view wx:else class="plus-icon"></view>
+          </view>
+          <view class="option-copy">
+            <text class="option-title">{{item.title}}</text>
+            <text class="option-desc">{{item.desc}}</text>
+          </view>
+          <view class="option-arrow"></view>
+        </view>
+      </view>
+
+      <text class="panel-footnote">随时可在「我的」-「组局记录」中查看</text>
+    </view>
+  </view>
+</home-shell>

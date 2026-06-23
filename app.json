@@ -39,6 +39,7 @@
     "pages/game/delivery/index",
     "pages/game/review/index",
     "pages/game/review-complete/index",
+    "pages/game/play-again/index",
     "pages/map/index",
     "pages/message/index",
     "pages/im/room/index",

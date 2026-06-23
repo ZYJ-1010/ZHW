@@ -197,6 +197,12 @@
           "scene": null
         },
         {
+          "name": "组局-再玩一局",
+          "pathName": "pages/game/play-again/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "启动动画走查",
           "pathName": "pages/entry/index",
           "query": "",
