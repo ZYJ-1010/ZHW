@@ -155,6 +155,37 @@ function formatCurrency(value, fallback = '¥0') {
   return `¥${amount.toLocaleString('zh-CN')}`
 }
 
+function parseCurrencyAmount(value) {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined
+  }
+
+  const amount = Number(String(value).replace(/[¥,\s]/g, ''))
+
+  return Number.isFinite(amount) ? amount : undefined
+}
+
+function splitServedText(servedText) {
+  const parts = String(servedText || '').split(/[\/／]/).map((item) => item.trim()).filter(Boolean)
+
+  return {
+    servedDurationText: parts[0] || '',
+    totalDurationText: parts[1] || ''
+  }
+}
+
+function buildServedText(servedDurationText, totalDurationText) {
+  if (servedDurationText && totalDurationText) {
+    return `${servedDurationText} / ${totalDurationText}`
+  }
+
+  return servedDurationText || totalDurationText || ''
+}
+
 function getCount(value, fallback = 0) {
   const count = Number(value)
 
@@ -435,9 +466,44 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
   )
   const expert = rawOrder.expert || rawOrder.expertInfo || {}
   const guide = rawOrder.guide || rawOrder.guideInfo || rawOrder.referrer || {}
+  const cancelPreview = rawOrder.cancelPreview || rawOrder.playerCancelPreview || rawOrder.cancelInfo || {}
+  const rawServedText = firstDefined(
+    rawOrder.servedText,
+    rawOrder.serviceDurationText,
+    cancelPreview.servedText,
+    cancelPreview.serviceDurationText,
+    fallback.servedText
+  )
+  const servedTextParts = splitServedText(rawServedText)
+  const servedDurationText = firstDefined(
+    rawOrder.servedDurationText,
+    rawOrder.servedDuration,
+    rawOrder.servedHoursText,
+    rawOrder.servedTimeText,
+    cancelPreview.servedDurationText,
+    cancelPreview.servedDuration,
+    cancelPreview.servedHoursText,
+    cancelPreview.servedTimeText,
+    servedTextParts.servedDurationText
+  )
+  const totalDurationText = firstDefined(
+    rawOrder.totalDurationText,
+    rawOrder.totalDuration,
+    rawOrder.totalHoursText,
+    rawOrder.serviceTotalDurationText,
+    cancelPreview.totalDurationText,
+    cancelPreview.totalDuration,
+    cancelPreview.totalHoursText,
+    cancelPreview.serviceTotalDurationText,
+    servedTextParts.totalDurationText
+  )
+  const servedText = buildServedText(servedDurationText, totalDurationText) || rawServedText || ''
 
   return {
     id: rawOrder.id || rawOrder.orderId || rawOrder.gameId || `player-manage-order-${index}`,
+    serviceOrderId: rawOrder.serviceOrderId || rawOrder.orderId || rawOrder.id || '',
+    gameId: rawOrder.gameId || '',
+    expertId: expert.id || rawOrder.expertId || '',
     statusType,
     tabKey: getTabKeyByStatus(statusType),
     statusText: rawOrder.statusText || fallback.statusText,
@@ -452,6 +518,28 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
     }, fallback),
     name: firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name),
     title: firstDefined(rawOrder.gameTitle, rawOrder.title, rawOrder.serviceTitle, rawOrder.serviceName, serviceParts.title, fallback.title),
+    servedDurationText,
+    totalDurationText,
+    servedText,
+    minRate: firstDefined(rawOrder.minRate, rawOrder.cancelMinRate, rawOrder.playerCancelMinRate, cancelPreview.minRate),
+    maxRate: firstDefined(rawOrder.maxRate, rawOrder.cancelMaxRate, rawOrder.playerCancelMaxRate, cancelPreview.maxRate),
+    suggestedRate: firstDefined(rawOrder.suggestedRate, rawOrder.cancelSuggestedRate, rawOrder.playerCancelSuggestedRate, cancelPreview.suggestedRate),
+    suggestionMinRate: firstDefined(rawOrder.suggestionMinRate, rawOrder.recommendMinRate, rawOrder.cancelRecommendMinRate, cancelPreview.suggestionMinRate, cancelPreview.recommendMinRate),
+    suggestionMaxRate: firstDefined(rawOrder.suggestionMaxRate, rawOrder.recommendMaxRate, rawOrder.cancelRecommendMaxRate, cancelPreview.suggestionMaxRate, cancelPreview.recommendMaxRate),
+    contractAmount: firstDefined(
+      parseCurrencyAmount(rawOrder.fundAmount),
+      parseCurrencyAmount(rawOrder.contractAmount),
+      parseCurrencyAmount(rawOrder.amount),
+      parseCurrencyAmount(rawOrder.amountText),
+      parseCurrencyAmount(rawOrder.serviceAmountText),
+      parseCurrencyAmount(rawOrder.fundAmountText),
+      parseCurrencyAmount(rawOrder.serviceFee),
+      parseCurrencyAmount(rawOrder.serviceFeeText),
+      parseCurrencyAmount(rawOrder.price),
+      parseCurrencyAmount(rawOrder.priceText),
+      parseCurrencyAmount(serviceParts.amount),
+      0
+    ),
     amount: typeof amount === 'number' ? formatCurrency(amount, fallback.amount) : amount,
     guideText: rawOrder.guideText || (firstDefined(rawOrder.guideName, guide.name, guide.nickname) ? `领路人：${firstDefined(rawOrder.guideName, guide.name, guide.nickname)}` : fallback.guideText),
     progressText: schedule.progressText,
@@ -504,6 +592,32 @@ function buildDisplayState(orders, activeTabKey) {
     displayOrders,
     hasDisplayOrders: displayOrders.length > 0
   }
+}
+
+function buildCancelQuery(order = {}) {
+  const params = {
+    orderId: order.id,
+    serviceOrderId: order.serviceOrderId,
+    gameId: order.gameId,
+    ref: order.ref,
+    expertName: order.name,
+    expertAvatarText: order.avatar,
+    serviceTitle: order.title,
+    amount: order.contractAmount,
+    servedDurationText: order.servedDurationText,
+    totalDurationText: order.totalDurationText,
+    servedText: order.servedText,
+    minRate: order.minRate,
+    maxRate: order.maxRate,
+    suggestedRate: order.suggestedRate,
+    suggestionMinRate: order.suggestionMinRate,
+    suggestionMaxRate: order.suggestionMaxRate
+  }
+
+  return Object.keys(params)
+    .filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== '')
+    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&')
 }
 
 const INITIAL_SUMMARY = buildSummary(DEFAULT_SUMMARY)
@@ -590,8 +704,18 @@ Page({
     toast.info('联系行家功能开发中')
   },
 
-  onCancelOrder() {
-    toast.info('取消申请功能开发中')
+  onCancelOrder(event) {
+    const id = event && event.currentTarget ? event.currentTarget.dataset.id : ''
+    const order = (this.data.orders || []).find((item) => item.id === id)
+
+    if (!order) {
+      toast.info('未找到服务信息')
+      return
+    }
+
+    wx.navigateTo({
+      url: `/${ROUTES.gamePlayerCancel}?${buildCancelQuery(order)}`
+    })
   },
 
   onReviewBoth() {

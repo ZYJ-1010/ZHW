@@ -88,6 +88,12 @@
           bindreasoninput="onReasonInput"
         ></cancel-reason-card>
 
+        <cancel-action-buttons
+          bar-class="expert inline"
+          bindsecondarytap="onReconsiderTap"
+          bindprimarytap="onConfirmCancelTap"
+        ></cancel-action-buttons>
+
         <cancel-agreement-row
           checked="{{agreementChecked}}"
           content="{{agreementText}}"
@@ -98,10 +104,6 @@
       </view>
     </scroll-view>
 
-    <cancel-action-buttons
-      bar-style="{{shellLayout.footerStyle}}"
-      bindsecondarytap="onReconsiderTap"
-      bindprimarytap="onConfirmCancelTap"
-    ></cancel-action-buttons>
+    <view class="expert-cancel-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
   </view>
 </view>

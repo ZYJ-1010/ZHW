@@ -3,7 +3,8 @@ const { ROUTES } = require('../../../config/routes')
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
 const CONTENT_WIDTH_RPX = 750
-const FOOTER_HEIGHT_RPX = 178
+const DESIGN_FRAME_HEIGHT_PT = 810
+const DESIGN_BOTTOM_HEIGHT_PT = 78
 const NAV_TITLE_HEIGHT_RPX = 50
 const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
@@ -63,8 +64,9 @@ function getFrameHeightRpx() {
 function getWhiteShellLayoutStyles() {
   const capsuleBottom = getCapsuleBottomRpx()
   const frameHeight = getFrameHeightRpx()
-  const footerTop = Math.max(CONTENT_TOP_RPX, frameHeight - FOOTER_HEIGHT_RPX)
-  const contentHeight = Math.max(0, roundRpx(footerTop - CONTENT_TOP_RPX))
+  const bottomHeight = roundRpx(frameHeight * DESIGN_BOTTOM_HEIGHT_PT / DESIGN_FRAME_HEIGHT_PT)
+  const bottomTop = Math.max(CONTENT_TOP_RPX, roundRpx(frameHeight - bottomHeight))
+  const contentHeight = Math.max(0, roundRpx(bottomTop - CONTENT_TOP_RPX))
   const titleTop = Math.max(0, roundRpx(capsuleBottom - NAV_TITLE_HEIGHT_RPX))
   const backTop = Math.max(0, roundRpx(capsuleBottom - BACK_BUTTON_SIZE_RPX))
 
@@ -76,7 +78,7 @@ function getWhiteShellLayoutStyles() {
       `width: ${CONTENT_WIDTH_RPX}rpx`,
       `height: ${contentHeight}rpx`
     ].join('; '),
-    footerStyle: `top: ${footerTop}rpx; height: ${FOOTER_HEIGHT_RPX}rpx;`,
+    bottomStyle: `top: ${bottomTop}rpx; height: ${bottomHeight}rpx;`,
     titleStyle: `top: ${titleTop}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
     backStyle: `top: ${backTop}rpx; width: ${BACK_BUTTON_SIZE_RPX}rpx; height: ${BACK_BUTTON_SIZE_RPX}rpx;`
   }
@@ -121,23 +123,60 @@ function formatCurrency(value) {
   return `¥${Math.round(amount).toLocaleString('zh-CN')}`
 }
 
+function getChineseSurnameInitials(name) {
+  const surname = String(name || '').trim().charAt(0)
+  const initialsMap = {
+    张: 'ZH',
+    王: 'WA',
+    李: 'LI',
+    刘: 'LI',
+    陈: 'CH',
+    杨: 'YA',
+    黄: 'HU',
+    赵: 'ZH',
+    吴: 'WU',
+    周: 'ZH',
+    徐: 'XU',
+    孙: 'SU',
+    马: 'MA',
+    朱: 'ZH',
+    胡: 'HU',
+    郭: 'GU',
+    何: 'HE',
+    林: 'LI',
+    高: 'GA',
+    罗: 'LU',
+    郑: 'ZH'
+  }
+
+  return initialsMap[surname] || ''
+}
+
 function getAvatarText(name, fallback = 'LI') {
   const text = String(name || '').trim()
+  const chineseInitials = getChineseSurnameInitials(text)
+
+  if (chineseInitials) {
+    return chineseInitials
+  }
+
+  const letters = text.match(/[A-Za-z]/g)
+
+  if (letters && letters.length) {
+    return letters.slice(0, 2).join('').toUpperCase()
+  }
+
+  return fallback
+}
+
+function normalizeAvatarText(value, name, fallback = 'LI') {
+  const text = decodeOption(value).trim()
 
   if (!text) {
-    return fallback
+    return getAvatarText(name, fallback)
   }
 
-  if (/^[A-Za-z\s]+$/.test(text)) {
-    return text
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2) || fallback
-  }
-
-  return text.slice(0, 2)
+  return getAvatarText(text, getAvatarText(name, fallback))
 }
 
 function normalizeActivity(options = {}) {
@@ -159,7 +198,7 @@ function normalizeActivity(options = {}) {
     gameId: options.gameId || DEFAULT_ACTIVITY.gameId,
     playerId: options.playerId || DEFAULT_ACTIVITY.playerId,
     playerName,
-    avatarText: decodeOption(options.avatarText || '') || getAvatarText(playerName, DEFAULT_ACTIVITY.avatarText),
+    avatarText: normalizeAvatarText(options.avatarText || '', playerName, DEFAULT_ACTIVITY.avatarText),
     serviceTitle,
     amount,
     amountText: decodeOption(options.amountText || '') || formatCurrency(amount),

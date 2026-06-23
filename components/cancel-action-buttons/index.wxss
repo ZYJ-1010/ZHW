@@ -16,11 +16,32 @@
   border-top-color: #eeeeee;
 }
 
+.cancel-action-buttons.inline {
+  position: relative;
+  left: auto;
+  z-index: auto;
+  width: 746rpx;
+  margin: 34rpx 0 0;
+  margin-left: -32rpx;
+  padding: 0 0 34rpx;
+  border-top: 0;
+  background: transparent;
+}
+
 .cancel-action-row {
   display: flex;
   align-items: center;
   gap: 20rpx;
   width: 686rpx;
+}
+
+.cancel-action-buttons.inline .cancel-action-row {
+  width: 746rpx;
+  height: 164rpx;
+  padding: 36rpx 64rpx;
+  border: 2rpx solid #e5e7eb;
+  background: #ffffff;
+  box-sizing: border-box;
 }
 
 .cancel-action-button {
@@ -94,4 +115,13 @@
   font-size: 22rpx;
   line-height: 32rpx;
   text-align: center;
+}
+
+.cancel-action-buttons.inline .cancel-action-tip {
+  width: 614rpx;
+  margin: 34rpx auto 0;
+  color: #4b5563;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  text-align: left;
 }

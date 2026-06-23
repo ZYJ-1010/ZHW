@@ -59,6 +59,12 @@
           "scene": null
         },
         {
+          "name": "组局-取消申请-玩家",
+          "pathName": "pages/game/player-cancel/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-审核列表",
           "pathName": "pages/game/audit/index",
           "query": "",
