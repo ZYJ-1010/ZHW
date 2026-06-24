@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "发起组局"
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
 }

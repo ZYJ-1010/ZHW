@@ -60,6 +60,16 @@ async function getSystemRecommendations(params) {
   return result.data
 }
 
+async function getProfitTemplates(params) {
+  const result = await gameApi.getProfitTemplates(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取分润模板失败')
+  }
+
+  return result.data
+}
+
 async function createReplayInvitation(payload) {
   const result = await gameApi.createReplayInvitation(payload)
 
@@ -144,6 +154,7 @@ module.exports = {
   getInvitePlayers,
   getReplayConfirmContext,
   getSystemRecommendations,
+  getProfitTemplates,
   createReplayInvitation,
   getGuideProgress,
   getGuideCancelDetail,

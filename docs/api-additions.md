@@ -2954,3 +2954,144 @@ pages/game/create/index?source=systemRecommend&recommendationId=system-rec-001&s
 4. `price` 金额单位使用元还是分；当前页面按元展示 `¥800/小时`。
 5. 点击 `确认组局` 后，是进入创建组局页预填已选行家，还是直接创建系统推荐适配局并进入组局进度 / 支付 / 邀请流程。
 6. 若进入创建组局页，`pages/game/create/index` 需要补充接收 `source=recommendationId/selectedExpertIds/sourceGameId/serviceOrderId` 并预填推荐上下文的能力。
+
+## 38. 发起组局创建 / 草稿接口人数校验
+
+记录日期：2026-06-24
+
+模块：组局 / 发起组局
+
+页面：`pages/game/create/index`
+
+功能：用户在发起组局页填写局人数总人数时，前端当前按用户反馈限制最少 3 人、最多 10 人。正式保存草稿和发布创建组局接口必须在后端按同一范围强校验，不能只依赖前端滑块或输入框归一化。
+
+候选接口：
+
+```text
+POST /api/app/games
+POST /api/app/games/drafts
+```
+
+建议入参片段：
+
+```json
+{
+  "capacity": 5
+}
+```
+
+校验规则：
+
+```text
+3 <= capacity <= 10
+```
+
+待确认：
+
+1. 正式创建组局接口是否使用 `POST /api/app/games`，草稿保存是否使用 `POST /api/app/games/drafts`。
+2. `capacity` 字段是否表示总人数上限；若未来区分发起人、行家、领路人或报名人数，需要明确是否包含发起人在内。
+3. 后端非法人数错误码和文案需要统一，建议前端展示为 `局人数需为 3-10 人`。
+4. 若不同局类型未来允许不同人数范围，需要由后端返回局类型对应范围，前端再替换当前固定 `3-10` 规则。
+
+## 39. 发起组局分润模板配置与公益局权限强校验
+
+记录日期：2026-06-24
+
+模块：组局 / 发起组局
+
+页面：`pages/game/create/index`
+
+功能：发起组局页的分润模板、押金局规则和押金局提示由后台配置下发。前端当前新增候选接口读取配置；接口失败或未返回对应字段时使用页面默认模板和默认押金局文案兜底。
+
+候选接口：
+
+```text
+GET /api/app/games/profit-templates
+POST /api/app/games
+POST /api/app/games/drafts
+```
+
+`GET /api/app/games/profit-templates` 建议入参：
+
+```json
+{
+  "feeType": "paid"
+}
+```
+
+建议返回：
+
+```json
+{
+  "currentAccountType": "player",
+  "depositRuleText": "连续打卡 7 天即完成。完成者拿回押金池金额，未完成者押金由完成者平分。",
+  "depositNoticeText": "支付金额：100元 = 服务费10元 + 押金池90元。服务费不退，押金池按完成情况结算。",
+  "templates": [
+    {
+      "key": "deposit",
+      "name": "押金局",
+      "desc": "平台2.5% · 交付方0% · 流量方5% · 推荐上级2.5% + 押金池90%，完成返还，未完成瓜分",
+      "selectable": true,
+      "allowedAccountTypes": ["player", "expert", "guide", "platform"]
+    },
+    {
+      "key": "publicBenefit",
+      "name": "公益局",
+      "desc": "平台0% · 交付方100% · 流量方0% · 推荐上级0%",
+      "selectable": false,
+      "disabledReason": "仅平台账户可发起",
+      "allowedAccountTypes": ["platform"]
+    }
+  ]
+}
+```
+
+强校验规则：
+
+```text
+公益局只能平台账户发起。
+普通用户、玩家、行家、领路人都不能选择或创建公益局。
+POST /api/app/games 和 POST /api/app/games/drafts 必须校验 profitTemplate/publicBenefit 与当前登录账号类型，不允许绕过前端提交。
+```
+
+待确认：
+
+1. 分润模板配置正式接口是否使用 `GET /api/app/games/profit-templates`。
+2. 后端是否按当前登录账号类型直接过滤不可用模板，还是返回 `selectable=false` 和 `disabledReason` 给前端展示。
+3. `profitTemplate` 字段是否使用 `standard`、`aa`、`deposit`、`crowdfunding`、`publicBenefit` 这些 key，还是使用后端模板 ID。
+4. 押金局规则和提示是否随分润模板接口一起返回，字段是否采用 `depositRuleText`、`depositNoticeText`。
+5. 保存草稿和发布创建组局接口的非法模板 / 权限错误码与前端展示文案需要统一。
+
+## 40. 发起组局底部操作按钮接口与预览页
+
+记录日期：2026-06-24
+
+模块：组局 / 发起组局
+
+页面：`pages/game/create/index`
+
+功能：发起组局页底部三个按钮的功能口径已确认，但正式接口和预览提交页仍待补充。
+
+按钮口径：
+
+```text
+保存草稿：保存到草稿箱，待实现。
+浏览提交：弹出预览页面，把用户填写和选择的内容按字段展示，底部提供提交按钮，待补充页面。
+发布并同步到地球网：正式发布并同步到地球网，待实现。
+```
+
+候选接口：
+
+```text
+POST /api/app/games/drafts
+POST /api/app/games
+POST /api/app/games/{gameId}/sync-earth
+```
+
+待确认：
+
+1. 草稿箱正式接口路径、草稿列表入口、草稿状态字段和是否支持覆盖保存。
+2. 浏览提交预览页是新增页面、弹窗组件，还是由当前页内弹层承载。
+3. 预览页展示字段顺序需要和发布入参字段保持一致，包含封面、局属性、时间地点、人数、参与方式、标签、描述、费用与分润、规则提示等。
+4. `发布并同步到地球网` 是一个创建接口内完成同步，还是创建成功后再调用同步接口。
+5. 发布同步失败时是否允许组局创建成功但地球网同步失败，以及前端应该展示的状态和重试入口。

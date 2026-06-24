@@ -57,6 +57,15 @@
     "navigationBarTextStyle": "black",
     "backgroundColor": "#FFFFFF"
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于选择组局地址"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

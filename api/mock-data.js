@@ -1059,6 +1059,50 @@ const mockPlayerGameManage = {
   ]
 }
 
+const mockGameProfitTemplates = {
+  currentAccountType: 'player',
+  depositRuleText: '连续打卡 7 天即完成。完成者拿回押金池金额，未完成者押金由完成者平分。',
+  depositNoticeText: '支付金额：100元 = 服务费10元 + 押金池90元。服务费不退，押金池按完成情况结算。',
+  templates: [
+    {
+      key: 'standard',
+      name: '标准 1441',
+      desc: '平台10% · 流量方40% · 交付方40% · 推荐上级10%',
+      selectable: true,
+      allowedAccountTypes: ['player', 'expert', 'guide', 'platform']
+    },
+    {
+      key: 'aa',
+      name: 'AA局',
+      desc: '平台2.5% · 交付方90% · 流量方5% · 推荐上级2.5%',
+      selectable: true,
+      allowedAccountTypes: ['player', 'expert', 'guide', 'platform']
+    },
+    {
+      key: 'deposit',
+      name: '押金局',
+      desc: '平台2.5% · 交付方0% · 流量方5% · 推荐上级2.5% + 押金池90%，完成返还，未完成瓜分',
+      selectable: true,
+      allowedAccountTypes: ['player', 'expert', 'guide', 'platform']
+    },
+    {
+      key: 'crowdfunding',
+      name: '众筹局',
+      desc: '平台2.5% · 交付方90% · 流量方5% · 推荐上级2.5%',
+      selectable: true,
+      allowedAccountTypes: ['player', 'expert', 'guide', 'platform']
+    },
+    {
+      key: 'publicBenefit',
+      name: '公益局',
+      desc: '平台0% · 交付方100% · 流量方0% · 推荐上级0%',
+      selectable: false,
+      disabledReason: '仅平台账户可发起',
+      allowedAccountTypes: ['platform']
+    }
+  ]
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -1075,5 +1119,6 @@ module.exports = {
   mockGuideProgress,
   mockGuideCancelDetail,
   mockGameManage,
-  mockPlayerGameManage
+  mockPlayerGameManage,
+  mockGameProfitTemplates
 }

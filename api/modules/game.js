@@ -12,6 +12,10 @@ function createGame(data) {
   return request.post('/api/app/games', data)
 }
 
+function getProfitTemplates(params) {
+  return request.get('/api/app/games/profit-templates', params)
+}
+
 function applyGame(gameId, data) {
   return request.post(`/api/app/games/${gameId}/apply`, data)
 }
@@ -68,6 +72,7 @@ module.exports = {
   getGames,
   getGameDetail,
   createGame,
+  getProfitTemplates,
   applyGame,
   respondGameInvitation,
   getInvitePlayerConfig,

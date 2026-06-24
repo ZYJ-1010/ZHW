@@ -41,6 +41,12 @@
           "scene": null
         },
         {
+          "name": "发起组局",
+          "pathName": "pages/game/create/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "组局-详情",
           "pathName": "pages/game/detail/index",
           "query": "",
