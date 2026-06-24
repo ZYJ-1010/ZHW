@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { getDefaultGameParticipants } = require('../shared/participants')
 
 const DEFAULT_CONTENT_TOP_RPX = 160
 const NAV_BOTTOM_GAP_RPX = 18
@@ -142,34 +143,7 @@ Page({
       '报名与取消：报名成功后如需取消参会，请至少提前1天告知主办方，方便释放名额给其他有需求的人员；无故缺席将影响后续参与各级活动报名资格。'
     ],
     audience: '企业负责人、运营管理者、技术负责人、创业团队核心成员、数字化服务相关从业者',
-    participants: [
-      {
-        name: '陆毅',
-        avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
-        avatarText: '陆',
-        role: '玩家',
-        roleClass: 'player',
-        position: '总经理 | 上海创世界科技有限公司',
-        topic: 'AI赋能与市场运营助力企业IP打造',
-        primaryTag: '第一标签：上海TMT投资领军者',
-        tags: ['数字化内容服务'],
-        location: '上海市浦东新区沙新镇黄赵路310号',
-        distance: '2.1 km'
-      },
-      {
-        name: '林一',
-        avatarSrc: '/pages/home/player/assets/ranking-avatar-02.png',
-        avatarText: '林',
-        role: '行家',
-        roleClass: 'expert',
-        position: '品牌创始人 | 杭州欣悦服装工作',
-        topic: '企业家服务平台',
-        primaryTag: '第一标签：女性高品质服装领先者',
-        tags: ['品牌增长', '企业服务'],
-        location: '杭州市上城区',
-        distance: '2.1 km'
-      }
-    ]
+    participants: getDefaultGameParticipants()
   },
 
   onLoad(options = {}) {
@@ -265,7 +239,11 @@ Page({
   },
 
   onViewAllParticipants() {
-    this.showPendingFeature()
+    const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
+
+    wx.navigateTo({
+      url: `/${ROUTES.gameParticipants}${query}`
+    })
   },
 
   onParticipantTap() {

@@ -1,55 +1,105 @@
+const { ROUTES } = require('../../../config/routes')
+const { getDefaultGameParticipants } = require('../shared/participants')
+
+const WHITE_CONTENT_LEFT_RPX = 2
+const WHITE_CONTENT_TOP_RPX = 160
+const WHITE_CONTENT_WIDTH_RPX = 750
+const WHITE_DESIGN_FRAME_HEIGHT_PT = 810
+const WHITE_DESIGN_BOTTOM_HEIGHT_PT = 78
+const WHITE_NAV_TITLE_HEIGHT_RPX = 50
+const WHITE_BACK_BUTTON_SIZE_RPX = 40
+const WHITE_DEFAULT_CAPSULE_BOTTOM_RPX = 142
+const WHITE_DEFAULT_FRAME_HEIGHT_RPX = WHITE_DESIGN_FRAME_HEIGHT_PT * 2
+
+function roundRpx(value) {
+  return Math.round(value * 100) / 100
+}
+
+function getMenuCapsuleBottomRpx() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getSystemInfoSync && wx.getMenuButtonBoundingClientRect) {
+      const menuButton = wx.getMenuButtonBoundingClientRect()
+      const systemInfo = wx.getSystemInfoSync()
+
+      if (menuButton && systemInfo && systemInfo.windowWidth) {
+        return roundRpx((menuButton.top + menuButton.height) * 750 / systemInfo.windowWidth)
+      }
+    }
+  } catch (error) {
+    return WHITE_DEFAULT_CAPSULE_BOTTOM_RPX
+  }
+
+  return WHITE_DEFAULT_CAPSULE_BOTTOM_RPX
+}
+
+function getWhiteShellLayoutStyles() {
+  const capsuleBottom = getMenuCapsuleBottomRpx()
+  const titleTop = Math.max(0, roundRpx(capsuleBottom - WHITE_NAV_TITLE_HEIGHT_RPX))
+  const backTop = Math.max(0, roundRpx(capsuleBottom - WHITE_BACK_BUTTON_SIZE_RPX))
+  let frameHeight = WHITE_DEFAULT_FRAME_HEIGHT_RPX
+
+  try {
+    if (typeof wx !== 'undefined' && wx.getSystemInfoSync) {
+      const systemInfo = wx.getSystemInfoSync()
+
+      if (systemInfo && systemInfo.windowWidth && systemInfo.windowHeight) {
+        frameHeight = roundRpx(systemInfo.windowHeight * 750 / systemInfo.windowWidth)
+      }
+    }
+  } catch (error) {
+    frameHeight = WHITE_DEFAULT_FRAME_HEIGHT_RPX
+  }
+
+  const bottomHeight = roundRpx(frameHeight * WHITE_DESIGN_BOTTOM_HEIGHT_PT / WHITE_DESIGN_FRAME_HEIGHT_PT)
+  const bottomTop = Math.max(WHITE_CONTENT_TOP_RPX, roundRpx(frameHeight - bottomHeight))
+  const contentHeight = Math.max(0, roundRpx(bottomTop - WHITE_CONTENT_TOP_RPX))
+
+  return {
+    frameStyle: `height: ${frameHeight}rpx; min-height: ${frameHeight}rpx;`,
+    contentStyle: [
+      `left: ${WHITE_CONTENT_LEFT_RPX}rpx`,
+      `top: ${WHITE_CONTENT_TOP_RPX}rpx`,
+      `width: ${WHITE_CONTENT_WIDTH_RPX}rpx`,
+      `height: ${contentHeight}rpx`
+    ].join('; '),
+    bottomStyle: `top: ${bottomTop}rpx; height: ${bottomHeight}rpx;`,
+    titleStyle: `top: ${titleTop}rpx; height: ${WHITE_NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${WHITE_NAV_TITLE_HEIGHT_RPX}rpx;`,
+    backStyle: `top: ${backTop}rpx; width: ${WHITE_BACK_BUTTON_SIZE_RPX}rpx; height: ${WHITE_BACK_BUTTON_SIZE_RPX}rpx;`
+  }
+}
+
 Page({
   data: {
-    participants: [
-      {
-        name: '陆毅',
-        avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
-        role: '玩家',
-        roleClass: 'player',
-        position: '总经理 | 上海创世界科技有限公司',
-        topic: 'AI赋能与市场运营助力企业IP打造',
-        primaryTag: '第一标签：上海TMT投资领军者',
-        tags: ['数字化内容服务'],
-        location: '上海市浦东新区沙新镇黄赵路310号',
-        distance: '2.1 km'
-      },
-      {
-        name: '林一',
-        avatarSrc: '/pages/home/player/assets/ranking-avatar-02.png',
-        role: '行家',
-        roleClass: 'expert',
-        position: '品牌创始人 | 杭州欣悦服装工作',
-        topic: '企业家服务平台',
-        primaryTag: '第一标签：女性高品质服装领先者',
-        tags: ['品牌增长', '企业服务'],
-        location: '杭州市上城区',
-        distance: '2.1 km'
-      },
-      {
-        name: '陈序',
-        avatarSrc: '/pages/home/player/assets/ranking-avatar-03.png',
-        role: '玩家',
-        roleClass: 'player',
-        position: '联合创始人 | 苏州智造咨询',
-        topic: '制造业数字化流程重构',
-        primaryTag: '第一标签：智能制造转型顾问',
-        tags: ['流程管理', '资源对接'],
-        location: '苏州市工业园区',
-        distance: '4.6 km'
-      },
-      {
-        name: '赵晴',
-        avatarSrc: '/pages/home/player/assets/ranking-avatar-me.png',
-        role: '行家',
-        roleClass: 'expert',
-        position: '运营负责人 | 上海云栖服务',
-        topic: '企业服务增长策略',
-        primaryTag: '第一标签：企业服务增长操盘手',
-        tags: ['增长策略', '私域运营'],
-        location: '上海市黄浦区',
-        distance: '5.3 km'
-      }
-    ]
+    gameId: '',
+    whiteShellLayout: getWhiteShellLayoutStyles(),
+    participants: getDefaultGameParticipants()
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      gameId: options.gameId || options.id || '',
+      whiteShellLayout: getWhiteShellLayoutStyles(),
+      participants: getDefaultGameParticipants()
+    })
+  },
+
+  onResize() {
+    this.setData({
+      whiteShellLayout: getWhiteShellLayoutStyles()
+    })
+  },
+
+  handleBack() {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+
+    wx.redirectTo({
+      url: `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${encodeURIComponent(this.data.gameId)}` : ''}`
+    })
   },
 
   onParticipantTap(event) {
@@ -60,5 +110,12 @@ Page({
       title: `${name}资料待接入`,
       icon: 'none'
     })
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '全部参与者',
+      path: `/${ROUTES.gameParticipants}${this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''}`
+    }
   }
 })
