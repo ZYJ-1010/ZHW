@@ -47,8 +47,14 @@
           "scene": null
         },
         {
-          "name": "组局-详情",
+          "name": "局前大厅-局详情",
           "pathName": "pages/game/detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "局前大厅-全部参与者",
+          "pathName": "pages/game/participants/index",
           "query": "",
           "scene": null
         },

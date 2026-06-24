@@ -1,0 +1,15 @@
+<view class="participants-page">
+  <view class="participants-header">
+    <text class="participants-title">参与者（{{participants.length}}人）</text>
+    <text class="participants-subtitle">已加入该局的玩家和行家</text>
+  </view>
+
+  <view class="participants-list">
+    <participant-card
+      wx:for="{{participants}}"
+      wx:key="name"
+      participant="{{item}}"
+      bind:tapcard="onParticipantTap"
+    />
+  </view>
+</view>

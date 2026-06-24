@@ -1,211 +1,236 @@
 const { ROUTES } = require('../../../config/routes')
-const gameService = require('../../../services/game')
-const { getSurnameInitials } = require('../../../utils/avatar')
 
-const DETAIL_SCROLL_TAP_STEP_RPX = 360
-const DETAIL_SCROLL_HOLD_STEP_RPX = 72
-const DETAIL_SCROLL_HOLD_INTERVAL_MS = 80
-const DETAIL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
+const DEFAULT_CONTENT_TOP_RPX = 160
+const NAV_BOTTOM_GAP_RPX = 18
+const NAV_TITLE_HEIGHT_RPX = 50
+const NAV_BUTTON_SIZE_RPX = 44
+const BOTTOM_ACTION_RPX = 148
+const DEFAULT_CAPSULE_BOTTOM_RPX = 142
+const DEFAULT_SHARE_RIGHT_RPX = 206
+const SHARE_CAPSULE_GAP_RPX = 18
+
+function roundRpx(value) {
+  return Math.round(value * 100) / 100
+}
+
+function getMenuMetricsRpx() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect && wx.getSystemInfoSync) {
+      const menuButton = wx.getMenuButtonBoundingClientRect()
+      const systemInfo = wx.getSystemInfoSync()
+
+      if (menuButton && systemInfo && systemInfo.windowWidth) {
+        const ratio = 750 / systemInfo.windowWidth
+        const capsuleBottom = roundRpx((menuButton.top + menuButton.height) * ratio)
+        const capsuleLeftGap = menuButton.left
+          ? roundRpx((systemInfo.windowWidth - menuButton.left) * ratio)
+          : DEFAULT_SHARE_RIGHT_RPX - SHARE_CAPSULE_GAP_RPX
+
+        return {
+          capsuleBottom,
+          shareRight: roundRpx(capsuleLeftGap + SHARE_CAPSULE_GAP_RPX)
+        }
+      }
+    }
+  } catch (error) {
+    return {
+      capsuleBottom: DEFAULT_CAPSULE_BOTTOM_RPX,
+      shareRight: DEFAULT_SHARE_RIGHT_RPX
+    }
+  }
+
+  return {
+    capsuleBottom: DEFAULT_CAPSULE_BOTTOM_RPX,
+    shareRight: DEFAULT_SHARE_RIGHT_RPX
+  }
+}
+
+function getWhiteDetailLayout() {
+  const { capsuleBottom, shareRight } = getMenuMetricsRpx()
+  const contentTop = Math.max(DEFAULT_CONTENT_TOP_RPX, roundRpx(capsuleBottom + NAV_BOTTOM_GAP_RPX))
+  const titleTop = Math.max(0, roundRpx(capsuleBottom - NAV_TITLE_HEIGHT_RPX))
+  const buttonTop = Math.max(0, roundRpx(capsuleBottom - NAV_BUTTON_SIZE_RPX))
+
+  return {
+    headerStyle: `height: ${contentTop}rpx;`,
+    titleStyle: `top: ${titleTop}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
+    backStyle: `top: ${buttonTop}rpx; width: ${NAV_BUTTON_SIZE_RPX}rpx; height: ${NAV_BUTTON_SIZE_RPX}rpx;`,
+    shareStyle: `top: ${buttonTop}rpx; right: ${shareRight}rpx; width: ${NAV_BUTTON_SIZE_RPX}rpx; height: ${NAV_BUTTON_SIZE_RPX}rpx;`,
+    scrollStyle: `top: ${contentTop}rpx; height: calc(100vh - ${contentTop}rpx - ${BOTTOM_ACTION_RPX}rpx - env(safe-area-inset-bottom));`
+  }
+}
 
 Page({
   data: {
     gameId: '',
-    invitationId: '',
-    actionLoading: false,
-    onlineText: '3999人在线',
+    interested: false,
     detailScrollTop: 0,
-    navItems: [
-      { name: '我的', active: false },
-      { name: '元宇宙', active: false },
-      { name: '地图', active: false },
-      { name: '消息', active: false },
-      { name: '首页', active: true }
+    navLayout: getWhiteDetailLayout(),
+    event: {
+      coverSrc: '/pages/game/hall/assets/hall-featured-city.jpg',
+      title: '企业数字化转型及技术服务沙龙局',
+      time: '2月12日 08:30-11:30',
+      location: '上海市浦东新区沙新镇黄赵路310号',
+      category: '社交局',
+      categoryIcon: '/pages/game/detail/assets/i26@3x.png',
+      fee: '场地费AA/位'
+    },
+    stats: [
+      { iconText: '👁️', text: '1,234次浏览', action: 'views' },
+      { iconText: '💬', text: '3条评价', action: 'reviews' },
+      { iconSrc: '/pages/game/detail/assets/i44@3x.png', text: '5/8人已报名' }
     ],
-    status: {
-      title: '等待你确认',
-      quote: '这位专家我合作过，非常专业，相信能解决你的问题！',
-      guideName: '王引荐',
-      countdown: '23:45:12'
+    tags: [
+      { name: '#产品研发', tone: 'blue' },
+      { name: '#创业', tone: 'green' },
+      { name: '#社交', tone: 'purple' }
+    ],
+    organizer: {
+      name: '陆毅',
+      avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
+      avatarText: '陆',
+      role: '总经理 | 上海创世界科技有限公司',
+      summary: '已组局 88次 · 推荐20人',
+      rating: '4.8'
     },
-    expert: {
-      name: '张专家',
-      avatarText: getSurnameInitials('张专家', 'ZH'),
-      desc: '资深产品经理 · 10年经验',
-      rating: '4.9',
-      serviceText: '服务50+客户',
-      tags: ['产品架构', 'MVP规划', '用户增长', 'B端产品'],
-      intro: '擅长从0到1的产品架构设计，曾主导多个千万级用户产品。提供产品咨询、架构梳理、团队搭建建议等服务。'
-    },
-    party: {
-      confirmedText: '3/6人已确认',
-      player: {
-        name: '李娜',
-        avatarText: getSurnameInitials('李娜', 'LI'),
-        role: '玩家',
-        state: '待确认'
+    introduction: '本场沙龙围绕企业数字化转型及技术服务话题，邀请多位成功创业者分享经验。活动包含主题分享、自由交流、资源对接三个环节，帮助参与者拓展人脉、获取资源。',
+    highlights: [
+      '实战大咖亲授，拒绝空泛理论',
+      '精准资源对接，高效链接人脉',
+      '全流程干货输出，内容覆盖全面',
+      '轻量高效参会，时间成本可控'
+    ],
+    schedule: [
+      {
+        title: '签到入场',
+        time: '08:30-08:50',
+        desc: '参会人员现场签到，领取活动资料与伴手礼，自由熟悉场地，初步交流破冰'
       },
-      expert: {
-        name: '王强',
-        avatarText: getSurnameInitials('王强', 'WA'),
-        role: '行家',
-        state: '待确认'
+      {
+        title: '主题分享环节',
+        time: '08:50-10:20',
+        desc: '多位成功创业者依次登台，围绕企业数字化转型实战经验、技术服务选型技巧、行业转型趋势、低成本高效转型方案等核心主题展开分享。预留简短提问时间，现场答疑解惑'
+      },
+      {
+        title: '中场休息+自由交流',
+        time: '10:20-10:40',
+        desc: '短暂休整，参会者自由沟通，互换名片，初步对接需求'
+      },
+      {
+        title: '资源对接+深度交流',
+        time: '10:40-11:25',
+        desc: '定向资源配对环节，主办方引导供需双方精准对接，针对性洽谈合作，针对共性问题展开集体讨论，搭建长期交流合作平台'
+      },
+      {
+        title: '组局总结+合影留念',
+        time: '11:25-11:30',
+        desc: '主办方总结组局核心内容，公布后续社群交流渠道，全体参会人员合影留念，活动圆满结束'
       }
-    },
-    sessionInfo: [
-      {
-        label: '组局主题',
-        value: '产品开发 (1v3)',
-        iconText: 'H',
-        iconClass: 'topic'
-      },
-      {
-        label: '时间',
-        value: '2026年3月23日 (周六) 14:00-17:00',
-        iconText: 'T',
-        iconClass: 'time',
-        iconSrc: '/pages/game/detail/assets/icon-clock.png'
-      },
-      {
-        label: '地点',
-        value: '朝阳区图书馆 (3号会议室)',
-        actionText: '地图位置',
-        iconText: 'P',
-        iconClass: 'place',
-        iconSrc: '/pages/game/detail/assets/icon-location.png'
-      }
     ],
-    detailRows: [
-      { label: '服务类型', value: '产品架构梳理咨询' },
-      { label: '咨询时长', value: '2小时' },
-      { label: '预算金额', value: '¥800', highlight: true },
-      { label: '预计时间', value: '本周内', last: true }
+    detailImages: [
+      '/pages/game/hall/assets/hall-card-desk.jpg',
+      '/components/game-card/assets/cover-city.png'
     ],
-    costRows: [
-      { label: '服务费用', value: '¥800' },
-      { label: '合计支付', value: '¥800', highlight: true, total: true, last: true }
-    ],
-    protectionText: '资金由平台托管，服务完成后支付给服务方',
+    noticeLead: '为保障活动秩序与参会体验，敬请所有参会人员提前知悉以下事项，遵守活动规则：',
     noticeBullets: [
-      '确认后请准时参加，如需取消请提前24小时通知',
-      '双方确认后组局正式生效，领路人将获得积分奖励'
+      '签到要求：请务必携带个人名片参会，便于现场人脉拓展与资源对接；需在08:50前完成签到入场，迟到超过30分钟将无法进入会场，敬请准时。',
+      '参会对象限制：本次沙龙仅限企业负责人、核心管理层、技术负责人及创业团队成员参与，谢绝无关人员、非商务推广人员入场；仅限报名成功且收到确认通知的人员参与，不接受临时空降参会。',
+      '行为规范：活动期间禁止随意打断分享、大声喧哗，保持会场安静；禁止发放无关小广告、恶意推销产品，违规者将被劝离会场；禁止录制嘉宾完整分享内容、私自传播活动内部资料，尊重知识产权与嘉宾隐私。',
+      '资料与物品：活动资料、饮品由主办方统一提供，请勿自带零食饮料入内；个人贵重物品请自行妥善保管，主办方不负责财物保管。',
+      '防疫与安全：参会期间请自觉维护会场卫生，遵守场地安全管理规定；如遇特殊情况，请及时联系现场工作人员协助处理。',
+      '报名与取消：报名成功后如需取消参会，请至少提前1天告知主办方，方便释放名额给其他有需求的人员；无故缺席将影响后续参与各级活动报名资格。'
+    ],
+    audience: '企业负责人、运营管理者、技术负责人、创业团队核心成员、数字化服务相关从业者',
+    participants: [
+      {
+        name: '陆毅',
+        avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
+        avatarText: '陆',
+        role: '玩家',
+        roleClass: 'player',
+        position: '总经理 | 上海创世界科技有限公司',
+        topic: 'AI赋能与市场运营助力企业IP打造',
+        primaryTag: '第一标签：上海TMT投资领军者',
+        tags: ['数字化内容服务'],
+        location: '上海市浦东新区沙新镇黄赵路310号',
+        distance: '2.1 km'
+      },
+      {
+        name: '林一',
+        avatarSrc: '/pages/home/player/assets/ranking-avatar-02.png',
+        avatarText: '林',
+        role: '行家',
+        roleClass: 'expert',
+        position: '品牌创始人 | 杭州欣悦服装工作',
+        topic: '企业家服务平台',
+        primaryTag: '第一标签：女性高品质服装领先者',
+        tags: ['品牌增长', '企业服务'],
+        location: '杭州市上城区',
+        distance: '2.1 km'
+      }
     ]
   },
 
   onLoad(options = {}) {
     this.setData({
       gameId: options.gameId || options.id || '',
-      invitationId: options.invitationId || ''
+      navLayout: getWhiteDetailLayout()
     })
+  },
+
+  onShow() {
+    this.updateDetailLayout()
+  },
+
+  onResize() {
+    this.updateDetailLayout()
+  },
+
+  updateDetailLayout() {
+    this.setData({
+      navLayout: getWhiteDetailLayout()
+    })
+  },
+
+  onBack() {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+
+    wx.redirectTo({
+      url: `/${ROUTES.gameHall}`
+    })
+  },
+
+  toggleInterest() {
+    this.showPendingFeature()
   },
 
   onMapTap() {
-    this.showInfo('地图位置待接入')
+    this.showPendingFeature()
   },
 
-  onDecline() {
-    this.handleInvitationRespond('reject')
+  onStatTap() {
+    this.showPendingFeature()
   },
 
-  onConfirmAttend() {
-    this.handleInvitationRespond('accept')
+  onToolTap() {
+    this.showPendingFeature()
   },
 
-  async handleInvitationRespond(action) {
-    if (this.data.actionLoading) {
-      return
-    }
-
-    this.setData({
-      actionLoading: true
-    })
-
-    try {
-      await gameService.respondGameInvitation(this.data.invitationId, action)
-      this.showInfo(action === 'accept' ? '已确认参加，等待最终审核' : '已婉拒')
-    } catch (error) {
-      this.showInfo((error && error.message) || '处理失败，请重试')
-    } finally {
-      this.setData({
-        actionLoading: false
-      })
-    }
+  onEnroll() {
+    this.showPendingFeature()
   },
 
-  handleShellNavTap(event) {
-    const key = event.detail && event.detail.key
-
-    if (key === 'up' || key === 'down') {
-      if (!this.suppressNextNavTap) {
-        this.scrollDetail(key, DETAIL_SCROLL_TAP_STEP_RPX)
-      }
-      return
-    }
-
-    if (key === 'left' || key === 'right') {
-      this.showInfo('功能正在开发中')
-      return
-    }
-
-    this.handleShellAction(key)
+  onViewAllParticipants() {
+    this.showPendingFeature()
   },
 
-  handleShellNavLongPress(event) {
-    const key = event.detail && event.detail.key
-
-    if (key !== 'up' && key !== 'down') {
-      return
-    }
-
-    this.suppressNextNavTap = true
-    this.stopDetailScrollHold(false)
-    this.scrollDetail(key, DETAIL_SCROLL_HOLD_STEP_RPX)
-
-    this.detailScrollHoldTimer = setInterval(() => {
-      this.scrollDetail(key, DETAIL_SCROLL_HOLD_STEP_RPX)
-    }, DETAIL_SCROLL_HOLD_INTERVAL_MS)
-  },
-
-  handleShellNavTouchEnd() {
-    this.stopDetailScrollHold(true)
-  },
-
-  handleShellAction(key) {
-    if (key === 'home') {
-      this.scrollDetailToTop()
-      return
-    }
-
-    if (key === 'search') {
-      this.showInfo('搜索功能开发中')
-      return
-    }
-
-    if (key === 'comment' || key === 'message') {
-      this.navigateToRoute(ROUTES.message)
-      return
-    }
-
-    if (key === 'avatar' || key === 'mine') {
-      this.navigateToRoute(ROUTES.profile)
-      return
-    }
-
-    const routeMap = {
-      metaverse: ROUTES.metaverse,
-      map: ROUTES.map
-    }
-
-    this.navigateToRoute(routeMap[key])
-  },
-
-  navigateToRoute(route) {
-    if (!route || route === ROUTES.gameDetail) {
-      return
-    }
-
-    wx.navigateTo({
-      url: `/${route}`
-    })
+  onParticipantTap() {
+    this.showPendingFeature()
   },
 
   handleDetailScroll(event) {
@@ -216,66 +241,6 @@ Page({
     }
   },
 
-  scrollDetail(direction, stepRpx = DETAIL_SCROLL_TAP_STEP_RPX) {
-    const current = Number(this.detailScrollTopValue || this.data.detailScrollTop || 0)
-    const distance = this.rpxToPx(stepRpx)
-    const nextTop = direction === 'up'
-      ? Math.max(0, current - distance)
-      : current + distance
-
-    this.detailScrollTopValue = nextTop
-    this.setData({
-      detailScrollTop: nextTop
-    })
-  },
-
-  scrollDetailToTop() {
-    this.detailScrollTopValue = 0
-    this.setData({
-      detailScrollTop: 0
-    })
-  },
-
-  stopDetailScrollHold(resetTapSuppress) {
-    if (this.detailScrollHoldTimer) {
-      clearInterval(this.detailScrollHoldTimer)
-      this.detailScrollHoldTimer = null
-    }
-
-    if (resetTapSuppress && this.suppressNextNavTap) {
-      if (this.detailScrollSuppressTimer) {
-        clearTimeout(this.detailScrollSuppressTimer)
-      }
-
-      this.detailScrollSuppressTimer = setTimeout(() => {
-        this.suppressNextNavTap = false
-        this.detailScrollSuppressTimer = null
-      }, DETAIL_SCROLL_HOLD_SUPPRESS_TAP_MS)
-    }
-  },
-
-  clearDetailScrollTimers() {
-    this.stopDetailScrollHold(false)
-
-    if (this.detailScrollSuppressTimer) {
-      clearTimeout(this.detailScrollSuppressTimer)
-      this.detailScrollSuppressTimer = null
-    }
-
-    this.suppressNextNavTap = false
-  },
-
-  rpxToPx(value) {
-    if (!wx.getSystemInfoSync) {
-      return value / 2
-    }
-
-    const system = wx.getSystemInfoSync()
-    const windowWidth = system && system.windowWidth ? system.windowWidth : 375
-
-    return Math.round((value * windowWidth) / 750)
-  },
-
   showInfo(title) {
     wx.showToast({
       title,
@@ -283,7 +248,15 @@ Page({
     })
   },
 
-  onUnload() {
-    this.clearDetailScrollTimers()
+  showPendingFeature() {
+    this.showInfo('功能待开发')
+  },
+
+  onShareAppMessage() {
+    return {
+      title: this.data.event.title,
+      path: `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${this.data.gameId}` : ''}`,
+      imageUrl: this.data.event.coverSrc
+    }
   }
 })

@@ -1,6 +1,5 @@
 {
-  "navigationStyle": "custom",
-  "navigationBarTitleText": "局详情",
+  "navigationBarTitleText": "全部参与者",
   "usingComponents": {
     "participant-card": "/components/participant-card/index"
   }

@@ -1,0 +1,38 @@
+page {
+  background: #f7f8fa;
+}
+
+.participants-page {
+  min-height: 100vh;
+  padding: 28rpx 24rpx 48rpx;
+  box-sizing: border-box;
+  background: #f7f8fa;
+  color: #111827;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.participants-header {
+  margin-bottom: 20rpx;
+}
+
+.participants-title {
+  display: block;
+  color: #111827;
+  font-size: 36rpx;
+  font-weight: 800;
+  line-height: 48rpx;
+}
+
+.participants-subtitle {
+  display: block;
+  margin-top: 6rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}

@@ -17,6 +17,7 @@
     "pages/game/hall/index",
     "pages/game/create/index",
     "pages/game/detail/index",
+    "pages/game/participants/index",
     "pages/game/manage/index",
     "pages/game/player-manage/index",
     "pages/game/player-cancel/index",
