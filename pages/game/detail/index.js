@@ -64,6 +64,7 @@ Page({
   data: {
     gameId: '',
     interested: false,
+    showShareWindow: false,
     detailScrollTop: 0,
     navLayout: getWhiteDetailLayout(),
     event: {
@@ -176,6 +177,13 @@ Page({
       gameId: options.gameId || options.id || '',
       navLayout: getWhiteDetailLayout()
     })
+
+    if (wx.showShareMenu) {
+      wx.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline']
+      })
+    }
   },
 
   onShow() {
@@ -221,6 +229,37 @@ Page({
     this.showPendingFeature()
   },
 
+  onOpenShare() {
+    this.setData({
+      showShareWindow: true
+    })
+  },
+
+  onCloseShare() {
+    this.setData({
+      showShareWindow: false
+    })
+  },
+
+  onNativeShareTap() {
+    this.onCloseShare()
+  },
+
+  onShareTimelineTap() {
+    this.showInfo('请通过右上角菜单分享到朋友圈')
+  },
+
+  onShareDirect() {
+    this.onCloseShare()
+    wx.navigateTo({
+      url: `/${ROUTES.message}?from=gameShare${this.data.gameId ? `&gameId=${encodeURIComponent(this.data.gameId)}` : ''}`
+    })
+  },
+
+  onPreventTouch() {},
+
+  onPreventBubble() {},
+
   onEnroll() {
     this.showPendingFeature()
   },
@@ -256,6 +295,14 @@ Page({
     return {
       title: this.data.event.title,
       path: `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${this.data.gameId}` : ''}`,
+      imageUrl: this.data.event.coverSrc
+    }
+  },
+
+  onShareTimeline() {
+    return {
+      title: this.data.event.title,
+      query: this.data.gameId ? `id=${this.data.gameId}` : '',
       imageUrl: this.data.event.coverSrc
     }
   }

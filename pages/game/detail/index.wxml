@@ -3,8 +3,8 @@
     <view class="detail-nav-back" style="{{navLayout.backStyle}}" bindtap="onBack">
       <view class="detail-nav-back-icon"></view>
     </view>
-    <text class="detail-nav-title" style="{{navLayout.titleStyle}}">局详情</text>
-    <button class="detail-nav-share" style="{{navLayout.shareStyle}}" bindtap="showPendingFeature">
+    <text class="detail-nav-title" style="{{navLayout.titleStyle}}">活动详情</text>
+    <button class="detail-nav-share" style="{{navLayout.shareStyle}}" bindtap="onOpenShare">
       <image class="detail-share-image" src="/pages/game/detail/assets/i41@3x.png" mode="aspectFit" />
     </button>
   </view>
@@ -171,7 +171,7 @@
 
   <view class="bottom-action-bar">
     <view class="bottom-tools">
-      <view class="tool-button" bindtap="showPendingFeature">
+      <view class="tool-button" bindtap="onOpenShare">
         <image class="tool-image" src="/pages/game/detail/assets/i45@3x.png" mode="aspectFit" />
         <text>分享</text>
       </view>
@@ -190,5 +190,43 @@
     </view>
     <view class="enroll-button" bindtap="onEnroll">立即报名</view>
     <view class="safe-area-fill"></view>
+  </view>
+
+  <view wx:if="{{showShareWindow}}" class="detail-share-mask" bindtap="onCloseShare" catchtouchmove="onPreventTouch">
+    <view class="detail-share-sheet" catchtap="onPreventBubble">
+      <text class="detail-share-title">分享给朋友</text>
+
+      <view class="detail-share-options">
+        <button class="detail-share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
+          <view class="detail-share-option-icon wechat">
+            <image class="detail-share-option-image" src="/pages/game/share/assets/share-wechat.png" mode="aspectFit" />
+          </view>
+          <text class="detail-share-option-label">微信好友</text>
+        </button>
+
+        <button class="detail-share-option" hover-class="none" bindtap="onShareTimelineTap">
+          <view class="detail-share-option-icon moments">
+            <view class="detail-moments-icon">
+              <view class="detail-moments-dot dot-one"></view>
+              <view class="detail-moments-dot dot-two"></view>
+              <view class="detail-moments-dot dot-three"></view>
+              <view class="detail-moments-dot dot-four"></view>
+              <view class="detail-moments-dot dot-five"></view>
+              <view class="detail-moments-dot dot-six"></view>
+            </view>
+          </view>
+          <text class="detail-share-option-label">朋友圈</text>
+        </button>
+
+        <button class="detail-share-option" hover-class="none" bindtap="onShareDirect">
+          <view class="detail-share-option-icon direct">
+            <image class="detail-share-option-image" src="/pages/game/share/assets/share-private-message.png" mode="aspectFit" />
+          </view>
+          <text class="detail-share-option-label">私信好友</text>
+        </button>
+      </view>
+
+      <button class="detail-share-cancel" hover-class="none" bindtap="onCloseShare">取消</button>
+    </view>
   </view>
 </view>
