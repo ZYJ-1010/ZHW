@@ -12,6 +12,32 @@ const TYPE_FILTERS = [
   { key: 'task', label: '任务局' },
   { key: 'social', label: '社交局' }
 ]
+const ADVANCED_LOCATION_OPTIONS = [
+  { key: 'all', name: '全国' },
+  { key: 'nearby', name: '附近(50km)' }
+]
+const ADVANCED_CATEGORY_OPTIONS = [
+  { key: 'all', name: '全部' },
+  { key: 'social', name: '社交局' },
+  { key: 'explore', name: '探索局' },
+  { key: 'task', name: '任务局' },
+  { key: 'growth', name: '成长局' }
+]
+const ADVANCED_SORT_OPTIONS = [
+  { key: 'comprehensive', name: '综合排序', sortKey: '', sortOrder: 'asc' },
+  { key: 'latest', name: '最新发布', sortKey: 'time', sortOrder: 'desc' },
+  { key: 'hot', name: '热度最高', sortKey: 'hot', sortOrder: 'desc' },
+  { key: 'distance', name: '距离最近', sortKey: 'distance', sortOrder: 'asc' },
+  { key: 'credit', name: '信用优先', sortKey: 'credit', sortOrder: 'desc' }
+]
+const CALENDAR_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+const DEFAULT_ADVANCED_DRAFT = {
+  locationScope: 'all',
+  cityName: '',
+  categoryKey: 'all',
+  sortMode: 'comprehensive',
+  selectedDate: ''
+}
 
 const eventsList = [
   {
@@ -21,6 +47,9 @@ const eventsList = [
     categoryKey: 'growth',
     startAt: '2026-05-01T07:00:00+08:00',
     distanceKm: 8.2,
+    cityName: '上海',
+    heatScore: 86,
+    creditScore: 92,
     coverSrc: '/components/game-card/assets/game-cover-default.png',
     tag: '押金局',
     price: '￥100/人',
@@ -39,6 +68,9 @@ const eventsList = [
     categoryKey: 'task',
     startAt: '2026-05-01T14:00:00+08:00',
     distanceKm: 8.2,
+    cityName: '上海',
+    heatScore: 78,
+    creditScore: 95,
     coverSrc: '/components/game-card/assets/game-cover-default.png',
     tag: '任务局',
     tagTone: 'task',
@@ -58,6 +90,9 @@ const eventsList = [
     categoryKey: 'social',
     startAt: '2026-05-02T10:00:00+08:00',
     distanceKm: 2.4,
+    cityName: '上海',
+    heatScore: 92,
+    creditScore: 88,
     coverSrc: '/components/game-card/assets/game-cover-default.png',
     tag: '社交局',
     typeTone: 'explore',
@@ -83,6 +118,76 @@ function getNextTypeFilterKey(currentKey) {
   const nextIndex = currentIndex > -1 ? currentIndex + 1 : 1
 
   return TYPE_FILTERS[nextIndex % TYPE_FILTERS.length].key
+}
+
+function getAdvancedDraft(defaults = {}) {
+  return Object.assign({}, DEFAULT_ADVANCED_DRAFT, defaults)
+}
+
+function getAdvancedSortByState(sortKey, sortOrder) {
+  const matched = ADVANCED_SORT_OPTIONS.find((item) => {
+    return item.sortKey === sortKey && item.sortOrder === sortOrder
+  })
+
+  return matched ? matched.key : 'comprehensive'
+}
+
+function getAdvancedSortByKey(key) {
+  return ADVANCED_SORT_OPTIONS.find((item) => item.key === key) || ADVANCED_SORT_OPTIONS[0]
+}
+
+function getCurrentDateInfo() {
+  const now = new Date()
+
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    date: [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+  }
+}
+
+function formatCalendarTitle(year, month) {
+  return `${year}年 ${month}月`
+}
+
+function formatCalendarDate(year, month, day) {
+  return [
+    year,
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0')
+  ].join('-')
+}
+
+function buildCalendarDays(year, month) {
+  const firstDate = new Date(year, month - 1, 1)
+  const firstDay = firstDate.getDay()
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const today = getCurrentDateInfo().date
+  const days = []
+
+  for (let index = 0; index < firstDay; index += 1) {
+    days.push({
+      id: `empty-${index}`,
+      empty: true
+    })
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = formatCalendarDate(year, month, day)
+
+    days.push({
+      id: date,
+      day,
+      date,
+      today: date === today
+    })
+  }
+
+  return days
 }
 
 function parseChineseStartTime(text = '') {
@@ -126,6 +231,39 @@ function getEventDistance(item = {}) {
   return matched ? Number(matched[1]) : Number.MAX_SAFE_INTEGER
 }
 
+function getEventSortValue(item = {}, sortKey) {
+  if (sortKey === 'distance') {
+    return getEventDistance(item)
+  }
+
+  if (sortKey === 'hot') {
+    return Number(item.heatScore || item.hotScore || item.joinedCount || 0)
+  }
+
+  if (sortKey === 'credit') {
+    return Number(item.creditScore || 0)
+  }
+
+  return getEventStartTime(item)
+}
+
+function isSameEventDate(item = {}, selectedDate) {
+  if (!selectedDate) {
+    return true
+  }
+
+  const startTime = getEventStartTime(item)
+
+  if (!Number.isFinite(startTime)) {
+    return false
+  }
+
+  const date = new Date(startTime)
+  const eventDate = formatCalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate())
+
+  return eventDate === selectedDate
+}
+
 function getSortedEvents(list, sortKey, sortOrder) {
   if (!sortKey) {
     return list
@@ -134,8 +272,8 @@ function getSortedEvents(list, sortKey, sortOrder) {
   const direction = sortOrder === 'desc' ? -1 : 1
 
   return list.slice().sort((prev, next) => {
-    const prevValue = sortKey === 'distance' ? getEventDistance(prev) : getEventStartTime(prev)
-    const nextValue = sortKey === 'distance' ? getEventDistance(next) : getEventStartTime(next)
+    const prevValue = getEventSortValue(prev, sortKey)
+    const nextValue = getEventSortValue(next, sortKey)
     const diff = prevValue - nextValue
 
     if (diff !== 0) {
@@ -149,6 +287,9 @@ function getSortedEvents(list, sortKey, sortOrder) {
 function getDisplayEvents(options = {}) {
   const activeFilter = options.activeFilter || 'all'
   const activeTypeFilter = options.activeTypeFilter || 'all'
+  const activeLocationScope = options.activeLocationScope || 'all'
+  const activeCityName = options.activeCityName || ''
+  const selectedDate = options.selectedDate || ''
   let list = eventsList.slice()
 
   if (activeFilter !== 'all') {
@@ -157,6 +298,18 @@ function getDisplayEvents(options = {}) {
 
   if (activeTypeFilter !== 'all') {
     list = list.filter((item) => item.type === activeTypeFilter)
+  }
+
+  if (activeLocationScope === 'nearby') {
+    list = list.filter((item) => getEventDistance(item) <= 50)
+  }
+
+  if (activeLocationScope === 'city' && activeCityName) {
+    list = list.filter((item) => item.cityName === activeCityName)
+  }
+
+  if (selectedDate) {
+    list = list.filter((item) => isSameEventDate(item, selectedDate))
   }
 
   return getSortedEvents(list, options.sortKey, options.sortOrder)
@@ -184,10 +337,23 @@ Page({
     ],
     activeFilter: 'all',
     activeTypeFilter: 'all',
+    activeLocationScope: 'all',
+    activeCityName: '',
+    selectedDate: '',
     typeFilterText: getTypeFilterLabel('all'),
     sortKey: '',
     sortOrder: 'asc',
     sortArrow: '▶',
+    advancedFilterVisible: false,
+    advancedLocationOptions: ADVANCED_LOCATION_OPTIONS,
+    advancedCategoryOptions: ADVANCED_CATEGORY_OPTIONS,
+    advancedSortOptions: ADVANCED_SORT_OPTIONS,
+    advancedDraft: getAdvancedDraft(),
+    calendarWeekdays: CALENDAR_WEEKDAYS,
+    calendarYear: getCurrentDateInfo().year,
+    calendarMonth: getCurrentDateInfo().month,
+    calendarTitle: formatCalendarTitle(getCurrentDateInfo().year, getCurrentDateInfo().month),
+    calendarDays: buildCalendarDays(getCurrentDateInfo().year, getCurrentDateInfo().month),
     eventsList,
     displayEventsList: eventsList
   },
@@ -249,15 +415,130 @@ Page({
     })
   },
 
+  openAdvancedFilter() {
+    const categoryKey = ADVANCED_CATEGORY_OPTIONS.some((item) => item.key === this.data.activeFilter)
+      ? this.data.activeFilter
+      : 'all'
+    const draft = getAdvancedDraft({
+      locationScope: this.data.activeLocationScope,
+      cityName: this.data.activeCityName,
+      categoryKey,
+      sortMode: getAdvancedSortByState(this.data.sortKey, this.data.sortOrder),
+      selectedDate: this.data.selectedDate
+    })
+
+    this.setData({
+      advancedFilterVisible: true,
+      advancedDraft: draft
+    })
+  },
+
+  closeAdvancedFilter() {
+    this.setData({
+      advancedFilterVisible: false
+    })
+  },
+
+  noop() {},
+
+  selectAdvancedOption(event) {
+    const field = event.currentTarget.dataset.field
+    const key = event.currentTarget.dataset.key
+
+    if (!field) {
+      return
+    }
+
+    const nextDraft = Object.assign({}, this.data.advancedDraft, {
+      [field]: key
+    })
+
+    if (field === 'locationScope' && key !== 'city') {
+      nextDraft.cityName = ''
+    }
+
+    this.setData({
+      advancedDraft: nextDraft
+    })
+  },
+
+  selectAdvancedCity() {
+    this.setData({
+      advancedDraft: Object.assign({}, this.data.advancedDraft, {
+        locationScope: 'city',
+        cityName: this.data.advancedDraft.cityName || '上海'
+      })
+    })
+  },
+
+  changeAdvancedMonth(event) {
+    const direction = event.currentTarget.dataset.direction
+    const offset = direction === 'prev' ? -1 : 1
+    const nextDate = new Date(this.data.calendarYear, this.data.calendarMonth - 1 + offset, 1)
+    const calendarYear = nextDate.getFullYear()
+    const calendarMonth = nextDate.getMonth() + 1
+
+    this.setData({
+      calendarYear,
+      calendarMonth,
+      calendarTitle: formatCalendarTitle(calendarYear, calendarMonth),
+      calendarDays: buildCalendarDays(calendarYear, calendarMonth)
+    })
+  },
+
+  selectAdvancedDate(event) {
+    const selectedDate = event.currentTarget.dataset.date
+
+    if (!selectedDate) {
+      return
+    }
+
+    this.setData({
+      advancedDraft: Object.assign({}, this.data.advancedDraft, {
+        selectedDate
+      })
+    })
+  },
+
+  resetAdvancedFilter() {
+    this.setData({
+      advancedDraft: getAdvancedDraft()
+    })
+  },
+
+  confirmAdvancedFilter() {
+    const draft = this.data.advancedDraft
+    const sortOption = getAdvancedSortByKey(draft.sortMode)
+
+    this.updateDisplayEvents({
+      activeFilter: draft.categoryKey || 'all',
+      activeLocationScope: draft.locationScope || 'all',
+      activeCityName: draft.cityName || '',
+      selectedDate: draft.selectedDate || '',
+      sortKey: sortOption.sortKey,
+      sortOrder: sortOption.sortOrder
+    })
+
+    this.setData({
+      advancedFilterVisible: false
+    })
+  },
+
   updateDisplayEvents(nextState = {}) {
     const activeFilter = nextState.activeFilter || this.data.activeFilter
     const activeTypeFilter = nextState.activeTypeFilter || this.data.activeTypeFilter
+    const activeLocationScope = nextState.activeLocationScope == null ? this.data.activeLocationScope : nextState.activeLocationScope
+    const activeCityName = nextState.activeCityName == null ? this.data.activeCityName : nextState.activeCityName
+    const selectedDate = nextState.selectedDate == null ? this.data.selectedDate : nextState.selectedDate
     const sortKey = nextState.sortKey == null ? this.data.sortKey : nextState.sortKey
     const sortOrder = nextState.sortOrder || this.data.sortOrder
 
     this.setData({
       activeFilter,
       activeTypeFilter,
+      activeLocationScope,
+      activeCityName,
+      selectedDate,
       typeFilterText: getTypeFilterLabel(activeTypeFilter),
       sortKey,
       sortOrder,
@@ -265,6 +546,9 @@ Page({
       displayEventsList: getDisplayEvents({
         activeFilter,
         activeTypeFilter,
+        activeLocationScope,
+        activeCityName,
+        selectedDate,
         sortKey,
         sortOrder
       })

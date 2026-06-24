@@ -8,6 +8,7 @@
 
 | 模块 | 文档 |
 | --- | --- |
+| 组局 / 组局大厅 | [`docs/follow-ups/game-hall.md`](follow-ups/game-hall.md) |
 | 组局 / 发起组局 | [`docs/follow-ups/game-create.md`](follow-ups/game-create.md) |
 
 ## 2026-06-14

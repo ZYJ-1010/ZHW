@@ -3095,3 +3095,171 @@ POST /api/app/games/{gameId}/sync-earth
 3. 预览页展示字段顺序需要和发布入参字段保持一致，包含封面、局属性、时间地点、人数、参与方式、标签、描述、费用与分润、规则提示等。
 4. `发布并同步到地球网` 是一个创建接口内完成同步，还是创建成功后再调用同步接口。
 5. 发布同步失败时是否允许组局创建成功但地球网同步失败，以及前端应该展示的状态和重试入口。
+
+## 41. 组局大厅分类配置接口与前端兜底
+
+记录日期：2026-06-24
+
+模块：组局 / 组局大厅
+
+页面：`pages/game/hall/index`
+
+功能：组局大厅顶部圆形分类入口和二级细分应优先由后台配置接口下发，前端按后台返回的一级分类、二级细分、排序、可见状态和筛选 key 渲染；若后台未返回分类配置、接口失败或字段为空，则前端使用用户截图中的二级细分作为静态兜底，保证大厅可用。
+
+候选接口：
+
+```text
+GET /api/app/games/category-config
+GET /api/app/games/hall
+```
+
+建议返回：
+
+```json
+{
+  "cityFilters": [
+    { "key": "shanghai", "name": "上海", "visible": true, "sort": 10 }
+  ],
+  "primaryCategories": [
+    {
+      "key": "social",
+      "name": "社交局",
+      "icon": "category-social",
+      "visible": true,
+      "sort": 10,
+      "children": [
+        { "key": "meal", "name": "饭局", "visible": true, "sort": 10 },
+        { "key": "honest-talk", "name": "坦白局", "visible": true, "sort": 20 },
+        { "key": "board-game", "name": "桌游局", "visible": true, "sort": 30 },
+        { "key": "friend-making", "name": "交友局", "visible": true, "sort": 40 },
+        { "key": "city-walk", "name": "同城散步局", "visible": true, "sort": 50 }
+      ]
+    }
+  ],
+  "typeFilters": [
+    { "key": "standard", "name": "标准局", "visible": true, "sort": 10 },
+    { "key": "aa", "name": "AA局", "visible": true, "sort": 20 },
+    { "key": "crowdfunding", "name": "众筹局", "visible": true, "sort": 30 },
+    { "key": "deposit", "name": "押金局", "visible": true, "sort": 40 },
+    { "key": "publicBenefit", "name": "公益局", "visible": true, "sort": 50 }
+  ]
+}
+```
+
+前端静态兜底分类：
+
+| 一级分类 | 二级细分 |
+| --- | --- |
+| 社交局 | 饭局、坦白局、桌游局、交友局、同城散步局 |
+| 任务局 | 找合伙人、做项目、头脑风暴、组队共创、打磨方案 |
+| 探索局 | 城市探索、路线盲盒、打卡挑战、城市故事采集、夜游/徒步/骑行 |
+| 成长局 | 读书局、健身局、打卡局、押金局、学习共修局 |
+
+玩法 / 结算类型兜底：
+
+```text
+标准局、AA局、众筹局、押金局、公益局
+```
+
+字段口径：
+
+| 字段 | 来源 | 用途 |
+| --- | --- | --- |
+| `primaryCategories` | 后台 | 顶部一级分类入口，控制显示顺序和可见状态。 |
+| `primaryCategories.children` | 后台 | 点击一级分类后展示的二级细分。 |
+| `cityFilters` | 后台 | 高级筛选城市选择，不应长期固定为上海。后台未返回时前端可从大厅列表数据的城市字段去重兜底。 |
+| `typeFilters` | 后台 | 筛选栏 `类型` 选项，表示玩法、收费或结算方式。 |
+| `key` | 后台 | 前端筛选和列表查询参数，不直接展示。 |
+| `name` | 后台 | 页面展示文案。 |
+| `icon` | 后台 / 前端映射 | 图标资源 key，前端映射到项目内静态图标，避免后台直接控制本地路径。 |
+| `visible` | 后台 | 是否展示该分类或筛选项。 |
+| `sort` | 后台 | 展示顺序。 |
+
+待确认：
+
+1. 分类配置是独立接口 `GET /api/app/games/category-config`，还是并入大厅列表聚合接口 `GET /api/app/games/hall`。
+2. 后台是否返回完整一级分类和二级细分；若仅返回列表数据中的分类枚举，前端是否仍需要本地配置兜底。
+3. `宝妈局` 是否作为独立一级分类，还是归入圈层局 / 社交局的二级细分，需要产品确认。
+4. `押金局` 当前既可能出现在成长局二级细分，也属于玩法 / 结算类型；后续建议后台明确主分类和玩法类型两个字段，避免筛选口径混淆。
+5. 列表接口筛选参数建议区分 `primaryCategory`、`secondaryCategory` 和 `type`，分别对应一级目的分类、二级玩法细分、玩法 / 结算类型。
+6. 高级筛选城市池是否由分类配置接口返回 `cityFilters`，还是由大厅列表聚合接口返回；前端当前只有上海静态兜底，正式联调时需要替换为后台城市池或从列表城市字段去重生成。
+
+## 42. 发起组局分类标签字段
+
+记录日期：2026-06-24
+
+模块：组局 / 发起组局
+
+页面：`pages/game/create/index`
+
+功能：组局大厅已确认按一级分类和二级细分筛选，因此发起组局页也必须让发起人选择同一套分类标签，并在保存草稿 / 发布创建组局时提交给后台。当前创建页只有 `局类型` 一级选项和普通内容标签，尚未和大厅分类配置打通。
+
+配置来源：
+
+```text
+GET /api/app/games/category-config
+```
+
+保存 / 发布候选接口：
+
+```text
+POST /api/app/games/drafts
+POST /api/app/games
+```
+
+建议入参片段：
+
+```json
+{
+  "primaryCategory": "growth",
+  "primaryCategoryText": "成长局",
+  "secondaryCategory": "reading",
+  "secondaryCategoryText": "读书局",
+  "type": "deposit",
+  "typeText": "押金局",
+  "tags": ["自律", "共修", "读书"]
+}
+```
+
+字段口径：
+
+| 字段 | 是否必填 | 用途 |
+| --- | --- | --- |
+| `primaryCategory` | 是 | 大厅一级分类筛选，例如 `social/task/explore/growth`。 |
+| `primaryCategoryText` | 可选 | 后台可返回展示文案；前端也可由配置映射得到。 |
+| `secondaryCategory` | 是 | 大厅二级细分筛选，例如 `meal/board-game/reading/checkin`。 |
+| `secondaryCategoryText` | 可选 | 二级细分展示文案。 |
+| `type` | 是 | 玩法 / 收费 / 结算类型，例如 `standard/aa/crowdfunding/deposit/publicBenefit`。 |
+| `typeText` | 可选 | 类型展示文案。 |
+| `tags` | 可选 | 普通内容标签，例如产品研发、创业、共创；不承担大厅分类筛选主逻辑。 |
+
+前端交互口径：
+
+- 创建页分类选择应和组局大厅使用同一份后台配置。
+- 至少要求选择一个一级分类和一个二级细分。
+- `类型` 使用玩法 / 收费 / 结算类型，不和一级分类混用。
+- 后台没有返回分类配置时，前端按组局大厅静态兜底细分展示。
+- 普通内容标签可以继续保留，但不能替代 `primaryCategory`、`secondaryCategory` 和 `type`。
+
+大厅列表返回建议：
+
+```json
+{
+  "id": "game_001",
+  "title": "押金读书共修局",
+  "primaryCategory": "growth",
+  "primaryCategoryText": "成长局",
+  "secondaryCategory": "reading",
+  "secondaryCategoryText": "读书局",
+  "type": "deposit",
+  "typeText": "押金局",
+  "tags": ["自律", "共修"]
+}
+```
+
+待确认：
+
+1. 分类字段命名是否采用 `primaryCategory`、`secondaryCategory`、`type`，还是使用后端已有枚举字段。
+2. 创建时是否允许多选二级细分；当前建议先单选，避免大厅卡片归属和筛选结果混乱。
+3. `押金局` 是否允许作为成长局二级细分，同时也作为 `type=deposit`；若产品保留双重含义，后台需要同时存储两个字段。
+4. `tags` 是否继续由前端固定推荐标签，还是也由后台按分类配置联动下发。
