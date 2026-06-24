@@ -169,8 +169,8 @@
     </view>
   </scroll-view>
 
-  <view class="bottom-action-bar">
-    <view class="bottom-tools">
+  <view class="bottom-action-bar {{isGameEnded ? 'ended' : ''}}">
+    <view wx:if="{{!isGameEnded}}" class="bottom-tools">
       <view class="tool-button" bindtap="onOpenShare">
         <image class="tool-image" src="/pages/game/detail/assets/i45@3x.png" mode="aspectFit" />
         <text>分享</text>
@@ -188,7 +188,8 @@
         <text>打招呼</text>
       </view>
     </view>
-    <view class="enroll-button" bindtap="onEnroll">立即报名</view>
+    <view class="enroll-button {{isGameEnded ? 'ended' : ''}}" bindtap="onEnroll">{{isGameEnded ? endedActionText : '立即报名'}}</view>
+    <text wx:if="{{isGameEnded}}" class="ended-action-hint">{{endedNoticeText}}</text>
     <view class="safe-area-fill"></view>
   </view>
 

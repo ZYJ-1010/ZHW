@@ -59,6 +59,12 @@
           "scene": null
         },
         {
+          "name": "组局大厅-局结束",
+          "pathName": "pages/game/detail/index",
+          "query": "status=ended",
+          "scene": null
+        },
+        {
           "name": "局前大厅-全部参与者",
           "pathName": "pages/game/participants/index",
           "query": "",

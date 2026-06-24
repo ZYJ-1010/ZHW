@@ -61,6 +61,102 @@ function getWhiteDetailLayout() {
   }
 }
 
+function isEndedStatus(value) {
+  const text = String(value == null ? '' : value).trim().toLowerCase()
+
+  return /^(1|true|yes|y|ended|end|finished|finish|closed|expired|completed|complete|done)$/.test(text) ||
+    /已结束|结束|报名结束|已完成|完成|已关闭|关闭|已过期|过期/.test(text)
+}
+
+function isActiveStatus(value) {
+  const text = String(value == null ? '' : value).trim().toLowerCase()
+
+  return /^(0|false|no|n|active|open|opening|available|pending|processing|ongoing|upcoming|unstarted)$/.test(text) ||
+    /报名中|可报名|进行中|未开始|待开始|即将开始|开放/.test(text)
+}
+
+function hasStatusSignal(value) {
+  return value !== undefined && value !== null && String(value).trim() !== ''
+}
+
+function parseChineseEventEndTime(text = '') {
+  const matched = String(text).match(/(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日(?:[^\d]*(\d{1,2}):(\d{2}))?(?:\s*(?:-|--|—|~|～|至)\s*(?:(\d{1,2})月(\d{1,2})日\s*)?(\d{1,2}):(\d{2}))?/)
+
+  if (!matched) {
+    return null
+  }
+
+  const now = new Date()
+  const year = Number(matched[1] || now.getFullYear())
+  const startMonth = Number(matched[2])
+  const startDay = Number(matched[3])
+  const startHour = Number(matched[4] || 23)
+  const startMinute = Number(matched[5] || 59)
+  const endMonth = Number(matched[6] || startMonth)
+  const endDay = Number(matched[7] || startDay)
+  const endHour = Number(matched[8] || matched[4] || 23)
+  const endMinute = Number(matched[9] || matched[5] || 59)
+  const timestamp = new Date(year, endMonth - 1, endDay, endHour, endMinute).getTime()
+
+  if (Number.isNaN(timestamp)) {
+    return null
+  }
+
+  const startTimestamp = new Date(year, startMonth - 1, startDay, startHour, startMinute).getTime()
+
+  return timestamp < startTimestamp ? timestamp + 24 * 60 * 60 * 1000 : timestamp
+}
+
+function getEventEndTimestamp(event = {}) {
+  const directTime = event.endAt || event.endedAt || event.endTime || event.registrationEndAt || event.registrationEndTime
+
+  if (directTime) {
+    const timestamp = Date.parse(directTime)
+
+    if (!Number.isNaN(timestamp)) {
+      return timestamp
+    }
+  }
+
+  return parseChineseEventEndTime(event.time || event.timeText || event.startTimeText || '')
+}
+
+function getGameEndedState(options = {}, event = {}) {
+  const statusSignals = [
+    options.ended,
+    options.isEnded,
+    options.status,
+    options.state,
+    options.registrationStatus,
+    event.ended,
+    event.isEnded,
+    event.status,
+    event.state,
+    event.registrationStatus,
+    event.registrationState
+  ]
+
+  for (let index = 0; index < statusSignals.length; index += 1) {
+    const signal = statusSignals[index]
+
+    if (!hasStatusSignal(signal)) {
+      continue
+    }
+
+    if (isEndedStatus(signal)) {
+      return true
+    }
+
+    if (isActiveStatus(signal)) {
+      return false
+    }
+  }
+
+  const endTimestamp = getEventEndTimestamp(event)
+
+  return typeof endTimestamp === 'number' ? endTimestamp <= Date.now() : false
+}
+
 Page({
   data: {
     gameId: '',
@@ -77,6 +173,9 @@ Page({
       categoryIcon: '/pages/game/detail/assets/i26@3x.png',
       fee: '场地费AA/位'
     },
+    isGameEnded: false,
+    endedActionText: '报名结束',
+    endedNoticeText: '新建组局将经过平台审核，审核通过后才能正式发布',
     stats: [
       { iconText: '👁️', text: '1,234次浏览', action: 'views' },
       { iconText: '💬', text: '3条评价', action: 'reviews' },
@@ -149,6 +248,7 @@ Page({
   onLoad(options = {}) {
     this.setData({
       gameId: options.gameId || options.id || '',
+      isGameEnded: getGameEndedState(options, this.data.event),
       navLayout: getWhiteDetailLayout()
     })
 
@@ -235,6 +335,11 @@ Page({
   onPreventBubble() {},
 
   onEnroll() {
+    if (this.data.isGameEnded) {
+      this.showInfo(this.data.endedActionText)
+      return
+    }
+
     this.showPendingFeature()
   },
 
