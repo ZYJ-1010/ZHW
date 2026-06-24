@@ -1,0 +1,71 @@
+<view class="hall-greet-page">
+  <view class="hall-greet-stage">
+    <view class="hall-greet-frame" style="{{whiteShellLayout.frameStyle}}">
+      <view class="white-top-bg"></view>
+
+      <view class="white-nav">
+        <button class="nav-button" style="{{whiteShellLayout.backStyle}}" hover-class="nav-button--active" bindtap="handleBack">
+          <view class="chevron-left"></view>
+        </button>
+      </view>
+
+      <view class="phone-panel" style="{{whiteShellLayout.contentStyle}}">
+        <scroll-view
+          class="chat-area"
+          scroll-y
+          enhanced
+          show-scrollbar="false"
+          scroll-with-animation
+          scroll-into-view="{{scrollIntoView}}"
+        >
+          <view class="chat-empty-space"></view>
+          <view class="sent-message-list">
+            <view
+              wx:for="{{sentMessages}}"
+              wx:key="id"
+              id="{{item.id}}"
+              class="sent-message"
+            >
+              <text>{{item.text}}</text>
+            </view>
+          </view>
+        </scroll-view>
+
+        <view class="quick-action-row">
+          <button
+            wx:for="{{quickActions}}"
+            wx:key="key"
+            class="quick-action"
+            hover-class="quick-action--active"
+            data-key="{{item.key}}"
+            bindtap="handleQuickAction"
+          >
+            <image class="quick-icon" src="{{item.iconSrc}}" mode="aspectFit" />
+            <text>{{item.label}}</text>
+          </button>
+        </view>
+
+        <view class="input-wrap">
+          <view class="source-chat-bar">
+            <view class="source-message-field">
+              <text>发送消息</text>
+            </view>
+            <view class="source-tool-group">
+              <button class="source-input-tool" hover-class="source-input-tool--active" bindtap="handleVoiceTap">
+                <image src="/pages/game/hall-greet/assets/input-voice.png" mode="aspectFit" />
+              </button>
+              <button class="source-input-tool" hover-class="source-input-tool--active" bindtap="handleEmojiTap">
+                <image src="/pages/game/hall-greet/assets/input-emoji.png" mode="aspectFit" />
+              </button>
+              <button class="source-input-tool" hover-class="source-input-tool--active" bindtap="handleAddOrSend">
+                <image src="/pages/game/hall-greet/assets/input-add.png" mode="aspectFit" />
+              </button>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="white-bottom-bg" style="{{whiteShellLayout.bottomStyle}}"></view>
+    </view>
+  </view>
+</view>

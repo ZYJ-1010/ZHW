@@ -41,6 +41,12 @@
           "scene": null
         },
         {
+          "name": "组局大厅-打招呼",
+          "pathName": "pages/game/hall-greet/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "发起组局",
           "pathName": "pages/game/create/index",
           "query": "",

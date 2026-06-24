@@ -15,6 +15,7 @@
     "pages/role/apply/index",
     "pages/role/status/index",
     "pages/game/hall/index",
+    "pages/game/hall-greet/index",
     "pages/game/create/index",
     "pages/game/detail/index",
     "pages/game/participants/index",
