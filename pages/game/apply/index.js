@@ -50,6 +50,7 @@ function isAllowedPdfFile(file = {}) {
 
 Page({
   data: {
+    gameId: '',
     onlineText: '3999人在线',
     applyScrollTop: 0,
     navItems: [
@@ -72,6 +73,12 @@ Page({
       attachmentFiles: [],
       agreed: true
     }
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      gameId: options.gameId || options.id || ''
+    })
   },
 
   onIntroInput(event) {

@@ -230,4 +230,13 @@
       <button class="detail-share-cancel" hover-class="none" bindtap="onCloseShare">取消</button>
     </view>
   </view>
+
+  <view wx:if="{{authPromptVisible}}" class="auth-prompt-mask" catchtap="closeAuthPrompt">
+    <view class="auth-prompt-card" catchtap="noop">
+      <text class="auth-prompt-title">完成认证可使用此功能</text>
+      <text class="auth-prompt-desc">益企玩诚邀企业者实名社</text>
+      <view class="auth-prompt-primary" bindtap="goRealnameAuth">前往认证</view>
+      <text class="auth-prompt-status">你当前身份为注册用户未实名认证</text>
+    </view>
+  </view>
 </view>

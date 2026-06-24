@@ -61,6 +61,28 @@ function getWhiteDetailLayout() {
   }
 }
 
+function isRealnameVerified(user) {
+  if (!user) {
+    return false
+  }
+
+  if (user.needRealname === true || user.realnameRequired === true) {
+    return false
+  }
+
+  const status = user.realnameStatus || user.authStatus || user.certificationStatus
+
+  return status === 'verified' ||
+    status === 'approved' ||
+    status === 'passed' ||
+    status === 'success' ||
+    status === true ||
+    user.realnameVerified === true ||
+    user.isRealnameVerified === true ||
+    user.verified === true ||
+    user.needRealname === false
+}
+
 function isEndedStatus(value) {
   const text = String(value == null ? '' : value).trim().toLowerCase()
 
@@ -161,6 +183,7 @@ Page({
   data: {
     gameId: '',
     interested: false,
+    authPromptVisible: false,
     showShareWindow: false,
     detailScrollTop: 0,
     navLayout: getWhiteDetailLayout(),
@@ -303,6 +326,8 @@ Page({
     this.showPendingFeature()
   },
 
+  noop() {},
+
   onOpenShare() {
     this.setData({
       showShareWindow: true
@@ -340,7 +365,48 @@ Page({
       return
     }
 
-    this.showPendingFeature()
+    const cachedUser = this.getCachedEnrollUser()
+
+    if (isRealnameVerified(cachedUser)) {
+      this.navigateToApply()
+      return
+    }
+
+    this.showAuthPrompt()
+  },
+
+  getCachedEnrollUser() {
+    return wx.getStorageSync('enjoy_user') || null
+  },
+
+  showAuthPrompt() {
+    this.setData({
+      authPromptVisible: true
+    })
+  },
+
+  navigateToApply() {
+    const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
+
+    wx.navigateTo({
+      url: `/${ROUTES.gameApply}${query}`
+    })
+  },
+
+  closeAuthPrompt() {
+    this.setData({
+      authPromptVisible: false
+    })
+  },
+
+  goRealnameAuth() {
+    this.setData({
+      authPromptVisible: false
+    })
+
+    wx.navigateTo({
+      url: '/pages/login/realname/index'
+    })
   },
 
   onViewAllParticipants() {

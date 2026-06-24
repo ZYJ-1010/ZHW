@@ -1015,6 +1015,77 @@ page {
   font-weight: 500;
   line-height: 42rpx;
 }
+
+.auth-prompt-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.auth-prompt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 638rpx;
+  max-width: 100%;
+  padding: 58rpx 44rpx 46rpx;
+  box-sizing: border-box;
+  border-radius: 48rpx;
+  background: #ffffff;
+  color: #111827;
+  text-align: center;
+  box-shadow: 0 24rpx 54rpx rgba(15, 23, 42, 0.18);
+}
+
+.auth-prompt-title {
+  display: block;
+  color: #111827;
+  font-size: 38rpx;
+  font-weight: 700;
+  line-height: 52rpx;
+}
+
+.auth-prompt-desc {
+  display: block;
+  margin-top: 18rpx;
+  color: #4b5563;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
+.auth-prompt-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 92rpx;
+  margin-top: 44rpx;
+  border-radius: 999rpx;
+  background: #f6b95b;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 92rpx;
+  box-shadow: 0 10rpx 20rpx rgba(246, 185, 91, 0.18);
+}
+
+.auth-prompt-status {
+  display: block;
+  margin-top: 28rpx;
+  color: #9ca3af;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
 @media (max-width: 360px) {
   .bottom-tools {
     left: 10rpx;
