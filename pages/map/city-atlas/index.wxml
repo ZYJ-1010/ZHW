@@ -1,0 +1,95 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="city-atlas-page">
+    <view class="city-atlas-header">
+      <button class="city-atlas-back" hover-class="none" bindtap="handleBackTap">
+        <view class="city-atlas-back-icon"></view>
+      </button>
+      <text class="city-atlas-title">上海探索图鉴</text>
+    </view>
+
+    <view class="city-atlas-unlock-panel">
+      <view class="city-atlas-unlock-copy">
+        <text class="city-atlas-unlock-label">探索进度</text>
+        <view class="city-atlas-count-row">
+          <text class="city-atlas-unlocked-count">{{unlockInfo.unlockedCount}}</text>
+          <text class="city-atlas-total-count">/{{unlockInfo.totalCount}}</text>
+        </view>
+      </view>
+      <view class="city-atlas-ring">
+        <view class="city-atlas-ring-core">
+          <text>{{unlockInfo.progressPercent}}</text>
+        </view>
+      </view>
+      <view class="city-atlas-progress-track">
+        <view class="city-atlas-progress-bar" style="width: {{unlockInfo.progressPercent}}%;"></view>
+      </view>
+    </view>
+
+    <scroll-view class="city-atlas-filter-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="city-atlas-filter-row">
+        <view
+          wx:for="{{filters}}"
+          wx:key="*this"
+          class="city-atlas-filter {{activeFilter === item ? 'active' : ''}}"
+          data-filter="{{item}}"
+          bindtap="handleFilterTap"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+
+    <view class="city-atlas-card-grid">
+      <view
+        wx:for="{{unlockPoints}}"
+        wx:key="id"
+        class="city-atlas-card tone-{{item.tone}} status-{{item.statusType}}"
+        data-id="{{item.id}}"
+        bindtap="handleUnlockPointTap"
+      >
+        <view class="city-atlas-card-cover">
+          <view class="city-atlas-point-icon icon-{{item.iconType}}"></view>
+          <view wx:if="{{item.checked}}" class="city-atlas-check">✓</view>
+          <text wx:if="{{item.statusType === 'hidden'}}" class="city-atlas-hidden-badge">隐藏</text>
+        </view>
+        <view class="city-atlas-card-body">
+          <text class="city-atlas-card-title">{{item.name}}</text>
+          <text wx:if="{{item.statusType === 'locked'}}" class="city-atlas-card-meta">未解锁</text>
+          <text wx:elif="{{item.statusType === 'hidden'}}" class="city-atlas-card-meta">{{item.unlockText}}</text>
+          <text wx:else class="city-atlas-card-meta">{{item.unlockText}}</text>
+          <view wx:if="{{item.statusType !== 'locked' && item.statusType !== 'hidden'}}" class="city-atlas-card-value">
+            <text class="city-atlas-star">⭐</text>
+            <text class="city-atlas-value-text">{{item.footprintValue}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="city-atlas-route-section">
+      <text class="city-atlas-section-title">主题路线</text>
+      <view class="city-atlas-route-list">
+        <view
+          wx:for="{{themeRoutes}}"
+          wx:key="id"
+          class="city-atlas-route-card tone-{{item.tone}}"
+          data-id="{{item.id}}"
+          bindtap="handleThemeRouteTap"
+        >
+          <view class="city-atlas-route-icon">
+            <text class="city-atlas-route-emoji">{{item.iconText}}</text>
+          </view>
+          <view class="city-atlas-route-copy">
+            <text class="city-atlas-route-title">{{item.name}}</text>
+            <text class="city-atlas-route-meta">{{item.meta}}</text>
+            <text class="city-atlas-route-progress">{{item.progressText}}</text>
+          </view>
+          <view class="city-atlas-route-arrow"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+</home-shell>
