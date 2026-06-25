@@ -1,0 +1,112 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="friend-city-page">
+    <view class="friend-city-header">
+      <button class="friend-city-back" hover-class="none" bindtap="handleBackTap">
+        <view class="friend-city-back-icon"></view>
+      </button>
+      <text class="friend-city-title">好友</text>
+    </view>
+
+    <view class="friend-duel-card">
+      <view class="friend-duel-top">
+        <view class="friend-player self">
+          <view class="friend-avatar-ring">
+            <view class="friend-avatar-placeholder"></view>
+          </view>
+          <text class="friend-player-name">我</text>
+          <text class="friend-player-count">12区已点亮</text>
+        </view>
+
+        <view class="friend-vs">
+          <text class="friend-vs-text">VS</text>
+          <text class="friend-vs-subtitle">友谊赛</text>
+        </view>
+
+        <view class="friend-player rival">
+          <view class="friend-avatar-ring">
+            <view class="friend-avatar-placeholder"></view>
+          </view>
+          <text class="friend-player-name">Sarah</text>
+          <text class="friend-player-count">10区已点亮</text>
+        </view>
+      </view>
+
+      <view class="friend-action-row">
+        <view class="friend-primary-button" bindtap="handleStartChallenge">发起挑战</view>
+        <view class="friend-secondary-button" bindtap="handleRecordTap">查看记录</view>
+      </view>
+    </view>
+
+    <view class="friend-section">
+      <text class="friend-section-title">进行中的挑战</text>
+      <view class="friend-challenge-list">
+        <view
+          wx:for="{{challenges}}"
+          wx:key="id"
+          class="friend-challenge-card"
+          data-id="{{item.id}}"
+          bindtap="handleChallengeTap"
+        >
+          <view class="friend-challenge-head">
+            <view class="friend-challenge-copy">
+              <text class="friend-challenge-title">{{item.title}}</text>
+              <text class="friend-challenge-time">剩余时间: {{item.timeLeft}}</text>
+            </view>
+            <view class="friend-status-pill {{item.statusTone}}">{{item.statusText}}</view>
+          </view>
+
+          <view class="friend-progress-row">
+            <view class="friend-progress-block">
+              <view class="friend-progress-meta">
+                <text>我</text>
+                <text>{{item.selfValue}}/{{item.total}}</text>
+              </view>
+              <view class="friend-progress-track">
+                <view class="friend-progress-fill self" style="width: {{item.selfPercent}}%;"></view>
+              </view>
+            </view>
+
+            <view class="friend-progress-block">
+              <view class="friend-progress-meta">
+                <text>Sarah</text>
+                <text>{{item.rivalValue}}/{{item.total}}</text>
+              </view>
+              <view class="friend-progress-track">
+                <view class="friend-progress-fill rival" style="width: {{item.rivalPercent}}%;"></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="friend-section">
+      <text class="friend-section-title spaced">城　市　榜</text>
+      <view class="friend-ranking-card">
+        <view
+          wx:for="{{rankings}}"
+          wx:key="rank"
+          class="friend-rank-row tone-{{item.tone}}"
+          data-rank="{{item.rank}}"
+          bindtap="handleRankingTap"
+        >
+          <text class="friend-rank-number">{{item.rank}}</text>
+          <view class="friend-rank-avatar"></view>
+          <view class="friend-rank-copy">
+            <text class="friend-rank-name">{{item.name}}</text>
+            <text class="friend-rank-desc">{{item.desc}}</text>
+          </view>
+          <text class="friend-rank-score">{{item.score}}</text>
+        </view>
+
+        <button class="friend-more-button" hover-class="none" bindtap="handleNationalRankTap">查看全国榜</button>
+      </view>
+    </view>
+  </view>
+</home-shell>
