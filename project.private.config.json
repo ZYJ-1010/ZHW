@@ -287,6 +287,12 @@
           "scene": null
         },
         {
+          "name": "地图-组局分布",
+          "pathName": "pages/map/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "地图-盲盒路线",
           "pathName": "pages/map/blind-route/index",
           "query": "mode=blindRout",

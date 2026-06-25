@@ -3264,6 +3264,88 @@ POST /api/app/games
 3. `押金局` 是否允许作为成长局二级细分，同时也作为 `type=deposit`；若产品保留双重含义，后台需要同时存储两个字段。
 4. `tags` 是否继续由前端固定推荐标签，还是也由后台按分类配置联动下发。
 
+## 43. 地图附近信息点接口
+
+记录日期：2026-06-25
+
+模块：地图 / 组局分布
+
+页面：`pages/map/index`
+
+功能：地图页进入后获取当前用户位置，并按当前位置或地图当前视野半径向后台查询附近组局 / 地点信息点；前端把接口返回的数据转换为微信 `map` 组件 markers，点击 marker 后弹出基本信息卡。
+
+候选接口：
+
+```text
+GET /api/app/games/nearby
+```
+
+建议入参：
+
+```json
+{
+  "latitude": 31.2304,
+  "longitude": 121.4737,
+  "radiusMeters": 3000,
+  "pageSize": 50
+}
+```
+
+建议返回：
+
+```json
+{
+  "center": {
+    "latitude": 31.2304,
+    "longitude": 121.4737
+  },
+  "radiusMeters": 3000,
+  "nearestDistanceText": "157m",
+  "onlinePlayerCount": 23,
+  "offlinePlayerCount": 8,
+  "total": 3,
+  "list": [
+    {
+      "id": "game_001",
+      "title": "鱼尾狮夜景打卡点",
+      "cityName": "海尚广场",
+      "latitude": 31.2326,
+      "longitude": 121.4753,
+      "distanceText": "420m",
+      "memberText": "3/6人",
+      "timeText": "今晚 20:00",
+      "statusText": "探索局",
+      "priceText": "¥0/人",
+      "route": "pages/game/detail/index?id=game_001"
+    }
+  ],
+  "onlinePlayers": [
+    {
+      "id": "player_online_001",
+      "latitude": 31.2318,
+      "longitude": 121.4745,
+      "statusText": "在线玩家"
+    }
+  ],
+  "offlinePlayers": [
+    {
+      "id": "player_offline_001",
+      "latitude": 31.2282,
+      "longitude": 121.4716,
+      "statusText": "离线玩家"
+    }
+  ]
+}
+```
+
+待确认：
+
+1. 附近地图接口是否使用 `GET /api/app/games/nearby`，还是需要独立 `GET /api/app/map/nearby-points`。
+2. 坐标字段是否统一为 GCJ-02 坐标系；微信小程序 `map` 与 `wx.getLocation({ type: 'gcj02' })` 当前按 GCJ-02 处理。
+3. `radiusMeters` 最大值、默认值、分页策略和是否支持按地图视野 bounding box 查询需要后端确认。
+4. 信息点类型是否只包含组局，还是还会包含打卡点、好友、城市图鉴；若包含多类型，需要返回 `pointType` 和对应详情跳转规则。
+5. 地图图例里的在线 / 离线玩家当前按 `onlinePlayerCount`、`offlinePlayerCount` 展示总数，点位可由 `onlinePlayers`、`offlinePlayers` 提供抽样或全量，后端需确认返回策略。
+
 ## 44. 地图盲盒路线最近开启接口
 
 记录日期：2026-06-25

@@ -1,3 +1,7 @@
 {
-  "navigationBarTitleText": "地图"
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "地图",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
 }

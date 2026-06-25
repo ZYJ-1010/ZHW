@@ -319,6 +319,108 @@ function buildSystemRecommendations(data = {}) {
   })
 }
 
+function toFiniteNumber(value, fallback) {
+  const number = Number(value)
+
+  return Number.isFinite(number) ? number : fallback
+}
+
+function buildNearbyGames(data = {}) {
+  const centerLatitude = toFiniteNumber(data.latitude || data.lat, 31.2304)
+  const centerLongitude = toFiniteNumber(data.longitude || data.lng, 121.4737)
+  const radiusMeters = toFiniteNumber(data.radiusMeters || data.radius, 3000)
+  const nearbyGames = [
+    {
+      id: 'map-nearby-001',
+      title: '鱼尾狮夜景打卡点',
+      cityName: '海尚广场',
+      latitude: centerLatitude + 0.0022,
+      longitude: centerLongitude + 0.0016,
+      distanceText: '420m',
+      memberText: '3/6人',
+      timeText: '今晚 20:00',
+      statusText: '探索局',
+      priceText: '¥0/人',
+      route: 'pages/game/detail/index'
+    },
+    {
+      id: 'map-nearby-002',
+      title: '3点路线盲盒: 港湾微风版',
+      cityName: '滨江步道',
+      latitude: centerLatitude - 0.0018,
+      longitude: centerLongitude + 0.0026,
+      distanceText: '860m',
+      memberText: '2/4人',
+      timeText: '明天 15:30',
+      statusText: '路线局',
+      priceText: '¥29/人',
+      route: 'pages/game/detail/index'
+    },
+    {
+      id: 'map-nearby-003',
+      title: '苏州河记忆碎片采集',
+      cityName: '桥下空间',
+      latitude: centerLatitude + 0.001,
+      longitude: centerLongitude - 0.0028,
+      distanceText: '1.2km',
+      memberText: '5/8人',
+      timeText: '周六 19:00',
+      statusText: '任务局',
+      priceText: '¥0/人',
+      route: 'pages/game/detail/index'
+    }
+  ]
+  const onlinePlayers = [
+    {
+      id: 'map-online-player-001',
+      latitude: centerLatitude + 0.0018,
+      longitude: centerLongitude + 0.0008,
+      statusText: '在线玩家'
+    },
+    {
+      id: 'map-online-player-002',
+      latitude: centerLatitude - 0.0012,
+      longitude: centerLongitude + 0.0019,
+      statusText: '在线玩家'
+    },
+    {
+      id: 'map-online-player-003',
+      latitude: centerLatitude + 0.0028,
+      longitude: centerLongitude - 0.0017,
+      statusText: '在线玩家'
+    }
+  ]
+  const offlinePlayers = [
+    {
+      id: 'map-offline-player-001',
+      latitude: centerLatitude - 0.0022,
+      longitude: centerLongitude - 0.0021,
+      statusText: '离线玩家'
+    },
+    {
+      id: 'map-offline-player-002',
+      latitude: centerLatitude + 0.0006,
+      longitude: centerLongitude + 0.0032,
+      statusText: '离线玩家'
+    }
+  ]
+
+  return {
+    center: {
+      latitude: centerLatitude,
+      longitude: centerLongitude
+    },
+    radiusMeters,
+    nearestDistanceText: '157m',
+    onlinePlayerCount: 23,
+    offlinePlayerCount: 8,
+    total: nearbyGames.length,
+    list: nearbyGames,
+    onlinePlayers,
+    offlinePlayers
+  }
+}
+
 function respondGameInvitation(data = {}) {
   const action = String(data.action || '').trim()
 
@@ -432,6 +534,10 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/home') {
     return wait(ok(buildHome(options.data || {})))
+  }
+
+  if (method === 'GET' && url === '/api/app/games/nearby') {
+    return wait(ok(buildNearbyGames(options.data || {})))
   }
 
   if (method === 'GET' && url === '/api/app/profile/home') {

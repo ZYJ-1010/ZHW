@@ -11,6 +11,7 @@
 | 组局 / 组局详情 | [`docs/follow-ups/game-detail.md`](follow-ups/game-detail.md) |
 | 组局 / 组局大厅 | [`docs/follow-ups/game-hall.md`](follow-ups/game-hall.md) |
 | 组局 / 发起组局 | [`docs/follow-ups/game-create.md`](follow-ups/game-create.md) |
+| 地图 / 城市探索 | [`docs/follow-ups/map.md`](follow-ups/map.md) |
 
 ## 2026-06-14
 

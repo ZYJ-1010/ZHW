@@ -1,10 +1,148 @@
-<view class="page-shell">
-  <view class="module-card">
-    <text class="module-kicker">{{group.batch}}</text>
-    <text class="module-title">{{group.title}}</text>
-    <text class="module-desc">先实现同城、附近、定位和距离角标；地图玩法作为扩展能力逐步补齐。</text>
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="nearby-map-page">
+    <view class="map-top-panel">
+      <view class="map-search-field">
+        <view class="map-search-icon"></view>
+        <input
+          class="map-search-input"
+          disabled
+          placeholder="搜局、搜人、搜地块..."
+          placeholder-class="map-search-placeholder"
+        />
+      </view>
+
+      <scroll-view class="map-filter-scroll" scroll-x enhanced show-scrollbar="false">
+        <view class="map-filter-row">
+          <view
+            wx:for="{{mapFilters}}"
+            wx:key="*this"
+            data-index="{{index}}"
+            class="map-filter-pill {{index === activeFilterIndex ? 'active' : ''}}"
+            bindtap="handleMapFilterTap"
+          >
+            {{item}}
+          </view>
+        </view>
+      </scroll-view>
+
+    </view>
+
+    <view class="nearby-map-card">
+      <map
+        id="nearbyMap"
+        class="nearby-map"
+        latitude="{{latitude}}"
+        longitude="{{longitude}}"
+        scale="{{scale}}"
+        markers="{{markers}}"
+        circles="{{circles}}"
+        show-location="{{true}}"
+        enable-zoom="{{true}}"
+        enable-scroll="{{true}}"
+        bindmarkertap="handleMarkerTap"
+        bindcallouttap="handleMarkerTap"
+        bindregionchange="handleRegionChange"
+        bindtap="handleMapTap"
+      ></map>
+
+      <cover-view wx:if="{{loadingNearby}}" class="map-loading-tip">正在获取附近数据...</cover-view>
+
+      <cover-view class="map-tool-stack">
+        <cover-view class="map-tool-button" data-action="locate" bindtap="handleMapToolTap">定</cover-view>
+        <cover-view class="map-tool-button" data-action="refresh" bindtap="handleMapToolTap">刷</cover-view>
+        <cover-view class="map-tool-button radius" data-action="radius" bindtap="handleMapToolTap">{{radiusButtonText}}</cover-view>
+      </cover-view>
+
+      <cover-view class="map-legend-panel">
+        <cover-view
+          wx:for="{{mapLegendItems}}"
+          wx:key="key"
+          class="map-legend-row"
+        >
+          <cover-view class="map-legend-dot {{item.key}}"></cover-view>
+          <cover-view class="map-legend-label">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+
+      <cover-view class="map-date-range">2025.09.23 - 2026.03.30</cover-view>
+
+      <cover-view wx:if="{{selectedPlace}}" class="marker-info-card game-info-card">
+        <cover-view class="marker-info-head">
+          <cover-view class="marker-info-status">{{selectedPlace.statusText}}</cover-view>
+          <cover-view class="marker-info-close" bindtap="handleCloseInfoTap">×</cover-view>
+        </cover-view>
+        <cover-view class="marker-info-title">{{selectedPlace.title}}</cover-view>
+        <cover-view class="marker-info-desc">{{selectedPlace.addressText}}</cover-view>
+        <cover-view class="marker-info-meta">{{selectedPlace.distanceText}} · {{selectedPlace.memberText}}</cover-view>
+        <cover-view class="marker-info-meta">{{selectedPlace.timeText}}</cover-view>
+        <cover-view class="marker-info-foot">
+          <cover-view class="marker-info-price">{{selectedPlace.priceText}}</cover-view>
+          <cover-view class="marker-info-action" bindtap="handleDetailTap">查看详情</cover-view>
+        </cover-view>
+      </cover-view>
+
+      <cover-view wx:if="{{selectedPlayer}}" class="marker-info-card player-info-card">
+        <cover-view class="marker-info-head">
+          <cover-view class="marker-info-status {{selectedPlayer.status}}">{{selectedPlayer.statusText}}</cover-view>
+          <cover-view class="marker-info-close" bindtap="handleCloseInfoTap">×</cover-view>
+        </cover-view>
+        <cover-view class="marker-info-title">{{selectedPlayer.name}}</cover-view>
+        <cover-view class="marker-info-desc">{{selectedPlayer.distanceText}} · {{selectedPlayer.activeText}}</cover-view>
+        <cover-view class="marker-info-meta">{{selectedPlayer.status === 'online' ? '当前可互动' : '暂未在线，可查看轨迹'}}</cover-view>
+      </cover-view>
+
+    </view>
+
+    <view class="nearby-info-section">
+      <view class="nearby-info-title-row">
+        <text class="nearby-info-mark">✦</text>
+        <text class="nearby-info-title">附近玩法点</text>
+      </view>
+
+      <view class="nearby-info-list">
+        <view wx:if="{{!nearbyItems.length && !loadingNearby}}" class="nearby-empty">
+          <text>当前位置附近暂无玩法点</text>
+        </view>
+
+        <view
+          wx:for="{{nearbyItems}}"
+          wx:key="id"
+          data-marker-id="{{item.markerId}}"
+          class="nearby-info-card {{selectedMarkerId === item.markerId ? 'active' : ''}}"
+          bindtap="handleNearbyItemTap"
+        >
+          <view class="nearby-info-head">
+            <text class="nearby-info-card-title">{{item.title}}</text>
+            <text class="nearby-info-badge">{{item.statusText}}</text>
+          </view>
+          <text class="nearby-info-desc">{{item.distanceText}} · {{item.memberText}} · {{item.addressText}}</text>
+          <text class="nearby-info-desc">{{item.timeText}} · {{item.priceText}}</text>
+          <view class="nearby-info-actions">
+            <button
+              class="nearby-info-action primary"
+              data-marker-id="{{item.markerId}}"
+              data-action="detail"
+              catchtap="handleNearbyActionTap"
+            >
+              查看详情
+            </button>
+            <button
+              class="nearby-info-action secondary"
+              data-marker-id="{{item.markerId}}"
+              data-action="join"
+              catchtap="handleNearbyActionTap"
+            >
+              去组队
+            </button>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
-  <view class="screen-list">
-    <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
-  </view>
-</view>
+</home-shell>
