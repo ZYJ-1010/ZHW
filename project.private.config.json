@@ -285,6 +285,12 @@
           "pathName": "pages/home/master/index",
           "query": "mode=whiteBackground",
           "scene": null
+        },
+        {
+          "name": "地图-盲盒路线",
+          "pathName": "pages/map/blind-route/index",
+          "query": "mode=blindRout",
+          "scene": null
         }
       ]
     }

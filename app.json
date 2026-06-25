@@ -46,6 +46,7 @@
     "pages/game/review-complete/index",
     "pages/game/play-again/index",
     "pages/map/index",
+    "pages/map/blind-route/index",
     "pages/message/index",
     "pages/im/room/index",
     "pages/profile/index",

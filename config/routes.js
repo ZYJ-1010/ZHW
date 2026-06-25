@@ -41,6 +41,7 @@ const ROUTES = {
   gameReviewComplete: 'pages/game/review-complete/index',
   gamePlayAgain: 'pages/game/play-again/index',
   map: 'pages/map/index',
+  mapBlindRoute: 'pages/map/blind-route/index',
   message: 'pages/message/index',
   imRoom: 'pages/im/room/index',
   profile: 'pages/profile/index',

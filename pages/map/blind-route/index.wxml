@@ -1,0 +1,47 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="blind-route-page">
+    <view class="blind-route-hero">
+      <text class="blind-route-title">组局盲盒</text>
+      <text class="blind-route-desc">不知道去哪局？让命运决定你的下一次城市冒险</text>
+    </view>
+
+    <view class="blind-route-card-list">
+      <view
+        wx:for="{{routeCards}}"
+        wx:key="id"
+        class="{{item.className}}"
+        data-id="{{item.id}}"
+        bindtap="handleRouteTap"
+      >
+        <view class="blind-route-card-copy">
+          <text class="blind-route-card-title">{{item.title}}</text>
+          <text class="blind-route-card-desc">{{item.desc}}</text>
+          <view class="blind-route-tag-row">
+            <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="blind-route-tag">{{tag}}</text>
+          </view>
+        </view>
+        <view wx:if="{{item.icon}}" class="blind-route-card-icon">
+          <image class="blind-route-card-icon-image" src="{{item.icon}}" mode="aspectFit" />
+        </view>
+      </view>
+    </view>
+
+    <view class="blind-route-recent">
+      <text class="blind-route-section-title">最近开启</text>
+      <view wx:for="{{recentRoutes}}" wx:key="title" class="blind-route-recent-item">
+        <view class="blind-route-recent-clock"></view>
+        <view class="blind-route-recent-copy">
+          <text class="blind-route-recent-title">{{item.title}}</text>
+          <text class="blind-route-recent-time">{{item.timeText}}</text>
+        </view>
+        <text class="blind-route-recent-status">{{item.statusText}}</text>
+      </view>
+    </view>
+  </view>
+</home-shell>

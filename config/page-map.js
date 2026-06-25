@@ -40,6 +40,7 @@ const PAGE_GROUPS = [
     priority: 'P0/P1',
     batch: '第 4 批：地图、IM、成长扩展',
     route: '/pages/map/index',
+    routes: ['/pages/map/index', '/pages/map/blind-route/index'],
     screens: ['地图首页', '组局分布地球网', '组局盲盒', '城市图鉴页', '足迹热力图页', '实景打卡', '好友点亮城市页', '我的城市故事页']
   },
   {
