@@ -311,6 +311,12 @@
           "scene": null
         },
         {
+          "name": "消息-消息中心",
+          "pathName": "pages/message/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "消息-交易预警",
           "pathName": "pages/message/trade-warning/index",
           "query": "",
