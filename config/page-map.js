@@ -45,11 +45,20 @@ const PAGE_GROUPS = [
   },
   {
     code: 'message',
-    title: '消息与关系',
+    title: '消息',
     priority: 'P0',
     batch: '第 4 批：地图、IM、成长扩展',
     route: '/pages/message/index',
-    screens: ['消息', '关系网']
+    screens: ['消息']
+  },
+  {
+    code: 'relation',
+    title: '关系',
+    priority: 'P0',
+    batch: '第 4 批：地图、IM、成长扩展',
+    route: '/pages/relation/network/index',
+    routes: ['/pages/relation/network/index'],
+    screens: ['关系网首页']
   },
   {
     code: 'profile',

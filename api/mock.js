@@ -15,7 +15,8 @@ const {
   mockGuideCancelDetail,
   mockGameManage,
   mockPlayerGameManage,
-  mockGameProfitTemplates
+  mockGameProfitTemplates,
+  mockRelationNetworkHome
 } = require('./mock-data')
 
 let mockCurrentRealnameStatus = 'pending'
@@ -538,6 +539,10 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/games/nearby') {
     return wait(ok(buildNearbyGames(options.data || {})))
+  }
+
+  if (method === 'GET' && url === '/api/app/relations/network-home') {
+    return wait(ok(mockRelationNetworkHome))
   }
 
   if (method === 'GET' && url === '/api/app/profile/home') {

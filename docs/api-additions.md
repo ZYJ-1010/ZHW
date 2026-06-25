@@ -3393,3 +3393,44 @@ GET /api/app/map/blind-routes/recent
 1. 最近开启接口是否使用独立 `GET /api/app/map/blind-routes/recent`，还是合并到盲盒路线配置接口里一起返回。
 2. `status` 枚举需要后端确认，例如 `opened/completed/cancelled/expired`。
 3. 路线卡片点击后的开启、完成、状态回写接口后续再补充；当前页面只记录待实现，不接真实业务流程。
+
+## 45. 关系网首页抽象层接口
+
+记录日期：2026-06-25
+
+模块：关系 / 关系网首页
+
+页面：`pages/relation/network/index`
+
+功能：关系网首页顶部浮层的地点标题、营业状态、地址、tab 文案和在线人数由抽象层接口返回，页面只负责渲染；左侧返回按钮和右侧刷新按钮是前端固定交互。
+
+候选接口：
+
+```text
+GET /api/app/relations/network-home
+```
+
+建议返回：
+
+```json
+{
+  "onlineText": "3999人在线",
+  "header": {
+    "titleIcon": "📍",
+    "title": "星巴克(镇海万科店)",
+    "statusText": "营业中",
+    "address": "宁波市镇海区庄市大道1088号万科广场1F"
+  },
+  "tabs": [
+    { "key": "network", "text": "人脉网络" },
+    { "key": "nearby", "text": "附近玩家" }
+  ],
+  "activeTab": "network"
+}
+```
+
+待确认：
+
+1. 正式接口路径是否使用 `GET /api/app/relations/network-home`，还是合并到地图 / 附近信息接口。
+2. 地点标题、地址和营业状态是否来自当前定位 POI、用户手动选择地点，还是后台推荐关系网中心点。
+3. `tabs` 是否固定为 `人脉网络 / 附近玩家`，还是允许后台配置文案和默认选中项。

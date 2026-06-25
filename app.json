@@ -48,6 +48,7 @@
     "pages/map/index",
     "pages/map/blind-route/index",
     "pages/map/footprint-heatmap/index",
+    "pages/relation/network/index",
     "pages/message/index",
     "pages/im/room/index",
     "pages/profile/index",

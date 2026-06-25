@@ -1103,6 +1103,21 @@ const mockGameProfitTemplates = {
   ]
 }
 
+const mockRelationNetworkHome = {
+  onlineText: '3999人在线',
+  header: {
+    titleIcon: '📍',
+    title: '星巴克(镇海万科店)',
+    statusText: '营业中',
+    address: '宁波市镇海区庄市大道1088号万科广场1F'
+  },
+  tabs: [
+    { key: 'network', text: '人脉网络' },
+    { key: 'nearby', text: '附近玩家' }
+  ],
+  activeTab: 'network'
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -1120,5 +1135,6 @@ module.exports = {
   mockGuideCancelDetail,
   mockGameManage,
   mockPlayerGameManage,
-  mockGameProfitTemplates
+  mockGameProfitTemplates,
+  mockRelationNetworkHome
 }

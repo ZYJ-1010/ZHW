@@ -43,6 +43,7 @@ const ROUTES = {
   map: 'pages/map/index',
   mapBlindRoute: 'pages/map/blind-route/index',
   mapFootprintHeatmap: 'pages/map/footprint-heatmap/index',
+  relationNetwork: 'pages/relation/network/index',
   message: 'pages/message/index',
   imRoom: 'pages/im/room/index',
   profile: 'pages/profile/index',

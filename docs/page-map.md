@@ -41,7 +41,8 @@
 | 业务域 | 墨刀页面 | 小程序路由 |
 | --- | --- | --- |
 | 地图与城市探索 | 地图首页、组局分布地球网、组局盲盒、城市图鉴、足迹热力图、实景打卡、好友点亮城市、我的城市故事 | `pages/map/index`、`pages/map/blind-route/index` |
-| 消息与关系 | 消息、关系网 | `pages/message/index` |
+| 消息 | 消息 | `pages/message/index` |
+| 关系 | 关系网首页 | `pages/relation/network/index` |
 | 局内 IM | 局内文字、图片、文件消息 | `pages/im/room/index` |
 | 会员与成长 | 会员中心、成就页 | `pages/profile/member/index`、`pages/profile/achievements/index` |
 | 预留 | 元宇宙、元宇宙管理中心、母版 | `pages/placeholder/metaverse/index` |

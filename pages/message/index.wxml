@@ -2,7 +2,7 @@
   <view class="module-card">
     <text class="module-kicker">{{group.priority}}</text>
     <text class="module-title">{{group.title}}</text>
-    <text class="module-desc">消息列表、系统通知和关系网入口，局内聊天进入 IM 房间。</text>
+    <text class="module-desc">消息列表、系统通知和局内聊天入口，局内聊天进入 IM 房间。</text>
   </view>
   <view class="screen-list">
     <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
