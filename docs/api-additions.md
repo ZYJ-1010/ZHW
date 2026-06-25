@@ -3434,3 +3434,86 @@ GET /api/app/relations/network-home
 1. 正式接口路径是否使用 `GET /api/app/relations/network-home`，还是合并到地图 / 附近信息接口。
 2. 地点标题、地址和营业状态是否来自当前定位 POI、用户手动选择地点，还是后台推荐关系网中心点。
 3. `tabs` 是否固定为 `人脉网络 / 附近玩家`，还是允许后台配置文案和默认选中项。
+
+## 46. 消息交易预警详情接口
+
+记录日期：2026-06-26
+
+模块：消息 / 交易预警
+
+页面：`pages/message/trade-warning/index`
+
+功能：交易预警页内容从后台返回，包含预警文案、剩余交付时间、订单信息、交付方式和底部操作按钮文案。页面本身只负责渲染和本地交付方式选中态切换。
+
+候选接口：
+
+```text
+GET /api/app/messages/trade-warning
+```
+
+建议入参：
+
+```json
+{
+  "warningId": "trade-warning-001",
+  "orderId": "GD2024032201"
+}
+```
+
+建议返回：
+
+```json
+{
+  "id": "trade-warning-001",
+  "warningId": "trade-warning-001",
+  "pageTitle": "交易预警",
+  "onlineText": "3999人在线",
+  "warning": {
+    "title": "即将超时",
+    "prefixText": "该订单将于",
+    "highlightText": "1小时30分钟",
+    "suffixText": "后自动标记为逾期，请立即处理"
+  },
+  "countdown": [
+    { "value": "01", "label": "小时" },
+    { "value": "30", "label": "分钟" },
+    { "value": "45", "label": "秒" }
+  ],
+  "order": {
+    "orderNo": "GD2024032201",
+    "statusText": "待交付",
+    "customerAvatarText": "CL",
+    "customerTitle": "客户需求",
+    "customerDesc": "寻找资深产品经理进行业务咨询",
+    "detailRows": [
+      { "label": "约定交付时间", "value": "今天 16:00" },
+      { "label": "服务费用", "value": "¥500", "strong": true }
+    ]
+  },
+  "deliveryMethods": [
+    {
+      "id": "online",
+      "title": "线上确认",
+      "desc": "双方在线确认服务完成",
+      "active": true
+    },
+    {
+      "id": "upload",
+      "title": "上传凭证",
+      "desc": "上传服务完成截图或文件",
+      "active": false
+    }
+  ],
+  "actions": {
+    "delayText": "申请延期",
+    "deliverText": "立即交付"
+  }
+}
+```
+
+待确认：
+
+1. 正式接口路径是否使用 `GET /api/app/messages/trade-warning`，还是归到订单接口，例如 `GET /api/app/orders/{orderId}/trade-warning`。
+2. 倒计时由后端直接返回展示文案 / 数字，还是返回 `serverTime` 与 `expectedDeliveryAt` 后由前端计算。
+3. 交付方式枚举、默认选中项以及“立即交付 / 申请延期”的真实提交接口需要后端补充。
+4. `warningId` 与 `orderId` 是否都需要传；若只用订单号即可定位预警，前端后续可简化入参。

@@ -1,0 +1,93 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{pageTitle}}"
+  shell-variant="joinApply"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="trade-warning-page">
+    <view class="trade-inner">
+        <view wx:if="{{loading}}" class="page-state">加载中...</view>
+        <view wx:elif="{{errorText}}" class="page-state error">{{errorText}}</view>
+
+        <view class="warning-panel">
+          <view class="warning-icon">
+            <view class="warning-mark">!</view>
+          </view>
+          <view class="warning-copy">
+            <text class="warning-title">{{warning.title}}</text>
+            <view class="warning-desc">
+              <text>{{warning.prefixText}}</text>
+              <text class="strong">{{warning.highlightText}}</text>
+              <text>{{warning.suffixText}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="countdown-card message-card">
+          <text class="countdown-label">剩余交付时间</text>
+          <view class="countdown-values">
+            <block wx:for="{{countdown}}" wx:key="label">
+              <view class="countdown-unit">
+                <text class="countdown-value">{{item.value}}</text>
+                <text class="countdown-unit-label">{{item.label}}</text>
+              </view>
+              <text wx:if="{{index < countdown.length - 1}}" class="countdown-separator">:</text>
+            </block>
+          </view>
+        </view>
+
+        <view class="order-card message-card">
+          <view class="order-head">
+            <view>
+              <text class="order-label">订单编号</text>
+              <text class="order-no">{{order.orderNo}}</text>
+            </view>
+            <text class="order-status">{{order.statusText}}</text>
+          </view>
+
+          <view class="customer-row">
+            <view class="customer-avatar">{{order.customerAvatarText}}</view>
+            <view class="customer-copy">
+              <text class="customer-title">{{order.customerTitle}}</text>
+              <text class="customer-desc">{{order.customerDesc}}</text>
+            </view>
+          </view>
+
+          <view class="detail-panel">
+            <view wx:for="{{detailRows}}" wx:key="label" class="detail-row">
+              <text>{{item.label}}</text>
+              <text class="{{item.strong ? 'strong' : ''}}">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="delivery-card message-card">
+          <text class="delivery-title">交付方式</text>
+          <view class="method-list">
+            <view
+              wx:for="{{deliveryMethods}}"
+              wx:key="id"
+              class="method-item {{item.active ? 'active' : ''}}"
+              data-id="{{item.id}}"
+              bindtap="onMethodTap"
+            >
+              <view class="method-icon"></view>
+              <view class="method-copy">
+                <text class="method-title">{{item.title}}</text>
+                <text class="method-desc">{{item.desc}}</text>
+              </view>
+              <view wx:if="{{item.active}}" class="method-check"></view>
+            </view>
+          </view>
+        </view>
+
+        <view class="action-row">
+          <button class="trade-action plain" hover-class="none" data-action="delay" bindtap="onActionTap">{{actions.delayText}}</button>
+          <button class="trade-action danger" hover-class="none" data-action="deliver" bindtap="onActionTap">{{actions.deliverText}}</button>
+        </view>
+    </view>
+  </view>
+</home-shell>

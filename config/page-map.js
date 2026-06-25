@@ -49,7 +49,8 @@ const PAGE_GROUPS = [
     priority: 'P0',
     batch: '第 4 批：地图、IM、成长扩展',
     route: '/pages/message/index',
-    screens: ['消息']
+    routes: ['/pages/message/index', '/pages/message/trade-warning/index'],
+    screens: ['消息', '交易预警']
   },
   {
     code: 'relation',

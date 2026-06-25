@@ -309,6 +309,12 @@
           "pathName": "pages/relation/network/index",
           "query": "mode=templateWalkthrough",
           "scene": null
+        },
+        {
+          "name": "消息-交易预警",
+          "pathName": "pages/message/trade-warning/index",
+          "query": "",
+          "scene": null
         }
       ]
     }

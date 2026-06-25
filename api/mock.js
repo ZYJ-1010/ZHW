@@ -16,7 +16,8 @@ const {
   mockGameManage,
   mockPlayerGameManage,
   mockGameProfitTemplates,
-  mockRelationNetworkHome
+  mockRelationNetworkHome,
+  mockTradeWarningDetail
 } = require('./mock-data')
 
 let mockCurrentRealnameStatus = 'pending'
@@ -320,6 +321,20 @@ function buildSystemRecommendations(data = {}) {
   })
 }
 
+function buildTradeWarningDetail(data = {}) {
+  const detail = JSON.parse(JSON.stringify(mockTradeWarningDetail))
+  const warningId = data.warningId || data.id || detail.warningId
+  const orderId = data.orderId || detail.order.orderNo
+
+  return Object.assign({}, detail, {
+    id: warningId,
+    warningId,
+    order: Object.assign({}, detail.order, {
+      orderNo: orderId
+    })
+  })
+}
+
 function toFiniteNumber(value, fallback) {
   const number = Number(value)
 
@@ -543,6 +558,10 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/relations/network-home') {
     return wait(ok(mockRelationNetworkHome))
+  }
+
+  if (method === 'GET' && url === '/api/app/messages/trade-warning') {
+    return wait(ok(buildTradeWarningDetail(options.data || {})))
   }
 
   if (method === 'GET' && url === '/api/app/profile/home') {

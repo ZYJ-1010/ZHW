@@ -13,6 +13,7 @@
 | 组局 / 发起组局 | [`docs/follow-ups/game-create.md`](follow-ups/game-create.md) |
 | 地图 / 城市探索 | [`docs/follow-ups/map.md`](follow-ups/map.md) |
 | 地图 / 足迹热力图 | [`docs/follow-ups/footprint-heatmap.md`](follow-ups/footprint-heatmap.md) |
+| 消息 / 消息页 | [`docs/follow-ups/message.md`](follow-ups/message.md) |
 
 ## 2026-06-14
 

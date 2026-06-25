@@ -1118,6 +1118,53 @@ const mockRelationNetworkHome = {
   activeTab: 'network'
 }
 
+const mockTradeWarningDetail = {
+  id: 'trade-warning-001',
+  warningId: 'trade-warning-001',
+  pageTitle: '交易预警',
+  onlineText: '3999人在线',
+  warning: {
+    title: '即将超时',
+    prefixText: '该订单将于',
+    highlightText: '1小时30分钟',
+    suffixText: '后自动标记为逾期，请立即处理'
+  },
+  countdown: [
+    { value: '01', label: '小时' },
+    { value: '30', label: '分钟' },
+    { value: '45', label: '秒' }
+  ],
+  order: {
+    orderNo: 'GD2024032201',
+    statusText: '待交付',
+    customerAvatarText: 'CL',
+    customerTitle: '客户需求',
+    customerDesc: '寻找资深产品经理进行业务咨询',
+    detailRows: [
+      { label: '约定交付时间', value: '今天 16:00' },
+      { label: '服务费用', value: '¥500', strong: true }
+    ]
+  },
+  deliveryMethods: [
+    {
+      id: 'online',
+      title: '线上确认',
+      desc: '双方在线确认服务完成',
+      active: true
+    },
+    {
+      id: 'upload',
+      title: '上传凭证',
+      desc: '上传服务完成截图或文件',
+      active: false
+    }
+  ],
+  actions: {
+    delayText: '申请延期',
+    deliverText: '立即交付'
+  }
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -1136,5 +1183,6 @@ module.exports = {
   mockGameManage,
   mockPlayerGameManage,
   mockGameProfitTemplates,
-  mockRelationNetworkHome
+  mockRelationNetworkHome,
+  mockTradeWarningDetail
 }

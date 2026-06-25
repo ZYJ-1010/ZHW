@@ -45,6 +45,7 @@ const ROUTES = {
   mapFootprintHeatmap: 'pages/map/footprint-heatmap/index',
   relationNetwork: 'pages/relation/network/index',
   message: 'pages/message/index',
+  messageTradeWarning: 'pages/message/trade-warning/index',
   imRoom: 'pages/im/room/index',
   profile: 'pages/profile/index',
   profileMember: 'pages/profile/member/index',

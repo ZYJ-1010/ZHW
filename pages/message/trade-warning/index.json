@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "交易预警",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}
