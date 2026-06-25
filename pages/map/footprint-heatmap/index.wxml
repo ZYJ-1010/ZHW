@@ -1,0 +1,97 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="footprint-page">
+    <view class="footprint-header">
+      <view class="footprint-back" bindtap="handleBackTap"></view>
+      <text class="footprint-title">足迹热力图</text>
+    </view>
+
+    <scroll-view class="footprint-range-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="footprint-range-row">
+        <view
+          wx:for="{{rangeTabs}}"
+          wx:key="*this"
+          class="footprint-range {{activeRange === item ? 'active' : ''}}"
+          data-range="{{item}}"
+          bindtap="handleRangeTap"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+
+    <view class="footprint-stat-row">
+      <view wx:for="{{heatStats}}" wx:key="label" class="footprint-stat">
+        <text class="footprint-stat-value">{{item.value}}</text>
+        <text class="footprint-stat-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="footprint-panel">
+      <text class="footprint-section-title">全国城市打卡热力</text>
+      <view class="footprint-map-card">
+        <image class="footprint-map-base" src="/pages/map/footprint-heatmap/assets/china-dark-map.png" mode="aspectFill"></image>
+        <view class="footprint-map-mask"></view>
+        <view class="footprint-legend">
+          <view class="footprint-legend-item low"></view>
+          <view class="footprint-legend-item mid"></view>
+          <view class="footprint-legend-item high"></view>
+          <view class="footprint-legend-item hot"></view>
+          <text>城市打卡热度</text>
+        </view>
+        <view
+          wx:for="{{cityHeatPoints}}"
+          wx:key="id"
+          class="{{item.className}}"
+          data-id="{{item.id}}"
+          bindtap="handleCityTap"
+        >
+          <view class="footprint-city-glow"></view>
+          <text>{{item.city}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="footprint-panel">
+      <view class="footprint-panel-head">
+        <text class="footprint-section-title">好友也在打卡</text>
+        <text class="footprint-more" bindtap="handleFriendTap">查看全部</text>
+      </view>
+      <view class="footprint-friend-list">
+        <view wx:for="{{friendUpdates}}" wx:key="id" class="footprint-friend" bindtap="handleFriendTap">
+          <view class="footprint-avatar">{{item.avatarText}}</view>
+          <view class="footprint-friend-copy">
+            <text class="footprint-friend-name">{{item.name}}</text>
+            <text class="footprint-friend-desc">{{item.desc}}</text>
+          </view>
+          <view class="footprint-online-dot {{item.online ? 'active' : ''}}"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="footprint-panel">
+      <text class="footprint-section-title">城市热点排行</text>
+      <view class="footprint-hot-list">
+        <view
+          wx:for="{{hotCities}}"
+          wx:key="id"
+          class="footprint-hot-city"
+          data-id="{{item.id}}"
+          bindtap="handleHotCityTap"
+        >
+          <view class="footprint-rank">{{item.rank}}</view>
+          <view class="footprint-hot-copy">
+            <text class="footprint-hot-title">{{item.city}}</text>
+            <text class="footprint-hot-desc">{{item.desc}}</text>
+          </view>
+          <view class="footprint-hot-meter">
+            <view class="footprint-hot-bar {{item.level}}" style="width: {{item.progress}}%;"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</home-shell>

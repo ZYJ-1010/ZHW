@@ -297,6 +297,12 @@
           "pathName": "pages/map/blind-route/index",
           "query": "mode=blindRout",
           "scene": null
+        },
+        {
+          "name": "地图-足迹热力图",
+          "pathName": "pages/map/footprint-heatmap/index",
+          "query": "",
+          "scene": null
         }
       ]
     }

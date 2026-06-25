@@ -42,6 +42,7 @@ const ROUTES = {
   gamePlayAgain: 'pages/game/play-again/index',
   map: 'pages/map/index',
   mapBlindRoute: 'pages/map/blind-route/index',
+  mapFootprintHeatmap: 'pages/map/footprint-heatmap/index',
   message: 'pages/message/index',
   imRoom: 'pages/im/room/index',
   profile: 'pages/profile/index',
