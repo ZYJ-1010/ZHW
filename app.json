@@ -51,6 +51,7 @@
     "pages/relation/network/index",
     "pages/message/index",
     "pages/message/trade-warning/index",
+    "pages/message/system-detail/index",
     "pages/im/room/index",
     "pages/profile/index",
     "pages/profile/member/index",

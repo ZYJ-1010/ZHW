@@ -10,6 +10,17 @@ async function getTradeWarningDetail(params) {
   return result.data
 }
 
+async function getSystemNotificationDetail(params) {
+  const result = await messageApi.getSystemNotificationDetail(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取系统通知失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
-  getTradeWarningDetail
+  getTradeWarningDetail,
+  getSystemNotificationDetail
 }

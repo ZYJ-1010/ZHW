@@ -1165,6 +1165,82 @@ const mockTradeWarningDetail = {
   }
 }
 
+const mockSystemNotificationDetail = {
+  id: 'system-notification-001',
+  messageId: 'system-notification-001',
+  notificationId: 'system-notification-001',
+  pageTitle: '系统通知',
+  onlineText: '3999人在线',
+  article: {
+    tagText: '重要更新',
+    title: '组局功能全新升级：智能匹配系统上线',
+    author: '官方运营团队',
+    publishedAtText: '2026-03-20',
+    readText: '阅读 1.2k',
+    blocks: [
+      {
+        id: 'lead',
+        type: 'paragraph',
+        text: '亲爱的用户：',
+        lead: true
+      },
+      {
+        id: 'intro',
+        type: 'paragraph',
+        text: '为了提升组局效率和匹配精准度，我们于今日正式上新智能匹配功能，根据你的行业标签、兴趣爱好、地理位置等多维度信息，自动推荐最合适的组局对象。'
+      },
+      {
+        id: 'update-content',
+        type: 'updateBox',
+        icon: '★',
+        title: '主要更新内容',
+        points: [
+          'AI智能推荐：基于行为分析的个性化推荐',
+          '匹配度评分：直观展示双方契合程度',
+          '一键邀约：简化组局发起流程'
+        ]
+      },
+      {
+        id: 'message-center',
+        type: 'paragraph',
+        text: '同时，我们对消息触达中心进行了优化，新增消息分类和优先级标记，确保你不会错过任何重要组局信息。'
+      },
+      {
+        id: 'cover',
+        type: 'cover',
+        imageUrl: '/pages/message/system-detail/assets/system-update-cover.png',
+        caption: '智能匹配界面示意图'
+      },
+      {
+        id: 'closing',
+        type: 'paragraph',
+        text: '如有任何问题，欢迎联系客服团队。感谢你的支持与信任！'
+      },
+      {
+        id: 'signature',
+        type: 'signature',
+        teamText: '产品团队',
+        dateText: '2026年3月20日'
+      }
+    ]
+  },
+  feedback: {
+    question: '这篇文章对你有帮助吗？',
+    useful: {
+      icon: '👍',
+      label: '有用',
+      count: 128,
+      countText: '128'
+    },
+    useless: {
+      icon: '👎',
+      label: '没用',
+      count: 10,
+      countText: '10'
+    }
+  }
+}
+
 module.exports = {
   validInvites,
   mockUser,
@@ -1184,5 +1260,6 @@ module.exports = {
   mockPlayerGameManage,
   mockGameProfitTemplates,
   mockRelationNetworkHome,
-  mockTradeWarningDetail
+  mockTradeWarningDetail,
+  mockSystemNotificationDetail
 }

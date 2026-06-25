@@ -3517,3 +3517,84 @@ GET /api/app/messages/trade-warning
 2. 倒计时由后端直接返回展示文案 / 数字，还是返回 `serverTime` 与 `expectedDeliveryAt` 后由前端计算。
 3. 交付方式枚举、默认选中项以及“立即交付 / 申请延期”的真实提交接口需要后端补充。
 4. `warningId` 与 `orderId` 是否都需要传；若只用订单号即可定位预警，前端后续可简化入参。
+
+## 47. 消息系统通知详情接口
+
+记录日期：2026-06-26
+
+模块：消息 / 系统通知
+
+页面：`pages/message/system-detail/index`
+
+功能：系统通知详情页文章由后台推送 / 返回，前端按后台返回的文章块渲染标题、作者、发布时间、阅读统计、正文段落、更新内容、封面、署名和反馈统计。
+
+候选接口：
+
+```text
+GET /api/app/messages/system-notification
+```
+
+建议入参：
+
+```json
+{
+  "messageId": "system-notification-001"
+}
+```
+
+建议返回：
+
+```json
+{
+  "id": "system-notification-001",
+  "messageId": "system-notification-001",
+  "pageTitle": "系统通知",
+  "onlineText": "3999人在线",
+  "article": {
+    "tagText": "重要更新",
+    "title": "组局功能全新升级：智能匹配系统上线",
+    "author": "官方运营团队",
+    "publishedAtText": "2026-03-20",
+    "readText": "阅读 1.2k",
+    "blocks": [
+      { "id": "lead", "type": "paragraph", "text": "亲爱的用户：", "lead": true },
+      { "id": "intro", "type": "paragraph", "text": "为了提升组局效率和匹配精准度，我们于今日正式上新智能匹配功能..." },
+      {
+        "id": "update-content",
+        "type": "updateBox",
+        "icon": "★",
+        "title": "主要更新内容",
+        "points": [
+          "AI智能推荐：基于行为分析的个性化推荐",
+          "匹配度评分：直观展示双方契合程度",
+          "一键邀约：简化组局发起流程"
+        ]
+      },
+      {
+        "id": "cover",
+        "type": "cover",
+        "imageUrl": "/pages/message/system-detail/assets/system-update-cover.png",
+        "caption": "智能匹配界面示意图"
+      },
+      {
+        "id": "signature",
+        "type": "signature",
+        "teamText": "产品团队",
+        "dateText": "2026年3月20日"
+      }
+    ]
+  },
+  "feedback": {
+    "question": "这篇文章对你有帮助吗？",
+    "useful": { "icon": "👍", "label": "有用", "count": 128, "countText": "128" },
+    "useless": { "icon": "👎", "label": "没用", "count": 10, "countText": "10" }
+  }
+}
+```
+
+待确认：
+
+1. 正式接口路径是否使用 `GET /api/app/messages/system-notification`，还是按消息 ID 使用 `GET /api/app/messages/{messageId}`。
+2. 文章内容是否由后台直接下发块结构，还是返回富文本 / Markdown；当前页面先按块结构渲染，避免前端写死文章内容。
+3. 阅读量、有用数、没用数是否由同一个详情接口返回；如果点击反馈需要实时回写，还需补充反馈提交接口。
+4. 封面图如果来自后台 CDN，需确认小程序域名白名单和图片裁剪比例。

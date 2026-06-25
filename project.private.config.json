@@ -315,6 +315,12 @@
           "pathName": "pages/message/trade-warning/index",
           "query": "",
           "scene": null
+        },
+        {
+          "name": "消息-系统通知",
+          "pathName": "pages/message/system-detail/index",
+          "query": "",
+          "scene": null
         }
       ]
     }
