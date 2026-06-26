@@ -3598,3 +3598,134 @@ GET /api/app/messages/system-notification
 2. 文章内容是否由后台直接下发块结构，还是返回富文本 / Markdown；当前页面先按块结构渲染，避免前端写死文章内容。
 3. 阅读量、有用数、没用数是否由同一个详情接口返回；如果点击反馈需要实时回写，还需补充反馈提交接口。
 4. 封面图如果来自后台 CDN，需确认小程序域名白名单和图片裁剪比例。
+
+## 49. 我的个人中心子页面接口
+
+记录日期：2026-06-26
+
+模块：我的 / 个人中心
+
+页面：`pages/profile/index`、`pages/profile/publish-manage/index`、`pages/profile/match-info/index`、`pages/profile/my-games/index`、`pages/profile/settings/index`、`pages/profile/credit-center/index`、`pages/profile/invite-records/index`
+
+功能：本次先按用户粘贴的个人中心 HTML 和 `E:\项目\03周总\个人中心` 下 6 个 HTML 导出资料落地静态走查页。`pages/profile/index` 已套用 `母版-申请加入` 对应的 `home-shell` `joinApply` 变体，并隐藏母版标题和右侧头像；其余 6 个子页使用白色母版。正式联调时，这些页面的用户信息、资产、列表、统计、开关、保存和操作按钮需要改为接口驱动。
+
+候选接口：
+
+```text
+GET /api/app/profile/home
+GET /api/app/profile/published-services
+POST /api/app/profile/published-services/batch-offline
+POST /api/app/profile/published-services/batch-delete
+POST /api/app/profile/published-services/{serviceId}/offline
+POST /api/app/profile/published-services/{serviceId}/online
+POST /api/app/profile/published-services/{serviceId}/pin
+GET /api/app/profile/match-info
+PUT /api/app/profile/match-info
+GET /api/app/profile/games
+GET /api/app/profile/settings
+PUT /api/app/profile/settings
+GET /api/app/profile/credit
+GET /api/app/profile/invite-records
+POST /api/app/profile/invite-records/{recordId}/remind-delivery
+```
+
+待确认：
+
+1. 发布管理是否复用行家服务 / 商品接口，还是使用独立个人中心接口。
+2. 适配信息字段是否来自个人主页、匹配画像，还是独立表单；地址定位是否需要 `chooseLocation`。
+3. 我的组局和邀约记录是否复用组局模块已有接口，还是按个人中心聚合返回。
+4. 系统设置里的支付密码、手机号、推送通知、邮件通知、隐私清单和缓存清理分别对应哪些正式接口。
+5. 信用中心的信用分、奖励、惩罚和明细是否由一个聚合接口返回，奖励领取是否需要独立提交接口。
+
+### 49.1 个人中心首页聚合接口
+
+页面：`pages/profile/index`
+
+候选接口：
+
+```text
+GET /api/app/profile/home
+```
+
+建议返回：
+
+```json
+{
+  "user": {
+    "nickname": "小明",
+    "avatarUrl": "https://cdn.example.com/avatar.png",
+    "avatarText": "小",
+    "memberLevel": "基础会员",
+    "growthLevel": "V5 探险家",
+    "role": "玩家"
+  },
+  "stats": [
+    { "key": "referrals", "label": "引荐数", "value": "128" },
+    { "key": "successes", "label": "成功数", "value": "86" },
+    { "key": "dealAmount", "label": "成交总额", "value": "¥45K" },
+    { "key": "credit", "label": "信用度", "value": "98" }
+  ],
+  "assets": {
+    "summary": [
+      { "key": "totalDealAmount", "label": "总成交额", "value": "¥12,580" },
+      { "key": "withdrawable", "label": "可提现", "value": "¥3,200", "tone": "green" },
+      { "key": "pendingSettlement", "label": "待结算", "value": "¥800", "tone": "orange" }
+    ],
+    "vipBanner": {
+      "text": "升级会员，认证您的角色",
+      "actionText": "增购会员 >",
+      "route": "pages/profile/member/index"
+    }
+  },
+  "sections": [
+    {
+      "key": "service",
+      "title": "服务中心",
+      "items": [
+        {
+          "key": "myGames",
+          "title": "我的局",
+          "icon": "i66",
+          "badgeText": "2进行中",
+          "badgeTone": "pink",
+          "route": "pages/profile/my-games/index",
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+当前首页入口路由口径：
+
+| 分组 | 入口 | 当前路由 / 状态 |
+| --- | --- | --- |
+| 服务中心 | 我的局 | `pages/profile/my-games/index` |
+| 服务中心 | 组局管理 | `pages/profile/publish-manage/index` |
+| 服务中心 | 我的邀请 | `pages/profile/invite-records/index` |
+| 服务中心 | 评价中心 | 待确认评价中心页面 / 路由 |
+| 资产中心 | 我的资产 | 待确认资产首页 / 路由 |
+| 资产中心 | 我的押金 | 待确认押金页 / 路由 |
+| 资产中心 | 积分商城 | 待确认积分商城页 / 路由 |
+| 资产中心 | 我的积分 | 待确认积分明细页 / 路由 |
+| 资产中心 | 开票中心 | 待确认开票页 / 路由 |
+| 足迹中心 | 我的足迹 | 待确认足迹页 / 路由 |
+| 足迹中心 | 我的城市故事 | 待确认城市故事页 / 路由 |
+| 足迹中心 | 我的成就墙 | `pages/profile/achievements/index` |
+| 账户管理 | 我的资料 | `pages/profile/match-info/index` |
+| 账户管理 | 技能配置 | 待确认技能配置页 / 路由 |
+| 账户管理 | 屏蔽设置 | 待确认屏蔽设置页 / 路由 |
+| 账户管理 | 信用中心 | `pages/profile/credit-center/index` |
+| 账户管理 | 举报中心 | 待确认举报中心页 / 路由 |
+| 账户管理 | 签署协议 | 待确认协议页 / 路由 |
+| 账户管理 | 建议反馈 | 待确认反馈页 / 路由 |
+| 账户管理 | 系统设置 | `pages/profile/settings/index` |
+
+待确认：
+
+1. 首页菜单入口是否全部由后端返回，还是前端固定入口、后端只返回角标和可见状态。
+2. `badgeText`、`badgeTone` 是否由后端直接返回；如果后端只返回数量和状态枚举，前端需要统一映射文案和颜色。
+3. 资产中心相关页面是否新建在 `pages/profile/` 下，还是复用钱包 / 交易模块页面。
+4. 足迹中心是否复用地图模块已有页面，例如 `pages/map/my-city/index`、`pages/map/footprint-heatmap/index`，需要产品确认。
+5. 头像使用 `avatarUrl` 真实图片还是继续允许 `avatarText` 兜底。

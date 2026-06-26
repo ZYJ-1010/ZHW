@@ -1,0 +1,51 @@
+<profile-white-shell title="邀约记录" background="#ffffff">
+  <view class="profile-page is-white">
+    <view class="profile-tabs invite-role-tabs">
+      <view wx:for="{{roleTabs}}" wx:key="label" class="profile-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+    </view>
+
+    <view class="profile-filter-tabs">
+      <view wx:for="{{filters}}" wx:key="label" class="profile-filter-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+    </view>
+
+    <view class="profile-warning">
+      <view class="profile-dot"></view>
+      <view>
+        <text class="profile-warning-title">超时预警</text>
+        <text class="profile-warning-desc">有1个组局超过15天无进展</text>
+      </view>
+    </view>
+
+    <view wx:for="{{records}}" wx:key="title" class="profile-card invite-card">
+      <view class="profile-card-body">
+        <view class="profile-card-header">
+          <view class="profile-title-group">
+            <view class="invite-people">
+              <text class="invite-name">{{item.expert}}</text>
+              <text class="invite-role">行家</text>
+              <text class="invite-arrow">→</text>
+              <text class="invite-name">{{item.player}}</text>
+              <text class="invite-role player">玩家</text>
+            </view>
+            <text class="profile-card-title">{{item.title}}</text>
+            <text class="profile-card-desc">{{item.budget}}</text>
+          </view>
+          <view class="invite-side">
+            <text class="profile-status {{item.statusClass}}">{{item.status}}</text>
+            <text class="my-game-time">{{item.time}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{item.steps.length}}" class="invite-step-strip">
+          <text wx:for="{{item.steps}}" wx:for-item="step" wx:key="*this" class="invite-step">{{step}}</text>
+        </view>
+
+        <text wx:if="{{item.tail}}" class="profile-empty-note">{{item.tail}}</text>
+
+        <view wx:if="{{item.actions.length}}" class="profile-action-row">
+          <text wx:for="{{item.actions}}" wx:for-item="action" wx:key="*this" class="profile-action-secondary">{{action}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

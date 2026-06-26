@@ -1,0 +1,38 @@
+<profile-white-shell title="个人中心" background="#ffffff">
+  <view class="profile-page is-white">
+    <text class="credit-heading">信用中心</text>
+
+    <view class="credit-score-card">
+      <text class="credit-score-label">信用分（默认100分）</text>
+      <view class="credit-score-row">
+        <text class="credit-score-number">100</text>
+        <view class="credit-score-badges">
+          <text class="profile-status green">优秀</text>
+          <text class="profile-status">+5 本月</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="credit-summary-grid">
+      <view wx:for="{{summary}}" wx:key="label" class="credit-summary-item">
+        <text class="credit-summary-value">{{item.value}}</text>
+        <text class="credit-summary-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="profile-section">
+      <text class="profile-section-title">信用明细</text>
+      <view class="profile-list-card">
+        <view wx:for="{{records}}" wx:key="title" class="credit-record-row">
+          <view>
+            <text class="profile-row-title">{{item.title}}</text>
+            <text class="profile-muted">{{item.desc}}</text>
+          </view>
+          <text class="credit-score-change {{item.tone}}">{{item.score}}</text>
+        </view>
+      </view>
+    </view>
+
+    <text class="credit-bottom-note">我可是有底线的～ 信用分低于80分将限制部分功能，低于60分将暂停服务资格。</text>
+  </view>
+</profile-white-shell>

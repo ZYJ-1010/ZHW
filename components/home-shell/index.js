@@ -50,6 +50,13 @@ Component({
         this.updateShellVariant()
       }
     },
+    topbarTitleVisible: {
+      type: Boolean,
+      value: true,
+      observer() {
+        this.updateShellVariant()
+      }
+    },
     shellVariant: {
       type: String,
       value: '',
@@ -110,6 +117,13 @@ Component({
       value: true
     },
     toolbarActionsVisible: {
+      type: Boolean,
+      value: true,
+      observer() {
+        this.updateShellVariant()
+      }
+    },
+    toolbarAvatarVisible: {
       type: Boolean,
       value: true,
       observer() {
@@ -181,12 +195,14 @@ Component({
     updateShellVariant() {
       const isJoinApply = this.properties.shellVariant === 'joinApply'
       const isTopNoBrand = this.properties.shellVariant === 'topNoBrand'
+      const titleVisible = this.properties.topbarTitleVisible !== false
+      const toolbarAvatarVisible = this.properties.toolbarAvatarVisible !== false
 
       this.setData({
-        resolvedTopbarTitle: this.properties.topbarTitle || (isJoinApply || isTopNoBrand ? '申请加入' : ''),
+        resolvedTopbarTitle: titleVisible ? (this.properties.topbarTitle || (isJoinApply || isTopNoBrand ? '申请加入' : '')) : '',
         resolvedBrandVisible: !isTopNoBrand,
         resolvedToolbarActionsVisible: (isJoinApply || isTopNoBrand) ? false : this.properties.toolbarActionsVisible !== false,
-        resolvedToolbarAvatarVisible: !isTopNoBrand
+        resolvedToolbarAvatarVisible: toolbarAvatarVisible && !isTopNoBrand
       })
     },
 

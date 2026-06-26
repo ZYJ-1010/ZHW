@@ -1,0 +1,47 @@
+<profile-white-shell title="个人中心" background="#ffffff">
+  <view class="profile-page is-white">
+    <view class="profile-tabs my-games-top-tabs">
+      <view wx:for="{{topTabs}}" wx:key="label" class="profile-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+    </view>
+
+    <view class="profile-filter-tabs">
+      <view wx:for="{{filters}}" wx:key="label" class="profile-filter-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+    </view>
+
+    <view wx:for="{{games}}" wx:key="title" class="profile-card my-game-card">
+      <view class="profile-card-body">
+        <view class="profile-card-header">
+          <view class="profile-title-group">
+            <text class="profile-card-title">{{item.title}}</text>
+            <text class="profile-card-desc">{{item.expert}}</text>
+            <text wx:if="{{item.guide}}" class="profile-card-desc">{{item.guide}}</text>
+          </view>
+          <view class="my-game-side">
+            <text class="profile-status {{item.statusClass}}">{{item.status}}</text>
+            <text class="my-game-time">{{item.time}}</text>
+          </view>
+        </view>
+
+        <view class="my-game-meta">
+          <text class="profile-status gray">{{item.escrow}}</text>
+          <text wx:if="{{item.delivery}}" class="profile-muted">{{item.delivery}}</text>
+        </view>
+
+        <view wx:if="{{item.steps.length}}" class="my-game-steps">
+          <view wx:for="{{item.steps}}" wx:for-item="step" wx:key="title" class="my-game-step {{step.done ? 'done' : ''}}">
+            <view class="my-game-step-dot"></view>
+            <view class="my-game-step-copy">
+              <text class="my-game-step-title">{{step.title}}</text>
+              <text class="my-game-step-desc">{{step.desc}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{item.actions.length}}" class="profile-action-row">
+          <text wx:for="{{item.actions}}" wx:for-item="action" wx:key="*this" class="profile-action-secondary">{{action}}</text>
+        </view>
+        <text wx:if="{{item.tail}}" class="profile-empty-note">{{item.tail}}</text>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

@@ -15,6 +15,7 @@
 | 地图 / 足迹热力图 | [`docs/follow-ups/footprint-heatmap.md`](follow-ups/footprint-heatmap.md) |
 | 消息 / 消息页 | [`docs/follow-ups/message.md`](follow-ups/message.md) |
 | 元宇宙 | [`docs/follow-ups/metaverse.md`](follow-ups/metaverse.md) |
+| 我的 / 个人中心 | [`docs/follow-ups/profile.md`](follow-ups/profile.md) |
 
 ## 2026-06-14
 

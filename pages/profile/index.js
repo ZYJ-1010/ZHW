@@ -1,59 +1,87 @@
-const profileService = require('../../services/profile')
 const toast = require('../../utils/toast')
 
 Page({
   data: {
-    loading: true,
     user: {
-      nickname: '',
-      avatarText: '',
-      realnameStatus: '',
-      roleText: '',
-      level: '',
-      creditScore: '',
-      points: ''
+      nickname: '小明',
+      memberLevel: '基础会员',
+      roleLevel: 'V5 探险家',
+      role: '玩家',
+      avatarText: '小'
     },
-    stats: [],
-    menuItems: [],
-    incomeSummary: {
-      pendingAmountText: ''
-    }
+    stats: [
+      { label: '引荐数', value: '128' },
+      { label: '成功数', value: '86' },
+      { label: '成交总额', value: '¥45K' },
+      { label: '信用度', value: '98' }
+    ],
+    assets: [
+      { label: '总成交额', value: '¥12,580', tone: '' },
+      { label: '可提现', value: '¥3,200', tone: 'green' },
+      { label: '待结算', value: '¥800', tone: 'orange' }
+    ],
+    serviceSections: [
+      {
+        title: '服务中心',
+        items: [
+          { title: '我的局', iconSrc: '/pages/profile/assets/i66@3x.png', iconClass: 'purple-blue', badge: '2进行中', badgeClass: 'pink', route: '/pages/profile/my-games/index' },
+          { title: '组局管理', iconSrc: '/pages/profile/assets/i67@3x.png', iconClass: 'violet-blue', badge: '5个服务', badgeClass: 'blue', route: '/pages/profile/publish-manage/index' },
+          { title: '我的邀请', iconSrc: '/pages/profile/assets/i68@3x.png', iconClass: 'purple-blue', badge: '3待确认', badgeClass: 'orange', route: '/pages/profile/invite-records/index' },
+          { title: '评价中心', iconSrc: '/pages/profile/assets/i69@3x.png', iconClass: 'purple-blue', badge: '2待评价', badgeClass: 'pink' }
+        ]
+      },
+      {
+        title: '资产中心',
+        items: [
+          { title: '我的资产', iconSrc: '/pages/profile/assets/i70@3x.png', iconClass: 'orange' },
+          { title: '我的押金', iconSrc: '/pages/profile/assets/i71@3x.png', iconClass: 'orange' },
+          { title: '积分商城', iconSrc: '/pages/profile/assets/i72@3x.png', iconClass: 'orange' },
+          { title: '我的积分', iconSrc: '/pages/profile/assets/i73@3x.png', iconClass: 'orange' },
+          { title: '开票中心', iconSrc: '/pages/profile/assets/i74@3x.png', iconClass: 'orange' }
+        ]
+      },
+      {
+        title: '足迹中心',
+        items: [
+          { title: '我的足迹', iconSrc: '/pages/profile/assets/i75@3x.png', iconClass: 'teal' },
+          { title: '我的城市故事', iconSrc: '/pages/profile/assets/i76@3x.png', iconClass: 'teal' },
+          { title: '我的成就墙', iconSrc: '/pages/profile/assets/i77@3x.png', iconClass: 'teal', route: '/pages/profile/achievements/index' }
+        ]
+      },
+      {
+        title: '账户管理',
+        items: [
+          { title: '我的资料', iconSrc: '/pages/profile/assets/i78@3x.png', iconClass: 'blue-purple', route: '/pages/profile/match-info/index' },
+          { title: '技能配置', iconSrc: '/pages/profile/assets/i79@3x.png', iconClass: 'blue-purple' },
+          { title: '屏蔽设置', iconSrc: '/pages/profile/assets/i80@3x.png', iconClass: 'blue-purple' },
+          { title: '信用中心', iconSrc: '/pages/profile/assets/i81@3x.png', iconClass: 'blue-purple', route: '/pages/profile/credit-center/index' },
+          { title: '举报中心', iconSrc: '/pages/profile/assets/i82@3x.png', iconClass: 'blue-purple' },
+          { title: '签署协议', iconSrc: '/pages/profile/assets/i83@3x.png', iconClass: 'blue-purple' },
+          { title: '建议反馈', iconSrc: '/pages/profile/assets/i84@3x.png', iconClass: 'blue-purple' },
+          { title: '系统设置', iconSrc: '/pages/profile/assets/i85@3x.png', iconClass: 'blue-purple', route: '/pages/profile/settings/index' }
+        ]
+      }
+    ]
   },
 
-  onLoad() {
-    this.loadProfile()
-  },
-
-  async loadProfile() {
-    try {
-      const profile = await profileService.getProfileHome()
-      const user = Object.assign({}, profile.user, {
-        avatarText: String(profile.user.nickname || '微').slice(0, 1),
-        roleText: (profile.user.roles || []).join(' / ')
-      })
-
-      this.setData({
-        loading: false,
-        user,
-        stats: profile.stats,
-        menuItems: profile.menuItems,
-        incomeSummary: profile.incomeSummary
-      })
-    } catch (error) {
-      this.setData({
-        loading: false
-      })
-      toast.info(error.message || '个人中心加载失败')
-    }
-  },
-
-  goMenu(event) {
-    const route = event.currentTarget.dataset.route
+  handleMenuTap(event) {
+    const { route } = event.currentTarget.dataset
 
     if (!route) {
+      toast.developing()
       return
     }
 
+    wx.navigateTo({ url: route })
+  },
+
+  handleAssetAllTap() {
     toast.developing()
+  },
+
+  handleUpgradeTap() {
+    wx.navigateTo({
+      url: '/pages/profile/member/index'
+    })
   }
 })

@@ -1,3 +1,7 @@
 {
-  "navigationBarTitleText": "我的"
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
 }

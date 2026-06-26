@@ -1,0 +1,16 @@
+<profile-white-shell title="系统设置" background="#ffffff">
+  <view class="profile-page is-white">
+    <view wx:for="{{sections}}" wx:key="title" class="profile-section settings-section">
+      <text class="profile-section-title">{{item.title}}</text>
+      <view class="profile-list-card">
+        <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="label" class="profile-list-row">
+          <text class="profile-row-title">{{row.label}}</text>
+          <view wx:if="{{row.switch}}" class="settings-switch {{row.enabled ? 'on' : ''}}">
+            <view class="settings-switch-thumb"></view>
+          </view>
+          <text wx:else class="profile-row-value">{{row.value || '>'}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

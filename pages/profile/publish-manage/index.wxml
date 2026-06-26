@@ -1,0 +1,49 @@
+<profile-white-shell title="发布管理" background="#f8fafd">
+  <view class="profile-page">
+    <view class="profile-tabs">
+      <view wx:for="{{tabs}}" wx:key="label" class="profile-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+    </view>
+
+    <view class="publish-batch-bar">
+      <view class="publish-check"></view>
+      <text class="publish-batch-text">全选</text>
+      <view class="publish-batch-actions">
+        <text class="publish-batch-button">批量下架</text>
+        <text class="publish-batch-button danger">批量删除</text>
+      </view>
+    </view>
+
+    <view wx:for="{{services}}" wx:key="title" class="profile-card publish-card">
+      <view class="profile-card-body">
+        <view class="profile-card-header">
+          <view class="profile-title-group">
+            <text class="profile-card-title">{{item.title}}</text>
+            <text class="profile-card-desc">{{item.desc}}</text>
+          </view>
+          <text class="profile-status {{item.statusClass}}">{{item.status}}</text>
+        </view>
+        <view class="profile-meta-row">
+          <text class="profile-meta-item">{{item.views}}</text>
+          <text class="profile-meta-item">{{item.deals}}</text>
+        </view>
+        <view class="profile-action-row">
+          <text
+            wx:for="{{item.actions}}"
+            wx:for-item="action"
+            wx:key="*this"
+            class="profile-action-secondary"
+          >{{action}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="profile-section">
+      <view class="profile-card">
+        <view class="profile-card-body">
+          <text class="profile-card-title">排序规则</text>
+          <text class="profile-card-desc">当前按置顶优先、创建时间倒序排列。拖动可调整展示顺序。</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

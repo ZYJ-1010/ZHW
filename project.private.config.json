@@ -329,6 +329,48 @@
           "scene": null
         },
         {
+          "name": "我的-个人中心",
+          "pathName": "pages/profile/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-个人中心-发布管理",
+          "pathName": "pages/profile/publish-manage/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-个人中心-适配信息",
+          "pathName": "pages/profile/match-info/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-个人中心-我的组局",
+          "pathName": "pages/profile/my-games/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-个人中心-系统设置",
+          "pathName": "pages/profile/settings/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-个人中心-信用中心",
+          "pathName": "pages/profile/credit-center/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-个人中心-邀约记录",
+          "pathName": "pages/profile/invite-records/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "元宇宙-元宇宙首页",
           "pathName": "pages/metaverse/home/index",
           "query": "",

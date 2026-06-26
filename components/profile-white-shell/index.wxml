@@ -1,0 +1,19 @@
+<view class="profile-white-shell" style="background: {{background}};">
+  <view class="profile-white-frame" style="{{layout.frameStyle}} background: {{background}};">
+    <view class="profile-white-nav">
+      <button class="profile-white-back" style="{{layout.backStyle}}" bindtap="handleBack" aria-label="返回">
+        <view class="profile-white-back-icon"></view>
+      </button>
+      <text class="profile-white-title" style="{{layout.titleStyle}}">{{title}}</text>
+    </view>
+    <scroll-view
+      class="profile-white-content"
+      style="{{layout.contentStyle}} background: {{background}};"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <slot></slot>
+    </scroll-view>
+  </view>
+</view>

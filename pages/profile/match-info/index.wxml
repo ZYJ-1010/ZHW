@@ -1,0 +1,20 @@
+<profile-white-shell title="适配信息" background="#f8fafd">
+  <view class="profile-page">
+    <view class="match-info-card">
+      <view class="match-info-header">
+        <text class="match-info-title">自定义填写</text>
+        <text class="match-info-subtitle">近期诉求</text>
+      </view>
+      <view class="profile-list-card">
+        <view wx:for="{{fields}}" wx:key="label" class="profile-list-row">
+          <text class="profile-row-title">{{item.label}}</text>
+          <text class="profile-row-value">{{item.value}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="profile-save-bar">
+      <view class="profile-save-button">保存</view>
+    </view>
+  </view>
+</profile-white-shell>
