@@ -3850,3 +3850,175 @@ GET /api/app/profile/member-center
 3. 后台需要支持 `basic`、`advanced`、`premium` 三档会员分别配置，至少包含基础会员、高级会员、尊享会员的权益卡、价格、分润比例、适配人群和卡片样式。
 4. 最近开通会员提示是否展示真实好友、平台会员动态，还是运营配置文案；涉及用户昵称时需确认隐私口径。
 5. `立即开通` 点击后的支付预下单接口、支付成功后会员生效和身份认证 / 解锁角色流程仍需补充正式接口。
+
+## 51. 会员中心人脉雷达流程接口
+
+记录日期：2026-06-26
+
+模块：我的 / 会员中心 / 人脉雷达
+
+页面：`pages/profile/member/radar/index`、`pages/profile/member/match/index`、`pages/profile/member/match-info/index`、`pages/profile/member/match-query/index`、`pages/profile/member/match-result/index`
+
+功能：会员中心人脉雷达 5 页目前为静态走查页，正式实现需要后端支持雷达概览、适配信息表单、发起匹配、匹配进度、推荐结果列表、下一位、关注、查看个人主页和重新匹配。
+
+候选接口：
+
+```text
+GET /api/app/profile/member-radar/overview
+GET /api/app/profile/member-radar/profile
+POST /api/app/profile/member-radar/profile
+POST /api/app/profile/member-radar/match
+GET /api/app/profile/member-radar/match/{matchId}
+GET /api/app/profile/member-radar/match/{matchId}/results
+POST /api/app/profile/member-radar/results/{resultId}/follow
+```
+
+`POST /api/app/profile/member-radar/match` 发起匹配规则：
+
+- 点击 `开启适配人脉` 后进入 `pages/profile/member/match/index` 搜索页。
+- 前端提交 `criteria` 参数；若 `criteria` 为空对象或所有字段为空，后端按全部可匹配人脉池进行匹配。
+- 若 `criteria` 中存在有效字段，则后端按地址、行业、营收规模、感兴趣组局、我的资源、我的需求、近期诉求等条件筛选后匹配。
+- 搜索页只展示匹配中状态和返回按钮，不展示右侧搜索 / 分享按钮；匹配完成后再进入结果查询或最终结果页。
+
+建议发起匹配请求体：
+
+```json
+{
+  "criteria": {
+    "location": "",
+    "industry": "",
+    "revenueScale": "",
+    "interestedGames": "",
+    "resources": "",
+    "needs": "",
+    "recentDemand": ""
+  }
+}
+```
+
+`pages/profile/member/match-query/index` 匹配结果查询页规则：
+
+- 页面顶部的适配行家数量、当前行家卡片信息均从前面匹配查询接口获取，不在前端写死。
+- 进入查询页时，优先携带 `matchId` 调用 `GET /api/app/profile/member-radar/match/{matchId}/results` 获取 `total`、当前展示行家和结果列表。
+- 行家卡片字段包括头像、姓名、职位、第一标签、我的需求、我的资源、地址、距离、个人主页跳转路径、是否已关注。
+- `下一个` 优先在已返回的 `results` 列表中切换下一位；若列表不足或需要服务端排序，携带 `matchId`、`cursor`、`excludeResultIds` 继续请求下一页 / 下一条。
+- `关注` 点击调用 `POST /api/app/profile/member-radar/results/{resultId}/follow`，成功后更新当前卡片关注状态，避免重复关注；失败时提示失败原因。
+
+建议匹配结果查询返回：
+
+```json
+{
+  "matchId": "radar-20260626-001",
+  "total": 10,
+  "cursor": "page-2",
+  "currentIndex": 0,
+  "results": [
+    {
+      "id": "result-001",
+      "expertId": "expert-001",
+      "name": "陆毅",
+      "avatarUrl": "https://cdn.example.com/avatar.png",
+      "title": "总经理｜上海创世界科技有限公司",
+      "firstTag": "第一标签：上海TMT投资领军者，数字化内容服务",
+      "need": "AI赋能与市场运营助力企业IP打造",
+      "resource": "10年TMT投资经验",
+      "address": "上海市浦东新区沙新镇黄赵路310号",
+      "distanceText": "231 km",
+      "profileRoute": "/pages/home-other/index?userId=expert-001",
+      "followed": false
+    }
+  ]
+}
+```
+
+建议返回：
+
+```json
+{
+  "overview": {
+    "title": "人脉雷达",
+    "estimateText": "预计可匹配7461位商界决策者",
+    "primaryActionText": "开启适配人脉",
+    "tip": "信息填写越完整，人脉匹配越精准"
+  },
+  "profileForm": {
+    "fields": [
+      { "key": "location", "label": "地址定位", "value": "", "placeholder": "选择", "type": "location" },
+      { "key": "industry", "label": "所在行业", "value": "", "placeholder": "选择", "type": "picker" },
+      { "key": "revenue", "label": "营收规模", "value": "", "placeholder": "选填", "type": "picker" },
+      { "key": "interest", "label": "感兴趣组局", "value": "", "placeholder": "选择", "type": "picker" },
+      { "key": "resources", "label": "我的资源", "value": "", "placeholder": "前往个人主页填写", "type": "profileLink" },
+      { "key": "needs", "label": "我的需求", "value": "", "placeholder": "前往个人主页填写", "type": "profileLink" },
+      { "key": "recentDemand", "label": "近期诉求", "value": "", "placeholder": "自定义填写", "type": "textarea" }
+    ]
+  },
+  "match": {
+    "matchId": "radar-20260626-001",
+    "status": "completed",
+    "loadingText": "人脉雷达正在寻找与您适配的企业家…",
+    "foundText": "为您找到 10 位适配您的商界决策者",
+    "total": 10
+  },
+  "results": [
+    {
+      "id": "result-001",
+      "name": "胡芳",
+      "avatarUrl": "https://cdn.example.com/avatar.png",
+      "title": "董事长、创始人｜千浪化研新材料（上海…",
+      "firstTag": "第一标签：手机漆，汽车漆深耕者",
+      "industry": "化学原料和化学制品制造业",
+      "supply": "化工涂料的生产销售,专业的塑胶工业漆及手机漆生产者",
+      "need": "期待与更多需要油漆涂料的岛亲链接交流",
+      "city": "上海",
+      "distanceText": "231 km",
+      "profileRoute": "/pages/home-other/index?userId=result-001"
+    }
+  ]
+}
+```
+
+待确认：
+
+1. 人脉雷达和现有组局推荐是否共用匹配算法与接口，还是会员中心独立接口。
+2. `适配信息` 表单字段、选择项、必填校验、地址定位权限和保存失败提示需产品 / 后端确认。
+3. 匹配结果卡片展示字段、头像来源、个人主页跳转路径和隐私口径需确认。
+4. `下一位` 是前端翻页还是后端重新取下一条；`关注` 是否走行家关注接口，是否需要兼容好友申请 / IM 关系链。
+5. 匹配完成页的 `重新查看`、`再次重新匹配` 是否复用同一 `matchId`，重新匹配是否扣次数或有会员等级限制。
+
+## 52. 会员中心适配信息填写接口
+
+记录日期：2026-06-26
+
+模块：我的 / 会员中心 / 适配信息
+
+页面：`pages/profile/member/match-info/index`
+
+功能：适配信息页面需要从后台获取待填写字段、字段当前值、选择项、必填状态和保存规则，并在用户填写后提交保存。当前静态字段包括：地址定位、所在行业、营收规模、感兴趣组局、我的资源、我的需求、近期诉求。
+
+候选接口：
+
+```text
+GET /api/app/profile/member-radar/profile-form
+POST /api/app/profile/member-radar/profile-form
+GET /api/app/profile/member-radar/profile-form/options
+```
+
+建议字段：
+
+| 字段 | 类型 | 当前文案 | 说明 |
+| --- | --- | --- | --- |
+| `location` | 地址 / 定位 | 地址定位 | 需确认是否调用 `chooseLocation`，以及保存经纬度、城市、详细地址。 |
+| `industry` | 选择项 | 所在行业 | 需后台返回行业树或行业列表。 |
+| `revenueScale` | 选择项 / 选填 | 营收规模 | 需后台返回营收规模选项，并确认是否必填。 |
+| `interestedGames` | 多选 | 感兴趣组局 | 需后台返回可选组局类型 / 标签。 |
+| `resources` | 文本 / 个人主页同步 | 我的资源 | 当前提示前往个人主页填写，需确认是否在本页直接编辑或跳转个人主页。 |
+| `needs` | 文本 / 个人主页同步 | 我的需求 | 当前提示前往个人主页填写，需确认是否在本页直接编辑或跳转个人主页。 |
+| `recentDemand` | 文本输入 | 近期诉求 | 自定义填写，需确认最大字数、敏感词和审核规则。 |
+
+待确认：
+
+1. 适配信息是否与个人中心 `pages/profile/match-info/index` 共用接口和数据，还是会员中心单独保存。
+2. 每个字段是否必填，以及保存前是否允许只保存部分字段。
+3. 地址定位是否必须授权 `scope.userLocation`，拒绝授权时的兜底填写方式。
+4. `我的资源`、`我的需求` 是读取个人主页资料还是会员雷达独立资料。
+5. 保存成功后跳转回 `组局雷达` 还是进入 `适配组局` 流程。

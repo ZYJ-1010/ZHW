@@ -389,6 +389,36 @@
           "scene": null
         },
         {
+          "name": "我的-会员中心-组局雷达",
+          "pathName": "pages/profile/member/radar/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-会员中心-适配组局",
+          "pathName": "pages/profile/member/match/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-会员中心-适配信息",
+          "pathName": "pages/profile/member/match-info/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-会员中心-匹配结果查询页",
+          "pathName": "pages/profile/member/match-query/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-会员中心-匹配结果最终页",
+          "pathName": "pages/profile/member/match-result/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "元宇宙-元宇宙首页",
           "pathName": "pages/metaverse/home/index",
           "query": "",

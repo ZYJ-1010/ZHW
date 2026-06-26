@@ -1,0 +1,153 @@
+<view class="radar-flow {{skin}}" style="{{layout.frameStyle}}">
+  <view class="radar-top" style="{{layout.headerStyle}}">
+    <view class="radar-top-status" style="{{layout.statusStyle}}"></view>
+    <view class="radar-nav-bg {{key === 'info' ? 'light' : ''}}" style="{{layout.navStyle}}"></view>
+    <view class="radar-back {{key === 'info' ? 'light' : ''}}" style="{{layout.backStyle}}" bindtap="handleBack">
+      <view class="radar-back-icon"></view>
+    </view>
+    <text class="radar-title {{key === 'info' ? 'light' : ''}}" style="{{layout.titleStyle}}">{{title}}</text>
+    <button
+      wx:if="{{showShare}}"
+      class="radar-share-button"
+      style="{{layout.actionStyle}}"
+      open-type="share"
+      data-action="share"
+      bindtap="handleAction"
+      aria-label="分享"
+    >
+      <view class="radar-share-icon">
+        <view class="radar-share-corner"></view>
+      </view>
+    </button>
+  </view>
+
+  <view wx:if="{{key === 'info'}}" class="radar-content radar-static-content" style="{{layout.contentStyle}}">
+    <view class="radar-info" style="{{layout.infoStyle}}">
+      <view class="radar-info-card">
+        <view wx:for="{{formRows}}" wx:key="label" class="radar-info-row">
+          <text class="radar-info-label">{{item.label}}</text>
+          <view class="radar-info-value">
+            <text>{{item.value || item.placeholder}}</text>
+            <text class="radar-info-arrow">></text>
+          </view>
+        </view>
+      </view>
+      <view class="radar-save" data-action="save" bindtap="handleAction">保存</view>
+    </view>
+  </view>
+
+  <scroll-view wx:else class="radar-content" style="{{layout.contentStyle}}" scroll-y enhanced show-scrollbar="false">
+    <view wx:if="{{key === 'radar'}}" class="radar-entry">
+      <view class="radar-disc">
+        <view class="radar-sweep"></view>
+        <view class="radar-ring ring-outer"></view>
+        <view class="radar-ring ring-mid"></view>
+        <view class="radar-ring ring-inner"></view>
+        <view class="radar-axis axis-x"></view>
+        <view class="radar-axis axis-y"></view>
+        <view wx:for="{{radarNodes}}" wx:key="id" class="radar-node {{item.className}}">
+          <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill"></image>
+          <text wx:else>{{item.shortName}}</text>
+        </view>
+        <view class="radar-core"></view>
+      </view>
+      <view class="radar-entry-copy">
+        <text class="radar-estimate">{{estimate}}</text>
+        <view class="radar-primary" data-action="start" bindtap="handleAction">{{primaryAction}}</view>
+        <text class="radar-tip">{{tip}}</text>
+        <text class="radar-link" data-action="info" bindtap="handleAction">{{linkText}}</text>
+      </view>
+    </view>
+
+    <view wx:elif="{{key === 'matching'}}" class="radar-matching">
+      <view class="radar-disc active">
+        <view class="radar-sweep"></view>
+        <view class="radar-ring ring-outer"></view>
+        <view class="radar-ring ring-mid"></view>
+        <view class="radar-ring ring-inner"></view>
+        <view class="radar-axis axis-x"></view>
+        <view class="radar-axis axis-y"></view>
+        <view wx:for="{{scannedNodes}}" wx:key="id" class="radar-node {{item.className}} scanned">
+          <image wx:if="{{item.avatar}}" src="{{item.avatar}}" mode="aspectFill"></image>
+          <text wx:else>{{item.shortName}}</text>
+        </view>
+        <view class="radar-core"></view>
+      </view>
+      <text class="radar-matching-text">{{statusText}}</text>
+      <text class="radar-matching-count">{{scanFoundCount}}/{{scanFoundTotal}} {{matchResultLabel}}</text>
+    </view>
+
+    <view wx:elif="{{key === 'query'}}" class="radar-query">
+      <view class="radar-halo"></view>
+      <view class="radar-found">
+        <text>{{foundPrefix}}</text>
+        <text class="count">{{foundCount}}</text>
+        <text>{{foundSuffix}}</text>
+      </view>
+      <view class="radar-profile-card query-card">
+        <image class="radar-profile-avatar" src="{{profile.avatar}}" mode="aspectFill"></image>
+        <view class="radar-profile-name-row">
+          <text class="radar-profile-name">{{profile.name}}</text>
+        </view>
+        <text class="radar-profile-title">{{profile.title}}</text>
+        <text class="radar-profile-tag">{{profile.tag}}</text>
+        <view class="radar-profile-detail">
+          <text>{{profile.need}}</text>
+          <text>{{profile.resource}}</text>
+        </view>
+        <view class="radar-profile-location">
+          <view class="radar-location-pin"></view>
+          <text class="radar-location-address">{{profile.address}}</text>
+          <text class="radar-location-distance">{{profile.distance}}</text>
+        </view>
+        <text class="radar-profile-link" data-action="profile" bindtap="handleAction">查看个人主页 ></text>
+      </view>
+      <view class="radar-query-actions">
+        <view class="radar-cycle-action" data-action="next" bindtap="handleAction">
+          <view class="cycle-icon">↻</view>
+          <text>下一个</text>
+        </view>
+        <view class="radar-add-action" data-action="follow" bindtap="handleAction">
+          <view class="add-icon">+</view>
+          <text>关注</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:elif="{{key === 'result'}}" class="radar-result-page">
+      <view class="radar-disc dimmed">
+        <view class="radar-sweep"></view>
+        <view class="radar-ring ring-outer"></view>
+        <view class="radar-ring ring-mid"></view>
+        <view class="radar-ring ring-inner"></view>
+        <view class="radar-axis axis-x"></view>
+        <view class="radar-axis axis-y"></view>
+        <view class="radar-core"></view>
+      </view>
+      <text class="radar-result-loading">{{loadingText}}</text>
+      <view class="radar-small-card">
+        <image class="radar-small-avatar" src="{{profile.avatar}}" mode="aspectFill"></image>
+        <text class="radar-small-name">{{profile.name}}</text>
+        <text class="radar-small-title">{{profile.title}}</text>
+        <text class="radar-small-tag">{{profile.tag}}</text>
+        <text class="radar-small-line">{{profile.resource}}</text>
+        <text class="radar-small-line">{{profile.need}}</text>
+        <view class="radar-small-location">
+          <text>{{profile.address}}</text>
+          <text>{{profile.distance}}</text>
+        </view>
+      </view>
+      <view class="radar-done-card">
+        <view class="done-check">✓</view>
+        <text class="done-title">{{resultTitle}}</text>
+        <view class="done-count">
+          <text>{{resultDescPrefix}}</text>
+          <text class="count">{{resultCount}}</text>
+          <text>{{resultDescSuffix}}</text>
+        </view>
+        <text class="done-link" data-action="profile" bindtap="handleAction">{{resultLink}}</text>
+        <view class="done-button" data-action="rematch" bindtap="handleAction">{{actionText}}</view>
+      </view>
+    </view>
+  </scroll-view>
+</view>
