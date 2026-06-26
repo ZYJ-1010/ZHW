@@ -143,6 +143,10 @@
   position: relative;
 }
 
+.radar-result-static {
+  position: relative;
+}
+
 .radar-entry,
 .radar-matching,
 .radar-result-page {
@@ -151,6 +155,11 @@
   min-height: 1628rpx;
   overflow: hidden;
   background: #00392f;
+}
+
+.radar-result-page.final-page {
+  height: 100%;
+  min-height: 100%;
 }
 
 .radar-disc {
@@ -748,128 +757,72 @@
   font-weight: 300;
 }
 
-.radar-result-loading {
+.result-radar-bg {
   position: absolute;
-  left: 74rpx;
-  right: 74rpx;
-  top: 888rpx;
-  z-index: 2;
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 28rpx;
-  line-height: 40rpx;
-  text-align: center;
-}
-
-.radar-small-card {
-  position: absolute;
-  left: 56rpx;
-  top: 236rpx;
-  z-index: 2;
-  width: 656rpx;
-  min-height: 508rpx;
-  padding: 56rpx 76rpx 34rpx;
-  border-radius: 16rpx;
-  background: #fffaf2;
-  box-sizing: border-box;
-  text-align: center;
-}
-
-.radar-small-avatar {
-  width: 164rpx;
-  height: 164rpx;
+  left: 58rpx;
+  top: 292rpx;
+  width: 634rpx;
+  height: 634rpx;
   border-radius: 50%;
-}
-
-.radar-small-name {
-  display: block;
-  margin-top: 10rpx;
-  color: #101010;
-  font-size: 36rpx;
-  font-weight: 700;
-  line-height: 50rpx;
-}
-
-.radar-small-title,
-.radar-small-tag,
-.radar-small-line,
-.radar-small-location {
-  display: block;
-  overflow: hidden;
-  color: rgba(51, 51, 51, 0.72);
-  font-size: 22rpx;
-  line-height: 30rpx;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.radar-small-title {
-  margin-top: 12rpx;
-  text-align: center;
-}
-
-.radar-small-tag {
-  margin-top: 4rpx;
-  color: #a16222;
-  font-size: 20rpx;
-  text-align: center;
-}
-
-.radar-small-line {
-  margin-top: 14rpx;
-  color: #333333;
-  font-size: 24rpx;
-}
-
-.radar-small-location {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 14rpx;
-  font-size: 18rpx;
+  background:
+    repeating-radial-gradient(circle, rgba(20, 166, 144, 0.18) 0 2rpx, transparent 3rpx 76rpx),
+    radial-gradient(circle, rgba(0, 80, 68, 0.24) 0 34%, rgba(0, 57, 47, 0) 70%);
 }
 
 .radar-done-card {
   position: absolute;
-  left: 56rpx;
-  top: 270rpx;
+  left: 78rpx;
+  top: 184rpx;
   z-index: 4;
-  width: 656rpx;
-  min-height: 734rpx;
-  padding: 150rpx 56rpx 60rpx;
-  border-radius: 16rpx;
+  width: 594rpx;
+  height: 954rpx;
+  padding: 168rpx 44rpx 64rpx;
+  border-radius: 10rpx;
   background: #fffaf2;
   box-sizing: border-box;
   text-align: center;
 }
 
-.done-check {
+.done-check-box {
   position: absolute;
   left: 50%;
-  top: 90rpx;
+  top: 166rpx;
   width: 96rpx;
   height: 96rpx;
-  color: rgba(51, 51, 51, 0.72);
-  font-size: 76rpx;
-  line-height: 96rpx;
+  border: 6rpx solid #4a4a4a;
+  background: #78d66d;
+  box-sizing: border-box;
   transform: translateX(-50%);
+}
+
+.done-check-mark {
+  position: absolute;
+  left: 25rpx;
+  top: 18rpx;
+  width: 42rpx;
+  height: 24rpx;
+  border-left: 8rpx solid #ffffff;
+  border-bottom: 8rpx solid #ffffff;
+  box-sizing: border-box;
+  transform: rotate(-45deg);
 }
 
 .done-title {
   display: block;
-  margin-top: 96rpx;
+  margin-top: 186rpx;
   color: rgba(51, 51, 51, 0.72);
-  font-size: 40rpx;
+  font-size: 34rpx;
   font-weight: 700;
-  line-height: 56rpx;
+  line-height: 48rpx;
 }
 
 .done-count {
   display: flex;
   justify-content: center;
-  margin-top: 34rpx;
+  margin-top: 28rpx;
   color: rgba(51, 51, 51, 0.72);
-  font-size: 34rpx;
-  line-height: 48rpx;
+  font-size: 30rpx;
+  line-height: 42rpx;
 }
 
 .done-count .count {
@@ -878,23 +831,25 @@
 
 .done-link {
   display: block;
-  margin-top: 34rpx;
+  margin-top: 26rpx;
   color: rgba(19, 69, 33, 0.72);
-  font-size: 30rpx;
+  font-size: 26rpx;
   font-weight: 700;
-  line-height: 42rpx;
+  line-height: 38rpx;
 }
 
 .done-button {
+  position: absolute;
+  left: 78rpx;
+  bottom: 250rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 482rpx;
+  width: 438rpx;
   height: 88rpx;
-  margin: 108rpx auto 0;
   border-radius: 44rpx;
   color: #684715;
-  background: rgba(241, 171, 19, 0.85);
-  font-size: 34rpx;
-  line-height: 48rpx;
+  background: linear-gradient(90deg, #f8cb75 0%, #eda83a 100%);
+  font-size: 30rpx;
+  line-height: 42rpx;
 }

@@ -3903,6 +3903,9 @@ POST /api/app/profile/member-radar/results/{resultId}/follow
 - 行家卡片字段包括头像、姓名、职位、第一标签、我的需求、我的资源、地址、距离、个人主页跳转路径、是否已关注。
 - `下一个` 优先在已返回的 `results` 列表中切换下一位；若列表不足或需要服务端排序，携带 `matchId`、`cursor`、`excludeResultIds` 继续请求下一页 / 下一条。
 - `关注` 点击调用 `POST /api/app/profile/member-radar/results/{resultId}/follow`，成功后更新当前卡片关注状态，避免重复关注；失败时提示失败原因。
+- `pages/profile/member/match-result/index` 最终页展示的推荐行家数量复用前面匹配结果的 `total`，不在前端写死。
+- `重新查看` 点击回到 `pages/profile/member/match-query/index` 查看已经扫描出的行家结果，复用当前 `matchId` 和已获取的结果列表，不重新调用发起匹配接口，不进入搜索扫描页。
+- `再次重新匹配` 点击重新调用 `POST /api/app/profile/member-radar/match`，仍按适配信息是否为空决定全量匹配或条件匹配，并进入搜索页展示新的匹配进度。
 
 建议匹配结果查询返回：
 

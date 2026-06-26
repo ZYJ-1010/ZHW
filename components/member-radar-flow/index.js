@@ -5,6 +5,7 @@ const DEFAULT_FRAME_HEIGHT_RPX = 1624
 const TITLE_HEIGHT_RPX = 44
 const ACTION_SIZE_RPX = 42
 const CAPSULE_ACTION_GAP_RPX = 24
+const DEFAULT_RESULT_TOTAL = 10
 
 const PROFILE_ROWS = [
   { key: 'location', label: '地址定位', value: '', placeholder: '选择' },
@@ -206,6 +207,74 @@ function getSavedMatchRequest() {
   return buildMatchRequest(getSavedProfileRows())
 }
 
+function getSavedResultSummary() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getStorageSync) {
+      const summary = wx.getStorageSync('memberRadarResultSummary')
+
+      if (summary && typeof summary === 'object') {
+        return {
+          total: Number(summary.total) || DEFAULT_RESULT_TOTAL,
+          profile: summary.profile || MATCH_PROFILE
+        }
+      }
+    }
+  } catch (error) {
+    // Fall back to static result data until the backend results API is connected.
+  }
+
+  return {
+    total: DEFAULT_RESULT_TOTAL,
+    profile: MATCH_PROFILE
+  }
+}
+
+function saveResultSummary(summary) {
+  try {
+    if (typeof wx !== 'undefined' && wx.setStorageSync) {
+      wx.setStorageSync('memberRadarResultSummary', summary)
+    }
+  } catch (error) {
+    // Ignore local storage failures for the static prototype state.
+  }
+}
+
+function buildQueryData() {
+  const summary = getSavedResultSummary()
+
+  return {
+    ...buildPageData('query'),
+    foundCount: String(summary.total),
+    profile: summary.profile
+  }
+}
+
+function buildResultData() {
+  const summary = getSavedResultSummary()
+
+  return {
+    ...buildPageData('result'),
+    resultCount: String(summary.total),
+    profile: summary.profile
+  }
+}
+
+function buildDataForPage(pageKey) {
+  if (pageKey === 'matching') {
+    return buildMatchingData()
+  }
+
+  if (pageKey === 'query') {
+    return buildQueryData()
+  }
+
+  if (pageKey === 'result') {
+    return buildResultData()
+  }
+
+  return buildPageData(pageKey)
+}
+
 function buildMatchingData() {
   const request = getSavedMatchRequest()
   const matchResultLabel = request.matchMode === 'criteria' ? '符合条件的企业家' : '适配企业家'
@@ -306,7 +375,7 @@ Component({
 
   observers: {
     pageKey(pageKey) {
-      this.setData(pageKey === 'matching' ? buildMatchingData() : buildPageData(pageKey))
+      this.setData(buildDataForPage(pageKey))
 
       if (pageKey === 'matching') {
         this.startScan()
@@ -319,7 +388,7 @@ Component({
   lifetimes: {
     attached() {
       const pageKey = this.properties.pageKey
-      this.setData(pageKey === 'matching' ? buildMatchingData() : buildPageData(pageKey))
+      this.setData(buildDataForPage(pageKey))
 
       if (pageKey === 'matching') {
         this.startScan()
@@ -388,6 +457,10 @@ Component({
         })
 
         if (done) {
+          saveResultSummary({
+            total: DEFAULT_RESULT_TOTAL,
+            profile: MATCH_PROFILE
+          })
           this.stopScan()
         }
       }, 560)
@@ -412,7 +485,6 @@ Component({
         save: '保存接口待接入',
         next: '下一位待接入',
         follow: '关注接口待接入',
-        rematch: '重新匹配待接入',
         profile: '个人主页待接入',
         share: '分享功能待接入'
       }
@@ -453,6 +525,30 @@ Component({
       if (action === 'info') {
         wx.navigateTo({
           url: '/pages/profile/member/match-info/index'
+        })
+        return
+      }
+
+      if (action === 'review') {
+        wx.redirectTo({
+          url: '/pages/profile/member/match-query/index'
+        })
+        return
+      }
+
+      if (action === 'rematch') {
+        const request = buildMatchRequest(getSavedProfileRows())
+
+        try {
+          if (typeof wx !== 'undefined' && wx.setStorageSync) {
+            wx.setStorageSync('memberRadarMatchRequest', request)
+          }
+        } catch (error) {
+          // Ignore local storage failures for the static prototype state.
+        }
+
+        wx.redirectTo({
+          url: '/pages/profile/member/match/index'
         })
         return
       }

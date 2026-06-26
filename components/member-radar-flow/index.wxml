@@ -36,6 +36,25 @@
     </view>
   </view>
 
+  <view wx:elif="{{key === 'result'}}" class="radar-content radar-result-static" style="{{layout.contentStyle}}">
+    <view class="radar-result-page final-page">
+      <view class="result-radar-bg"></view>
+      <view class="radar-done-card">
+        <view class="done-check-box">
+          <view class="done-check-mark"></view>
+        </view>
+        <text class="done-title">{{resultTitle}}</text>
+        <view class="done-count">
+          <text>{{resultDescPrefix}}</text>
+          <text class="count">{{resultCount}}</text>
+          <text>{{resultDescSuffix}}</text>
+        </view>
+        <text class="done-link" data-action="review" bindtap="handleAction">{{resultLink}}</text>
+        <view class="done-button" data-action="rematch" bindtap="handleAction">{{actionText}}</view>
+      </view>
+    </view>
+  </view>
+
   <scroll-view wx:else class="radar-content" style="{{layout.contentStyle}}" scroll-y enhanced show-scrollbar="false">
     <view wx:if="{{key === 'radar'}}" class="radar-entry">
       <view class="radar-disc">
@@ -114,40 +133,5 @@
       </view>
     </view>
 
-    <view wx:elif="{{key === 'result'}}" class="radar-result-page">
-      <view class="radar-disc dimmed">
-        <view class="radar-sweep"></view>
-        <view class="radar-ring ring-outer"></view>
-        <view class="radar-ring ring-mid"></view>
-        <view class="radar-ring ring-inner"></view>
-        <view class="radar-axis axis-x"></view>
-        <view class="radar-axis axis-y"></view>
-        <view class="radar-core"></view>
-      </view>
-      <text class="radar-result-loading">{{loadingText}}</text>
-      <view class="radar-small-card">
-        <image class="radar-small-avatar" src="{{profile.avatar}}" mode="aspectFill"></image>
-        <text class="radar-small-name">{{profile.name}}</text>
-        <text class="radar-small-title">{{profile.title}}</text>
-        <text class="radar-small-tag">{{profile.tag}}</text>
-        <text class="radar-small-line">{{profile.resource}}</text>
-        <text class="radar-small-line">{{profile.need}}</text>
-        <view class="radar-small-location">
-          <text>{{profile.address}}</text>
-          <text>{{profile.distance}}</text>
-        </view>
-      </view>
-      <view class="radar-done-card">
-        <view class="done-check">✓</view>
-        <text class="done-title">{{resultTitle}}</text>
-        <view class="done-count">
-          <text>{{resultDescPrefix}}</text>
-          <text class="count">{{resultCount}}</text>
-          <text>{{resultDescSuffix}}</text>
-        </view>
-        <text class="done-link" data-action="profile" bindtap="handleAction">{{resultLink}}</text>
-        <view class="done-button" data-action="rematch" bindtap="handleAction">{{actionText}}</view>
-      </view>
-    </view>
   </scroll-view>
 </view>
