@@ -1,0 +1,59 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="metaverse-list">
+    <view class="metaverse-list__grid"></view>
+    <view class="metaverse-list__glow glow-a"></view>
+    <view class="metaverse-list__glow glow-b"></view>
+
+    <view class="metaverse-list__stage">
+      <view class="metaverse-list__scene">
+        <view class="metaverse-list__street">
+          <view class="metaverse-list__building left">
+            <view wx:for="{{leftWindows}}" wx:key="*this"></view>
+          </view>
+          <view class="metaverse-list__tower">
+            <view class="metaverse-list__tower-cap"></view>
+            <view class="metaverse-list__tower-body">
+              <view wx:for="{{towerWindows}}" wx:key="*this"></view>
+            </view>
+          </view>
+          <view class="metaverse-list__building right">
+            <view wx:for="{{rightWindows}}" wx:key="*this"></view>
+          </view>
+        </view>
+      </view>
+
+      <view class="metaverse-list__space-card">
+        <view>
+          <text class="metaverse-list__space-title">武康路 · 虚拟空间</text>
+          <text class="metaverse-list__space-subtitle">当前在线: 24人</text>
+        </view>
+        <view class="metaverse-list__live-dot"></view>
+      </view>
+
+      <view class="metaverse-list__players">
+        <view wx:for="{{players}}" wx:key="name" class="metaverse-list__player {{item.tone}} {{item.active ? 'active' : ''}}">
+          <view class="metaverse-list__avatar">
+            <text>{{item.avatarText}}</text>
+          </view>
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+
+      <view class="metaverse-list__chat">
+        <text class="metaverse-list__speaker">喵小七 说：</text>
+        <text class="metaverse-list__message">大家今天在武康大楼打卡了吗？这里的全景好逼真啊！</text>
+      </view>
+
+      <view class="metaverse-list__actions">
+        <view class="metaverse-list__action primary" bindtap="handleActionTap">同步现实动作</view>
+        <view class="metaverse-list__action secondary" bindtap="handleActionTap">传送至下个打卡点</view>
+      </view>
+    </view>
+  </view>
+</home-shell>

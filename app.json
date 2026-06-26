@@ -56,6 +56,9 @@
     "pages/profile/index",
     "pages/profile/member/index",
     "pages/profile/achievements/index",
+    "pages/metaverse/home/index",
+    "pages/metaverse/list/index",
+    "pages/metaverse/manage/index",
     "pages/placeholder/metaverse/index"
   ],
   "window": {

@@ -327,6 +327,24 @@
           "pathName": "pages/message/system-detail/index",
           "query": "",
           "scene": null
+        },
+        {
+          "name": "元宇宙-元宇宙首页",
+          "pathName": "pages/metaverse/home/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "元宇宙-元宇宙列表",
+          "pathName": "pages/metaverse/list/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "元宇宙-元宇宙管理中心",
+          "pathName": "pages/metaverse/manage/index",
+          "query": "",
+          "scene": null
         }
       ]
     }
