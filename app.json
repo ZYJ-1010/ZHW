@@ -61,6 +61,8 @@
     "pages/profile/credit-center/index",
     "pages/profile/invite-records/index",
     "pages/profile/member/index",
+    "pages/profile/member/advanced/index",
+    "pages/profile/member/premium/index",
     "pages/profile/achievements/index",
     "pages/metaverse/home/index",
     "pages/metaverse/list/index",

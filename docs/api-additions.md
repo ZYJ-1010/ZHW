@@ -3729,3 +3729,124 @@ GET /api/app/profile/home
 3. 资产中心相关页面是否新建在 `pages/profile/` 下，还是复用钱包 / 交易模块页面。
 4. 足迹中心是否复用地图模块已有页面，例如 `pages/map/my-city/index`、`pages/map/footprint-heatmap/index`，需要产品确认。
 5. 头像使用 `avatarUrl` 真实图片还是继续允许 `avatarText` 兜底。
+
+## 50. 会员中心三档会员配置接口
+
+记录日期：2026-06-26
+
+模块：我的 / 会员中心
+
+页面：`pages/profile/member/index`、`pages/profile/member/advanced/index`、`pages/profile/member/premium/index`
+
+功能：会员中心基础会员、高级会员、尊享会员 3 个页面的页面内容由后台按会员等级配置返回，便于运营或后台自由修改。当前页面静态展示三档会员的标题、权益、分润比例、适配人群、开通权益说明、最近开通会员好友提示和开通价格；正式实现时这些文案、价格、权益配置和按钮提示都不应写死在前端。
+
+候选接口：
+
+```text
+GET /api/app/profile/member-center
+```
+
+建议入参：
+
+```json
+{
+  "level": "basic"
+}
+```
+
+建议返回：
+
+```json
+{
+  "pageTitle": "会员中心",
+  "level": {
+    "key": "basic",
+    "name": "基础会员",
+    "cardWatermark": "VIP",
+    "activeIndex": 0
+  },
+  "benefitsSection": {
+    "title": "会员权益",
+    "items": [
+      {
+        "key": "referral",
+        "title": "业务引荐权益",
+        "iconKey": "i86",
+        "theme": "purple",
+        "points": ["可引荐平台业务", "享受引荐收益"]
+      },
+      {
+        "key": "profit",
+        "title": "利润分成",
+        "iconKey": "i87",
+        "theme": "gold",
+        "value": "40%"
+      }
+    ]
+  },
+  "radarSection": {
+    "title": "组局雷达",
+    "subtitle": "精准匹配附近组局，可平级参与组局",
+    "buttonText": "开始适配"
+  },
+  "audienceSection": {
+    "title": "适配人群",
+    "items": [
+      "有人脉、善对接的社交达人、资源型人才；",
+      "希望不做销售、不投重金，只靠人脉赚钱；",
+      "有高客单价产品/资源，想初步了解；",
+      "连接供需，促成交易"
+    ]
+  },
+  "openRulesSection": {
+    "title": "开通权益说明",
+    "stepText": "1. 选择会员等级 → 2. 在线支付 → 3. 即时生效",
+    "notes": [
+      "支持微信支付、支持银行卡支付",
+      "升级后原有权益自动叠加，不重复收费",
+      "如需帮助，请联系客服：400-XXX-XXXX"
+    ]
+  },
+  "roleLink": {
+    "text": "已是平台会员，前去解锁角色",
+    "route": "pages/role/apply/index"
+  },
+  "latestNotice": {
+    "avatarText": "林",
+    "name": "林丽 总",
+    "text": "刚开通了高级会员"
+  },
+  "purchase": {
+    "price": 515,
+    "priceText": "¥ 515 /年",
+    "buttonText": "立即开通",
+    "agreementPrefix": "请阅读",
+    "agreementName": "《服务协议》",
+    "agreementRoute": "pages/agreement/member-service/index",
+    "agreementSuffix": "，购买视为确认协议。",
+    "highlightText": "开通后需完成身份认证、解锁角色权益"
+  }
+}
+```
+
+字段口径：
+
+| 字段 | 来源 | 用途 |
+| --- | --- | --- |
+| `level.name` | 后台 | 会员卡标题，例如 `基础会员`、`高级会员`、`尊享会员`。 |
+| `benefitsSection.items` | 后台 | 权益卡标题、图标、说明和分润比例。 |
+| `radarSection` | 后台 | 雷达区域标题、副标题和按钮文案。 |
+| `audienceSection.items` | 后台 | 适配人群 4 行文案，可由后台调整数量和内容。 |
+| `openRulesSection` | 后台 | 开通流程、支付方式、自动叠加说明和客服电话。 |
+| `latestNotice` | 后台 | 最近开通会员好友提示，若无数据可返回 `null`，前端隐藏该条。 |
+| `purchase.priceText` | 后台 | 开通价格展示文案，价格可后台修改，前端不拼死 `515`。 |
+| `purchase.buttonText` | 后台 | 底部开通按钮文案。 |
+| `purchase.agreement*` | 后台 / 配置 | 服务协议展示文案和点击路径。 |
+
+待确认：
+
+1. 正式接口路径是否使用 `GET /api/app/profile/member-center`，还是并入个人中心聚合接口 `GET /api/app/profile/home`。
+2. 价格字段使用元还是分；展示建议由后台直接返回 `priceText`，前端仅展示。
+3. 后台需要支持 `basic`、`advanced`、`premium` 三档会员分别配置，至少包含基础会员、高级会员、尊享会员的权益卡、价格、分润比例、适配人群和卡片样式。
+4. 最近开通会员提示是否展示真实好友、平台会员动态，还是运营配置文案；涉及用户昵称时需确认隐私口径。
+5. `立即开通` 点击后的支付预下单接口、支付成功后会员生效和身份认证 / 解锁角色流程仍需补充正式接口。

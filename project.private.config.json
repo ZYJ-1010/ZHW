@@ -371,6 +371,24 @@
           "scene": null
         },
         {
+          "name": "我的-会员中心-基础会员",
+          "pathName": "pages/profile/member/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-会员中心-高级会员",
+          "pathName": "pages/profile/member/advanced/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-会员中心-尊享会员",
+          "pathName": "pages/profile/member/premium/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "元宇宙-元宇宙首页",
           "pathName": "pages/metaverse/home/index",
           "query": "",
