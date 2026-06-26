@@ -60,6 +60,7 @@
     "pages/profile/settings/index",
     "pages/profile/credit-center/index",
     "pages/profile/invite-records/index",
+    "pages/profile/service-center/invite/overview/index",
     "pages/profile/member/index",
     "pages/profile/member/advanced/index",
     "pages/profile/member/premium/index",

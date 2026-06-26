@@ -1,10 +1,11 @@
 <view class="profile-white-shell" style="background: {{background}};">
   <view class="profile-white-frame" style="{{layout.frameStyle}} background: {{background}};">
-    <view class="profile-white-nav">
-      <button class="profile-white-back" style="{{layout.backStyle}}" bindtap="handleBack" aria-label="返回">
-        <view class="profile-white-back-icon"></view>
+    <view class="profile-white-nav" style="background: {{navBackground}};">
+      <button class="profile-white-back" style="{{layout.backStyle}} background: {{backBackground}}; box-shadow: inset 0 0 0 2rpx {{backBorderColor}};" bindtap="handleBack" aria-label="返回">
+        <view class="profile-white-back-icon" style="border-left-color: {{backIconColor}}; border-bottom-color: {{backIconColor}};"></view>
       </button>
-      <text class="profile-white-title" style="{{layout.titleStyle}}">{{title}}</text>
+      <text class="profile-white-title" style="{{layout.titleStyle}} color: {{titleColor}};">{{title}}</text>
+      <text wx:if="{{rightText}}" class="profile-white-right" style="{{layout.rightStyle}} color: {{rightColor}};">{{rightText}}</text>
     </view>
     <scroll-view
       class="profile-white-content"

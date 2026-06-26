@@ -365,8 +365,8 @@
           "scene": null
         },
         {
-          "name": "我的-个人中心-邀约记录",
-          "pathName": "pages/profile/invite-records/index",
+          "name": "我的-服务中心-我的邀请",
+          "pathName": "pages/profile/service-center/invite/overview/index",
           "query": "",
           "scene": null
         },

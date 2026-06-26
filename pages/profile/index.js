@@ -26,7 +26,7 @@ Page({
         items: [
           { title: '我的局', iconSrc: '/pages/profile/assets/i66@3x.png', iconClass: 'purple-blue', badge: '2进行中', badgeClass: 'pink', route: '/pages/profile/my-games/index' },
           { title: '组局管理', iconSrc: '/pages/profile/assets/i67@3x.png', iconClass: 'violet-blue', badge: '5个服务', badgeClass: 'blue', route: '/pages/profile/publish-manage/index' },
-          { title: '我的邀请', iconSrc: '/pages/profile/assets/i68@3x.png', iconClass: 'purple-blue', badge: '3待确认', badgeClass: 'orange', route: '/pages/profile/invite-records/index' },
+          { title: '我的邀请', iconSrc: '/pages/profile/assets/i68@3x.png', iconClass: 'purple-blue', badge: '3待确认', badgeClass: 'orange', route: '/pages/profile/service-center/invite/overview/index' },
           { title: '评价中心', iconSrc: '/pages/profile/assets/i69@3x.png', iconClass: 'purple-blue', badge: '2待评价', badgeClass: 'pink' }
         ]
       },

@@ -38,6 +38,17 @@
   white-space: nowrap;
 }
 
+.profile-white-right {
+  position: absolute;
+  right: 46rpx;
+  width: 60rpx;
+  display: block;
+  overflow: hidden;
+  font-size: 34rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .profile-white-back {
   position: absolute;
   left: 50rpx;

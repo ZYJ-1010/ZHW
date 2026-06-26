@@ -47,6 +47,7 @@ function getLayoutStyles() {
     frameStyle: `height: ${frameHeight}rpx; min-height: ${frameHeight}rpx;`,
     contentStyle: `top: ${CONTENT_TOP_RPX}rpx; height: calc(100% - ${CONTENT_TOP_RPX}rpx);`,
     titleStyle: `top: ${titleTop}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
+    rightStyle: `top: ${titleTop}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
     backStyle: `top: ${backTop}rpx; width: ${BACK_BUTTON_SIZE_RPX}rpx; height: ${BACK_BUTTON_SIZE_RPX}rpx;`
   }
 }
@@ -64,6 +65,34 @@ Component({
     background: {
       type: String,
       value: '#f8fafd'
+    },
+    navBackground: {
+      type: String,
+      value: '#ffffff'
+    },
+    titleColor: {
+      type: String,
+      value: '#101010'
+    },
+    backBackground: {
+      type: String,
+      value: '#ffffff'
+    },
+    backBorderColor: {
+      type: String,
+      value: 'rgba(51, 51, 51, 0.28)'
+    },
+    backIconColor: {
+      type: String,
+      value: 'rgba(51, 51, 51, 0.71)'
+    },
+    rightText: {
+      type: String,
+      value: ''
+    },
+    rightColor: {
+      type: String,
+      value: '#101010'
     }
   },
 
