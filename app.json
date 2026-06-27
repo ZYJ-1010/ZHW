@@ -62,6 +62,7 @@
     "pages/profile/invite-records/index",
     "pages/profile/service-center/invite/overview/index",
     "pages/profile/service-center/invite/records/index",
+    "pages/profile/service-center/invite/ranking/index",
     "pages/profile/member/index",
     "pages/profile/member/advanced/index",
     "pages/profile/member/premium/index",

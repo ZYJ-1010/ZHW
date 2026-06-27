@@ -1,0 +1,35 @@
+<profile-white-shell title="贡献排行" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff" right-text="⋮" right-color="#7f8da3">
+  <view class="invite-page ranking-page dark-page">
+    <view class="period-tabs">
+      <text
+        wx:for="{{periods}}"
+        wx:key="key"
+        class="period-tab {{activePeriodIndex === index ? 'active' : ''}}"
+        data-index="{{index}}"
+        bindtap="handlePeriodTap"
+      >{{item.label}}</text>
+    </view>
+
+    <view class="ranking-type-tabs">
+      <text
+        wx:for="{{rankTypes}}"
+        wx:key="key"
+        class="ranking-type-tab {{activeType === item.key ? 'active' : ''}}"
+        data-type="{{item.key}}"
+        bindtap="handleTypeTap"
+      >{{item.label}}</text>
+    </view>
+
+    <view class="ranking-list">
+      <view wx:for="{{members}}" wx:key="id" class="ranking-row">
+        <text class="ranking-index rank-{{item.rank}}">{{item.rank}}</text>
+        <text class="ranking-avatar">{{item.avatar}}</text>
+        <view class="ranking-info">
+          <text class="ranking-name">{{item.name}}</text>
+          <text class="ranking-desc">{{item.level}} · 活跃 {{item.activeDays}}</text>
+        </view>
+        <text class="ranking-value">{{activeType === 'inviteCount' ? item.inviteCount : item.profitContribution}}</text>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>
