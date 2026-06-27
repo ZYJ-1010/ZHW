@@ -40,7 +40,6 @@
 
 .profile-white-right {
   position: absolute;
-  width: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -377,6 +377,18 @@
           "scene": null
         },
         {
+          "name": "我的-系统管理-技能配置",
+          "pathName": "pages/profile/system-management/skill-config/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-技能配置-服务案例详情",
+          "pathName": "pages/profile/system-management/service-case-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-个人中心-系统设置",
           "pathName": "pages/profile/settings/index",
           "query": "",

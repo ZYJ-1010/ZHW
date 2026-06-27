@@ -66,11 +66,32 @@ async function getPointsOrderLogistics(params = {}) {
   return result.data
 }
 
+async function getSystemSkillConfig() {
+  const result = await profileApi.getSystemSkillConfig()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取技能配置失败')
+  }
+
+  return result.data
+}
+
+async function saveSystemSkillConfig(payload = {}) {
+  const result = await profileApi.saveSystemSkillConfig(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '技能配置保存失败')
+  }
+
+  return result.data
+}
 
 module.exports = {
   getProfileHome,
   getPointsMall,
   exchangePointsMallGood,
   getPointsOrders,
-  getPointsOrderLogistics
+  getPointsOrderLogistics,
+  getSystemSkillConfig,
+  saveSystemSkillConfig
 }

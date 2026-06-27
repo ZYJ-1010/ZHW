@@ -61,6 +61,8 @@
     "pages/profile/asset-center/mall/index",
     "pages/profile/asset-center/orders/index",
     "pages/profile/asset-center/points/index",
+    "pages/profile/system-management/skill-config/index",
+    "pages/profile/system-management/service-case-detail/index",
     "pages/profile/settings/index",
     "pages/profile/credit-center/index",
     "pages/profile/invite-records/index",

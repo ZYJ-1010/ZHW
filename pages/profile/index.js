@@ -52,7 +52,7 @@ Page({
         title: '账户管理',
         items: [
           { title: '我的资料', iconSrc: '/pages/profile/assets/i78@3x.png', iconClass: 'blue-purple', route: '/pages/profile/match-info/index' },
-          { title: '技能配置', iconSrc: '/pages/profile/assets/i79@3x.png', iconClass: 'blue-purple' },
+          { title: '技能配置', iconSrc: '/pages/profile/assets/i79@3x.png', iconClass: 'blue-purple', route: '/pages/profile/system-management/skill-config/index' },
           { title: '屏蔽设置', iconSrc: '/pages/profile/assets/i80@3x.png', iconClass: 'blue-purple' },
           { title: '信用中心', iconSrc: '/pages/profile/assets/i81@3x.png', iconClass: 'blue-purple', route: '/pages/profile/credit-center/index' },
           { title: '举报中心', iconSrc: '/pages/profile/assets/i82@3x.png', iconClass: 'blue-purple' },

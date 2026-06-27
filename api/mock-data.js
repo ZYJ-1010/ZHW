@@ -548,6 +548,140 @@ const mockProfileHome = {
   }
 }
 
+const mockSystemSkillConfig = {
+  roleSummary: {
+    roleName: '行家',
+    maxSkillCount: 3,
+    monthlyLimit: 3,
+    usedCount: 1,
+    remainingCount: 2,
+    configuredCount: 2
+  },
+  skillSlots: [
+    { id: 'atmosphere', title: '氛围带动', iconKey: 'atmosphere', iconText: '🎭', tone: 'blue', active: true, empty: false },
+    { id: 'detail', title: '细节控', iconKey: 'detail', iconText: '🔍', tone: 'purple', active: false, empty: false },
+    { id: 'add', title: '添加技能', iconKey: 'plus', iconText: '+', tone: 'gray', active: false, empty: true, locked: true }
+  ],
+  tabs: [
+    { key: 'visible', label: '显性技能' },
+    { key: 'hidden', label: '隐形技能' },
+    { key: 'cases', label: '服务案例' }
+  ],
+  sectionMap: {
+    visible: { title: '已配置显性技能', desc: '玩家可见，用于建立信任' },
+    hidden: { title: '系统识别隐形技能', desc: '由履约、评价与复盘内容沉淀，暂不直接展示给玩家' },
+    cases: { title: '服务案例沉淀', desc: '用于支撑技能标签和后续智能推荐' }
+  },
+  skillGroups: {
+    visible: [
+      {
+        id: 'atmosphere',
+        title: '氛围带动',
+        iconKey: 'atmosphere',
+        iconText: '🎭',
+        tone: 'blue',
+        badge: '手动解锁',
+        badgeTone: 'info',
+        visibilityText: '显性技能 · 玩家可见',
+        sourceText: '行家手动配置',
+        lockedAt: '2026-06-01',
+        caseTitle: '定制服务案例',
+        caseBadge: '个性化',
+        caseDesc: '在「陌生人破冰局」中，通过“两真一假”游戏快速打破僵局，15分钟内让8位互不相识的玩家建立初步信任，整场局零冷场，玩家评价“像认识了很久的朋友”。',
+        caseDate: '2026-05-25',
+        casePlayers: '5人局',
+        rating: 5,
+        ratingText: '5.0分'
+      },
+      {
+        id: 'detail',
+        title: '细节控',
+        iconKey: 'detail',
+        iconText: '🔍',
+        tone: 'purple',
+        badge: 'AI解锁',
+        badgeTone: 'purple',
+        visibilityText: '显性技能 · 玩家可见',
+        sourceText: '系统综合评估自动解锁',
+        lockedAt: '2026-06-10',
+        caseTitle: '定制服务案例',
+        caseBadge: '个性化',
+        caseDesc: '与「沉浸式剧本杀局」提前踩点3次，根据玩家性格分配角色，准备道具12件，局中适时递上热饮，玩家反馈“被照顾到了每个细节”。',
+        caseDate: '2026-05-25',
+        casePlayers: '5人局',
+        rating: 5,
+        ratingText: '5.0分'
+      }
+    ],
+    hidden: [],
+    cases: [
+      {
+        id: 'case-stranger',
+        title: '陌生人破冰局',
+        linkedSkillTitle: '氛围带动',
+        iconKey: 'atmosphere',
+        iconText: '🎭',
+        tone: 'blue',
+        badge: '已绑定',
+        badgeTone: 'green',
+        visibilityText: '服务案例 · 支撑技能',
+        sourceText: '历史组局服务',
+        lockedAt: '2026-05-25',
+        caseTitle: '案例摘要',
+        caseBadge: '可展示',
+        caseDesc: '通过轻互动机制帮助陌生玩家降低表达压力，并在关键节点引导复述需求，让玩家能自然进入合作讨论。',
+        caseDate: '2026-05-25',
+        casePlayers: '8人局',
+        rating: 5,
+        ratingText: '5.0分'
+      },
+      {
+        id: 'case-script',
+        title: '沉浸式剧本杀局',
+        linkedSkillTitle: '细节控',
+        iconKey: 'detail',
+        iconText: '🔍',
+        tone: 'purple',
+        badge: '已绑定',
+        badgeTone: 'green',
+        visibilityText: '服务案例 · 支撑技能',
+        sourceText: '玩家评价沉淀',
+        lockedAt: '2026-06-02',
+        caseTitle: '案例摘要',
+        caseBadge: '可展示',
+        caseDesc: '提前确认玩家偏好、角色接受度和到场时间，现场通过提示卡和节奏控场减少等待，让玩家评价集中在“细致、有安全感”。',
+        caseDate: '2026-06-02',
+        casePlayers: '6人局',
+        rating: 4,
+        ratingText: '4.0分'
+      },
+      {
+        id: 'case-board-game',
+        title: '桌游竞技局',
+        linkedSkillTitle: '策略引导',
+        iconText: '🎯',
+        tone: 'orange',
+        badge: '已绑定',
+        badgeTone: 'green',
+        visibilityText: '服务案例 · 支撑技能',
+        sourceText: '策略类组局',
+        lockedAt: '2026-05-18',
+        caseTitle: '案例摘要',
+        caseBadge: '可展示',
+        caseDesc: '在竞技桌游局中先确认玩家经验差异，再按阶段提示胜负关键点，让新手能跟上节奏，也保留老玩家的策略空间。',
+        caseDate: '2026-05-18',
+        casePlayers: '4人局',
+        rating: 5,
+        ratingText: '4.8分'
+      }
+    ]
+  },
+  unlockSuggestion: {
+    title: '解锁第三个技能',
+    desc: '解锁后可在上方槽位添加新的显性技能',
+    actionText: '立即解锁'
+  }
+}
 const mockPointsMall = {
   pointsAvailable: 2580,
   expireTip: '积分有效期12个月，请及时兑换',
@@ -1382,6 +1516,7 @@ module.exports = {
   mockHome,
   mockRoleHomes,
   mockProfileHome,
+  mockSystemSkillConfig,
   mockPointsMall,
   mockPointsOrders,
   mockPointsOrderLogistics,

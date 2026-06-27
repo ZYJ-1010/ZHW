@@ -116,6 +116,10 @@ Component({
     rightColor: {
       type: String,
       value: '#101010'
+    },
+    rightWidth: {
+      type: Number,
+      value: 60
     }
   },
 
@@ -143,6 +147,10 @@ Component({
       wx.redirectTo({
         url: '/pages/profile/index'
       })
+    },
+
+    handleRightTap() {
+      this.triggerEvent('righttap')
     }
   }
 })

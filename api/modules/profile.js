@@ -28,6 +28,13 @@ function getPointsOrderLogistics(orderId) {
   return request.get(`/api/app/profile/points/orders/${orderId}/logistics`)
 }
 
+function getSystemSkillConfig() {
+  return request.get('/api/app/profile/system-management/skill-config')
+}
+
+function saveSystemSkillConfig(data) {
+  return request.put('/api/app/profile/system-management/skill-config', data)
+}
 
 module.exports = {
   getProfileHome,
@@ -36,5 +43,7 @@ module.exports = {
   getPointsMall,
   exchangePointsMallGood,
   getPointsOrders,
-  getPointsOrderLogistics
+  getPointsOrderLogistics,
+  getSystemSkillConfig,
+  saveSystemSkillConfig
 }

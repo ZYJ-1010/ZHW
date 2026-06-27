@@ -5,7 +5,7 @@
         <view class="profile-white-back-icon" style="border-left-color: {{backIconColor}}; border-bottom-color: {{backIconColor}};"></view>
       </button>
       <text class="profile-white-title" style="{{layout.titleStyle}} color: {{titleColor}}; font-weight: {{titleWeight}};">{{title}}</text>
-      <view wx:if="{{rightText || rightType}}" class="profile-white-right" style="{{layout.rightStyle}} color: {{rightColor}};">
+      <view wx:if="{{rightText || rightType}}" class="profile-white-right" style="{{layout.rightStyle}} width: {{rightWidth}}rpx; color: {{rightColor}};" bindtap="handleRightTap">
         <view wx:if="{{rightType === 'filter'}}" class="profile-white-filter-icon"></view>
         <text wx:else>{{rightText}}</text>
       </view>

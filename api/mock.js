@@ -5,6 +5,7 @@ const {
   mockHome,
   mockRoleHomes,
   mockProfileHome,
+  mockSystemSkillConfig,
   mockPointsMall,
   mockPointsOrders,
   mockPointsOrderLogistics,
@@ -29,6 +30,7 @@ let mockRoleStatusMap = Object.assign({}, mockCurrentUser.roleStatusMap)
 let mockSubmittedRoleApplications = []
 let mockPointsMallState = JSON.parse(JSON.stringify(mockPointsMall))
 let mockPointsOrdersState = JSON.parse(JSON.stringify(mockPointsOrders))
+let mockSystemSkillConfigState = JSON.parse(JSON.stringify(mockSystemSkillConfig))
 const MOCK_ROLE_APPLICATION_SUBMITTED_AT = '2026-06-08T10:30:00+08:00'
 const MOCK_ROLE_APPLICATION_EXPECTED_REVIEW_AT = '2026-06-12T18:00:00+08:00'
 
@@ -471,6 +473,34 @@ function exchangePointsMallGood(data = {}) {
   }))
 }
 
+function buildSystemSkillConfig() {
+  return JSON.parse(JSON.stringify(mockSystemSkillConfigState))
+}
+
+function saveSystemSkillConfig(data = {}) {
+  const roleSummary = data.roleSummary || {}
+  const skillSlots = Array.isArray(data.skillSlots) ? data.skillSlots : []
+  const skillGroups = data.skillGroups && typeof data.skillGroups === 'object' ? data.skillGroups : {}
+
+  if (!skillSlots.length) {
+    return wait(fail(40001, '至少需要保留一个技能槽位'))
+  }
+
+  mockSystemSkillConfigState = Object.assign({}, mockSystemSkillConfigState, {
+    roleSummary,
+    activeTab: data.activeTab || 'visible',
+    skillSlots,
+    skillGroups,
+    unlockSuggestion: data.unlockSuggestion || mockSystemSkillConfigState.unlockSuggestion,
+    savedAt: '2026-06-28T00:00:00+08:00'
+  })
+
+  return wait(ok({
+    saved: true,
+    skillConfig: buildSystemSkillConfig(),
+    message: '技能配置保存成功'
+  }))
+}
 function toFiniteNumber(value, fallback) {
   const number = Number(value)
 
@@ -708,6 +738,10 @@ function handleRequest(options) {
     return wait(ok(mockProfileHome))
   }
 
+  if (method === 'GET' && url === '/api/app/profile/system-management/skill-config') {
+    return wait(ok(buildSystemSkillConfig()))
+  }
+
   if (method === 'GET' && url === '/api/app/profile/points/mall') {
     return wait(ok(buildPointsMall()))
   }
@@ -730,6 +764,11 @@ function handleRequest(options) {
   if (method === 'POST' && url === '/api/app/profile/points/mall/exchange') {
     return exchangePointsMallGood(options.data || {})
   }
+
+  if (method === 'PUT' && url === '/api/app/profile/system-management/skill-config') {
+    return saveSystemSkillConfig(options.data || {})
+  }
+
   if (method === 'GET' && url === '/api/app/role-applications/my') {
     return wait(ok(buildRoleApplications()))
   }

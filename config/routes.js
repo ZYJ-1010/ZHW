@@ -53,6 +53,8 @@ const ROUTES = {
   profileAssetMall: 'pages/profile/asset-center/mall/index',
   profileAssetOrders: 'pages/profile/asset-center/orders/index',
   profileAssetPoints: 'pages/profile/asset-center/points/index',
+  profileSystemSkillConfig: 'pages/profile/system-management/skill-config/index',
+  profileSystemServiceCaseDetail: 'pages/profile/system-management/service-case-detail/index',
   profileMember: 'pages/profile/member/index',
   profileAchievements: 'pages/profile/achievements/index',
   profileFootprintAchievements: 'pages/profile/footprint/achievements/index',

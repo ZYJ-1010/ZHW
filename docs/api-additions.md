@@ -4279,3 +4279,36 @@ POST /api/app/profile/footprint/achievements/{achievementId}/claim
 6. 空态、错误态、分页 / 展示数量、图标资源来源、时间格式和多语言 / 文案后台配置。
 
 状态：前端已新增静态页和编译模式，正式接口待后端确认。
+## 61. 系统管理技能配置接口
+
+记录日期：2026-06-28
+
+模块：我的 / 系统管理 / 技能配置
+
+页面：`pages/profile/system-management/skill-config/index`、`pages/profile/system-management/service-case-detail/index`
+
+功能：技能配置页当前为深色静态走查并已接本地 mock。正式联调时，技能槽位、显性技能、隐形技能、服务案例、修改次数、解锁建议、添加/编辑/移除/解锁结果和服务案例详情都应由后台返回。
+
+候选接口：
+
+- `GET /api/app/profile/system-management/skill-config`
+- `PUT /api/app/profile/system-management/skill-config`
+- `GET /api/app/profile/system-management/skill-config/cases/{caseId}`
+- `POST /api/app/profile/system-management/skill-config/skills`
+- `PATCH /api/app/profile/system-management/skill-config/skills/{skillId}`
+- `DELETE /api/app/profile/system-management/skill-config/skills/{skillId}`
+- `POST /api/app/profile/system-management/skill-config/skills/{skillId}/unlock`
+- `POST /api/app/profile/system-management/skill-config/cases/{caseId}/bind`
+
+需要后台返回 / 确认：
+
+1. 身份限制：`roleName`、`maxSkillCount`、`monthlyLimit`、`usedCount`、`remainingCount`、`configuredCount`、重置时间和超限提示。
+2. 技能槽位：`id`、`title`、`iconKey` 或 `iconText`、`tone`、`active`、`empty`、`locked`；第三槽未解锁时返回 `empty=true` 和 `locked=true`，前端不可添加。
+3. 技能列表：`skillGroups.visible`、`skillGroups.hidden`、技能来源、可见性、锁定时间、是否可编辑/移除、服务案例说明和评分。
+4. 隐形技能：当前产品要求默认关闭；`skillGroups.hidden` 为空时前端展示“暂无隐形技能”空态，不展示默认候选或解锁卡。
+5. 服务案例列表：案例 `id`、`title`、`linkedSkillTitle`、`iconText` 或 `iconKey`、`tone`、日期、人数、评分、展示状态、绑定技能和审核状态；详情页图标必须来自点击的案例数据，不在详情页固定写死。
+6. 服务案例详情：建议 `GET /cases/{caseId}` 返回 `title`、`date`、`playersText`、`totalPlayers`、`ratingText`、`score`、`tags`、`detailSections`、`players`、`iconText` 或 `iconKey`、`tone`。
+7. 修改次数：添加、编辑、移除、解锁技能和解锁槽位是否扣减次数、何时扣减、失败是否回滚、下次重置时间和提示文案。
+8. 保存规则：`PUT` 是整体覆盖还是增量保存；接口需返回保存后的最新配置，供前端刷新本地状态。
+
+状态：前端已完成静态页、服务案例详情页、基础 mock 和本地交互；正式接口、字段命名、权限规则、失败码、案例绑定和案例详情仍待后端确认。

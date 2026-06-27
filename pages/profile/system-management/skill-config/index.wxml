@@ -1,0 +1,328 @@
+<profile-white-shell
+  title="技能配置"
+  background="#070b14"
+  nav-background="#070b14"
+  title-color="#eef3ff"
+  title-weight="400"
+  back-background="#070b14"
+  back-border-color="transparent"
+  back-icon-color="#d7deec"
+  right-text="{{isSaving ? '保存中' : '保存'}}"
+  right-color="#2f78ff"
+  right-width="{{72}}"
+  bind:righttap="handleSaveTap"
+>
+  <view class="skill-config-page">
+    <view class="status-stack">
+      <view class="status-card identity-card">
+        <view class="status-icon-wrap amber">
+          <image class="status-icon" src="{{icons.layers}}" mode="aspectFit"></image>
+        </view>
+        <view class="status-copy">
+          <text>当前身份: </text>
+          <text class="status-strong">{{roleSummary.roleName}}</text>
+          <text>，最多配置 </text>
+          <text class="status-strong">{{roleSummary.maxSkillCount}}个</text>
+          <text> 技能，每月可修改 </text>
+          <text class="status-strong">{{roleSummary.monthlyLimit}}次</text>
+          <text>，已用 </text>
+          <text class="status-strong">{{roleSummary.usedCount}}次</text>
+        </view>
+      </view>
+
+      <view class="status-card quota-card">
+        <view class="quota-left">
+          <view class="status-icon-wrap blue">
+            <image class="status-icon bolt" src="{{icons.bolt}}" mode="aspectFit"></image>
+          </view>
+          <text class="quota-title">本月剩余修改次数</text>
+        </view>
+        <text class="quota-value">{{roleSummary.remainingCount}}/{{roleSummary.monthlyLimit}}</text>
+      </view>
+    </view>
+
+    <view class="section-head slot-head">
+      <text class="section-title">技能槽位</text>
+      <text class="section-count">{{roleSummary.configuredCount}}/{{roleSummary.maxSkillCount}} 已配置</text>
+    </view>
+
+    <view class="slot-grid">
+      <view
+        wx:for="{{skillSlots}}"
+        wx:key="id"
+        class="skill-slot {{item.empty ? 'empty' : ''}} {{item.active ? 'active' : ''}} {{item.locked ? 'locked' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="handleSlotTap"
+      >
+        <view class="slot-icon-wrap {{item.tone}}">
+          <text class="slot-emoji">{{item.iconText}}</text>
+        </view>
+        <text class="slot-title">{{item.title}}</text>
+      </view>
+    </view>
+
+    <view class="skill-tabs">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="skill-tab {{activeTab === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleTabTap"
+      >{{item.label}}</view>
+    </view>
+
+    <view wx:if="{{!isCasesTab && (hasDisplayedSkills || !isHiddenTab)}}" class="section-head list-head">
+      <view class="section-copy">
+        <text class="section-title">{{sectionInfo.title}}</text>
+        <text class="section-desc">{{sectionInfo.desc}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{isCasesTab}}" class="case-summary-list">
+      <view
+        wx:for="{{displayedSkills}}"
+        wx:key="id"
+        class="case-summary-card"
+        data-id="{{item.id}}"
+        bindtap="handleCaseSummaryTap"
+      >
+        <view class="case-summary-icon {{item.tone}}">
+          <image
+            wx:if="{{item.iconAsImage}}"
+            class="case-summary-image"
+            src="{{item.iconSrc}}"
+            mode="aspectFit"
+          ></image>
+          <text wx:else class="case-summary-emoji">{{item.iconText}}</text>
+        </view>
+        <view class="case-summary-main">
+          <view class="case-summary-title-row">
+            <text class="case-summary-title">{{item.title}}</text>
+            <text wx:if="{{item.linkedSkillTitle}}" class="case-summary-skill"> · {{item.linkedSkillTitle}}</text>
+          </view>
+          <view class="case-summary-meta">
+            <text>{{item.caseDate}}</text>
+            <text> · {{item.casePlayers}}</text>
+            <text class="case-summary-star">★</text>
+            <text class="case-summary-rating">{{item.ratingText}}</text>
+          </view>
+        </view>
+        <image class="case-summary-arrow" src="{{icons.chevronRight}}" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <view wx:elif="{{hasDisplayedSkills}}" class="skill-list">
+      <view wx:for="{{displayedSkills}}" wx:key="id" class="skill-card">
+        <view class="skill-card-head">
+          <view class="skill-icon-wrap {{item.tone}}">
+            <image
+              wx:if="{{item.iconAsImage}}"
+              class="skill-image-icon"
+              src="{{item.iconSrc}}"
+              mode="aspectFit"
+            ></image>
+            <text wx:else class="skill-emoji">{{item.iconText}}</text>
+          </view>
+          <view class="skill-main">
+            <view class="skill-title-row">
+              <text class="skill-title">{{item.title}}</text>
+              <text class="skill-badge {{item.badgeTone}}">{{item.badge}}</text>
+            </view>
+            <view class="skill-meta">
+              <text>{{item.visibilityText}}</text>
+              <text>来源：{{item.sourceText}}</text>
+              <text>锁定：{{item.lockedAt}}</text>
+            </view>
+          </view>
+          <view class="skill-actions">
+            <view class="skill-action edit" data-id="{{item.id}}" catchtap="handleSkillEditTap">编辑</view>
+            <view class="skill-action remove" data-id="{{item.id}}" catchtap="handleSkillRemoveTap">移除</view>
+          </view>
+        </view>
+
+        <view class="case-box">
+          <view class="case-head">
+            <view class="case-title-left">
+              <image class="case-icon" src="{{icons.caseFile}}" mode="aspectFit"></image>
+              <text class="case-title">{{item.caseTitle}}</text>
+            </view>
+            <text class="case-badge">{{item.caseBadge}}</text>
+          </view>
+          <text class="case-desc">{{item.caseDesc}}</text>
+          <view class="case-meta">
+            <view class="case-meta-item">
+              <image class="case-meta-icon" src="{{icons.calendar}}" mode="aspectFit"></image>
+              <text>{{item.caseDate}}</text>
+            </view>
+            <view class="case-meta-item">
+              <image class="case-meta-icon" src="{{icons.users}}" mode="aspectFit"></image>
+              <text>{{item.casePlayers}}</text>
+            </view>
+            <view class="rating-row">
+              <image
+                wx:for="{{item.ratingStars}}"
+                wx:for-item="star"
+                wx:key="key"
+                class="rating-star {{star.active ? 'active' : ''}}"
+                src="{{icons.star}}"
+                mode="aspectFit"
+              ></image>
+              <text class="rating-text">{{item.ratingText}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:elif="{{isHiddenTab}}" class="hidden-empty">
+      <view class="hidden-empty-lock">🔒</view>
+      <text class="hidden-empty-title">暂无隐形技能</text>
+      <text class="hidden-empty-desc">系统将根据您的组局表现自动评估并解锁隐形技能</text>
+      <text class="hidden-empty-desc">解锁后仅平台可见，用于智能匹配推荐</text>
+    </view>
+
+    <view wx:if="{{showUnlockSuggestion}}" class="unlock-card">
+      <view class="unlock-left">
+        <view class="unlock-icon-wrap">
+          <text class="unlock-emoji">🔒</text>
+        </view>
+        <view class="unlock-copy">
+          <text class="unlock-title">{{unlockSuggestion.title}}</text>
+          <text class="unlock-desc">{{unlockSuggestion.desc}}</text>
+        </view>
+      </view>
+      <view class="unlock-button" bindtap="handleUnlockTap">{{unlockSuggestion.actionText}}</view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{responseDialog.visible}}"
+    class="response-mask"
+    catchtouchmove="handlePreventTouch"
+    bindtap="handleDialogCancel"
+  >
+    <view class="response-dialog" catchtap="handlePanelTap">
+      <view class="response-icon-ring {{responseDialog.iconTone}}">
+        <text wx:if="{{responseDialog.iconTone === 'lock'}}" class="response-lock-icon">🔒</text>
+        <image
+          wx:elif="{{responseDialog.iconSrc}}"
+          class="response-icon-img"
+          src="{{responseDialog.iconSrc}}"
+          mode="aspectFit"
+        ></image>
+        <text wx:else class="response-icon-text">{{responseDialog.iconText}}</text>
+      </view>
+      <text class="response-title">{{responseDialog.title}}</text>
+      <view class="response-desc">
+        <text
+          wx:for="{{responseDialog.descLines}}"
+          wx:key="*this"
+          class="response-desc-line"
+        >{{item}}</text>
+        <text wx:if="{{responseDialog.hint}}" class="response-hint">{{responseDialog.hint}}</text>
+      </view>
+      <view class="response-actions {{responseDialog.onlyConfirm ? 'single' : ''}}">
+        <view
+          wx:if="{{!responseDialog.onlyConfirm}}"
+          class="response-action secondary"
+          bindtap="handleDialogCancel"
+        >{{responseDialog.cancelText}}</view>
+        <view
+          class="response-action primary {{responseDialog.confirmTone}}"
+          bindtap="handleDialogConfirm"
+        >{{responseDialog.confirmText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{editPanel.visible}}"
+    class="panel-mask"
+    catchtouchmove="handlePreventTouch"
+    bindtap="handleCloseEditPanel"
+  >
+    <view class="bottom-panel edit-bottom-panel" catchtap="handlePanelTap">
+      <view class="panel-handle"></view>
+      <text class="panel-title">编辑技能</text>
+
+      <view class="form-field">
+        <text class="field-label">技能名称</text>
+        <input
+          class="skill-input"
+          disabled
+          value="{{editPanel.skillName}}"
+          placeholder="技能名称不可修改"
+        />
+        <text class="field-help">技能名称不可修改</text>
+      </view>
+
+      <view class="form-field case-field">
+        <text class="field-label">定制服务案例</text>
+        <textarea
+          class="case-textarea"
+          value="{{editPanel.caseDesc}}"
+          maxlength="{{caseDescMaxLength}}"
+          placeholder="请描述您的服务案例，建议突出个性化服务亮点..."
+          bindinput="handleEditCaseInput"
+        />
+        <view class="case-help-row">
+          <text class="field-help">最少 {{caseDescMinLength}} 字，最多 {{caseDescMaxLength}} 字，突出个性化服务亮点</text>
+          <text class="field-counter">{{editPanel.caseDescCount}}/{{caseDescMaxLength}}</text>
+        </view>
+      </view>
+
+      <view class="form-field">
+        <text class="field-label">标签类型</text>
+        <view class="tag-type-row">
+          <view class="tag-type-pill active">手动解锁</view>
+          <view class="tag-type-pill disabled">AI解锁</view>
+        </view>
+        <text class="field-help">AI 解锁标签由系统综合评估后自动授予</text>
+      </view>
+
+      <view class="panel-actions">
+        <view class="panel-action secondary" bindtap="handleCloseEditPanel">取消</view>
+        <view class="panel-action primary" bindtap="handleSaveEditPanel">保存修改</view>
+      </view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{addPanel.visible}}"
+    class="panel-mask"
+    catchtouchmove="handlePreventTouch"
+    bindtap="handleCloseAddPanel"
+  >
+    <view class="bottom-panel add-bottom-panel" catchtap="handlePanelTap">
+      <view class="panel-handle"></view>
+      <text class="panel-title">添加技能</text>
+      <text class="panel-subtitle">选择要添加的显性技能，最多还可配置 {{addPanel.remainingSlots}} 个</text>
+
+      <view class="candidate-list">
+        <view
+          wx:for="{{addPanel.candidates}}"
+          wx:key="id"
+          class="candidate-card {{addPanel.selectedId === item.id ? 'selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="handleAddCandidateTap"
+        >
+          <view class="candidate-icon {{item.tone}}">
+            <text>{{item.iconText}}</text>
+          </view>
+          <view class="candidate-copy">
+            <text class="candidate-title">{{item.title}}</text>
+            <text class="candidate-desc">{{item.desc}}</text>
+          </view>
+          <view class="candidate-check {{addPanel.selectedId === item.id ? 'active' : ''}}">
+            <image wx:if="{{addPanel.selectedId === item.id}}" src="{{icons.check}}" mode="aspectFit"></image>
+          </view>
+        </view>
+      </view>
+
+      <view class="panel-actions add-actions">
+        <view class="panel-action secondary" bindtap="handleCloseAddPanel">取消</view>
+        <view class="panel-action primary" bindtap="handleConfirmAddSkill">确认添加</view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>
