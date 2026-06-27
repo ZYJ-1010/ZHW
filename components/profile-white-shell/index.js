@@ -101,6 +101,10 @@ Component({
       type: String,
       value: 'rgba(51, 51, 51, 0.71)'
     },
+    showBack: {
+      type: Boolean,
+      value: true
+    },
     rightText: {
       type: String,
       value: ''

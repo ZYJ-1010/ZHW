@@ -548,6 +548,54 @@ const mockProfileHome = {
   }
 }
 
+const mockPointsMall = {
+  pointsAvailable: 2580,
+  expireTip: '积分有效期12个月，请及时兑换',
+  goods: [
+    {
+      id: 'mall-shirt',
+      iconText: '👕',
+      title: '平台限定T恤',
+      cost: 500,
+      stockLeft: 23
+    },
+    {
+      id: 'mall-badge',
+      iconText: '🏅',
+      title: '真好玩徽章套装',
+      cost: 300,
+      stockLeft: 56
+    },
+    {
+      id: 'mall-backpack',
+      iconText: '🎒',
+      title: '探险家背包',
+      cost: 800,
+      stockLeft: 12
+    },
+    {
+      id: 'mall-camping',
+      iconText: '⛺',
+      title: '露营装备套装',
+      cost: 1200,
+      stockLeft: 8
+    },
+    {
+      id: 'mall-card',
+      iconText: '👑',
+      title: '玩家桌游卡牌',
+      cost: 200,
+      stockLeft: 100
+    },
+    {
+      id: 'mall-cup',
+      iconText: '🥤',
+      title: '定制水杯',
+      cost: 350,
+      stockLeft: 45
+    }
+  ]
+}
 const mockNewbieTasks = [
   {
     id: 'newbie-realname',
@@ -1248,6 +1296,7 @@ module.exports = {
   mockHome,
   mockRoleHomes,
   mockProfileHome,
+  mockPointsMall,
   mockNewbieTasks,
   mockRoleApplications,
   mockInvitePlayerConfig,

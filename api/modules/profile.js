@@ -12,8 +12,18 @@ function getMemberStatus() {
   return request.get('/api/app/memberships/me')
 }
 
+function getPointsMall() {
+  return request.get('/api/app/profile/points/mall')
+}
+
+function exchangePointsMallGood(data) {
+  return request.post('/api/app/profile/points/mall/exchange', data)
+}
+
 module.exports = {
   getProfileHome,
   getGrowth,
-  getMemberStatus
+  getMemberStatus,
+  getPointsMall,
+  exchangePointsMallGood
 }

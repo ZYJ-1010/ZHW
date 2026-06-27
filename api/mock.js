@@ -5,6 +5,7 @@ const {
   mockHome,
   mockRoleHomes,
   mockProfileHome,
+  mockPointsMall,
   mockNewbieTasks,
   mockRoleApplications,
   mockInvitePlayerConfig,
@@ -24,6 +25,7 @@ const {
 let mockCurrentRealnameStatus = 'pending'
 let mockRoleStatusMap = Object.assign({}, mockCurrentUser.roleStatusMap)
 let mockSubmittedRoleApplications = []
+let mockPointsMallState = JSON.parse(JSON.stringify(mockPointsMall))
 const MOCK_ROLE_APPLICATION_SUBMITTED_AT = '2026-06-08T10:30:00+08:00'
 const MOCK_ROLE_APPLICATION_EXPECTED_REVIEW_AT = '2026-06-12T18:00:00+08:00'
 
@@ -347,6 +349,67 @@ function buildSystemNotificationDetail(data = {}) {
   })
 }
 
+function formatNumber(value) {
+  const number = Number(value) || 0
+
+  return number.toLocaleString('en-US')
+}
+
+function buildPointsMall() {
+  const pointsAvailable = Number(mockPointsMallState.pointsAvailable) || 0
+  const goods = (mockPointsMallState.goods || []).map((item) => Object.assign({}, item, {
+    points: `${formatNumber(item.cost)}积分`,
+    pointsText: `${formatNumber(item.cost)}积分`,
+    stock: `库存: 剩余${Number(item.stockLeft) || 0}件`,
+    stockText: `库存: 剩余${Number(item.stockLeft) || 0}件`,
+    remaining: formatNumber(Math.max(pointsAvailable - (Number(item.cost) || 0), 0))
+  }))
+
+  return {
+    pointsAvailable,
+    points: formatNumber(pointsAvailable),
+    pointsText: formatNumber(pointsAvailable),
+    expireTip: mockPointsMallState.expireTip,
+    goods
+  }
+}
+
+function exchangePointsMallGood(data = {}) {
+  const goodId = String(data.goodId || data.productId || data.id || '').trim()
+
+  if (!goodId) {
+    return wait(fail(40001, '请选择兑换商品', buildPointsMall()))
+  }
+
+  const good = (mockPointsMallState.goods || []).find((item) => item.id === goodId)
+
+  if (!good) {
+    return wait(fail(40404, '商品不存在或已下架', buildPointsMall()))
+  }
+
+  const stockLeft = Number(good.stockLeft) || 0
+  const cost = Number(good.cost) || 0
+  const pointsAvailable = Number(mockPointsMallState.pointsAvailable) || 0
+
+  if (stockLeft <= 0) {
+    return wait(fail(40902, '库存不足，请稍后再试', buildPointsMall()))
+  }
+
+  if (pointsAvailable < cost) {
+    return wait(fail(40901, '积分不足，无法兑换', buildPointsMall()))
+  }
+
+  good.stockLeft = stockLeft - 1
+  mockPointsMallState.pointsAvailable = pointsAvailable - cost
+
+  return wait(ok({
+    exchangeSuccess: true,
+    message: '兑换成功，订单已进入待发货',
+    orderId: `POINTS-${Date.now()}`,
+    orderStatus: 'pending_ship',
+    mall: buildPointsMall()
+  }))
+}
 function toFiniteNumber(value, fallback) {
   const number = Number(value)
 
@@ -584,6 +647,13 @@ function handleRequest(options) {
     return wait(ok(mockProfileHome))
   }
 
+  if (method === 'GET' && url === '/api/app/profile/points/mall') {
+    return wait(ok(buildPointsMall()))
+  }
+
+  if (method === 'POST' && url === '/api/app/profile/points/mall/exchange') {
+    return exchangePointsMallGood(options.data || {})
+  }
   if (method === 'GET' && url === '/api/app/role-applications/my') {
     return wait(ok(buildRoleApplications()))
   }

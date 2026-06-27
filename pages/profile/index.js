@@ -35,7 +35,7 @@ Page({
         items: [
           { title: '我的资产', iconSrc: '/pages/profile/assets/i70@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/manage/index' },
           { title: '我的押金', iconSrc: '/pages/profile/assets/i71@3x.png', iconClass: 'orange' },
-          { title: '积分商城', iconSrc: '/pages/profile/assets/i72@3x.png', iconClass: 'orange' },
+          { title: '积分商城', iconSrc: '/pages/profile/assets/i72@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/mall/index' },
           { title: '我的积分', iconSrc: '/pages/profile/assets/i73@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/points/index' },
           { title: '开票中心', iconSrc: '/pages/profile/assets/i74@3x.png', iconClass: 'orange' }
         ]

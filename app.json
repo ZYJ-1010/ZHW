@@ -58,6 +58,7 @@
     "pages/profile/match-info/index",
     "pages/profile/my-games/index",
     "pages/profile/asset-center/manage/index",
+    "pages/profile/asset-center/mall/index",
     "pages/profile/asset-center/points/index",
     "pages/profile/settings/index",
     "pages/profile/credit-center/index",
