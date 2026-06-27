@@ -4025,3 +4025,28 @@ GET /api/app/profile/member-radar/profile-form/options
 3. 地址定位是否必须授权 `scope.userLocation`，拒绝授权时的兜底填写方式。
 4. `我的资源`、`我的需求` 是读取个人主页资料还是会员雷达独立资料。
 5. 保存成功后跳转回 `组局雷达` 还是进入 `适配组局` 流程。
+## 53. 服务中心我的邀请 - 邀约记录页接口
+
+记录日期：2026-06-27
+
+模块：我的 / 服务中心 / 我的邀请
+
+页面：`pages/profile/service-center/invite/records/index`
+
+功能：邀约记录页当前为静态走查，正式联调时页面前端显示的数据都应由后台返回，前端不写死最终业务数据。
+
+候选接口：
+
+```text
+GET /api/app/profile/service-center/invite/records
+POST /api/app/profile/service-center/invite/records/{recordId}/remind-delivery
+```
+
+需要后台返回 / 确认：
+
+1. 顶部 `我引荐的 / 我发起的` tab 数量、选中态和权限。
+2. 状态筛选数量：全部、进行中、已完成、超时、已取消。
+3. 超时预警文案、是否展示、点击后的处理方式和目标记录 ID。
+4. 记录列表字段：状态、记录编号、时间、行家 / 玩家头像昵称与角色、关系节点、服务标题、预算、你的奖励、已到账状态、超时 / 取消提示。
+5. 查看组局入口是否展示，以及可跳转的组局 ID、订单 ID 或服务记录 ID。
+6. 提醒交付接口、状态流转、分页、空态、错误态、状态枚举和金额格式。

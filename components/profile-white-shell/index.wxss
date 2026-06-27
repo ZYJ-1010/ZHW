@@ -40,13 +40,42 @@
 
 .profile-white-right {
   position: absolute;
-  right: 46rpx;
   width: 60rpx;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   font-size: 34rpx;
   text-align: center;
   white-space: nowrap;
+}
+
+.profile-white-filter-icon {
+  position: relative;
+  width: 34rpx;
+  height: 32rpx;
+}
+
+.profile-white-filter-icon::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34rpx;
+  height: 22rpx;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 62% 100%, 38% 100%);
+  content: "";
+}
+
+.profile-white-filter-icon::after {
+  position: absolute;
+  left: 13rpx;
+  top: 20rpx;
+  width: 8rpx;
+  height: 12rpx;
+  border-radius: 2rpx;
+  background: currentColor;
+  content: "";
 }
 
 .profile-white-back {

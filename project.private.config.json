@@ -371,6 +371,12 @@
           "scene": null
         },
         {
+          "name": "我的-服务中心-我的邀请-邀约记录页",
+          "pathName": "pages/profile/service-center/invite/records/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-会员中心-基础会员",
           "pathName": "pages/profile/member/index",
           "query": "",
