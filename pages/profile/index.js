@@ -33,7 +33,7 @@ Page({
       {
         title: '资产中心',
         items: [
-          { title: '我的资产', iconSrc: '/pages/profile/assets/i70@3x.png', iconClass: 'orange' },
+          { title: '我的资产', iconSrc: '/pages/profile/assets/i70@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/manage/index' },
           { title: '我的押金', iconSrc: '/pages/profile/assets/i71@3x.png', iconClass: 'orange' },
           { title: '积分商城', iconSrc: '/pages/profile/assets/i72@3x.png', iconClass: 'orange' },
           { title: '我的积分', iconSrc: '/pages/profile/assets/i73@3x.png', iconClass: 'orange' },
@@ -76,7 +76,7 @@ Page({
   },
 
   handleAssetAllTap() {
-    toast.developing()
+    wx.navigateTo({ url: '/pages/profile/asset-center/manage/index' })
   },
 
   handleUpgradeTap() {

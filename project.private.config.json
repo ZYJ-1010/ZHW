@@ -353,6 +353,12 @@
           "scene": null
         },
         {
+          "name": "我的-资产中心-资产管理",
+          "pathName": "pages/profile/asset-center/manage/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-个人中心-系统设置",
           "pathName": "pages/profile/settings/index",
           "query": "",

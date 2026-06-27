@@ -49,6 +49,7 @@ const ROUTES = {
   messageSystemDetail: 'pages/message/system-detail/index',
   imRoom: 'pages/im/room/index',
   profile: 'pages/profile/index',
+  profileAssetManage: 'pages/profile/asset-center/manage/index',
   profileMember: 'pages/profile/member/index',
   profileAchievements: 'pages/profile/achievements/index',
   metaverse: 'pages/placeholder/metaverse/index'

@@ -1,0 +1,111 @@
+<profile-white-shell title="资产管理" background="#f7f8fa">
+  <view class="asset-manage-page">
+    <view class="asset-total-card">
+      <view class="asset-total-main">
+        <text class="asset-total-label">{{overview.label}}</text>
+        <text class="asset-total-value">{{overview.value}}</text>
+      </view>
+      <view class="asset-total-grid">
+        <view wx:for="{{assetStats}}" wx:key="key" class="asset-total-item">
+          <text class="asset-stat-value {{item.tone}}">{{item.value}}</text>
+          <text class="asset-stat-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="quick-action-grid">
+      <view
+        wx:for="{{quickActions}}"
+        wx:key="key"
+        class="quick-action {{item.tone}}"
+        bindtap="handleDeveloping"
+      >
+        <image class="quick-action-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="asset-menu-card">
+      <view
+        wx:for="{{menuItems}}"
+        wx:key="key"
+        class="asset-menu-row"
+        bindtap="handleDeveloping"
+      >
+        <view class="asset-menu-left">
+          <view class="asset-menu-icon {{item.tone}}">
+            <image class="asset-menu-glyph" src="{{item.iconSrc}}" mode="aspectFit"></image>
+          </view>
+          <view class="asset-menu-copy">
+            <text class="asset-menu-title">{{item.title}}</text>
+            <text class="asset-menu-desc">{{item.desc}}</text>
+          </view>
+        </view>
+        <view class="asset-menu-right">
+          <text wx:if="{{item.value}}" class="asset-menu-value">{{item.value}}</text>
+          <text class="asset-chevron">›</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="asset-section status-card">
+      <text class="asset-section-title">订单状态</text>
+      <view class="status-grid">
+        <view
+          wx:for="{{orderStatuses}}"
+          wx:key="key"
+          class="status-item"
+          bindtap="handleDeveloping"
+        >
+          <view class="status-icon-wrap {{item.tone}}">
+            <image class="status-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+          </view>
+          <text class="status-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="asset-section recent-section">
+      <view class="section-head">
+        <text class="asset-section-title">最近订单</text>
+        <text class="section-link" bindtap="handleDeveloping">查看全部</text>
+      </view>
+
+      <view class="recent-list-card">
+        <view
+          wx:for="{{recentOrders}}"
+          wx:key="id"
+          class="order-card"
+          bindtap="handleDeveloping"
+        >
+          <view class="order-top">
+            <view class="order-copy">
+              <text class="order-title">{{item.title}}</text>
+              <text class="order-id">订单号：{{item.id}}</text>
+            </view>
+            <text class="order-status {{item.statusTone}}">{{item.status}}</text>
+          </view>
+          <view class="order-bottom">
+            <text class="order-time">{{item.time}}</text>
+            <text class="order-amount">{{item.amount}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="faq-card">
+      <view class="faq-head">
+        <image class="faq-icon" src="/pages/profile/asset-center/manage/assets/fa/circle-question.svg" mode="aspectFit"></image>
+        <text>常见问题</text>
+      </view>
+      <view class="faq-links">
+        <text
+          wx:for="{{faqLinks}}"
+          wx:key="key"
+          class="faq-link"
+          bindtap="handleDeveloping"
+        >{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

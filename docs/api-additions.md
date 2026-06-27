@@ -4143,3 +4143,32 @@ GET /api/app/profile/service-center/invite/members/{memberId}
 3. 收益贡献：直接贡献收益、团队贡献收益、合计贡献金额。
 4. 最近动态：动态 ID、类型图标 / 类型 key、标题、发生时间、金额或状态符号。
 5. 空态、错误态、成员不存在 / 无权限访问、金额格式和时间格式。
+
+## 57. 资产中心资产管理接口
+
+记录日期：2026-06-27
+
+模块：我的 / 资产中心
+
+页面：`pages/profile/asset-center/manage/index`
+
+功能：资产管理页当前为静态走查，正式联调时页面展示数据、操作入口状态和子页面列表都应由后台提供，前端不写死最终业务数据。
+
+候选接口：
+
+```text
+GET /api/app/profile/assets
+POST /api/app/profile/assets/withdraw
+POST /api/app/profile/assets/recharge
+GET /api/app/profile/assets/balance-records
+GET /api/app/profile/assets/bank-cards
+GET /api/app/profile/assets/orders
+```
+
+需要后台返回 / 确认：
+
+1. 资产汇总：总资产、总成交额、可提现、待结算、最近订单、FAQ 文案和提现 / 充值入口是否可用。
+2. 订单状态：`待付款 / 进行中 / 已完成 / 退款/售后 / 待评价` 的状态枚举、状态文案、数量和点击后的筛选条件；进入列表后按状态查询对应订单。
+3. 银行卡：绑定数量、是否已实名 / 可绑卡状态、银行卡列表、默认收款账户、绑卡 / 解绑银行卡操作接口。
+4. 子页面：余额明细、银行卡管理、我的订单 / 查看全部、订单状态筛选结果、提现、充值、FAQ 详情或帮助页仍需补齐页面、路由和接口。
+5. 列表能力：余额明细和订单列表需要分页 / 游标、空态、错误态、金额格式、时间格式和状态流转规则。

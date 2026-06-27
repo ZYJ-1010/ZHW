@@ -57,6 +57,7 @@
     "pages/profile/publish-manage/index",
     "pages/profile/match-info/index",
     "pages/profile/my-games/index",
+    "pages/profile/asset-center/manage/index",
     "pages/profile/settings/index",
     "pages/profile/credit-center/index",
     "pages/profile/invite-records/index",
