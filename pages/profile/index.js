@@ -24,10 +24,9 @@ Page({
       {
         title: '服务中心',
         items: [
-          { title: '我的局', iconSrc: '/pages/profile/assets/i66@3x.png', iconClass: 'purple-blue', badge: '2进行中', badgeClass: 'pink', route: '/pages/profile/my-games/index' },
-          { title: '组局管理', iconSrc: '/pages/profile/assets/i67@3x.png', iconClass: 'violet-blue', badge: '5个服务', badgeClass: 'blue', route: '/pages/profile/publish-manage/index' },
+          { title: '我的局', iconSrc: '/pages/profile/assets/i66@3x.png', iconClass: 'purple-blue', badge: '2进行中', badgeClass: 'pink', route: '/pages/profile/service-center/my-games/index' },
           { title: '我的邀请', iconSrc: '/pages/profile/assets/i68@3x.png', iconClass: 'purple-blue', badge: '3待确认', badgeClass: 'orange', route: '/pages/profile/service-center/invite/overview/index' },
-          { title: '评价中心', iconSrc: '/pages/profile/assets/i69@3x.png', iconClass: 'purple-blue', badge: '2待评价', badgeClass: 'pink' }
+          { title: '评价管理', iconSrc: '/pages/profile/assets/i69@3x.png', iconClass: 'purple-blue', badge: '2待评价', badgeClass: 'pink', route: '/pages/profile/service-center/manage/review-manage/index' }
         ]
       },
       {
@@ -49,9 +48,9 @@ Page({
         ]
       },
       {
-        title: '账户管理',
+        title: '系统管理',
         items: [
-          { title: '我的资料', iconSrc: '/pages/profile/assets/i78@3x.png', iconClass: 'blue-purple', route: '/pages/profile/match-info/index' },
+          { title: '我的资料', iconSrc: '/pages/profile/assets/i78@3x.png', iconClass: 'blue-purple', route: '/pages/profile/system-management/profile-info/index' },
           { title: '技能配置', iconSrc: '/pages/profile/assets/i79@3x.png', iconClass: 'blue-purple', route: '/pages/profile/system-management/skill-config/index' },
           { title: '屏蔽设置', iconSrc: '/pages/profile/assets/i80@3x.png', iconClass: 'blue-purple' },
           { title: '信用中心', iconSrc: '/pages/profile/assets/i81@3x.png', iconClass: 'blue-purple', route: '/pages/profile/credit-center/index' },
@@ -76,7 +75,9 @@ Page({
   },
 
   handleAssetAllTap() {
-    wx.navigateTo({ url: '/pages/profile/asset-center/manage/index' })
+    wx.navigateTo({
+      url: '/pages/profile/asset-center/manage/index'
+    })
   },
 
   handleUpgradeTap() {

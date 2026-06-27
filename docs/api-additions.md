@@ -3599,13 +3599,82 @@ GET /api/app/messages/system-notification
 3. 阅读量、有用数、没用数是否由同一个详情接口返回；如果点击反馈需要实时回写，还需补充反馈提交接口。
 4. 封面图如果来自后台 CDN，需确认小程序域名白名单和图片裁剪比例。
 
+## 48. 消息中心列表接口
+
+记录日期：2026-06-26
+
+模块：消息 / 消息中心
+
+页面：`pages/message/index`
+
+功能：消息中心进入页面后从后台获取顶部消息分类、未读状态、tab 配置和消息列表。顶部分类右侧红点由后台未读状态控制：`unread=true` 或 `unreadCount > 0` 时显示红点；没有未读时不显示红点。点击 `全部消息 / 未读 / 交易通知` 时前端携带 tab key 重新请求列表。
+
+候选接口：
+
+```text
+GET /api/app/messages/center
+```
+
+建议入参：
+
+```json
+{
+  "tab": "all"
+}
+```
+
+建议返回：
+
+```json
+{
+  "pageTitle": "消息中心",
+  "onlineText": "3999人在线",
+  "activeTab": "all",
+  "quickActions": [
+    { "key": "join", "label": "组局加入", "iconSrc": "/pages/message/assets/i53@3x.png", "unreadCount": 1 },
+    { "key": "system", "label": "系统通知", "iconSrc": "/pages/message/assets/i54@3x.png", "unreadCount": 0 },
+    { "key": "achievement", "label": "成就解锁", "iconSrc": "/pages/message/assets/i55@3x.png", "unreadCount": 0 },
+    { "key": "warning", "label": "预警通知", "iconSrc": "/pages/message/assets/i56@3x.png", "unreadCount": 0 },
+    { "key": "friend", "label": "好友", "iconSrc": "/pages/message/assets/i57@3x.png", "unreadCount": 3 }
+  ],
+  "tabs": [
+    { "key": "all", "label": "全部消息" },
+    { "key": "unread", "label": "未读 (3)", "unreadCount": 3 },
+    { "key": "trade", "label": "交易通知" }
+  ],
+  "sections": [
+    {
+      "key": "system",
+      "title": "系统通知",
+      "items": [
+        {
+          "id": "platform-notice",
+          "routeKey": "system",
+          "iconSrc": "/pages/message/assets/i58@3x.png",
+          "title": "平台公告",
+          "timeText": "2小时前",
+          "desc": "关于组局功能升级的通知..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+待确认：
+
+1. 正式接口路径是否使用 `GET /api/app/messages/center`，还是并入统一消息列表接口。
+2. `quickActions` 的分类 key 是否固定为 `join/system/achievement/warning/friend`，以及每个分类点击后的正式跳转规则。
+3. 未读统计是否只返回 `unreadCount`，还是同时返回 `unread`；前端当前两者都兼容。
+4. 消息卡片按钮如 `确认参加 / 婉拒 / 立即处理 / 查看路线 / 联系发起人` 的真实操作接口仍需补充。
+
 ## 49. 我的个人中心子页面接口
 
 记录日期：2026-06-26
 
 模块：我的 / 个人中心
 
-页面：`pages/profile/index`、`pages/profile/publish-manage/index`、`pages/profile/match-info/index`、`pages/profile/my-games/index`、`pages/profile/settings/index`、`pages/profile/credit-center/index`、`pages/profile/invite-records/index`
+页面：`pages/profile/index`、`pages/profile/service-center/manage/review-manage/index`、`pages/profile/service-center/manage/review-reply/index`、`pages/profile/match-info/index`、`pages/profile/service-center/my-games/index`、`pages/profile/asset-center/manage/index`、`pages/profile/asset-center/points/index`、`pages/profile/settings/index`、`pages/profile/credit-center/index`、`pages/profile/service-center/invite-records/index`
 
 功能：本次先按用户粘贴的个人中心 HTML 和 `E:\项目\03周总\个人中心` 下 6 个 HTML 导出资料落地静态走查页。`pages/profile/index` 已套用 `母版-申请加入` 对应的 `home-shell` `joinApply` 变体，并隐藏母版标题和右侧头像；其余 6 个子页使用白色母版。正式联调时，这些页面的用户信息、资产、列表、统计、开关、保存和操作按钮需要改为接口驱动。
 
@@ -3622,6 +3691,14 @@ POST /api/app/profile/published-services/{serviceId}/pin
 GET /api/app/profile/match-info
 PUT /api/app/profile/match-info
 GET /api/app/profile/games
+GET /api/app/profile/assets
+POST /api/app/profile/assets/withdraw
+POST /api/app/profile/assets/recharge
+GET /api/app/profile/assets/balance-records
+GET /api/app/profile/assets/bank-cards
+GET /api/app/profile/assets/orders
+GET /api/app/profile/points
+GET /api/app/profile/points/records
 GET /api/app/profile/settings
 PUT /api/app/profile/settings
 GET /api/app/profile/credit
@@ -3688,7 +3765,7 @@ GET /api/app/profile/home
           "icon": "i66",
           "badgeText": "2进行中",
           "badgeTone": "pink",
-          "route": "pages/profile/my-games/index",
+          "route": "pages/profile/service-center/my-games/index",
           "enabled": true
         }
       ]
@@ -3701,18 +3778,19 @@ GET /api/app/profile/home
 
 | 分组 | 入口 | 当前路由 / 状态 |
 | --- | --- | --- |
-| 服务中心 | 我的局 | `pages/profile/my-games/index` |
-| 服务中心 | 组局管理 | `pages/profile/publish-manage/index` |
-| 服务中心 | 我的邀请 | `pages/profile/invite-records/index` |
-| 服务中心 | 评价中心 | 待确认评价中心页面 / 路由 |
-| 资产中心 | 我的资产 | 待确认资产首页 / 路由 |
+| 服务中心 | 我的局 | `pages/profile/service-center/my-games/index` |
+| 服务中心 / 组局管理 | 评价管理 | `pages/profile/service-center/manage/review-manage/index` |
+| 服务中心 / 组局管理 | 回复评价 | `pages/profile/service-center/manage/review-reply/index` |
+| 服务中心 | 我的邀请 | `pages/profile/service-center/invite-records/index` |
+| 资产中心 | 我的资产 | `pages/profile/asset-center/manage/index` |
 | 资产中心 | 我的押金 | 待确认押金页 / 路由 |
-| 资产中心 | 积分商城 | 待确认积分商城页 / 路由 |
-| 资产中心 | 我的积分 | 待确认积分明细页 / 路由 |
+| 资产中心 | 积分商城 | `pages/profile/asset-center/mall/index` |
+| 资产中心 | 我的订单 | `pages/profile/asset-center/orders/index` |
+| 资产中心 | 我的积分 | `pages/profile/asset-center/points/index` |
 | 资产中心 | 开票中心 | 待确认开票页 / 路由 |
 | 足迹中心 | 我的足迹 | 待确认足迹页 / 路由 |
 | 足迹中心 | 我的城市故事 | 待确认城市故事页 / 路由 |
-| 足迹中心 | 我的成就墙 | `pages/profile/achievements/index` |
+| 足迹中心 | 我的成就墙 | `pages/profile/footprint/achievements/index` |
 | 账户管理 | 我的资料 | `pages/profile/match-info/index` |
 | 账户管理 | 技能配置 | 待确认技能配置页 / 路由 |
 | 账户管理 | 屏蔽设置 | 待确认屏蔽设置页 / 路由 |
@@ -3726,9 +3804,101 @@ GET /api/app/profile/home
 
 1. 首页菜单入口是否全部由后端返回，还是前端固定入口、后端只返回角标和可见状态。
 2. `badgeText`、`badgeTone` 是否由后端直接返回；如果后端只返回数量和状态枚举，前端需要统一映射文案和颜色。
-3. 资产中心相关页面是否新建在 `pages/profile/` 下，还是复用钱包 / 交易模块页面。
+3. 资产中心当前已新增 `pages/profile/asset-center/manage/index`、`pages/profile/asset-center/mall/index`、`pages/profile/asset-center/orders/index` 和 `pages/profile/asset-center/points/index` 静态走查页；我的押金、开票中心是否继续放在该目录下仍需确认。
 4. 足迹中心是否复用地图模块已有页面，例如 `pages/map/my-city/index`、`pages/map/footprint-heatmap/index`，需要产品确认。
 5. 头像使用 `avatarUrl` 真实图片还是继续允许 `avatarText` 兜底。
+
+### 49.2 资产中心资产管理与积分中心接口
+
+页面：`pages/profile/asset-center/manage/index`、`pages/profile/asset-center/mall/index`、`pages/profile/asset-center/orders/index`、`pages/profile/asset-center/points/index`
+
+候选接口：
+
+```text
+GET /api/app/profile/assets
+POST /api/app/profile/assets/withdraw
+POST /api/app/profile/assets/recharge
+GET /api/app/profile/assets/balance-records
+GET /api/app/profile/assets/bank-cards
+GET /api/app/profile/assets/orders
+GET /api/app/profile/points
+GET /api/app/profile/points/records
+GET /api/app/profile/points/mall
+POST /api/app/profile/points/mall/exchange
+GET /api/app/profile/points/orders
+GET /api/app/profile/points/orders/{orderId}/logistics
+POST /api/app/profile/points/orders/{orderId}/cancel
+```
+
+需要后台返回 / 确认：
+
+1. 资产管理页全部展示数据都需由后台提供，前端当前只保留静态走查兜底：总资产、总成交额、可提现、待结算、银行卡绑定数量、银行卡列表摘要、订单状态数量、各订单状态对应的订单列表、最近订单、FAQ 文案和是否展示充值入口。
+2. 订单状态区的 `待付款 / 进行中 / 已完成 / 退款/售后 / 待评价` 不应由前端写死最终数量；需要后台返回状态枚举、状态文案、数量和点击后对应筛选条件，进入列表时按状态查询对应订单。
+3. 银行卡入口需要后台返回当前绑定数量、是否已实名 / 可绑卡状态、银行卡列表、默认收款账户和绑卡 / 解绑银行卡操作接口。
+4. 提现 / 充值 / 余额明细 / 银行卡 / 我的订单分别跳转页面还是当前页弹层，真实接口路径、提交字段、失败提示和结果页仍需确认。
+5. 积分中心页全部展示数据都需由后台提供，前端当前只保留静态走查兜底：可用积分、累计积分、已兑换、过期积分、积分规则、唯一积分来源、积分比例、计算规则、角色分润示例、积分明细记录、收入 / 支出筛选和分页。
+6. 角色分润积分示例不由前端计算；后台需要直接返回各角色分成比例、分润金额、积分比例、积分结果和展示顺序，前端只按返回数据渲染红框中的示例列表。
+7. 积分明细列表不由前端拼接；后台需要返回每条明细的类型、标题、说明、时间、订单号 / 关联单号、积分增减值、收入 / 支出分类、图标类型和分页信息。
+8. 积分明细筛选 `全部 / 收入 / 支出` 的枚举 key、分页参数、过期 / 兑换 / 收入记录的字段与金额格式需后端确认。
+9. 积分商城页全部展示数据都需由后台提供，前端当前只保留静态走查兜底：可用积分、商品列表、商品图标 / 图片、商品名称、兑换积分、库存、是否可兑换、兑换按钮状态和积分有效期提示。
+10. 积分商城点击商品后在当前页打开确认兑换弹层；点击 `确认兑换` 调用 `POST /api/app/profile/points/mall/exchange`，前端根据后台 `code/message/data` 判断兑换成功或失败，并在当前页弹出结果提示框，不跳转到新页面。
+11. `POST /api/app/profile/points/mall/exchange` 建议入参为 `{ "goodId": "mall-shirt" }`，成功返回建议包含 `orderId`、`orderStatus` 和最新商城快照 `mall`；业务失败时建议返回非 0 `code` 和可直接展示的 `message`，例如库存不足、积分不足、商品下架。
+12. 无论兑换成功或失败，前端都会再次调用 `GET /api/app/profile/points/mall` 查询最新积分余额和商品剩余数量，避免使用本地扣减结果作为最终库存。后续正式联调时需确认该查询接口是否也返回最新积分明细入口数据。
+13. 我的订单页全部展示数据都需由后台提供；当前前端已在进入页面和切换状态 tab 时调用 `GET /api/app/profile/points/orders`，并携带 `status` 查询条件（`all` 不传状态），接口返回 `tabs`、`orders/list`、`emptyText` 后渲染。订单状态 tab、订单号、商品信息、兑换积分、兑换时间、状态、可执行动作都应以后端返回为准。订单动作里 `再次兑换` 当前直接跳转 `pages/profile/asset-center/mall/index`；`查看物流` 当前在我的订单当前页打开物流详情弹层，并调用 `GET /api/app/profile/points/orders/{orderId}/logistics` 获取物流详情；`查看详情` 和 `取消订单` 都是跳转独立页面的需求，但具体页面、路由、展示字段、取消流程和结果页需业主确认后再实现；订单详情和取消订单仍需补充真实接口。
+14. 物流详情当前按用户提供设计落地为我的订单页内紧凑深色弹层，单独物流详情页已删除；接口建议返回 `courier.name`、`courier.trackingNo`、`timeline[]`，其中轨迹节点建议包含 `id`、`desc`、`time`、`active/current`；前端复制按钮复制 `trackingNo`。正式联调需确认快递公司图标来源、轨迹排序方向、无物流 / 物流异常 / 已签收状态、弹层刷新策略和接口失败提示。
+15. 积分兑换成功后如何同步刷新积分明细和订单列表，以及取消订单是否退回积分、退回后积分有效期如何处理，仍需后端 / 产品确认。
+
+### 49.3 服务中心我的邀请子页接口
+
+页面：`pages/profile/service-center/invite/overview/index`、`pages/profile/service-center/invite/network/index`、`pages/profile/service-center/invite/records/index`、`pages/profile/service-center/invite/ranking/index`、`pages/profile/service-center/invite/income/index`、`pages/profile/service-center/invite/member-detail/index`
+
+候选接口：
+
+```text
+GET /api/app/profile/service-center/invite/overview
+GET /api/app/profile/service-center/invite/network
+GET /api/app/profile/service-center/invite/records
+GET /api/app/profile/service-center/invite/ranking
+GET /api/app/profile/service-center/invite/income
+GET /api/app/profile/service-center/invite/members/{memberId}
+POST /api/app/profile/service-center/invite/share
+POST /api/app/profile/service-center/invite/records/{recordId}/remind-delivery
+```
+
+待确认：
+
+1. 数据概览页需要返回用户等级、昵称、唯一 ID、加入天数、核心指标、快捷操作可用状态、趋势速览数据。
+2. 数据概览页的三个快捷操作均需后台提供数据：`分享邀请码` 使用后台返回的 `inviteCode` 和分享文案 / 分享卡片配置；中间操作按 `二维码` 处理，不再使用 `复制链接` 口径，后台需返回可展示 / 保存的二维码或小程序码字段，例如 `qrCodeUrl` 或 `miniProgramCodeUrl`；`生成海报` 使用后台生成或返回的带邀请码海报图，字段建议包含 `posterImageUrl`，海报内也应包含二维码或小程序码。前端不写死邀请码、链接或二维码内容。
+3. 关系网络页需要返回已服务玩家数、本周收益、一级成员关系图节点、一级成员列表、成员直接贡献和团队贡献。
+4. 邀约记录页需要返回前端当前展示的所有数据：`我引荐的 / 我发起的` tab 数量与选中态、状态筛选数量、超时预警文案、记录列表、状态、记录编号、时间、行家 / 玩家头像昵称与角色、关系节点、服务标题、预算、你的奖励、已到账状态、超时 / 取消提示、提醒交付和查看组局入口可用状态。前端当前仅静态兜底，不写死最终业务数据；查看组局需返回可跳转的组局 / 订单 / 服务记录 ID。
+5. 贡献排行页需要返回周期筛选、排行类型、成员排名、头像、活跃天数、邀约数和分润贡献数据。
+6. 收益明细页需要返回收益趋势、本月分润、累计分润、活跃成员、产生分润局数和分润流水。
+7. 成员详情页需要按 `memberId` 返回成员基础信息、邀约 / 转化 / 转化率、直接贡献收益、团队贡献收益、合计贡献和最近动态。
+8. 当前 6 页均为静态走查；正式联调时需要确认页面之间的跳转关系，例如关系网络成员点击进入成员详情、查看分润进入收益明细、邀约记录查看详情进入对应组局详情。
+
+### 49.4 服务中心评价管理接口
+
+页面：`pages/profile/service-center/manage/review-manage/index`、`pages/profile/service-center/manage/review-reply/index`
+
+候选接口：
+
+```text
+GET /api/app/profile/service-center/reviews
+GET /api/app/profile/service-center/reviews/{reviewId}
+GET /api/app/profile/service-center/reply-templates
+GET /api/app/profile/service-center/reviews/{reviewId}/messages
+POST /api/app/profile/service-center/reviews/{reviewId}/reply
+POST /api/app/profile/service-center/reviews/{reviewId}/like
+```
+
+待确认：
+
+1. 评价管理页需要返回评分统计、待回复数量、评价列表、标签、平台介入状态、行家回复内容、点赞状态和点赞数量；字段建议包含 `scoreSummary`、`pendingCount`、`reviews[]`、`reviews[].reply`、`reviews[].statusType`、`reviews[].liked`、`reviews[].likeCount`。
+2. 回复评价页需要按 `reviewId` 获取单条评价详情，字段至少包含玩家头像 / 昵称、评价时间、评分、服务标题、评价内容、标签、订单号、服务金额和已有行家回复。
+3. 快捷回复模板当前为前端静态兜底，后续应由后台返回模板列表，字段建议包含 `id`、`content`、`sort`、`enabled`。
+4. 历史对话当前为前端静态兜底，后续应按 `reviewId` 获取，字段建议包含 `id`、`role`、`name`、`avatarUrl`、`content`、`createdAt`。
+5. 回复评价页提交时，回复内容最大长度按 200 字处理；正式接口需要校验 `content` 非空且不超过 200 字。响应建议返回 `reviewId`、`reply.content`、`reply.repliedAt`、`statusType`，用于刷新评价管理页的“行家回复”内容。
+6. 点赞按钮当前是图标按钮，后续需确认是否允许行家给玩家评价点赞、是否需要取消点赞，以及接口返回字段命名。
 
 ## 50. 会员中心三档会员配置接口
 
@@ -4025,31 +4195,7 @@ GET /api/app/profile/member-radar/profile-form/options
 3. 地址定位是否必须授权 `scope.userLocation`，拒绝授权时的兜底填写方式。
 4. `我的资源`、`我的需求` 是读取个人主页资料还是会员雷达独立资料。
 5. 保存成功后跳转回 `组局雷达` 还是进入 `适配组局` 流程。
-## 53. 服务中心我的邀请 - 邀约记录页接口
 
-记录日期：2026-06-27
-
-模块：我的 / 服务中心 / 我的邀请
-
-页面：`pages/profile/service-center/invite/records/index`
-
-功能：邀约记录页当前为静态走查，正式联调时页面前端显示的数据都应由后台返回，前端不写死最终业务数据。
-
-候选接口：
-
-```text
-GET /api/app/profile/service-center/invite/records
-POST /api/app/profile/service-center/invite/records/{recordId}/remind-delivery
-```
-
-需要后台返回 / 确认：
-
-1. 顶部 `我引荐的 / 我发起的` tab 数量、选中态和权限。
-2. 状态筛选数量：全部、进行中、已完成、超时、已取消。
-3. 超时预警文案、是否展示、点击后的处理方式和目标记录 ID。
-4. 记录列表字段：状态、记录编号、时间、行家 / 玩家头像昵称与角色、关系节点、服务标题、预算、你的奖励、已到账状态、超时 / 取消提示。
-5. 查看组局入口是否展示，以及可跳转的组局 ID、订单 ID 或服务记录 ID。
-6. 提醒交付接口、状态流转、分页、空态、错误态、状态枚举和金额格式。
 ## 54. 服务中心我的邀请 - 贡献排行页接口
 
 记录日期：2026-06-27
@@ -4144,86 +4290,6 @@ GET /api/app/profile/service-center/invite/members/{memberId}
 4. 最近动态：动态 ID、类型图标 / 类型 key、标题、发生时间、金额或状态符号。
 5. 空态、错误态、成员不存在 / 无权限访问、金额格式和时间格式。
 
-## 57. 资产中心资产管理接口
-
-记录日期：2026-06-27
-
-模块：我的 / 资产中心
-
-页面：`pages/profile/asset-center/manage/index`
-
-功能：资产管理页当前为静态走查，正式联调时页面展示数据、操作入口状态和子页面列表都应由后台提供，前端不写死最终业务数据。
-
-候选接口：
-
-```text
-GET /api/app/profile/assets
-POST /api/app/profile/assets/withdraw
-POST /api/app/profile/assets/recharge
-GET /api/app/profile/assets/balance-records
-GET /api/app/profile/assets/bank-cards
-GET /api/app/profile/assets/orders
-```
-
-需要后台返回 / 确认：
-
-1. 资产汇总：总资产、总成交额、可提现、待结算、最近订单、FAQ 文案和提现 / 充值入口是否可用。
-2. 订单状态：`待付款 / 进行中 / 已完成 / 退款/售后 / 待评价` 的状态枚举、状态文案、数量和点击后的筛选条件；进入列表后按状态查询对应订单。
-3. 银行卡：绑定数量、是否已实名 / 可绑卡状态、银行卡列表、默认收款账户、绑卡 / 解绑银行卡操作接口。
-4. 子页面：余额明细、银行卡管理、我的订单 / 查看全部、订单状态筛选结果、提现、充值、FAQ 详情或帮助页仍需补齐页面、路由和接口。
-5. 列表能力：余额明细和订单列表需要分页 / 游标、空态、错误态、金额格式、时间格式和状态流转规则。
-
-## 58. 资产中心我的积分接口
-
-记录日期：2026-06-27
-
-模块：我的 / 资产中心
-
-页面：`pages/profile/asset-center/points/index`
-
-功能：积分中心页当前为静态走查，正式联调时积分规则、积分比例、计算规则、角色分润示例和积分明细均由后台提供，前端只展示返回内容，不计算或推导分润比例和积分结果。
-
-候选接口：
-
-```text
-GET /api/app/profile/points
-GET /api/app/profile/points/records
-```
-
-需要后台返回 / 确认：
-
-1. 顶部积分汇总：可用积分、累计积分、已兑换、过期积分。
-2. 积分规则：规则文案、积分有效期、是否可提现 / 支付付费局、是否只能兑换平台限定商品、规则高亮字段和展示顺序。
-3. 赚积分展示：唯一积分来源、积分比例、计算规则、示例分润金额、示例积分结果。
-4. 各角色分润积分示例：角色名称、emoji / icon 类型、分成比例、分润金额、积分结果和展示顺序均由后台直接返回，前端不做比例和积分计算。
-5. 积分明细：明细类型、标题、说明、发生时间、订单号 / 关联单号、积分增减值、收入 / 支出分类、图标类型、分页 / 游标、空态和错误态。
-6. 积分明细筛选 `全部 / 收入 / 支出` 的枚举 key、分页参数、时间格式、金额 / 积分格式需确认。
-7. 兑换平台限定商品、积分商城入口、兑换后刷新余额和明细的接口仍需确认。
-## 2026-06-27 资产中心积分商城接口
-
-记录日期：2026-06-27
-
-模块：我的 / 资产中心 / 积分商城
-
-页面：`pages/profile/asset-center/mall/index`
-
-功能：积分商城页面进入时查询可用积分、商品列表、库存、积分有效期提示；点击商品在当前页弹出确认兑换弹框，确认后调用兑换接口，并按后台返回结果提示成功 / 失败，随后重新查询商城数据刷新商品剩余数量和可用积分。
-
-候选接口：
-
-```text
-GET /api/app/profile/points/mall
-POST /api/app/profile/points/mall/exchange
-```
-
-待确认：
-
-1. 兑换接口是否在后台同一事务内完成积分扣减、库存锁定、积分订单生成和幂等处理。
-2. 成功返回的订单状态是否统一进入 `待发货`，以及是否返回 `orderId`、`orderStatus` 和最新商城快照。
-3. 失败场景的 code / message 结构，包括积分不足、库存不足、商品下架、重复提交和网络超时。
-
-状态：前端已接 mock，正式接口待后端确认。
-
 ## 59. 资产中心我的订单与物流弹层接口
 
 记录日期：2026-06-27
@@ -4251,6 +4317,7 @@ POST /api/app/profile/points/orders/{orderId}/cancel
 5. `查看详情` 和 `取消订单` 暂未实现；需要业主确认页面形态、路由、展示字段、取消流程、取消结果页和取消接口。
 
 状态：前端已接订单列表和物流详情 mock，正式接口待后端确认。
+
 ## 60. 我的足迹 - 我的成就墙接口
 
 记录日期：2026-06-27
@@ -4279,36 +4346,73 @@ POST /api/app/profile/footprint/achievements/{achievementId}/claim
 6. 空态、错误态、分页 / 展示数量、图标资源来源、时间格式和多语言 / 文案后台配置。
 
 状态：前端已新增静态页和编译模式，正式接口待后端确认。
-## 61. 系统管理技能配置接口
 
-记录日期：2026-06-28
+## 61. 系统管理我的资料接口
 
-模块：我的 / 系统管理 / 技能配置
+记录日期：2026-06-27
 
-页面：`pages/profile/system-management/skill-config/index`、`pages/profile/system-management/service-case-detail/index`
+模块：我的 / 系统管理 / 我的资料
 
-功能：技能配置页当前为深色静态走查并已接本地 mock。正式联调时，技能槽位、显性技能、隐形技能、服务案例、修改次数、解锁建议、添加/编辑/移除/解锁结果和服务案例详情都应由后台返回。
+页面：`pages/profile/system-management/profile-info/index`
+
+功能：我的资料页当前为静态走查；点击右上角保存时，前端已组装当前个人资料、企业资料、联系方式可见性、公开注册业务信息开关和认证状态，通过 `PUT /api/app/profile/system-management/profile-info` 提交到后台 / mock。正式联调时还需要从后台获取个人资料、企业资料、联系方式可见性、公开注册业务信息开关、认证状态，并支持头像更新、实名认证 / 企业认证入口。
 
 候选接口：
 
-- `GET /api/app/profile/system-management/skill-config`
-- `PUT /api/app/profile/system-management/skill-config`
-- `GET /api/app/profile/system-management/skill-config/cases/{caseId}`
-- `POST /api/app/profile/system-management/skill-config/skills`
-- `PATCH /api/app/profile/system-management/skill-config/skills/{skillId}`
-- `DELETE /api/app/profile/system-management/skill-config/skills/{skillId}`
-- `POST /api/app/profile/system-management/skill-config/skills/{skillId}/unlock`
-- `POST /api/app/profile/system-management/skill-config/cases/{caseId}/bind`
+```text
+GET /api/app/profile/system-management/profile-info
+PUT /api/app/profile/system-management/profile-info
+POST /api/app/profile/system-management/profile-info/avatar
+GET /api/app/profile/system-management/certifications
+POST /api/app/profile/system-management/certifications/personal
+POST /api/app/profile/system-management/certifications/enterprise
+```
 
 需要后台返回 / 确认：
 
-1. 身份限制：`roleName`、`maxSkillCount`、`monthlyLimit`、`usedCount`、`remainingCount`、`configuredCount`、重置时间和超限提示。
-2. 技能槽位：`id`、`title`、`iconKey` 或 `iconText`、`tone`、`active`、`empty`、`locked`；第三槽未解锁时返回 `empty=true` 和 `locked=true`，前端不可添加。
-3. 技能列表：`skillGroups.visible`、`skillGroups.hidden`、技能来源、可见性、锁定时间、是否可编辑/移除、服务案例说明和评分。
-4. 隐形技能：当前产品要求默认关闭；`skillGroups.hidden` 为空时前端展示“暂无隐形技能”空态，不展示默认候选或解锁卡。
-5. 服务案例列表：案例 `id`、`title`、`linkedSkillTitle`、`iconText` 或 `iconKey`、`tone`、日期、人数、评分、展示状态、绑定技能和审核状态；详情页图标必须来自点击的案例数据，不在详情页固定写死。
-6. 服务案例详情：建议 `GET /cases/{caseId}` 返回 `title`、`date`、`playersText`、`totalPlayers`、`ratingText`、`score`、`tags`、`detailSections`、`players`、`iconText` 或 `iconKey`、`tone`。
-7. 修改次数：添加、编辑、移除、解锁技能和解锁槽位是否扣减次数、何时扣减、失败是否回滚、下次重置时间和提示文案。
-8. 保存规则：`PUT` 是整体覆盖还是增量保存；接口需返回保存后的最新配置，供前端刷新本地状态。
+1. 个人信息字段：头像 URL / 头像文字、姓名、脱敏联系方式、联系方式是否隐藏、可见性枚举、兴趣爱好。
+2. 企业信息字段：公司名称、职务、主营业务数量或列表、可提供资源、公开注册业务信息开关。
+3. 认证中心字段：个人身份认证状态、企业认证状态、状态文案、认证说明、认证入口是否可点。
+4. 保存接口字段、校验规则、敏感词 / 审核规则、部分保存还是整体保存、保存失败码和提示文案；当前前端保存 payload 为 `personalInfo`、`enterpriseInfo`、`certifications` 三段。
+5. 头像上传使用文件上传还是后台返回上传凭证；联系方式展示和可见性涉及隐私口径，需要产品 / 后端确认。
+6. 认证入口跳转小程序内页、H5、第三方小程序还是后台返回跳转参数。
 
-状态：前端已完成静态页、服务案例详情页、基础 mock 和本地交互；正式接口、字段命名、权限规则、失败码、案例绑定和案例详情仍待后端确认。
+状态：前端已新增静态页和编译模式，并已接 `PUT /api/app/profile/system-management/profile-info` service / mock 保存链路；正式接口字段、校验规则和获取接口仍待后端确认。
+
+## 62. 系统管理技能配置接口
+
+记录日期：2026-06-27
+
+模块：我的 / 系统管理 / 技能配置
+
+页面：`pages/profile/system-management/skill-config/index`
+
+功能：技能配置页当前为深色参考图样式的静态走查；进入页面时前端尝试读取技能配置，点击右上角保存时组装当前身份限制、技能槽位、显性技能、隐形技能、服务案例和解锁提示，通过 `PUT /api/app/profile/system-management/skill-config` 提交到后台 / mock。当前前端已补充本地响应交互：移除技能确认、修改次数不足提示、编辑技能底部面板、解锁新技能确认和添加技能底部面板；这些操作先按页面本地状态更新并扣减剩余修改次数。正式联调时技能槽位、技能列表、修改次数、AI 解锁来源、案例绑定和可操作状态均应由后台返回。
+
+候选接口：
+
+```text
+GET /api/app/profile/system-management/skill-config
+PUT /api/app/profile/system-management/skill-config
+GET /api/app/profile/system-management/skill-config/cases/{caseId}
+POST /api/app/profile/system-management/skill-config/skills
+PATCH /api/app/profile/system-management/skill-config/skills/{skillId}
+DELETE /api/app/profile/system-management/skill-config/skills/{skillId}
+POST /api/app/profile/system-management/skill-config/skills/{skillId}/unlock
+POST /api/app/profile/system-management/skill-config/cases/{caseId}/bind
+```
+
+需要后台返回 / 确认：
+
+1. 身份与限制：当前身份、最多可配置技能数、每月可修改次数、已用次数、剩余次数、超限后的提示文案和是否允许保存。
+2. 技能槽位：槽位 ID、标题、图标 key 或图标 URL、是否已配置、是否当前选中、是否可添加 / 编辑 / 移除。
+3. 技能列表：技能 ID、名称、显性 / 隐形 / 服务案例分类、玩家是否可见、来源类型、来源文案、锁定时间、手动解锁 / AI 解锁状态、是否可编辑 / 移除。
+4. 服务案例：案例 ID、标题、摘要、日期、人数 / 局类型、评分、是否可展示、是否已绑定技能、绑定规则和审核状态；服务案例列表进入详情页时还需要返回或透传 `iconText` / `iconKey`、`tone`、`linkedSkillTitle`，详情页图标应与列表点击项一致，不在详情页固定写死。
+5. 解锁建议：潜力技能标题、提示文案、操作按钮文案、解锁接口成功 / 失败返回结构、是否扣减修改次数。
+6. 保存规则：保存是整体覆盖还是增量更新，修改次数何时扣减，添加 / 编辑 / 移除 / 解锁是否需要二次确认，失败码和提示文案。
+7. 图标资源：后台返回 `iconKey` 由前端映射项目内图标，还是直接返回已入库的图标 URL；若使用外部图标，需先下载到项目内后引用。
+8. 隐形技能空态：当前前端已按产品反馈关闭默认隐形技能候选；当 `skillGroups.hidden` 为空时只展示锁定说明，不展示默认卡片或解锁卡。若后台需要开启隐形技能展示，需要返回非空 `skillGroups.hidden` 和对应解锁建议。
+9. 第三个技能槽：当前第三槽未解锁时仍显示灰色 `+ / 添加技能`，但需要 `skillSlots[].locked=true` 控制不可添加；点击下方“解锁第三个技能”只把该槽位解锁为 `locked=false`，随后用户再点击槽位进入添加技能面板。正式接口需确认解锁槽位是否扣减修改次数，以及保存 / 单独解锁接口返回结构。
+10. 服务案例详情：点击服务案例后当前前端使用 `caseId` 切换本地兜底详情；正式联调建议由 `GET /api/app/profile/system-management/skill-config/cases/{caseId}` 返回详情页所需字段，包括 `title`、`date`、`playersText`、`totalPlayers`、`ratingText`、`score`、`tags[]`、`detailSections[]`、`players[]`、`iconText` / `iconKey`、`tone`。评分星级可由后台直接返回或由前端根据 `score` 派生，但最终评分、标签和玩家列表都应以后台为准。
+
+状态：前端已新增深色静态页、服务案例详情页和对应编译模式，并已接 `GET /api/app/profile/system-management/skill-config` 与 `PUT /api/app/profile/system-management/skill-config` service / mock 链路；添加 / 编辑 / 移除 / 解锁已先补本地响应 UI 和本地状态更新，服务案例详情当前仍为前端兜底数据。正式接口字段、操作权限、修改次数扣减、失败码、案例绑定流程和案例详情接口仍待后端和产品确认。

@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "我的消息",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "chat-input-bar": "/components/chat-input-bar/index"
+  }
+}

@@ -10,6 +10,33 @@ async function getProfileHome() {
   return result.data
 }
 
+async function replyServiceReview(payload = {}) {
+  const reviewId = String(payload.reviewId || '').trim()
+  const content = String(payload.content || '').trim()
+
+  if (!reviewId) {
+    throw new Error('缺少评价信息，无法提交回复')
+  }
+
+  if (!content) {
+    throw new Error('请输入回复内容')
+  }
+
+  if (content.length > 200) {
+    throw new Error('回复内容不能超过200字')
+  }
+
+  const result = await profileApi.replyServiceReview(reviewId, {
+    content
+  })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '回复评价提交失败')
+  }
+
+  return result.data
+}
+
 async function getPointsMall() {
   const result = await profileApi.getPointsMall()
 
@@ -40,6 +67,7 @@ async function exchangePointsMallGood(payload = {}) {
     data: result.data
   }
 }
+
 async function getPointsOrders(params = {}) {
   const result = await profileApi.getPointsOrders(params)
 
@@ -61,6 +89,16 @@ async function getPointsOrderLogistics(params = {}) {
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取物流详情失败')
+  }
+
+  return result.data
+}
+
+async function saveSystemProfileInfo(payload = {}) {
+  const result = await profileApi.saveSystemProfileInfo(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '资料保存失败')
   }
 
   return result.data
@@ -88,10 +126,12 @@ async function saveSystemSkillConfig(payload = {}) {
 
 module.exports = {
   getProfileHome,
+  replyServiceReview,
   getPointsMall,
   exchangePointsMallGood,
   getPointsOrders,
   getPointsOrderLogistics,
+  saveSystemProfileInfo,
   getSystemSkillConfig,
   saveSystemSkillConfig
 }

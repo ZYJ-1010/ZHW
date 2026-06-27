@@ -21,6 +21,7 @@ const {
   mockPlayerGameManage,
   mockGameProfitTemplates,
   mockRelationNetworkHome,
+  mockMessageCenter,
   mockTradeWarningDetail,
   mockSystemNotificationDetail
 } = require('./mock-data')
@@ -30,6 +31,7 @@ let mockRoleStatusMap = Object.assign({}, mockCurrentUser.roleStatusMap)
 let mockSubmittedRoleApplications = []
 let mockPointsMallState = JSON.parse(JSON.stringify(mockPointsMall))
 let mockPointsOrdersState = JSON.parse(JSON.stringify(mockPointsOrders))
+let mockSystemProfileInfoState = null
 let mockSystemSkillConfigState = JSON.parse(JSON.stringify(mockSystemSkillConfig))
 const MOCK_ROLE_APPLICATION_SUBMITTED_AT = '2026-06-08T10:30:00+08:00'
 const MOCK_ROLE_APPLICATION_EXPECTED_REVIEW_AT = '2026-06-12T18:00:00+08:00'
@@ -354,6 +356,15 @@ function buildSystemNotificationDetail(data = {}) {
   })
 }
 
+function buildMessageCenter(data = {}) {
+  const center = JSON.parse(JSON.stringify(mockMessageCenter))
+  const activeTab = data.tab || data.activeTab || center.activeTab || 'all'
+
+  return Object.assign({}, center, {
+    activeTab
+  })
+}
+
 function formatNumber(value) {
   const number = Number(value) || 0
 
@@ -418,7 +429,6 @@ function buildPointsOrderLogistics(orderId) {
   }
 }
 
-
 function exchangePointsMallGood(data = {}) {
   const goodId = String(data.goodId || data.productId || data.id || '').trim()
 
@@ -473,6 +483,31 @@ function exchangePointsMallGood(data = {}) {
   }))
 }
 
+function saveSystemProfileInfo(data = {}) {
+  const personalInfo = data.personalInfo || {}
+  const enterpriseInfo = data.enterpriseInfo || {}
+  const contactVisibility = String(personalInfo.contactVisibility || '').trim()
+  const validVisibility = ['all', 'member', 'hidden'].indexOf(contactVisibility) !== -1
+
+  if (!validVisibility) {
+    return wait(fail(40001, '联系方式可见性设置错误'))
+  }
+
+  mockSystemProfileInfoState = {
+    id: `profile-info-${Date.now()}`,
+    personalInfo,
+    enterpriseInfo,
+    certifications: Array.isArray(data.certifications) ? data.certifications : [],
+    savedAt: '2026-06-27T00:00:00+08:00'
+  }
+
+  return wait(ok({
+    saved: true,
+    profileInfo: mockSystemProfileInfoState,
+    message: '资料保存成功'
+  }))
+}
+
 function buildSystemSkillConfig() {
   return JSON.parse(JSON.stringify(mockSystemSkillConfigState))
 }
@@ -492,7 +527,7 @@ function saveSystemSkillConfig(data = {}) {
     skillSlots,
     skillGroups,
     unlockSuggestion: data.unlockSuggestion || mockSystemSkillConfigState.unlockSuggestion,
-    savedAt: '2026-06-28T00:00:00+08:00'
+    savedAt: '2026-06-27T00:00:00+08:00'
   })
 
   return wait(ok({
@@ -501,6 +536,7 @@ function saveSystemSkillConfig(data = {}) {
     message: '技能配置保存成功'
   }))
 }
+
 function toFiniteNumber(value, fallback) {
   const number = Number(value)
 
@@ -730,6 +766,10 @@ function handleRequest(options) {
     return wait(ok(buildTradeWarningDetail(options.data || {})))
   }
 
+  if (method === 'GET' && url === '/api/app/messages/center') {
+    return wait(ok(buildMessageCenter(options.data || {})))
+  }
+
   if (method === 'GET' && url === '/api/app/messages/system-notification') {
     return wait(ok(buildSystemNotificationDetail(options.data || {})))
   }
@@ -760,13 +800,40 @@ function handleRequest(options) {
     return wait(ok(buildPointsOrderLogistics(orderId)))
   }
 
-
   if (method === 'POST' && url === '/api/app/profile/points/mall/exchange') {
     return exchangePointsMallGood(options.data || {})
   }
 
+  if (method === 'PUT' && url === '/api/app/profile/system-management/profile-info') {
+    return saveSystemProfileInfo(options.data || {})
+  }
+
   if (method === 'PUT' && url === '/api/app/profile/system-management/skill-config') {
     return saveSystemSkillConfig(options.data || {})
+  }
+
+  if (method === 'POST' && /^\/api\/app\/profile\/service-center\/reviews\/[^/]+\/reply$/.test(url)) {
+    const reviewId = decodeURIComponent(url.split('/').slice(-2)[0] || '')
+    const content = String(options.data && options.data.content || '').trim()
+
+    if (!reviewId) {
+      return wait(fail(40001, '缺少评价信息'))
+    }
+
+    if (!content) {
+      return wait(fail(40002, '请输入回复内容'))
+    }
+
+    if (content.length > 200) {
+      return wait(fail(40003, '回复内容不能超过200字'))
+    }
+
+    return wait(ok({
+      reviewId,
+      content,
+      replied: true,
+      repliedAt: '2026-06-27T00:00:00+08:00'
+    }))
   }
 
   if (method === 'GET' && url === '/api/app/role-applications/my') {

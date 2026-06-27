@@ -1,5 +1,15 @@
 const messageApi = require('../api/modules/message')
 
+async function getMessageCenter(params) {
+  const result = await messageApi.getMessageCenter(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取消息中心失败')
+  }
+
+  return result.data
+}
+
 async function getTradeWarningDetail(params) {
   const result = await messageApi.getTradeWarningDetail(params)
 
@@ -21,6 +31,7 @@ async function getSystemNotificationDetail(params) {
 }
 
 module.exports = {
+  getMessageCenter,
   getTradeWarningDetail,
   getSystemNotificationDetail
 }

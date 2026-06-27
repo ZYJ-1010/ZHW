@@ -15,14 +15,14 @@ page {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 10rpx 0 28rpx;
+  padding: 10rpx 0 34rpx;
 }
 
 .quick-item {
   display: flex;
   align-items: center;
   flex-direction: column;
-  width: 118rpx;
+  width: 126rpx;
   min-width: 0;
 }
 
@@ -31,8 +31,8 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 90rpx;
-  height: 90rpx;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 10rpx 18rpx rgba(0, 0, 0, 0.24);
@@ -42,6 +42,12 @@ page {
   font-size: 36rpx;
   font-weight: 800;
   line-height: 42rpx;
+}
+
+.quick-icon-image {
+  display: block;
+  width: 58rpx;
+  height: 58rpx;
 }
 
 .quick-icon.blue text {
@@ -66,10 +72,10 @@ page {
 
 .quick-badge {
   position: absolute;
-  right: 0;
-  top: 0;
-  width: 20rpx;
-  height: 20rpx;
+  right: 2rpx;
+  top: 2rpx;
+  width: 24rpx;
+  height: 24rpx;
   border: 4rpx solid #ffffff;
   border-radius: 50%;
   background: #ef4444;
@@ -78,11 +84,12 @@ page {
 .quick-label {
   display: block;
   width: 100%;
-  margin-top: 10rpx;
+  margin-top: 16rpx;
   overflow: hidden;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 20rpx;
-  line-height: 28rpx;
+  color: #475569;
+  font-size: 26rpx;
+  font-weight: 500;
+  line-height: 34rpx;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -95,8 +102,10 @@ page {
 }
 
 .tab-row {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .tab-button {
@@ -105,13 +114,17 @@ page {
   align-items: center;
   justify-content: center;
   height: 76rpx;
-  margin: 0 50rpx 0 0;
+  margin: 0 66rpx 0 0;
   padding: 0;
   color: #9ca3af;
   background: transparent;
-  font-size: 30rpx;
+  font-size: 34rpx;
   font-weight: 500;
   line-height: 76rpx;
+}
+
+.tab-button:last-child {
+  margin-right: 0;
 }
 
 .tab-button::after {
@@ -120,7 +133,7 @@ page {
 
 .tab-button.active {
   color: #f97316;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .tab-button.active::before {
@@ -221,6 +234,12 @@ page {
   line-height: 36rpx;
 }
 
+.message-icon-image {
+  display: block;
+  width: 48rpx;
+  height: 48rpx;
+}
+
 .message-icon.blue {
   color: #2563eb;
   background: #dbeafe;
@@ -249,7 +268,7 @@ page {
 
 .message-icon.red {
   color: #ef4444;
-  background: #fee2e2;
+  background: rgba(248, 113, 113, 0.22);
   border-radius: 50%;
 }
 
@@ -319,6 +338,15 @@ page {
   color: #6b7280;
   font-size: 24rpx;
   line-height: 36rpx;
+}
+
+.message-desc.rich {
+  display: block;
+}
+
+.danger-text {
+  color: #ef4444;
+  font-weight: 800;
 }
 
 .message-tag {

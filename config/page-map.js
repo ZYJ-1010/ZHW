@@ -40,7 +40,7 @@ const PAGE_GROUPS = [
     priority: 'P0/P1',
     batch: '第 4 批：地图、IM、成长扩展',
     route: '/pages/map/index',
-    routes: ['/pages/map/index', '/pages/map/blind-route/index', '/pages/map/footprint-heatmap/index'],
+    routes: ['/pages/map/index', '/pages/map/blind-route/index', '/pages/map/city-atlas/index', '/pages/map/real-checkin/index', '/pages/map/footprint-heatmap/index', '/pages/map/friend-city/index', '/pages/map/my-city/index'],
     screens: ['地图首页', '组局分布地球网', '组局盲盒', '城市图鉴页', '足迹热力图页', '实景打卡', '好友点亮城市页', '我的城市故事页']
   },
   {
@@ -49,8 +49,8 @@ const PAGE_GROUPS = [
     priority: 'P0',
     batch: '第 4 批：地图、IM、成长扩展',
     route: '/pages/message/index',
-    routes: ['/pages/message/index', '/pages/message/trade-warning/index', '/pages/message/system-detail/index'],
-    screens: ['消息', '交易预警', '系统通知']
+    routes: ['/pages/message/index', '/pages/message/my/index', '/pages/message/trade-warning/index', '/pages/message/system-detail/index'],
+    screens: ['消息', '我的消息', '交易预警', '系统通知']
   },
   {
     code: 'relation',
@@ -67,7 +67,8 @@ const PAGE_GROUPS = [
     priority: 'P0/P1',
     batch: '第 1-4 批持续补齐',
     route: '/pages/profile/index',
-    screens: ['我的', '会员中心', '成就页']
+    routes: ['/pages/profile/index', '/pages/profile/asset-center/manage/index', '/pages/profile/asset-center/mall/index', '/pages/profile/asset-center/orders/index', '/pages/profile/asset-center/orders/logistics/index', '/pages/profile/asset-center/points/index', '/pages/profile/system-management/profile-info/index', '/pages/profile/system-management/skill-config/index', '/pages/profile/system-management/service-case-detail/index', '/pages/profile/member/index', '/pages/profile/achievements/index', '/pages/profile/footprint/achievements/index'],
+    screens: ['我的', '资产管理', '积分商城', '我的订单', '物流详情', '积分中心', '系统管理-我的资料', '系统管理-技能配置', '系统管理-技能配置-服务案例详情', '会员中心', '成就页', '我的足迹-我的成就墙']
   },
   {
     code: 'reserved',

@@ -1,4 +1,4 @@
-@import "../profile-white-page.wxss";
+@import "../../profile-white-page.wxss";
 
 .invite-role-tabs {
   justify-content: center;

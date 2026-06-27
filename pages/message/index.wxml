@@ -17,8 +17,9 @@
         bindtap="onQuickTap"
       >
         <view class="quick-icon {{item.tone}}">
-          <text>{{item.icon}}</text>
-          <view wx:if="{{item.badge}}" class="quick-badge"></view>
+          <image wx:if="{{item.iconSrc}}" class="quick-icon-image" src="{{item.iconSrc}}" mode="aspectFit"></image>
+          <text wx:else>{{item.icon}}</text>
+          <view wx:if="{{item.unread}}" class="quick-badge"></view>
         </view>
         <text class="quick-label">{{item.label}}</text>
       </view>
@@ -64,7 +65,8 @@
                 <text>{{message.avatarText}}</text>
               </view>
               <view wx:else class="message-icon {{message.tone}}">
-                <text>{{message.icon}}</text>
+                <image wx:if="{{message.iconSrc}}" class="message-icon-image" src="{{message.iconSrc}}" mode="aspectFit"></image>
+                <text wx:else>{{message.icon}}</text>
               </view>
               <view wx:if="{{message.unread}}" class="message-dot"></view>
             </view>
@@ -75,7 +77,15 @@
                 <text class="message-time">{{message.timeText}}</text>
               </view>
 
-              <text class="message-desc">{{message.desc}}</text>
+              <view wx:if="{{message.descParts}}" class="message-desc rich">
+                <text
+                  wx:for="{{message.descParts}}"
+                  wx:for-item="part"
+                  wx:key="*this"
+                  class="{{part.danger ? 'danger-text' : ''}}"
+                >{{part.text}}</text>
+              </view>
+              <text wx:else class="message-desc">{{message.desc}}</text>
 
               <view wx:if="{{message.tagText}}" class="message-tag {{message.tagTone}}">{{message.tagText}}</view>
 

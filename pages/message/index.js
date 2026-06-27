@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../config/routes')
+const messageService = require('../../services/message')
 
 const NAV_ITEMS = [
   { name: '我的', key: 'mine' },
@@ -9,11 +10,11 @@ const NAV_ITEMS = [
 ]
 
 const QUICK_ACTIONS = [
-  { key: 'join', label: '组局加入', icon: '+', tone: 'blue', badge: true },
-  { key: 'system', label: '系统通知', icon: '✓', tone: 'green' },
-  { key: 'achievement', label: '成就解锁', icon: '★', tone: 'yellow' },
-  { key: 'warning', label: '预警通知', icon: '!', tone: 'red' },
-  { key: 'friend', label: '好友', icon: '群', tone: 'cyan', badge: true }
+  { key: 'join', label: '组局加入', iconSrc: '/pages/message/assets/i53@3x.png', tone: 'blue', unreadCount: 1 },
+  { key: 'system', label: '系统通知', iconSrc: '/pages/message/assets/i54@3x.png', tone: 'green' },
+  { key: 'achievement', label: '成就解锁', iconSrc: '/pages/message/assets/i55@3x.png', tone: 'yellow' },
+  { key: 'warning', label: '预警通知', iconSrc: '/pages/message/assets/i56@3x.png', tone: 'red' },
+  { key: 'friend', label: '好友', iconSrc: '/pages/message/assets/i57@3x.png', tone: 'cyan', unreadCount: 3 }
 ]
 
 const TABS = [
@@ -30,7 +31,7 @@ const MESSAGE_SECTIONS = [
       {
         id: 'platform-notice',
         routeKey: 'system',
-        icon: '铃',
+        iconSrc: '/pages/message/assets/i58@3x.png',
         tone: 'blue',
         title: '平台公告',
         timeText: '2小时前',
@@ -38,7 +39,7 @@ const MESSAGE_SECTIONS = [
       },
       {
         id: 'audit-result',
-        icon: '✓',
+        iconSrc: '/pages/message/assets/i59@3x.png',
         tone: 'purple',
         title: '活动审核结果',
         timeText: '昨天',
@@ -55,7 +56,7 @@ const MESSAGE_SECTIONS = [
     items: [
       {
         id: 'group-confirm',
-        icon: '组',
+        iconSrc: '/pages/message/assets/i60@3x.png',
         tone: 'orange',
         unread: true,
         title: '组局确认通知',
@@ -69,7 +70,7 @@ const MESSAGE_SECTIONS = [
       },
       {
         id: 'group-success',
-        icon: '✓',
+        iconSrc: '/pages/message/assets/i54@3x.png',
         tone: 'green',
         title: '组局已成局',
         timeText: '昨天',
@@ -79,7 +80,7 @@ const MESSAGE_SECTIONS = [
       },
       {
         id: 'pay-success',
-        icon: '券',
+        iconSrc: '/pages/message/assets/i61@3x.png',
         tone: 'orangeLight',
         title: '支付成功通知',
         timeText: '昨天',
@@ -104,7 +105,7 @@ const MESSAGE_SECTIONS = [
     items: [
       {
         id: 'achievement-unlock',
-        icon: '★',
+        iconSrc: '/pages/message/assets/i62@3x.png',
         tone: 'yellow',
         title: '解锁新成就！',
         timeText: '3月30日',
@@ -119,18 +120,22 @@ const MESSAGE_SECTIONS = [
       {
         id: 'delivery-warning',
         routeKey: 'warning',
-        icon: '!',
+        iconSrc: '/pages/message/assets/i65@3x.png',
         tone: 'red',
         alert: true,
         title: '待交付订单提醒',
         timeText: '2小时前',
-        desc: '你有1个组局服务订单将于 2小时后 到期交付，请及时处理',
+        descParts: [
+          { text: '你有1个组局服务订单将于 ' },
+          { text: '2小时后', danger: true },
+          { text: ' 到期交付，请及时处理' }
+        ],
         metaText: '订单号：GD2024032201',
         linkText: '立即处理'
       },
       {
         id: 'activity-soon',
-        icon: '时',
+        iconSrc: '/pages/message/assets/i64@3x.png',
         tone: 'yellow',
         title: '活动即将开始',
         timeText: '30分钟后',
@@ -160,22 +165,109 @@ const MESSAGE_SECTIONS = [
   }
 ]
 
+function normalizeQuickActions(actions) {
+  const source = Array.isArray(actions) && actions.length ? actions : QUICK_ACTIONS
+
+  return source.map((item) => {
+    const unreadCount = Number(item.unreadCount || 0)
+
+    return Object.assign({}, item, {
+      unreadCount,
+      unread: Boolean(item.unread) || unreadCount > 0
+    })
+  })
+}
+
+function normalizeTabs(tabs) {
+  const source = Array.isArray(tabs) && tabs.length ? tabs : TABS
+
+  return source.map((item) => {
+    const unreadCount = Number(item.unreadCount || 0)
+
+    return Object.assign({}, item, {
+      unreadCount,
+      unread: Boolean(item.unread) || unreadCount > 0
+    })
+  })
+}
+
+function normalizeSections(sections) {
+  const source = Array.isArray(sections) && sections.length ? sections : MESSAGE_SECTIONS
+
+  return source.map((section) => Object.assign({}, section, {
+    items: Array.isArray(section.items) ? section.items : []
+  }))
+}
+
+function normalizeMessageCenter(source = {}, fallbackActiveTab = 'all') {
+  return {
+    pageTitle: source.pageTitle || '消息中心',
+    onlineText: source.onlineText || '3999人在线',
+    quickActions: normalizeQuickActions(source.quickActions),
+    tabs: normalizeTabs(source.tabs),
+    activeTab: source.activeTab || fallbackActiveTab || 'all',
+    sections: normalizeSections(source.sections)
+  }
+}
+
 Page({
   data: {
     pageTitle: '消息中心',
     onlineText: '3999人在线',
     navItems: NAV_ITEMS,
-    quickActions: QUICK_ACTIONS,
-    tabs: TABS,
+    quickActions: normalizeQuickActions(QUICK_ACTIONS),
+    tabs: normalizeTabs(TABS),
     activeTab: 'all',
-    sections: MESSAGE_SECTIONS
+    sections: MESSAGE_SECTIONS,
+    loading: false,
+    errorText: ''
+  },
+
+  onLoad(options = {}) {
+    this.loadMessageCenter({
+      tab: options.tab || 'all'
+    })
+  },
+
+  async loadMessageCenter(params = {}) {
+    const tab = params.tab || this.data.activeTab || 'all'
+
+    this.setData({
+      loading: true,
+      errorText: ''
+    })
+
+    try {
+      const center = await messageService.getMessageCenter({ tab })
+      const normalized = normalizeMessageCenter(center, tab)
+
+      this.setData(Object.assign({}, normalized, {
+        loading: false,
+        errorText: ''
+      }))
+    } catch (error) {
+      const errorText = error && error.message ? error.message : '消息中心加载失败'
+
+      this.setData({
+        loading: false,
+        errorText
+      })
+      this.showInfo(errorText)
+    }
   },
 
   onTabTap(event) {
     const { key } = event.currentTarget.dataset
 
+    if (!key || key === this.data.activeTab) {
+      return
+    }
+
     this.setData({
       activeTab: key
+    })
+    this.loadMessageCenter({
+      tab: key
     })
   },
 

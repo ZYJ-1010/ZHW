@@ -37,7 +37,8 @@ Page({
         title: '我的订单',
         desc: '查看全部订单',
         iconSrc: `${FA_BASE}/bag-shopping.svg`,
-        tone: 'purple'
+        tone: 'purple',
+        route: '/pages/profile/asset-center/orders/index'
       }
     ],
     orderStatuses: [
@@ -69,6 +70,17 @@ Page({
       { key: 'withdrawArrival', label: '提现多久到账？' },
       { key: 'bindBankCard', label: '如何绑定银行卡？' }
     ]
+  },
+
+  handleMenuTap(event) {
+    const { route } = event.currentTarget.dataset
+
+    if (!route) {
+      toast.developing()
+      return
+    }
+
+    wx.navigateTo({ url: route })
   },
 
   handleDeveloping() {

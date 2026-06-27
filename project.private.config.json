@@ -299,8 +299,32 @@
           "scene": null
         },
         {
+          "name": "地图-城市图鉴",
+          "pathName": "pages/map/city-atlas/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "地图-实景打卡",
+          "pathName": "pages/map/real-checkin/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "地图-足迹热力图",
           "pathName": "pages/map/footprint-heatmap/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "地图-好友城市页",
+          "pathName": "pages/map/friend-city/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "地图-我的城市页",
+          "pathName": "pages/map/my-city/index",
           "query": "",
           "scene": null
         },
@@ -323,6 +347,12 @@
           "scene": null
         },
         {
+          "name": "消息-我的消息",
+          "pathName": "pages/message/my/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "消息-系统通知",
           "pathName": "pages/message/system-detail/index",
           "query": "",
@@ -335,8 +365,14 @@
           "scene": null
         },
         {
-          "name": "我的-个人中心-发布管理",
-          "pathName": "pages/profile/publish-manage/index",
+          "name": "我的-服务中心-组局管理-评价管理",
+          "pathName": "pages/profile/service-center/manage/review-manage/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-服务中心-组局管理-回复评价",
+          "pathName": "pages/profile/service-center/manage/review-reply/index",
           "query": "",
           "scene": null
         },
@@ -347,8 +383,26 @@
           "scene": null
         },
         {
-          "name": "我的-个人中心-我的组局",
-          "pathName": "pages/profile/my-games/index",
+          "name": "我的-系统管理-我的资料",
+          "pathName": "pages/profile/system-management/profile-info/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-技能配置",
+          "pathName": "pages/profile/system-management/skill-config/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-技能配置-服务案例详情",
+          "pathName": "pages/profile/system-management/service-case-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-服务中心-我的局",
+          "pathName": "pages/profile/service-center/my-games/index",
           "query": "",
           "scene": null
         },
@@ -377,18 +431,6 @@
           "scene": null
         },
         {
-          "name": "我的-系统管理-技能配置",
-          "pathName": "pages/profile/system-management/skill-config/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "我的-系统管理-技能配置-服务案例详情",
-          "pathName": "pages/profile/system-management/service-case-detail/index",
-          "query": "",
-          "scene": null
-        },
-        {
           "name": "我的-个人中心-系统设置",
           "pathName": "pages/profile/settings/index",
           "query": "",
@@ -407,8 +449,26 @@
           "scene": null
         },
         {
+          "name": "我的-服务中心-我的邀请-数据概览页",
+          "pathName": "pages/profile/service-center/invite/overview/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-服务中心-我的邀请-关系网络页",
+          "pathName": "pages/profile/service-center/invite/network/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-服务中心-我的邀请-邀约记录页",
           "pathName": "pages/profile/service-center/invite/records/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-服务中心-我的邀请-贡献排行页",
+          "pathName": "pages/profile/service-center/invite/ranking/index",
           "query": "",
           "scene": null
         },

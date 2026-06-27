@@ -1,4 +1,4 @@
-<profile-white-shell title="邀约记录" background="#ffffff">
+<profile-white-shell title="我的邀请" background="#ffffff">
   <view class="profile-page is-white">
     <view class="profile-tabs invite-role-tabs">
       <view wx:for="{{roleTabs}}" wx:key="label" class="profile-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>

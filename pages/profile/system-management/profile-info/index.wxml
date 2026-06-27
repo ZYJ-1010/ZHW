@@ -1,0 +1,134 @@
+<profile-white-shell
+  title="资料设置"
+  background="#f7f8fa"
+  nav-background="#ffffff"
+  title-color="#111827"
+  title-weight="400"
+  back-background="#ffffff"
+  back-border-color="transparent"
+  back-icon-color="#4b5563"
+  right-text="{{isSaving ? '保存中' : '保存'}}"
+  right-color="#3b82f6"
+  right-width="{{72}}"
+  bind:righttap="handleSaveTap"
+>
+  <view class="profile-info-page">
+    <view class="section-title-row">
+      <image class="section-title-icon" src="{{icons.user}}" mode="aspectFit"></image>
+      <text class="section-title">个人信息</text>
+    </view>
+
+    <view class="info-card">
+      <view
+        wx:for="{{personalRows}}"
+        wx:key="key"
+        class="info-row {{item.type === 'contact' ? 'contact-row' : ''}}"
+        bindtap="handleEditableRowTap"
+      >
+        <view wx:if="{{item.type === 'contact'}}" class="contact-block">
+          <view class="info-row-main">
+            <text class="row-label">{{item.label}}</text>
+            <view class="row-right">
+              <text class="row-value dark">{{profile.phone}}</text>
+              <text class="hidden-tag">已隐藏</text>
+              <image class="chevron-icon" src="{{icons.chevron}}" mode="aspectFit"></image>
+            </view>
+          </view>
+          <view class="contact-divider"></view>
+          <text class="visibility-title">可见性设置</text>
+          <view class="visibility-options">
+            <view
+              wx:for="{{visibilityOptions}}"
+              wx:for-item="option"
+              wx:key="key"
+              class="visibility-option {{profile.contactVisibility === option.key ? 'active' : ''}}"
+              data-key="{{option.key}}"
+              catchtap="handleVisibilityTap"
+            >{{option.label}}</view>
+          </view>
+        </view>
+
+        <block wx:elif="{{item.type === 'avatar'}}">
+          <text class="row-label">{{item.label}}</text>
+          <view class="row-right">
+            <view class="avatar-circle">{{profile.avatarText}}</view>
+            <image class="chevron-icon" src="{{icons.chevron}}" mode="aspectFit"></image>
+          </view>
+        </block>
+
+        <block wx:else>
+          <text class="row-label">{{item.label}}</text>
+          <view class="row-right">
+            <text class="row-value {{item.muted ? 'muted' : 'dark'}}">{{item.value}}</text>
+            <image class="chevron-icon" src="{{icons.chevron}}" mode="aspectFit"></image>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <view class="section-title-row enterprise-title-row">
+      <image class="section-title-icon" src="{{icons.building}}" mode="aspectFit"></image>
+      <text class="section-title">企业信息</text>
+    </view>
+
+    <view class="info-card enterprise-card">
+      <view
+        wx:for="{{enterpriseRows}}"
+        wx:key="key"
+        class="info-row"
+        bindtap="handleEditableRowTap"
+      >
+        <text class="row-label">{{item.label}}</text>
+        <view class="row-right">
+          <text class="row-value {{item.muted ? 'muted' : 'dark'}}">{{item.value}}</text>
+          <image class="chevron-icon" src="{{icons.chevron}}" mode="aspectFit"></image>
+        </view>
+      </view>
+      <view class="public-row">
+        <view class="public-copy">
+          <text class="public-title">公开注册业务信息</text>
+          <text class="public-desc">联系方式除外</text>
+        </view>
+        <view
+          class="switch {{profile.publicBusinessInfo ? 'on' : ''}}"
+          bindtap="handleToggleBusinessPublic"
+        >
+          <view class="switch-thumb"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-title-row cert-title-row">
+      <image class="section-title-icon" src="{{icons.shield}}" mode="aspectFit"></image>
+      <text class="section-title">认证中心</text>
+    </view>
+
+    <view class="cert-card">
+      <view
+        wx:for="{{certifications}}"
+        wx:key="key"
+        class="cert-row"
+        bindtap="handleCertificationTap"
+      >
+        <view class="cert-left">
+          <view class="cert-icon-wrap {{item.tone}}">
+            <image class="cert-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+          </view>
+          <view class="cert-copy">
+            <text class="cert-title">{{item.title}}</text>
+            <text class="cert-desc">{{item.desc}}</text>
+          </view>
+        </view>
+        <view class="cert-right">
+          <text class="cert-status {{item.statusClass}}">{{item.status}}</text>
+          <image class="chevron-icon" src="{{icons.chevron}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+
+    <view class="privacy-note">
+      <image class="privacy-icon" src="{{icons.lock}}" mode="aspectFit"></image>
+      <text class="privacy-text">你的信息将受到严格保护，仅在你授权的情况下展示给其他用户。</text>
+    </view>
+  </view>
+</profile-white-shell>

@@ -43,7 +43,7 @@
 | 组局 | `pages/game/hall/index`、`pages/game/create/index`、`pages/game/detail/index`、`pages/game/audit/index`、`pages/game/applications/index`、`pages/game/delivery/index`、`pages/game/review/index` | `services/game.js`、`services/review.js` | `api/modules/game.js`、`api/modules/review.js` |
 | 地图 | `pages/map/index`、`pages/map/blind-route/index` | `services/location.js` | `api/modules/location.js` |
 | 消息 / IM | `pages/message/index`、`pages/im/room/index` | `services/im.js` | `api/modules/im.js` |
-| 我的 / 会员 / 成就 | `pages/profile/index`、`pages/profile/member/index`、`pages/profile/achievements/index` | `services/profile.js`、`services/revenue.js` | `api/modules/profile.js`、`api/modules/revenue.js` |
+| 我的 / 资产 / 会员 / 成就 | `pages/profile/index`、`pages/profile/asset-center/manage/index`、`pages/profile/asset-center/points/index`、`pages/profile/system-management/profile-info/index`、`pages/profile/system-management/skill-config/index`、`pages/profile/member/index`、`pages/profile/achievements/index` | `services/profile.js`、`services/revenue.js` | `api/modules/profile.js`、`api/modules/revenue.js` |
 | 预留能力 | `pages/placeholder/metaverse/index` | - | - |
 
 ## 日志和提示

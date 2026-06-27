@@ -1,0 +1,91 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="real-checkin-page">
+    <view class="real-checkin-target">
+      <view class="real-checkin-close" bindtap="handleCloseTap">×</view>
+      <view class="real-checkin-target-head">
+        <view class="real-checkin-distance-pill">
+          <view class="real-checkin-distance-icon"></view>
+          <text>{{checkinDetail.distanceText}}</text>
+        </view>
+      </view>
+
+      <view class="real-checkin-photo-area" bindtap="handleShootTap">
+        <view class="real-checkin-scan-corner lt"></view>
+        <view class="real-checkin-scan-corner rt"></view>
+        <view class="real-checkin-scan-corner lb"></view>
+        <view class="real-checkin-scan-corner rb"></view>
+        <view class="real-checkin-photo-visual">
+          <view class="real-checkin-pin"></view>
+          <view class="real-checkin-camera">
+            <view class="real-checkin-camera-lens"></view>
+          </view>
+        </view>
+        <view class="real-checkin-spot-label">{{checkinDetail.spotName}}</view>
+      </view>
+    </view>
+
+    <view class="real-checkin-unlock-card">
+      <view class="real-checkin-unlock-icon">🔒</view>
+      <view class="real-checkin-unlock-copy">
+        <text class="real-checkin-card-title">{{checkinDetail.statusTitle}}</text>
+        <text class="real-checkin-card-desc">{{checkinDetail.statusDesc}}</text>
+        <view class="real-checkin-reward-row">
+          <text wx:for="{{checkinDetail.rewards}}" wx:key="*this" class="real-checkin-reward">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="real-checkin-story-card" bindtap="handleStoryTap">
+      <text class="real-checkin-section-title">{{checkinDetail.storyTitle}}</text>
+      <view class="real-checkin-story-field">
+        <textarea
+          class="real-checkin-story-input"
+          value="{{storyText}}"
+          maxlength="{{checkinDetail.storyMaxLength}}"
+          placeholder="{{checkinDetail.storyPlaceholder}}"
+          placeholder-class="real-checkin-story-placeholder"
+          bindinput="handleStoryInput"
+          auto-height="{{false}}"
+        />
+        <view class="real-checkin-story-limit">
+          <text>至少{{checkinDetail.storyMinLength}}字</text>
+          <text>{{storyCountText}}</text>
+        </view>
+      </view>
+      <view class="real-checkin-photo-list">
+        <view class="real-checkin-photo-thumb selected">
+          <view class="real-checkin-thumb-building"></view>
+          <view class="real-checkin-thumb-check">✓</view>
+        </view>
+        <view class="real-checkin-photo-add">+</view>
+      </view>
+    </view>
+
+    <view class="real-checkin-task-card">
+      <text class="real-checkin-section-title">选择打卡任务</text>
+      <view class="real-checkin-task-list">
+        <view
+          wx:for="{{checkinTasks}}"
+          wx:key="id"
+          class="real-checkin-task"
+          data-id="{{item.id}}"
+          bindtap="handleTaskTap"
+        >
+          <view class="real-checkin-task-copy">
+            <text class="real-checkin-task-title">{{item.title}}</text>
+            <text class="real-checkin-task-desc">{{item.desc}}</text>
+          </view>
+          <text class="real-checkin-task-score">{{item.scoreText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <button class="real-checkin-generate" hover-class="none" bindtap="handleFragmentTap">生成足迹碎片</button>
+  </view>
+</home-shell>

@@ -30,7 +30,8 @@
         wx:for="{{menuItems}}"
         wx:key="key"
         class="asset-menu-row"
-        bindtap="handleDeveloping"
+        data-route="{{item.route}}"
+        bindtap="handleMenuTap"
       >
         <view class="asset-menu-left">
           <view class="asset-menu-icon {{item.tone}}">

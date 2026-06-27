@@ -1,0 +1,96 @@
+<home-apply-shell
+  nav-title="回复评价"
+  shell-class="service-review-shell"
+  show-back="{{true}}"
+  bindbacktap="onBackTap"
+>
+  <scroll-view
+    class="service-review-scroll reply-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    enable-back-to-top
+  >
+    <view class="review-reply-page">
+      <view class="review-source-card">
+        <view class="reply-user-row">
+          <view class="reply-avatar">{{review.avatar}}</view>
+          <view class="reply-user-copy">
+            <text class="reply-name">{{review.user}}</text>
+            <text class="reply-time">{{review.time}}</text>
+          </view>
+        </view>
+
+        <view class="reply-rating-line">
+          <text class="reply-stars">{{review.rating}}</text>
+          <text class="reply-service">{{review.title}}</text>
+        </view>
+        <text class="reply-content">{{review.content}}</text>
+
+        <view class="reply-tags">
+          <text wx:for="{{review.tags}}" wx:key="*this" class="reply-tag">{{item}}</text>
+        </view>
+
+        <view class="reply-order">
+          <view class="reply-order-row">
+            <text>订单号</text>
+            <text>{{review.orderNo}}</text>
+          </view>
+          <view class="reply-order-row">
+            <text>服务金额</text>
+            <text>{{review.amount}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="quick-section">
+        <text class="quick-title">快捷回复模板</text>
+        <view class="quick-list">
+          <view wx:for="{{templateRows}}" wx:key="*this" class="quick-row">
+            <view
+              wx:for="{{item}}"
+              wx:for-item="template"
+              wx:key="*this"
+              class="quick-chip"
+              data-text="{{template}}"
+              bindtap="onTemplateTap"
+            >{{template}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="reply-input-card">
+        <text class="input-title">输入回复</text>
+        <textarea
+          class="reply-textarea"
+          placeholder="感谢玩家的评价，可以针对具体反馈进行回复"
+          placeholder-class="reply-placeholder"
+          value="{{replyText}}"
+          maxlength="200"
+          bindinput="onReplyInput"
+        ></textarea>
+        <text class="reply-count">{{replyText.length}}/200 字 · 真诚回复有助于提升信誉</text>
+      </view>
+
+      <view class="history-card">
+        <text class="history-title">历史对话</text>
+        <view wx:for="{{history}}" wx:key="time" class="history-item {{item.side}}">
+          <view class="history-head">
+            <view class="history-role-wrap">
+              <text class="history-avatar">{{item.avatar}}</text>
+              <text class="history-role">{{item.role}}</text>
+            </view>
+            <text class="history-time">{{item.time}}</text>
+          </view>
+          <text class="history-content">{{item.content}}</text>
+        </view>
+      </view>
+
+      <view class="reply-bottom-space"></view>
+    </view>
+  </scroll-view>
+
+  <view class="reply-submit-bar">
+    <button class="reply-submit" hover-class="none" loading="{{submitting}}" bindtap="onSubmitTap">提交回复</button>
+  </view>
+</home-apply-shell>
