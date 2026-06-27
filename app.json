@@ -64,6 +64,7 @@
     "pages/profile/service-center/invite/records/index",
     "pages/profile/service-center/invite/ranking/index",
     "pages/profile/service-center/invite/income/index",
+    "pages/profile/service-center/invite/member-detail/index",
     "pages/profile/member/index",
     "pages/profile/member/advanced/index",
     "pages/profile/member/premium/index",

@@ -383,6 +383,12 @@
           "scene": null
         },
         {
+          "name": "我的-服务中心-我的邀请-成员详情页",
+          "pathName": "pages/profile/service-center/invite/member-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-会员中心-基础会员",
           "pathName": "pages/profile/member/index",
           "query": "",
