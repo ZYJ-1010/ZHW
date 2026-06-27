@@ -78,6 +78,7 @@
     "pages/profile/member/match-query/index",
     "pages/profile/member/match-result/index",
     "pages/profile/achievements/index",
+    "pages/profile/footprint/achievements/index",
     "pages/metaverse/home/index",
     "pages/metaverse/list/index",
     "pages/metaverse/manage/index",

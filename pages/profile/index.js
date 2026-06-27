@@ -45,7 +45,7 @@ Page({
         items: [
           { title: '我的足迹', iconSrc: '/pages/profile/assets/i75@3x.png', iconClass: 'teal' },
           { title: '我的城市故事', iconSrc: '/pages/profile/assets/i76@3x.png', iconClass: 'teal' },
-          { title: '我的成就墙', iconSrc: '/pages/profile/assets/i77@3x.png', iconClass: 'teal', route: '/pages/profile/achievements/index' }
+          { title: '我的成就墙', iconSrc: '/pages/profile/assets/i77@3x.png', iconClass: 'teal', route: '/pages/profile/footprint/achievements/index' }
         ]
       },
       {

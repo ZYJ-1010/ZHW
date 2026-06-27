@@ -413,6 +413,12 @@
           "scene": null
         },
         {
+          "name": "我的-我的足迹-我的成就墙",
+          "pathName": "pages/profile/footprint/achievements/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-会员中心-基础会员",
           "pathName": "pages/profile/member/index",
           "query": "",

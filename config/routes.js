@@ -55,6 +55,7 @@ const ROUTES = {
   profileAssetPoints: 'pages/profile/asset-center/points/index',
   profileMember: 'pages/profile/member/index',
   profileAchievements: 'pages/profile/achievements/index',
+  profileFootprintAchievements: 'pages/profile/footprint/achievements/index',
   metaverse: 'pages/placeholder/metaverse/index'
 }
 
