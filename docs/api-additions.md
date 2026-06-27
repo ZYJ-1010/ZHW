@@ -4084,3 +4084,38 @@ GET /api/app/profile/service-center/invite/ranking
 3. 榜单范围：仅统计当前用户的一级成员数据，不混入二级 / 团队汇总成员。
 4. 成员字段：成员 ID、排名、头像、昵称、等级文案、活跃天数、邀约数、分润贡献金额。
 5. 分页、空态、错误态、金额格式、同分排序和数据更新时间。
+
+## 55. 服务中心我的邀请 - 收益明细页接口
+
+记录日期：2026-06-27
+
+模块：我的 / 服务中心 / 我的邀请
+
+页面：`pages/profile/service-center/invite/income/index`
+
+功能：收益明细页当前为静态走查，正式联调时收益趋势、核心指标和分润流水均由后台返回，前端不写死 10 个月或固定流水数量。
+
+候选接口：
+
+```text
+GET /api/app/profile/service-center/invite/income
+GET /api/app/profile/service-center/invite/income/flows
+```
+
+建议入参：
+
+```json
+{
+  "year": 2026,
+  "flowPage": 1,
+  "flowPageSize": 20
+}
+```
+
+需要后台返回 / 确认：
+
+1. 收益趋势：返回一年内实际有展示意义的月份数组，例如 `trendSeries[].month`、`trendSeries[].amount`；前端按返回数量渲染月份和趋势点，并按每个月 `amount` 在本组数据中的比例换算趋势点纵坐标，不固定 10 个月。
+2. 核心指标：本月分润、累计分润、活跃成员、产生分润局数、环比文案和累计笔数，字段建议包含 `metrics[]` 的 label、value、desc。
+3. 分润流水：流水 ID、成员 ID、成员昵称、组局 / 服务标题、发生时间、分润金额、图标 / 类型、状态。
+4. 流水数量多时需要分页或游标加载，字段建议包含 `page`、`pageSize`、`hasMore`、`nextCursor`。
+5. 金额格式、空态、错误态、时间格式、退款 / 冲正 / 已结算状态是否展示需后端确认。
