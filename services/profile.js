@@ -40,8 +40,37 @@ async function exchangePointsMallGood(payload = {}) {
     data: result.data
   }
 }
+async function getPointsOrders(params = {}) {
+  const result = await profileApi.getPointsOrders(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取订单列表失败')
+  }
+
+  return result.data
+}
+
+async function getPointsOrderLogistics(params = {}) {
+  const orderId = String(params.orderId || params.id || '').trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单信息，无法查看物流')
+  }
+
+  const result = await profileApi.getPointsOrderLogistics(encodeURIComponent(orderId))
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取物流详情失败')
+  }
+
+  return result.data
+}
+
+
 module.exports = {
   getProfileHome,
   getPointsMall,
-  exchangePointsMallGood
+  exchangePointsMallGood,
+  getPointsOrders,
+  getPointsOrderLogistics
 }

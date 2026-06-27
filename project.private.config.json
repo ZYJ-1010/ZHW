@@ -365,6 +365,12 @@
           "scene": null
         },
         {
+          "name": "我的-资产中心-我的订单",
+          "pathName": "pages/profile/asset-center/orders/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-资产中心-积分商城-我的积分",
           "pathName": "pages/profile/asset-center/points/index",
           "query": "",

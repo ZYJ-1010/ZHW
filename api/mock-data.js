@@ -596,6 +596,92 @@ const mockPointsMall = {
     }
   ]
 }
+const mockPointsOrders = {
+  tabs: [
+    { key: 'all', label: '全部' },
+    { key: 'pending_ship', label: '待发货' },
+    { key: 'shipping', label: '配送中' },
+    { key: 'completed', label: '已完成' }
+  ],
+  orders: [
+    {
+      id: '20260615001',
+      statusKey: 'shipping',
+      statusText: '配送中',
+      statusTone: 'blue',
+      iconText: '👕',
+      title: '平台限定T恤',
+      pointsText: '500积分',
+      exchangedAtText: '兑换时间: 2026-06-10 14:22',
+      actions: [
+        { key: 'logistics', label: '查看物流', type: 'ghost' }
+      ]
+    },
+    {
+      id: '20260528001',
+      statusKey: 'completed',
+      statusText: '已完成',
+      statusTone: 'success',
+      iconText: '🏅',
+      title: '真好玩徽章套装',
+      pointsText: '300积分',
+      exchangedAtText: '兑换时间: 2026-05-20 09:15',
+      actions: [
+        { key: 'detail', label: '查看详情', type: 'ghost' },
+        { key: 'again', label: '再次兑换', type: 'primary' }
+      ]
+    },
+    {
+      id: '20260614001',
+      statusKey: 'pending_ship',
+      statusText: '待发货',
+      statusTone: 'orange',
+      iconText: '🎒',
+      title: '探险家背包',
+      pointsText: '800积分',
+      exchangedAtText: '兑换时间: 2026-06-14 16:30',
+      actions: [
+        { key: 'cancel', label: '取消订单', type: 'ghost' }
+      ]
+    }
+  ]
+}
+
+const mockPointsOrderLogistics = {
+  '20260615001': {
+    orderId: '20260615001',
+    courier: {
+      name: '顺丰速运',
+      trackingNo: 'SF1234567890',
+      logoText: 'SF'
+    },
+    timeline: [
+      {
+        id: 'arrived-site',
+        desc: '【深圳市】快件已到达 深圳南山营业点',
+        time: '2026-06-15 08:30',
+        active: true
+      },
+      {
+        id: 'left-transfer',
+        desc: '【深圳市】快件离开 深圳转运中心，已发往 南山营业点',
+        time: '2026-06-15 06:15'
+      },
+      {
+        id: 'arrived-transfer',
+        desc: '【深圳市】快件已到达 深圳转运中心',
+        time: '2026-06-14 23:40'
+      },
+      {
+        id: 'shipped',
+        desc: '【广州市】商家已发货，等待揽收',
+        time: '2026-06-14 18:00'
+      }
+    ]
+  }
+}
+
+
 const mockNewbieTasks = [
   {
     id: 'newbie-realname',
@@ -1297,6 +1383,8 @@ module.exports = {
   mockRoleHomes,
   mockProfileHome,
   mockPointsMall,
+  mockPointsOrders,
+  mockPointsOrderLogistics,
   mockNewbieTasks,
   mockRoleApplications,
   mockInvitePlayerConfig,

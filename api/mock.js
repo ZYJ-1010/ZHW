@@ -6,6 +6,8 @@ const {
   mockRoleHomes,
   mockProfileHome,
   mockPointsMall,
+  mockPointsOrders,
+  mockPointsOrderLogistics,
   mockNewbieTasks,
   mockRoleApplications,
   mockInvitePlayerConfig,
@@ -26,6 +28,7 @@ let mockCurrentRealnameStatus = 'pending'
 let mockRoleStatusMap = Object.assign({}, mockCurrentUser.roleStatusMap)
 let mockSubmittedRoleApplications = []
 let mockPointsMallState = JSON.parse(JSON.stringify(mockPointsMall))
+let mockPointsOrdersState = JSON.parse(JSON.stringify(mockPointsOrders))
 const MOCK_ROLE_APPLICATION_SUBMITTED_AT = '2026-06-08T10:30:00+08:00'
 const MOCK_ROLE_APPLICATION_EXPECTED_REVIEW_AT = '2026-06-12T18:00:00+08:00'
 
@@ -374,6 +377,46 @@ function buildPointsMall() {
   }
 }
 
+function buildPointsOrders(data = {}) {
+  const status = String(data.status || data.statusKey || data.orderStatus || '').trim()
+  const source = JSON.parse(JSON.stringify(mockPointsOrdersState))
+  const orders = status
+    ? source.orders.filter((item) => item.statusKey === status)
+    : source.orders
+
+  return Object.assign({}, source, {
+    activeStatus: status || 'all',
+    orders,
+    emptyText: status ? '暂无该状态订单' : '暂无订单'
+  })
+}
+
+function buildPointsOrderLogistics(orderId) {
+  const detail = mockPointsOrderLogistics[orderId]
+
+  if (detail) {
+    return JSON.parse(JSON.stringify(detail))
+  }
+
+  return {
+    orderId,
+    courier: {
+      name: '顺丰速运',
+      trackingNo: 'SF1234567890',
+      logoText: 'SF'
+    },
+    timeline: [
+      {
+        id: 'created',
+        desc: '商家已创建物流单，等待揽收',
+        time: '刚刚',
+        active: true
+      }
+    ]
+  }
+}
+
+
 function exchangePointsMallGood(data = {}) {
   const goodId = String(data.goodId || data.productId || data.id || '').trim()
 
@@ -401,15 +444,33 @@ function exchangePointsMallGood(data = {}) {
 
   good.stockLeft = stockLeft - 1
   mockPointsMallState.pointsAvailable = pointsAvailable - cost
+  const orderId = `POINTS-${Date.now()}`
+
+  mockPointsOrdersState.orders = [
+    {
+      id: orderId,
+      statusKey: 'pending_ship',
+      statusText: '待发货',
+      statusTone: 'orange',
+      iconText: good.iconText || '🎁',
+      title: good.title || '兑换商品',
+      pointsText: `${formatNumber(cost)}积分`,
+      exchangedAtText: '兑换时间: 刚刚',
+      actions: [
+        { key: 'cancel', label: '取消订单', type: 'ghost' }
+      ]
+    }
+  ].concat(mockPointsOrdersState.orders || [])
 
   return wait(ok({
     exchangeSuccess: true,
     message: '兑换成功，订单已进入待发货',
-    orderId: `POINTS-${Date.now()}`,
+    orderId,
     orderStatus: 'pending_ship',
     mall: buildPointsMall()
   }))
 }
+
 function toFiniteNumber(value, fallback) {
   const number = Number(value)
 
@@ -650,6 +711,21 @@ function handleRequest(options) {
   if (method === 'GET' && url === '/api/app/profile/points/mall') {
     return wait(ok(buildPointsMall()))
   }
+
+  if (method === 'GET' && url === '/api/app/profile/points/orders') {
+    return wait(ok(buildPointsOrders(options.data || {})))
+  }
+
+  if (method === 'GET' && /^\/api\/app\/profile\/points\/orders\/[^/]+\/logistics$/.test(url)) {
+    const orderId = decodeURIComponent(url.split('/').slice(-2)[0] || '')
+
+    if (!orderId) {
+      return wait(fail(40001, '缺少订单信息'))
+    }
+
+    return wait(ok(buildPointsOrderLogistics(orderId)))
+  }
+
 
   if (method === 'POST' && url === '/api/app/profile/points/mall/exchange') {
     return exchangePointsMallGood(options.data || {})

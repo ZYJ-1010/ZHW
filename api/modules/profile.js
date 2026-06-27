@@ -20,10 +20,21 @@ function exchangePointsMallGood(data) {
   return request.post('/api/app/profile/points/mall/exchange', data)
 }
 
+function getPointsOrders(data) {
+  return request.get('/api/app/profile/points/orders', data)
+}
+
+function getPointsOrderLogistics(orderId) {
+  return request.get(`/api/app/profile/points/orders/${orderId}/logistics`)
+}
+
+
 module.exports = {
   getProfileHome,
   getGrowth,
   getMemberStatus,
   getPointsMall,
-  exchangePointsMallGood
+  exchangePointsMallGood,
+  getPointsOrders,
+  getPointsOrderLogistics
 }

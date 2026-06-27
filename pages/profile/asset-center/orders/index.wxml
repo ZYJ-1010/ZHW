@@ -1,0 +1,115 @@
+<profile-white-shell
+  title="我的订单"
+  background="#0d1117"
+  nav-background="#0d1117"
+  title-color="#ffffff"
+  title-weight="400"
+  show-back="{{true}}"
+  back-background="#0d1117"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="points-orders-page">
+    <view class="order-tabs">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="order-tab {{activeTab === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleTabTap"
+      >
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="order-list">
+      <view wx:if="{{isLoading}}" class="orders-state">订单加载中...</view>
+      <view wx:elif="{{!orders.length}}" class="orders-state">{{emptyText}}</view>
+      <block wx:else>
+        <view wx:for="{{orders}}" wx:key="id" class="order-card">
+          <view class="order-head">
+            <text class="order-id">订单号: {{item.id}}</text>
+            <text class="order-status {{item.statusTone}}">{{item.status}}</text>
+          </view>
+          <view class="order-main">
+            <view class="order-goods-visual">
+              <image wx:if="{{item.imageUrl}}" class="order-goods-image" src="{{item.imageUrl}}" mode="aspectFill" />
+              <text wx:else class="order-goods-icon">{{item.iconText}}</text>
+            </view>
+            <view class="order-copy">
+              <text class="order-title">{{item.title}}</text>
+              <view class="order-points-row">
+                <view class="points-token">
+                  <text class="points-token-icon">🏆</text>
+                </view>
+                <text class="order-points">{{item.points}}</text>
+              </view>
+              <text class="order-time">{{item.time}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.actions.length}}" class="order-actions">
+            <button
+              wx:for="{{item.actions}}"
+              wx:for-item="action"
+              wx:key="key"
+              class="order-action {{action.type}}"
+              data-action="{{action.key}}"
+              data-action-key="{{action.key}}"
+              data-action-label="{{action.label}}"
+              data-order-id="{{item.id}}"
+              catchtap="handleActionTap"
+            >{{action.label}}</button>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <view
+      wx:if="{{showLogisticsModal}}"
+      class="logistics-modal-overlay"
+      bindtap="handleCloseLogisticsModal"
+    >
+      <view class="logistics-modal" catchtap="handleLogisticsModalContentTap">
+        <view class="logistics-modal-head">
+          <text class="logistics-modal-title">物流详情</text>
+        </view>
+
+        <view class="logistics-modal-body">
+          <view wx:if="{{isLoadingLogistics}}" class="logistics-state">物流加载中...</view>
+          <view wx:elif="{{!logisticsTimeline.length}}" class="logistics-state">{{logisticsEmptyText}}</view>
+          <block wx:else>
+            <view class="logistics-courier-card">
+              <view class="logistics-courier-main">
+                <view class="logistics-courier-logo">
+                  <text class="logistics-courier-icon">🚚</text>
+                </view>
+                <view class="logistics-courier-copy">
+                  <text class="logistics-courier-name">{{logisticsCourier.name}}</text>
+                  <text class="logistics-tracking-no">{{logisticsCourier.trackingNo}}</text>
+                </view>
+              </view>
+              <button class="logistics-copy-button" catchtap="handleCopyLogisticsNoTap">复制</button>
+            </view>
+
+            <view class="logistics-timeline-list">
+              <view
+                wx:for="{{logisticsTimeline}}"
+                wx:key="id"
+                class="logistics-timeline-item {{item.active ? 'active' : ''}}"
+              >
+                <view wx:if="{{index !== logisticsTimeline.length - 1}}" class="logistics-timeline-line"></view>
+                <view class="logistics-timeline-dot-wrap">
+                  <view class="logistics-timeline-dot"></view>
+                </view>
+                <view class="logistics-timeline-copy">
+                  <text class="logistics-timeline-desc">{{item.desc}}</text>
+                  <text class="logistics-timeline-time">{{item.time}}</text>
+                </view>
+              </view>
+            </view>
+          </block>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

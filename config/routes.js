@@ -51,6 +51,7 @@ const ROUTES = {
   profile: 'pages/profile/index',
   profileAssetManage: 'pages/profile/asset-center/manage/index',
   profileAssetMall: 'pages/profile/asset-center/mall/index',
+  profileAssetOrders: 'pages/profile/asset-center/orders/index',
   profileAssetPoints: 'pages/profile/asset-center/points/index',
   profileMember: 'pages/profile/member/index',
   profileAchievements: 'pages/profile/achievements/index',
