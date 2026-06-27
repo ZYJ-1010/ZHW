@@ -359,6 +359,12 @@
           "scene": null
         },
         {
+          "name": "我的-资产中心-积分商城-我的积分",
+          "pathName": "pages/profile/asset-center/points/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-个人中心-系统设置",
           "pathName": "pages/profile/settings/index",
           "query": "",

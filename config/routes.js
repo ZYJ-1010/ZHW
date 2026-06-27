@@ -50,6 +50,7 @@ const ROUTES = {
   imRoom: 'pages/im/room/index',
   profile: 'pages/profile/index',
   profileAssetManage: 'pages/profile/asset-center/manage/index',
+  profileAssetPoints: 'pages/profile/asset-center/points/index',
   profileMember: 'pages/profile/member/index',
   profileAchievements: 'pages/profile/achievements/index',
   metaverse: 'pages/placeholder/metaverse/index'
