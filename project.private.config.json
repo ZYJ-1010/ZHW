@@ -587,6 +587,24 @@
           "scene": null
         },
         {
+          "name": "我的-系统管理-系统设置",
+          "pathName": "pages/profile/settings/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-系统设置-静态页",
+          "pathName": "pages/profile/settings/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-系统设置-动态页",
+          "pathName": "pages/profile/settings/index",
+          "query": "mode=dynamic",
+          "scene": null
+        },
+        {
           "name": "我的-个人中心-信用中心",
           "pathName": "pages/profile/credit-center/index",
           "query": "",

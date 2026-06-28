@@ -111,6 +111,10 @@ Component({
       type: String,
       value: '700'
     },
+    titleSize: {
+      type: Number,
+      value: 36
+    },
     backBackground: {
       type: String,
       value: '#ffffff'
