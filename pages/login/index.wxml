@@ -47,11 +47,15 @@
       </view>
 
       <view class="invite-flow-primary enjoy-button enjoy-button--primary" catchtap="handleUiPreviewInviteLogin">
-        {{isPhoneLoggingIn ? '注册中...' : '注册'}}
+        {{isPhoneLoggingIn ? '登录/注册中...' : '登录/注册'}}
       </view>
-      <text class="invite-flow-invite-tip">邀请码将在注册后自动绑定</text>
+      <view class="invite-flow-login-options">
+        <view class="invite-flow-login-option" catchtap="startPasswordLogin">密码登录</view>
+        <view class="invite-flow-login-option" catchtap="startWechatAuth">微信登录</view>
+      </view>
+      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
       <view class="invite-flow-agreement">
-        <view class="invite-flow-check enjoy-check enjoy-check--active">✓</view>
+        <image class="invite-flow-check" src="/pages/login/assets/icon-check.svg" mode="aspectFit"></image>
         <text class="invite-flow-agree-muted">注册即表明同意</text>
         <text class="invite-flow-agree-link">用户协议</text>
         <text class="invite-flow-agree-link">及隐私协议</text>
@@ -63,7 +67,7 @@
     <view class="realname-modal-mask"></view>
     <view class="realname-modal-card">
       <view class="realname-modal-icon">
-        <view class="realname-modal-shield"></view>
+        <text class="realname-modal-shield">🛡️</text>
       </view>
       <text class="realname-modal-title">需要实名认证</text>
       <text class="realname-modal-desc">实名认证可提升平台安全与信任</text>
@@ -98,9 +102,9 @@
       </view>
     </view>
 
-    <view class="realname-guide-button enjoy-button enjoy-button--primary" catchtap="startRealnameAuth">
-      {{isStartingRealname ? '打开中...' : '确定'}}
-    </view>
+    <navigator class="realname-guide-button enjoy-button enjoy-button--primary" url="/pages/login/realname/index?ui=1" open-type="redirect" hover-class="none">
+      确定
+    </navigator>
   </view>
 
   <view wx:else class="invite-flow-screen newbie-task-screen">

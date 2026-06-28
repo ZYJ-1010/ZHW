@@ -620,19 +620,31 @@ Page({
       this.setData({
         roleComparisonReturnTo: decodeURIComponent(options.returnTo || '')
       })
-      this.enterHomePreview(options.mode || '', options.single === '1')
+      this.enterHomePreview(options.mode || '', options.single === '1', options.role || options.roleType)
       return
     }
 
     this.loadHome()
   },
 
-  enterHomePreview(mode, single = false) {
+  enterHomePreview(mode, single = false, roleType = '') {
+    const normalizedRoleType = String(roleType || '').trim()
+    const findPreviewIndex = (pages) => pages.findIndex((page) => {
+      if (!page) {
+        return false
+      }
+
+      if (mode === 'roleHome' && normalizedRoleType) {
+        return page.mode === 'roleHome' && page.roleType === normalizedRoleType
+      }
+
+      return page.name === mode || page.mode === mode
+    })
     const previewPages = HOME_PREVIEW_GROUPS[mode] || HOME_PREVIEW_PAGES
-    const index = previewPages.findIndex((page) => page.name === mode || page.mode === mode)
+    const index = findPreviewIndex(previewPages)
     const lookupIndex = index >= 0
       ? index
-      : HOME_PREVIEW_LOOKUP_PAGES.findIndex((page) => page.name === mode || page.mode === mode)
+      : findPreviewIndex(HOME_PREVIEW_LOOKUP_PAGES)
     const currentHomePreview = lookupIndex >= 0
       ? HOME_PREVIEW_LOOKUP_PAGES[lookupIndex]
       : previewPages[0]

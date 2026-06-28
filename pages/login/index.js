@@ -131,7 +131,7 @@ Page({
 
   onLoad(options = {}) {
     if (options.walkthrough === 'loginAuth' || options.preview === 'loginAuth') {
-      this.enterLoginAuthPreview()
+      this.enterLoginAuthPreview(options.mode || options.step)
       return
     }
 
@@ -183,7 +183,8 @@ Page({
     })
   },
 
-  enterLoginAuthPreview() {
+  enterLoginAuthPreview(mode = 'home') {
+    const loginMode = LOGIN_WALKTHROUGH_MODES.includes(mode) ? mode : 'home'
     const phone = env.isMock ? TEST_PHONE : ''
     const verifyCode = env.isMock ? TEST_CODE : ''
     const password = env.isMock ? TEST_PASSWORD : ''
@@ -192,7 +193,7 @@ Page({
     this.setData({
       isUiPreview: false,
       isLoginAuthPreview: true,
-      loginMode: 'home',
+      loginMode,
       accountMode: 'password',
       agreed: true,
       phone,
@@ -318,7 +319,6 @@ Page({
     }
 
     if (this.data.uiPreviewStep === 'realnameGuide') {
-      toast.developing()
       return
     }
   },
@@ -441,6 +441,18 @@ Page({
   },
 
   async startRealnameAuth() {
+    if (this.data.isUiPreview) {
+      if (this.data.uiPreviewStep === 'realnameModal') {
+        this.showUiPreviewMode('realnameGuide')
+        return
+      }
+
+      wx.navigateTo({
+        url: '/pages/login/realname/index'
+      })
+      return
+    }
+
     if (this.data.isStartingRealname) {
       return
     }
@@ -471,7 +483,14 @@ Page({
   },
 
   skipRealnameAuth() {
-    toast.developing()
+    if (this.data.isUiPreview) {
+      this.showUiPreviewMode('newbieTasks')
+      return
+    }
+
+    wx.reLaunch({
+      url: '/pages/home/index'
+    })
   },
 
   async loadNewbieTasks() {
@@ -496,7 +515,16 @@ Page({
   },
 
   goHomeFromNewbieTasks() {
-    toast.developing()
+    if (this.data.isUiPreview) {
+      wx.redirectTo({
+        url: '/pages/home/index?ui=1&mode=homeAll&single=0'
+      })
+      return
+    }
+
+    wx.reLaunch({
+      url: '/pages/home/index'
+    })
   },
 
   goNewbieTask(event) {
@@ -508,7 +536,7 @@ Page({
     }
 
     if (task.type === 'realname' && this.data.isUiPreview) {
-      toast.developing()
+      this.showUiPreviewMode('realnameGuide')
       return
     }
 

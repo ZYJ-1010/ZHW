@@ -5,9 +5,93 @@
     "miniprogram": {
       "list": [
         {
+          "name": "01-邀请注册走查",
+          "pathName": "pages/login/index",
+          "query": "ui=1&mode=invite&inviteCode=ENJOY2026",
+          "scene": null
+        },
+        {
+          "name": "02-首页走查",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=homeAll&single=0",
+          "scene": null
+        },
+        {
+          "name": "03-组局主流程走查",
+          "pathName": "pages/game/hall/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "04-发起组局走查",
+          "pathName": "pages/game/create/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "05-局前大厅走查",
+          "pathName": "pages/game/detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "06-地图首页走查",
+          "pathName": "pages/map/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "07-关系网走查",
+          "pathName": "pages/relation/network/index",
+          "query": "mode=templateWalkthrough",
+          "scene": null
+        },
+        {
+          "name": "08-消息走查",
+          "pathName": "pages/message/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "09-元宇宙（预留）走查",
+          "pathName": "pages/metaverse/home/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "10-我的走查",
+          "pathName": "pages/profile/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "邀请注册走查",
           "pathName": "pages/login/index",
           "query": "ui=1&mode=invite&inviteCode=ENJOY2026",
+          "scene": null
+        },
+        {
+          "name": "邀请注册-首页",
+          "pathName": "pages/login/index",
+          "query": "ui=1&mode=invite&inviteCode=ENJOY2026",
+          "scene": null
+        },
+        {
+          "name": "邀请注册-实名认证弹窗",
+          "pathName": "pages/login/index",
+          "query": "ui=1&mode=realnameModal&inviteCode=ENJOY2026",
+          "scene": null
+        },
+        {
+          "name": "邀请注册-实名认证引导",
+          "pathName": "pages/login/index",
+          "query": "ui=1&mode=realnameGuide&inviteCode=ENJOY2026",
+          "scene": null
+        },
+        {
+          "name": "邀请注册-新手任务",
+          "pathName": "pages/login/index",
+          "query": "ui=1&mode=newbieTasks&inviteCode=ENJOY2026",
           "scene": null
         },
         {
@@ -17,15 +101,93 @@
           "scene": null
         },
         {
+          "name": "登录授权-首页",
+          "pathName": "pages/login/index",
+          "query": "walkthrough=loginAuth&mode=home",
+          "scene": null
+        },
+        {
+          "name": "登录授权-验证码登录",
+          "pathName": "pages/login/index",
+          "query": "walkthrough=loginAuth&mode=codeVerify",
+          "scene": null
+        },
+        {
+          "name": "登录授权-账号密码登录",
+          "pathName": "pages/login/index",
+          "query": "walkthrough=loginAuth&mode=account",
+          "scene": null
+        },
+        {
+          "name": "登录授权-微信授权",
+          "pathName": "pages/login/index",
+          "query": "walkthrough=loginAuth&mode=wechatAuth",
+          "scene": null
+        },
+        {
           "name": "找回密码走查",
           "pathName": "pages/login/forgot/index",
           "query": "ui=1&step=phone",
           "scene": null
         },
         {
+          "name": "找回密码-验证手机号",
+          "pathName": "pages/login/forgot/index",
+          "query": "ui=1&step=phone",
+          "scene": null
+        },
+        {
+          "name": "找回密码-设置新密码",
+          "pathName": "pages/login/forgot/index",
+          "query": "ui=1&step=password",
+          "scene": null
+        },
+        {
+          "name": "找回密码-重置成功",
+          "pathName": "pages/login/forgot/index",
+          "query": "ui=1&step=success",
+          "scene": null
+        },
+        {
           "name": "首页",
           "pathName": "pages/home/index",
           "query": "ui=1&mode=homeAll&single=0",
+          "scene": null
+        },
+        {
+          "name": "首页-玩家首页",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=roleHome&role=player&single=1",
+          "scene": null
+        },
+        {
+          "name": "首页-行家首页",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=roleHome&role=expert&single=1",
+          "scene": null
+        },
+        {
+          "name": "首页-领路人首页",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=roleHome&role=guide&single=1",
+          "scene": null
+        },
+        {
+          "name": "首页-权益对比页",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=roleComparison&single=1",
+          "scene": null
+        },
+        {
+          "name": "首页-申请行家操作页",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=expertApplyOverview&single=1",
+          "scene": null
+        },
+        {
+          "name": "首页-申请行家内页",
+          "pathName": "pages/home/index",
+          "query": "ui=1&mode=expertApplyForm&single=1",
           "scene": null
         },
         {

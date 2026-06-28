@@ -16,7 +16,14 @@ Page({
   data: {
     realname: TEST_REALNAME,
     idNumber: TEST_ID_NUMBER,
+    isUiPreview: false,
     isCompleting: false
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      isUiPreview: options.ui === '1'
+    })
   },
 
   onRealnameInput(event) {
@@ -48,6 +55,21 @@ Page({
 
   async completeRealname() {
     if (this.data.isCompleting) {
+      return
+    }
+
+    if (this.data.isUiPreview) {
+      wx.showModal({
+        title: '注意事项',
+        content: '需要接入实名认证接口',
+        showCancel: false,
+        confirmText: '我知道了',
+        success() {
+          wx.redirectTo({
+            url: '/pages/login/index?ui=1&mode=newbieTasks&inviteCode=ENJOY2026'
+          })
+        }
+      })
       return
     }
 
