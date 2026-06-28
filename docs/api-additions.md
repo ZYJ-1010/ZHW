@@ -4537,3 +4537,32 @@ POST /api/app/profile/system-management/reports/appeals/{appealId}/withdraw
 10. 奖励与信用分：奖励金额、发放状态、信用分增减、处罚描述和规则说明是否完全由后台返回。
 
 状态：前端已新增 6 个静态页面、个人中心入口和 6 个编译模式；当前数据均为本地兜底，上传、撤回、评价等操作只做待开发提示。正式接口、字段枚举、分页、状态流转、奖励发放和运行截图复核仍待确认。
+
+## 66. 系统管理签署协议接口
+
+记录日期：2026-06-28
+
+模块：我的 / 系统管理 / 签署协议
+
+页面：`pages/profile/system-management/agreement-sign/index`、`pages/profile/system-management/agreement-detail/index`
+
+功能：签署协议当前为静态走查页；列表页展示用户服务协议、隐私政策、入驻协议的签署状态，详情页展示协议正文并提供“同意并签署”确认弹窗。正式联调时需要从后台获取协议列表、当前用户签署状态、协议正文版本和签署提交结果。
+
+候选接口：
+
+```text
+GET /api/app/profile/system-management/agreements
+GET /api/app/profile/system-management/agreements/{agreementId}
+POST /api/app/profile/system-management/agreements/{agreementId}/sign
+GET /api/app/profile/system-management/agreements/sign-records
+```
+
+需要后台返回 / 确认：
+
+1. 协议列表：协议 ID、协议类型 key、标题、副标题、图标标识、签署状态、是否可点击查看、排序和未签署提示。
+2. 协议详情：协议标题、版本号、生效时间、正文结构、章节标题、段落内容、是否需要展示底部签署按钮，以及已签署后的按钮状态。
+3. 签署提交：签署入参、协议版本、签署时间、成功后返回的签署记录 ID、是否刷新列表状态、重复签署和协议版本变化的失败码。
+4. 签署记录：历史签署协议、版本、签署时间、签署来源和查看历史版本的入口规则。
+5. 后台配置：协议文案、章节、状态文案、协议类型和排序是否都支持后台配置；前端只按返回内容展示，不写死最终协议文本和状态。
+
+状态：前端已新增 2 个页面、3 个编译模式和个人中心入口；当前数据与签署结果均为本地静态兜底。正式接口、字段枚举、版本变更策略、历史签署记录和已签署状态刷新仍待后端确认。外部资料目录本次只发现 3 页参考图 / HTML，第 4 页资料待补充。

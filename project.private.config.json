@@ -467,6 +467,24 @@
           "scene": null
         },
         {
+          "name": "我的-系统管理-签署协议-签署协议页",
+          "pathName": "pages/profile/system-management/agreement-sign/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-签署协议-协议详情查看页",
+          "pathName": "pages/profile/system-management/agreement-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-签署协议-确认签署弹窗页",
+          "pathName": "pages/profile/system-management/agreement-detail/index",
+          "query": "confirm=1",
+          "scene": null
+        },
+        {
           "name": "我的-系统管理-屏蔽设置-首页",
           "pathName": "pages/profile/system-management/block-settings/index",
           "query": "",

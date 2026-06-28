@@ -1,0 +1,35 @@
+<profile-white-shell
+  title="签署协议"
+  background="#0d1117"
+  nav-background="#0d1117"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="agreement-sign-page">
+    <view class="agreement-list-card">
+      <view
+        wx:for="{{agreements}}"
+        wx:key="key"
+        class="agreement-row {{item.last ? 'last' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleAgreementTap"
+      >
+        <view class="agreement-icon-box {{item.tone}}">
+          <image class="agreement-icon" src="{{item.icon}}" mode="aspectFit"></image>
+        </view>
+        <view class="agreement-copy">
+          <text class="agreement-title">{{item.title}}</text>
+          <text class="agreement-desc">{{item.desc}}</text>
+        </view>
+        <view class="agreement-status {{item.signed ? 'signed' : 'unsigned'}}">
+          <image wx:if="{{item.signed}}" class="agreement-check" src="{{icons.check}}" mode="aspectFit"></image>
+          <text>{{item.signed ? '已签署' : '未签署'}}</text>
+          <image wx:if="{{!item.signed}}" class="agreement-arrow" src="{{icons.arrow}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>
