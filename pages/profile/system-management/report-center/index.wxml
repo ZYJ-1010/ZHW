@@ -1,0 +1,95 @@
+<profile-white-shell
+  title="举报中心"
+  background="#071321"
+  nav-background="#071321"
+  title-color="#f8fbff"
+  title-weight="700"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="report-page report-form-page">
+    <view class="report-tabs">
+      <view class="report-tab active">我要举报</view>
+      <view class="report-tab" data-target="appeals" bindtap="handleTabTap">我的申诉</view>
+      <view class="report-tab" data-target="records" bindtap="handleTabTap">处理记录</view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">举报类型</text>
+      <view class="report-chip-row report-type-row">
+        <view
+          wx:for="{{reportTypeRows}}"
+          wx:key="*this"
+          wx:for-item="row"
+          class="report-type-line"
+        >
+          <view
+            wx:for="{{row}}"
+            wx:key="key"
+            class="report-chip {{activeType === item.key ? 'active' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="handleTypeTap"
+          >{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">被举报人</text>
+      <input
+        class="report-input"
+        value="{{reportedUser}}"
+        placeholder="输入用户昵称或ID"
+        placeholder-class="placeholder"
+        bindinput="handleUserInput"
+      />
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">举报原因</text>
+      <view class="report-textarea-wrap">
+        <textarea
+          class="report-textarea"
+          value="{{reason}}"
+          maxlength="500"
+          placeholder="请详细描述举报原因..."
+          placeholder-class="placeholder"
+          bindinput="handleReasonInput"
+        />
+        <text class="counter"><text class="counter-active">{{reason.length}}</text>/500</text>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">上传证据 (最多9张)</text>
+      <view class="upload-grid">
+        <view
+          wx:for="{{evidenceImages}}"
+          wx:key="id"
+          class="upload-tile upload-preview"
+          data-index="{{index}}"
+          bindtap="handlePreviewImage"
+        >
+          <image class="upload-image" src="{{item.path}}" mode="aspectFill"></image>
+          <view class="upload-remove" data-index="{{index}}" catchtap="handleRemoveImage">删除</view>
+        </view>
+        <view wx:for="{{uploadSlots}}" wx:key="*this" class="upload-tile" bindtap="handleUploadTap">
+          <image class="upload-plus" src="{{icons.plus}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+
+    <view class="primary-report-button single-submit" bindtap="handleSubmitTap">提交举报</view>
+
+    <view class="report-card tip-card">
+      <view class="tip-title">
+        <image class="tip-icon" src="{{icons.warning}}" mode="aspectFit"></image>
+        <text>温馨提示</text>
+      </view>
+      <text class="tip-line">举报属实且能核实金额：罚款20% (50%奖励举报人)</text>
+      <text class="tip-line">属实但无法核实：固定50元+信用分+5</text>
+      <text class="tip-line">不属实扣除举报人信用分2分，多次恶意举报封号</text>
+    </view>
+  </view>
+</profile-white-shell>

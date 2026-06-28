@@ -1,0 +1,22 @@
+@import "../report-center/shared.wxss";
+
+.report-page,
+.report-page view,
+.report-page text,
+.report-bottom-actions,
+.report-bottom-actions view,
+.report-bottom-actions text {
+  font-weight: 400 !important;
+}
+
+.report-page .section-title,
+.report-page .status-main,
+.report-page .reward-value,
+.report-page .info-value,
+.report-page .result-value,
+.report-page .result-note,
+.report-page .timeline-title,
+.report-bottom-actions .primary-report-button,
+.report-bottom-actions .secondary-report-button {
+  font-weight: 400 !important;
+}

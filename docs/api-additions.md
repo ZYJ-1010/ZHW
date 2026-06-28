@@ -4496,3 +4496,44 @@ POST /api/app/profile/system-management/feedback/voice
 7. 满意度评价：NPS 分数、满意项多选、提交后的幂等处理、是否允许重复评价、失败码和提示文案。
 
 状态：前端已新增静态页、快捷反馈弹窗状态和 5 个编译模式；当前可反馈的局、已反馈的问题、状态数量和详情对话仍为本地静态兜底。正式接口字段、上传 / 录音能力、列表分页、详情对话和满意度评价仍待后端确认。
+
+## 65. 系统管理举报中心接口
+
+记录日期：2026-06-28
+
+模块：我的 / 系统管理 / 举报中心
+
+页面：`pages/profile/system-management/report-center/index`、`pages/profile/system-management/report-appeals/index`、`pages/profile/system-management/report-records/index`、`pages/profile/system-management/report-detail/index`、`pages/profile/system-management/appeal-detail/index`、`pages/profile/system-management/report-record-detail/index`
+
+功能：举报中心当前为静态走查页；首页展示举报类型、被举报人、举报原因、上传证据和温馨提示；我的申诉页展示申诉状态列表；处理记录页展示统计、筛选和处理记录；三个详情页展示举报详情、申诉详情和处理记录详情。正式联调时需要接举报提交、证据上传、申诉列表、处理记录、举报详情、申诉详情、处理奖励、撤回申诉和处理评价能力。
+
+候选接口：
+
+```text
+GET /api/app/profile/system-management/reports/options
+POST /api/app/profile/system-management/reports/uploads
+POST /api/app/profile/system-management/reports
+GET /api/app/profile/system-management/reports/{reportId}
+GET /api/app/profile/system-management/reports/records
+GET /api/app/profile/system-management/reports/records/{recordId}
+POST /api/app/profile/system-management/reports/records/{recordId}/rating
+GET /api/app/profile/system-management/reports/appeals
+GET /api/app/profile/system-management/reports/appeals/{appealId}
+POST /api/app/profile/system-management/reports/{reportId}/appeals
+POST /api/app/profile/system-management/reports/appeals/{appealId}/withdraw
+```
+
+需要后台返回 / 确认：
+
+1. 举报类型：类型 key、展示文案、排序、是否可用、默认选中项和温馨提示规则文案。
+2. 被举报人：是否按用户昵称 / ID 搜索、是否需要选择具体用户、用户展示字段、无法搜索到用户的错误提示和风控限制。
+3. 举报提交：举报类型、被举报人 ID、原因正文、证据文件 ID 列表、提交成功后的举报 ID、是否直接进入举报详情页、重复举报和恶意举报失败码。
+4. 证据上传：图片数量限制、格式、大小、上传方式、文件 ID 返回结构、删除 / 重传规则和预览地址。
+5. 申诉列表：申诉状态枚举、状态数量、列表分页、申诉标题、原因摘要、时间、状态标签、详情入口和空态。
+6. 申诉详情：申诉编号、原举报信息、申诉材料、证据、处理进度、当前状态、预计处理时效、撤回规则和撤回失败码。
+7. 处理记录：总举报、举报成功、举报失败、累计奖励、筛选状态、记录标题、处理结果、处罚措施、奖励金额、时间、状态标签、分页和空态。
+8. 处理详情：举报基本信息、举报内容、证据材料、处理结果、处罚措施、平台奖励、处理说明、时间线和处理人展示字段。
+9. 评价处理：评价维度、评分 / 标签 / 文本入参、是否允许重复评价、提交成功后的状态刷新和失败提示。
+10. 奖励与信用分：奖励金额、发放状态、信用分增减、处罚描述和规则说明是否完全由后台返回。
+
+状态：前端已新增 6 个静态页面、个人中心入口和 6 个编译模式；当前数据均为本地兜底，上传、撤回、评价等操作只做待开发提示。正式接口、字段枚举、分页、状态流转、奖励发放和运行截图复核仍待确认。

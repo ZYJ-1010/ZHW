@@ -1,0 +1,28 @@
+@import "../report-center/shared.wxss";
+
+.appeal-filters {
+  margin: 36rpx 0 34rpx;
+  flex-wrap: nowrap;
+  gap: 20rpx;
+}
+
+.appeal-filters .filter-chip {
+  min-width: 0;
+  height: 62rpx;
+  padding: 0 28rpx;
+  border-radius: 31rpx;
+  font-size: 27rpx;
+  line-height: 60rpx;
+}
+
+.appeals-page .report-tab,
+.appeals-page .report-tab.active,
+.appeals-page .filter-chip,
+.appeals-page .filter-chip.active,
+.appeals-page .list-title,
+.appeals-page .status-badge,
+.appeals-page .list-desc,
+.appeals-page .list-time,
+.appeals-page .detail-link {
+  font-weight: 400;
+}

@@ -431,6 +431,42 @@
           "scene": null
         },
         {
+          "name": "我的-系统管理-举报中心-举报中心",
+          "pathName": "pages/profile/system-management/report-center/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-举报中心-我的申诉页",
+          "pathName": "pages/profile/system-management/report-appeals/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-举报中心-申诉处理记录页",
+          "pathName": "pages/profile/system-management/report-records/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-举报中心-举报详情页",
+          "pathName": "pages/profile/system-management/report-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-举报中心-申诉详情页",
+          "pathName": "pages/profile/system-management/appeal-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-举报中心-处理记录详情页",
+          "pathName": "pages/profile/system-management/report-record-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-系统管理-屏蔽设置-首页",
           "pathName": "pages/profile/system-management/block-settings/index",
           "query": "",

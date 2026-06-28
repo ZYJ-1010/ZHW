@@ -127,6 +127,10 @@ Component({
       type: Boolean,
       value: true
     },
+    backUrl: {
+      type: String,
+      value: ''
+    },
     rightText: {
       type: String,
       value: ''
@@ -160,6 +164,13 @@ Component({
 
   methods: {
     handleBack() {
+      if (this.properties.backUrl) {
+        wx.redirectTo({
+          url: this.properties.backUrl
+        })
+        return
+      }
+
       const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
 
       if (pages.length > 1) {
