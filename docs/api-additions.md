@@ -3793,7 +3793,7 @@ GET /api/app/profile/home
 | 足迹中心 | 我的成就墙 | `pages/profile/footprint/achievements/index` |
 | 账户管理 | 我的资料 | `pages/profile/match-info/index` |
 | 账户管理 | 技能配置 | 待确认技能配置页 / 路由 |
-| 账户管理 | 屏蔽设置 | 待确认屏蔽设置页 / 路由 |
+| 账户管理 | 屏蔽设置 | `pages/profile/system-management/block-settings/index` |
 | 账户管理 | 信用中心 | `pages/profile/credit-center/index` |
 | 账户管理 | 举报中心 | 待确认举报中心页 / 路由 |
 | 账户管理 | 签署协议 | 待确认协议页 / 路由 |
@@ -4416,3 +4416,46 @@ POST /api/app/profile/system-management/skill-config/cases/{caseId}/bind
 10. 服务案例详情：点击服务案例后当前前端使用 `caseId` 切换本地兜底详情；正式联调建议由 `GET /api/app/profile/system-management/skill-config/cases/{caseId}` 返回详情页所需字段，包括 `title`、`date`、`playersText`、`totalPlayers`、`ratingText`、`score`、`tags[]`、`detailSections[]`、`players[]`、`iconText` / `iconKey`、`tone`。评分星级可由后台直接返回或由前端根据 `score` 派生，但最终评分、标签和玩家列表都应以后台为准。
 
 状态：前端已新增深色静态页、服务案例详情页和对应编译模式，并已接 `GET /api/app/profile/system-management/skill-config` 与 `PUT /api/app/profile/system-management/skill-config` service / mock 链路；添加 / 编辑 / 移除 / 解锁已先补本地响应 UI 和本地状态更新，服务案例详情当前仍为前端兜底数据。正式接口字段、操作权限、修改次数扣减、失败码、案例绑定流程和案例详情接口仍待后端和产品确认。
+## 63. 系统管理屏蔽设置接口
+
+记录日期：2026-06-28
+
+模块：我的 / 系统管理 / 屏蔽设置
+
+页面：`pages/profile/system-management/block-settings/index`、`pages/profile/system-management/protection-mode/index`、`pages/profile/system-management/scene-config/index`、`pages/profile/system-management/whitelist/index`、`pages/profile/system-management/renewal/index`、`pages/profile/system-management/keywords/index`、`pages/profile/system-management/users/index`
+
+功能：屏蔽设置当前为静态走查页；首页展示保护开关、保护用户数、已屏蔽行家数、过滤率、保护期剩余天数和 6 个配置入口；分页支持保护模式、分场景策略、白名单、续期保护期、关键词屏蔽和用户屏蔽的本地状态操作。正式联调时这些数字、设置、规则说明和保存结果都应从后台获取并持久化，前端不写死最终业务数据。
+
+候选接口：
+
+```text
+GET /api/app/profile/system-management/block-settings
+PUT /api/app/profile/system-management/block-settings/status
+PUT /api/app/profile/system-management/block-settings/protection-mode
+PUT /api/app/profile/system-management/block-settings/scenes
+GET /api/app/profile/system-management/block-settings/whitelist
+POST /api/app/profile/system-management/block-settings/whitelist
+DELETE /api/app/profile/system-management/block-settings/whitelist/{expertId}
+GET /api/app/profile/system-management/block-settings/renewal-options
+POST /api/app/profile/system-management/block-settings/renewal
+GET /api/app/profile/system-management/block-settings/keywords
+POST /api/app/profile/system-management/block-settings/keywords
+DELETE /api/app/profile/system-management/block-settings/keywords/{keywordId}
+GET /api/app/profile/system-management/block-settings/users
+POST /api/app/profile/system-management/block-settings/users
+DELETE /api/app/profile/system-management/block-settings/users/{userId}
+```
+
+需要后台返回 / 确认：
+
+1. 总览数字：保护开关状态、保护用户数、已屏蔽行家数、过滤率、保护期剩余天数、到期时间、是否可续期和续期入口状态。
+2. 保护模式：当前模式、软保护 / 硬保护文案、说明、推荐标识、选中状态、保存后的返回结构和失败码。
+3. 分场景策略：推荐列表、动态页、搜索结果、私信、评论等场景 key、名称、说明、当前策略、可选策略和默认值。
+4. 白名单：行家 ID、头像 / 图标、昵称、标签、加入时间、来源、分页、搜索、添加、移除和空态。
+5. 续期保护期：可选天数、价格或权益说明、默认选项、购买 / 续期成功后的保护期、订单或支付信息、失败提示。
+6. 关键词屏蔽：关键词 ID、文本、匹配方式、启用状态、命中统计、添加 / 删除规则、重复关键词校验、保存后的刷新策略。
+7. 用户屏蔽：用户 ID、头像、昵称、标签、原因、时间、搜索 / 推荐候选、解除屏蔽、分页和空态。
+8. 规则说明：规则说明标题、正文、分段结构、强调项、展示样式配置和版本号都应支持后台修改；若规则样式后续调整，需要和文案配置一起提交给前端或由接口直接返回结构化样式。
+9. 持久化规则：各页面保存是整体覆盖还是局部保存，是否需要确认弹窗，是否存在冷却期、修改次数限制、风控失败码、离线 / 超时处理和回滚提示。
+
+状态：前端已新增 7 个静态页面和编译模式，本地可切换开关、模式、场景、白名单、续期天数、关键词和用户屏蔽状态；正式接口、后台配置、真实保存、分页搜索、续期支付和规则说明样式仍待后端 / 产品确认。

@@ -1,0 +1,70 @@
+<profile-white-shell
+  title="分场景配置"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page compact-page scene-page">
+    <text class="section-label scene-top-label">各场景设置</text>
+    <view class="card">
+      <view
+        wx:for="{{scenes}}"
+        wx:key="key"
+        class="card-row scene-row"
+        data-key="{{item.key}}"
+        bindtap="handleSceneTap"
+      >
+        <view class="row-main">
+          <text class="row-title">{{item.title}}</text>
+          <text class="row-desc">{{item.desc}}</text>
+        </view>
+        <view class="row-side">
+          <text class="pill {{item.mode === 'none' ? 'muted' : ''}}">{{item.mode === 'hard' ? '硬保护' : item.mode === 'soft' ? '软保护' : '不过滤'}}</text>
+          <image class="chevron" src="{{icons.chevron}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+
+    <text class="section-label">说明</text>
+    <view class="note-card scene-note">
+      <view wx:for="{{rules}}" wx:key="strong" class="note-line">
+        <view class="note-dot"></view>
+        <text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-action compact-action">
+    <view class="primary-btn" bindtap="handleSaveTap">保存配置</view>
+  </view>
+
+  <view wx:if="{{showModeSheet}}" class="sheet-mask" catchtap="handleCloseSheet"></view>
+  <view wx:if="{{showModeSheet}}" class="bottom-sheet compact-sheet scene-sheet">
+    <text class="sheet-title">{{selectedSceneTitle}}</text>
+    <view class="sheet-options">
+      <view
+        wx:for="{{modeOptions}}"
+        wx:key="key"
+        class="sheet-option {{selectedMode === item.key ? 'active' : ''}}"
+        data-mode="{{item.key}}"
+        bindtap="handleModeChoice"
+      >
+        <view class="sheet-option-icon">
+          <text class="sheet-option-emoji">{{item.iconText}}</text>
+        </view>
+        <view class="row-main">
+          <text class="row-title">{{item.title}}</text>
+          <text class="row-desc">{{item.desc}}</text>
+        </view>
+        <view class="mode-radio-light">
+          <image wx:if="{{selectedMode === item.key}}" src="{{icons.check}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+    <view class="secondary-btn sheet-cancel" bindtap="handleCloseSheet">取消</view>
+  </view>
+</profile-white-shell>

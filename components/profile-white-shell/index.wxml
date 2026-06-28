@@ -14,8 +14,7 @@
       class="profile-white-content"
       style="{{layout.contentStyle}} background: {{background}};"
       scroll-y
-      enhanced
-      show-scrollbar="false"
+      show-scrollbar="{{false}}"
     >
       <slot></slot>
     </scroll-view>

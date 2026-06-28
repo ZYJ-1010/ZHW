@@ -1,0 +1,113 @@
+@import "../block-settings/shared.wxss";
+
+.renew-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18rpx 0 24rpx;
+}
+
+.renew-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 68rpx;
+  line-height: 88rpx;
+}
+
+.renew-title {
+  margin-top: 18rpx;
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+}
+
+.renew-desc {
+  margin-top: 4rpx;
+  color: #8a9ab0;
+  font-size: 23rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.renew-options {
+  display: flex;
+  gap: 14rpx;
+}
+
+.renew-option {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 138rpx;
+  border: 2rpx solid transparent;
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.renew-option.active {
+  border-width: 3rpx;
+  border-color: #12d8ff;
+  background: rgba(0, 212, 255, 0.08);
+}
+
+.renew-days {
+  color: #12d8ff;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+}
+
+.renew-option-label {
+  margin-top: 8rpx;
+  color: #667788;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.renewal-rules {
+  padding: 18rpx 24rpx;
+}
+
+.renew-rule {
+  display: flex;
+  align-items: center;
+  min-height: 56rpx;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.06);
+  color: #8a9ab0;
+  font-size: 23rpx;
+  line-height: 32rpx;
+}
+
+.renew-rule:last-child {
+  border-bottom: 0;
+}
+
+.cyan-dot {
+  flex: none;
+  width: 12rpx;
+  height: 12rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  background: #12d8ff;
+}
+
+.renew-action {
+  margin-top: 22rpx;
+  padding-bottom: 18rpx;
+}
+
+.renew-action .primary-btn {
+  height: 84rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  line-height: 84rpx;
+}

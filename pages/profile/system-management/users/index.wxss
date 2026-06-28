@@ -1,0 +1,154 @@
+@import "../block-settings/shared.wxss";
+
+.users-page {
+  padding-top: 14rpx;
+}
+
+.user-search {
+  margin-bottom: 16rpx;
+}
+
+.user-stats {
+  margin-bottom: 18rpx;
+}
+
+.add-user-card {
+  display: flex;
+  align-items: center;
+  height: 86rpx;
+  margin-top: 18rpx;
+  padding: 0 26rpx;
+  border: 2rpx dashed rgba(0, 212, 255, 0.34);
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  color: #12d8ff;
+  background: rgba(0, 212, 255, 0.04);
+  font-size: 27rpx;
+}
+
+.add-user-card .icon-tile {
+  width: 58rpx;
+  height: 58rpx;
+  margin-right: 18rpx;
+  border-radius: 18rpx;
+}
+
+.add-user-card .icon-tile image {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.blocked-list {
+  border-radius: 28rpx;
+}
+
+.blocked-row {
+  display: flex;
+  align-items: center;
+  min-height: 92rpx;
+  padding: 14rpx 18rpx;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
+}
+
+.blocked-row:last-child {
+  border-bottom: 0;
+}
+
+.blocked-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 18rpx;
+}
+
+.blocked-title-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.blocked-name {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 27rpx;
+  line-height: 36rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-tag {
+  flex: none;
+  height: 32rpx;
+  margin-left: 10rpx;
+  padding: 0 12rpx;
+  border-radius: 12rpx;
+  color: #12d8ff;
+  background: rgba(0, 212, 255, 0.18);
+  font-size: 20rpx;
+  line-height: 32rpx;
+}
+
+.role-tag.expert {
+  color: #ff9500;
+  background: rgba(255, 149, 0, 0.16);
+}
+
+.blocked-date {
+  flex: none;
+  margin: 0 14rpx;
+  color: #3f5166;
+  font-size: 21rpx;
+  line-height: 30rpx;
+}
+
+.danger-outline {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76rpx;
+  height: 48rpx;
+  border: 2rpx solid rgba(255, 77, 77, 0.36);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  color: #ff6b6b;
+  background: rgba(255, 77, 77, 0.12);
+  font-size: 22rpx;
+}
+
+.user-sheet {
+  max-height: 740rpx;
+}
+
+.candidate-list {
+  margin-top: 18rpx;
+}
+
+.user-candidate-row {
+  display: flex;
+  align-items: center;
+  min-height: 98rpx;
+}
+
+.user-candidate-row .row-main {
+  margin-left: 18rpx;
+}
+
+.candidate-check {
+  flex: none;
+  width: 42rpx;
+  height: 42rpx;
+  border: 4rpx solid #3f5166;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.candidate-check image {
+  width: 42rpx;
+  height: 42rpx;
+  margin: -4rpx 0 0 -4rpx;
+}
+
+.user-sheet .primary-btn {
+  margin-top: 18rpx;
+}

@@ -5,20 +5,42 @@ const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_CAPSULE_LEFT_RPX = 584
 const DEFAULT_FRAME_HEIGHT_RPX = 1620
 
+let cachedLayout = null
+
 function roundRpx(value) {
   return Math.round(value * 100) / 100
 }
 
+function getWindowMetrics() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getWindowInfo) {
+      return wx.getWindowInfo()
+    }
+  } catch (error) {
+    return null
+  }
+
+  try {
+    if (typeof wx !== 'undefined' && wx.getSystemInfoSync) {
+      return wx.getSystemInfoSync()
+    }
+  } catch (error) {
+    return null
+  }
+
+  return null
+}
+
 function getMenuCapsuleLayoutRpx() {
   try {
-    if (typeof wx !== 'undefined' && wx.getSystemInfoSync && wx.getMenuButtonBoundingClientRect) {
+    if (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) {
       const menuButton = wx.getMenuButtonBoundingClientRect()
-      const systemInfo = wx.getSystemInfoSync()
+      const windowInfo = getWindowMetrics()
 
-      if (menuButton && systemInfo && systemInfo.windowWidth) {
+      if (menuButton && windowInfo && windowInfo.windowWidth) {
         return {
-          bottom: roundRpx((menuButton.top + menuButton.height) * 750 / systemInfo.windowWidth),
-          left: roundRpx(menuButton.left * 750 / systemInfo.windowWidth)
+          bottom: roundRpx((menuButton.top + menuButton.height) * 750 / windowInfo.windowWidth),
+          left: roundRpx(menuButton.left * 750 / windowInfo.windowWidth)
         }
       }
     }
@@ -36,31 +58,31 @@ function getMenuCapsuleLayoutRpx() {
 }
 
 function getLayoutStyles() {
+  if (cachedLayout) {
+    return cachedLayout
+  }
+
   const capsuleLayout = getMenuCapsuleLayoutRpx()
   const titleTop = Math.max(0, roundRpx(capsuleLayout.bottom - NAV_TITLE_HEIGHT_RPX))
   const backTop = Math.max(0, roundRpx(capsuleLayout.bottom - BACK_BUTTON_SIZE_RPX))
   const rightLeft = Math.max(0, roundRpx(capsuleLayout.left - 76))
   let frameHeight = DEFAULT_FRAME_HEIGHT_RPX
 
-  try {
-    if (typeof wx !== 'undefined' && wx.getSystemInfoSync) {
-      const systemInfo = wx.getSystemInfoSync()
+  const windowInfo = getWindowMetrics()
 
-      if (systemInfo && systemInfo.windowWidth && systemInfo.windowHeight) {
-        frameHeight = roundRpx(systemInfo.windowHeight * 750 / systemInfo.windowWidth)
-      }
-    }
-  } catch (error) {
-    frameHeight = DEFAULT_FRAME_HEIGHT_RPX
+  if (windowInfo && windowInfo.windowWidth && windowInfo.windowHeight) {
+    frameHeight = roundRpx(windowInfo.windowHeight * 750 / windowInfo.windowWidth)
   }
 
-  return {
+  cachedLayout = {
     frameStyle: `height: ${frameHeight}rpx; min-height: ${frameHeight}rpx;`,
     contentStyle: `top: ${CONTENT_TOP_RPX}rpx; height: calc(100% - ${CONTENT_TOP_RPX}rpx);`,
     titleStyle: `top: ${titleTop}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
     rightStyle: `top: ${titleTop}rpx; left: ${rightLeft}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
     backStyle: `top: ${backTop}rpx; width: ${BACK_BUTTON_SIZE_RPX}rpx; height: ${BACK_BUTTON_SIZE_RPX}rpx;`
   }
+
+  return cachedLayout
 }
 
 Component({
@@ -127,8 +149,9 @@ Component({
     layout: getLayoutStyles()
   },
 
-  lifetimes: {
-    attached() {
+  pageLifetimes: {
+    resize() {
+      cachedLayout = null
       this.setData({
         layout: getLayoutStyles()
       })

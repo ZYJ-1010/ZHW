@@ -401,6 +401,72 @@
           "scene": null
         },
         {
+          "name": "我的-系统管理-屏蔽设置-首页",
+          "pathName": "pages/profile/system-management/block-settings/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-保护模式",
+          "pathName": "pages/profile/system-management/protection-mode/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-保护模式-软保护",
+          "pathName": "pages/profile/system-management/protection-mode/index",
+          "query": "mode=soft",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-分场景配置",
+          "pathName": "pages/profile/system-management/scene-config/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-分场景配置-弹窗",
+          "pathName": "pages/profile/system-management/scene-config/index",
+          "query": "sheet=recommend",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-白名单",
+          "pathName": "pages/profile/system-management/whitelist/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-白名单-添加弹窗",
+          "pathName": "pages/profile/system-management/whitelist/index",
+          "query": "sheet=add",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-续期保护期",
+          "pathName": "pages/profile/system-management/renewal/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-关键词屏蔽",
+          "pathName": "pages/profile/system-management/keywords/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-用户屏蔽",
+          "pathName": "pages/profile/system-management/users/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-屏蔽设置-用户屏蔽-添加弹窗",
+          "pathName": "pages/profile/system-management/users/index",
+          "query": "sheet=add",
+          "scene": null
+        },
+        {
           "name": "我的-服务中心-我的局",
           "pathName": "pages/profile/service-center/my-games/index",
           "query": "",
