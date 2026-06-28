@@ -1,0 +1,53 @@
+<profile-white-shell
+  title=""
+  background="#080d19"
+  nav-background="#080d19"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="detail-nav-title">反馈详情</view>
+  <view class="detail-nav-status">处理中</view>
+
+  <view class="feedback-page detail-page">
+    <view class="feedback-card detail-summary">
+      <view class="summary-head">
+        <view class="type-chip blue">功能建议</view>
+        <text class="summary-time">2026-06-14 18:32</text>
+      </view>
+      <text class="summary-content">建议在组局详情页增加「一键复制地址」功能，目前每次都要手动输入地址比较麻烦，希望能优化一下。另外地址信息最好能自动识别地图应用跳转。</text>
+      <image class="summary-image" src="{{feedbackImage}}" mode="aspectFill"></image>
+    </view>
+
+    <text class="date-divider">2026-06-14</text>
+
+    <view class="message-list">
+      <view
+        wx:for="{{messages}}"
+        wx:key="id"
+        class="message-row {{item.role}}"
+      >
+        <view wx:if="{{item.role === 'service'}}" class="avatar service-avatar">{{item.avatar}}</view>
+        <view class="message-bubble">
+          <text class="message-content">{{item.content}}</text>
+          <text class="message-time">{{item.time}}</text>
+        </view>
+        <view wx:if="{{item.role === 'me'}}" class="avatar me-avatar">{{item.avatar}}</view>
+      </view>
+    </view>
+
+    <text class="date-divider today">今天</text>
+  </view>
+
+  <view class="detail-input-bar">
+    <view class="attach-button" bindtap="handleAttachTap">
+      <image src="{{icons.attachment}}" mode="aspectFit"></image>
+    </view>
+    <input class="reply-input" placeholder="补充说明..." placeholder-class="placeholder" />
+    <view class="send-button" bindtap="handleSendTap">
+      <image src="{{icons.send}}" mode="aspectFit"></image>
+    </view>
+  </view>
+</profile-white-shell>

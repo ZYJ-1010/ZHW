@@ -401,6 +401,36 @@
           "scene": null
         },
         {
+          "name": "我的-系统管理-建议反馈-00建议反馈",
+          "pathName": "pages/profile/system-management/feedback/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-建议反馈-01我的反馈",
+          "pathName": "pages/profile/system-management/feedback-records/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-建议反馈-02反馈详情",
+          "pathName": "pages/profile/system-management/feedback-detail/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-建议反馈-03快捷反馈",
+          "pathName": "pages/profile/system-management/feedback/index",
+          "query": "sheet=quick",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-建议反馈-04反馈成功",
+          "pathName": "pages/profile/system-management/feedback-success/index",
+          "query": "",
+          "scene": null
+        },
+        {
           "name": "我的-系统管理-屏蔽设置-首页",
           "pathName": "pages/profile/system-management/block-settings/index",
           "query": "",

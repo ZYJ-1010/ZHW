@@ -1,0 +1,49 @@
+<profile-white-shell
+  title="我的反馈"
+  background="#080d19"
+  nav-background="#080d19"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="feedback-record-tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="record-tab {{activeTab === item.key ? 'active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="handleTabTap"
+    >
+      <text>{{item.label}}</text>
+      <view wx:if="{{item.count}}" class="tab-count">{{item.count}}</view>
+    </view>
+  </view>
+
+  <view class="feedback-page record-page no-bottom-space">
+    <view
+      wx:for="{{records}}"
+      wx:key="id"
+      class="feedback-card record-card"
+      bindtap="handleRecordTap"
+    >
+      <view class="record-head">
+        <view class="type-chip {{item.typeTone}}">{{item.type}}</view>
+        <view class="status-chip {{item.statusClass}}">{{item.status}}</view>
+      </view>
+      <text class="record-content">{{item.content}}</text>
+      <view wx:if="{{item.images.length || item.extraImageCount}}" class="record-images">
+        <image wx:for="{{item.images}}" wx:key="*this" class="record-thumb" src="{{item}}" mode="aspectFill"></image>
+        <view wx:if="{{item.extraImageCount}}" class="record-thumb extra-thumb">+{{item.extraImageCount}}</view>
+      </view>
+      <view class="record-foot">
+        <text class="record-time">{{item.time}}</text>
+        <view wx:if="{{item.replyText}}" class="reply-state {{item.replyClass}}">
+          <view class="reply-dot"></view>
+          <text>{{item.replyText}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

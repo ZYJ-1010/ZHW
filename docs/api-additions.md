@@ -4416,6 +4416,7 @@ POST /api/app/profile/system-management/skill-config/cases/{caseId}/bind
 10. 服务案例详情：点击服务案例后当前前端使用 `caseId` 切换本地兜底详情；正式联调建议由 `GET /api/app/profile/system-management/skill-config/cases/{caseId}` 返回详情页所需字段，包括 `title`、`date`、`playersText`、`totalPlayers`、`ratingText`、`score`、`tags[]`、`detailSections[]`、`players[]`、`iconText` / `iconKey`、`tone`。评分星级可由后台直接返回或由前端根据 `score` 派生，但最终评分、标签和玩家列表都应以后台为准。
 
 状态：前端已新增深色静态页、服务案例详情页和对应编译模式，并已接 `GET /api/app/profile/system-management/skill-config` 与 `PUT /api/app/profile/system-management/skill-config` service / mock 链路；添加 / 编辑 / 移除 / 解锁已先补本地响应 UI 和本地状态更新，服务案例详情当前仍为前端兜底数据。正式接口字段、操作权限、修改次数扣减、失败码、案例绑定流程和案例详情接口仍待后端和产品确认。
+
 ## 63. 系统管理屏蔽设置接口
 
 记录日期：2026-06-28
@@ -4459,3 +4460,39 @@ DELETE /api/app/profile/system-management/block-settings/users/{userId}
 9. 持久化规则：各页面保存是整体覆盖还是局部保存，是否需要确认弹窗，是否存在冷却期、修改次数限制、风控失败码、离线 / 超时处理和回滚提示。
 
 状态：前端已新增 7 个静态页面和编译模式，本地可切换开关、模式、场景、白名单、续期天数、关键词和用户屏蔽状态；正式接口、后台配置、真实保存、分页搜索、续期支付和规则说明样式仍待后端 / 产品确认。
+
+## 64. 系统管理建议反馈接口
+
+记录日期：2026-06-28
+
+模块：我的 / 系统管理 / 建议反馈
+
+页面：`pages/profile/system-management/feedback/index`、`pages/profile/system-management/feedback-records/index`、`pages/profile/system-management/feedback-detail/index`、`pages/profile/system-management/feedback-success/index`
+
+功能：建议反馈当前为静态走查页；首页展示反馈类型、关联组局、反馈内容、截图上传、联系方式和快捷反馈底部弹窗；我的反馈页展示记录列表；反馈详情页展示反馈内容和客服沟通；反馈成功页展示奖励、满意度和评价项。正式联调时需要接反馈提交、可反馈的局列表、已反馈问题列表、反馈详情、补充说明、满意度评价、截图上传和语音反馈能力。
+
+候选接口：
+
+```text
+GET /api/app/profile/system-management/feedback/options
+GET /api/app/profile/system-management/feedback/games
+POST /api/app/profile/system-management/feedback
+GET /api/app/profile/system-management/feedback/records
+GET /api/app/profile/system-management/feedback/records/{feedbackId}
+POST /api/app/profile/system-management/feedback/records/{feedbackId}/messages
+POST /api/app/profile/system-management/feedback/records/{feedbackId}/rating
+POST /api/app/profile/system-management/feedback/uploads
+POST /api/app/profile/system-management/feedback/voice
+```
+
+需要后台返回 / 确认：
+
+1. 反馈类型：类型 key、展示文案、颜色口径、是否显示在快捷反馈、默认选中项。
+2. 可反馈的局 / 关联组局：当前用户可反馈的局列表、组局 ID、标题、时间、人数、状态、是否已经反馈过、是否允许重复反馈、是否分页、是否支持搜索或最近组局优先。
+3. 提交反馈：类型、关联组局 ID、内容、联系方式、截图 ID 列表、语音 ID、快捷反馈来源、成功后返回的反馈 ID、奖励经验值和是否需要进入成功页。
+4. 上传 / 语音：图片大小限制、数量限制、文件上传方式、圈注信息格式、录音权限、录音时长限制、转写结果是否返回。
+5. 我的反馈列表：已反馈问题列表、状态 tab、待处理 / 处理中 / 已解决数量、类型、状态、回复状态、内容摘要、时间、截图缩略图、分页、空态和错误态；列表和数量都应从后台获取，前端只按返回的状态 key 做展示和筛选。
+6. 反馈详情：反馈正文、截图、状态、对话消息、客服头像 / 昵称、消息方向、时间、是否允许继续补充、附件上传规则。
+7. 满意度评价：NPS 分数、满意项多选、提交后的幂等处理、是否允许重复评价、失败码和提示文案。
+
+状态：前端已新增静态页、快捷反馈弹窗状态和 5 个编译模式；当前可反馈的局、已反馈的问题、状态数量和详情对话仍为本地静态兜底。正式接口字段、上传 / 录音能力、列表分页、详情对话和满意度评价仍待后端确认。

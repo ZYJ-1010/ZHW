@@ -56,7 +56,7 @@ Page({
           { title: '信用中心', iconSrc: '/pages/profile/assets/i81@3x.png', iconClass: 'blue-purple', route: '/pages/profile/credit-center/index' },
           { title: '举报中心', iconSrc: '/pages/profile/assets/i82@3x.png', iconClass: 'blue-purple' },
           { title: '签署协议', iconSrc: '/pages/profile/assets/i83@3x.png', iconClass: 'blue-purple' },
-          { title: '建议反馈', iconSrc: '/pages/profile/assets/i84@3x.png', iconClass: 'blue-purple' },
+          { title: '建议反馈', iconSrc: '/pages/profile/assets/i84@3x.png', iconClass: 'blue-purple', route: '/pages/profile/system-management/feedback/index' },
           { title: '系统设置', iconSrc: '/pages/profile/assets/i85@3x.png', iconClass: 'blue-purple', route: '/pages/profile/settings/index' }
         ]
       }

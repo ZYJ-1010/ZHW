@@ -1,0 +1,66 @@
+<profile-white-shell
+  title=""
+  background="#080d19"
+  nav-background="#080d19"
+  title-color="#f8fbff"
+  show-back="{{false}}"
+>
+  <view class="feedback-page success-page no-bottom-space">
+    <view class="success-hero">
+      <view class="success-icon">
+        <image src="{{icons.check}}" mode="aspectFit"></image>
+      </view>
+      <text class="success-title">提交成功</text>
+      <text class="success-desc">感谢您的反馈，我们会认真阅读每一条建议</text>
+      <text class="success-desc second">处理进度将通过消息通知您</text>
+    </view>
+
+    <view class="reward-card">
+      <view class="reward-icon">
+        <image src="{{icons.star}}" mode="aspectFit"></image>
+      </view>
+      <view class="reward-copy">
+        <text class="reward-title">获得经验值奖励</text>
+        <text class="reward-desc">优质反馈被采纳后可获得更多经验值</text>
+      </view>
+      <text class="reward-value">+20</text>
+    </view>
+
+    <view class="feedback-card score-card">
+      <text class="card-title">您对我们的反馈体验满意吗？</text>
+      <text class="card-desc">0 = 非常不满意，10 = 非常满意</text>
+      <view class="score-row">
+        <view
+          wx:for="{{scores}}"
+          wx:key="*this"
+          class="score-item {{score === item ? 'active' : ''}}"
+          data-score="{{item}}"
+          bindtap="handleScoreTap"
+        >{{item}}</view>
+      </view>
+      <view class="score-labels">
+        <text>非常不满意</text>
+        <text>非常满意</text>
+      </view>
+    </view>
+
+    <view class="feedback-card reason-card">
+      <text class="card-title">哪些方面让您满意？（可多选）</text>
+      <view class="reason-grid">
+        <view
+          wx:for="{{reasons}}"
+          wx:key="value"
+          class="reason-pill {{item.selected ? 'active' : ''}}"
+          data-index="{{index}}"
+          bindtap="handleReasonTap"
+        >{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="success-actions">
+      <view class="primary-gradient-button" bindtap="handleSubmitRating">提交评价</view>
+      <view class="ghost-button" bindtap="handleBackHome">返回首页</view>
+      <view class="ghost-button" bindtap="handleViewRecords">查看反馈记录</view>
+    </view>
+  </view>
+</profile-white-shell>
