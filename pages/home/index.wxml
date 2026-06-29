@@ -81,7 +81,7 @@
             <text class="expert {{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
           </view>
         </view>
-        <view class="home-game-bottom-action">
+        <view class="home-game-bottom-action" catchtap="handleRoleCompareApplyTap">
           <text>{{currentHomePreview.primary}}</text>
         </view>
       </view>
@@ -99,7 +99,7 @@
             <text class="home-expert-apply-back" catchtap="handleExpertApplyBackTap">‹</text>
             <text class="home-expert-apply-save">{{currentHomePreview.saveText}}</text>
           </view>
-          <view class="home-master-apply-main home-expert-apply-main">
+          <scroll-view class="home-master-apply-main home-expert-apply-main" scroll-y enhanced show-scrollbar="false">
             <view class="home-expert-apply-hero">
               <view class="home-expert-apply-icon">{{currentHomePreview.icon}}</view>
               <text class="home-expert-apply-heading">{{currentHomePreview.title}}</text>
@@ -305,7 +305,7 @@
                       <text class="home-expert-plan-title">{{currentHomePreview.planTask.title}}</text>
                       <text class="home-expert-plan-desc">{{currentHomePreview.planTask.desc}}</text>
                     </view>
-                    <text class="home-expert-plan-action" catchtap="handleExpertApplyPlanTap">{{currentHomePreview.planTask.action}}</text>
+                    <text class="home-expert-plan-action">{{currentHomePreview.planTask.action}}</text>
                   </view>
                 </view>
 
@@ -326,8 +326,8 @@
             <view wx:if="{{expertApplyNoticeVisible}}" class="home-expert-submit-notice">
               <text wx:for="{{expertApplyNoticeLines}}" wx:key="*this">{{item}}</text>
             </view>
-            <view class="home-expert-primary {{expertApplySubmitting ? 'disabled' : ''}}" catchtap="handleExpertApplySubmit">{{expertApplySubmitting ? '提交中...' : currentHomePreview.primary}}</view>
-          </view>
+            <view class="home-expert-primary {{expertApplySubmitting ? 'disabled' : ''}}" catchtap="handleExpertApplyPrimaryTap">{{expertApplySubmitting ? '提交中...' : currentHomePreview.primary}}</view>
+          </scroll-view>
   </home-apply-shell>
 
   <view wx:else class="home-preview-screen {{currentHomePreview.mode}}">
@@ -360,8 +360,8 @@
     </view>
   </view>
 
-  <view wx:if="{{currentHomePreview.mode !== 'expertApplyForm' && currentHomePreview.mode !== 'expertApplyOverview'}}" class="home-preview-hit left" data-direction="-1" catchtap="handleHomePreviewTap"></view>
-  <view wx:if="{{currentHomePreview.mode !== 'expertApplyForm' && currentHomePreview.mode !== 'expertApplyOverview'}}" class="home-preview-hit right" data-direction="1" catchtap="handleHomePreviewTap"></view>
+  <view wx:if="{{currentHomePreview.mode !== 'expertApplyForm' && currentHomePreview.mode !== 'expertApplyOverview' && currentHomePreview.mode !== 'roleComparison'}}" class="home-preview-hit left" data-direction="-1" catchtap="handleHomePreviewTap"></view>
+  <view wx:if="{{currentHomePreview.mode !== 'expertApplyForm' && currentHomePreview.mode !== 'expertApplyOverview' && currentHomePreview.mode !== 'roleComparison'}}" class="home-preview-hit right" data-direction="1" catchtap="handleHomePreviewTap"></view>
 </view>
 
 <view wx:else class="page">

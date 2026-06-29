@@ -62,6 +62,62 @@
   height: 42rpx;
 }
 
+.summary-icon-trend {
+  position: relative;
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.summary-trend-axis {
+  position: absolute;
+  left: 5rpx;
+  bottom: 9rpx;
+  width: 34rpx;
+  height: 4rpx;
+  border-radius: 4rpx;
+  background: #ffffff;
+}
+
+.summary-trend-axis::before {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 4rpx;
+  height: 30rpx;
+  border-radius: 4rpx;
+  background: #ffffff;
+  content: '';
+}
+
+.summary-trend-segment {
+  position: absolute;
+  height: 4rpx;
+  border-radius: 4rpx;
+  background: #ffffff;
+  transform-origin: left center;
+}
+
+.summary-trend-segment.one {
+  left: 11rpx;
+  top: 27rpx;
+  width: 11rpx;
+  transform: rotate(-20deg);
+}
+
+.summary-trend-segment.two {
+  left: 21rpx;
+  top: 23rpx;
+  width: 10rpx;
+  transform: rotate(18deg);
+}
+
+.summary-trend-segment.three {
+  left: 28rpx;
+  top: 26rpx;
+  width: 15rpx;
+  transform: rotate(-35deg);
+}
+
 .summary-icon-mark {
   position: absolute;
   left: 19rpx;

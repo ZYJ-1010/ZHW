@@ -1,5 +1,6 @@
 const roleService = require('../../services/role')
 const { ROUTES } = require('../../config/routes')
+const UI_ICONS = require('../../config/ui-icons')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_CONTENT_TOP_RPX = 181
@@ -15,6 +16,7 @@ const HOME_ROUTE_MAP = {
 const GUIDE_SERVICE_COUNT = 3
 const GUIDE_SERVICE_NAME_MAX_LENGTH = 20
 const GUIDE_UPLOAD_ACCEPT_TYPES = ['JPG', 'PNG', 'PDF']
+const DEFAULT_GUIDE_AUDIENCE = ['朋友', '同事', '同城玩家']
 const GUIDE_MONEY_RULE = {
   integerMaxLength: 8,
   decimalMaxLength: 2
@@ -88,8 +90,7 @@ const PROGRESS_ROLE_META = {
     applyTitle: '行家申请',
     submittedText: '已成功提交行家申请资料',
     reviewingText: '正在评估你的专业能力、资质材料及服务说明',
-    applicationNo: 'HJ20240608001',
-    statusIconSrc: '/pages/home-other/assets/status-pending-hourglass.png'
+    applicationNo: 'HJ20240608001'
   },
   guide: {
     roleName: '领路人',
@@ -97,8 +98,7 @@ const PROGRESS_ROLE_META = {
     applyTitle: '领路人申请',
     submittedText: '已成功提交领路人申请资料',
     reviewingText: '正在评估你的组局记录、信用分及领路计划书',
-    applicationNo: 'LR20240608001',
-    statusIconSrc: '/pages/home-other/assets/status-pending-hourglass.png'
+    applicationNo: 'LR20240608001'
   }
 }
 
@@ -158,6 +158,7 @@ function createGuideApplyServices(count = GUIDE_SERVICE_COUNT) {
 
 function createGuideApplyForm() {
   return {
+    audience: DEFAULT_GUIDE_AUDIENCE.slice(),
     uploadFiles: [],
     services: createGuideApplyServices()
   }
@@ -258,7 +259,7 @@ function createPendingSimplePage(roleType = 'guide') {
     roleType: normalizeProgressRoleType(roleType),
     toolbar: true,
     toolbarSave: false,
-    statusIconSrc: meta.statusIconSrc,
+    statusIconText: UI_ICONS.status.pending,
     statusTitle: '审核中',
     statusSubtitle: `${meta.applyTitle}正在审核`,
     description: ['平台正在评估你的申请资料，请耐心等待'],
@@ -266,7 +267,7 @@ function createPendingSimplePage(roleType = 'guide') {
     estimateText: '预计 2024.06.12 18:00 前完成审核，届时将通过站内消息和短信通知你审核结果。',
     timeline: createPendingTimeline(meta),
     detailsTitle: '申请详情',
-    detailsIconText: '📋',
+    detailsIconText: UI_ICONS.panel.record,
     details: createPendingDetails(meta),
     primaryText: '审核中，请耐心等待'
   }
@@ -282,7 +283,7 @@ function createPendingCardsPage(roleType = 'guide') {
     roleType: normalizeProgressRoleType(roleType),
     toolbar: true,
     toolbarSave: false,
-    statusIconSrc: meta.statusIconSrc,
+    statusIconText: UI_ICONS.status.pending,
     statusTitle: '审核中',
     statusSubtitle: `${meta.applyTitle}正在审核`,
     description: ['平台正在评估你的申请资料'],
@@ -290,7 +291,7 @@ function createPendingCardsPage(roleType = 'guide') {
     progressTextRight: '预计 2024.06.12 完成',
     timeline: createPendingTimeline(meta),
     detailsTitle: '申请详情',
-    detailsIconText: '📋',
+    detailsIconText: UI_ICONS.panel.record,
     details: createPendingDetails(meta, true),
     helperText: '审核期间你可以继续使用玩家身份',
     footerButtons: [
@@ -310,7 +311,7 @@ function createRejectedPage(roleType = 'guide') {
     variant: `rejected ${meta.roleClass}`,
     rejected: true,
     roleType: normalizedRoleType,
-    statusIconSrc: '/pages/home-other/assets/status-rejected.png',
+    statusIconText: UI_ICONS.status.rejected,
     statusTitle: '审核未通过',
     description: ['感谢你的申请，但本次审核未通过', '查看原因并完善后可再次申请'],
     reasons: meta.reasons,
@@ -383,7 +384,7 @@ function getApplyShellLayoutStyles() {
     frameStyle: `padding-top: ${frameTopPadding}rpx; padding-bottom: ${APPLY_FRAME_BOTTOM_PADDING_RPX}rpx;`,
     topBgStyle: `top: -${contentTop}rpx; height: ${contentTop}rpx;`,
     navStyle: `top: ${roundRpx(navTop - APPLY_STAGE_TOP_RPX)}rpx; height: ${navHeight}rpx;`,
-    phoneStyle: `min-height: calc(100vh - ${contentTop}rpx);`
+    phoneStyle: `height: calc(100vh - ${roundRpx(contentTop + APPLY_FRAME_BOTTOM_PADDING_RPX)}rpx); min-height: 0;`
   }
 }
 
@@ -397,7 +398,7 @@ const HOME_OTHER_PAGES = [
     variant: 'apply',
     toolbar: true,
     toolbarSave: true,
-    statusIconSrc: '/pages/home-other/assets/status-guide-apply.png',
+    statusIconText: UI_ICONS.status.apply,
     statusTitle: '申请成为领路人',
     statusSubtitle: '我愿意带领更多人一起玩！我申请成为领路人',
     requirements: [
@@ -411,9 +412,9 @@ const HOME_OTHER_PAGES = [
     ],
     planTask: { title: '提交领路计划书', text: '描述你的带队风格、战绩、资源和规划', done: false, action: '去填写 ›' },
     perks: [
-      { icon: '💰', text: '有权益的领路人引荐玩家组局可获得相应收入' },
-      { icon: '⭐', text: '专属领路人标识与优先推荐位' },
-      { icon: '📊', text: '数据看板：查看邀约数据与关系网络' }
+      { icon: UI_ICONS.panel.revenue, text: '有权益的领路人引荐玩家组局可获得相应收入' },
+      { icon: UI_ICONS.panel.featured, text: '专属领路人标识与优先推荐位' },
+      { icon: UI_ICONS.panel.data, text: '数据看板：查看邀约数据与关系网络' }
     ],
     primaryText: '提交申请',
     helperText: '审核预计 1-3 个工作日'
@@ -426,7 +427,7 @@ const HOME_OTHER_PAGES = [
     applyRoleName: '领路人',
     toolbar: true,
     toolbarSave: true,
-    statusIconSrc: '/pages/home-other/assets/status-guide-apply.png',
+    statusIconText: UI_ICONS.status.apply,
     statusTitle: '申请成为领路人',
     statusSubtitle: '我愿意带领更多人一起玩！我申请成为领路人',
     formFields: [
@@ -473,7 +474,7 @@ const HOME_OTHER_PAGES = [
     uploadField: {
       label: '资质证明',
       required: true,
-      icon: '📸',
+      icon: UI_ICONS.panel.upload,
       title: '点击上传作品集及凭证',
       helper: '支持 JPG、PNG、PDF，最多 5 张',
       acceptTypes: GUIDE_UPLOAD_ACCEPT_TYPES,
@@ -489,8 +490,7 @@ const HOME_OTHER_PAGES = [
     title: '审核结果',
     variant: 'passed role-expert',
     roleTheme: 'expert',
-    statusIconSrc: '/pages/home-other/assets/status-expert-passed.png',
-    statusIconVariant: 'expert-passed',
+    statusIconText: UI_ICONS.status.approved,
     statusTitle: '恭喜审核通过！',
     statusSubtitle: '你已成为「行家」',
     targetRole: 'expert',
@@ -499,14 +499,14 @@ const HOME_OTHER_PAGES = [
     certTime: '2026.06.10 14:30',
     giftTitle: '新手礼包',
     gifts: [
-      { icon: 'FREE', text: '每月添加行家30位', tag: '限时', type: 'limit' },
-      { icon: 'PIN', text: '首页推荐 7 天', tag: '流量', type: 'traffic' },
-      { icon: 'DIA', text: '赠送300经验值', tag: '奖励', type: 'reward' }
+      { icon: UI_ICONS.panel.giftLimit, text: '每月添加行家30位', tag: '限时', type: 'limit' },
+      { icon: UI_ICONS.panel.traffic, text: '首页推荐 7 天', tag: '流量', type: 'traffic' },
+      { icon: UI_ICONS.panel.reward, text: '赠送300经验值', tag: '奖励', type: 'reward' }
     ],
     actions: [
-      { iconSrc: '/pages/home-other/assets/action-network.png', text: '关系网开启' },
-      { iconSrc: '/pages/home-other/assets/action-plus.png', text: '邀请玩家' },
-      { iconSrc: '/pages/home-other/assets/action-profile.png', text: '完善资料' }
+      { iconText: UI_ICONS.action.network, text: '关系网开启', route: ROUTES.relationNetwork },
+      { iconText: UI_ICONS.action.invite, text: '邀请玩家', route: ROUTES.gameInvite },
+      { iconText: UI_ICONS.action.profile, text: '完善资料', route: ROUTES.profileSystemProfileInfo }
     ],
     primaryText: '开启行家之旅'
   },
@@ -515,8 +515,7 @@ const HOME_OTHER_PAGES = [
     title: '审核结果',
     variant: 'passed role-guide',
     roleTheme: 'guide',
-    statusIconSrc: '/pages/home-other/assets/status-guide-passed.png',
-    statusIconVariant: 'expert-passed',
+    statusIconText: UI_ICONS.status.approved,
     statusTitle: '恭喜审核通过！',
     statusSubtitle: '你已成为「领路人」',
     targetRole: 'guide',
@@ -525,14 +524,14 @@ const HOME_OTHER_PAGES = [
     certTime: '2026.06.10 14:30',
     giftTitle: '新手礼包',
     gifts: [
-      { icon: 'FREE', text: '每月添加行家15位', tag: '限时', type: 'limit' },
-      { icon: 'PIN', text: '首页推荐 7 天', tag: '流量', type: 'traffic' },
-      { icon: 'DIA', text: '赠送100经验值', tag: '奖励', type: 'reward' }
+      { icon: UI_ICONS.panel.giftLimit, text: '每月添加行家15位', tag: '限时', type: 'limit' },
+      { icon: UI_ICONS.panel.traffic, text: '首页推荐 7 天', tag: '流量', type: 'traffic' },
+      { icon: UI_ICONS.panel.reward, text: '赠送100经验值', tag: '奖励', type: 'reward' }
     ],
     actions: [
-      { iconSrc: '/pages/home-other/assets/action-network.png', text: '关系网开启' },
-      { iconSrc: '/pages/home-other/assets/action-plus.png', text: '邀请玩家' },
-      { iconSrc: '/pages/home-other/assets/action-profile.png', text: '完善资料' }
+      { iconText: UI_ICONS.action.network, text: '关系网开启', route: ROUTES.relationNetwork },
+      { iconText: UI_ICONS.action.invite, text: '邀请玩家', route: ROUTES.gameInvite },
+      { iconText: UI_ICONS.action.profile, text: '完善资料', route: ROUTES.profileSystemProfileInfo }
     ],
     primaryText: '开启领路人之旅'
   },
@@ -547,12 +546,14 @@ Page({
     currentPage: applyProgressRoleToPage(HOME_OTHER_PAGES[0], 'expert'),
     pageNo: 1,
     pageTotal: HOME_OTHER_PAGES.length,
+    previewSingle: false,
     progressRoleType: '',
     previewWindowWidth: 375,
     primaryNavigating: false,
     guideApplyForm: createGuideApplyForm(),
     guideServiceNameMaxLength: GUIDE_SERVICE_NAME_MAX_LENGTH,
-    applyShellLayout: getApplyShellLayoutStyles()
+    applyShellLayout: getApplyShellLayoutStyles(),
+    uiIcons: UI_ICONS
   },
 
   onLoad(options = {}) {
@@ -560,6 +561,7 @@ Page({
     const optionRoleType = options.roleType || options.applyRoleType || ''
     const progressRoleType = optionRoleType ? normalizeProgressRoleType(optionRoleType) : ''
     const requestedPageId = options.page || options.id || ''
+    const previewSingle = requestedPageId ? options.single !== '0' : options.single === '1'
     const requestedPageIndex = requestedPageId
       ? HOME_OTHER_PAGES.findIndex((page) => page.id === requestedPageId)
       : -1
@@ -572,14 +574,20 @@ Page({
     this.setData({
       previewWindowWidth,
       progressRoleType,
+      previewSingle,
       currentIndex,
       currentPage,
-      pageNo: currentIndex + 1,
+      pageNo: previewSingle ? 1 : currentIndex + 1,
+      pageTotal: previewSingle ? 1 : HOME_OTHER_PAGES.length,
       applyShellLayout: getApplyShellLayoutStyles()
     })
   },
 
   handlePreviewTap(event) {
+    if (this.data.previewSingle) {
+      return
+    }
+
     const datasetDirection = Number(event.currentTarget.dataset.direction)
     const touch = event.changedTouches && event.changedTouches[0]
     const x = touch ? touch.clientX : event.detail.x
@@ -604,15 +612,42 @@ Page({
     })
   },
 
+  handlePassedActionTap(event) {
+    const route = event.currentTarget.dataset.route
+
+    if (!route) {
+      this.handleUnavailableTap()
+      return
+    }
+
+    wx.navigateTo({
+      url: route.indexOf('/') === 0 ? route : `/${route}`
+    })
+  },
+
   handleGuideApplyBackTap() {
     if (this.data.currentPage && this.data.currentPage.id === 'guideApplyForm') {
+      if (this.data.previewSingle) {
+        const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+        if (pages.length > 1 && typeof wx.navigateBack === 'function') {
+          wx.navigateBack()
+          return
+        }
+
+        wx.redirectTo({
+          url: `/${ROUTES.homeOther}?page=guideApply`
+        })
+        return
+      }
+
       const previousIndex = HOME_OTHER_PAGES.findIndex((page) => page.id === 'guideApply')
 
       if (previousIndex >= 0) {
         this.setData({
           currentIndex: previousIndex,
           currentPage: applyProgressRoleToPage(HOME_OTHER_PAGES[previousIndex], this.data.progressRoleType),
-          pageNo: previousIndex + 1
+          pageNo: this.data.previewSingle ? 1 : previousIndex + 1
         })
         return
       }
@@ -642,6 +677,13 @@ Page({
   },
 
   handleGuidePlanTap() {
+    if (this.data.previewSingle) {
+      wx.navigateTo({
+        url: `/${ROUTES.homeOther}?page=guideApplyForm`
+      })
+      return
+    }
+
     const nextIndex = HOME_OTHER_PAGES.findIndex((page) => page.id === 'guideApplyForm')
 
     if (nextIndex < 0) {
@@ -652,7 +694,7 @@ Page({
     this.setData({
       currentIndex: nextIndex,
       currentPage: applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType),
-      pageNo: nextIndex + 1
+      pageNo: this.data.previewSingle ? 1 : nextIndex + 1
     })
   },
 
@@ -678,6 +720,37 @@ Page({
 
     this.setData({
       [`guideApplyForm.services[${index}].${field}`]: normalizeMoneyInput(event.detail.value)
+    })
+  },
+
+  onGuideApplyChipTap(event) {
+    const fieldIndex = Number(event.currentTarget.dataset.fieldIndex)
+    const optionIndex = Number(event.currentTarget.dataset.optionIndex)
+    const formFields = (this.data.currentPage && this.data.currentPage.formFields) || []
+    const field = formFields[fieldIndex]
+
+    if (!field || field.type !== 'chips' || !Array.isArray(field.options)) {
+      return
+    }
+
+    const option = field.options[optionIndex]
+
+    if (!option) {
+      return
+    }
+
+    const nextOptions = field.options.map((item, index) => (
+      index === optionIndex
+        ? Object.assign({}, item, { active: !item.active })
+        : item
+    ))
+    const selectedValues = nextOptions
+      .filter((item) => item.active)
+      .map((item) => item.name)
+
+    this.setData({
+      [`currentPage.formFields[${fieldIndex}].options`]: nextOptions,
+      [`guideApplyForm.${field.key}`]: selectedValues
     })
   },
 

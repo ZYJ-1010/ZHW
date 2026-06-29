@@ -1,6 +1,7 @@
 const roleService = require('../../../services/role')
 const toast = require('../../../utils/toast')
 const { ROUTES } = require('../../../config/routes')
+const UI_ICONS = require('../../../config/ui-icons')
 
 const ROLE_TYPE_MAP = {
   player: 'player',
@@ -22,9 +23,9 @@ const ROLE_META = {
     approvedCopy: '现在可以开始创建新局、交付服务',
     primaryText: '开启行家之旅',
     rewards: [
-      { icon: 'FREE', name: '每月添加行家30位', tag: '限时', tone: 'yellow' },
-      { icon: '📌', name: '首页推荐 7 天', tag: '流量', tone: 'blue' },
-      { icon: '💎', name: '赠送300经验值', tag: '奖励', tone: 'green' }
+      { icon: UI_ICONS.panel.giftLimit, name: '每月添加行家30位', tag: '限时', tone: 'yellow' },
+      { icon: UI_ICONS.panel.traffic, name: '首页推荐 7 天', tag: '流量', tone: 'blue' },
+      { icon: UI_ICONS.panel.reward, name: '赠送300经验值', tag: '奖励', tone: 'green' }
     ]
   },
   guide: {
@@ -35,12 +36,18 @@ const ROLE_META = {
     approvedCopy: '现在可以开始邀约玩家进入组局',
     primaryText: '开启领路人之旅',
     rewards: [
-      { icon: 'FREE', name: '每月添加行家15位', tag: '限时', tone: 'yellow' },
-      { icon: '📌', name: '首页推荐 7 天', tag: '流量', tone: 'blue' },
-      { icon: '💎', name: '赠送100经验值', tag: '奖励', tone: 'green' }
+      { icon: UI_ICONS.panel.giftLimit, name: '每月添加行家15位', tag: '限时', tone: 'yellow' },
+      { icon: UI_ICONS.panel.traffic, name: '首页推荐 7 天', tag: '流量', tone: 'blue' },
+      { icon: UI_ICONS.panel.reward, name: '赠送100经验值', tag: '奖励', tone: 'green' }
     ]
   }
 }
+
+const APPROVED_ACTIONS = [
+  { icon: UI_ICONS.action.network, text: '关系网开启', route: ROUTES.relationNetwork },
+  { icon: UI_ICONS.action.invite, text: '邀请玩家', route: ROUTES.gameInvite },
+  { icon: UI_ICONS.action.profile, text: '完善资料', route: ROUTES.profileSystemProfileInfo }
+]
 
 const STATUS_MAP = {
   active: 'approved',
@@ -265,6 +272,7 @@ function buildPageState(application) {
     loading: false,
     roleType: application.roleType,
     status,
+    uiIcons: UI_ICONS,
     meta,
     isPending,
     isApproved,
@@ -298,7 +306,7 @@ function buildPageState(application) {
     certNo: application.applicationId || meta.certNo,
     certTime: reviewedAt || '以后台记录为准',
     rewards: meta.rewards,
-    nextActions: ['关系网开启', '邀请玩家', '完善资料']
+    nextActions: APPROVED_ACTIONS
   }
 }
 
@@ -345,8 +353,30 @@ Page({
   },
 
   handleBackHomeTap() {
+    const roleHomeRoutes = {
+      expert: ROUTES.expertHome,
+      guide: ROUTES.guideHome,
+      player: ROUTES.playerHome
+    }
+    const route = this.data.isApproved
+      ? (roleHomeRoutes[this.data.roleType] || ROUTES.playerHome)
+      : ROUTES.playerHome
+
     wx.reLaunch({
-      url: `/${ROUTES.playerHome}`
+      url: `/${route}`
+    })
+  },
+
+  handleApprovedActionTap(event) {
+    const route = event.currentTarget.dataset.route
+
+    if (!route) {
+      toast.info('功能开发中')
+      return
+    }
+
+    wx.navigateTo({
+      url: route.indexOf('/') === 0 ? route : `/${route}`
     })
   },
 

@@ -8,7 +8,7 @@ Page({
     basicInfo: [
       { label: '举报编号', value: 'RP20240612001' },
       { label: '举报类型', value: '诱导私下交易' },
-      { label: '被举报人', value: '用户A (ID: 00527)' },
+      { label: '被举报人', value: '用户A (ID:00527)' },
       { label: '举报时间', value: '2024-06-12 10:20' },
       { label: '完成时间', value: '2024-06-12 16:45' },
       { label: '处理人', value: '平台审核员_01' }

@@ -83,24 +83,6 @@ function isRealnameVerified(user) {
     user.needRealname === false
 }
 
-function isEndedStatus(value) {
-  const text = String(value == null ? '' : value).trim().toLowerCase()
-
-  return /^(1|true|yes|y|ended|end|finished|finish|closed|expired|completed|complete|done)$/.test(text) ||
-    /已结束|结束|报名结束|已完成|完成|已关闭|关闭|已过期|过期/.test(text)
-}
-
-function isActiveStatus(value) {
-  const text = String(value == null ? '' : value).trim().toLowerCase()
-
-  return /^(0|false|no|n|active|open|opening|available|pending|processing|ongoing|upcoming|unstarted)$/.test(text) ||
-    /报名中|可报名|进行中|未开始|待开始|即将开始|开放/.test(text)
-}
-
-function hasStatusSignal(value) {
-  return value !== undefined && value !== null && String(value).trim() !== ''
-}
-
 function parseChineseEventEndTime(text = '') {
   const matched = String(text).match(/(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日(?:[^\d]*(\d{1,2}):(\d{2}))?(?:\s*(?:-|--|—|~|～|至)\s*(?:(\d{1,2})月(\d{1,2})日\s*)?(\d{1,2}):(\d{2}))?/)
 
@@ -140,40 +122,12 @@ function getEventEndTimestamp(event = {}) {
     }
   }
 
-  return parseChineseEventEndTime(event.time || event.timeText || event.startTimeText || '')
+  const timeText = event.time || event.timeText || event.startTimeText || ''
+
+  return /\d{4}年/.test(String(timeText)) ? parseChineseEventEndTime(timeText) : null
 }
 
-function getGameEndedState(options = {}, event = {}) {
-  const statusSignals = [
-    options.ended,
-    options.isEnded,
-    options.status,
-    options.state,
-    options.registrationStatus,
-    event.ended,
-    event.isEnded,
-    event.status,
-    event.state,
-    event.registrationStatus,
-    event.registrationState
-  ]
-
-  for (let index = 0; index < statusSignals.length; index += 1) {
-    const signal = statusSignals[index]
-
-    if (!hasStatusSignal(signal)) {
-      continue
-    }
-
-    if (isEndedStatus(signal)) {
-      return true
-    }
-
-    if (isActiveStatus(signal)) {
-      return false
-    }
-  }
-
+function getGameEndedState(event = {}) {
   const endTimestamp = getEventEndTimestamp(event)
 
   return typeof endTimestamp === 'number' ? endTimestamp <= Date.now() : false
@@ -193,7 +147,7 @@ Page({
       time: '2月12日 08:30-11:30',
       location: '上海市浦东新区沙新镇黄赵路310号',
       category: '社交局',
-      categoryIcon: '/pages/game/detail/assets/i26@3x.png',
+      categoryIcon: '/pages/game/assets/icons/icon-social-handshake.svg',
       fee: '场地费AA/位'
     },
     isGameEnded: false,
@@ -202,7 +156,7 @@ Page({
     stats: [
       { iconText: '👁️', text: '1,234次浏览', action: 'views' },
       { iconText: '💬', text: '3条评价', action: 'reviews' },
-      { iconSrc: '/pages/game/detail/assets/i44@3x.png', text: '5/8人已报名' }
+      { iconSrc: '/pages/game/assets/icons/icon-participants.svg', text: '5/8人已报名' }
     ],
     tags: [
       { name: '#产品研发', tone: 'blue' },
@@ -271,7 +225,7 @@ Page({
   onLoad(options = {}) {
     this.setData({
       gameId: options.gameId || options.id || '',
-      isGameEnded: getGameEndedState(options, this.data.event),
+      isGameEnded: getGameEndedState(this.data.event),
       navLayout: getWhiteDetailLayout()
     })
 

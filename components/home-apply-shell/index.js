@@ -56,7 +56,7 @@ function getApplyShellLayoutStyles() {
     frameStyle: `padding-top: ${frameTopPadding}rpx; padding-bottom: ${APPLY_FRAME_BOTTOM_PADDING_RPX}rpx;`,
     topBgStyle: `top: -${contentTop}rpx; height: ${contentTop}rpx;`,
     navStyle: `top: ${roundRpx(navTop - APPLY_STAGE_TOP_RPX)}rpx; height: ${navHeight}rpx;`,
-    phoneStyle: `min-height: calc(100vh - ${contentTop}rpx);`,
+    phoneStyle: `height: calc(100vh - ${roundRpx(contentTop + APPLY_FRAME_BOTTOM_PADDING_RPX)}rpx); min-height: 0;`,
     switchStyle: `height: ${frameTopPadding}rpx;`,
     rightActionStyle: `right: ${rightActionRight}rpx; height: ${navHeight}rpx;`
   }

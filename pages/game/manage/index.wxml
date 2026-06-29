@@ -3,7 +3,7 @@
     <view class="manage-top-bg"></view>
     <view class="manage-nav">
       <view class="manage-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
-        <view class="manage-back-icon"></view>
+        <image class="manage-back-icon" src="/pages/profile/asset-center/points/assets/icon-chevron-left.svg" mode="aspectFit"></image>
       </view>
       <text class="manage-title" style="{{shellLayout.titleStyle}}">我的业务管理</text>
     </view>
@@ -75,21 +75,21 @@
               <text class="operation-label">管理操作</text>
               <view class="operation-row">
                 <button class="operation-action finish" data-id="{{item.id}}" hover-class="none" bindtap="onEndDelivery">
-                  <view class="operation-icon finish"></view>
+                  <text class="action-icon-text finish">✓</text>
                   <text class="action-text">{{item.primaryActionText}}</text>
                 </button>
                 <button class="operation-action cancel" data-id="{{item.id}}" hover-class="none" bindtap="onCancelWithCompensation">
-                  <view class="operation-icon cancel"></view>
+                  <text class="action-icon-text cancel">×</text>
                   <text class="action-text">{{item.secondaryActionText}}</text>
                 </button>
               </view>
               <view class="contact-row">
                 <button class="contact-action player" data-id="{{item.id}}" hover-class="none" bindtap="onContactPlayer">
-                  <image class="contact-icon" src="./assets/contact-player.png" mode="aspectFit"></image>
+                  <image class="contact-icon-image" src="./assets/icon-weixin-contact.png" mode="aspectFit"></image>
                   <text class="action-text">{{item.playerActionText}}</text>
                 </button>
                 <button class="contact-action guide" data-id="{{item.id}}" hover-class="none" bindtap="onContactGuide">
-                  <image class="contact-icon" src="./assets/contact-guide.png" mode="aspectFit"></image>
+                  <image class="contact-icon-image" src="/pages/game/assets/icons/icon-social-handshake.svg" mode="aspectFit"></image>
                   <text class="action-text">{{item.guideActionText}}</text>
                 </button>
               </view>

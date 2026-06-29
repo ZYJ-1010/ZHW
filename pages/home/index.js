@@ -2,6 +2,7 @@ const homeService = require('../../services/home')
 const roleService = require('../../services/role')
 const toast = require('../../utils/toast')
 const { ROUTES } = require('../../config/routes')
+const UI_ICONS = require('../../config/ui-icons')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_NAV_TOP_RPX = 108
@@ -78,7 +79,7 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   uploadField: {
     label: '资质证明',
     required: true,
-    icon: '📎',
+    icon: UI_ICONS.panel.upload,
     title: '点击上传作品集及凭证',
     helper: '支持 JPG、PNG、PDF，最多 5 张',
     acceptTypes: ['JPG', 'PNG', 'PDF'],
@@ -417,7 +418,7 @@ function getApplyShellLayoutStyles() {
     frameStyle: `padding-top: ${frameTopPadding}rpx; padding-bottom: ${APPLY_FRAME_BOTTOM_PADDING_RPX}rpx;`,
     topBgStyle: `top: -${contentTop}rpx; height: ${contentTop}rpx;`,
     navStyle: `top: ${roundRpx(navTop - APPLY_STAGE_TOP_RPX)}rpx; height: ${navHeight}rpx;`,
-    phoneStyle: `min-height: calc(100vh - ${contentTop}rpx);`
+    phoneStyle: `height: calc(100vh - ${roundRpx(contentTop + APPLY_FRAME_BOTTOM_PADDING_RPX)}rpx); min-height: 0;`
   }
 }
 
@@ -428,9 +429,9 @@ const ROLE_COMPARISON_PREVIEW_PAGE = {
   title: '角色权益对比',
   subtitle: '选择适合你的角色，开启不同玩法',
   roles: [
-    { key: 'player', name: '玩家', level: 'Lv.1+', icon: '🎮', active: true },
-    { key: 'guide', name: '领路人', level: 'Lv.5+', icon: '🧭', active: false },
-    { key: 'expert', name: '行家', level: 'Lv.20+', icon: '💎', active: false }
+    { key: 'player', name: '玩家', level: 'Lv.1+', icon: UI_ICONS.role.player, active: true },
+    { key: 'guide', name: '领路人', level: 'Lv.5+', icon: UI_ICONS.role.guide, active: false },
+    { key: 'expert', name: '行家', level: 'Lv.20+', icon: UI_ICONS.role.expert, active: false }
   ],
   benefits: [
     { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
@@ -465,7 +466,7 @@ const EXPERT_APPLY_PREVIEW_PAGES = [
     navTitle: '申请行家',
     saveText: '保存',
     title: '申请成为行家',
-    icon: '💎',
+    icon: UI_ICONS.role.expert,
     tagline: '我懂玩家需要什么！我申请成为行家',
     reviewHint: '审核预计 1-3 个工作日',
     primary: '提交行家申请',
@@ -482,7 +483,7 @@ const EXPERT_APPLY_PREVIEW_PAGES = [
     navTitle: '申请行家',
     saveText: '保存',
     title: '申请成为行家',
-    icon: '💎',
+    icon: UI_ICONS.role.expert,
     tagline: '我懂玩家需要什么！我申请成为行家',
     reviewHint: '审核预计 1-3 个工作日',
     primary: '下一步',
@@ -503,9 +504,9 @@ const EXPERT_APPLY_PREVIEW_PAGES = [
     },
     benefitsTitle: '行家特权',
     benefits: [
-      { icon: '💰', text: '有权益的行家可发起有偿局并可获得相应收入' },
-      { icon: '⭐', text: '专属行家标识与优先推荐位' },
-      { icon: '📊', text: '数据看板：查看服务数据与收益分析' }
+      { icon: UI_ICONS.panel.revenue, text: '有权益的行家可发起有偿局并可获得相应收入' },
+      { icon: UI_ICONS.panel.featured, text: '专属行家标识与优先推荐位' },
+      { icon: UI_ICONS.panel.data, text: '数据看板：查看服务数据与收益分析' }
     ]
   }
 ]
@@ -554,6 +555,7 @@ Page({
     expertApplyValidationRules: DEFAULT_EXPERT_APPLY_CONFIG.validationRules,
     expertApplyCustomMaxLength: DEFAULT_EXPERT_APPLY_CONFIG.validationRules.customSkill.maxLength,
     expertApplyServiceNameMaxLength: DEFAULT_EXPERT_APPLY_CONFIG.validationRules.serviceName.maxLength,
+    uiIcons: UI_ICONS,
     expertApplyCustomInputVisible: false,
     expertApplyCustomInput: '',
     expertApplyCustomError: '',
@@ -617,6 +619,10 @@ Page({
 
   onLoad(options = {}) {
     if (options.ui === '1') {
+      if (this.redirectRoleHomePreview(options)) {
+        return
+      }
+
       this.setData({
         roleComparisonReturnTo: decodeURIComponent(options.returnTo || '')
       })
@@ -625,6 +631,30 @@ Page({
     }
 
     this.loadHome()
+  },
+
+  redirectRoleHomePreview(options = {}) {
+    if (options.mode !== 'roleHome') {
+      return false
+    }
+
+    const roleType = String(options.role || options.roleType || '').trim()
+    const roleHomeRoutes = {
+      player: ROUTES.playerHome,
+      expert: ROUTES.expertHome,
+      guide: ROUTES.guideHome
+    }
+    const route = roleHomeRoutes[roleType]
+
+    if (!route || typeof wx.redirectTo !== 'function') {
+      return false
+    }
+
+    wx.redirectTo({
+      url: `/${route}`
+    })
+
+    return true
   },
 
   enterHomePreview(mode, single = false, roleType = '') {
@@ -663,7 +693,7 @@ Page({
       currentHomePreview
     })
 
-    if (currentHomePreview && (currentHomePreview.mode === 'expertApplyForm' || currentHomePreview.mode === 'expertApplyOverview')) {
+    if (currentHomePreview && currentHomePreview.mode === 'expertApplyForm') {
       this.loadExpertApplyConfig()
     }
   },
@@ -739,7 +769,7 @@ Page({
 
   stopExpertApplyTap() {},
 
-  handleExpertApplyPlanTap() {
+  showExpertApplyForm() {
     const previewPages = this.data.homePreviewPages || []
     const formIndex = previewPages.findIndex((page) => page && page.mode === 'expertApplyForm')
 
@@ -756,6 +786,23 @@ Page({
       expertApplyCustomError: '',
       expertApplyYearDropdownVisible: false
     })
+
+    this.loadExpertApplyConfig()
+  },
+
+  handleExpertApplyPlanTap() {
+    // 计划书行只展示状态，实际进入填写由底部“下一步”触发。
+  },
+
+  handleExpertApplyPrimaryTap() {
+    const currentHomePreview = this.data.currentHomePreview || {}
+
+    if (currentHomePreview.mode === 'expertApplyOverview') {
+      this.showExpertApplyForm()
+      return
+    }
+
+    this.handleExpertApplySubmit()
   },
 
   onExpertApplySkillTap(event) {
@@ -1122,7 +1169,18 @@ Page({
           ? this.data.roleComparisonReturnTo
           : `/${this.data.roleComparisonReturnTo}`
       })
+      return
     }
+
+    if (typeof wx.reLaunch === 'function') {
+      wx.reLaunch({
+        url: `/${ROUTES.playerHome}`
+      })
+    }
+  },
+
+  handleRoleCompareApplyTap() {
+    this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, 'expert')
   },
 
   async loadHome() {

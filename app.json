@@ -91,6 +91,7 @@
     "pages/profile/system-management/users/index",
     "pages/profile/settings/index",
     "pages/profile/credit-center/index",
+    "pages/profile/system-management/credit-appeal/index",
     "pages/profile/service-center/invite-records/index",
     "pages/profile/service-center/invite/overview/index",
     "pages/profile/service-center/invite/network/index",

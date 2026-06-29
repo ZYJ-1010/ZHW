@@ -156,14 +156,13 @@ Page({
     rankingBoards: {
       player: {
         list: [
-          { rank: '01', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: 'PRO', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xp: '2,450', xpUnit: 'XP' },
-          { rank: '02', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: '星', name: '社交达人', desc: '本周组局 8 次', xp: '1,890', xpUnit: 'XP' },
-          { rank: '03', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: '探', name: '探险家', desc: '本周组局 6 次', xp: '1,560', xpUnit: 'XP' }
+          { rank: '01', avatarFallback: '👨🏾‍🎓', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xp: '2,450', xpUnit: 'XP' },
+          { rank: '02', avatarFallback: '👩🏻‍🎤', name: '社交达人', desc: '本周组局 8 次', xp: '1,890', xpUnit: 'XP' },
+          { rank: '03', avatarFallback: '👨🏿‍🚀', name: '探险家', desc: '本周组局 6 次', xp: '1,560', xpUnit: 'XP' }
         ],
         myRank: {
           rank: '52',
-          avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
-          avatarFallback: 'A',
+          avatarFallback: '👩🏻‍💻',
           name: '我（Alex）',
           desc: '上周排名 65 ↑',
           xp: '520',
@@ -172,19 +171,19 @@ Page({
       }
     },
     rankingList: [
-      { rank: '01', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: 'PRO', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xp: '2,450', xpUnit: 'XP' },
-      { rank: '02', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: '星', name: '社交达人', desc: '本周组局 8 次', xp: '1,890', xpUnit: 'XP' },
-      { rank: '03', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: '探', name: '探险家', desc: '本周组局 6 次', xp: '1,560', xpUnit: 'XP' }
+      { rank: '01', avatarFallback: '👨🏾‍🎓', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xp: '2,450', xpUnit: 'XP' },
+      { rank: '02', avatarFallback: '👩🏻‍🎤', name: '社交达人', desc: '本周组局 8 次', xp: '1,890', xpUnit: 'XP' },
+      { rank: '03', avatarFallback: '👨🏿‍🚀', name: '探险家', desc: '本周组局 6 次', xp: '1,560', xpUnit: 'XP' }
     ],
     myRank: {
       rank: '52',
-      avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
-      avatarFallback: 'A',
+      avatarFallback: '👩🏻‍💻',
       name: '我（Alex）',
       desc: '上周排名 65 ↑',
       xp: '520',
       xpUnit: 'XP'
     },
+    showMyRank: true,
     achievementSection: {
       icon: '💎',
       title: '我的成就'
@@ -229,8 +228,8 @@ Page({
       tags: ['附近 12 个组局', '已打卡 8 处']
     },
     entries: [
-      { title: '发起组局', desc: '创建你的带局房间', icon: '📍', theme: 'pink' },
-      { title: '局前大厅', desc: '准备就绪加入一局', icon: '', routeIcon: true, theme: 'cyan' }
+      { title: '发起组局', desc: '创建你的带局房间', icon: '📍', theme: 'pink', route: ROUTES.gameCreate },
+      { title: '局前大厅', desc: '准备就绪加入一局', icon: '', routeIcon: true, theme: 'cyan', route: ROUTES.gameHall }
     ],
     friendSection: {
       icon: '🎲',
@@ -258,9 +257,9 @@ Page({
       desc: '共创数字街区｜全球联机互动',
       tags: ['3D空间', 'NFT徽章'],
       avatars: [
-        { text: 'A', imageUrl: '/pages/home/player/assets/ranking-avatar-01.png' },
-        { text: 'L', imageUrl: '/pages/home/player/assets/ranking-avatar-02.png' },
-        { text: 'M', imageUrl: '/pages/home/player/assets/ranking-avatar-03.png' }
+        { text: '👨🏾‍🎓' },
+        { text: '👩🏻‍🎤' },
+        { text: '👨🏿‍🚀' }
       ],
       badge: '+99',
       route: 'pages/placeholder/metaverse/index'
@@ -607,6 +606,10 @@ Page({
     const boards = this.formatRankingBoards(home, this.data.rankingBoards)
     const activeKey = boards[requestedActiveKey] ? requestedActiveKey : (tabs[0] && tabs[0].key) || 'player'
     const activeBoard = boards[activeKey] || {}
+    const display = this.formatRankingDisplay(
+      activeBoard.list || this.data.rankingList,
+      activeBoard.myRank || this.data.myRank
+    )
 
     return {
       section: this.formatRankingSection(section),
@@ -616,8 +619,9 @@ Page({
         active: item.key === activeKey
       })),
       boards,
-      list: activeBoard.list || this.data.rankingList,
-      myRank: activeBoard.myRank || this.data.myRank
+      list: display.list,
+      myRank: display.myRank,
+      showMyRank: display.showMyRank
     }
   },
 
@@ -706,6 +710,58 @@ Page({
     return list.map((item, index) => this.formatRankingItem(item, fallbackList[index]))
   },
 
+  formatRankingDisplay(list = [], myRank = {}) {
+    const rankingList = Array.isArray(list) ? list : []
+    const currentRank = myRank || {}
+
+    if (!this.shouldInlineMyRank(rankingList, currentRank)) {
+      return {
+        list: rankingList,
+        myRank: currentRank,
+        showMyRank: true
+      }
+    }
+
+    return {
+      list: this.mergeMyRankIntoRankingList(rankingList, currentRank).slice(0, 4),
+      myRank: currentRank,
+      showMyRank: false
+    }
+  },
+
+  shouldInlineMyRank(list = [], myRank = {}) {
+    const rankNumber = this.getRankNumber(myRank.rank)
+
+    return Array.isArray(list) && list.length > 0 && rankNumber > 0 && rankNumber <= 3
+  },
+
+  mergeMyRankIntoRankingList(list = [], myRank = {}) {
+    const hasCurrentUser = list.some((item) => this.isSameRankingUser(item, myRank))
+    const merged = hasCurrentUser ? list : list.concat(myRank)
+
+    return merged.slice().sort((left, right) => {
+      const leftRank = this.getRankNumber(left.rank)
+      const rightRank = this.getRankNumber(right.rank)
+
+      return (leftRank || 9999) - (rightRank || 9999)
+    })
+  },
+
+  isSameRankingUser(item = {}, myRank = {}) {
+    if (item.isMe || item.isSelf || item.isCurrentUser) {
+      return true
+    }
+
+    const idKeys = ['id', 'userId', 'memberId', 'profileId', 'openId']
+    const hasSameId = idKeys.some((key) => item[key] && myRank[key] && `${item[key]}` === `${myRank[key]}`)
+
+    if (hasSameId) {
+      return true
+    }
+
+    return item.name && myRank.name && item.rank && myRank.rank && item.name === myRank.name && item.rank === myRank.rank
+  },
+
   formatRankingItem(item, fallback = {}) {
     if (!item || Object.keys(item).length === 0) {
       return fallback
@@ -755,6 +811,16 @@ Page({
     }
 
     return `${rank}`
+  },
+
+  getRankNumber(rank) {
+    if (rank == null || rank === '') {
+      return 0
+    }
+
+    const numericRank = Number(rank)
+
+    return Number.isFinite(numericRank) ? numericRank : 0
   },
 
   formatRankingXp(xp) {
@@ -1228,8 +1294,11 @@ Page({
     }
 
     if (board.list || board.myRank) {
-      patch.rankingList = board.list || this.data.rankingList
-      patch.myRank = board.myRank || this.data.myRank
+      const display = this.formatRankingDisplay(board.list || this.data.rankingList, board.myRank || this.data.myRank)
+
+      patch.rankingList = display.list
+      patch.myRank = display.myRank
+      patch.showMyRank = display.showMyRank
     }
 
     this.setData(patch)
@@ -1249,7 +1318,19 @@ Page({
   handleRoleApplyTap() {
     const prompt = this.data.rolePermissionPrompt || {}
     const roleType = prompt.roleType || this.data.selectedRoleTag
-    const url = `/${ROUTES.roleApply}?roleType=${roleType}`
+    const normalizedRoleType = this.normalizeRoleType(roleType)
+    let url = `/${ROUTES.roleApply}?roleType=${roleType}`
+
+    if (normalizedRoleType === 'expert') {
+      url = `/${ROUTES.home}?ui=1&mode=expertApplyOverview&single=1&returnTo=${encodeURIComponent(ROUTES.playerHome)}`
+    } else if (normalizedRoleType === 'guide') {
+      url = `/${ROUTES.homeOther}?page=guideApply&single=1&roleType=guide`
+    }
+
+    if (normalizedRoleType === 'expert' && typeof wx.redirectTo === 'function') {
+      wx.redirectTo({ url })
+      return
+    }
 
     if (typeof wx.navigateTo === 'function') {
       wx.navigateTo({ url })
@@ -1285,7 +1366,16 @@ Page({
     })
   },
 
-  handleActionTap() {
+  handleActionTap(event) {
+    const route = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.route
+
+    if (route && typeof wx.navigateTo === 'function') {
+      wx.navigateTo({
+        url: route.startsWith('/') ? route : `/${route}`
+      })
+      return
+    }
+
     wx.showToast({
       title: '功能正在开发中',
       icon: 'none'

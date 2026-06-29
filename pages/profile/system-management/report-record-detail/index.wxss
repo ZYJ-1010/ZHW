@@ -20,3 +20,174 @@
 .report-bottom-actions .secondary-report-button {
   font-weight: 400 !important;
 }
+
+.record-detail-page {
+  padding: 18rpx 28rpx 172rpx;
+}
+
+.record-detail-page .report-card {
+  margin-bottom: 18rpx;
+  padding: 26rpx;
+  border-radius: 18rpx;
+  background: #132237;
+}
+
+.record-detail-page .section-title {
+  margin-bottom: 22rpx;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.record-status-card {
+  min-height: 172rpx;
+  padding: 22rpx 24rpx 20rpx;
+  border-color: #0085e8;
+  border-radius: 0;
+  background: #111f33;
+}
+
+.record-status-card .status-icon {
+  width: 68rpx;
+  height: 68rpx;
+  margin-bottom: 14rpx;
+  background: rgba(0, 255, 157, 0.14);
+}
+
+.record-status-card .status-icon image {
+  width: 38rpx;
+  height: 38rpx;
+}
+
+.record-status-card .status-main {
+  font-size: 30rpx;
+  line-height: 38rpx;
+}
+
+.record-status-card .status-sub {
+  margin-top: 6rpx;
+  color: #71829a;
+  font-size: 21rpx;
+  line-height: 30rpx;
+}
+
+.record-reward-card {
+  min-height: 148rpx;
+  padding: 22rpx 26rpx;
+  border-color: rgba(0, 255, 157, 0.12);
+  background: linear-gradient(135deg, rgba(0, 255, 157, 0.08) 0%, rgba(16, 51, 61, 0.82) 100%);
+}
+
+.record-reward-card .reward-label {
+  color: #75859e;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.record-reward-card .reward-value {
+  margin-top: 4rpx;
+  font-size: 48rpx;
+  line-height: 58rpx;
+}
+
+.record-reward-card .reward-desc {
+  margin-top: 0;
+  color: #62728a;
+  font-size: 21rpx;
+  line-height: 30rpx;
+}
+
+.record-detail-page .info-row {
+  min-height: 52rpx;
+}
+
+.record-detail-page .info-label,
+.record-detail-page .info-value,
+.record-detail-page .paragraph-label,
+.record-detail-page .result-label,
+.record-detail-page .result-value {
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.record-detail-page .info-label,
+.record-detail-page .paragraph-label,
+.record-detail-page .result-label {
+  color: #72829b;
+}
+
+.record-detail-page .info-value {
+  max-width: 430rpx;
+  color: #e6efff;
+  white-space: nowrap;
+}
+
+.record-detail-page .paragraph-label {
+  margin-bottom: 14rpx;
+}
+
+.record-detail-page .paragraph {
+  color: #d0daec;
+  font-size: 25rpx;
+  line-height: 42rpx;
+}
+
+.record-detail-page .evidence-row {
+  gap: 16rpx;
+}
+
+.record-detail-page .evidence-card {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 12rpx;
+}
+
+.record-detail-page .evidence-text {
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.record-result-card {
+  padding: 30rpx 28rpx 28rpx;
+  border-color: #0085e8;
+  border-radius: 0;
+  background: #132237;
+}
+
+.record-result-card .result-row {
+  min-height: 54rpx;
+  padding: 8rpx 0;
+  border-bottom: 0;
+  align-items: center;
+}
+
+.record-result-card .reward-result-row {
+  margin-top: 18rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.05);
+}
+
+.record-result-card .result-value {
+  max-width: 470rpx;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.record-result-card .text-success {
+  color: #00ff9d;
+}
+
+.record-result-card .text-danger {
+  color: #ff4d57;
+}
+
+.record-result-card .result-explain {
+  margin-top: 14rpx;
+}
+
+.record-result-card .result-note {
+  display: block;
+  margin-top: 16rpx;
+  color: #d4deef;
+  font-size: 26rpx;
+  line-height: 44rpx;
+}

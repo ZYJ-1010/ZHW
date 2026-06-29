@@ -11,10 +11,12 @@ page {
 }
 
 .home-master-apply-page {
+  height: 100vh;
   min-height: 100vh;
-  padding: 108rpx 0 80rpx;
+  padding: 108rpx 0 0;
   box-sizing: border-box;
   background: #efefef;
+  overflow: hidden;
 }
 
 .home-master-apply-stage {
@@ -50,7 +52,8 @@ page {
   flex-direction: column;
   width: 704rpx;
   margin: 0 auto;
-  min-height: calc(100vh - 181rpx);
+  height: calc(100vh - 191rpx);
+  min-height: 0;
   overflow: hidden;
   background: #000000;
   color: #ffffff;
@@ -85,8 +88,11 @@ page {
 
 .home-master-apply-main {
   flex: 1;
+  min-height: 0;
+  height: 0;
   padding: 24rpx 34rpx 36rpx;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .home-master-white-page {

@@ -454,73 +454,13 @@
   margin: 0 auto 42rpx;
   border-radius: 32rpx;
   color: #ffffff;
-  background: linear-gradient(135deg, #43dc6f 0%, #33c765 100%);
+  background: #56d36a;
   line-height: 132rpx;
 }
 
-.wechat-bubble {
-  position: absolute;
-  border-radius: 50%;
-  background: #ffffff;
-}
-
-.bubble-main {
-  top: 34rpx;
-  left: 22rpx;
-  width: 68rpx;
-  height: 52rpx;
-}
-
-.bubble-main::before,
-.bubble-main::after,
-.bubble-sub::before,
-.bubble-sub::after {
-  position: absolute;
-  content: '';
-}
-
-.bubble-main::before,
-.bubble-sub::before {
-  top: 17rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: #33c765;
-}
-
-.bubble-main::before {
-  left: 18rpx;
-  box-shadow: 30rpx 0 0 #33c765;
-}
-
-.bubble-sub::before {
-  left: 16rpx;
-  box-shadow: 26rpx 0 0 #33c765;
-}
-
-.bubble-main::after,
-.bubble-sub::after {
-  width: 14rpx;
-  height: 14rpx;
-  background: #ffffff;
-  transform: rotate(45deg);
-}
-
-.bubble-main::after {
-  left: 14rpx;
-  bottom: -5rpx;
-}
-
-.bubble-sub {
-  top: 58rpx;
-  left: 56rpx;
-  width: 58rpx;
-  height: 44rpx;
-}
-
-.bubble-sub::after {
-  right: 9rpx;
-  bottom: -5rpx;
+.auth-wechat-image {
+  width: 92rpx;
+  height: 80rpx;
 }
 
 .auth-wrap .auth-title {

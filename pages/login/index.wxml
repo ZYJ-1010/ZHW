@@ -295,8 +295,7 @@
   <view class="login-wrap auth-wrap" wx:elif="{{loginMode === 'wechatAuth'}}">
     <view class="auth-content">
       <view class="auth-wechat-icon">
-        <view class="wechat-bubble bubble-main"></view>
-        <view class="wechat-bubble bubble-sub"></view>
+        <image class="auth-wechat-image" src="/pages/login/assets/icon-wechat.png" mode="aspectFit" />
       </view>
       <text class="auth-title">微信登录</text>
       <text class="auth-desc">真好玩 申请获取你的微信头像、昵称</text>

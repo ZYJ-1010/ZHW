@@ -1,0 +1,93 @@
+<profile-white-shell
+  title="信用申诉"
+  background="#f5f7fa"
+  nav-background="#ffffff"
+  title-color="#1a1a2e"
+  title-weight="400"
+  back-background="#ffffff"
+  back-border-color="transparent"
+  back-icon-color="#101010"
+>
+  <view class="credit-appeal-page">
+    <view class="appeal-section reason-section">
+      <view class="field-label">
+        <text>申诉原因</text>
+        <text class="required-mark">*</text>
+      </view>
+      <view class="reason-grid">
+        <view
+          wx:for="{{reasonOptions}}"
+          wx:key="key"
+          class="{{item.className}}"
+          data-key="{{item.key}}"
+          bindtap="handleReasonTap"
+        >
+          <text>{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="appeal-section record-section">
+      <view class="field-label">
+        <text>关联记录</text>
+        <text class="required-mark">*</text>
+      </view>
+      <view class="record-card" bindtap="handleRecordTap">
+        <view class="record-icon-wrap">
+          <image class="record-icon" src="{{icons.ban}}" mode="aspectFit"></image>
+        </view>
+        <view class="record-copy">
+          <text class="record-title">{{relatedRecord.title}}</text>
+          <text class="record-desc">{{relatedRecord.desc}}</text>
+        </view>
+        <image class="record-chevron" src="{{icons.chevron}}" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <view class="appeal-section detail-section">
+      <view class="field-label">
+        <text>详细说明</text>
+        <text class="required-mark">*</text>
+      </view>
+      <view class="detail-box">
+        <textarea
+          value="{{appealContent}}"
+          maxlength="500"
+          placeholder="{{appealPlaceholder}}"
+          placeholder-class="appeal-placeholder"
+          bindinput="handleContentInput"
+        />
+        <text class="detail-counter">{{appealContentLength}}/500</text>
+      </view>
+    </view>
+
+    <view class="appeal-section upload-section">
+      <view class="field-label single">上传证明材料</view>
+      <view class="upload-grid">
+        <view
+          wx:for="{{uploadSlots}}"
+          wx:key="key"
+          class="upload-tile"
+          bindtap="handleUploadTap"
+        >
+          <image class="upload-plus" src="{{icons.plus}}" mode="aspectFit"></image>
+        </view>
+      </view>
+      <text class="upload-note">{{uploadRequirement}}</text>
+    </view>
+
+    <view class="review-card">
+      <view class="review-head">
+        <image class="review-icon" src="{{icons.clock}}" mode="aspectFit"></image>
+        <text class="review-title">{{reviewTitle}}</text>
+      </view>
+      <view class="review-list">
+        <text wx:for="{{reviewRules}}" wx:key="key" class="review-line">{{item.text}}</text>
+      </view>
+    </view>
+
+    <view class="submit-button {{submitClass}}" bindtap="handleSubmitTap">
+      <text>提交申诉</text>
+    </view>
+  </view>
+</profile-white-shell>

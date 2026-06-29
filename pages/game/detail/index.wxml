@@ -29,11 +29,10 @@
 
           <view class="event-info-list">
             <view class="event-info-line">
-              <image class="event-info-icon" src="/pages/game/detail/assets/icon-clock.png" mode="aspectFit" />
               <text>{{event.time}}</text>
             </view>
             <view class="event-info-line" bindtap="onMapTap">
-              <image class="event-info-icon" src="/pages/game/detail/assets/i42@3x.png" mode="aspectFit" />
+              <image class="event-info-icon" src="/pages/game/assets/icons/icon-location-pin.svg" mode="aspectFit" />
               <text>{{event.location}}</text>
             </view>
           </view>
@@ -45,7 +44,7 @@
                 <text>{{event.category}}</text>
               </view>
               <view class="event-meta-item">
-                <image class="event-meta-icon" src="/pages/game/detail/assets/i43@3x.png" mode="aspectFit" />
+                <image class="event-meta-icon" src="/pages/game/assets/icons/icon-fee-bag.svg" mode="aspectFit" />
                 <text>{{event.fee}}</text>
               </view>
             </view>

@@ -167,8 +167,7 @@ const mockHome = {
           id: 'rank-player-01',
           rank: 1,
           nickname: '领域专家 PRO',
-          avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png',
-          avatarFallback: 'PRO',
+          avatarFallback: '👨🏾‍🎓',
           desc: '本周组局 12 · MVP 5次',
           xpText: '2,450 XP'
         },
@@ -176,8 +175,7 @@ const mockHome = {
           id: 'rank-player-02',
           rank: 2,
           nickname: '社交达人',
-          avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png',
-          avatarFallback: '星',
+          avatarFallback: '👩🏻‍🎤',
           desc: '本周组局 8 次',
           xpText: '1,890 XP'
         },
@@ -185,8 +183,7 @@ const mockHome = {
           id: 'rank-player-03',
           rank: 3,
           nickname: '探险家',
-          avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png',
-          avatarFallback: '探',
+          avatarFallback: '👨🏿‍🚀',
           desc: '本周组局 6 次',
           xpText: '1,560 XP'
         }
@@ -194,17 +191,16 @@ const mockHome = {
       myRank: {
         rank: 52,
         nickname: '我（Alex）',
-        avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
-        avatarFallback: 'A',
+        avatarFallback: '👩🏻‍💻',
         desc: '上周排名 65 ↑',
         xpText: '520 XP'
       }
     }
   },
   rankingList: [
-    { rank: '01', name: '领域专家 PRO', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', desc: '本周组局 12 · MVP 5次', xpText: '2,450 XP' },
-    { rank: '02', name: '社交达人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', desc: '本周组局 8 次', xpText: '1,890 XP' },
-    { rank: '03', name: '探险家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', desc: '本周组局 6 次', xpText: '1,560 XP' }
+    { rank: '01', name: '领域专家 PRO', avatarFallback: '👨🏾‍🎓', desc: '本周组局 12 · MVP 5次', xpText: '2,450 XP' },
+    { rank: '02', name: '社交达人', avatarFallback: '👩🏻‍🎤', desc: '本周组局 8 次', xpText: '1,890 XP' },
+    { rank: '03', name: '探险家', avatarFallback: '👨🏿‍🚀', desc: '本周组局 6 次', xpText: '1,560 XP' }
   ],
   achievementSection: {
     icon: '💎',
@@ -244,9 +240,9 @@ const mockHome = {
     desc: '共创数字街区｜全球联机互动',
     tags: ['3D空间', 'NFT徽章'],
     avatars: [
-      { avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: 'A' },
-      { avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: 'L' },
-      { avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: 'M' }
+      { avatarFallback: '👨🏾‍🎓' },
+      { avatarFallback: '👩🏻‍🎤' },
+      { avatarFallback: '👨🏿‍🚀' }
     ],
     joinedCount: 99,
     actionText: '进入元宇宙',
@@ -367,15 +363,14 @@ const mockRoleHomes = {
       ...mockHome.rankingBoards,
       expert: {
         list: [
-          { id: 'rank-expert-01', rank: 1, nickname: '领域专家 PRO', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: 'PRO', desc: '本周服务玩家 90 位', xpText: '2,450 XP' },
-          { id: 'rank-expert-02', rank: 2, nickname: '社交达人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: '星', desc: '本周服务玩家 10 位', xpText: '1,890 XP' },
-          { id: 'rank-expert-03', rank: 3, nickname: '探险家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: '探', desc: '本周服务玩家 1 位', xpText: '1,560 XP' }
+          { id: 'rank-expert-01', rank: 1, nickname: '领域专家 PRO', avatarFallback: '👨🏾‍🎓', desc: '本周服务玩家 90 位', xpText: '2,450 XP' },
+          { id: 'rank-expert-02', rank: 2, nickname: '社交达人', avatarFallback: '👩🏻‍🎤', desc: '本周服务玩家 10 位', xpText: '1,890 XP' },
+          { id: 'rank-expert-03', rank: 3, nickname: '探险家', avatarFallback: '👨🏿‍🚀', desc: '本周服务玩家 1 位', xpText: '1,560 XP' }
         ],
         myRank: {
           rank: 52,
           nickname: '我（Alex）',
-          avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
-          avatarFallback: 'A',
+          avatarFallback: '👩🏻‍💻',
           desc: '上周排名 65 ↑',
           xpText: '520 XP'
         }
@@ -507,15 +502,14 @@ const mockRoleHomes = {
       ...mockHome.rankingBoards,
       guide: {
         list: [
-          { id: 'rank-guide-01', rank: 1, nickname: '城市连接官', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', avatarFallback: '城', desc: '本周连接玩家 156 位', xpText: '2,450 XP' },
-          { id: 'rank-guide-02', rank: 2, nickname: '社群引路人', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', avatarFallback: '社', desc: '本周成功引荐 32 次', xpText: '1,890 XP' },
-          { id: 'rank-guide-03', rank: 3, nickname: '活动发现家', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', avatarFallback: '活', desc: '本周活跃节点 18 个', xpText: '1,560 XP' }
+          { id: 'rank-guide-01', rank: 1, nickname: '城市连接官', avatarFallback: '👨🏾‍🎓', desc: '本周连接玩家 156 位', xpText: '2,450 XP' },
+          { id: 'rank-guide-02', rank: 2, nickname: '社群引路人', avatarFallback: '👩🏻‍🎤', desc: '本周成功引荐 32 次', xpText: '1,890 XP' },
+          { id: 'rank-guide-03', rank: 3, nickname: '活动发现家', avatarFallback: '👨🏿‍🚀', desc: '本周活跃节点 18 个', xpText: '1,560 XP' }
         ],
         myRank: {
           rank: 52,
           nickname: '我（萧飒）',
-          avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png',
-          avatarFallback: '萧',
+          avatarFallback: '👩🏻‍💻',
           desc: '上周排名 65 ↑',
           xpText: '520 XP'
         }

@@ -95,7 +95,7 @@
 
             <view class="action-row">
               <button class="order-action contact" data-id="{{item.id}}" hover-class="none" bindtap="onContactExpert">
-                <image class="action-icon" src="./assets/contact-expert.png" mode="aspectFit"></image>
+                <image class="action-icon" src="./assets/icon-contact-expert.png" mode="aspectFit"></image>
                 <text>{{item.primaryActionText}}</text>
               </button>
               <button class="order-action cancel" data-id="{{item.id}}" hover-class="none" bindtap="onCancelOrder">

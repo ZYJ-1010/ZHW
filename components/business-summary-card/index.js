@@ -14,8 +14,7 @@ const ROLE_THEMES = {
   },
   expert: {
     themeClass: 'role-expert',
-    iconClass: 'icon-expert',
-    iconSrc: '/components/business-summary-card/assets/business-income-expert.png'
+    iconClass: 'icon-income-trend'
   },
   player: {
     themeClass: 'role-player',

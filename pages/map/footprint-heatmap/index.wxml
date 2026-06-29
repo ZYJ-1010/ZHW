@@ -33,7 +33,6 @@
     <view class="footprint-panel">
       <text class="footprint-section-title">全国城市打卡热力</text>
       <view class="footprint-map-card">
-        <image class="footprint-map-base" src="/pages/map/footprint-heatmap/assets/china-dark-map.png" mode="aspectFill"></image>
         <view class="footprint-map-mask"></view>
         <view class="footprint-legend">
           <view class="footprint-legend-item low"></view>

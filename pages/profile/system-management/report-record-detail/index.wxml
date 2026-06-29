@@ -9,8 +9,8 @@
   back-border-color="transparent"
   back-icon-color="#f8fbff"
 >
-  <view class="report-page with-bottom">
-    <view class="report-card detail-status-card">
+  <view class="report-page record-detail-page with-bottom">
+    <view class="report-card detail-status-card record-status-card">
       <view class="status-icon success">
         <image src="{{icons.check}}" mode="aspectFit"></image>
       </view>
@@ -18,13 +18,13 @@
       <text class="status-sub">平台已核实并对被举报人进行处罚</text>
     </view>
 
-    <view class="report-card reward-card">
+    <view class="report-card reward-card record-reward-card">
       <text class="reward-label">平台奖励</text>
-      <text class="reward-value">¥25.00</text>
+      <text class="reward-value">¥25.0</text>
       <text class="reward-desc">已发放至您的账户余额</text>
     </view>
 
-    <view class="report-card">
+    <view class="report-card record-info-card">
       <text class="section-title">基本信息</text>
       <view wx:for="{{basicInfo}}" wx:key="label" class="info-row">
         <text class="info-label">{{item.label}}</text>
@@ -32,13 +32,13 @@
       </view>
     </view>
 
-    <view class="report-card">
+    <view class="report-card record-content-card">
       <text class="section-title">举报内容</text>
       <text class="paragraph-label">举报原因</text>
       <text class="paragraph">{{reportReason}}</text>
     </view>
 
-    <view class="report-card">
+    <view class="report-card record-evidence-card">
       <text class="section-title">证据材料 (3张)</text>
       <view class="evidence-row">
         <view wx:for="{{evidence}}" wx:key="label" class="evidence-card {{item.tone}}">
@@ -48,7 +48,7 @@
       </view>
     </view>
 
-    <view class="report-card">
+    <view class="report-card record-result-card">
       <text class="section-title">处理结果</text>
       <view class="result-row">
         <text class="result-label">核实结果</text>
@@ -58,11 +58,11 @@
         <text class="result-label">处罚措施</text>
         <text class="result-value text-danger">扣除信用分5分，限制发布组局7天</text>
       </view>
-      <view class="result-row">
+      <view class="result-row reward-result-row">
         <text class="result-label">平台奖励</text>
         <text class="result-value text-success">¥25.00</text>
       </view>
-      <view class="result-row">
+      <view class="result-explain">
         <text class="result-label">处理说明</text>
       </view>
       <text class="result-note">{{resultNote}}</text>

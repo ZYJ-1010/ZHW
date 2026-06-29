@@ -12,7 +12,7 @@
       <view wx:if="{{isPending}}" class="role-status-content pending">
         <view class="role-status-hero">
           <view class="role-status-hourglass">
-            <text>⏳</text>
+            <text>{{uiIcons.status.pending}}</text>
           </view>
           <text class="role-status-title">{{statusTitle}}</text>
           <text class="role-status-subtitle">{{statusSubTitle}}</text>
@@ -21,7 +21,7 @@
 
         <view class="role-status-estimate">
           <view>
-            <text>⏱</text>
+            <text>{{uiIcons.panel.estimate}}</text>
             <text>预计完成时间</text>
           </view>
           <text>{{expectedText}}</text>
@@ -45,7 +45,7 @@
 
         <view class="role-status-detail-card">
           <view class="role-status-card-title">
-            <text>📋</text>
+            <text>{{uiIcons.panel.record}}</text>
             <text>申请详情</text>
           </view>
           <view
@@ -64,7 +64,7 @@
       <view wx:elif="{{isApproved}}" class="role-status-content approved {{meta.successAccent}}">
         <view class="role-status-success-hero">
           <view class="role-status-success-icon">
-            <text>🎉</text>
+            <text>{{uiIcons.status.approved}}</text>
           </view>
           <text class="role-status-success-title">{{statusTitle}}</text>
           <text class="role-status-success-role">{{statusSubTitle}}</text>
@@ -80,7 +80,7 @@
 
         <view class="role-status-gift-card">
           <view class="role-status-card-title">
-            <text>🎁</text>
+            <text>{{uiIcons.panel.gift}}</text>
             <text>新手礼包</text>
           </view>
           <view wx:for="{{rewards}}" wx:key="name" class="role-status-gift-row">
@@ -93,9 +93,9 @@
         </view>
 
         <view class="role-status-action-grid">
-          <view wx:for="{{nextActions}}" wx:key="*this">
-            <text>{{index === 0 ? '◇' : index === 1 ? '+' : '●'}}</text>
-            <text>{{item}}</text>
+          <view wx:for="{{nextActions}}" wx:key="text" data-route="{{item.route}}" bindtap="handleApprovedActionTap">
+            <text>{{item.icon}}</text>
+            <text>{{item.text}}</text>
           </view>
         </view>
       </view>
@@ -103,7 +103,7 @@
       <view wx:else class="role-status-content rejected">
         <view class="role-status-reject-hero">
           <view class="role-status-reject-icon">
-            <text>😔</text>
+            <text>{{uiIcons.status.rejected}}</text>
           </view>
           <text class="role-status-reject-title">{{statusTitle}}</text>
           <text class="role-status-reject-desc">{{statusDesc}}</text>
@@ -112,7 +112,7 @@
 
         <view class="role-status-reason-card">
           <view class="role-status-card-title reject">
-            <text>!</text>
+            <text>{{uiIcons.panel.warning}}</text>
             <text>驳回原因</text>
           </view>
           <text wx:for="{{rejectReasons}}" wx:key="*this" class="role-status-reason-item">{{item}}</text>
@@ -120,7 +120,7 @@
 
         <view class="role-status-suggestion-card">
           <view class="role-status-card-title">
-            <text>💡</text>
+            <text>{{uiIcons.panel.suggestion}}</text>
             <text>改进建议</text>
           </view>
           <text wx:for="{{suggestions}}" wx:key="*this" class="role-status-suggestion-item">{{index + 1}}. {{item}}</text>
@@ -128,7 +128,7 @@
 
         <view class="role-status-reapply-card">
           <view class="role-status-card-title">
-            <text>📝</text>
+            <text>{{uiIcons.panel.reapply}}</text>
             <text>重新申请</text>
           </view>
           <text>完善资料后可再次提交申请。建议根据驳回原因逐项改进，提高通过率。</text>
@@ -136,7 +136,7 @@
 
         <view class="role-status-detail-card rejected">
           <view class="role-status-card-title">
-            <text>📋</text>
+            <text>{{uiIcons.panel.record}}</text>
             <text>申请记录</text>
           </view>
           <view wx:for="{{history}}" wx:key="label" class="role-status-detail-row">

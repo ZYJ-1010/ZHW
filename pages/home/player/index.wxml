@@ -4,6 +4,7 @@
   canvas-style="{{canvasStyle}}"
   content-style="{{contentStyle}}"
   dock-style="{{dockStyle}}"
+  shell-class="home-shell--blue-topbar"
   nav-toast-enabled="{{false}}"
   bindnavtap="handleShellNavTap"
   bindnavlongpress="handleShellNavLongPress"
@@ -92,7 +93,7 @@
     </view>
 
     <view class="player-action-grid">
-      <view wx:for="{{entries}}" wx:key="title" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
+      <view wx:for="{{entries}}" wx:key="title" data-route="{{item.route}}" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
         <view class="player-action-icon">
           <view wx:if="{{item.routeIcon}}" class="player-lobby-icon">
             <view class="player-lobby-icon-group">

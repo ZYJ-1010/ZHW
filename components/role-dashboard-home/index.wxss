@@ -1146,12 +1146,6 @@
   box-shadow: none;
 }
 
-.role-home-page.guide .player-achievement.locked .player-achievement-medal::after {
-  width: 136rpx;
-  height: 142rpx;
-  border-radius: 24rpx;
-}
-
 .role-home-page.guide .player-achievement-icon-wrap {
   left: 37rpx;
   top: 8rpx;
@@ -1164,9 +1158,15 @@
   line-height: 82rpx;
 }
 
-.role-home-page.guide .player-achievement-lock-icon {
-  left: 41rpx;
-  top: 31rpx;
+.role-home-page.guide .player-achievement-icon-wrap.locked {
+  left: 0;
+  top: 20rpx;
+  width: 136rpx;
+  height: 58rpx;
+}
+
+.role-home-page.guide .player-achievement-icon-wrap.locked .player-achievement-icon {
+  line-height: 58rpx;
 }
 
 .role-home-page.guide .player-achievement-title {

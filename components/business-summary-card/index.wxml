@@ -11,6 +11,12 @@
         src="{{resolvedCard.iconSrc}}"
         mode="aspectFit"
       />
+      <view wx:elif="{{resolvedCard.iconClass === 'icon-income-trend'}}" class="summary-icon-trend">
+        <view class="summary-trend-axis"></view>
+        <view class="summary-trend-segment one"></view>
+        <view class="summary-trend-segment two"></view>
+        <view class="summary-trend-segment three"></view>
+      </view>
       <view wx:else class="summary-icon-mark"></view>
     </view>
   </view>

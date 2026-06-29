@@ -11,11 +11,12 @@
           <text wx:if="{{currentPage.toolbarTitle}}" class="home-other-toolbar-title">{{currentPage.toolbarTitle}}</text>
           <text wx:if="{{currentPage.toolbarSave}}" class="home-other-save" catchtap="handleGuideApplySaveTap">保存</text>
         </view>
-        <view class="home-master-apply-main home-other-scroll">
+        <scroll-view class="home-master-apply-main home-other-scroll" scroll-y enhanced show-scrollbar="false">
           <view class="home-other-content">
             <view class="home-other-hero">
               <view class="home-other-status-icon {{currentPage.statusIconVariant ? currentPage.statusIconVariant : ''}}">
-                <image class="home-other-status-image" src="{{currentPage.statusIconSrc}}" mode="aspectFit"></image>
+                <text wx:if="{{currentPage.statusIconText}}" class="home-other-status-emoji">{{currentPage.statusIconText}}</text>
+                <image wx:else class="home-other-status-image" src="{{currentPage.statusIconSrc}}" mode="aspectFit"></image>
               </view>
               <text class="home-other-status-title">{{currentPage.statusTitle}}</text>
               <text wx:if="{{currentPage.statusSubtitle}}" class="home-other-status-subtitle">{{currentPage.statusSubtitle}}</text>
@@ -27,7 +28,7 @@
             <block wx:if="{{currentPage.id === 'guideApply'}}">
               <view class="home-other-panel requirements">
                 <view class="home-other-panel-title">
-                  <text class="home-other-section-symbol">📋</text>
+                  <text class="home-other-section-symbol">{{uiIcons.panel.record}}</text>
                   <text>申请条件</text>
                 </view>
                 <view
@@ -53,7 +54,7 @@
 
               <view class="home-other-panel perks">
                 <view class="home-other-panel-title crown">
-                  <text class="home-other-section-symbol">👑</text>
+                  <text class="home-other-section-symbol">{{uiIcons.panel.crown}}</text>
                   <text>领路人特权</text>
                 </view>
                 <view wx:for="{{currentPage.perks}}" wx:key="text" class="home-other-perk">
@@ -65,7 +66,7 @@
 
             <block wx:elif="{{currentPage.id === 'guideApplyForm'}}">
               <view class="home-other-guide-form-panel">
-                <block wx:for="{{currentPage.formFields}}" wx:for-item="field" wx:key="key">
+                <block wx:for="{{currentPage.formFields}}" wx:for-item="field" wx:for-index="fieldIndex" wx:key="key">
                   <view class="home-other-guide-field">
                     <view class="home-other-guide-field-label">
                       <text>{{field.label}}</text>
@@ -76,9 +77,12 @@
                       <text
                         wx:for="{{field.options}}"
                         wx:for-item="option"
+                        wx:for-index="optionIndex"
                         wx:key="name"
+                        data-field-index="{{fieldIndex}}"
+                        data-option-index="{{optionIndex}}"
                         class="home-other-guide-chip {{option.active ? 'active' : ''}}"
-                        catchtap="handleUnavailableTap"
+                        catchtap="onGuideApplyChipTap"
                       >{{option.name}}</text>
                     </view>
 
@@ -194,7 +198,7 @@
             <block wx:elif="{{currentPage.rejected}}">
               <view class="home-other-panel reject-reasons">
                 <view class="home-other-panel-title warn">
-                  <image class="home-other-warning-icon" src="/pages/home-other/assets/panel-warning.png" mode="aspectFit"></image>
+                  <text class="home-other-section-symbol">{{uiIcons.panel.warning}}</text>
                   <text>驳回原因</text>
                 </view>
                 <text wx:for="{{currentPage.reasons}}" wx:key="*this" class="home-other-list-line">{{item}}</text>
@@ -202,7 +206,7 @@
 
               <view class="home-other-panel suggestions">
                 <view class="home-other-panel-title cyan">
-                  <text class="home-other-panel-symbol">💡</text>
+                  <text class="home-other-panel-symbol">{{uiIcons.panel.suggestion}}</text>
                   <text>改进建议</text>
                 </view>
                 <text wx:for="{{currentPage.suggestions}}" wx:key="*this" class="home-other-list-line">{{index + 1}}. {{item}}</text>
@@ -211,7 +215,7 @@
 
               <view class="home-other-panel retry">
                 <view class="home-other-panel-title">
-                  <text class="home-other-section-symbol">📋</text>
+                  <text class="home-other-section-symbol">{{uiIcons.panel.reapply}}</text>
                   <text>重新申请</text>
                 </view>
                 <text class="home-other-card-text">{{currentPage.retryText}}</text>
@@ -221,7 +225,7 @@
             <block wx:elif="{{currentPage.id === 'pendingSimple'}}">
               <view class="home-other-estimate">
                 <view class="home-other-panel-title cyan">
-                  <image class="home-other-panel-icon" src="/pages/home-other/assets/panel-timer.png" mode="aspectFit"></image>
+                  <text class="home-other-section-symbol">{{uiIcons.panel.estimate}}</text>
                   <text>{{currentPage.estimateTitle}}</text>
                 </view>
                 <text>{{currentPage.estimateText}}</text>
@@ -270,14 +274,12 @@
 
               <view class="home-other-panel gifts">
                 <view class="home-other-panel-title">
-                  <text class="home-other-panel-symbol">🎁</text>
+                  <text class="home-other-panel-symbol">{{uiIcons.panel.gift}}</text>
                   <text>{{currentPage.giftTitle}}</text>
                 </view>
                 <view wx:for="{{currentPage.gifts}}" wx:key="text" class="home-other-gift">
                   <view class="home-other-gift-icon {{item.type}}">
-                    <text wx:if="{{item.type === 'limit'}}">FREE</text>
-                    <text wx:elif="{{item.type === 'traffic'}}">📌</text>
-                    <text wx:else>💎</text>
+                    <text>{{item.icon}}</text>
                   </view>
                   <text class="home-other-gift-text">{{item.text}}</text>
                   <text class="home-other-gift-tag {{item.type}}">{{item.tag}}</text>
@@ -289,9 +291,11 @@
                   wx:for="{{currentPage.actions}}"
                   wx:key="text"
                   class="home-other-action-card"
-                  catchtap="handleUnavailableTap"
+                  data-route="{{item.route}}"
+                  catchtap="handlePassedActionTap"
                 >
-                  <image class="home-other-action-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+                  <text wx:if="{{item.iconText}}" class="home-other-action-emoji">{{item.iconText}}</text>
+                  <image wx:else class="home-other-action-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
                   <text class="home-other-action-text">{{item.text}}</text>
                 </view>
               </view>
@@ -300,8 +304,8 @@
             <view wx:if="{{currentPage.details}}" class="home-other-panel details">
               <view class="home-other-panel-title">
                 <text wx:if="{{currentPage.detailsIconText}}" class="home-other-section-symbol">{{currentPage.detailsIconText}}</text>
-                <text wx:elif="{{currentPage.rejected}}" class="home-other-section-symbol">📋</text>
-                <image wx:else class="home-other-panel-icon" src="/pages/home-other/assets/panel-doc.png" mode="aspectFit"></image>
+                <text wx:elif="{{currentPage.rejected}}" class="home-other-section-symbol">{{uiIcons.panel.record}}</text>
+                <text wx:else class="home-other-section-symbol">{{uiIcons.panel.record}}</text>
                 <text>{{currentPage.detailsTitle || (currentPage.id === 'pendingCards' ? '申请详情' : '申请信')}}</text>
               </view>
               <view wx:for="{{currentPage.details}}" wx:key="label" class="home-other-detail-row">
@@ -327,12 +331,12 @@
 
             <view class="home-other-bottom-spacer"></view>
           </view>
-        </view>
+        </scroll-view>
       </view>
     </view>
   </view>
 
-  <view class="home-other-counter">{{pageNo}} / {{pageTotal}}</view>
-  <view class="home-other-hit left" data-direction="-1" catchtap="handlePreviewTap"></view>
-  <view class="home-other-hit right" data-direction="1" catchtap="handlePreviewTap"></view>
+  <view wx:if="{{!previewSingle}}" class="home-other-counter">{{pageNo}} / {{pageTotal}}</view>
+  <view wx:if="{{!previewSingle}}" class="home-other-hit left" data-direction="-1" catchtap="handlePreviewTap"></view>
+  <view wx:if="{{!previewSingle}}" class="home-other-hit right" data-direction="1" catchtap="handlePreviewTap"></view>
 </view>

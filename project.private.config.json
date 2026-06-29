@@ -12,8 +12,8 @@
         },
         {
           "name": "02-首页走查",
-          "pathName": "pages/home/index",
-          "query": "ui=1&mode=homeAll&single=0",
+          "pathName": "pages/home/player/index",
+          "query": "",
           "scene": null
         },
         {
@@ -149,27 +149,21 @@
           "scene": null
         },
         {
-          "name": "首页",
-          "pathName": "pages/home/index",
-          "query": "ui=1&mode=homeAll&single=0",
-          "scene": null
-        },
-        {
           "name": "首页-玩家首页",
-          "pathName": "pages/home/index",
-          "query": "ui=1&mode=roleHome&role=player&single=1",
+          "pathName": "pages/home/player/index",
+          "query": "",
           "scene": null
         },
         {
           "name": "首页-行家首页",
-          "pathName": "pages/home/index",
-          "query": "ui=1&mode=roleHome&role=expert&single=1",
+          "pathName": "pages/home/expert/index",
+          "query": "",
           "scene": null
         },
         {
           "name": "首页-领路人首页",
-          "pathName": "pages/home/index",
-          "query": "ui=1&mode=roleHome&role=guide&single=1",
+          "pathName": "pages/home/guide/index",
+          "query": "",
           "scene": null
         },
         {
@@ -191,9 +185,57 @@
           "scene": null
         },
         {
-          "name": "首页-其他",
+          "name": "首页-领路人申请不通过",
           "pathName": "pages/home-other/index",
-          "query": "",
+          "query": "page=guideRejected",
+          "scene": null
+        },
+        {
+          "name": "首页-行家申请不通过",
+          "pathName": "pages/home-other/index",
+          "query": "page=expertRejected",
+          "scene": null
+        },
+        {
+          "name": "首页-行家审核中",
+          "pathName": "pages/home-other/index",
+          "query": "page=pendingCards&roleType=expert",
+          "scene": null
+        },
+        {
+          "name": "首页-领路人申请",
+          "pathName": "pages/home-other/index",
+          "query": "page=guideApply",
+          "scene": null
+        },
+        {
+          "name": "首页-领路人申请表单",
+          "pathName": "pages/home-other/index",
+          "query": "page=guideApplyForm",
+          "scene": null
+        },
+        {
+          "name": "首页-行家申请通过",
+          "pathName": "pages/home-other/index",
+          "query": "page=expertPassed",
+          "scene": null
+        },
+        {
+          "name": "首页-领路人申请通过",
+          "pathName": "pages/home-other/index",
+          "query": "page=guidePassed",
+          "scene": null
+        },
+        {
+          "name": "首页-领路人审核中",
+          "pathName": "pages/home-other/index",
+          "query": "page=pendingCards&roleType=guide",
+          "scene": null
+        },
+        {
+          "name": "首页-领路人审核状态简版",
+          "pathName": "pages/home-other/index",
+          "query": "page=pendingSimple&roleType=guide",
           "scene": null
         },
         {
@@ -769,6 +811,12 @@
         {
           "name": "我的-个人中心-信用中心",
           "pathName": "pages/profile/credit-center/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的-系统管理-信用中心-信用申诉页",
+          "pathName": "pages/profile/system-management/credit-appeal/index",
           "query": "",
           "scene": null
         },
