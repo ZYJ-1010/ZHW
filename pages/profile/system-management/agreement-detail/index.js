@@ -70,7 +70,6 @@ function saveSignedState(agreementKey) {
     signedMap[agreementKey] = true
     wx.setStorageSync(STORAGE_KEY, signedMap)
   } catch (error) {
-    // Static walkthrough fallback: keep the visual flow moving even if storage is unavailable.
   }
 }
 

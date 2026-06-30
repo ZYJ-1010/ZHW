@@ -3264,177 +3264,6 @@ POST /api/app/games
 3. `押金局` 是否允许作为成长局二级细分，同时也作为 `type=deposit`；若产品保留双重含义，后台需要同时存储两个字段。
 4. `tags` 是否继续由前端固定推荐标签，还是也由后台按分类配置联动下发。
 
-## 43. 地图附近信息点接口
-
-记录日期：2026-06-25
-
-模块：地图 / 组局分布
-
-页面：`pages/map/index`
-
-功能：地图页进入后获取当前用户位置，并按当前位置或地图当前视野半径向后台查询附近组局 / 地点信息点；前端把接口返回的数据转换为微信 `map` 组件 markers，点击 marker 后弹出基本信息卡。
-
-候选接口：
-
-```text
-GET /api/app/games/nearby
-```
-
-建议入参：
-
-```json
-{
-  "latitude": 31.2304,
-  "longitude": 121.4737,
-  "radiusMeters": 3000,
-  "pageSize": 50
-}
-```
-
-建议返回：
-
-```json
-{
-  "center": {
-    "latitude": 31.2304,
-    "longitude": 121.4737
-  },
-  "radiusMeters": 3000,
-  "nearestDistanceText": "157m",
-  "onlinePlayerCount": 23,
-  "offlinePlayerCount": 8,
-  "total": 3,
-  "list": [
-    {
-      "id": "game_001",
-      "title": "鱼尾狮夜景打卡点",
-      "cityName": "海尚广场",
-      "latitude": 31.2326,
-      "longitude": 121.4753,
-      "distanceText": "420m",
-      "memberText": "3/6人",
-      "timeText": "今晚 20:00",
-      "statusText": "探索局",
-      "priceText": "¥0/人",
-      "route": "pages/game/detail/index?id=game_001"
-    }
-  ],
-  "onlinePlayers": [
-    {
-      "id": "player_online_001",
-      "latitude": 31.2318,
-      "longitude": 121.4745,
-      "statusText": "在线玩家"
-    }
-  ],
-  "offlinePlayers": [
-    {
-      "id": "player_offline_001",
-      "latitude": 31.2282,
-      "longitude": 121.4716,
-      "statusText": "离线玩家"
-    }
-  ]
-}
-```
-
-待确认：
-
-1. 附近地图接口是否使用 `GET /api/app/games/nearby`，还是需要独立 `GET /api/app/map/nearby-points`。
-2. 坐标字段是否统一为 GCJ-02 坐标系；微信小程序 `map` 与 `wx.getLocation({ type: 'gcj02' })` 当前按 GCJ-02 处理。
-3. `radiusMeters` 最大值、默认值、分页策略和是否支持按地图视野 bounding box 查询需要后端确认。
-4. 信息点类型是否只包含组局，还是还会包含打卡点、好友、城市图鉴；若包含多类型，需要返回 `pointType` 和对应详情跳转规则。
-5. 地图图例里的在线 / 离线玩家当前按 `onlinePlayerCount`、`offlinePlayerCount` 展示总数，点位可由 `onlinePlayers`、`offlinePlayers` 提供抽样或全量，后端需确认返回策略。
-
-## 44. 地图盲盒路线最近开启接口
-
-记录日期：2026-06-25
-
-模块：地图 / 盲盒路线
-
-页面：`pages/map/blind-route/index`
-
-功能：盲盒路线页“最近开启”列表由后台返回，前端不写死最终数据。页面展示最近开启过的盲盒路线、开启时间和当前状态，后续路线点击 / 完成流程接入后，需要根据后台返回状态刷新该区域。
-
-候选接口：
-
-```text
-GET /api/app/map/blind-routes/recent
-```
-
-建议入参：
-
-```json
-{
-  "pageSize": 5
-}
-```
-
-建议返回：
-
-```json
-{
-  "list": [
-    {
-      "id": "blind_route_001",
-      "routeId": "tonight",
-      "title": "今晚去哪局",
-      "openedAt": "2026-06-24T18:30:00+08:00",
-      "timeText": "昨天 18:30",
-      "status": "completed",
-      "statusText": "已完成"
-    }
-  ]
-}
-```
-
-待确认：
-
-1. 最近开启接口是否使用独立 `GET /api/app/map/blind-routes/recent`，还是合并到盲盒路线配置接口里一起返回。
-2. `status` 枚举需要后端确认，例如 `opened/completed/cancelled/expired`。
-3. 路线卡片点击后的开启、完成、状态回写接口后续再补充；当前页面只记录待实现，不接真实业务流程。
-
-## 45. 关系网首页抽象层接口
-
-记录日期：2026-06-25
-
-模块：关系 / 关系网首页
-
-页面：`pages/relation/network/index`
-
-功能：关系网首页顶部浮层的地点标题、营业状态、地址、tab 文案和在线人数由抽象层接口返回，页面只负责渲染；左侧返回按钮和右侧刷新按钮是前端固定交互。
-
-候选接口：
-
-```text
-GET /api/app/relations/network-home
-```
-
-建议返回：
-
-```json
-{
-  "onlineText": "3999人在线",
-  "header": {
-    "titleIcon": "📍",
-    "title": "星巴克(镇海万科店)",
-    "statusText": "营业中",
-    "address": "宁波市镇海区庄市大道1088号万科广场1F"
-  },
-  "tabs": [
-    { "key": "network", "text": "人脉网络" },
-    { "key": "nearby", "text": "附近玩家" }
-  ],
-  "activeTab": "network"
-}
-```
-
-待确认：
-
-1. 正式接口路径是否使用 `GET /api/app/relations/network-home`，还是合并到地图 / 附近信息接口。
-2. 地点标题、地址和营业状态是否来自当前定位 POI、用户手动选择地点，还是后台推荐关系网中心点。
-3. `tabs` 是否固定为 `人脉网络 / 附近玩家`，还是允许后台配置文案和默认选中项。
-
 ## 46. 消息交易预警详情接口
 
 记录日期：2026-06-26
@@ -3805,7 +3634,6 @@ GET /api/app/profile/home
 1. 首页菜单入口是否全部由后端返回，还是前端固定入口、后端只返回角标和可见状态。
 2. `badgeText`、`badgeTone` 是否由后端直接返回；如果后端只返回数量和状态枚举，前端需要统一映射文案和颜色。
 3. 资产中心当前已新增 `pages/profile/asset-center/manage/index`、`pages/profile/asset-center/mall/index`、`pages/profile/asset-center/orders/index` 和 `pages/profile/asset-center/points/index` 静态走查页；我的押金、开票中心是否继续放在该目录下仍需确认。
-4. 足迹中心是否复用地图模块已有页面，例如 `pages/map/my-city/index`、`pages/map/footprint-heatmap/index`，需要产品确认。
 5. 头像使用 `avatarUrl` 真实图片还是继续允许 `avatarText` 兜底。
 
 ### 49.2 资产中心资产管理与积分中心接口
@@ -4628,3 +4456,144 @@ POST /api/app/auth/logout
 6. 后台配置：分组标题、行文案、右侧值、开关默认值和入口可见性是否允许后台配置；若允许，接口需返回结构化配置和排序。
 
 状态：前端已替换旧系统设置页并新增“我的-系统管理-系统设置 / 静态页 / 动态页”编译模式；当前所有开关仅做本地静态切换，行点击和退出登录只提示待接入。真实设置读取、保存、清缓存、关于我们、隐私清单跳转和退出登录仍待后端确认。
+
+## 69. 页面测试数据清理与接口对照
+
+记录日期：2026-06-29
+
+本节记录删除页面内测试数据后的接口落点。已在正式后台接口文档中存在的接口，前端按文档路径接入；页面只保留空结构、空态和字段归一化，不再在页面文件内写死活动列表、活动详情、参与者列表或管理订单。
+
+### 69.1 组局大厅列表
+
+注释：模块：组局；页面：`pages/game/hall/index`；功能：局前大厅列表、搜索和页面内筛选。
+
+接口形式：
+
+```text
+GET /api/app/games
+```
+
+请求字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `page` | int | 否 | 页码，当前默认 1 |
+| `pageSize` | int | 否 | 每页数量，当前默认 20 |
+| `keyword` | string | 否 | 标题 / 介绍搜索 |
+| `gameType` | string | 否 | 局类型，后续可由高级筛选传入 |
+| `cityCode` | string | 否 | 城市筛选 |
+| `status` | string | 否 | 可见局状态 |
+| `sort` | string | 否 | `latest/distance/hot` |
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id/gameId` | 跳转局详情 |
+| `title` | 卡片标题 |
+| `gameType/gameTypeText/typeText` | 局类型和标签 |
+| `coverUrl/coverFileUrl` | 卡片封面 |
+| `cityName/addressName` | 地点展示 |
+| `distanceMeters/distanceText` | 距离展示 |
+| `approvedMemberCount/maxParticipants/memberText` | 报名人数 |
+| `timeText/startAt` | 活动时间 |
+| `priceText/feeText` | 费用 |
+| `themeTags/tags` | 标签 |
+
+状态：已接入 `services/game.getGameList`；页面内三条测试活动已删除，mock 后台按同一路径返回模拟数据。
+
+### 69.2 局详情与分享页
+
+注释：模块：组局；页面：`pages/game/detail/index`、`pages/game/share/index`；功能：活动详情、分享落地页。
+
+接口形式：
+
+```text
+GET /api/app/games/{gameId}
+```
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id/gameId` | 当前局 ID |
+| `title` | 活动标题 |
+| `coverUrl/coverFileUrl` | 封面图 |
+| `startAt/endAt/timeText` | 活动时间 |
+| `addressName/address/locationName` | 地址 |
+| `gameTypeText/categoryText/typeText` | 分类 |
+| `feeText/priceText` | 费用 |
+| `viewCount/commentCount/approvedMemberCount/maxParticipants` | 浏览、评价、报名统计 |
+| `themeTags/tags` | 标签 |
+| `creator/organizer` | 发起人姓名、头像、职位、评分和统计 |
+| `introduction/description` | 介绍 |
+| `highlights` | 亮点 |
+| `schedule/agenda` | 流程 |
+| `detailImages/images` | 详情图片 |
+| `noticeLead/noticeBullets` | 局须知 |
+| `audience/targetAudience` | 受众群体 |
+| `members/participants` | 详情页展示的参与者摘要 |
+| `serverTime/currentTime/now` | 后台当前时间，用于判断报名是否结束；前端不使用手机本地时间判定 |
+
+状态：已接入 `services/game.getGameDetail`；详情页和分享页内完整测试活动文案已删除。
+
+### 69.3 局参与者列表
+
+注释：模块：组局；页面：`pages/game/participants/index`；功能：活动详情页进入全部参与者。
+
+接口形式：
+
+```text
+GET /api/app/games/{gameId}/members
+```
+
+请求字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `page` | int | 否 | 页码 |
+| `pageSize` | int | 否 | 每页数量 |
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id/userId` | 参与者 ID |
+| `name/nickname` | 姓名 |
+| `avatarUrl/avatarSrc/avatarText` | 头像 |
+| `role/roleText/roleClass` | 角色标签 |
+| `position/title` | 职位说明 |
+| `summary/topic` | 主题摘要 |
+| `primaryTag/tags` | 标签 |
+| `location/address/distanceText` | 地址与距离 |
+
+状态：已接入 `services/game.getGameMembers`；`pages/game/shared/participants.js` 测试参与者数据已删除。
+
+### 69.4 组局管理页
+
+注释：模块：组局；页面：`pages/game/manage/index`、`pages/game/player-manage/index`；功能：我的业务管理、我的组局管理。
+
+接口形式：
+
+```text
+GET /api/app/games/my/manage
+GET /api/app/games/player/manage
+```
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `summary.label/amount/amountText` | 顶部收入 / 支出摘要 |
+| `summary.activeCount/completedCount/canceledCount/disputeCount` | tab 数量 |
+| `orders/list/records/items` | 订单列表 |
+| `statusType/statusText` | 订单状态 |
+| `ref/orderNo/serviceOrderId/gameId` | 编号与跳转参数 |
+| `player/expert/guide` | 相关用户信息 |
+| `serviceTitle/serviceText/amountText/fundAmount` | 服务标题和金额 |
+| `timeline` | 管理进度 |
+| `settlementRows` | 结算明细 |
+| `actions/canContact/canCancel/canReview` | 操作权限 |
+| `serverTime/currentTime/now` | 后台当前时间；玩家侧进度、剩余天数只在该字段存在时计算，否则只展示后台直接返回的进度文案 |
+
+状态：两个页面已走 service 请求；`pages/game/manage/index` 中的本地样例订单兜底已删除，数据来自接口或 mock 后台。

@@ -8,6 +8,10 @@ function getGameDetail(gameId) {
   return request.get(`/api/app/games/${gameId}`)
 }
 
+function getGameMembers(gameId, params) {
+  return request.get(`/api/app/games/${gameId}/members`, params)
+}
+
 function createGame(data) {
   return request.post('/api/app/games', data)
 }
@@ -71,6 +75,7 @@ function createGamePayment(data) {
 module.exports = {
   getGames,
   getGameDetail,
+  getGameMembers,
   createGame,
   getProfitTemplates,
   applyGame,

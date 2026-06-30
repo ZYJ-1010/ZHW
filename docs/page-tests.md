@@ -161,7 +161,6 @@
 | 点击 `发起组局` | 跳转到 `pages/game/create/index`，不白屏 |
 | 点击 `局前大厅` | 跳转到 `pages/game/hall/index`，不白屏 |
 | 点击 `申请身份` | 跳转到 `pages/role/apply/index`，不白屏 |
-| 点击 `附近组局` | 跳转到 `pages/map/index`，不白屏 |
 | 点击 `消息` | 跳转到 `pages/message/index`，不白屏 |
 | 点击 `我的` | 跳转到 `pages/profile/index`，不白屏 |
 

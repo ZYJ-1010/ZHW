@@ -151,6 +151,18 @@ page {
   padding-top: 28rpx;
 }
 
+.message-empty {
+  padding: 90rpx 24rpx 120rpx;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 26rpx;
+  line-height: 38rpx;
+  text-align: center;
+}
+
+.message-empty.error {
+  color: #fecaca;
+}
+
 .message-section + .message-section {
   margin-top: 40rpx;
 }

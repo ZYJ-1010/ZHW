@@ -1,48 +1,6 @@
 const profileService = require('../../../../services/profile')
 
 const DEFAULT_GOODS = [
-  {
-    id: 'mall-shirt',
-    iconText: '👕',
-    title: '平台限定T恤',
-    cost: 500,
-    stockLeft: 23
-  },
-  {
-    id: 'mall-badge',
-    iconText: '🏅',
-    title: '真好玩徽章套装',
-    cost: 300,
-    stockLeft: 56
-  },
-  {
-    id: 'mall-backpack',
-    iconText: '🎒',
-    title: '探险家背包',
-    cost: 800,
-    stockLeft: 12
-  },
-  {
-    id: 'mall-camping',
-    iconText: '⛺',
-    title: '露营装备套装',
-    cost: 1200,
-    stockLeft: 8
-  },
-  {
-    id: 'mall-card',
-    iconText: '👑',
-    title: '玩家桌游卡牌',
-    cost: 200,
-    stockLeft: 100
-  },
-  {
-    id: 'mall-cup',
-    iconText: '🥤',
-    title: '定制水杯',
-    cost: 350,
-    stockLeft: 45
-  }
 ]
 
 function parseNumber(value, fallback) {
@@ -109,28 +67,35 @@ function normalizeMallData(data, fallbackGoods) {
   const fallback = fallbackGoods && fallbackGoods.length ? fallbackGoods : DEFAULT_GOODS
   const pointsAvailable = parseNumber(
     pickFirstValue(mall.pointsAvailable, mall.availablePoints, mall.pointsBalance, mall.points, mall.pointsText),
-    2580
+    0
   )
   const goodsSource = Array.isArray(mall.goods)
     ? mall.goods
-    : (Array.isArray(mall.items) ? mall.items : fallback)
+    : (Array.isArray(mall.items) ? mall.items : [])
   const fallbackMap = buildFallbackMap(fallback)
+  const goods = goodsSource.map((item, index) => normalizeGood(item, pointsAvailable, fallbackMap[item && item.id] || fallback[index]))
 
   return {
     points: pickFirstValue(mall.pointsText, mall.points, formatNumber(pointsAvailable)),
-    expireTip: pickFirstValue(mall.expireTip, '积分有效期12个月，请及时兑换'),
-    goods: goodsSource.map((item, index) => normalizeGood(item, pointsAvailable, fallbackMap[item && item.id] || fallback[index]))
+    expireTip: pickFirstValue(mall.expireTip),
+    goods,
+    hasGoods: goods.length > 0,
+    errorText: '',
+    isLoading: false
   }
 }
 
 Page({
   data: {
-    points: '2,580',
-    expireTip: '积分有效期12个月，请及时兑换',
+    points: '0',
+    expireTip: '',
     showExchangeModal: false,
     selectedGood: null,
     isExchanging: false,
-    goods: normalizeMallData({ goods: DEFAULT_GOODS }).goods
+    goods: [],
+    hasGoods: false,
+    isLoading: false,
+    errorText: ''
   },
 
   onLoad() {
@@ -138,6 +103,11 @@ Page({
   },
 
   async refreshMallGoods(options = {}) {
+    this.setData({
+      isLoading: true,
+      errorText: ''
+    })
+
     try {
       const mall = await profileService.getPointsMall()
 
@@ -148,6 +118,13 @@ Page({
       if (!options.silent) {
         console.warn('get points mall failed', error)
       }
+
+      this.setData({
+        goods: [],
+        hasGoods: false,
+        isLoading: false,
+        errorText: error && error.message ? error.message : '积分商城加载失败'
+      })
 
       return null
     }

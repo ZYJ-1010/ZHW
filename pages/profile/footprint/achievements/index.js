@@ -135,9 +135,17 @@ Page({
 
   handleShellNavTap(event) {
     const { key } = event.detail || {}
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
     const routeMap = {
       home: ROUTES.playerHome,
-      map: ROUTES.map,
+      map: '',
       message: ROUTES.message,
       mine: ROUTES.profile,
       metaverse: ROUTES.metaverse

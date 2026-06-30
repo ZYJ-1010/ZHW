@@ -543,6 +543,101 @@ function toFiniteNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback
 }
 
+function getMockGameMembers() {
+  return [
+    {
+      id: 'member-20001-01',
+      userId: 'user-luyi',
+      name: '陆毅',
+      avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png',
+      roleText: '玩家',
+      roleClass: 'player',
+      title: '总经理 | 上海创世界科技有限公司',
+      summary: 'AI赋能与市场运营助力企业IP打造',
+      primaryTag: '第一标签：上海TMT投资领军者',
+      tags: ['数字化内容服务'],
+      location: '上海市浦东新区沙新镇黄赵路310号',
+      distanceText: '2.1 km'
+    },
+    {
+      id: 'member-20001-02',
+      userId: 'user-linyi',
+      name: '林一',
+      avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png',
+      roleText: '行家',
+      roleClass: 'expert',
+      title: '品牌创始人 | 杭州欣悦服装工作',
+      summary: '企业家服务平台',
+      primaryTag: '第一标签：女性高品质服装领先者',
+      tags: ['品牌增长', '企业服务'],
+      location: '杭州市上城区',
+      distanceText: '2.1 km'
+    }
+  ]
+}
+
+function getMockGameList() {
+  return (mockHome.recommendedGames || []).map((item) => Object.assign({}, item, {
+    gameType: item.gameType || item.type || 'social',
+    gameTypeText: item.gameTypeText || item.statusText,
+    addressName: item.addressName || item.cityName,
+    approvedMemberCount: item.approvedMemberCount || 3,
+    maxParticipants: item.maxParticipants || 8,
+    coverFileUrl: item.coverUrl,
+    themeTags: item.themeTags || item.tags
+  }))
+}
+
+function buildGameList(data = {}) {
+  const keyword = String(data.keyword || '').trim()
+  let list = getMockGameList()
+
+  if (keyword) {
+    list = list.filter((item) => String(item.title || '').indexOf(keyword) !== -1)
+  }
+
+  return {
+    page: Number(data.page) || 1,
+    pageSize: Number(data.pageSize) || 20,
+    total: list.length,
+    list
+  }
+}
+
+function buildGameDetail(gameId) {
+  const matched = getMockGameList().find((item) => String(item.id) === String(gameId)) || getMockGameList()[0] || {}
+
+  return Object.assign({}, matched, {
+    id: gameId || matched.id,
+    serverTime: mockPlayerGameManage.currentTime,
+    gameTypeText: matched.gameTypeText || matched.statusText,
+    addressName: matched.addressName || matched.cityName,
+    feeText: matched.priceText,
+    viewCount: 1234,
+    commentCount: 3,
+    approvedMemberCount: 5,
+    maxParticipants: 8,
+    creator: {
+      id: 'creator-001',
+      name: '陆毅',
+      avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png',
+      title: '总经理 | 上海创世界科技有限公司',
+      summary: '已组局 88次 · 推荐20人',
+      rating: '4.8'
+    },
+    introduction: '本场活动围绕主题交流、资源对接和现场协作展开，具体内容由后台活动配置返回。',
+    highlights: ['主题分享', '自由交流', '资源对接'],
+    schedule: [
+      { title: '签到入场', time: '08:30-08:50', desc: '完成签到并熟悉现场。' },
+      { title: '主题交流', time: '08:50-10:20', desc: '围绕活动主题进行分享和讨论。' }
+    ],
+    noticeLead: '请按活动要求准时到场，并遵守现场秩序。',
+    noticeBullets: ['报名成功后请提前确认行程。', '如需取消，请提前联系发起人。'],
+    audience: '活动报名通过用户',
+    members: getMockGameMembers()
+  })
+}
+
 function buildNearbyGames(data = {}) {
   const centerLatitude = toFiniteNumber(data.latitude || data.lat, 31.2304)
   const centerLongitude = toFiniteNumber(data.longitude || data.lng, 121.4737)
@@ -754,8 +849,29 @@ function handleRequest(options) {
     return wait(ok(buildHome(options.data || {})))
   }
 
+  if (method === 'GET' && url === '/api/app/games') {
+    return wait(ok(buildGameList(options.data || {})))
+  }
+
+  if (method === 'GET' && /^\/api\/app\/games\/[^/]+\/members$/.test(url)) {
+    const gameId = url.split('/')[4]
+
+    return wait(ok({
+      page: Number(options.data && options.data.page) || 1,
+      pageSize: Number(options.data && options.data.pageSize) || 100,
+      total: getMockGameMembers().length,
+      list: getMockGameMembers().map((item) => Object.assign({}, item, {
+        gameId
+      }))
+    }))
+  }
+
   if (method === 'GET' && url === '/api/app/games/nearby') {
     return wait(ok(buildNearbyGames(options.data || {})))
+  }
+
+  if (method === 'GET' && /^\/api\/app\/games\/[^/]+$/.test(url)) {
+    return wait(ok(buildGameDetail(url.split('/')[4])))
   }
 
   if (method === 'GET' && url === '/api/app/relations/network-home') {

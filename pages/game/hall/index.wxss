@@ -259,6 +259,15 @@ page {
   box-sizing: border-box;
 }
 
+.feed-empty {
+  min-height: 180rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 26rpx;
+}
+
 .feed-card-item {
   width: 662rpx;
   height: 276rpx;

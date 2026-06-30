@@ -1,24 +1,49 @@
 const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 
 const SHARE_SCROLL_TAP_STEP_RPX = 360
 const SHARE_SCROLL_HOLD_STEP_RPX = 72
 const SHARE_SCROLL_HOLD_INTERVAL_MS = 80
 const SHARE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-const DEFAULT_GAME_INFO = {
-  id: 'current-game-share',
-  bannerImage: '/pages/game/hall/assets/hall-featured-city.jpg',
-  title: '企业数字化转型及技术服务沙龙会',
-  startTime: '2月12日 08:30-11:30',
-  location: '上海市浦东新区沙新镇黄赵路310号',
-  joinedCount: 5,
-  maxPlayers: 8,
-  introText: '本场沙龙针对企业数字化转型及技术服务话题展开。我们将邀请多位成功创业者与资深技术专家倾情分享落地成效及痛点突破经验。活动包含三大主题演讲分享、自由沙龙讨论，以及精准资本与技术资源对接，帮助每位参与者深度拓展人脉、获取前沿产业资源、寻找优质合作伙伴。',
-  organizerName: '陆毅',
-  organizerTitle: '总经理 | 上海创世界科技有限公司',
-  organizerAvatarText: '陆',
-  groupCreatedCount: 88,
-  recommendCount: 20
+function formatDateTimeText(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+
+  return `${date.getFullYear()}年${month}月${day}日 ${hour}:${minute}`
+}
+
+function normalizeGameInfo(data = {}) {
+  const creator = data.creator || data.organizer || {}
+  const organizerName = creator.name || creator.nickname || ''
+
+  return {
+    id: data.id || data.gameId || '',
+    bannerImage: data.bannerImage || data.coverSrc || data.coverUrl || data.coverFileUrl || '',
+    title: data.title || '',
+    startTime: data.timeText || data.startTimeText || formatDateTimeText(data.startAt || data.startTime),
+    location: data.addressName || data.address || data.locationName || '',
+    joinedCount: Number(data.approvedMemberCount || data.memberCount || data.joinedCount || 0),
+    maxPlayers: Number(data.maxParticipants || data.maxPlayers || 0),
+    introText: data.introText || data.introduction || data.description || '',
+    organizerName,
+    organizerTitle: creator.title || creator.role || creator.company || '',
+    organizerAvatarText: creator.avatarText || organizerName.slice(0, 1),
+    groupCreatedCount: Number(creator.groupCreatedCount || creator.createdGameCount || 0),
+    recommendCount: Number(creator.recommendCount || creator.referralCount || 0)
+  }
 }
 
 Page({
@@ -26,9 +51,11 @@ Page({
     onlineText: '3999人在线',
     shareScrollTop: 0,
     isInterested: false,
-    currentJoinedCount: DEFAULT_GAME_INFO.joinedCount,
+    currentJoinedCount: 0,
     showShareWindow: false,
-    gameInfo: DEFAULT_GAME_INFO,
+    loading: false,
+    loadErrorText: '',
+    gameInfo: normalizeGameInfo(),
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -38,12 +65,41 @@ Page({
     ]
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    const gameId = options.gameId || options.id || ''
+
+    if (gameId) {
+      this.loadGameInfo(gameId)
+    }
+
     if (wx.showShareMenu) {
       wx.showShareMenu({
         withShareTicket: true,
         menus: ['shareAppMessage', 'shareTimeline']
       })
+    }
+  },
+
+  async loadGameInfo(gameId) {
+    this.setData({
+      loading: true,
+      loadErrorText: ''
+    })
+
+    try {
+      const gameInfo = normalizeGameInfo(await gameService.getGameDetail(gameId))
+
+      this.setData({
+        loading: false,
+        gameInfo,
+        currentJoinedCount: gameInfo.joinedCount
+      })
+    } catch (error) {
+      this.setData({
+        loading: false,
+        loadErrorText: error.message || '活动信息加载失败'
+      })
+      this.showToast(error.message || '活动信息加载失败')
     }
   },
 
@@ -99,6 +155,14 @@ Page({
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
+
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
         this.scrollShare(key, SHARE_SCROLL_TAP_STEP_RPX)
@@ -116,6 +180,14 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -157,7 +229,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ROUTES.map
+      map: ''
     }
 
     this.navigateToRoute(routeMap[key])

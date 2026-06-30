@@ -15,75 +15,15 @@ const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
 
 const DEFAULT_BUSINESS_SUMMARY = {
   label: '本月服务收入',
-  amount: '¥5,280',
-  activeCount: 1,
-  pendingSettlementCount: 1,
-  completedCount: 8,
+  amount: '¥0',
+  activeCount: 0,
+  pendingSettlementCount: 0,
+  completedCount: 0,
   disputeCount: 0
 }
 
-const DEFAULT_TIMELINE = [
-  { id: 'group-success', title: '组局成功', time: '03-20 14:30', state: 'done' },
-  { id: 'service-active', title: '服务进行中', time: '预计交付：03-25', state: 'current' },
-  { id: 'waiting-confirm', title: '等待确认完成', time: '', state: 'future' }
-]
-
-const DEFAULT_BUSINESS_ORDERS = [
-  {
-    id: 'business-active-001',
-    statusType: 'active',
-    statusText: '服务进行中',
-    ref: 'REF-20260320-001',
-    avatarText: 'LI',
-    avatarClass: 'pink',
-    name: '李明',
-    roleTag: '玩家',
-    serviceTitle: '产品架构咨询',
-    amountText: '¥800',
-    guideText: '领路人：王引荐',
-    timeline: DEFAULT_TIMELINE,
-    primaryActionText: '提前结束交付',
-    secondaryActionText: '取消并赔付',
-    playerActionText: '联系玩家',
-    guideActionText: '联系领路人'
-  },
-  {
-    id: 'business-early-001',
-    statusType: 'complete',
-    statusText: '已提前交付',
-    ref: 'REF-20260318-004',
-    avatarText: 'ZH',
-    avatarClass: 'purple',
-    name: '赵经理',
-    serviceTitle: '技术咨询',
-    amountText: '¥600',
-    guideText: '提前2天完成',
-    guideTone: 'success',
-    settlementRows: [
-      { label: '实际服务时长', value: '1.5小时 (原定2小时)' },
-      { label: '实际收入', value: '¥450 (按比例结算)', highlight: true }
-    ],
-    reviewActionText: '评价双方'
-  },
-  {
-    id: 'business-complete-001',
-    statusType: 'complete',
-    statusText: '已完成',
-    ref: 'REF-20260312-006',
-    avatarText: 'WA',
-    avatarClass: 'green',
-    name: '王同学',
-    serviceTitle: '品牌定位咨询',
-    amountText: '¥1,200',
-    completeSummary: '服务已完成',
-    completedAtText: '完成时间：03-15 18:30',
-    resultText: '双方已确认，收入已进入结算',
-    settlementRows: [
-      { label: '实际服务时长', value: '2小时' },
-      { label: '实际收入', value: '¥1,200', highlight: true }
-    ]
-  }
-]
+const DEFAULT_TIMELINE = []
+const DEFAULT_BUSINESS_ORDERS = []
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -239,10 +179,10 @@ function getTabKeyByStatus(statusType) {
 
 function getDefaultOrder(statusType) {
   if (statusType === 'complete') {
-    return DEFAULT_BUSINESS_ORDERS.find((item) => item.id === 'business-complete-001') || DEFAULT_BUSINESS_ORDERS[0]
+    return DEFAULT_BUSINESS_ORDERS.find((item) => item.id === 'business-complete-001') || DEFAULT_BUSINESS_ORDERS[0] || {}
   }
 
-  return DEFAULT_BUSINESS_ORDERS.find((item) => item.statusType === statusType) || DEFAULT_BUSINESS_ORDERS[0]
+  return DEFAULT_BUSINESS_ORDERS.find((item) => item.statusType === statusType) || DEFAULT_BUSINESS_ORDERS[0] || {}
 }
 
 function splitTitleAndAmount(value) {
@@ -316,7 +256,7 @@ function normalizeStageState(value, index) {
   return index === 0 ? 'done' : index === 1 ? 'current' : 'future'
 }
 
-function normalizeSettlementRows(rawOrder, fallback) {
+function normalizeSettlementRows(rawOrder, fallback = {}) {
   const sourceRows = Array.isArray(rawOrder.settlementRows) && rawOrder.settlementRows.length
     ? rawOrder.settlementRows
     : fallback.settlementRows
@@ -329,25 +269,11 @@ function normalizeSettlementRows(rawOrder, fallback) {
     }))
   }
 
-  return [
-    {
-      label: '实际服务时长',
-      value: firstDefined(rawOrder.actualDurationText, rawOrder.serviceDurationText, '1.5小时 (原定2小时)')
-    },
-    {
-      label: '实际收入',
-      value: firstDefined(rawOrder.actualIncomeText, rawOrder.settlementAmountText, '¥450 (按比例结算)'),
-      highlight: true
-    }
-  ]
+  return []
 }
 
 function hasSettlementRows(rawOrder, statusText) {
   if (Array.isArray(rawOrder.settlementRows) && rawOrder.settlementRows.length) {
-    return true
-  }
-
-  if (normalizeStatusType(firstDefined(rawOrder.statusType, rawOrder.status, rawOrder.state, statusText)) === 'complete') {
     return true
   }
 
@@ -498,7 +424,7 @@ function normalizeBusinessOrder(rawOrder = {}, index = 0) {
 
 function normalizeBusinessOrders(rawOrders) {
   if (!Array.isArray(rawOrders)) {
-    return DEFAULT_BUSINESS_ORDERS.map(normalizeBusinessOrder)
+    return []
   }
 
   return rawOrders.map(normalizeBusinessOrder)
@@ -545,7 +471,7 @@ function buildDisplayState(orders, activeTabKey) {
 }
 
 const INITIAL_BUSINESS_SUMMARY = buildBusinessSummary(DEFAULT_BUSINESS_SUMMARY)
-const INITIAL_BUSINESS_ORDERS = DEFAULT_BUSINESS_ORDERS.map(normalizeBusinessOrder)
+const INITIAL_BUSINESS_ORDERS = []
 const INITIAL_DISPLAY_STATE = buildDisplayState(INITIAL_BUSINESS_ORDERS, 'active')
 
 Page({

@@ -74,6 +74,8 @@
       </view>
 
       <view class="feed-list">
+        <view wx:if="{{loadErrorText}}" class="feed-empty">{{loadErrorText}}</view>
+        <view wx:elif="{{!loading && !displayEventsList.length}}" class="feed-empty">暂无可参与的局</view>
         <view
           wx:for="{{displayEventsList}}"
           wx:key="id"

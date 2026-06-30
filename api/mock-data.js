@@ -78,7 +78,7 @@ const mockHome = {
     { id: 'create', title: '发起组局', route: 'pages/game/create/index' },
     { id: 'hall', title: '局前大厅', route: 'pages/game/hall/index' },
     { id: 'role', title: '角色申请', route: 'pages/role/apply/index' },
-    { id: 'map', title: '附近组局', route: 'pages/map/index' },
+    { id: 'map', title: '附近组局', route: '' },
     { id: 'message', title: '消息', route: 'pages/message/index' },
     { id: 'profile', title: '我的', route: 'pages/profile/index' }
   ],

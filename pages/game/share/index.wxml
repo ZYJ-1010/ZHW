@@ -18,9 +18,13 @@
       enable-back-to-top
     >
       <view class="game-share-page">
-        <view class="share-hero">
+        <view wx:if="{{gameInfo.bannerImage}}" class="share-hero">
           <image class="share-hero-image" src="{{gameInfo.bannerImage}}" mode="aspectFill" />
           <view class="share-hero-wash"></view>
+        </view>
+
+        <view wx:if="{{loadErrorText}}" class="intro-card">
+          <text class="intro-text">{{loadErrorText}}</text>
         </view>
 
         <view class="event-card">
@@ -55,14 +59,14 @@
           </view>
         </view>
 
-        <view class="share-section">
+        <view wx:if="{{gameInfo.introText}}" class="share-section">
           <text class="section-title">活动介绍</text>
           <view class="intro-card">
             <text class="intro-text">{{gameInfo.introText}}</text>
           </view>
         </view>
 
-        <view class="share-section organizer-section">
+        <view wx:if="{{gameInfo.organizerName}}" class="share-section organizer-section">
           <text class="section-title">组局者</text>
           <view class="organizer-card">
             <view class="organizer-avatar">{{gameInfo.organizerAvatarText}}</view>

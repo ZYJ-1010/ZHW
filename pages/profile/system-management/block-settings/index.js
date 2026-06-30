@@ -27,7 +27,6 @@ Page({
     routes: PAGE_ROUTES,
     enabled: true,
     debugMessage: '',
-    // Backend can replace summary, stats, row badges/descriptions, and segmented rules during integration.
     summary: {
       protectedUserText: '128位用户',
       blockedExpertText: '12位',

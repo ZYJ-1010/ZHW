@@ -11,8 +11,6 @@
 | 组局 / 组局详情 | [`docs/follow-ups/game-detail.md`](follow-ups/game-detail.md) |
 | 组局 / 组局大厅 | [`docs/follow-ups/game-hall.md`](follow-ups/game-hall.md) |
 | 组局 / 发起组局 | [`docs/follow-ups/game-create.md`](follow-ups/game-create.md) |
-| 地图 / 城市探索 | [`docs/follow-ups/map.md`](follow-ups/map.md) |
-| 地图 / 足迹热力图 | [`docs/follow-ups/footprint-heatmap.md`](follow-ups/footprint-heatmap.md) |
 | 消息 / 消息页 | [`docs/follow-ups/message.md`](follow-ups/message.md) |
 | 元宇宙 | [`docs/follow-ups/metaverse.md`](follow-ups/metaverse.md) |
 | 我的 / 个人中心 | [`docs/follow-ups/profile.md`](follow-ups/profile.md) |
@@ -100,7 +98,6 @@
 
 | 模块 | 页面 | 功能 / 区域 | 类型 | 问题 | 来源 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 地图 / 盲盒路线 | `pages/map/blind-route/index` | 路线卡片点击 / 完成 | 交互 / 后续实现 | 当前页面先完成静态展示、卡片选中态和最近开启区域；路线卡片点击后的正式行为后续再实现，需要确认是直接开启盲盒路线、进入路线详情、发起组局，还是完成后回写路线状态，并同步刷新最近开启列表。 | 用户 2026-06-25 反馈 | 待实现 / 待确认 |
 
 ## 2026-06-26
 

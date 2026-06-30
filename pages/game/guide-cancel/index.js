@@ -12,47 +12,14 @@ const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
 const DEFAULT_CANCEL_DETAIL = {
-  statusTitle: '组局已取消',
-  statusDesc: '本次组局邀请已取消',
-  cancelRole: 'member',
-  canceledBy: {
-    name: '取消方',
-    roleType: 'member',
-    roleLabel: '成员',
-    avatarText: '取'
-  },
-  reason: {
-    title: '时间冲突',
-    desc: '对方临时有事，无法按时参加'
-  },
-  message: '抱歉，时间上有冲突，希望下次有机会再合作。',
-  messageTimeText: '刚刚',
-  timeline: [
-    {
-      key: 'invite',
-      title: '发起邀请',
-      desc: '你向双方发送了组局邀请',
-      timeText: '03-21 10:23',
-      state: 'active',
-      hasLine: true
-    },
-    {
-      key: 'cancel',
-      title: '成员取消',
-      desc: '对方取消了本次组局邀请',
-      timeText: '03-21 16:45',
-      state: 'error',
-      hasLine: true
-    },
-    {
-      key: 'canceled',
-      title: '组局取消',
-      desc: '因一方取消，组局自动取消',
-      timeText: '',
-      state: 'pending',
-      hasLine: false
-    }
-  ]
+  statusTitle: '',
+  statusDesc: '',
+  cancelRole: '',
+  canceledBy: {},
+  reason: {},
+  message: '',
+  messageTimeText: '',
+  timeline: []
 }
 
 function roundRpx(value) {
@@ -195,7 +162,7 @@ function normalizeCancelUser(source = {}) {
     source.rejectRoleType,
     source.canceledByRole,
     source.canceledByRoleType
-  ], DEFAULT_CANCEL_DETAIL.cancelRole)
+  ])
   const user = source.canceledBy || source.cancelUser || source.rejectUser || source.actor || {}
   const roleLabel = firstText([
     user.roleLabel,
@@ -203,7 +170,7 @@ function normalizeCancelUser(source = {}) {
     source.cancelRoleLabel,
     source.rejectRoleText,
     getRoleLabel(user.roleType || user.role || cancelRole)
-  ], '成员')
+  ])
   const name = firstText([
     user.name,
     user.nickname,
@@ -220,10 +187,10 @@ function normalizeCancelUser(source = {}) {
     roleClass,
     avatarUrl: user.avatarUrl || user.avatar || source.cancelAvatarUrl || '',
     avatarText: getInitials(name, firstText([
-      user.avatarText,
-      user.initials,
-      source.cancelAvatarText
-    ], roleLabel)),
+    user.avatarText,
+    user.initials,
+    source.cancelAvatarText
+    ], '')),
     avatarClass: user.avatarClass || roleClass
   }
 }
@@ -253,7 +220,7 @@ function normalizeCancelInfo(data = {}) {
     source.cancelSummary,
     source.rejectText,
     source.cancelText
-  ], `${cancelUser.roleLabel}取消了此次组局邀请`)
+  ])
 
   return {
     id: source.id || source.invitationId || source.gameInviteId || '',
@@ -301,25 +268,25 @@ function normalizeTimeline(data = {}, cancelInfo) {
     }))
   }
 
-  return DEFAULT_CANCEL_DETAIL.timeline.map((item) => {
-    if (item.key !== 'cancel') {
-      return item
-    }
-
-    return Object.assign({}, item, {
-      title: `${cancelInfo.cancelRoleLabel}取消`,
-      desc: `${cancelInfo.cancelUserName}${cancelInfo.reasonTitle ? `因${cancelInfo.reasonTitle}取消本次组局` : '取消了本次组局邀请'}`,
-      timeText: cancelInfo.messageTimeText
-    })
-  })
+  return []
 }
 
 function normalizeCancelDetail(data = {}) {
   const cancelInfo = normalizeCancelInfo(data)
+  const timeline = normalizeTimeline(data, cancelInfo)
 
   return {
     cancelInfo,
-    timeline: normalizeTimeline(data, cancelInfo)
+    timeline,
+    hasCancelInfo: Boolean(
+      cancelInfo.statusTitle ||
+      cancelInfo.statusDesc ||
+      cancelInfo.reasonTitle ||
+      cancelInfo.reasonDesc ||
+      cancelInfo.message ||
+      cancelInfo.cancelUserName ||
+      timeline.length
+    )
   }
 }
 
@@ -330,8 +297,9 @@ Page({
     queryParams: {},
     loading: false,
     errorText: '',
+    hasCancelInfo: false,
     cancelInfo: normalizeCancelInfo(DEFAULT_CANCEL_DETAIL),
-    timeline: DEFAULT_CANCEL_DETAIL.timeline
+    timeline: []
   },
 
   onLoad(options = {}) {
@@ -369,6 +337,7 @@ Page({
       this.setData({
         loading: false,
         errorText: '',
+        hasCancelInfo: detail.hasCancelInfo,
         cancelInfo: detail.cancelInfo,
         timeline: detail.timeline
       })
@@ -377,7 +346,10 @@ Page({
 
       this.setData({
         loading: false,
-        errorText
+        errorText,
+        hasCancelInfo: false,
+        cancelInfo: normalizeCancelInfo(),
+        timeline: []
       })
       wx.showToast({
         title: errorText,

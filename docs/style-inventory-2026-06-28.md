@@ -41,7 +41,6 @@
 | `pages/game` | 32 | 9351 | 最大模块，按钮、卡片、状态、底部栏重复较多 |
 | `pages/profile/system-management` | 26 | 3293 | 已有 shared，但深色系统管理页之间仍可继续收敛 |
 | `pages/home` | 6 | 3093 | 首页 / 角色首页 / 申请页样式量大，视觉复杂 |
-| `pages/map` | 7 | 2170 | 地图相关深色卡片、标签、列表可抽一部分 |
 | `pages/profile/service-center` | 11 | 1894 | 邀请、评价、我的局等白底 / 深色混用 |
 | `pages/login` | 4 | 1119 | 已接入 `enjoy-ui`，仍有注册走查私有样式 |
 | `components/game-detail` | 6 | 1104 | 组局详情组件群，适合抽组件内 tokens |
@@ -330,7 +329,6 @@
 1. `pages/profile/system-management`：已有多个 shared，合并收益高，风险相对可控
 2. `pages/profile/asset-center` 与 `pages/profile/service-center`：白底卡片、标签、列表重复明显
 3. `pages/game`：样式量最大，但业务状态多，建议分批抽按钮、状态、卡片
-4. `pages/map`：深色卡片、标签、列表可局部抽
 5. `pages/home`：视觉差异大，最后处理，避免破坏首页效果
 
 ## 不建议现在合并的内容

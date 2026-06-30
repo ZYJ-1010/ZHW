@@ -18,13 +18,16 @@
           <text class="relation-back-icon">←</text>
         </button>
 
-        <view class="relation-location-copy">
+        <view wx:if="{{hasHeader}}" class="relation-location-copy">
           <view class="relation-location-row">
             <text class="relation-location-icon">{{header.titleIcon}}</text>
             <text class="relation-location-title">{{header.title}}</text>
             <text class="relation-status">● {{header.statusText}}</text>
           </view>
           <text class="relation-address">{{header.address}}</text>
+        </view>
+        <view wx:else class="relation-location-copy">
+          <text class="relation-empty">{{errorText || '暂无关系网络数据'}}</text>
         </view>
       </view>
 

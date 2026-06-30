@@ -14,7 +14,6 @@ const SERVICE_BUTTON_SIZE_RPX = 44
 const SERVICE_BUTTON_LEFT_RPX = 512
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
-const DEFAULT_CURRENT_TIME = '2026-03-19T14:00:00+08:00'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const DEFAULT_SUMMARY = {
@@ -26,50 +25,6 @@ const DEFAULT_SUMMARY = {
 }
 
 const DEFAULT_ORDERS = [
-  {
-    id: 'player-manage-active-001',
-    statusType: 'active',
-    statusText: '服务进行中',
-    ref: '',
-    avatar: '',
-    name: '',
-    title: '',
-    amount: '',
-    guideText: '',
-    startedAt: '',
-    expectedDeliveryAt: '',
-    noticeText: '取消需赔付一定比例金额给行家',
-    primaryActionText: '联系行家',
-    secondaryActionText: '申请取消'
-  },
-  {
-    id: 'player-manage-complete-001',
-    statusType: 'complete',
-    statusText: '已完成',
-    ref: '',
-    avatar: '',
-    name: '',
-    title: '',
-    amount: '',
-    guideText: '',
-    completeSummary: '服务已完成',
-    completedAt: '',
-    resultText: '',
-    reviewStatus: 'pending',
-    reviewActionText: '评价双方'
-  },
-  {
-    id: 'player-manage-canceled-001',
-    statusType: 'canceled',
-    statusText: '已取消（已赔付）',
-    ref: '',
-    avatar: '',
-    name: '',
-    title: '',
-    reasonSummary: '',
-    amount: '',
-    reasonText: ''
-  }
 ]
 
 function roundRpx(value) {
@@ -331,7 +286,7 @@ function normalizeBooleanFlag(value) {
 }
 
 function getDefaultOrder(statusType) {
-  return DEFAULT_ORDERS.find((item) => item.statusType === statusType) || DEFAULT_ORDERS[0]
+  return DEFAULT_ORDERS.find((item) => item.statusType === statusType) || DEFAULT_ORDERS[0] || {}
 }
 
 function splitTitleAndAmount(value) {
@@ -354,7 +309,7 @@ function splitTitleAndAmount(value) {
   }
 }
 
-function getAvatarText(rawOrder, fallback) {
+function getAvatarText(rawOrder, fallback = {}) {
   const name = firstDefined(rawOrder.name, rawOrder.expertName, rawOrder.playerName, fallback.name)
   const fallbackText = firstDefined(rawOrder.avatar, rawOrder.avatarText, rawOrder.initials, rawOrder.expertInitials, fallback.avatar)
 
@@ -365,7 +320,7 @@ function getNestedValue(source, path) {
   return path.reduce((value, key) => (value && value[key] !== undefined ? value[key] : undefined), source)
 }
 
-function buildSchedule(rawOrder, fallback, currentTime) {
+function buildSchedule(rawOrder, fallback = {}, currentTime) {
   const startAt = firstDefined(
     rawOrder.startedAt,
     rawOrder.startAt,
@@ -383,15 +338,18 @@ function buildSchedule(rawOrder, fallback, currentTime) {
   )
   const startDate = parseDateTime(startAt)
   const deliveryDate = parseDateTime(expectedDeliveryAt)
-  const nowDate = parseDateTime(firstDefined(rawOrder.currentTime, rawOrder.serverTime, currentTime)) || new Date()
-  const fallbackPercent = clampPercent(firstDefined(rawOrder.progressPercent, rawOrder.progress), fallback.progressPercent || 0)
+  const backendTime = firstDefined(rawOrder.currentTime, rawOrder.serverTime, rawOrder.now, currentTime)
+  const nowDate = parseDateTime(backendTime)
+  const progressValue = firstDefined(rawOrder.progressPercent, rawOrder.progress, fallback.progressPercent)
+  const fallbackPercent = clampPercent(progressValue, 0)
+  const hasProgressValue = progressValue !== undefined && progressValue !== null && progressValue !== ''
   const fallbackDeliveryText = rawOrder.deliveryText || rawOrder.expectedDeliveryText || fallback.deliveryText
 
-  if (!startDate || !deliveryDate || deliveryDate <= startDate) {
+  if (!startDate || !deliveryDate || deliveryDate <= startDate || !nowDate) {
     return {
       progressPercent: fallbackPercent,
-      progressText: `${fallbackPercent}%`,
-      progressStyle: `width: ${fallbackPercent}%;`,
+      progressText: rawOrder.progressText || fallback.progressText || (hasProgressValue ? `${fallbackPercent}%` : ''),
+      progressStyle: hasProgressValue ? `width: ${fallbackPercent}%;` : '',
       deliveryText: fallbackDeliveryText || '',
       elapsedText: rawOrder.elapsedText || fallback.elapsedText || '',
       remainingText: rawOrder.remainingText || fallback.remainingText || ''

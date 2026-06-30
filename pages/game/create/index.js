@@ -1,4 +1,4 @@
-const toast = require('../../../utils/toast')
+﻿const toast = require('../../../utils/toast')
 const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 
@@ -53,8 +53,34 @@ function addHours(date, hours) {
   return next
 }
 
-function getInitialTimeDraft() {
-  const now = new Date()
+function parseBackendDate(value) {
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+
+  const date = value instanceof Date
+    ? value
+    : new Date(value)
+
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getEmptyTimeDraft() {
+  return {
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: ''
+  }
+}
+
+function getInitialTimeDraft(currentTime) {
+  const now = parseBackendDate(currentTime)
+
+  if (!now) {
+    return getEmptyTimeDraft()
+  }
+
   const end = addHours(now, 2)
 
   return {
@@ -65,8 +91,13 @@ function getInitialTimeDraft() {
   }
 }
 
-function getInitialSignupTimeDraft() {
-  const now = new Date()
+function getInitialSignupTimeDraft(currentTime) {
+  const now = parseBackendDate(currentTime)
+
+  if (!now) {
+    return getEmptyTimeDraft()
+  }
+
   const end = addHours(now, 24)
 
   return {
@@ -89,12 +120,35 @@ function getDraftTimestamp(dateText, timeText) {
   return Date.parse(`${dateText}T${timeText}:00+08:00`)
 }
 
-function getCurrentMinuteTimestamp() {
-  const now = new Date()
+function getCurrentMinuteTimestamp(currentTime) {
+  const now = parseBackendDate(currentTime)
+
+  if (!now) {
+    return null
+  }
 
   now.setSeconds(0, 0)
 
   return now.getTime()
+}
+
+function getBackendCurrentTime(data = {}) {
+  return data.serverTime || data.currentTime || data.now || data.responseTime || ''
+}
+
+function buildInitialTimeState(currentTime) {
+  const date = parseBackendDate(currentTime)
+
+  if (!date) {
+    return {}
+  }
+
+  return {
+    serverTime: currentTime,
+    todayDate: formatDate(date),
+    timeDraft: getInitialTimeDraft(currentTime),
+    signupTimeDraft: getInitialSignupTimeDraft(currentTime)
+  }
 }
 
 function getDurationText(startTimestamp, endTimestamp) {
@@ -1074,6 +1128,14 @@ Page({
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
+
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
         this.scrollCreate(key, CREATE_SCROLL_TAP_STEP_RPX)
@@ -1091,6 +1153,14 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -1132,7 +1202,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ROUTES.map
+      map: ''
     }
 
     this.navigateToRoute(routeMap[key])

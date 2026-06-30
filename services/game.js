@@ -10,6 +10,34 @@ async function getGameList(params) {
   return result.data
 }
 
+async function getGameDetail(gameId) {
+  if (!gameId) {
+    throw new Error('缺少局信息')
+  }
+
+  const result = await gameApi.getGameDetail(gameId)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取局详情失败')
+  }
+
+  return result.data
+}
+
+async function getGameMembers(gameId, params) {
+  if (!gameId) {
+    throw new Error('缺少局信息')
+  }
+
+  const result = await gameApi.getGameMembers(gameId, params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取局成员失败')
+  }
+
+  return result.data
+}
+
 async function getInvitePlayerConfig(params) {
   const result = await gameApi.getInvitePlayerConfig(params)
 
@@ -148,6 +176,8 @@ async function createGamePayment(payload) {
 
 module.exports = {
   getGameList,
+  getGameDetail,
+  getGameMembers,
   respondGameInvitation,
   getInvitePlayerConfig,
   getInviteRecentPlayers,

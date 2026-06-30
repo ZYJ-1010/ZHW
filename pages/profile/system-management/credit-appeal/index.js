@@ -16,7 +16,6 @@ Page({
       clock: `${LOCAL_ASSET_BASE}/icon-clock.svg`
     },
     reasonOptions: [
-      // Static fallback only; formal options should come from backend config.
       { key: 'misjudge', label: '误判扣分', className: 'reason-pill active' },
       { key: 'system', label: '系统错误', className: 'reason-pill' },
       { key: 'special', label: '特殊情况', className: 'reason-pill' },

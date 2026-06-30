@@ -1,5 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
-const { getDefaultGameParticipants } = require('../shared/participants')
+const gameService = require('../../../services/game')
 
 const WHITE_CONTENT_LEFT_RPX = 2
 const WHITE_CONTENT_TOP_RPX = 160
@@ -72,15 +72,73 @@ Page({
   data: {
     gameId: '',
     whiteShellLayout: getWhiteShellLayoutStyles(),
-    participants: getDefaultGameParticipants()
+    loading: false,
+    loadErrorText: '',
+    participants: []
   },
 
   onLoad(options = {}) {
+    const gameId = options.gameId || options.id || ''
+
     this.setData({
-      gameId: options.gameId || options.id || '',
+      gameId,
       whiteShellLayout: getWhiteShellLayoutStyles(),
-      participants: getDefaultGameParticipants()
+      participants: []
     })
+
+    if (gameId) {
+      this.loadParticipants(gameId)
+    }
+  },
+
+  async loadParticipants(gameId) {
+    this.setData({
+      loading: true,
+      loadErrorText: ''
+    })
+
+    try {
+      const data = await gameService.getGameMembers(gameId, {
+        page: 1,
+        pageSize: 100
+      })
+      const source = Array.isArray(data) ? data : (data.list || data.records || data.items || data.members || [])
+
+      this.setData({
+        loading: false,
+        participants: source.map(this.normalizeParticipant)
+      })
+    } catch (error) {
+      this.setData({
+        loading: false,
+        loadErrorText: error.message || '参与者加载失败',
+        participants: []
+      })
+      wx.showToast({
+        title: error.message || '参与者加载失败',
+        icon: 'none'
+      })
+    }
+  },
+
+  normalizeParticipant(member = {}) {
+    const user = member.user || member.profile || member
+    const name = user.name || user.nickname || member.name || member.nickname || ''
+
+    return {
+      id: member.id || member.userId || user.id || name,
+      name,
+      avatarSrc: user.avatarSrc || user.avatarUrl || member.avatarSrc || member.avatarUrl || '',
+      avatarText: user.avatarText || member.avatarText || name.slice(0, 1),
+      role: member.roleText || member.role || user.roleText || '',
+      roleClass: member.roleClass || member.role || '',
+      position: user.position || user.title || member.position || member.title || '',
+      topic: member.topic || member.summary || user.summary || '',
+      primaryTag: member.primaryTag || member.tagText || '',
+      tags: Array.isArray(member.tags || user.tags) ? (member.tags || user.tags) : [],
+      location: member.location || member.address || user.location || '',
+      distance: member.distanceText || member.distance || ''
+    }
   },
 
   onResize() {

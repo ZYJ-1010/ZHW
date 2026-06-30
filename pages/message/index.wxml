@@ -38,7 +38,11 @@
       </view>
     </scroll-view>
 
-    <view class="message-list">
+    <view wx:if="{{loading}}" class="message-empty">加载中...</view>
+    <view wx:elif="{{errorText}}" class="message-empty error">{{errorText}}</view>
+    <view wx:elif="{{!hasMessages}}" class="message-empty">暂无消息</view>
+
+    <view wx:else class="message-list">
       <view wx:for="{{sections}}" wx:key="key" class="message-section">
         <view class="section-head">
           <text class="section-title">{{item.title}}</text>

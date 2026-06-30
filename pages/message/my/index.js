@@ -82,9 +82,17 @@ Page({
 
   handleShellNavTap(event) {
     const { key } = event.detail || {}
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
     const routeMap = {
       home: ROUTES.playerHome || ROUTES.home,
-      map: ROUTES.map,
+      map: '',
       message: ROUTES.message,
       mine: ROUTES.profile,
       avatar: ROUTES.profile,

@@ -175,7 +175,6 @@ function getSavedProfileRows() {
       }
     }
   } catch (error) {
-    // Fall back to the static rows until the backend profile-form API is connected.
   }
 
   return PROFILE_ROWS
@@ -201,7 +200,6 @@ function getSavedMatchRequest() {
       }
     }
   } catch (error) {
-    // Fall back to the static rows until the backend match API is connected.
   }
 
   return buildMatchRequest(getSavedProfileRows())
@@ -220,7 +218,6 @@ function getSavedResultSummary() {
       }
     }
   } catch (error) {
-    // Fall back to static result data until the backend results API is connected.
   }
 
   return {
@@ -235,7 +232,6 @@ function saveResultSummary(summary) {
       wx.setStorageSync('memberRadarResultSummary', summary)
     }
   } catch (error) {
-    // Ignore local storage failures for the static prototype state.
   }
 }
 
@@ -345,7 +341,6 @@ function buildHeaderLayout() {
       }
     }
   } catch (error) {
-    // Keep the fallback layout below when running outside a mini-program runtime.
   }
 
   const headerHeight = DEFAULT_STATUS_HEIGHT_RPX + DEFAULT_NAV_HEIGHT_RPX
@@ -497,7 +492,6 @@ Component({
             wx.setStorageSync('memberRadarMatchRequest', request)
           }
         } catch (error) {
-          // Ignore local storage failures for the static prototype state.
         }
 
         wx.navigateTo({
@@ -512,7 +506,6 @@ Component({
             wx.setStorageSync('memberRadarProfileForm', this.data.formRows || PROFILE_ROWS)
           }
         } catch (error) {
-          // Ignore local storage failures for the static prototype state.
         }
 
         wx.showToast({
@@ -544,7 +537,6 @@ Component({
             wx.setStorageSync('memberRadarMatchRequest', request)
           }
         } catch (error) {
-          // Ignore local storage failures for the static prototype state.
         }
 
         wx.redirectTo({

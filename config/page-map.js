@@ -35,15 +35,6 @@ const PAGE_GROUPS = [
     screens: ['局前大厅', '发起组局', '玩家自申请入局', '领路人发起引荐页', '玩家被邀约确认页', '行家审核列表页', '行家审核详情页', '领路人接收页', '组局支付页', '组局成功页', '组局取消页', '交付操作页', '交付确认页', '评价页面']
   },
   {
-    code: 'map',
-    title: '地图与城市探索',
-    priority: 'P0/P1',
-    batch: '第 4 批：地图、IM、成长扩展',
-    route: '/pages/map/index',
-    routes: ['/pages/map/index', '/pages/map/blind-route/index', '/pages/map/city-atlas/index', '/pages/map/real-checkin/index', '/pages/map/footprint-heatmap/index', '/pages/map/friend-city/index', '/pages/map/my-city/index'],
-    screens: ['地图首页', '组局分布地球网', '组局盲盒', '城市图鉴页', '足迹热力图页', '实景打卡', '好友点亮城市页', '我的城市故事页']
-  },
-  {
     code: 'message',
     title: '消息',
     priority: 'P0',

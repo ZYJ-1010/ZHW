@@ -1,7 +1,0 @@
-{
-  "navigationStyle": "custom",
-  "navigationBarTitleText": "地图-我的城市页",
-  "usingComponents": {
-    "home-shell": "/components/home-shell/index"
-  }
-}

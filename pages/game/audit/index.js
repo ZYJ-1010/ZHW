@@ -1,4 +1,4 @@
-const { ROUTES } = require('../../../config/routes')
+﻿const { ROUTES } = require('../../../config/routes')
 const toast = require('../../../utils/toast')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
@@ -131,6 +131,14 @@ Page({
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
+
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
         this.scrollAudit(key, AUDIT_SCROLL_TAP_STEP_RPX)
@@ -148,6 +156,14 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -184,7 +200,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ROUTES.map
+      map: ''
     }
 
     this.navigateToRoute(routeMap[key])

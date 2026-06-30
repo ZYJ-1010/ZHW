@@ -1,7 +1,0 @@
-{
-  "navigationStyle": "custom",
-  "navigationBarTitleText": "地图-实景打卡",
-  "usingComponents": {
-    "home-shell": "/components/home-shell/index"
-  }
-}

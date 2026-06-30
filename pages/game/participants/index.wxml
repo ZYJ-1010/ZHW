@@ -32,6 +32,10 @@
             />
           </view>
 
+          <view wx:elif="{{loadErrorText}}" class="participants-empty">
+            <text>{{loadErrorText}}</text>
+          </view>
+
           <view wx:else class="participants-empty">
             <text>暂无参与者</text>
           </view>

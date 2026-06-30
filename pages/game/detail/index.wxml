@@ -21,9 +21,13 @@
     enable-back-to-top
   >
     <view class="detail-content">
-      <image class="cover-image" src="{{event.coverSrc}}" mode="aspectFill" />
+      <image wx:if="{{event.coverSrc}}" class="cover-image" src="{{event.coverSrc}}" mode="aspectFill" />
 
       <view class="detail-stack">
+        <view wx:if="{{loadErrorText}}" class="plain-card compact-text-card">
+          <text>{{loadErrorText}}</text>
+        </view>
+
         <view class="event-card">
           <text class="event-title">{{event.title}}</text>
 
@@ -64,11 +68,11 @@
           </view>
         </view>
 
-        <view class="tag-row">
+        <view wx:if="{{tags.length}}" class="tag-row">
           <view wx:for="{{tags}}" wx:key="name" class="tag-pill {{item.tone}}">{{item.name}}</view>
         </view>
 
-        <view class="detail-section">
+        <view wx:if="{{organizer.name}}" class="detail-section">
           <text class="section-title">组局者</text>
           <view class="organizer-card">
             <image class="organizer-avatar-image" src="{{organizer.avatarSrc}}" mode="aspectFill" />
@@ -86,14 +90,14 @@
           </view>
         </view>
 
-        <view class="detail-section">
+        <view wx:if="{{introduction}}" class="detail-section">
           <text class="section-title">局介绍</text>
           <view class="plain-card compact-text-card">
             <text>{{introduction}}</text>
           </view>
         </view>
 
-        <view class="detail-section">
+        <view wx:if="{{highlights.length}}" class="detail-section">
           <text class="section-title">亮点</text>
           <view class="plain-card highlight-card compact-text-card">
             <view wx:for="{{highlights}}" wx:key="*this" class="number-row">
@@ -103,7 +107,7 @@
           </view>
         </view>
 
-        <view class="detail-section">
+        <view wx:if="{{schedule.length || detailImages.length}}" class="detail-section">
           <view class="section-heading-row">
             <text class="section-title">局详情</text>
             <text class="section-helper">支持文字/上传图片（9张）/视频（60秒内）</text>
@@ -122,7 +126,7 @@
           </view>
         </view>
 
-        <view class="detail-section">
+        <view wx:if="{{noticeLead || noticeBullets.length}}" class="detail-section">
           <text class="section-title">局须知</text>
           <view class="plain-card notice-card">
             <view class="notice-tip">
@@ -138,14 +142,14 @@
           </view>
         </view>
 
-        <view class="detail-section">
+        <view wx:if="{{audience}}" class="detail-section">
           <text class="section-title">受众群体</text>
           <view class="plain-card">
             <text>{{audience}}</text>
           </view>
         </view>
 
-        <view class="detail-section participants-section">
+        <view wx:if="{{participants.length}}" class="detail-section participants-section">
           <view class="section-topline">
             <text class="section-title">参与者（{{participants.length}}人）</text>
             <view class="section-link" bindtap="onViewAllParticipants">

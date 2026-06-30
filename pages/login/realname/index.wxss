@@ -74,7 +74,6 @@
 .realname-label {
   display: flex;
   align-items: center;
-  /*flex: 0 0 162rpx;*/
   min-width: 134rpx;
   color: #1a1a2e;
   font-size: 28rpx;

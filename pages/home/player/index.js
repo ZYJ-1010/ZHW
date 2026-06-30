@@ -332,7 +332,6 @@ Page({
         metaverse: this.formatMetaverseEntry(home.metaverseEntry || home.metaverse || {})
       })
     } catch (error) {
-      // 首页静态内容可兜底展示，接口失败时不打断用户浏览。
     }
   },
 

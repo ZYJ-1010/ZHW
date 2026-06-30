@@ -1,5 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
-const { getDefaultGameParticipants } = require('../shared/participants')
+const gameService = require('../../../services/game')
 
 const DEFAULT_CONTENT_TOP_RPX = 160
 const NAV_BOTTOM_GAP_RPX = 18
@@ -9,6 +9,8 @@ const BOTTOM_ACTION_RPX = 148
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_SHARE_RIGHT_RPX = 206
 const SHARE_CAPSULE_GAP_RPX = 18
+const DEFAULT_CATEGORY_ICON = '/pages/game/assets/icons/icon-social-handshake.svg'
+const PARTICIPANTS_ICON = '/pages/game/assets/icons/icon-participants.svg'
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -90,8 +92,11 @@ function parseChineseEventEndTime(text = '') {
     return null
   }
 
-  const now = new Date()
-  const year = Number(matched[1] || now.getFullYear())
+  if (!matched[1]) {
+    return null
+  }
+
+  const year = Number(matched[1])
   const startMonth = Number(matched[2])
   const startDay = Number(matched[3])
   const startHour = Number(matched[4] || 23)
@@ -127,10 +132,169 @@ function getEventEndTimestamp(event = {}) {
   return /\d{4}年/.test(String(timeText)) ? parseChineseEventEndTime(timeText) : null
 }
 
-function getGameEndedState(event = {}) {
-  const endTimestamp = getEventEndTimestamp(event)
+function getBackendTimestamp(value) {
+  if (!value) {
+    return null
+  }
 
-  return typeof endTimestamp === 'number' ? endTimestamp <= Date.now() : false
+  const timestamp = Date.parse(value)
+
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+function getGameEndedState(event = {}, backendTime) {
+  const endTimestamp = getEventEndTimestamp(event)
+  const backendTimestamp = getBackendTimestamp(pickFirstValue(
+    event.serverTime,
+    event.currentTime,
+    event.now,
+    backendTime
+  ))
+
+  return typeof endTimestamp === 'number' && typeof backendTimestamp === 'number'
+    ? endTimestamp <= backendTimestamp
+    : false
+}
+
+function pickFirstValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '')
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
+function formatDateTimeText(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+
+  return `${date.getFullYear()}年${month}月${day}日 ${hour}:${minute}`
+}
+
+function formatTimeRange(item = {}) {
+  const text = pickFirstValue(item.time, item.timeText, item.startTimeText)
+
+  if (text) {
+    return text
+  }
+
+  const start = formatDateTimeText(item.startAt || item.startTime)
+  const end = formatDateTimeText(item.endAt || item.endTime)
+
+  return end ? `${start}-${end}` : start
+}
+
+function formatFeeText(item = {}) {
+  const text = pickFirstValue(item.fee, item.feeText, item.priceText, item.costText)
+
+  if (text) {
+    return text
+  }
+
+  const amount = Number(pickFirstValue(item.feeAmount, item.priceAmount, item.costAmount))
+
+  return Number.isFinite(amount) ? `场地费${amount}/位` : ''
+}
+
+function normalizeParticipant(member = {}) {
+  const user = member.user || member.profile || member
+  const name = user.name || user.nickname || member.name || member.nickname || ''
+
+  return {
+    id: member.id || member.userId || user.id || name,
+    name,
+    avatarSrc: user.avatarSrc || user.avatarUrl || member.avatarSrc || member.avatarUrl || '',
+    avatarText: user.avatarText || member.avatarText || name.slice(0, 1),
+    role: member.roleText || member.role || user.roleText || '',
+    roleClass: member.roleClass || member.role || '',
+    position: user.position || user.title || member.position || member.title || '',
+    topic: member.topic || member.summary || user.summary || '',
+    primaryTag: member.primaryTag || member.tagText || '',
+    tags: asArray(member.tags || user.tags),
+    location: member.location || member.address || user.location || '',
+    distance: member.distanceText || member.distance || ''
+  }
+}
+
+function normalizeTag(tag, index) {
+  if (typeof tag === 'string') {
+    return {
+      name: tag.charAt(0) === '#' ? tag : `#${tag}`,
+      tone: ['blue', 'green', 'purple'][index % 3]
+    }
+  }
+
+  return {
+    name: tag.name || tag.label || '',
+    tone: tag.tone || ['blue', 'green', 'purple'][index % 3]
+  }
+}
+
+function normalizeOrganizer(source = {}) {
+  const creator = source.creator || source.organizer || source.owner || {}
+  const name = creator.name || creator.nickname || creator.realname || ''
+
+  return {
+    name,
+    avatarSrc: creator.avatarSrc || creator.avatarUrl || '',
+    avatarText: creator.avatarText || name.slice(0, 1),
+    role: creator.role || creator.title || creator.company || '',
+    summary: creator.summary || creator.statText || '',
+    rating: String(creator.rating || creator.score || '')
+  }
+}
+
+function normalizeGameDetail(data = {}) {
+  const serverTime = pickFirstValue(data.serverTime, data.currentTime, data.now, data.responseTime)
+  const memberCount = pickFirstValue(data.approvedMemberCount, data.memberCount, data.joinedCount)
+  const maxParticipants = data.maxParticipants || data.maxMemberCount
+  const membersText = memberCount != null && maxParticipants ? `${memberCount}/${maxParticipants}人已报名` : ''
+  const commentsText = data.commentCount != null ? `${data.commentCount}条评价` : ''
+  const viewsText = data.viewCount != null ? `${data.viewCount}次浏览` : ''
+  const members = asArray(data.members || data.participants).map(normalizeParticipant)
+
+  return {
+    event: {
+      coverSrc: data.coverSrc || data.coverUrl || data.coverFileUrl || '',
+      title: data.title || '',
+      time: formatTimeRange(data),
+      location: data.addressName || data.address || data.locationName || '',
+      category: data.gameTypeText || data.categoryText || data.typeText || '',
+      categoryIcon: data.categoryIcon || DEFAULT_CATEGORY_ICON,
+      fee: formatFeeText(data),
+      endAt: data.endAt || data.endTime,
+      registrationEndAt: data.registrationEndAt || data.applyEndAt,
+      serverTime
+    },
+    serverTime,
+    stats: [
+      viewsText ? { iconText: '👁️', text: viewsText, action: 'views' } : null,
+      commentsText ? { iconText: '💬', text: commentsText, action: 'reviews' } : null,
+      membersText ? { iconSrc: PARTICIPANTS_ICON, text: membersText } : null
+    ].filter(Boolean),
+    tags: asArray(data.themeTags || data.tags).map(normalizeTag).filter((item) => item.name),
+    organizer: normalizeOrganizer(data),
+    introduction: data.introduction || data.description || data.summary || '',
+    highlights: asArray(data.highlights),
+    schedule: asArray(data.schedule || data.agenda),
+    detailImages: asArray(data.detailImages || data.images || data.imageUrls),
+    noticeLead: data.noticeLead || '',
+    noticeBullets: asArray(data.noticeBullets || data.notices),
+    audience: data.audience || data.targetAudience || '',
+    participants: members
+  }
 }
 
 Page({
@@ -141,99 +305,82 @@ Page({
     showShareWindow: false,
     detailScrollTop: 0,
     navLayout: getWhiteDetailLayout(),
+    loading: false,
+    loadErrorText: '',
     event: {
-      coverSrc: '/pages/game/hall/assets/hall-featured-city.jpg',
-      title: '企业数字化转型及技术服务沙龙局',
-      time: '2月12日 08:30-11:30',
-      location: '上海市浦东新区沙新镇黄赵路310号',
-      category: '社交局',
-      categoryIcon: '/pages/game/assets/icons/icon-social-handshake.svg',
-      fee: '场地费AA/位'
+      coverSrc: '',
+      title: '',
+      time: '',
+      location: '',
+      category: '',
+      categoryIcon: DEFAULT_CATEGORY_ICON,
+      fee: ''
     },
     isGameEnded: false,
     endedActionText: '报名结束',
     endedNoticeText: '新建组局将经过平台审核，审核通过后才能正式发布',
-    stats: [
-      { iconText: '👁️', text: '1,234次浏览', action: 'views' },
-      { iconText: '💬', text: '3条评价', action: 'reviews' },
-      { iconSrc: '/pages/game/assets/icons/icon-participants.svg', text: '5/8人已报名' }
-    ],
-    tags: [
-      { name: '#产品研发', tone: 'blue' },
-      { name: '#创业', tone: 'green' },
-      { name: '#社交', tone: 'purple' }
-    ],
+    stats: [],
+    tags: [],
     organizer: {
-      name: '陆毅',
-      avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
-      avatarText: '陆',
-      role: '总经理 | 上海创世界科技有限公司',
-      summary: '已组局 88次 · 推荐20人',
-      rating: '4.8'
+      name: '',
+      avatarSrc: '',
+      avatarText: '',
+      role: '',
+      summary: '',
+      rating: ''
     },
-    introduction: '本场沙龙围绕企业数字化转型及技术服务话题，邀请多位成功创业者分享经验。活动包含主题分享、自由交流、资源对接三个环节，帮助参与者拓展人脉、获取资源。',
-    highlights: [
-      '实战大咖亲授，拒绝空泛理论',
-      '精准资源对接，高效链接人脉',
-      '全流程干货输出，内容覆盖全面',
-      '轻量高效参会，时间成本可控'
-    ],
-    schedule: [
-      {
-        title: '签到入场',
-        time: '08:30-08:50',
-        desc: '参会人员现场签到，领取活动资料与伴手礼，自由熟悉场地，初步交流破冰'
-      },
-      {
-        title: '主题分享环节',
-        time: '08:50-10:20',
-        desc: '多位成功创业者依次登台，围绕企业数字化转型实战经验、技术服务选型技巧、行业转型趋势、低成本高效转型方案等核心主题展开分享。预留简短提问时间，现场答疑解惑'
-      },
-      {
-        title: '中场休息+自由交流',
-        time: '10:20-10:40',
-        desc: '短暂休整，参会者自由沟通，互换名片，初步对接需求'
-      },
-      {
-        title: '资源对接+深度交流',
-        time: '10:40-11:25',
-        desc: '定向资源配对环节，主办方引导供需双方精准对接，针对性洽谈合作，针对共性问题展开集体讨论，搭建长期交流合作平台'
-      },
-      {
-        title: '组局总结+合影留念',
-        time: '11:25-11:30',
-        desc: '主办方总结组局核心内容，公布后续社群交流渠道，全体参会人员合影留念，活动圆满结束'
-      }
-    ],
-    detailImages: [
-      '/pages/game/hall/assets/hall-card-desk.jpg',
-      '/components/game-card/assets/cover-city.png'
-    ],
-    noticeLead: '为保障活动秩序与参会体验，敬请所有参会人员提前知悉以下事项，遵守活动规则：',
-    noticeBullets: [
-      '签到要求：请务必携带个人名片参会，便于现场人脉拓展与资源对接；需在08:50前完成签到入场，迟到超过30分钟将无法进入会场，敬请准时。',
-      '参会对象限制：本次沙龙仅限企业负责人、核心管理层、技术负责人及创业团队成员参与，谢绝无关人员、非商务推广人员入场；仅限报名成功且收到确认通知的人员参与，不接受临时空降参会。',
-      '行为规范：活动期间禁止随意打断分享、大声喧哗，保持会场安静；禁止发放无关小广告、恶意推销产品，违规者将被劝离会场；禁止录制嘉宾完整分享内容、私自传播活动内部资料，尊重知识产权与嘉宾隐私。',
-      '资料与物品：活动资料、饮品由主办方统一提供，请勿自带零食饮料入内；个人贵重物品请自行妥善保管，主办方不负责财物保管。',
-      '防疫与安全：参会期间请自觉维护会场卫生，遵守场地安全管理规定；如遇特殊情况，请及时联系现场工作人员协助处理。',
-      '报名与取消：报名成功后如需取消参会，请至少提前1天告知主办方，方便释放名额给其他有需求的人员；无故缺席将影响后续参与各级活动报名资格。'
-    ],
-    audience: '企业负责人、运营管理者、技术负责人、创业团队核心成员、数字化服务相关从业者',
-    participants: getDefaultGameParticipants()
+    introduction: '',
+    highlights: [],
+    schedule: [],
+    detailImages: [],
+    noticeLead: '',
+    noticeBullets: [],
+    audience: '',
+    participants: []
   },
 
   onLoad(options = {}) {
+    const gameId = options.gameId || options.id || ''
+
     this.setData({
-      gameId: options.gameId || options.id || '',
-      isGameEnded: getGameEndedState(this.data.event),
+      gameId,
+      isGameEnded: false,
       navLayout: getWhiteDetailLayout()
     })
+
+    if (gameId) {
+      this.loadGameDetail(gameId)
+    }
 
     if (wx.showShareMenu) {
       wx.showShareMenu({
         withShareTicket: true,
         menus: ['shareAppMessage', 'shareTimeline']
       })
+    }
+  },
+
+  async loadGameDetail(gameId) {
+    this.setData({
+      loading: true,
+      loadErrorText: ''
+    })
+
+    try {
+      const detail = normalizeGameDetail(await gameService.getGameDetail(gameId))
+
+      this.setData(Object.assign({
+        loading: false,
+        loadErrorText: ''
+      }, detail, {
+        isGameEnded: getGameEndedState(detail.event, detail.serverTime)
+      }))
+    } catch (error) {
+      this.setData({
+        loading: false,
+        loadErrorText: error.message || '局详情加载失败'
+      })
+      this.showInfo(error.message || '局详情加载失败')
     }
   },
 

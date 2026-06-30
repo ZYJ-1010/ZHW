@@ -35,12 +35,6 @@
           "scene": null
         },
         {
-          "name": "06-地图首页走查",
-          "pathName": "pages/map/index",
-          "query": "",
-          "scene": null
-        },
-        {
           "name": "07-关系网走查",
           "pathName": "pages/relation/network/index",
           "query": "mode=templateWalkthrough",
@@ -488,48 +482,6 @@
           "name": "母版-白色背景的",
           "pathName": "pages/home/master/index",
           "query": "mode=whiteBackground",
-          "scene": null
-        },
-        {
-          "name": "地图-组局分布",
-          "pathName": "pages/map/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "地图-盲盒路线",
-          "pathName": "pages/map/blind-route/index",
-          "query": "mode=blindRout",
-          "scene": null
-        },
-        {
-          "name": "地图-城市图鉴",
-          "pathName": "pages/map/city-atlas/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "地图-实景打卡",
-          "pathName": "pages/map/real-checkin/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "地图-足迹热力图",
-          "pathName": "pages/map/footprint-heatmap/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "地图-好友城市页",
-          "pathName": "pages/map/friend-city/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "地图-我的城市页",
-          "pathName": "pages/map/my-city/index",
-          "query": "",
           "scene": null
         },
         {

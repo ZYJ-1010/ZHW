@@ -1,4 +1,4 @@
-const { ROUTES } = require('../../../config/routes')
+﻿const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 
 const DEFAULT_PAYMENT_AMOUNT = 100
@@ -184,6 +184,14 @@ Page({
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
+
     if (key === 'search') {
       this.showInfo('搜索功能开发中')
       return
@@ -202,7 +210,7 @@ Page({
     const routeMap = {
       home: ROUTES.home,
       metaverse: ROUTES.metaverse,
-      map: ROUTES.map
+      map: ''
     }
 
     this.navigateToRoute(routeMap[key])

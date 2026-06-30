@@ -791,7 +791,6 @@ Page({
   },
 
   handleExpertApplyPlanTap() {
-    // 计划书行只展示状态，实际进入填写由底部“下一步”触发。
   },
 
   handleExpertApplyPrimaryTap() {

@@ -1,4 +1,5 @@
 const toast = require('../../../utils/toast')
+const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 
 const HALL_SCROLL_TAP_STEP_RPX = 360
@@ -38,74 +39,7 @@ const DEFAULT_ADVANCED_DRAFT = {
   sortMode: 'comprehensive',
   selectedDate: ''
 }
-
-const eventsList = [
-  {
-    id: 'deposit-morning',
-    type: 'deposit',
-    typeText: '押金局',
-    categoryKey: 'growth',
-    startAt: '2026-05-01T07:00:00+08:00',
-    distanceKm: 8.2,
-    cityName: '上海',
-    heatScore: 86,
-    creditScore: 92,
-    coverSrc: '/components/game-card/assets/game-cover-default.png',
-    tag: '押金局',
-    price: '￥100/人',
-    title: '早起星人挑战：连续7天打卡',
-    location: '📍黄浦区 · 8.2km · 3/8人',
-    time: '⏰2026年5月1日-7日 7:00',
-    action: '加入',
-    joinedText: '+14位玩家已入局',
-    avatarFallbacks: ['早', '局', '玩'],
-    actions: DEFAULT_EVENT_ACTIONS
-  },
-  {
-    id: 'ai-build',
-    type: 'task',
-    typeText: '任务局',
-    categoryKey: 'task',
-    startAt: '2026-05-01T14:00:00+08:00',
-    distanceKm: 8.2,
-    cityName: '上海',
-    heatScore: 78,
-    creditScore: 95,
-    coverSrc: '/components/game-card/assets/game-cover-default.png',
-    tag: '任务局',
-    tagTone: 'task',
-    price: '￥0/人',
-    title: 'AI赋能系统搭建交流局',
-    location: '📍黄浦区 · 8.2km · 3/8人',
-    time: '⏰2026年5月1日 14:00--16:00',
-    action: '加入',
-    joinedText: '+3位玩家已入局',
-    avatarFallbacks: ['AI', '搭', '局'],
-    actions: DEFAULT_EVENT_ACTIONS
-  },
-  {
-    id: 'coffee-social',
-    type: 'social',
-    typeText: '社交局',
-    categoryKey: 'social',
-    startAt: '2026-05-02T10:00:00+08:00',
-    distanceKm: 2.4,
-    cityName: '上海',
-    heatScore: 92,
-    creditScore: 88,
-    coverSrc: '/components/game-card/assets/game-cover-default.png',
-    tag: '社交局',
-    typeTone: 'explore',
-    price: '￥29/人',
-    title: '周末咖啡创业交流局',
-    location: '📍静安区 · 2.4km · 5/8人',
-    time: '⏰2026年5月2日 10:00--12:00',
-    action: '加入',
-    joinedText: '+5位玩家已入局',
-    avatarFallbacks: ['咖', '创', '聊'],
-    actions: DEFAULT_EVENT_ACTIONS
-  }
-]
+const DEFAULT_COVER_SRC = '/components/game-card/assets/game-cover-default.png'
 
 function getTypeFilterLabel(key) {
   const matched = TYPE_FILTERS.find((item) => item.key === key)
@@ -134,6 +68,112 @@ function getAdvancedSortByState(sortKey, sortOrder) {
 
 function getAdvancedSortByKey(key) {
   return ADVANCED_SORT_OPTIONS.find((item) => item.key === key) || ADVANCED_SORT_OPTIONS[0]
+}
+
+function pickFirstValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '')
+}
+
+function getGameTypeText(type) {
+  const matched = TYPE_FILTERS.find((item) => item.key === type)
+
+  return matched && matched.key !== 'all' ? matched.label : '组局'
+}
+
+function formatDistanceText(distanceMeters) {
+  const distance = Number(distanceMeters)
+
+  if (!Number.isFinite(distance) || distance <= 0) {
+    return ''
+  }
+
+  return distance >= 1000 ? `${Math.round(distance / 100) / 10}km` : `${Math.round(distance)}m`
+}
+
+function formatDateTimeText(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+
+  return `${date.getFullYear()}年${month}月${day}日 ${hour}:${minute}`
+}
+
+function formatPriceText(item = {}) {
+  const text = pickFirstValue(item.priceText, item.feeText, item.costText)
+
+  if (text) {
+    return text
+  }
+
+  const amount = Number(pickFirstValue(item.priceAmount, item.feeAmount, item.costAmount))
+
+  return Number.isFinite(amount) ? `￥${amount}/人` : ''
+}
+
+function getGameListItems(data) {
+  if (Array.isArray(data)) {
+    return data
+  }
+
+  if (!data || typeof data !== 'object') {
+    return []
+  }
+
+  return data.list || data.records || data.items || data.games || []
+}
+
+function normalizeGameCard(item = {}) {
+  const type = pickFirstValue(item.type, item.gameType, item.primaryCategory, item.categoryKey, 'social')
+  const typeText = pickFirstValue(item.typeText, item.gameTypeText, item.categoryText, getGameTypeText(type))
+  const distanceText = pickFirstValue(item.distanceText, formatDistanceText(item.distanceMeters))
+  const memberText = pickFirstValue(
+    item.memberText,
+    item.joinedCountText,
+    item.approvedMemberCount != null && item.maxParticipants
+      ? `${item.approvedMemberCount}/${item.maxParticipants}人`
+      : ''
+  )
+  const locationParts = [
+    pickFirstValue(item.addressName, item.locationName, item.cityName),
+    distanceText,
+    memberText
+  ].filter(Boolean)
+  const timeText = pickFirstValue(item.time, item.timeText, formatDateTimeText(item.startAt || item.startTime))
+  const avatarFallback = String(item.title || item.name || '局').slice(0, 2)
+
+  return {
+    id: item.id || item.gameId,
+    type,
+    typeText,
+    categoryKey: item.primaryCategory || item.categoryKey || type,
+    startAt: item.startAt || item.startTime,
+    distanceKm: Number(item.distanceKm) || Number(item.distanceMeters) / 1000 || undefined,
+    cityName: item.cityName || '',
+    heatScore: item.heatScore || item.hotScore || item.approvedMemberCount || 0,
+    creditScore: item.creditScore || 0,
+    coverSrc: pickFirstValue(item.coverSrc, item.coverUrl, item.coverFileUrl, DEFAULT_COVER_SRC),
+    tag: item.tag || typeText,
+    price: formatPriceText(item),
+    title: item.title || item.name || '',
+    location: locationParts.length ? `📍${locationParts.join(' · ')}` : '',
+    time: timeText ? `⏰${timeText}` : '',
+    action: item.actionText || item.action || '加入',
+    joinedText: item.joinedText || item.participantText || (memberText ? `${memberText}已报名` : ''),
+    avatarUrls: item.avatarUrls || item.memberAvatarUrls || [],
+    avatarFallbacks: item.avatarFallbacks || item.memberAvatarFallbacks || [avatarFallback],
+    actions: item.actions || DEFAULT_EVENT_ACTIONS
+  }
 }
 
 function getCurrentDateInfo() {
@@ -284,13 +324,13 @@ function getSortedEvents(list, sortKey, sortOrder) {
   })
 }
 
-function getDisplayEvents(options = {}) {
+function getDisplayEvents(options = {}, sourceList = []) {
   const activeFilter = options.activeFilter || 'all'
   const activeTypeFilter = options.activeTypeFilter || 'all'
   const activeLocationScope = options.activeLocationScope || 'all'
   const activeCityName = options.activeCityName || ''
   const selectedDate = options.selectedDate || ''
-  let list = eventsList.slice()
+  let list = sourceList.slice()
 
   if (activeFilter !== 'all') {
     list = list.filter((item) => item.categoryKey === activeFilter || item.type === activeFilter)
@@ -354,8 +394,44 @@ Page({
     calendarMonth: getCurrentDateInfo().month,
     calendarTitle: formatCalendarTitle(getCurrentDateInfo().year, getCurrentDateInfo().month),
     calendarDays: buildCalendarDays(getCurrentDateInfo().year, getCurrentDateInfo().month),
-    eventsList,
-    displayEventsList: eventsList
+    loading: false,
+    loadErrorText: '',
+    eventsList: [],
+    displayEventsList: []
+  },
+
+  onLoad() {
+    this.loadGameList()
+  },
+
+  async loadGameList(extraParams = {}) {
+    this.setData({
+      loading: true,
+      loadErrorText: ''
+    })
+
+    try {
+      const data = await gameService.getGameList(Object.assign({
+        page: 1,
+        pageSize: 20,
+        keyword: this.data.keyword || ''
+      }, extraParams))
+      const events = getGameListItems(data).map(normalizeGameCard).filter((item) => item.id)
+
+      this.setData({
+        loading: false,
+        eventsList: events
+      })
+      this.updateDisplayEvents()
+    } catch (error) {
+      this.setData({
+        loading: false,
+        loadErrorText: error.message || '局列表加载失败',
+        eventsList: [],
+        displayEventsList: []
+      })
+      toast.info(error.message || '局列表加载失败')
+    }
   },
 
   onSearchInput(event) {
@@ -365,7 +441,7 @@ Page({
   },
 
   onSearch() {
-    toast.info('搜索功能开发中')
+    this.loadGameList()
   },
 
   onBannerTap() {
@@ -551,7 +627,7 @@ Page({
         selectedDate,
         sortKey,
         sortOrder
-      })
+      }, this.data.eventsList)
     })
   },
 
@@ -566,6 +642,14 @@ Page({
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -584,6 +668,14 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
+
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -625,7 +717,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ROUTES.map
+      map: ''
     }
 
     this.navigateToRoute(routeMap[key])

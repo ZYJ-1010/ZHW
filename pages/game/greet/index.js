@@ -1,4 +1,4 @@
-const { ROUTES } = require('../../../config/routes')
+﻿const { ROUTES } = require('../../../config/routes')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
 const DEFAULT_CONTACT = {
@@ -143,6 +143,14 @@ Page({
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
+    if (key === 'map') {
+      wx.showToast({
+        title: '地图功能开发中',
+        icon: 'none'
+      })
+      return
+    }
+
     if (key === 'avatar' || key === 'mine') {
       this.navigateToRoute(ROUTES.profile)
       return
@@ -156,7 +164,7 @@ Page({
     const routeMap = {
       home: ROUTES.home,
       metaverse: ROUTES.metaverse,
-      map: ROUTES.map
+      map: ''
     }
 
     this.navigateToRoute(routeMap[key])
