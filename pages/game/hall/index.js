@@ -6,7 +6,6 @@ const HALL_SCROLL_TAP_STEP_RPX = 360
 const HALL_SCROLL_HOLD_STEP_RPX = 72
 const HALL_SCROLL_HOLD_INTERVAL_MS = 80
 const HALL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
-const DEFAULT_EVENT_ACTIONS = ['分享', '关注', '引荐', '打招呼']
 const TYPE_FILTERS = [
   { key: 'all', label: '类型' },
   { key: 'deposit', label: '押金局' },
@@ -134,8 +133,8 @@ function getGameListItems(data) {
 }
 
 function normalizeGameCard(item = {}) {
-  const type = pickFirstValue(item.type, item.gameType, item.primaryCategory, item.categoryKey, 'social')
-  const typeText = pickFirstValue(item.typeText, item.gameTypeText, item.categoryText, getGameTypeText(type))
+  const type = pickFirstValue(item.type, item.gameType, item.primaryCategory, item.categoryKey, '')
+  const typeText = pickFirstValue(item.typeText, item.gameTypeText, item.categoryText, type ? getGameTypeText(type) : '')
   const distanceText = pickFirstValue(item.distanceText, formatDistanceText(item.distanceMeters))
   const memberText = pickFirstValue(
     item.memberText,
@@ -150,8 +149,6 @@ function normalizeGameCard(item = {}) {
     memberText
   ].filter(Boolean)
   const timeText = pickFirstValue(item.time, item.timeText, formatDateTimeText(item.startAt || item.startTime))
-  const avatarFallback = String(item.title || item.name || '局').slice(0, 2)
-
   return {
     id: item.id || item.gameId,
     type,
@@ -168,11 +165,11 @@ function normalizeGameCard(item = {}) {
     title: item.title || item.name || '',
     location: locationParts.length ? `📍${locationParts.join(' · ')}` : '',
     time: timeText ? `⏰${timeText}` : '',
-    action: item.actionText || item.action || '加入',
-    joinedText: item.joinedText || item.participantText || (memberText ? `${memberText}已报名` : ''),
+    action: item.actionText || item.action || '',
+    joinedText: item.joinedText || item.participantText || '',
     avatarUrls: item.avatarUrls || item.memberAvatarUrls || [],
-    avatarFallbacks: item.avatarFallbacks || item.memberAvatarFallbacks || [avatarFallback],
-    actions: item.actions || DEFAULT_EVENT_ACTIONS
+    avatarFallbacks: item.avatarFallbacks || item.memberAvatarFallbacks || [],
+    actions: item.actions || []
   }
 }
 
@@ -357,7 +354,7 @@ function getDisplayEvents(options = {}, sourceList = []) {
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '',
     keyword: '',
     hallScrollTop: 0,
     featuredCover: '/pages/game/hall/assets/hall-featured-city.jpg',

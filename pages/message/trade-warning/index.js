@@ -59,7 +59,7 @@ function normalizeDeliveryMethods(methods) {
 Page({
   data: {
     pageTitle: '交易预警',
-    onlineText: '3999人在线',
+    onlineText: '',
     navItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },

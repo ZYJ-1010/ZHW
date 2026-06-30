@@ -1,100 +1,110 @@
+const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
+
 const ASSET_BASE = '/pages/profile/system-management/agreement-detail/assets'
-const STORAGE_KEY = 'profileAgreementSignedMap'
 
-const AGREEMENT_TITLES = {
-  'user-service': '用户服务协议',
-  privacy: '隐私政策',
-  settlement: '入驻协议'
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
 }
 
-const SECTIONS = [
-  {
-    title: '一、协议范围',
-    content: '本协议是您与本平台之间关于使用平台服务所订立的协议。 请您仔细阅读本协议，如您不同意本协议的任何内容，请停止使用平台服务。'
-  },
-  {
-    title: '二、账号注册',
-    content: '您承诺以真实身份注册账号，并保证所提供的个人资料真实、准确、完整、合法有效。如有变动，应及时更新。'
-  },
-  {
-    title: '三、服务内容',
-    content: '平台向您提供组局管理、技能展示、社交互动等服务。您有权按照平台规则使用各项服务。'
-  },
-  {
-    title: '四、用户行为规范',
-    content: '您在使用平台服务时，应遵守法律法规，不得发布违法违规信息，不得侵犯他人合法权益。'
-  },
-  {
-    title: '五、知识产权',
-    content: '平台所有内容，包括但不限于文字、图片、音频、视频、软件等，均受知识产权法律保护。'
-  },
-  {
-    title: '六、免责声明',
-    content: '平台不对因不可抗力或第三方原因导致的服务中断承担责任。'
-  },
-  {
-    title: '七、协议变更',
-    content: '平台有权根据需要修改本协议，修改后的协议将在平台公示，公示期满即生效。'
-  }
-]
-
-function getTitle(options = {}) {
-  if (options.title) {
-    return decodeURIComponent(options.title)
-  }
-
-  return AGREEMENT_TITLES[options.agreement] || AGREEMENT_TITLES['user-service']
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
 }
 
-function getSignedMap() {
-  try {
-    return wx.getStorageSync(STORAGE_KEY) || {}
-  } catch (error) {
-    return {}
+function normalizeSections(data) {
+  const source = data || {}
+  const sections = normalizeList(source.sections || source.contentSections || source.clauses)
+
+  if (sections.length) {
+    return sections.map((item) => ({
+      title: pickFirstValue(item.title, item.heading),
+      content: pickFirstValue(item.content, item.body, item.text)
+    })).filter((item) => item.title || item.content)
   }
+
+  const content = pickFirstValue(source.content, source.body, source.text)
+
+  if (content) {
+    return [{
+      title: '',
+      content
+    }]
+  }
+
+  return []
 }
 
-function getSignedState(agreementKey, fallbackSigned) {
-  const signedMap = getSignedMap()
+function isSigned(data) {
+  const source = data || {}
+  const status = String(source.status || '').toLowerCase()
 
-  if (Object.prototype.hasOwnProperty.call(signedMap, agreementKey)) {
-    return Boolean(signedMap[agreementKey])
-  }
-
-  return fallbackSigned
-}
-
-function saveSignedState(agreementKey) {
-  try {
-    const signedMap = getSignedMap()
-    signedMap[agreementKey] = true
-    wx.setStorageSync(STORAGE_KEY, signedMap)
-  } catch (error) {
-  }
+  return Boolean(source.signed || source.signedAt || status === 'signed')
 }
 
 Page({
   data: {
-    agreementKey: 'user-service',
-    title: AGREEMENT_TITLES['user-service'],
-    sections: SECTIONS,
+    agreementKey: '',
+    title: '',
+    sections: [],
     canSign: false,
     confirmVisible: false,
     dialogIcon: `${ASSET_BASE}/icon-agreement-file.svg`
   },
 
   onLoad(options = {}) {
-    const agreementKey = options.agreement || 'user-service'
-    const hasSignedOption = options.signed === '0' || options.signed === '1'
-    const fallbackSigned = hasSignedOption ? options.signed === '1' : false
-    const signed = getSignedState(agreementKey, fallbackSigned)
+    const agreementKey = options.agreement || options.agreementId || options.id || ''
 
     this.setData({
       agreementKey,
-      title: getTitle(options),
-      canSign: !signed,
-      confirmVisible: options.confirm === '1'
+      title: options.title ? decodeURIComponent(options.title) : '',
+      canSign: false,
+      confirmVisible: false
     })
+
+    this.loadAgreementDetail({
+      agreementKey,
+      showConfirm: options.confirm === '1'
+    })
+  },
+
+  async loadAgreementDetail(options = {}) {
+    const agreementKey = options.agreementKey || this.data.agreementKey
+
+    if (!agreementKey) {
+      toast.info('缺少协议信息')
+      return
+    }
+
+    try {
+      const detail = await profileService.getSystemAgreementDetail({
+        agreementId: agreementKey
+      })
+      const source = detail || {}
+      const signed = isSigned(source)
+      const canSign = source.canSign !== false && !signed
+
+      this.setData({
+        title: pickFirstValue(source.title, source.name, this.data.title),
+        sections: normalizeSections(source),
+        canSign,
+        confirmVisible: options.showConfirm && canSign
+      })
+    } catch (error) {
+      this.setData({
+        sections: [],
+        canSign: false,
+        confirmVisible: false
+      })
+      toast.info(error.message || '协议详情加载失败')
+    }
   },
 
   handleSignTap() {
@@ -109,31 +119,37 @@ Page({
     })
   },
 
-  handleConfirmTap() {
-    saveSignedState(this.data.agreementKey)
-
-    this.setData({
-      canSign: false,
-      confirmVisible: false
-    })
-
-    wx.showToast({
-      title: '签署成功',
-      icon: 'success'
-    })
-
-    setTimeout(() => {
-      const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
-
-      if (pages.length > 1) {
-        wx.navigateBack()
-        return
-      }
-
-      wx.redirectTo({
-        url: '/pages/profile/system-management/agreement-sign/index'
+  async handleConfirmTap() {
+    try {
+      await profileService.signSystemAgreement({
+        agreementId: this.data.agreementKey
       })
-    }, 500)
+
+      this.setData({
+        canSign: false,
+        confirmVisible: false
+      })
+
+      wx.showToast({
+        title: '签署成功',
+        icon: 'success'
+      })
+
+      setTimeout(() => {
+        const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+        if (pages.length > 1) {
+          wx.navigateBack()
+          return
+        }
+
+        wx.redirectTo({
+          url: '/pages/profile/system-management/agreement-sign/index'
+        })
+      }, 500)
+    } catch (error) {
+      toast.info(error.message || '协议签署失败')
+    }
   },
 
   noop() {}

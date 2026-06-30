@@ -17,7 +17,7 @@ const LOG_LEVEL = {
   SILENT: 'silent'
 }
 
-const currentEnv = ENV.MOCK
+const currentEnv = ENV.PROD
 
 function getMiniProgramEnvVersion() {
   if (typeof wx === 'undefined' || typeof wx.getAccountInfoSync !== 'function') {

@@ -4,44 +4,19 @@ const profileService = require('../../../../../services/profile')
 Page({
   data: {
     review: {
-      user: '李明',
-      avatar: 'LM',
-      time: '03-25 14:30',
-      rating: '★★★★★',
-      title: '产品架构咨询',
-      content: '张专家非常专业，帮我们把产品架构梳理得很清晰，解决了很多历史遗留问题。沟通顺畅，响应及时，强烈推荐！',
-      tags: ['专业能力强', '交付及时', '沟通顺畅'],
-      orderNo: 'ORD-20260325-001',
-      amount: '¥800'
+      user: '',
+      avatar: '',
+      time: '',
+      rating: '',
+      title: '',
+      content: '',
+      tags: [],
+      orderNo: '',
+      amount: ''
     },
-    templates: [
-      '感谢您的认可！',
-      '期待下次合作',
-      '有问题随时联系',
-      '我们会继续努力',
-      '感谢反馈，已改进'
-    ],
-    templateRows: [
-      ['感谢您的认可！', '期待下次合作'],
-      ['有问题随时联系', '我们会继续努力'],
-      ['感谢反馈，已改进']
-    ],
-    history: [
-      {
-        role: '李明（玩家）',
-        avatar: '👤',
-        time: '03-25 14:30',
-        content: '张专家非常专业，帮我们把产品架构梳理得很清晰，解决了很多历史遗留问题。沟通顺畅，响应及时，强烈推荐！',
-        side: 'user'
-      },
-      {
-        role: '张专家（行家）',
-        avatar: '🧑',
-        time: '03-25 16:00',
-        content: '感谢李总的认可，期待下次合作！',
-        side: 'expert'
-      }
-    ],
+    templates: [],
+    templateRows: [],
+    history: [],
     replyText: '',
     reviewId: '',
     submitting: false
@@ -49,9 +24,32 @@ Page({
 
   onLoad(options = {}) {
     this.setData({
-      reviewId: options.id || options.reviewId || 'review-002',
+      reviewId: options.id || options.reviewId || '',
       templateRows: this.buildTemplateRows(this.data.templates)
     })
+    this.loadReviewDetail()
+  },
+
+  async loadReviewDetail() {
+    if (!this.data.reviewId) {
+      return
+    }
+
+    try {
+      const data = await profileService.getServiceReviewDetail({
+        reviewId: this.data.reviewId
+      })
+      const templates = Array.isArray(data.templates) ? data.templates : []
+
+      this.setData({
+        review: data.review || data.detail || this.data.review,
+        templates,
+        templateRows: this.buildTemplateRows(templates),
+        history: Array.isArray(data.history || data.messages) ? (data.history || data.messages) : []
+      })
+    } catch (error) {
+      toast.info(error.message || '评价详情加载失败')
+    }
   },
 
   buildTemplateRows(templates = []) {

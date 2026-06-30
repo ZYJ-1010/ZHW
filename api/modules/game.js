@@ -56,6 +56,10 @@ function getGuideProgress(params) {
   return request.get('/api/app/game-invites/guide-progress', params)
 }
 
+function getGuideSuccess(params) {
+  return request.get('/api/app/game-invites/guide-success', params)
+}
+
 function getGuideCancelDetail(params) {
   return request.get('/api/app/game-invites/guide-cancel-detail', params)
 }
@@ -87,6 +91,7 @@ module.exports = {
   getSystemRecommendations,
   createReplayInvitation,
   getGuideProgress,
+  getGuideSuccess,
   getGuideCancelDetail,
   getGameManage,
   getPlayerGameManage,

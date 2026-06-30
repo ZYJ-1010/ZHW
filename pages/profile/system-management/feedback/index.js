@@ -1,14 +1,15 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/system-management/feedback/assets'
 
 Page({
   data: {
-    activeType: 'feature',
-    activeSession: 'werewolf',
+    activeType: '',
+    activeSession: '',
     quickMenuOpen: false,
     showQuickFeedback: false,
-    quickType: 'problem',
+    quickType: '',
     feedbackContent: '',
     contact: '',
     icons: {
@@ -23,38 +24,80 @@ Page({
       notify: `${ASSET_BASE}/icon-notify.svg`,
       star: `${ASSET_BASE}/icon-star-outline.svg`
     },
-    feedbackTypes: [
-      { key: 'feature', label: '功能建议' },
-      { key: 'problem', label: '问题反馈' },
-      { key: 'experience', label: '体验优化' },
-      { key: 'game', label: '组局相关' },
-      { key: 'expert', label: '行家相关' },
-      { key: 'points', label: '积分/提现' },
-      { key: 'other', label: '其他' }
-    ],
-    sessions: [
-      { key: 'werewolf', title: '周末狼人杀局', meta: '06-14 14:00 · 8人' },
-      { key: 'script', title: '剧本杀新手局', meta: '06-12 19:30 · 6人' },
-      { key: 'boardgame', title: '桌游社交局', meta: '06-10 15:00 · 4人' }
-    ],
-    quickTypes: [
-      { key: 'problem', label: '遇到问题', icon: `${ASSET_BASE}/icon-problem.svg`, tone: 'red' },
-      { key: 'feature', label: '功能建议', icon: `${ASSET_BASE}/icon-pencil.svg`, tone: 'cyan' },
-      { key: 'experience', label: '体验优化', icon: `${ASSET_BASE}/icon-star-outline.svg`, tone: 'gold' },
-      { key: 'other', label: '其他', icon: `${ASSET_BASE}/icon-alert.svg`, tone: 'gray' }
-    ],
-    quickActions: [
-      { key: 'feature', label: '功能建议', icon: `${ASSET_BASE}/icon-pencil.svg` },
-      { key: 'problem', label: '问题反馈', icon: `${ASSET_BASE}/icon-alert.svg` },
-      { key: 'screenshot', label: '截图反馈', icon: `${ASSET_BASE}/icon-image.svg` }
-    ]
+    feedbackTypes: [],
+    sessions: [],
+    quickTypes: [],
+    quickActions: []
   },
 
   onLoad(options = {}) {
+    this.loadFeedbackOptions()
+    this.loadFeedbackGames()
+
     if (options.sheet === 'quick') {
       this.setData({
         showQuickFeedback: true
       })
+    }
+  },
+
+  async loadFeedbackOptions() {
+    try {
+      const data = await profileService.getSystemFeedbackOptions()
+      const feedbackTypes = this.normalizeList(data.feedbackTypes || data.types)
+        .map((item) => ({
+          ...item,
+          key: item.key || item.type || item.id
+        }))
+      const quickTypes = this.normalizeList(data.quickTypes)
+        .map((item) => this.withIcon({
+          ...item,
+          key: item.key || item.type || item.id
+        }))
+      const quickActions = this.normalizeList(data.quickActions)
+        .map((item) => this.withIcon({
+          ...item,
+          key: item.key || item.type || item.id
+        }))
+
+      this.setData({
+        feedbackTypes,
+        quickTypes,
+        quickActions,
+        activeType: this.data.activeType || feedbackTypes[0] && feedbackTypes[0].key || '',
+        quickType: this.data.quickType || quickTypes[0] && quickTypes[0].key || ''
+      })
+    } catch (error) {
+      this.setData({
+        feedbackTypes: [],
+        quickTypes: [],
+        quickActions: [],
+        activeType: '',
+        quickType: ''
+      })
+      toast.info(error.message || '反馈配置加载失败')
+    }
+  },
+
+  async loadFeedbackGames() {
+    try {
+      const data = await profileService.getSystemFeedbackGames()
+      const sessions = this.normalizeList(data.sessions || data.games || data.list || data.items)
+        .map((item) => ({
+          ...item,
+          key: item.key || item.id || item.gameId
+        }))
+
+      this.setData({
+        sessions,
+        activeSession: sessions[0] && (sessions[0].key || sessions[0].id || sessions[0].gameId) || ''
+      })
+    } catch (error) {
+      this.setData({
+        sessions: [],
+        activeSession: ''
+      })
+      toast.info(error.message || '可反馈组局加载失败')
     }
   },
 
@@ -142,10 +185,45 @@ Page({
     toast.developing('语音反馈待接入录音能力')
   },
 
-  handleSubmitTap() {
-    wx.navigateTo({
-      url: '/pages/profile/system-management/feedback-success/index'
-    })
+  async handleSubmitTap() {
+    try {
+      await profileService.submitSystemFeedback({
+        type: this.data.showQuickFeedback ? this.data.quickType : this.data.activeType,
+        gameId: this.data.activeSession,
+        content: this.data.feedbackContent,
+        contact: this.data.contact,
+        source: this.data.showQuickFeedback ? 'quick' : 'form'
+      })
+
+      wx.navigateTo({
+        url: '/pages/profile/system-management/feedback-success/index'
+      })
+    } catch (error) {
+      toast.info(error.message || '反馈提交失败')
+    }
+  },
+
+  withIcon(item = {}) {
+    if (item.icon) {
+      return item
+    }
+
+    const iconMap = {
+      problem: this.data.icons.problem,
+      feature: this.data.icons.pencil,
+      experience: this.data.icons.star,
+      screenshot: this.data.icons.image,
+      other: this.data.icons.alert
+    }
+
+    return {
+      ...item,
+      icon: iconMap[item.key] || item.iconSrc || this.data.icons.alert
+    }
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
   },
 
   noop() {}

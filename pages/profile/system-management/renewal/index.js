@@ -1,4 +1,5 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 
@@ -7,17 +8,34 @@ Page({
     icons: {
       clock: `${ASSET_BASE}/icon-clock.svg`
     },
-    selectedDays: 30,
-    options: [
-      { days: 30, label: '标准周期' },
-      { days: 60, label: '双倍保护' },
-      { days: 90, label: '季度保护' }
-    ],
-    rules: [
-      { prefix: '保护期最长 ', strong: '90天', suffix: '，到期需重新续期' },
-      { prefix: '续期后立即生效，', strong: '5秒内', suffix: ' 覆盖所有新请求' },
-      { prefix: '到期前 ', strong: '3天', suffix: ' 将发送提醒通知' }
-    ]
+    selectedDays: '',
+    options: [],
+    rules: []
+  },
+
+  onLoad() {
+    this.loadRenewalOptions()
+  },
+
+  async loadRenewalOptions() {
+    try {
+      const data = await profileService.getSystemBlockRenewalOptions()
+      const options = this.normalizeList(data.options || data.list || data.items)
+      const selected = data.selectedDays || data.defaultDays || options[0] && options[0].days || ''
+
+      this.setData({
+        selectedDays: selected,
+        options,
+        rules: this.normalizeList(data.rules || data.ruleLines)
+      })
+    } catch (error) {
+      this.setData({
+        selectedDays: '',
+        options: [],
+        rules: []
+      })
+      toast.info(error.message || '续期选项加载失败')
+    }
   },
 
   handleOptionTap(event) {
@@ -26,7 +44,23 @@ Page({
     })
   },
 
-  handleConfirmTap() {
-    toast.success(`已确认续期 ${this.data.selectedDays} 天`)
+  async handleConfirmTap() {
+    if (!this.data.selectedDays) {
+      toast.info('请选择续期天数')
+      return
+    }
+
+    try {
+      await profileService.renewSystemBlockSettings({
+        days: this.data.selectedDays
+      })
+      toast.success('续期已提交')
+    } catch (error) {
+      toast.info(error.message || '续期保护期失败')
+    }
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
   }
 })

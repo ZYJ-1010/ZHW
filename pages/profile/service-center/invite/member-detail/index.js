@@ -1,29 +1,45 @@
+const profileService = require('../../../../../services/profile')
+
 Page({
   data: {
     member: {
-      avatar: '👨‍💼',
-      name: '张大山',
-      level: '一级成员'
+      avatar: '',
+      name: '',
+      level: ''
     },
-    stats: [
-      { value: '8', label: '总邀约' },
-      { value: '3', label: '成功转化' },
-      { value: '37.2%', label: '转化率' }
-    ],
-    income: [
-      { label: '直接贡献收益', value: '¥2,400' },
-      { label: '团队贡献收益', value: '¥1,860' },
-      { label: '合计贡献', value: '¥4,260', highlight: true }
-    ],
-    activities: [
-      { icon: '🎯', title: '桌游局 · 成功入局', time: '06-14 20:30', amount: '+' },
-      { icon: '🎲', title: '剧本杀 · 成功入局', time: '06-13 19:00', amount: '+' }
-    ]
+    stats: [],
+    income: [],
+    activities: []
   },
 
   onLoad(options) {
     this.setData({
       memberId: options.id || ''
     })
+    this.loadMemberDetail()
+  },
+
+  async loadMemberDetail() {
+    if (!this.data.memberId) {
+      return
+    }
+
+    try {
+      const data = await profileService.getInviteMemberDetail({
+        memberId: this.data.memberId
+      })
+
+      this.setData({
+        member: data.member || data.profile || this.data.member,
+        stats: Array.isArray(data.stats) ? data.stats : [],
+        income: Array.isArray(data.income || data.incomeItems) ? (data.income || data.incomeItems) : [],
+        activities: Array.isArray(data.activities || data.records) ? (data.activities || data.records) : []
+      })
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '成员详情加载失败',
+        icon: 'none'
+      })
+    }
   }
 })

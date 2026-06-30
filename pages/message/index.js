@@ -148,7 +148,13 @@ Page({
   },
 
   onMessageTap(event) {
-    const { routeKey } = event.currentTarget.dataset
+    const {
+      routeKey,
+      roomId,
+      conversationId,
+      name,
+      avatarText
+    } = event.currentTarget.dataset
     const routeMap = {
       system: ROUTES.messageSystemDetail || 'pages/message/system-detail/index',
       warning: ROUTES.messageTradeWarning || 'pages/message/trade-warning/index',
@@ -160,9 +166,26 @@ Page({
       return
     }
 
+    const query = routeKey === 'friend'
+      ? this.buildQuery({
+        roomId,
+        conversationId,
+        name,
+        avatarText
+      })
+      : ''
+
     wx.navigateTo({
-      url: `/${route}`
+      url: `/${route}${query}`
     })
+  },
+
+  buildQuery(params = {}) {
+    const pairs = Object.keys(params)
+      .filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== '')
+      .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+
+    return pairs.length ? `?${pairs.join('&')}` : ''
   },
 
   onActionTap(event) {

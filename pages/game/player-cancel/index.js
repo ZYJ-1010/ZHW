@@ -12,32 +12,6 @@ const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
 
-const DEFAULT_CANCEL_DETAIL = {
-  serviceOrderId: 'SO-20260320-001',
-  gameId: '',
-  ref: 'REF-20260320-001',
-  playerName: 'Alex Chen',
-  playerAvatarText: 'AX',
-  expertName: '张专家',
-  expertAvatarText: 'ZH',
-  serviceTitle: '产品架构咨询',
-  roleLabel: '玩家',
-  contractAmount: 800,
-  contractAmountText: '¥800',
-  servedDurationText: '1.5小时',
-  totalDurationText: '2小时',
-  servedText: '1.5小时 / 2小时',
-  minRate: 5,
-  maxRate: 30,
-  suggestedRate: 15,
-  suggestionMinRate: 15,
-  suggestionMaxRate: 20,
-  platformFeeRate: 10,
-  smartSuggestion: '',
-  warningTitle: '取消需承担赔付',
-  warningDesc: '作为玩家主动取消，需按约定比例赔付行家损失（补偿已投入的时间成本）。'
-}
-
 const REASON_OPTIONS = [
   { key: 'need_changed', text: '需求变更，不再需要服务' },
   { key: 'other_solution', text: '找到其他解决方案' },
@@ -52,6 +26,10 @@ const AGREEMENT_ITEMS = [
   '剩余金额将在3个工作日内原路退回',
   '此取消记录将影响信用分（-3分）'
 ]
+const EMPTY_AMOUNT_DETAIL = {
+  contractAmount: 0,
+  platformFeeRate: 0
+}
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -208,61 +186,85 @@ function getAvatarText(name, fallback) {
   return getSurnameInitials(name, fallback)
 }
 
+function hasRequiredCancelDetail(detail) {
+  return Boolean(
+    detail &&
+    detail.serviceOrderId &&
+    detail.expertName &&
+    detail.serviceTitle &&
+    detail.servedText &&
+    Number.isFinite(detail.contractAmount) &&
+    Number.isFinite(detail.minRate) &&
+    Number.isFinite(detail.maxRate) &&
+    detail.maxRate >= detail.minRate &&
+    Number.isFinite(detail.suggestedRate) &&
+    Number.isFinite(detail.platformFeeRate)
+  )
+}
+
 function buildCancelDetail(options = {}) {
   const amount = getNumber(
     options.amount || options.contractAmount || options.amountText || options.contractAmountText,
-    DEFAULT_CANCEL_DETAIL.contractAmount
+    NaN
   )
-  const playerName = decodeOption(options.playerName) || DEFAULT_CANCEL_DETAIL.playerName
-  const playerAvatarText = getAvatarText(playerName, decodeOption(options.playerAvatarText) || DEFAULT_CANCEL_DETAIL.playerAvatarText)
-  const expertName = decodeOption(options.expertName) || DEFAULT_CANCEL_DETAIL.expertName
-  const avatarText = getAvatarText(expertName, decodeOption(options.expertAvatarText) || DEFAULT_CANCEL_DETAIL.expertAvatarText)
-  const minRate = getRateNumber(options.minRate, DEFAULT_CANCEL_DETAIL.minRate)
-  const maxRate = getRateNumber(options.maxRate, DEFAULT_CANCEL_DETAIL.maxRate)
+  const playerName = decodeOption(options.playerName)
+  const playerAvatarText = getAvatarText(playerName, decodeOption(options.playerAvatarText))
+  const expertName = decodeOption(options.expertName)
+  const avatarText = getAvatarText(expertName, decodeOption(options.expertAvatarText))
+  const minRate = getRateNumber(options.minRate, NaN)
+  const maxRate = getRateNumber(options.maxRate, NaN)
   const suggestedRate = clampRate(options.suggestedRate || options.rate, minRate, maxRate)
   const suggestionMinRate = clampRate(
-    options.suggestionMinRate || options.recommendMinRate || DEFAULT_CANCEL_DETAIL.suggestionMinRate,
+    options.suggestionMinRate || options.recommendMinRate || suggestedRate,
     minRate,
     maxRate
   )
   const suggestionMaxRate = Math.max(suggestionMinRate, clampRate(
-    options.suggestionMaxRate || options.recommendMaxRate || DEFAULT_CANCEL_DETAIL.suggestionMaxRate,
+    options.suggestionMaxRate || options.recommendMaxRate || suggestedRate,
     minRate,
     maxRate
   ))
   const rawServedText = getOptionText(options, ['servedText', 'serviceDurationText'])
-  const servedTextParts = splitServedText(rawServedText || DEFAULT_CANCEL_DETAIL.servedText)
+  const servedTextParts = splitServedText(rawServedText)
   const servedDurationText = getOptionText(
     options,
     ['servedDurationText', 'servedDuration', 'servedHoursText', 'servedTimeText'],
-    servedTextParts.servedDurationText || DEFAULT_CANCEL_DETAIL.servedDurationText
+    servedTextParts.servedDurationText
   )
   const totalDurationText = getOptionText(
     options,
     ['totalDurationText', 'totalDuration', 'totalHoursText', 'serviceTotalDurationText'],
-    servedTextParts.totalDurationText || DEFAULT_CANCEL_DETAIL.totalDurationText
+    servedTextParts.totalDurationText
   )
-  const servedText = buildServedText(servedDurationText, totalDurationText) || rawServedText || DEFAULT_CANCEL_DETAIL.servedText
+  const servedText = buildServedText(servedDurationText, totalDurationText) || rawServedText
   const detail = {
-    ...DEFAULT_CANCEL_DETAIL,
+    serviceOrderId: decodeOption(options.serviceOrderId) || decodeOption(options.orderId),
+    gameId: decodeOption(options.gameId),
+    ref: decodeOption(options.ref),
+    playerName,
+    playerAvatarText,
+    expertName,
+    expertAvatarText: avatarText,
+    serviceTitle: decodeOption(options.serviceTitle),
+    roleLabel: '玩家',
+    contractAmount: amount,
+    contractAmountText: Number.isFinite(amount) ? formatCurrency(amount) : '',
     minRate,
     maxRate,
     suggestedRate,
     suggestionMinRate,
     suggestionMaxRate,
+    platformFeeRate: getRateNumber(options.platformFeeRate, NaN),
     servedDurationText,
     totalDurationText,
     servedText,
-    serviceOrderId: decodeOption(options.serviceOrderId) || decodeOption(options.orderId) || DEFAULT_CANCEL_DETAIL.serviceOrderId,
-    gameId: decodeOption(options.gameId) || '',
-    ref: decodeOption(options.ref) || DEFAULT_CANCEL_DETAIL.ref,
-    playerName,
-    playerAvatarText,
-    expertName,
-    expertAvatarText: avatarText,
-    serviceTitle: decodeOption(options.serviceTitle) || DEFAULT_CANCEL_DETAIL.serviceTitle,
-    contractAmount: amount,
-    contractAmountText: formatCurrency(amount)
+    smartSuggestion: '',
+    warningTitle: decodeOption(options.warningTitle) || '取消需承担赔付',
+    warningDesc: decodeOption(options.warningDesc) || '作为玩家主动取消，需按约定比例赔付行家损失（补偿已投入的时间成本）。'
+  }
+
+  if (!hasRequiredCancelDetail(detail)) {
+    return null
   }
 
   return {
@@ -309,13 +311,12 @@ function buildActivityCard(detail) {
   }
 }
 
-const DEFAULT_PAGE_DETAIL = buildCancelDetail()
-
 Page({
   data: {
     shellLayout: getWhiteShellLayoutStyles(),
-    detail: DEFAULT_PAGE_DETAIL,
-    activityCard: buildActivityCard(DEFAULT_PAGE_DETAIL),
+    hasDetail: false,
+    detail: {},
+    activityCard: {},
     reasonOptions: buildReasonOptions(),
     selectedReasonKey: 'other_solution',
     reasonText: '',
@@ -323,15 +324,28 @@ Page({
     agreementText: AGREEMENT_TEXT,
     agreementItems: AGREEMENT_ITEMS,
     submitting: false,
-    ...buildAmountState(DEFAULT_PAGE_DETAIL, DEFAULT_PAGE_DETAIL.suggestedRate)
+    ...buildAmountState(EMPTY_AMOUNT_DETAIL, 0)
   },
 
   onLoad(options = {}) {
     const detail = buildCancelDetail(options)
+
+    if (!detail) {
+      this.setData({
+        shellLayout: getWhiteShellLayoutStyles(),
+        hasDetail: false,
+        detail: {},
+        activityCard: {},
+        ...buildAmountState(EMPTY_AMOUNT_DETAIL, 0)
+      })
+      return
+    }
+
     const rate = clampRate(detail.suggestedRate, detail.minRate, detail.maxRate)
 
     this.setData({
       shellLayout: getWhiteShellLayoutStyles(),
+      hasDetail: true,
       detail,
       activityCard: buildActivityCard(detail),
       ...buildAmountState(detail, rate)
@@ -372,10 +386,18 @@ Page({
   },
 
   onRateChanging(event) {
+    if (!this.data.hasDetail) {
+      return
+    }
+
     this.updateCompensationRate(event.detail && event.detail.value)
   },
 
   onRateChange(event) {
+    if (!this.data.hasDetail) {
+      return
+    }
+
     this.updateCompensationRate(event.detail && event.detail.value)
   },
 
@@ -414,6 +436,11 @@ Page({
   },
 
   onConfirmCancelTap() {
+    if (!this.data.hasDetail) {
+      toast.info('缺少服务信息，请从组局管理进入')
+      return
+    }
+
     const reason = this.data.reasonOptions.find((item) => item.active)
     const reasonText = normalizeRequiredText(this.data.reasonText)
 
@@ -456,12 +483,9 @@ Page({
     this.setData({
       submitting: true
     })
-
-    setTimeout(() => {
-      this.setData({
-        submitting: false
-      })
-      toast.info('取消申请已提交（静态走查）')
-    }, 500)
+    this.setData({
+      submitting: false
+    })
+    toast.info('取消提交接口待接入')
   }
 })

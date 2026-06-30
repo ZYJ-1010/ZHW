@@ -1,15 +1,8 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/system-management/report-center/assets'
 const MAX_EVIDENCE_COUNT = 9
-const REPORT_TYPES = [
-  { key: 'private-guide', label: '诱导私下交易' },
-  { key: 'private-done', label: '私下交易已完成' },
-  { key: 'harassment', label: '言语骚扰' },
-  { key: 'fake', label: '虚假信息' },
-  { key: 'cancel', label: '恶意取消' },
-  { key: 'other', label: '其他违规' }
-]
 
 function getUploadSlots(imageCount) {
   const restCount = MAX_EVIDENCE_COUNT - imageCount
@@ -30,7 +23,7 @@ function getUploadSlots(imageCount) {
 
 Page({
   data: {
-    activeType: 'private-guide',
+    activeType: '',
     reportedUser: '',
     reason: '',
     evidenceImages: [],
@@ -39,11 +32,36 @@ Page({
       plus: `${ASSET_BASE}/icon-plus-green.png`,
       warning: `${ASSET_BASE}/icon-warning.png`
     },
-    reportTypeRows: [
-      REPORT_TYPES.slice(0, 2),
-      REPORT_TYPES.slice(2, 5),
-      REPORT_TYPES.slice(5)
-    ]
+    reportTypeRows: [],
+    tipLines: []
+  },
+
+  onLoad() {
+    this.loadReportOptions()
+  },
+
+  async loadReportOptions() {
+    try {
+      const data = await profileService.getSystemReportOptions()
+      const reportTypes = this.normalizeList(data.reportTypes || data.types)
+        .map((item) => ({
+          ...item,
+          key: item.key || item.type || item.id
+        }))
+
+      this.setData({
+        activeType: data.defaultType || reportTypes[0] && reportTypes[0].key || '',
+        reportTypeRows: this.buildRows(reportTypes),
+        tipLines: this.normalizeList(data.tipLines || data.tips)
+      })
+    } catch (error) {
+      this.setData({
+        activeType: '',
+        reportTypeRows: [],
+        tipLines: []
+      })
+      toast.info(error.message || '举报配置加载失败')
+    }
   },
 
   handleTabTap(event) {
@@ -154,7 +172,7 @@ Page({
     })
   },
 
-  handleSubmitTap() {
+  async handleSubmitTap() {
     if (!this.data.activeType) {
       toast.info('请选择举报类型')
       return
@@ -170,8 +188,41 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: '/pages/profile/system-management/report-detail/index'
+    try {
+      const data = await profileService.submitSystemReport({
+        type: this.data.activeType,
+        reportedUser: this.data.reportedUser,
+        reason: this.data.reason,
+        evidenceFileIds: this.data.evidenceImages.map((item) => item.fileId).filter(Boolean)
+      })
+      const reportId = data.reportId || data.id || ''
+      const query = reportId ? `?reportId=${encodeURIComponent(reportId)}` : ''
+
+      wx.navigateTo({
+        url: `/pages/profile/system-management/report-detail/index${query}`
+      })
+    } catch (error) {
+      toast.info(error.message || '举报提交失败')
+    }
+  },
+
+  buildRows(list) {
+    const rows = []
+
+    this.normalizeList(list).forEach((item, index) => {
+      const rowIndex = Math.floor(index / 3)
+
+      if (!rows[rowIndex]) {
+        rows[rowIndex] = []
+      }
+
+      rows[rowIndex].push(item)
     })
+
+    return rows
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
   }
 })

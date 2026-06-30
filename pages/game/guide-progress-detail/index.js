@@ -19,46 +19,46 @@ const DETAIL_SCROLL_HOLD_STEP_RPX = 72
 const DETAIL_SCROLL_HOLD_INTERVAL_MS = 80
 const DETAIL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 const DEFAULT_DETAIL = {
-  id: 'invite-progress-001',
-  status: 'waiting_expert',
-  statusTitle: '等待行家确认',
-  countdownText: '23:45:12',
-  countdownProgressStyle: 'width: 74%;',
-  startedAt: '今天 10:23',
-  playerConfirmedAt: '今天 11:05',
-    playerConfirmedText: '李娜确认参加组局',
+  id: '',
+  status: '',
+  statusTitle: '',
+  countdownText: '',
+  countdownProgressStyle: 'width: 0%;',
+  startedAt: '',
+  playerConfirmedAt: '',
+  playerConfirmedText: '',
   expertConfirmedText: '',
-  primaryActionText: '提醒行家',
+  primaryActionText: '',
   player: {
-    name: '李娜',
+    name: '',
     roleLabel: '玩家',
     roleClass: 'player',
-    desc: '寻找产品经理合作 · 已确认',
-    state: '已确认',
-    stateClass: 'confirmed',
-    cardClass: 'confirmed',
-    badgeClass: 'confirmed',
-    badgeIcon: PARTICIPANT_CONFIRMED_ICON,
-    avatarText: getSurnameInitials('李娜', 'LI'),
+    desc: '',
+    state: '',
+    stateClass: '',
+    cardClass: '',
+    badgeClass: '',
+    badgeIcon: '',
+    avatarText: '',
     avatarClass: 'pink'
   },
   expert: {
-    name: '王强',
+    name: '',
     roleLabel: '行家',
     roleClass: 'expert',
-    desc: '资深产品经理 · 待确认',
-    state: '待确认',
-    stateClass: 'waiting',
-    cardClass: 'waiting',
-    badgeClass: 'waiting',
-    badgeIcon: PARTICIPANT_WAITING_ICON,
-    avatarText: getSurnameInitials('王强', 'WA'),
+    desc: '',
+    state: '',
+    stateClass: '',
+    cardClass: '',
+    badgeClass: '',
+    badgeIcon: '',
+    avatarText: '',
     avatarClass: 'blue'
   },
   game: {
-    topic: '产品经理业务交流',
-    time: '2026-03-25 14:00',
-    location: '中关村创业大街'
+    topic: '',
+    time: '',
+    location: ''
   }
 }
 
@@ -171,7 +171,7 @@ function hasParticipantStatusSignal(statusSignal) {
 function normalizeMember(member = {}, roleType, fallbackMember) {
   const fallback = fallbackMember || {}
   const name = normalizeText(member.name || member.nickname || member.realname, fallback.name || (roleType === 'expert' ? '行家' : '玩家'))
-  const desc = normalizeText(member.desc || member.description || member.title || member.subtitle, fallback.desc || (roleType === 'expert' ? '资深产品经理 · 待确认' : '寻找产品经理合作 · 已确认'))
+  const desc = normalizeText(member.desc || member.description || member.title || member.subtitle, fallback.desc || '')
   const ownStateText = normalizeText(member.statusText || member.stateText || member.state)
   const fallbackStateText = normalizeText(fallback.statusText || fallback.state)
   const descStateText = hasParticipantStatusSignal(desc) ? desc : ''
@@ -198,7 +198,7 @@ function normalizeMember(member = {}, roleType, fallbackMember) {
     badgeClass: visualState,
     badgeIcon,
     avatarUrl: member.avatarUrl || fallback.avatarUrl || '',
-    avatarText: getInitials(name, member.avatarText || member.initials || fallback.avatarText || (roleType === 'expert' ? 'EX' : 'PL')),
+    avatarText: getInitials(name, member.avatarText || member.initials || fallback.avatarText || ''),
     avatarClass: member.avatarClass || fallback.avatarClass || (roleType === 'expert' ? 'pink' : 'blue'),
     statusText: normalizeText(ownStateText || fallbackStateText)
   }
@@ -320,7 +320,7 @@ function getStepState(index, progressPercent, status) {
 
 function normalizeSteps(item, detail) {
   const percent = Number(item.progressPercent)
-  const progressPercent = Number.isFinite(percent) ? percent : 49
+  const progressPercent = Number.isFinite(percent) ? percent : 0
   const status = item.status || item.progressStatus || item.state || detail.status
   const isExpertWaiting = /expert/.test(normalizeText(status).toLowerCase())
 
@@ -337,7 +337,7 @@ function normalizeSteps(item, detail) {
     {
       key: 'player',
       title: '玩家已确认',
-      desc: normalizeText(item.playerConfirmedText || detail.player.statusText || detail.playerConfirmedText, '等待中...'),
+      desc: normalizeText(item.playerConfirmedText || detail.player.statusText || detail.playerConfirmedText),
       timeText: normalizeText(item.playerConfirmedAt || detail.playerConfirmedAt),
       state: 'confirmed',
       emphasis: true,
@@ -347,7 +347,7 @@ function normalizeSteps(item, detail) {
     {
       key: 'expert',
       title: '等待行家确认',
-      desc: normalizeText(item.expertWaitingText || item.expertConfirmedText || detail.expert.statusText || detail.expertConfirmedText, '已向王强发送提醒'),
+      desc: normalizeText(item.expertWaitingText || item.expertConfirmedText || detail.expert.statusText || detail.expertConfirmedText, '已发送提醒'),
       timeText: isExpertWaiting ? '待处理' : normalizeText(item.expertConfirmedAt),
       state: isExpertWaiting ? 'active' : getStepState(2, progressPercent, status),
       actionText: isExpertWaiting ? '再次提醒' : '',
@@ -369,7 +369,7 @@ function normalizeSteps(item, detail) {
 }
 
 function normalizeDetail(item = {}) {
-  const source = Object.assign({}, DEFAULT_DETAIL, item)
+  const source = Object.assign({}, DEFAULT_DETAIL, item || {})
   const player = normalizeMember(getFirstMember(source, 'player') || {}, 'player', DEFAULT_DETAIL.player)
   const expert = normalizeMember(getFirstMember(source, 'expert') || {}, 'expert', DEFAULT_DETAIL.expert)
   const game = Object.assign({}, DEFAULT_DETAIL.game, source.game || source.gameInfo || {
@@ -394,10 +394,10 @@ function normalizeDetail(item = {}) {
     player,
     expert,
     game,
-    playerConfirmedText: DEFAULT_DETAIL.playerConfirmedText,
-    playerConfirmedAt: DEFAULT_DETAIL.playerConfirmedAt,
-    expertConfirmedText: DEFAULT_DETAIL.expertConfirmedText,
-    startedAt: DEFAULT_DETAIL.startedAt,
+    playerConfirmedText: normalizeText(source.playerConfirmedText),
+    playerConfirmedAt: normalizeText(source.playerConfirmedAt),
+    expertConfirmedText: normalizeText(source.expertConfirmedText),
+    startedAt: normalizeText(source.startedAt),
     infoRows: [
       { label: '主题', value: normalizeText(game.topic, DEFAULT_DETAIL.game.topic) },
       { label: '时间', value: normalizeText(game.time, DEFAULT_DETAIL.game.time) },
@@ -430,7 +430,7 @@ Page({
     detailScrollTop: 0,
     loading: false,
     errorText: '',
-    detail: normalizeDetail(DEFAULT_DETAIL)
+    detail: normalizeDetail({})
   },
 
   onLoad(options = {}) {
@@ -468,7 +468,7 @@ Page({
       this.setData({
         loading: false,
         errorText: '',
-        detail: normalizeDetail(item || DEFAULT_DETAIL)
+        detail: normalizeDetail(item || {})
       })
     } catch (error) {
       this.setData({

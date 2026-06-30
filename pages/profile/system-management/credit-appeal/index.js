@@ -1,11 +1,13 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const LOCAL_ASSET_BASE = '/pages/profile/system-management/credit-appeal/assets'
 const BLOCK_ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 
 Page({
   data: {
-    activeReason: 'misjudge',
+    activeReason: '',
+    recordId: '',
     appealContent: '',
     appealContentLength: 0,
     submitClass: 'disabled',
@@ -15,30 +17,55 @@ Page({
       plus: `${BLOCK_ASSET_BASE}/icon-plus.svg`,
       clock: `${LOCAL_ASSET_BASE}/icon-clock.svg`
     },
-    reasonOptions: [
-      { key: 'misjudge', label: '误判扣分', className: 'reason-pill active' },
-      { key: 'system', label: '系统错误', className: 'reason-pill' },
-      { key: 'special', label: '特殊情况', className: 'reason-pill' },
-      { key: 'other', label: '其他', className: 'reason-pill compact' }
-    ],
-    relatedRecord: {
-      title: '管理员处罚 -10分',
-      desc: '违规行为 · 02-28'
-    },
-    appealPlaceholder: '请详细说明申诉原因，包括但不限于事件经过、时间、涉及人员等信息...',
-    uploadRequirement: '支持 JPG、PNG 格式，单张不超过 5MB',
+    reasonOptions: [],
+    relatedRecord: {},
+    appealPlaceholder: '',
+    uploadRequirement: '',
     uploadSlots: [
       { key: 'slot-1' },
       { key: 'slot-2' },
       { key: 'slot-3' },
       { key: 'slot-4' }
     ],
-    reviewTitle: '处理时效',
-    reviewRules: [
-      { key: 'first', text: '提交后24小时内初审' },
-      { key: 'review', text: '复杂情况48小时内复核' },
-      { key: 'notify', text: '结果将通过站内消息通知' }
-    ]
+    reviewTitle: '',
+    reviewRules: []
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      recordId: options.recordId || options.id || ''
+    })
+    this.loadAppealOptions()
+  },
+
+  async loadAppealOptions() {
+    try {
+      const data = await profileService.getCreditAppealOptions({
+        recordId: this.data.recordId
+      })
+      const activeReason = data.defaultReason || data.activeReason || data.reasons && data.reasons[0] && data.reasons[0].key || ''
+
+      this.setData({
+        activeReason,
+        reasonOptions: this.buildReasonOptions(data.reasons || data.reasonOptions, activeReason),
+        relatedRecord: data.relatedRecord || data.record || {},
+        appealPlaceholder: data.appealPlaceholder || data.placeholder || '',
+        uploadRequirement: data.uploadRequirement || '',
+        reviewTitle: data.reviewTitle || '',
+        reviewRules: this.normalizeList(data.reviewRules || data.rules)
+      })
+    } catch (error) {
+      this.setData({
+        activeReason: '',
+        reasonOptions: [],
+        relatedRecord: {},
+        appealPlaceholder: '',
+        uploadRequirement: '',
+        reviewTitle: '',
+        reviewRules: []
+      })
+      toast.info(error.message || '信用申诉配置加载失败')
+    }
   },
 
   handleReasonTap(event) {
@@ -47,14 +74,7 @@ Page({
     if (key && key !== this.data.activeReason) {
       this.setData({
         activeReason: key,
-        reasonOptions: this.data.reasonOptions.map((item) => ({
-          ...item,
-          className: [
-            'reason-pill',
-            item.key === key ? 'active' : '',
-            item.key === 'other' ? 'compact' : ''
-          ].filter(Boolean).join(' ')
-        }))
+        reasonOptions: this.buildReasonOptions(this.data.reasonOptions, key)
       })
     }
   },
@@ -77,12 +97,37 @@ Page({
     toast.developing('证明材料上传待接入文件接口')
   },
 
-  handleSubmitTap() {
+  async handleSubmitTap() {
     if (!this.data.appealContent.trim()) {
       toast.info('请先填写详细说明')
       return
     }
 
-    toast.developing('信用申诉提交接口待接入')
+    try {
+      await profileService.submitCreditAppeal({
+        recordId: this.data.recordId,
+        reason: this.data.activeReason,
+        content: this.data.appealContent
+      })
+      toast.success('申诉已提交')
+    } catch (error) {
+      toast.info(error.message || '信用申诉提交失败')
+    }
+  },
+
+  buildReasonOptions(list, activeReason) {
+    return this.normalizeList(list).map((item) => ({
+      ...item,
+      key: item.key || item.reason || item.id,
+      className: [
+        'reason-pill',
+        (item.key || item.reason || item.id) === activeReason ? 'active' : '',
+        (item.key || item.reason || item.id) === 'other' ? 'compact' : ''
+      ].filter(Boolean).join(' ')
+    }))
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
   }
 })

@@ -1,55 +1,55 @@
-const ASSET_BASE = '/pages/profile/system-management/agreement-sign/assets'
-const STORAGE_KEY = 'profileAgreementSignedMap'
+const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
-const DEFAULT_AGREEMENTS = [
-  {
-    key: 'user-service',
-    title: '用户服务协议',
-    desc: '平台服务条款与规则',
-    signed: true,
-    tone: 'green',
-    last: false,
-    icon: `${ASSET_BASE}/icon-agreement-doc.svg`
-  },
-  {
-    key: 'privacy',
-    title: '隐私政策',
-    desc: '个人信息保护说明',
-    signed: true,
-    tone: 'deep-green',
-    last: false,
-    icon: `${ASSET_BASE}/icon-agreement-lock.svg`
-  },
-  {
-    key: 'settlement',
-    title: '入驻协议',
-    desc: '服务与分润协议',
-    signed: false,
-    tone: 'orange',
-    last: true,
-    icon: `${ASSET_BASE}/icon-agreement-box.svg`
-  }
+const ASSET_BASE = '/pages/profile/system-management/agreement-sign/assets'
+
+const ROW_META = [
+  { tone: 'green', icon: `${ASSET_BASE}/icon-agreement-doc.svg` },
+  { tone: 'deep-green', icon: `${ASSET_BASE}/icon-agreement-lock.svg` },
+  { tone: 'orange', icon: `${ASSET_BASE}/icon-agreement-box.svg` }
 ]
 
-function getSignedMap() {
-  try {
-    return wx.getStorageSync(STORAGE_KEY) || {}
-  } catch (error) {
-    return {}
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
   }
+
+  return ''
 }
 
-function getAgreements() {
-  const signedMap = getSignedMap()
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
 
-  return DEFAULT_AGREEMENTS.map((item) => Object.assign({}, item, {
-    signed: Object.prototype.hasOwnProperty.call(signedMap, item.key) ? Boolean(signedMap[item.key]) : item.signed
-  }))
+function normalizeAgreements(data) {
+  const source = data || {}
+  const list = normalizeList(source.agreements || source.list || source.items)
+
+  return list.map((item, index) => {
+    const agreement = item || {}
+    const meta = ROW_META[index % ROW_META.length]
+    const key = pickFirstValue(agreement.key, agreement.agreementId, agreement.id)
+    const status = String(agreement.status || '').toLowerCase()
+
+    return {
+      key,
+      title: pickFirstValue(agreement.title, agreement.name),
+      desc: pickFirstValue(agreement.desc, agreement.description, agreement.summary),
+      signed: Boolean(agreement.signed || agreement.signedAt || status === 'signed'),
+      tone: pickFirstValue(agreement.tone, agreement.iconTone, meta.tone),
+      last: index === list.length - 1,
+      icon: pickFirstValue(agreement.localIcon, meta.icon)
+    }
+  }).filter((item) => item.key)
 }
 
 Page({
   data: {
-    agreements: getAgreements(),
+    agreements: [],
     icons: {
       check: `${ASSET_BASE}/icon-agreement-check.svg`,
       arrow: `${ASSET_BASE}/icon-agreement-arrow.svg`
@@ -57,16 +57,34 @@ Page({
   },
 
   onShow() {
-    this.setData({
-      agreements: getAgreements()
-    })
+    this.loadAgreements()
+  },
+
+  async loadAgreements() {
+    try {
+      const data = await profileService.getSystemAgreements()
+
+      this.setData({
+        agreements: normalizeAgreements(data)
+      })
+    } catch (error) {
+      this.setData({
+        agreements: []
+      })
+      toast.info(error.message || '协议列表加载失败')
+    }
   },
 
   handleAgreementTap(event) {
     const { key } = event.currentTarget.dataset
-    const agreement = this.data.agreements.find((item) => item.key === key) || this.data.agreements[0]
+    const agreement = this.data.agreements.find((item) => item.key === key)
+
+    if (!agreement) {
+      return
+    }
+
     const query = [
-      `agreement=${agreement.key}`,
+      `agreement=${encodeURIComponent(agreement.key)}`,
       `title=${encodeURIComponent(agreement.title)}`,
       `signed=${agreement.signed ? 1 : 0}`
     ].join('&')

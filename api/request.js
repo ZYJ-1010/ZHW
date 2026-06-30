@@ -151,6 +151,14 @@ function put(url, data) {
   })
 }
 
+function del(url, data) {
+  return request({
+    url,
+    method: 'DELETE',
+    data
+  })
+}
+
 function loginWithWechat(payload) {
   return request({
     url: '/api/app/auth/wechat-login',
@@ -211,6 +219,7 @@ module.exports = {
   get,
   post,
   put,
+  delete: del,
   loginWithWechat,
   sendPhoneCode,
   verifyPhoneCode,

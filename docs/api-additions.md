@@ -357,7 +357,7 @@ GET /api/app/newbie-tasks
 
 功能：玩家首页黑色内容区顶部的玩家信息卡需要由后台返回当前角色、昵称、等级、经验、升级差值、参与局数、本月 MVP 和参与率，并根据当前角色点亮 `玩家 / 行家 / 领路人` 按钮。
 
-状态：候选接口，项目内前端已先通过 `GET /api/app/home` 和 mock 数据接入；正式接口文档中暂未找到已定稿的 `/api/app/home` 首页聚合接口，也未找到本月 MVP、参与率、距离下一级还差多少经验的明确返回字段，待后端确认。
+状态：候选接口，项目内前端已先通过 `GET /api/app/home` 和 mock 数据接入；正式接口文档中暂未找到已定稿的 `/api/app/home` 首页聚合接口，也未找到本月 MVP、参与率、距离下一级还差多少经验的明确返回字段，待后端确认。页面内玩家名称、等级、经验、统计样例已删除；接口未返回时不展示本地玩家信息样例。
 
 候选路径：
 
@@ -460,15 +460,15 @@ GET /api/app/home
 
 记录日期：2026-06-17
 
-更新日期：2026-06-18
+更新日期：2026-06-30
 
 模块：首页 / 玩家首页 / 组局卡片
 
 页面：`pages/home/player/index`、`components/game-card/index.*`
 
-功能：玩家首页 `附近正在发生` 和 `朋友在玩` 都使用公共组局卡。区块标题、`全部 / 附近` tab、`查看全部`、朋友数量和卡片列表都需要由后台返回。卡片需要由后台返回不同组局的数据，包括局类型、封面图、标题、地点距离、人数、时间、价格、参与玩家头像和当前用户可执行动作。
+功能：玩家首页 `附近正在发生` 和 `朋友在玩` 都使用公共组局卡。区块标题、`全部 / 附近` tab、`查看全部`、朋友数量和卡片列表都需要由后台返回。卡片需要由后台返回不同组局的数据，包括局类型、封面图、标题、地点距离、人数、时间、价格、参与玩家头像和当前用户可执行动作。页面内组局样例卡已删除；接口未返回列表时显示空态，不再展示本地写死局。
 
-状态：待后端确认。当前页面仍使用本地静态测试数据；公共组件已支持 `coverSrc`、`avatarUrls`、`joinedText`、`actions` 等字段。用户指定的 HTML 目录和对外资料包中未找到截图里的三枚卡通头像原图，正式阶段建议后台返回真实参与者头像 URL。
+状态：待后端确认。当前页面已接入 `GET /api/app/home`，页面和首页 mock 中的组局样例卡已删除；公共组件已支持 `coverSrc`、`avatarUrls`、`joinedText`、`actions` 等字段。用户指定的 HTML 目录和对外资料包中未找到截图里的三枚卡通头像原图，正式阶段建议后台返回真实参与者头像 URL。
 
 推荐接口方案：
 
@@ -578,7 +578,7 @@ GET /api/app/games/friends?page=1&pageSize=10
 | `joinedCount`、`joinedText` | 后台 | 已入局说明 | 后台可返回完整文案；前端卡片窄位可压缩显示为 `+5已入局`。 |
 | `participantAvatars` | 后台 / CDN | 参与玩家头像 | 每个组局返回自己的头像列表，避免不同卡片头像相同。前端最多展示 3 个。 |
 | `actionText` | 后台 | 主按钮 | 当前为 `加入`。 |
-| `actions` | 前端固定或后台返回 | 分享、关注、引荐、打招呼 | 如果不同卡片能力一致，可前端固定；如果权限不同，后台返回 action key。 |
+| `actions` | 后台 | 分享、关注、引荐、打招呼 | 后台按权限返回 action key；未返回时前端不展示操作项。 |
 | `friendContextText` | 后台 | 朋友在玩上下文 | 可选，例如 `好友正在玩`、`3位好友参与`。 |
 | `route` | 后台或前端拼接 | 跳转详情 | 建议前端基于 `id` 拼详情路径，后台可只返回 `id`。 |
 
@@ -590,7 +590,7 @@ GET /api/app/games/friends?page=1&pageSize=10
 4. 地址栏可由 `cityName`、`distanceText`、`memberText` 拼接，也可后端直接返回 `locationText`。
 5. 时间栏可由 `timeText` 直接展示；如果后端返回开始/结束时间戳，前端需要统一格式化。
 6. `joinedText` 在后台可保持完整文案，卡片内前端按窄位压缩成 `+N已入局`。
-7. 分享、关注、引荐、打招呼图标由前端固定，后台只需要返回 action key 或权限状态。
+7. 分享、关注、引荐、打招呼图标由前端固定，后台需要返回 action key 或权限状态；未返回时前端不硬造操作项。
 
 待确认：
 
@@ -605,11 +605,13 @@ GET /api/app/games/friends?page=1&pageSize=10
 
 记录日期：2026-06-18
 
+更新日期：2026-06-30
+
 模块：首页 / 玩家首页 / 本周玩霸榜
 
 页面：`pages/home/player/index`
 
-功能：玩家首页 `本周玩霸榜` 的榜单数据由后台接口返回，包括标题、角色 tab、当前默认榜单、当前用户排名、头像、昵称、榜单说明、经验 XP 和查看全部榜单文案。`玩家 / 行家 / 领路人` 的 key、展示文案、顺序和是否展示都由后台返回，前端只按接口结果渲染和点亮。当前 mock 仅用于本地占位，默认返回当前用户所属角色的榜单；没有对应角色榜单数据时，tab 点击只切换 active 样式，不硬造当前用户排名。
+功能：玩家首页 `本周玩霸榜` 的榜单数据由后台接口返回，包括标题、角色 tab、当前默认榜单、当前用户排名、头像、昵称、榜单说明、经验 XP 和查看全部榜单文案。`玩家 / 行家 / 领路人` 的 key、展示文案、顺序和是否展示都由后台返回，前端只按接口结果渲染和点亮。当前 mock 榜单样例已清空；没有对应角色榜单数据时，tab 点击只切换 active 样式，不硬造当前用户排名。页面内榜单样例和我的排名样例已删除；接口未返回榜单时显示空态，未返回 `myRank/currentUserRank` 时隐藏“我”的排名行。
 
 状态：候选字段，待后端确认。
 
@@ -701,13 +703,15 @@ GET /api/app/home
 
 记录日期：2026-06-18
 
+更新日期：2026-06-30
+
 模块：首页 / 玩家首页 / 我的成就
 
 页面：`pages/home/player/index`
 
-功能：玩家首页进入时只请求首页聚合接口，不为 `我的成就` 额外重复请求。后台在首页聚合响应中返回成就标题、图标和成就列表；前端按 React 参考样式固定渲染，不从后台获取颜色、尺寸、圆角等样式。
+功能：玩家首页进入时只请求首页聚合接口，不为 `我的成就` 额外重复请求。后台在首页聚合响应中返回成就标题、图标和成就列表；前端按 React 参考样式固定渲染，不从后台获取颜色、尺寸、圆角等样式。页面内成就样例已删除；接口未返回 `achievementList/achievements` 时显示空态，不再生成本地成就卡。
 
-状态：候选字段，待后端确认是否并入首页聚合接口。后台文档中已有 `GET /api/app/growth/me` 返回成长和成就的说明，但玩家首页为了减少请求次数，建议首页聚合接口同步返回用于当前模块展示的精简成就列表。
+状态：候选字段，待后端确认是否并入首页聚合接口。当前 mock 成就列表已清空；后台文档中已有 `GET /api/app/growth/me` 返回成长和成就的说明，但玩家首页为了减少请求次数，建议首页聚合接口同步返回用于当前模块展示的精简成就列表。
 
 推荐接口：
 
@@ -1065,6 +1069,35 @@ GET /api/app/role-applications/my
 2. 逐项状态字段是否统一使用 `checked`，或使用 `met/status/completed`。
 3. 行家计划书是否作为第 7 个 requirement 返回，还是单独返回 `planTask`。
 4. `去填写` 当前前端按用户要求不接跳转；生产需要后台确认目标 `route`。
+
+## 17.1 角色申请状态页记录
+
+记录日期：2026-06-30
+
+模块：角色申请 / 审核状态
+
+页面：`pages/role/status/index`
+
+接口：
+
+```text
+GET /api/app/role-applications/my
+```
+
+当前前端接入口径：
+
+- 页面按 `roleType` 查找后台返回的申请记录；没有同角色记录时显示“暂无申请记录”空态。
+- 接口失败时显示加载失败空态并提示错误，不再生成本地“审核中”状态。
+- `applicationId/id` 作为申请编号；`certNo/certificateNo` 作为认证编号。后台不返回时只展示“以后台为准”，不再使用页面内固定证书号。
+- `submittedAt/createdAt/applyTime`、`reviewedAt/reviewTime`、`expectedReviewAt/estimatedReviewAt` 用于申请时间、审核时间和预计完成时间展示。
+- `rejectReason/rejectReasons` 用于驳回原因；后续建议后台返回完整改进建议和新手礼包权益，避免页面固定兜底。
+
+待确认：
+
+1. `GET /api/app/role-applications/my` 返回列表还是按角色返回单条记录。
+2. 审核通过后的认证编号字段是否统一为 `certNo`、`certificateNo` 或复用 `applicationId`。
+3. 审核通过页的新手礼包权益、下一步操作是否由后台返回。
+4. 驳回页改进建议是否由后台返回，还是固定产品文案。
 
 ## 18. 申请行家表单配置接口
 
@@ -1751,11 +1784,12 @@ GET /api/app/games/{gameId}/success-expert
 
 页面：`pages/game/success-guide/index`
 
-功能：领路人在组局成功后可进行三类后续跟进：查看局日程、联系玩家和行家询问双方反馈、记录或促成合作交易。当前页面仍为静态 UI，三个入口的真实接口和跳转逻辑待后端 / 产品确认。
+功能：领路人在组局成功后可进行三类后续跟进：查看局日程、联系玩家和行家询问双方反馈、记录或促成合作交易。当前页面已改为通过后台获取成局历程、参与双方和后续跟进入口；三个入口的真实跳转、提交动作和奖励规则仍待后端 / 产品确认。
 
 候选接口：
 
 ```text
+GET /api/app/game-invites/guide-success
 GET /api/app/games/{gameId}/schedule
 POST /api/app/games/{gameId}/feedback-contact
 POST /api/app/games/{gameId}/deal-conversions
@@ -1763,19 +1797,21 @@ POST /api/app/games/{gameId}/deal-conversions
 
 当前前端接入口径：
 
+- 页面进入时调用 `GET /api/app/game-invites/guide-success`，携带 `gameId` / `invitationId` 等 query 参数，接口返回 `timeline`、`party`、`followUps` 后渲染；接口失败或不返回列表时页面 JS 不再回填本地玩家、行家、时间线或奖励样例。
 - `查看组局日程`：后续点击后应查看该局日程，需确认是跳转到已有局详情 / 日程页，还是调用独立日程接口后在当前页弹层展示。
 - `询问双方反馈`：后续点击后应弹出联系框，用于联系玩家和行家聊天咨询反馈；需确认联系框样式、是否一次展示双方、是否进入一对一聊天或群聊。
 - `促成交易`：后续点击后用于记录或推进双方达成合作交易；需确认是提交交易达成状态、进入交易表单，还是跳转到合作 / 订单页面。
 - 三个入口都需要携带 `gameId`、领路人身份、玩家 ID、行家 ID 等参数，具体字段待接口确认。
-- 当前页面只保留静态按钮和待接入提示，不接真实业务逻辑。
+- 当前页面只保留入口按钮的待接入提示或后台返回的 `route/message`，不在前端写死最终业务逻辑。
 
 待后端 / 产品确认：
 
-1. 查看局日程是否已有正式页面或接口，接口路径是否使用 `/api/app/games/{gameId}/schedule`。
-2. 询问双方反馈的联系框由前端本地弹出，还是由后端返回可联系对象、IM 会话 ID 和默认话术。
-3. 玩家与行家的反馈是否需要分别记录，是否需要回传反馈状态或积分奖励状态。
-4. 促成交易是否创建交易记录 / 合作记录，接口路径、请求字段和状态枚举待确认。
-5. 三个入口是否需要积分奖励发放规则，以及奖励是否由接口返回。
+1. 成功页聚合接口路径是否使用 `GET /api/app/game-invites/guide-success`，还是并入 `/api/app/game-invites/guide-progress` 的成功详情字段。
+2. 查看局日程是否已有正式页面或接口，接口路径是否使用 `/api/app/games/{gameId}/schedule`。
+3. 询问双方反馈的联系框由前端本地弹出，还是由后端返回可联系对象、IM 会话 ID 和默认话术。
+4. 玩家与行家的反馈是否需要分别记录，是否需要回传反馈状态或积分奖励状态。
+5. 促成交易是否创建交易记录 / 合作记录，接口路径、请求字段和状态枚举待确认。
+6. 三个入口是否需要积分奖励发放规则，以及奖励是否由接口返回。
 
 ## 28. 专家业务管理页进行中服务操作接口
 
@@ -2291,7 +2327,7 @@ GET /api/app/games/player/manage
 - 专家信息优先读取 `expert.name/expert.nickname/expert.avatarText`，也兼容平铺的 `expertName/avatarText`。
 - 领路人信息优先读取 `guide.name/guide.nickname`，也兼容平铺的 `guideName`。
 - 预计交付时间读取 `expectedDeliveryAt/deliveryDeadlineAt/deliveryAt/dueAt`，显示为 `预计交付：YYYY-MM-DD HH:mm`。
-- 服务进度百分比和进度条由前端根据 `startedAt`、`expectedDeliveryAt` 与 `currentTime/serverTime` 计算；如果后台不返回 `currentTime/serverTime`，前端用本机当前时间。后台也可返回 `remainingDays/leftDays` 覆盖剩余天数显示。
+- 服务进度百分比和进度条只在后台返回 `startedAt`、`expectedDeliveryAt` 与 `currentTime/serverTime` 时由前端计算；如果后台不返回 `currentTime/serverTime`，前端不使用本机当前时间计算，只展示后台直接返回的进度文案或隐藏进度。后台也可返回 `remainingDays/leftDays` 覆盖剩余天数显示。
 - 已完成服务的评价按钮由后台字段控制：`reviewStatus/evaluateStatus/commentStatus`、`reviewed/hasReviewed/hasEvaluated`、`canReview/canReviewBoth`。未评价显示 `评价双方`，已评价显示 `已评价` 并禁用。
 
 待后端 / 产品确认：
@@ -2388,13 +2424,13 @@ GET /api/app/game-invites/guide-cancel-detail
 
 页面：`pages/game/player-cancel/index`
 
-功能：玩家从“组局管理”点击 `申请取消` 后进入取消服务确认页，展示活动信息、建议赔付比例、赔付金额、平台手续费、实际支付、剩余可退金额、取消原因和赔付协议。取消原因由后台返回可编辑的默认原因列表，前端单选，至少需要有 1 个可选原因并默认选中 1 个；用户填写的详细说明最多 50 字。当前页面按用户提供的 `申请取消服务.txt` 静态设计稿落地白色母版走查，提交按钮只做静态提示，未接真实赔付取消接口。
+功能：玩家从“组局管理”点击 `申请取消` 后进入取消服务确认页，展示活动信息、建议赔付比例、赔付金额、平台手续费、实际支付、剩余可退金额、取消原因和赔付协议。取消原因由后台返回可编辑的默认原因列表，前端单选，至少需要有 1 个可选原因并默认选中 1 个；用户填写的详细说明最多 50 字。当前页面按用户提供的 `申请取消服务.txt` 静态设计稿落地白色母版走查，提交按钮提示取消提交接口待接入，未接真实赔付取消接口。
 
-数据口径：活动信息中的合同金额、服务时长必须在进入 `pages/game/player-cancel/index` 前明确给出。当前入口由 `pages/game/player-manage/index` 点击 `申请取消` 时携带订单金额和服务时长参数；正式联调时也可由 `GET /api/app/game-services/{serviceOrderId}/player-cancel-preview` 返回 `contractAmount` / `contractAmountText`、`servedDurationText`、`totalDurationText` 或组合后的 `servedText`。服务时长展示中 `/` 左边为已经服务时长，右边为活动总时长。玩家取消页只展示和消费这些数据，静态兜底仅用于走查，不能在进入页面后再临时猜测或推算合同金额、已服务时长和活动总时长。
+数据口径：活动信息中的合同金额、服务时长、赔付比例范围、默认建议比例和平台手续费比例必须在进入 `pages/game/player-cancel/index` 前明确给出。当前入口由 `pages/game/player-manage/index` 点击 `申请取消` 时携带订单金额和服务时长参数；正式联调时也可由 `GET /api/app/game-services/{serviceOrderId}/player-cancel-preview` 返回 `contractAmount` / `contractAmountText`、`servedDurationText`、`totalDurationText` 或组合后的 `servedText`。服务时长展示中 `/` 左边为已经服务时长，右边为活动总时长。玩家取消页只展示和消费这些数据，不再使用页面内静态订单兜底；缺少关键字段时显示“缺少服务信息”空态。
 
 交互口径：`自定义赔付比例` 标题行中的 `可协商` 标签需要放在右侧；后续点击该标签应进入与行家 / 专家的聊天界面，让玩家先沟通赔付比例。当前先记录交互要求，不接真实聊天跳转、会话创建或消息预填逻辑。
 
-赔付比例口径：建议赔付比例当前暂定为页面展示值 `15%`，比例滑块当前静态范围为最低 `5%`、最高 `30%`。正式联调时最低比例、最高比例、默认建议比例应支持由后台返回；玩家调整比例后可调用赔付预览 / 调整接口重新计算赔付金额、平台手续费、实际支付和剩余可退金额。
+赔付比例口径：页面不再内置建议赔付比例和滑块范围；最低比例、最高比例、默认建议比例应由后台返回。玩家调整比例后可调用赔付预览 / 调整接口重新计算赔付金额、平台手续费、实际支付和剩余可退金额。
 
 候选接口：
 
@@ -2457,7 +2493,8 @@ POST /api/app/game-services/{serviceOrderId}/player-cancel-with-compensation
 7. 上一页订单列表或取消预览接口必须在进入玩家取消页前提供合同金额；若订单列表没有金额字段，需要先调用预览接口拿到金额后再跳转。
 8. 上一页订单列表或取消预览接口必须在进入玩家取消页前提供已服务时长和活动总时长；展示格式为 `已服务时长 / 活动总时长`，若订单列表没有完整时长字段，需要先调用预览接口拿到时长后再跳转。
 9. `可协商` 标签点击后的聊天入口需要确认使用已有 `conversationId` 进入会话，还是由接口按 `serviceOrderId/gameId/expertId` 创建或获取与行家 / 专家的会话。
-10. 赔付比例是否需要独立调整接口，或复用取消预览接口传入 `compensationRate` 后返回重算结果；最低比例、最高比例和默认建议比例应以后端返回为准，当前 `5% - 30%`、`15%` 仅为静态走查口径。
+10. 赔付比例是否需要独立调整接口，或复用取消预览接口传入 `compensationRate` 后返回重算结果；最低比例、最高比例和默认建议比例应以后端返回为准，上方 `5% - 30%`、`15%` 仅为接口样例值。
+11. 当前 mock 玩家订单缺少 `servedDurationText/totalDurationText/minRate/maxRate/suggestedRate/platformFeeRate`，因此进入玩家取消页会显示缺少服务信息；后续应由订单列表或预览接口补齐。
 
 ## 33. 局内协作页数据与操作接口
 
@@ -3024,6 +3061,7 @@ POST /api/app/games/drafts
 ```json
 {
   "currentAccountType": "player",
+  "currentTime": "2026-03-19T14:00:00+08:00",
   "depositRuleText": "连续打卡 7 天即完成。完成者拿回押金池金额，未完成者押金由完成者平分。",
   "depositNoticeText": "支付金额：100元 = 服务费10元 + 押金池90元。服务费不退，押金池按完成情况结算。",
   "templates": [
@@ -3046,6 +3084,14 @@ POST /api/app/games/drafts
 }
 ```
 
+时间字段说明：
+
+| 字段 | 说明 |
+| --- | --- |
+| `serverTime/currentTime/now/responseTime` | 后台当前时间，用于初始化发起组局和报名日期选择、校验开始时间是否早于当前时间；前端不使用手机本地时间兜底 |
+
+若后台暂不返回当前时间，前端不预填 `todayDate/timeDraft/signupTimeDraft`，也不做“早于当前时间”的校验，只保留开始 / 结束时间先后关系校验。
+
 强校验规则：
 
 ```text
@@ -3061,6 +3107,7 @@ POST /api/app/games 和 POST /api/app/games/drafts 必须校验 profitTemplate/p
 3. `profitTemplate` 字段是否使用 `standard`、`aa`、`deposit`、`crowdfunding`、`publicBenefit` 这些 key，还是使用后端模板 ID。
 4. 押金局规则和提示是否随分润模板接口一起返回，字段是否采用 `depositRuleText`、`depositNoticeText`。
 5. 保存草稿和发布创建组局接口的非法模板 / 权限错误码与前端展示文案需要统一。
+6. 发起组局页当前时间是否随分润模板接口返回，还是改为独立公共时间接口。
 
 ## 40. 发起组局底部操作按钮接口与预览页
 
@@ -3272,7 +3319,7 @@ POST /api/app/games
 
 页面：`pages/message/trade-warning/index`
 
-功能：交易预警页内容从后台返回，包含预警文案、剩余交付时间、订单信息、交付方式和底部操作按钮文案。页面本身只负责渲染和本地交付方式选中态切换。
+功能：交易预警页内容从后台返回，包含预警文案、剩余交付时间、订单信息、交付方式和底部操作按钮文案。页面本身只负责渲染和本地交付方式选中态切换。页面和 mock 中的交易预警详情样例已清空；接口未返回内容时显示空态 / 错误。
 
 候选接口：
 
@@ -3355,7 +3402,7 @@ GET /api/app/messages/trade-warning
 
 页面：`pages/message/system-detail/index`
 
-功能：系统通知详情页文章由后台推送 / 返回，前端按后台返回的文章块渲染标题、作者、发布时间、阅读统计、正文段落、更新内容、封面、署名和反馈统计。
+功能：系统通知详情页文章由后台推送 / 返回，前端按后台返回的文章块渲染标题、作者、发布时间、阅读统计、正文段落、更新内容、封面、署名和反馈统计。页面和 mock 中的系统通知文章样例已清空；接口未返回内容时显示空态 / 错误。
 
 候选接口：
 
@@ -3436,7 +3483,7 @@ GET /api/app/messages/system-notification
 
 页面：`pages/message/index`
 
-功能：消息中心进入页面后从后台获取顶部消息分类、未读状态、tab 配置和消息列表。顶部分类右侧红点由后台未读状态控制：`unread=true` 或 `unreadCount > 0` 时显示红点；没有未读时不显示红点。点击 `全部消息 / 未读 / 交易通知` 时前端携带 tab key 重新请求列表。
+功能：消息中心进入页面后从后台获取顶部消息分类、未读状态、tab 配置和消息列表。顶部分类右侧红点由后台未读状态控制：`unread=true` 或 `unreadCount > 0` 时显示红点；没有未读时不显示红点。点击 `全部消息 / 未读 / 交易通知` 时前端携带 tab key 重新请求列表。页面内消息样例和 mock 消息中心样例已清空；接口未返回消息时显示空态。
 
 候选接口：
 
@@ -3497,6 +3544,29 @@ GET /api/app/messages/center
 3. 未读统计是否只返回 `unreadCount`，还是同时返回 `unread`；前端当前两者都兼容。
 4. 消息卡片按钮如 `确认参加 / 婉拒 / 立即处理 / 查看路线 / 联系发起人` 的真实操作接口仍需补充。
 
+### 48.1 好友消息会话页接口
+
+记录日期：2026-06-30
+
+模块：消息 / 好友消息
+
+页面：`pages/message/my/index`
+
+功能：好友消息页不再使用页面内固定会话人和聊天记录。页面需要从消息中心卡片或其它入口带入 `roomId/conversationId`，再请求 IM 消息列表；没有会话 ID 或接口返回空列表时显示空态。发送文本消息调用 IM 发送接口，成功后重新拉取消息列表，不在前端本地拼历史消息。
+
+当前接入接口：
+
+```text
+GET /api/im/rooms/{roomId}/messages?page=1&pageSize=50
+POST /api/im/rooms/{roomId}/messages
+```
+
+待确认：
+
+1. 消息中心好友卡片是否返回 `roomId` 还是 `conversationId`，以及字段命名是否统一。
+2. 好友消息页顶部会话人信息是否随消息列表返回 `friend/targetUser/conversation`，还是入口卡片传入。
+3. 发送消息接口是否沿用 `/api/im/rooms/{roomId}/messages`，入参字段是否为 `{ "type": "text", "content": "..." }`。
+
 ## 49. 我的个人中心子页面接口
 
 记录日期：2026-06-26
@@ -3505,7 +3575,7 @@ GET /api/app/messages/center
 
 页面：`pages/profile/index`、`pages/profile/service-center/manage/review-manage/index`、`pages/profile/service-center/manage/review-reply/index`、`pages/profile/match-info/index`、`pages/profile/service-center/my-games/index`、`pages/profile/asset-center/manage/index`、`pages/profile/asset-center/points/index`、`pages/profile/settings/index`、`pages/profile/credit-center/index`、`pages/profile/service-center/invite-records/index`
 
-功能：本次先按用户粘贴的个人中心 HTML 和 `E:\项目\03周总\个人中心` 下 6 个 HTML 导出资料落地静态走查页。`pages/profile/index` 已套用 `母版-申请加入` 对应的 `home-shell` `joinApply` 变体，并隐藏母版标题和右侧头像；其余 6 个子页使用白色母版。正式联调时，这些页面的用户信息、资产、列表、统计、开关、保存和操作按钮需要改为接口驱动。
+功能：本次先按用户粘贴的个人中心 HTML 和 `E:\项目\03周总\个人中心` 下 6 个 HTML 导出资料落地静态走查页。`pages/profile/index` 已套用 `母版-申请加入` 对应的 `home-shell` `joinApply` 变体，并隐藏母版标题和右侧头像；其余 6 个子页使用白色母版。当前 `pages/profile/index` 已接入 `GET /api/app/profile/home`，用户信息、统计、资产、会员横幅和菜单角标均以后端返回为准；接口未返回时为空态或隐藏，不再展示页面内本地样例。
 
 候选接口：
 
@@ -3546,6 +3616,8 @@ POST /api/app/profile/invite-records/{recordId}/remind-delivery
 ### 49.1 个人中心首页聚合接口
 
 页面：`pages/profile/index`
+
+更新日期：2026-06-30
 
 候选接口：
 
@@ -3631,7 +3703,7 @@ GET /api/app/profile/home
 
 待确认：
 
-1. 首页菜单入口是否全部由后端返回，还是前端固定入口、后端只返回角标和可见状态。
+1. 首页菜单入口是否全部由后端返回，还是前端固定入口和本地图标、后端只返回角标和可见状态。当前前端保留菜单入口和项目内图标作为导航结构，角标不再本地兜底。
 2. `badgeText`、`badgeTone` 是否由后端直接返回；如果后端只返回数量和状态枚举，前端需要统一映射文案和颜色。
 3. 资产中心当前已新增 `pages/profile/asset-center/manage/index`、`pages/profile/asset-center/mall/index`、`pages/profile/asset-center/orders/index` 和 `pages/profile/asset-center/points/index` 静态走查页；我的押金、开票中心是否继续放在该目录下仍需确认。
 5. 头像使用 `avatarUrl` 真实图片还是继续允许 `avatarText` 兜底。
@@ -4173,7 +4245,7 @@ POST /api/app/profile/footprint/achievements/{achievementId}/claim
 5. 交互规则：点击成就是进入详情、弹层展示还是领取奖励；领取奖励的成功 / 失败提示、幂等处理和刷新策略。
 6. 空态、错误态、分页 / 展示数量、图标资源来源、时间格式和多语言 / 文案后台配置。
 
-状态：前端已新增静态页和编译模式，正式接口待后端确认。
+状态：前端已改为通过 `GET /api/app/profile/footprint/achievements` 获取成就等级、分类、已获得 / 未解锁列表和赛季信息；页面内成就样例已删除。正式字段、成就详情、领取奖励、图标资源和分页 / 空态规则仍待后端确认。
 
 ## 61. 系统管理我的资料接口
 
@@ -4183,7 +4255,7 @@ POST /api/app/profile/footprint/achievements/{achievementId}/claim
 
 页面：`pages/profile/system-management/profile-info/index`
 
-功能：我的资料页当前为静态走查；点击右上角保存时，前端已组装当前个人资料、企业资料、联系方式可见性、公开注册业务信息开关和认证状态，通过 `PUT /api/app/profile/system-management/profile-info` 提交到后台 / mock。正式联调时还需要从后台获取个人资料、企业资料、联系方式可见性、公开注册业务信息开关、认证状态，并支持头像更新、实名认证 / 企业认证入口。
+功能：我的资料页当前为静态走查；进入页面时前端已通过 `GET /api/app/profile/system-management/profile-info` 获取个人资料、企业资料、联系方式可见性、公开注册业务信息开关、认证状态和可见性选项，点击右上角保存时通过 `PUT /api/app/profile/system-management/profile-info` 提交到后台。正式联调时还需要确认字段结构，并支持头像更新、实名认证 / 企业认证入口。
 
 候选接口：
 
@@ -4205,7 +4277,7 @@ POST /api/app/profile/system-management/certifications/enterprise
 5. 头像上传使用文件上传还是后台返回上传凭证；联系方式展示和可见性涉及隐私口径，需要产品 / 后端确认。
 6. 认证入口跳转小程序内页、H5、第三方小程序还是后台返回跳转参数。
 
-状态：前端已新增静态页和编译模式，并已接 `PUT /api/app/profile/system-management/profile-info` service / mock 保存链路；正式接口字段、校验规则和获取接口仍待后端确认。
+状态：前端已接 `GET /api/app/profile/system-management/profile-info` 和 `PUT /api/app/profile/system-management/profile-info`；姓名、脱敏手机号、公司、职务、主营业务、资源、认证状态和联系方式可见性不再使用页面内本地样例。正式接口字段、校验规则、头像上传和认证入口仍待后端确认。
 
 ## 62. 系统管理技能配置接口
 
@@ -4243,7 +4315,7 @@ POST /api/app/profile/system-management/skill-config/cases/{caseId}/bind
 9. 第三个技能槽：当前第三槽未解锁时仍显示灰色 `+ / 添加技能`，但需要 `skillSlots[].locked=true` 控制不可添加；点击下方“解锁第三个技能”只把该槽位解锁为 `locked=false`，随后用户再点击槽位进入添加技能面板。正式接口需确认解锁槽位是否扣减修改次数，以及保存 / 单独解锁接口返回结构。
 10. 服务案例详情：点击服务案例后当前前端使用 `caseId` 切换本地兜底详情；正式联调建议由 `GET /api/app/profile/system-management/skill-config/cases/{caseId}` 返回详情页所需字段，包括 `title`、`date`、`playersText`、`totalPlayers`、`ratingText`、`score`、`tags[]`、`detailSections[]`、`players[]`、`iconText` / `iconKey`、`tone`。评分星级可由后台直接返回或由前端根据 `score` 派生，但最终评分、标签和玩家列表都应以后台为准。
 
-状态：前端已新增深色静态页、服务案例详情页和对应编译模式，并已接 `GET /api/app/profile/system-management/skill-config` 与 `PUT /api/app/profile/system-management/skill-config` service / mock 链路；添加 / 编辑 / 移除 / 解锁已先补本地响应 UI 和本地状态更新，服务案例详情当前仍为前端兜底数据。正式接口字段、操作权限、修改次数扣减、失败码、案例绑定流程和案例详情接口仍待后端和产品确认。
+状态：前端已接 `GET /api/app/profile/system-management/skill-config`、`PUT /api/app/profile/system-management/skill-config` 和 `GET /api/app/profile/system-management/skill-config/cases/{caseId}`；页面内技能、可添加候选和服务案例样例已清空，接口失败时不再回填本地业务案例。正式接口字段、操作权限、修改次数扣减、失败码、添加 / 编辑 / 移除 / 解锁接口、候选技能来源和案例绑定流程仍待后端和产品确认。
 
 ## 63. 系统管理屏蔽设置接口
 
@@ -4287,7 +4359,7 @@ DELETE /api/app/profile/system-management/block-settings/users/{userId}
 8. 规则说明：规则说明标题、正文、分段结构、强调项、展示样式配置和版本号都应支持后台修改；若规则样式后续调整，需要和文案配置一起提交给前端或由接口直接返回结构化样式。
 9. 持久化规则：各页面保存是整体覆盖还是局部保存，是否需要确认弹窗，是否存在冷却期、修改次数限制、风控失败码、离线 / 超时处理和回滚提示。
 
-状态：前端已新增 7 个静态页面和编译模式，本地可切换开关、模式、场景、白名单、续期天数、关键词和用户屏蔽状态；正式接口、后台配置、真实保存、分页搜索、续期支付和规则说明样式仍待后端 / 产品确认。
+状态：前端已接屏蔽设置总览、保护开关、保护模式保存、分场景保存、白名单增删、续期选项与提交、关键词增删、用户屏蔽增删等接口；页面内统计、规则、白名单、关键词、候选用户和续期选项样例已清空。正式字段、分页搜索、续期支付、批量重置、规则说明样式和失败码仍待后端 / 产品确认。
 
 ## 64. 系统管理建议反馈接口
 
@@ -4323,7 +4395,7 @@ POST /api/app/profile/system-management/feedback/voice
 6. 反馈详情：反馈正文、截图、状态、对话消息、客服头像 / 昵称、消息方向、时间、是否允许继续补充、附件上传规则。
 7. 满意度评价：NPS 分数、满意项多选、提交后的幂等处理、是否允许重复评价、失败码和提示文案。
 
-状态：前端已新增静态页、快捷反馈弹窗状态和 5 个编译模式；当前可反馈的局、已反馈的问题、状态数量和详情对话仍为本地静态兜底。正式接口字段、上传 / 录音能力、列表分页、详情对话和满意度评价仍待后端确认。
+状态：前端已接反馈类型配置、可反馈组局、反馈提交、反馈记录列表和反馈详情接口；页面内反馈类型、关联组局、反馈记录和详情对话样例已清空。截图上传、语音反馈、补充说明、满意度评价、成功页奖励字段、列表分页和状态枚举仍待后端确认。
 
 ## 65. 系统管理信用申诉接口
 
@@ -4355,7 +4427,7 @@ GET /api/app/profile/credit/appeals/{appealId}
 6. 处理时效：初审 / 复核文案是否固定，还是由接口返回；处理时效标题和明细应支持后台配置修改；结果通知方式、站内消息 ID 和后续申诉状态枚举。
 7. 入口关系：信用中心、信用明细或处罚记录页进入信用申诉时如何传递 `recordId`，无 `recordId` 时是否允许手动选择关联记录。
 
-状态：前端已新增静态页和编译模式“我的-系统管理-信用中心-信用申诉页”；当前未接真实接口，上传和提交只做待开发提示。页面文字已按 regular / 400 处理；申诉原因列表、关联记录、说明文案、上传材料要求和处理时效当前为本地兜底字段，正式联调时应由后台返回并支持配置修改，前端只负责展示和提交选中的原因 key。正式接口、入口传参、申诉状态流转和运行截图复核仍待确认。
+状态：前端已接 `GET /api/app/profile/credit/appeal/options` 和 `POST /api/app/profile/credit/appeals`；申诉原因、关联记录、说明文案、上传材料要求和处理时效样例已清空。证明材料上传、信用记录详情、入口 `recordId` 传参、申诉状态流转、重复提交失败码和结果页仍待后端 / 产品确认。
 
 ## 66. 系统管理举报中心接口
 
@@ -4396,7 +4468,7 @@ POST /api/app/profile/system-management/reports/appeals/{appealId}/withdraw
 9. 评价处理：评价维度、评分 / 标签 / 文本入参、是否允许重复评价、提交成功后的状态刷新和失败提示。
 10. 奖励与信用分：奖励金额、发放状态、信用分增减、处罚描述和规则说明是否完全由后台返回。
 
-状态：前端已新增 6 个静态页面、个人中心入口和 6 个编译模式；当前数据均为本地兜底，上传、撤回、评价等操作只做待开发提示。正式接口、字段枚举、分页、状态流转、奖励发放和运行截图复核仍待确认。
+状态：前端已接举报类型配置、举报提交、举报详情、处理记录列表、处理记录详情、申诉列表、申诉详情和撤回申诉接口；举报类型、列表、详情、时间线、申诉和处理记录样例已清空。证据上传、处理评价、对举报发起申诉、字段枚举、分页、状态流转、奖励发放、失败码和运行截图复核仍待确认。
 
 ## 67. 系统管理签署协议接口
 
@@ -4406,7 +4478,7 @@ POST /api/app/profile/system-management/reports/appeals/{appealId}/withdraw
 
 页面：`pages/profile/system-management/agreement-sign/index`、`pages/profile/system-management/agreement-detail/index`
 
-功能：签署协议当前为静态走查页；列表页展示用户服务协议、隐私政策、入驻协议的签署状态，详情页展示协议正文并提供“同意并签署”确认弹窗。正式联调时需要从后台获取协议列表、当前用户签署状态、协议正文版本和签署提交结果。
+功能：签署协议页的数据源已改为后台接口；列表页通过协议列表接口获取协议标题、副标题和签署状态，详情页通过协议详情接口获取协议正文并按后台签署状态决定是否展示“同意并签署”确认弹窗。正式联调时需要确认协议列表、当前用户签署状态、协议正文版本和签署提交结果的字段。
 
 候选接口：
 
@@ -4425,7 +4497,7 @@ GET /api/app/profile/system-management/agreements/sign-records
 4. 签署记录：历史签署协议、版本、签署时间、签署来源和查看历史版本的入口规则。
 5. 后台配置：协议文案、章节、状态文案、协议类型和排序是否都支持后台配置；前端只按返回内容展示，不写死最终协议文本和状态。
 
-状态：前端已新增 2 个页面、3 个编译模式和个人中心入口；当前数据与签署结果均为本地静态兜底。正式接口、字段枚举、版本变更策略、历史签署记录和已签署状态刷新仍待后端确认。外部资料目录本次只发现 3 页参考图 / HTML，第 4 页资料待补充。
+状态：前端已接 `GET /api/app/profile/system-management/agreements`、`GET /api/app/profile/system-management/agreements/{agreementId}` 和 `POST /api/app/profile/system-management/agreements/{agreementId}/sign`；协议列表、协议正文和签署状态不再使用本地样例或本地 storage。正式字段枚举、版本变更策略、历史签署记录、签署成功后的列表刷新和第 4 页资料仍待后端 / 产品确认。
 
 ## 68. 系统管理系统设置接口
 
@@ -4435,7 +4507,7 @@ GET /api/app/profile/system-management/agreements/sign-records
 
 页面：`pages/profile/settings/index`
 
-功能：系统设置当前已按 `E:\项目\03周总\系统管理\08系统设置` 的新参考图重做为深色静态走查页；页面展示账号安全、通知设置、隐私设置、通用设置和退出登录。正式联调时需要由后台返回当前设置状态、右侧展示值、隐私清单入口可用状态和缓存信息，前端不写死最终业务数据。
+功能：系统设置当前已按 `E:\项目\03周总\系统管理\08系统设置` 的新参考图重做为深色走查页；页面分组、行文案、右侧展示值、开关状态、入口动作和缓存信息已改为通过后台接口返回。前端只保留项目内本地图标映射和页面展示结构，不再写死手机号、缓存大小、版本号和开关默认值。
 
 候选接口：
 
@@ -4455,7 +4527,7 @@ POST /api/app/auth/logout
 5. 退出登录：退出登录接口、token 清理策略、失败码和是否需要二次确认弹窗。
 6. 后台配置：分组标题、行文案、右侧值、开关默认值和入口可见性是否允许后台配置；若允许，接口需返回结构化配置和排序。
 
-状态：前端已替换旧系统设置页并新增“我的-系统管理-系统设置 / 静态页 / 动态页”编译模式；当前所有开关仅做本地静态切换，行点击和退出登录只提示待接入。真实设置读取、保存、清缓存、关于我们、隐私清单跳转和退出登录仍待后端确认。
+状态：前端已接 `GET /api/app/profile/settings`、`PUT /api/app/profile/settings`、`POST /api/app/profile/settings/cache/clear` 和 `POST /api/app/auth/logout`；系统设置分组、行列表、开关状态、清缓存和退出登录不再使用页面内本地样例。正式字段枚举、设置保存入参、隐私清单 / 关于我们跳转、web-view 承载页和退出登录后的跳转策略仍待后端 / 产品确认。
 
 ## 69. 页面测试数据清理与接口对照
 
@@ -4500,7 +4572,7 @@ GET /api/app/games
 | `priceText/feeText` | 费用 |
 | `themeTags/tags` | 标签 |
 
-状态：已接入 `services/game.getGameList`；页面内三条测试活动已删除，mock 后台按同一路径返回模拟数据。
+状态：已接入 `services/game.getGameList`；页面内三条测试活动已删除，当前 mock 列表样例也已清空。局卡的主按钮、报名文案、头像占位和操作项均以后端返回为准，未返回时不再由前端补“加入”、报名人数、默认头像或“分享 / 关注 / 引荐 / 打招呼”。
 
 ### 69.2 局详情与分享页
 

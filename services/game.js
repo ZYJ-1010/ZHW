@@ -118,6 +118,16 @@ async function getGuideProgress(params) {
   return result.data
 }
 
+async function getGuideSuccess(params) {
+  const result = await gameApi.getGuideSuccess(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取组局成功信息失败')
+  }
+
+  return result.data
+}
+
 async function getGuideCancelDetail(params) {
   const result = await gameApi.getGuideCancelDetail(params)
 
@@ -187,6 +197,7 @@ module.exports = {
   getProfitTemplates,
   createReplayInvitation,
   getGuideProgress,
+  getGuideSuccess,
   getGuideCancelDetail,
   getGameManage,
   getPlayerGameManage,

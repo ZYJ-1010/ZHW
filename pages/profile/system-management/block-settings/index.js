@@ -1,3 +1,6 @@
+const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
+
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 const PAGE_ROUTES = {
   protection: '/pages/profile/system-management/protection-mode/index',
@@ -18,6 +21,31 @@ const PAGE_NAMES = {
 }
 
 const DEBUG_PREFIX = '[block-settings]'
+const CONFIG_ROW_META = [
+  { key: 'protection', title: '保护模式', iconText: '🎯', tone: '', route: PAGE_ROUTES.protection },
+  { key: 'scene', title: '分场景配置', iconText: '⚙️', tone: 'green', route: PAGE_ROUTES.scene },
+  { key: 'whitelist', title: '白名单', iconText: '📋', tone: 'gold', route: PAGE_ROUTES.whitelist }
+]
+const MANAGE_ROW_META = [
+  { key: 'users', title: '用户屏蔽', iconText: '🚫', tone: 'red', route: PAGE_ROUTES.users },
+  { key: 'keywords', title: '关键词屏蔽', iconText: '🔤', tone: '', route: PAGE_ROUTES.keywords }
+]
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
+
+function mergeRows(metaRows, remoteRows) {
+  const remoteMap = normalizeList(remoteRows).reduce((result, item) => {
+    result[item.key] = item
+    return result
+  }, {})
+
+  return metaRows.map((item) => ({
+    ...item,
+    ...(remoteMap[item.key] || {})
+  }))
+}
 
 Page({
   data: {
@@ -25,80 +53,61 @@ Page({
       chevron: `${ASSET_BASE}/icon-chevron-right.svg`
     },
     routes: PAGE_ROUTES,
-    enabled: true,
+    enabled: false,
     debugMessage: '',
-    summary: {
-      protectedUserText: '128位用户',
-      blockedExpertText: '12位',
-      renewalDaysText: '18天'
-    },
-    stats: [
-      { value: '128', label: '保护用户' },
-      { value: '12', label: '已屏蔽行家' },
-      { value: '92%', label: '过滤率' }
-    ],
-    configRows: [
-      {
-        key: 'protection',
-        title: '保护模式',
-        desc: '当前：硬保护（完全过滤）',
-        badge: '硬保护',
-        iconText: '🎯',
-        tone: '',
-        route: PAGE_ROUTES.protection
-      },
-      {
-        key: 'scene',
-        title: '分场景配置',
-        desc: '推荐/搜索/附近/列表',
-        badge: '4开',
-        iconText: '⚙️',
-        tone: 'green',
-        route: PAGE_ROUTES.scene
-      },
-      {
-        key: 'whitelist',
-        title: '白名单',
-        desc: '3位行家不受保护',
-        badge: '3/20',
-        iconText: '📋',
-        tone: 'gold',
-        route: PAGE_ROUTES.whitelist
-      }
-    ],
-    manageRows: [
-      {
-        key: 'users',
-        title: '用户屏蔽',
-        desc: '已屏蔽3位用户，双方互不可见',
-        badge: '3人',
-        badgeClass: 'red',
-        iconText: '🚫',
-        tone: 'red',
-        route: PAGE_ROUTES.users
-      },
-      {
-        key: 'keywords',
-        title: '关键词屏蔽',
-        desc: '已设置5个关键词，自动过滤内容',
-        badge: '5/20',
-        iconText: '🔤',
-        tone: '',
-        route: PAGE_ROUTES.keywords
-      }
-    ],
-    rules: [
-      { prefix: '保护期默认', strong: '30天', suffix: '，到期需重新配置' },
-      { prefix: '主动搜索/行家主页/已收藏', strong: '均受保护', suffix: '' },
-      { prefix: '新行', strong: '无豁免', suffix: '，一视同仁' },
-      { prefix: '配置变更', strong: '5秒内', suffix: '对所有新请求生效' }
-    ]
+    summary: {},
+    stats: [],
+    configRows: CONFIG_ROW_META,
+    manageRows: MANAGE_ROW_META,
+    rules: []
   },
 
-  handleToggle() {
+  onLoad() {
+    this.loadBlockSettings()
+  },
+
+  async loadBlockSettings() {
+    try {
+      const data = await profileService.getSystemBlockSettings()
+
+      this.setData({
+        enabled: !!data.enabled,
+        summary: data.summary || {},
+        stats: normalizeList(data.stats),
+        configRows: mergeRows(CONFIG_ROW_META, data.configRows),
+        manageRows: mergeRows(MANAGE_ROW_META, data.manageRows),
+        rules: normalizeList(data.rules || data.ruleLines)
+      })
+    } catch (error) {
+      this.setData({
+        enabled: false,
+        summary: {},
+        stats: [],
+        configRows: CONFIG_ROW_META,
+        manageRows: MANAGE_ROW_META,
+        rules: []
+      })
+      toast.info(error.message || '屏蔽设置加载失败')
+    }
+  },
+
+  async handleToggle() {
+    const enabled = !this.data.enabled
+
     this.setData({
-      enabled: !this.data.enabled
+      enabled
     })
+
+    try {
+      await profileService.saveSystemBlockStatus({
+        enabled
+      })
+    } catch (error) {
+      this.setData({
+        enabled: !enabled
+      })
+      toast.info(error.message || '屏蔽设置保存失败')
+    }
   },
 
   handleNavigateTap(event) {

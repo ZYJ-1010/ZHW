@@ -55,7 +55,7 @@ function normalizeFeedback(feedback = {}) {
 Page({
   data: {
     pageTitle: '系统通知',
-    onlineText: '3999人在线',
+    onlineText: '',
     navItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },

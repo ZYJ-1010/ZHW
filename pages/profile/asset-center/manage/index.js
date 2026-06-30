@@ -1,17 +1,14 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 const FA_BASE = '/pages/profile/asset-center/manage/assets/fa'
 
 Page({
   data: {
     overview: {
       label: '总资产（元）',
-      value: '¥16,580.00'
+      value: ''
     },
-    assetStats: [
-      { key: 'totalDealAmount', label: '总成交额', value: '¥12,580', tone: '' },
-      { key: 'withdrawable', label: '可提现', value: '¥3,200', tone: 'green' },
-      { key: 'pendingSettlement', label: '待结算', value: '¥800', tone: 'yellow' }
-    ],
+    assetStats: [],
     quickActions: [
       { key: 'withdraw', label: '提现', tone: 'green', iconSrc: `${FA_BASE}/download.svg` },
       { key: 'recharge', label: '充值', tone: 'blue', iconSrc: `${FA_BASE}/plus.svg` }
@@ -28,7 +25,7 @@ Page({
         key: 'bankCards',
         title: '银行卡',
         desc: '管理收款账户',
-        value: '已绑定2张',
+        value: '',
         iconSrc: `${FA_BASE}/credit-card.svg`,
         tone: 'green'
       },
@@ -48,28 +45,63 @@ Page({
       { key: 'refund', label: '退款/售后', iconSrc: `${FA_BASE}/rotate-left.svg`, tone: 'red' },
       { key: 'review', label: '待评价', iconSrc: `${FA_BASE}/star.svg`, tone: 'gray' }
     ],
-    recentOrders: [
-      {
-        id: 'ORD-20260320-001',
-        title: '产品架构咨询',
-        status: '进行中',
-        statusTone: 'blue',
-        time: '2026-03-20 14:30',
-        amount: '¥800.00'
-      },
-      {
-        id: 'ORD-20260315-002',
-        title: 'UI设计服务',
-        status: '已完成',
-        statusTone: 'green',
-        time: '2026-03-15 09:15',
-        amount: '¥600.00'
-      }
-    ],
+    recentOrders: [],
     faqLinks: [
       { key: 'withdrawArrival', label: '提现多久到账？' },
       { key: 'bindBankCard', label: '如何绑定银行卡？' }
     ]
+  },
+
+  onLoad() {
+    this.loadAssets()
+  },
+
+  async loadAssets() {
+    try {
+      const data = await profileService.getProfileAssets()
+
+      this.setData({
+        overview: this.normalizeOverview(data.overview || data.summary || {}),
+        assetStats: this.normalizeList(data.assetStats || data.stats || data.summaryItems),
+        menuItems: this.mergeMenuItems(data.menuItems || data.menus),
+        orderStatuses: this.normalizeOrderStatuses(data.orderStatuses || data.statuses),
+        recentOrders: this.normalizeList(data.recentOrders || data.orders),
+        faqLinks: this.normalizeList(data.faqLinks || data.faqs)
+      })
+    } catch (error) {
+      toast.info(error.message || '资产信息加载失败')
+    }
+  },
+
+  normalizeOverview(source = {}) {
+    return {
+      label: source.label || source.title || '总资产（元）',
+      value: source.value || source.amountText || source.totalAssetText || ''
+    }
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
+  },
+
+  mergeMenuItems(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      return this.data.menuItems
+    }
+
+    return this.data.menuItems.map((item) => {
+      const remote = list.find((entry) => entry.key === item.key || entry.title === item.title) || {}
+
+      return Object.assign({}, item, remote)
+    })
+  },
+
+  normalizeOrderStatuses(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      return this.data.orderStatuses
+    }
+
+    return list
   },
 
   handleMenuTap(event) {

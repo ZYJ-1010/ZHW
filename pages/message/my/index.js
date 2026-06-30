@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const imService = require('../../../services/im')
 
 const QUICK_ACTIONS = [
   { key: 'friend', label: '加好友' },
@@ -7,19 +8,44 @@ const QUICK_ACTIONS = [
   { key: 'location', label: '发定位' }
 ]
 
-const MESSAGES = [
-  {
-    id: 'm1',
-    type: 'friend',
-    text: '好的，那我们就周六下午2点在咖啡店见，我带上项目资料...',
-    timeText: '12:30'
+function normalizeFriend(source = {}) {
+  const name = source.name || source.nickname || source.displayName || ''
+
+  return {
+    initials: source.initials || source.avatarText || (name ? name.trim().slice(0, 2) : ''),
+    name,
+    status: source.status || source.statusText || ''
   }
-]
+}
+
+function getMessageList(source = {}) {
+  if (Array.isArray(source)) {
+    return source
+  }
+
+  if (!source || typeof source !== 'object') {
+    return []
+  }
+
+  return source.list || source.records || source.items || source.messages || []
+}
+
+function normalizeMessage(item = {}) {
+  const senderType = item.type || item.senderType || item.role || ''
+  const text = item.text || item.content || item.message || ''
+
+  return {
+    id: item.id || item.messageId || item.clientMessageId || `${senderType}-${item.createdAt || item.timeText || text}`,
+    type: senderType === 'self' || senderType === 'me' || item.isMine ? 'self' : 'friend',
+    text,
+    timeText: item.timeText || item.sentAtText || item.createdAtText || item.createdAt || ''
+  }
+}
 
 Page({
   data: {
     pageTitle: '好友消息',
-    onlineText: '3999人在线',
+    onlineText: '',
     navItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },
@@ -27,14 +53,70 @@ Page({
       { name: '消息', key: 'message' },
       { name: '首页', key: 'home' }
     ],
-    friend: {
-      initials: 'LM',
-      name: '李明',
-      status: '在线'
-    },
+    roomId: '',
+    friend: normalizeFriend(),
     quickActions: QUICK_ACTIONS,
-    messages: MESSAGES,
-    chatScrollTop: 0
+    messages: [],
+    chatScrollTop: 0,
+    loading: false,
+    errorText: ''
+  },
+
+  onLoad(options = {}) {
+    const roomId = options.roomId || options.conversationId || options.id || ''
+
+    this.setData({
+      roomId,
+      friend: normalizeFriend({
+        name: options.name || '',
+        initials: options.initials || options.avatarText || '',
+        status: options.status || ''
+      })
+    })
+
+    this.loadMessages()
+  },
+
+  async loadMessages() {
+    if (!this.data.roomId) {
+      this.setData({
+        loading: false,
+        errorText: '',
+        messages: []
+      })
+      return
+    }
+
+    this.setData({
+      loading: true,
+      errorText: ''
+    })
+
+    try {
+      const data = await imService.getMessages(this.data.roomId, {
+        page: 1,
+        pageSize: 50
+      })
+      const friend = normalizeFriend(data && (data.friend || data.targetUser || data.conversation || {}))
+      const messages = getMessageList(data).map(normalizeMessage).filter((item) => item.text)
+
+      this.setData({
+        loading: false,
+        errorText: '',
+        friend: friend.name ? friend : this.data.friend,
+        messages,
+        chatScrollTop: 999999
+      })
+    } catch (error) {
+      const errorText = error && error.message ? error.message : '好友消息加载失败'
+
+      this.setData({
+        loading: false,
+        errorText,
+        messages: []
+      })
+      this.showInfo(errorText)
+    }
   },
 
   onQuickActionTap(event) {
@@ -42,22 +124,22 @@ Page({
     this.showInfo(action ? `${action.label}待接入` : '操作待接入')
   },
 
-  onSendMessage(event) {
+  async onSendMessage(event) {
     const value = String(event.detail && event.detail.value || '').trim()
 
     if (!value) {
       return
     }
 
-    this.setData({
-      messages: this.data.messages.concat({
-        id: `m-${Date.now()}`,
-        type: 'self',
-        text: value,
-        timeText: '刚刚'
-      }),
-      chatScrollTop: 999999
-    })
+    try {
+      await imService.sendMessage(this.data.roomId, {
+        type: 'text',
+        content: value
+      })
+      await this.loadMessages()
+    } catch (error) {
+      this.showInfo(error && error.message ? error.message : '消息发送失败')
+    }
   },
 
   onRecordStart() {

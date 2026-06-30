@@ -1,4 +1,5 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 
@@ -15,29 +16,39 @@ Page({
     showAddSheet: false,
     selectedCount: 0,
     hasSelection: false,
-    users: [
-      { name: '张三', role: '玩家', reason: '言语骚扰', date: '2026-06-10' },
-      { name: '李四', role: '行家', reason: '诱导私下交易', date: '2026-06-08' },
-      { name: '王五', role: '玩家', reason: '恶意取消', date: '2026-06-05' }
-    ],
-    candidates: [
-      { name: '赵六', meta: '玩家 · 最近互动：3天前', checked: false },
-      { name: '钱七', meta: '玩家 · 最近互动：1周前', checked: false },
-      { name: '孙八', meta: '行家 · 最近互动：2周前', checked: false }
-    ],
-    rules: [
-      { prefix: '可通过用户主页右上角「⋮」菜单快速屏蔽', strong: '', suffix: '' },
-      { prefix: '屏蔽后双方', strong: '互不可见', suffix: '，历史互动记录保留' },
-      { prefix: '解除屏蔽后', strong: '24小时冷却期', suffix: '才能再次屏蔽' },
-      { prefix: '屏蔽人数上限', strong: '100人', suffix: '' }
-    ]
+    users: [],
+    candidates: [],
+    rules: []
   },
 
   onLoad(options) {
+    this.loadBlockedUsers()
+
     if (options && options.sheet === 'add') {
       this.setData({
         showAddSheet: true
       })
+    }
+  },
+
+  async loadBlockedUsers() {
+    try {
+      const data = await profileService.getSystemBlockedUsers()
+
+      this.setData({
+        users: this.normalizeList(data.users || data.list || data.items),
+        candidates: this.normalizeList(data.candidates || data.recommendations)
+          .map((item) => ({ ...item, checked: false })),
+        rules: this.normalizeList(data.rules || data.ruleLines)
+      })
+      this.updateSelectionState()
+    } catch (error) {
+      this.setData({
+        users: [],
+        candidates: [],
+        rules: []
+      })
+      toast.info(error.message || '屏蔽用户加载失败')
     }
   },
 
@@ -53,13 +64,27 @@ Page({
     })
   },
 
-  handleUnblockTap(event) {
+  async handleUnblockTap(event) {
     const index = Number(event.currentTarget.dataset.index)
+    const user = this.data.users[index]
+    const userId = user && (user.userId || user.id)
 
-    this.setData({
-      users: this.data.users.filter((_, itemIndex) => itemIndex !== index)
-    })
-    toast.info('已解除屏蔽')
+    if (!userId) {
+      toast.info('缺少屏蔽用户信息')
+      return
+    }
+
+    try {
+      await profileService.removeSystemBlockedUser({
+        userId
+      })
+      this.setData({
+        users: this.data.users.filter((_, itemIndex) => itemIndex !== index)
+      })
+      toast.info('已解除屏蔽')
+    } catch (error) {
+      toast.info(error.message || '解除屏蔽失败')
+    }
   },
 
   handleCandidateToggle(event) {
@@ -67,16 +92,13 @@ Page({
     const candidates = this.data.candidates.map((item, itemIndex) => (
       itemIndex === index ? { ...item, checked: !item.checked } : item
     ))
-    const selectedCount = candidates.filter((item) => item.checked).length
 
     this.setData({
-      candidates,
-      selectedCount,
-      hasSelection: selectedCount > 0
-    })
+      candidates
+    }, () => this.updateSelectionState())
   },
 
-  handleConfirmBlock() {
+  async handleConfirmBlock() {
     const selected = this.data.candidates.filter((item) => item.checked)
 
     if (!selected.length) {
@@ -84,20 +106,42 @@ Page({
       return
     }
 
-    const users = this.data.users.concat(selected.map((item) => ({
-      name: item.name,
-      role: item.meta.indexOf('行家') > -1 ? '行家' : '玩家',
-      reason: '手动添加',
-      date: '2026-06-28'
-    })))
+    const userIds = selected
+      .map((item) => item.userId || item.id)
+      .filter(Boolean)
+
+    if (!userIds.length) {
+      toast.info('缺少可屏蔽用户信息')
+      return
+    }
+
+    try {
+      await profileService.addSystemBlockedUsers({
+        userIds
+      })
+      this.setData({
+        showAddSheet: false,
+        selectedCount: 0,
+        hasSelection: false,
+        candidates: this.data.candidates.map((item) => ({ ...item, checked: false }))
+      })
+      toast.success('已添加屏蔽用户')
+      this.loadBlockedUsers()
+    } catch (error) {
+      toast.info(error.message || '添加屏蔽用户失败')
+    }
+  },
+
+  updateSelectionState() {
+    const selectedCount = this.data.candidates.filter((item) => item.checked).length
 
     this.setData({
-      users,
-      showAddSheet: false,
-      selectedCount: 0,
-      hasSelection: false,
-      candidates: this.data.candidates.map((item) => ({ ...item, checked: false }))
+      selectedCount,
+      hasSelection: selectedCount > 0
     })
-    toast.success('已添加屏蔽用户')
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
   }
 })

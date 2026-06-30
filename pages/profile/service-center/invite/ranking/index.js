@@ -1,3 +1,5 @@
+const profileService = require('../../../../../services/profile')
+
 Page({
   data: {
     activePeriodIndex: 0,
@@ -13,13 +15,30 @@ Page({
       { key: 'inviteCount', label: '邀约数排行' },
       { key: 'profitContribution', label: '分润贡献排行' }
     ],
-    members: [
-      { id: 'member-1', rank: 1, avatar: '👨‍💼', name: '张大山', level: '一级成员', activeDays: 12, inviteCount: 8, profitContribution: '¥4,260' },
-      { id: 'member-2', rank: 2, avatar: '👩‍💻', name: '李小红', level: '一级成员', activeDays: 9, inviteCount: 6, profitContribution: '¥3,180' },
-      { id: 'member-3', rank: 3, avatar: '👨‍🎨', name: '王建国', level: '一级成员', activeDays: 7, inviteCount: 4, profitContribution: '¥2,540' },
-      { id: 'member-4', rank: 4, avatar: '👩‍🎤', name: '赵小美', level: '一级成员', activeDays: 5, inviteCount: 3, profitContribution: '¥1,860' },
-      { id: 'member-5', rank: 5, avatar: '👨‍🔬', name: '陈博士', level: '一级成员', activeDays: 4, inviteCount: 3, profitContribution: '¥1,420' }
-    ]
+    members: []
+  },
+
+  onLoad() {
+    this.loadRanking()
+  },
+
+  async loadRanking() {
+    try {
+      const period = this.data.periods[this.data.activePeriodIndex] || {}
+      const data = await profileService.getInviteRanking({
+        period: period.key,
+        type: this.data.activeType
+      })
+
+      this.setData({
+        members: Array.isArray(data.members || data.list || data.items) ? (data.members || data.list || data.items) : []
+      })
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '邀请排行加载失败',
+        icon: 'none'
+      })
+    }
   },
 
   handlePeriodTap(event) {
@@ -32,6 +51,7 @@ Page({
     this.setData({
       activePeriodIndex: index
     })
+    this.loadRanking()
   },
 
   handleTypeTap(event) {
@@ -44,5 +64,6 @@ Page({
     this.setData({
       activeType: type
     })
+    this.loadRanking()
   }
 })

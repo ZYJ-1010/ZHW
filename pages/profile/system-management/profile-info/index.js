@@ -3,6 +3,144 @@ const toast = require('../../../../utils/toast')
 
 const ASSET_BASE = '/pages/profile/system-management/profile-info/assets'
 
+const EMPTY_PROFILE = {
+  avatarText: '',
+  name: '',
+  phone: '',
+  contactVisibility: '',
+  hobby: '',
+  company: '',
+  jobTitle: '',
+  businessCountText: '',
+  resources: '',
+  publicBusinessInfo: false
+}
+
+const PERSONAL_ROW_META = [
+  { key: 'avatar', label: '头像', type: 'avatar' },
+  { key: 'name', label: '姓名', field: 'name' },
+  { key: 'contact', label: '联系方式', type: 'contact' },
+  { key: 'hobby', label: '兴趣爱好', field: 'hobby', muted: true }
+]
+
+const ENTERPRISE_ROW_META = [
+  { key: 'company', label: '公司名称', field: 'company' },
+  { key: 'jobTitle', label: '职务', field: 'jobTitle' },
+  { key: 'business', label: '主营业务', field: 'businessCountText', muted: true },
+  { key: 'resources', label: '可提供资源', field: 'resources', muted: true }
+]
+
+const CERT_META = {
+  personal: {
+    iconSrc: `${ASSET_BASE}/icon-id-card.svg`,
+    tone: 'green'
+  },
+  enterprise: {
+    iconSrc: `${ASSET_BASE}/icon-enterprise.svg`,
+    tone: 'blue'
+  }
+}
+
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
+}
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return value === 1
+  }
+
+  return String(value || '').toLowerCase() === 'true'
+}
+
+function normalizeProfile(data) {
+  const source = data || {}
+  const personal = source.personalInfo || source.personal || source.profile || {}
+  const enterprise = source.enterpriseInfo || source.enterprise || {}
+
+  return Object.assign({}, EMPTY_PROFILE, {
+    avatarText: pickFirstValue(personal.avatarText, source.avatarText),
+    name: pickFirstValue(personal.name, source.name),
+    phone: pickFirstValue(personal.phoneMasked, personal.phone, source.phoneMasked, source.phone),
+    contactVisibility: pickFirstValue(personal.contactVisibility, source.contactVisibility),
+    hobby: pickFirstValue(personal.hobby, source.hobby),
+    company: pickFirstValue(enterprise.company, source.company),
+    jobTitle: pickFirstValue(enterprise.jobTitle, source.jobTitle),
+    businessCountText: pickFirstValue(enterprise.businessCountText, enterprise.businessText, source.businessCountText),
+    resources: pickFirstValue(enterprise.resources, source.resources),
+    publicBusinessInfo: normalizeBoolean(
+      enterprise.publicBusinessInfo !== undefined ? enterprise.publicBusinessInfo : source.publicBusinessInfo
+    )
+  })
+}
+
+function normalizeRows(rows, metaRows, profile) {
+  const remoteRows = normalizeList(rows)
+  const sourceRows = remoteRows.length ? remoteRows : metaRows
+
+  return sourceRows.map((item) => {
+    const row = item || {}
+    const key = pickFirstValue(row.key, row.id)
+    const meta = metaRows.find((metaItem) => metaItem.key === key) || {}
+    const field = pickFirstValue(row.field, meta.field)
+
+    return {
+      key,
+      label: pickFirstValue(row.label, row.title, meta.label),
+      type: pickFirstValue(row.type, meta.type),
+      value: pickFirstValue(row.value, row.valueText, field ? profile[field] : ''),
+      muted: Boolean(row.muted !== undefined ? row.muted : meta.muted)
+    }
+  }).filter((item) => item.key)
+}
+
+function normalizeVisibilityOptions(data) {
+  const source = data || {}
+
+  return normalizeList(source.visibilityOptions || source.contactVisibilityOptions)
+    .map((item) => ({
+      key: pickFirstValue(item.key, item.value, item.id),
+      label: pickFirstValue(item.label, item.title, item.name)
+    }))
+    .filter((item) => item.key && item.label)
+}
+
+function normalizeCertifications(data) {
+  const certifications = normalizeList(data && data.certifications)
+
+  return certifications.map((item) => {
+    const cert = item || {}
+    const key = pickFirstValue(cert.key, cert.id, cert.type)
+    const meta = CERT_META[key] || {}
+
+    return {
+      key,
+      title: pickFirstValue(cert.title, cert.name),
+      desc: pickFirstValue(cert.desc, cert.description),
+      status: pickFirstValue(cert.statusText, cert.status),
+      statusClass: pickFirstValue(cert.statusClass),
+      iconSrc: pickFirstValue(cert.localIcon, meta.iconSrc),
+      tone: pickFirstValue(cert.tone, meta.tone)
+    }
+  }).filter((item) => item.key)
+}
+
 Page({
   data: {
     icons: {
@@ -14,56 +152,40 @@ Page({
       lock: `${ASSET_BASE}/icon-lock.svg`,
       chevron: `${ASSET_BASE}/icon-chevron-right.svg`
     },
-    profile: {
-      avatarText: 'ZW',
-      name: '张伟',
-      phone: '138****8888',
-      contactVisibility: 'all',
-      hobby: '未填写',
-      company: '腾讯科技',
-      jobTitle: '产品经理',
-      businessCountText: '已设置3项',
-      resources: '未填写',
-      publicBusinessInfo: true
-    },
+    profile: Object.assign({}, EMPTY_PROFILE),
     isSaving: false,
-    visibilityOptions: [
-      { key: 'all', label: '全部展示' },
-      { key: 'member', label: '仅会员可见' },
-      { key: 'hidden', label: '完全隐藏' }
-    ],
-    personalRows: [
-      { key: 'avatar', label: '头像', type: 'avatar' },
-      { key: 'name', label: '姓名', value: '张伟' },
-      { key: 'contact', label: '联系方式', type: 'contact' },
-      { key: 'hobby', label: '兴趣爱好', value: '未填写', muted: true }
-    ],
-    enterpriseRows: [
-      { key: 'company', label: '公司名称', value: '腾讯科技' },
-      { key: 'jobTitle', label: '职务', value: '产品经理' },
-      { key: 'business', label: '主营业务', value: '已设置3项', muted: true },
-      { key: 'resources', label: '可提供资源', value: '未填写', muted: true }
-    ],
-    certifications: [
-      {
-        key: 'personal',
-        title: '个人身份认证',
-        desc: '身份证+人脸识别',
-        status: '已认证',
-        statusClass: 'verified',
-        iconSrc: `${ASSET_BASE}/icon-id-card.svg`,
-        tone: 'green'
-      },
-      {
-        key: 'enterprise',
-        title: '企业认证',
-        desc: '营业执照+对公账户',
-        status: '未认证',
-        statusClass: '',
-        iconSrc: `${ASSET_BASE}/icon-enterprise.svg`,
-        tone: 'blue'
-      }
-    ]
+    visibilityOptions: [],
+    personalRows: normalizeRows([], PERSONAL_ROW_META, EMPTY_PROFILE),
+    enterpriseRows: normalizeRows([], ENTERPRISE_ROW_META, EMPTY_PROFILE),
+    certifications: []
+  },
+
+  onLoad() {
+    this.loadProfileInfo()
+  },
+
+  async loadProfileInfo() {
+    try {
+      const data = await profileService.getSystemProfileInfo()
+      const profile = normalizeProfile(data)
+
+      this.setData({
+        profile,
+        visibilityOptions: normalizeVisibilityOptions(data),
+        personalRows: normalizeRows(data && data.personalRows, PERSONAL_ROW_META, profile),
+        enterpriseRows: normalizeRows(data && data.enterpriseRows, ENTERPRISE_ROW_META, profile),
+        certifications: normalizeCertifications(data)
+      })
+    } catch (error) {
+      this.setData({
+        profile: Object.assign({}, EMPTY_PROFILE),
+        visibilityOptions: [],
+        personalRows: normalizeRows([], PERSONAL_ROW_META, EMPTY_PROFILE),
+        enterpriseRows: normalizeRows([], ENTERPRISE_ROW_META, EMPTY_PROFILE),
+        certifications: []
+      })
+      toast.info(error.message || '资料设置加载失败')
+    }
   },
 
   handleVisibilityTap(event) {

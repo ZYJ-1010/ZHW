@@ -116,6 +116,10 @@ function getTimeDraftText(draft = {}) {
   return `${draft.startDate} ${draft.startTime} - ${draft.endDate} ${draft.endTime}`
 }
 
+function hasTimeDraftValue(draft = {}) {
+  return Boolean(draft.startDate || draft.startTime || draft.endDate || draft.endTime)
+}
+
 function getDraftTimestamp(dateText, timeText) {
   return Date.parse(`${dateText}T${timeText}:00+08:00`)
 }
@@ -136,19 +140,27 @@ function getBackendCurrentTime(data = {}) {
   return data.serverTime || data.currentTime || data.now || data.responseTime || ''
 }
 
-function buildInitialTimeState(currentTime) {
+function buildInitialTimeState(currentTime, currentData = {}) {
   const date = parseBackendDate(currentTime)
 
   if (!date) {
     return {}
   }
 
-  return {
+  const state = {
     serverTime: currentTime,
-    todayDate: formatDate(date),
-    timeDraft: getInitialTimeDraft(currentTime),
-    signupTimeDraft: getInitialSignupTimeDraft(currentTime)
+    todayDate: formatDate(date)
   }
+
+  if (!currentData.gameTimeConfirmed && !hasTimeDraftValue(currentData.timeDraft)) {
+    state.timeDraft = getInitialTimeDraft(currentTime)
+  }
+
+  if (!currentData.signupTimeConfirmed && !hasTimeDraftValue(currentData.signupTimeDraft)) {
+    state.signupTimeDraft = getInitialSignupTimeDraft(currentTime)
+  }
+
+  return state
 }
 
 function getDurationText(startTimestamp, endTimestamp) {
@@ -327,7 +339,8 @@ Page({
     descriptionMedia: [],
     capacityMin: CAPACITY_MIN,
     capacityMax: CAPACITY_MAX,
-    todayDate: formatDate(new Date()),
+    serverTime: '',
+    todayDate: '',
     timePanelVisible: false,
     timeDraft: getInitialTimeDraft(),
     gameTimeConfirmed: false,
@@ -456,7 +469,8 @@ Page({
         profitTemplates,
         'form.profitTemplate': profitTemplate,
         depositRuleText,
-        depositNoticeText
+        depositNoticeText,
+        ...buildInitialTimeState(getBackendCurrentTime(data), this.data)
       })
       this.syncPublishState()
     }).catch(() => {
@@ -674,14 +688,14 @@ Page({
     const draft = this.data.timeDraft || {}
     const startTimestamp = getDraftTimestamp(draft.startDate, draft.startTime)
     const endTimestamp = getDraftTimestamp(draft.endDate, draft.endTime)
-    const nowTimestamp = getCurrentMinuteTimestamp()
+    const nowTimestamp = getCurrentMinuteTimestamp(this.data.serverTime)
 
     if (!startTimestamp || !endTimestamp || Number.isNaN(startTimestamp) || Number.isNaN(endTimestamp)) {
       toast.info('请选择完整局时间')
       return
     }
 
-    if (startTimestamp < nowTimestamp) {
+    if (nowTimestamp !== null && startTimestamp < nowTimestamp) {
       toast.info('局开始时间不能早于当前时间')
       return
     }
@@ -744,14 +758,14 @@ Page({
     const draft = this.data.signupTimeDraft || {}
     const signupStartTimestamp = getDraftTimestamp(draft.startDate, draft.startTime)
     const signupEndTimestamp = getDraftTimestamp(draft.endDate, draft.endTime)
-    const nowTimestamp = getCurrentMinuteTimestamp()
+    const nowTimestamp = getCurrentMinuteTimestamp(this.data.serverTime)
 
     if (!signupStartTimestamp || !signupEndTimestamp || Number.isNaN(signupStartTimestamp) || Number.isNaN(signupEndTimestamp)) {
       toast.info('请选择完整报名时间')
       return
     }
 
-    if (signupStartTimestamp < nowTimestamp) {
+    if (nowTimestamp !== null && signupStartTimestamp < nowTimestamp) {
       toast.info('报名开始时间不能早于当前时间')
       return
     }

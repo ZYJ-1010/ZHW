@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../../config/routes')
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const CONTENT_TOP_RPX = 160
 const CONTENT_WIDTH_RPX = 750
@@ -17,105 +18,13 @@ const CATEGORY_TABS = [
 
 const STATUS_TABS = [
   { key: 'all', text: '全部' },
-  { key: 'active', text: '进行中(2)' },
-  { key: 'complete', text: '已完成(5)' },
-  { key: 'overdue', text: '超时(0)' },
-  { key: 'canceled', text: '已取消(1)' }
+  { key: 'active', text: '进行中' },
+  { key: 'complete', text: '已完成' },
+  { key: 'overdue', text: '超时' },
+  { key: 'canceled', text: '已取消' }
 ]
 
-const GAME_CARDS = [
-  {
-    id: 'ACT-20260320-001',
-    category: 'joined',
-    statusType: 'active',
-    statusText: '进行中',
-    ref: 'ACT-20260320-001',
-    timeText: '3天前',
-    avatar: 'ZH',
-    title: '产品架构咨询',
-    expertName: '张专家',
-    guideName: '王引荐',
-    amount: '¥800',
-    fundStatus: '已托管',
-    deliveryText: '预计交付：03-25 14:00',
-    canExpand: true,
-    actions: []
-  },
-  {
-    id: 'ACT-20260315-002',
-    category: 'joined',
-    statusType: 'complete',
-    statusText: '已完成',
-    ref: 'ACT-20260315-002',
-    timeText: '5天前',
-    avatar: 'CH',
-    title: 'UI设计服务',
-    expertName: '陈设计师',
-    guideName: '',
-    amount: '¥600',
-    fundStatus: '已完成',
-    deliveryText: '',
-    canExpand: false,
-    actions: [
-      { type: 'review', text: '评价', icon: '★' },
-      { type: 'buy', text: '再次购买' }
-    ]
-  },
-  {
-    id: 'ACT-20260310-003',
-    category: 'joined',
-    statusType: 'canceled',
-    statusText: '已取消',
-    ref: 'ACT-20260310-003',
-    timeText: '10天前',
-    avatar: 'LI',
-    title: '技术咨询服务',
-    expertName: '刘工',
-    guideName: '',
-    reason: '时间冲突',
-    amount: '¥500',
-    fundStatus: '已退款',
-    deliveryText: '',
-    canExpand: false,
-    actions: []
-  },
-  {
-    id: 'ACT-20260308-004',
-    category: 'invited',
-    statusType: 'active',
-    statusText: '待确认',
-    ref: 'ACT-20260308-004',
-    timeText: '12天前',
-    avatar: 'WY',
-    title: '品牌增长诊断',
-    expertName: '吴顾问',
-    guideName: '赵引荐',
-    amount: '¥1200',
-    fundStatus: '待托管',
-    deliveryText: '等待你确认参与',
-    canExpand: true,
-    actions: []
-  },
-  {
-    id: 'ACT-20260301-005',
-    category: 'favorite',
-    statusType: 'complete',
-    statusText: '已收藏',
-    ref: 'ACT-20260301-005',
-    timeText: '20天前',
-    avatar: 'ML',
-    title: '商业模型梳理',
-    expertName: '马老师',
-    guideName: '',
-    amount: '¥900',
-    fundStatus: '可复购',
-    deliveryText: '',
-    canExpand: false,
-    actions: [
-      { type: 'buy', text: '再次购买' }
-    ]
-  }
-]
+const GAME_CARDS = []
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -189,11 +98,11 @@ function getDisplayCards(cards, categoryKey, statusKey) {
   ))
 }
 
-function buildDisplayState(categoryKey, statusKey) {
+function buildDisplayState(categoryKey, statusKey, cards = GAME_CARDS, statusTabs = STATUS_TABS) {
   return {
     categoryTabs: buildTabs(CATEGORY_TABS, categoryKey),
-    statusTabs: buildTabs(STATUS_TABS, statusKey),
-    displayCards: getDisplayCards(GAME_CARDS, categoryKey, statusKey)
+    statusTabs: buildTabs(statusTabs, statusKey),
+    displayCards: getDisplayCards(cards, categoryKey, statusKey)
   }
 }
 
@@ -205,7 +114,12 @@ Page({
     shellLayout: getShellLayoutStyles(),
     activeCategoryKey: INITIAL_CATEGORY_KEY,
     activeStatusKey: INITIAL_STATUS_KEY,
+    cards: GAME_CARDS,
     ...buildDisplayState(INITIAL_CATEGORY_KEY, INITIAL_STATUS_KEY)
+  },
+
+  onLoad() {
+    this.loadGames()
   },
 
   onShow() {
@@ -220,6 +134,28 @@ Page({
     this.setData({
       shellLayout: getShellLayoutStyles()
     })
+  },
+
+  async loadGames() {
+    try {
+      const data = await profileService.getProfileGames({
+        category: this.data.activeCategoryKey,
+        status: this.data.activeStatusKey
+      })
+      const cards = this.normalizeCards(data.list || data.records || data.items || data.games)
+      const statusTabs = Array.isArray(data.statusTabs) && data.statusTabs.length ? data.statusTabs : STATUS_TABS
+
+      this.setData({
+        cards,
+        ...buildDisplayState(this.data.activeCategoryKey, this.data.activeStatusKey, cards, statusTabs)
+      })
+    } catch (error) {
+      toast.info(error.message || '我的局加载失败')
+    }
+  },
+
+  normalizeCards(cards) {
+    return Array.isArray(cards) ? cards : []
   },
 
   onBackTap() {
@@ -244,8 +180,9 @@ Page({
 
     this.setData({
       activeCategoryKey: key,
-      ...buildDisplayState(key, this.data.activeStatusKey)
+      ...buildDisplayState(key, this.data.activeStatusKey, this.data.cards)
     })
+    this.loadGames()
   },
 
   onStatusTabTap(event) {
@@ -253,8 +190,9 @@ Page({
 
     this.setData({
       activeStatusKey: key,
-      ...buildDisplayState(this.data.activeCategoryKey, key)
+      ...buildDisplayState(this.data.activeCategoryKey, key, this.data.cards)
     })
+    this.loadGames()
   },
 
   onActionTap(event) {

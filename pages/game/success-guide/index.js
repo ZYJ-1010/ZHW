@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
@@ -11,6 +12,39 @@ const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
 const CTA_BAR_HEIGHT_RPX = 158
+const FOLLOW_UP_ICON_MAP = {
+  schedule: {
+    iconSrc: './assets/follow-schedule.png',
+    iconClass: 'schedule',
+    theme: 'blue'
+  },
+  feedback: {
+    iconSrc: './assets/follow-feedback.png',
+    iconClass: 'feedback',
+    theme: 'purple'
+  },
+  deal: {
+    iconSrc: './assets/follow-deal.png',
+    iconClass: 'deal',
+    theme: 'orange'
+  }
+}
+
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
+}
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -74,82 +108,88 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
+function normalizeMember(member, roleType) {
+  const source = member || {}
+  const name = pickFirstValue(source.name, source.nickname, source.realname)
+
+  return {
+    id: pickFirstValue(source.id, source.userId),
+    avatarClass: pickFirstValue(source.avatarClass, roleType === 'expert' ? 'blue' : 'pink'),
+    avatarUrl: pickFirstValue(source.avatarUrl, source.avatar),
+    name,
+    avatarText: pickFirstValue(source.avatarText, source.initials, name ? getSurnameInitials(name, roleType === 'expert' ? 'EX' : 'PL') : ''),
+    role: pickFirstValue(source.role, source.roleLabel, roleType === 'expert' ? '行家' : '玩家'),
+    state: pickFirstValue(source.state, source.statusText),
+    stateClass: pickFirstValue(source.stateClass, source.statusClass)
+  }
+}
+
+function normalizeParty(data) {
+  const source = data || {}
+  const party = source.party || source
+  const player = normalizeList(party.players || party.playerList)[0] || party.player || source.player || {}
+  const expert = normalizeList(party.experts || party.expertList)[0] || party.expert || source.expert || {}
+
+  return {
+    confirmedText: pickFirstValue(party.confirmedText),
+    cardClass: 'success-guide-party-card',
+    cardStyle: 'width: 684rpx; height: 446rpx; margin: 32rpx auto 0; box-shadow: none;',
+    titleClass: 'regular',
+    player: normalizeMember(player, 'player'),
+    expert: normalizeMember(expert, 'expert')
+  }
+}
+
+function normalizeTimeline(data) {
+  const source = data || {}
+
+  return normalizeList(source.timeline || source.steps || source.progress)
+    .map((item) => ({
+      title: pickFirstValue(item.title, item.name),
+      desc: pickFirstValue(item.desc, item.description),
+      time: pickFirstValue(item.time, item.timeText, item.createdAt),
+      active: Boolean(item.active || item.current)
+    }))
+    .filter((item) => item.title || item.desc || item.time)
+}
+
+function normalizeFollowUps(data) {
+  const source = data || {}
+
+  return normalizeList(source.followUps || source.actions || source.nextActions)
+    .map((item) => {
+      const key = pickFirstValue(item.key, item.id, item.action)
+      const meta = FOLLOW_UP_ICON_MAP[key] || FOLLOW_UP_ICON_MAP.schedule
+
+      return {
+        key,
+        title: pickFirstValue(item.title, item.name),
+        desc: pickFirstValue(item.desc, item.description),
+        reward: pickFirstValue(item.reward, item.rewardText),
+        route: pickFirstValue(item.route, item.path),
+        message: pickFirstValue(item.message, item.toastText),
+        iconSrc: pickFirstValue(item.localIcon, meta.iconSrc),
+        iconClass: pickFirstValue(item.iconClass, meta.iconClass),
+        theme: pickFirstValue(item.theme, meta.theme)
+      }
+    })
+    .filter((item) => item.key)
+}
+
 Page({
   data: {
     shellLayout: getWhiteShellLayoutStyles(),
-    timeline: [
-      {
-        title: '发起引荐',
-        desc: '你向双方发送了组局邀请',
-        time: '03-21 10:23'
-      },
-      {
-        title: '玩家确认',
-        desc: '李娜确认参加组局',
-        time: '03-21 11:05'
-      },
-      {
-        title: '行家确认',
-        desc: '王强确认参加组局',
-        time: '03-21 14:30'
-      },
-      {
-        title: '组局成功！',
-        desc: '双方已建立连接，进入交付阶段',
-        time: '03-21 14:30',
-        active: true
-      }
-    ],
-    party: {
-      confirmedText: '',
-      cardClass: 'success-guide-party-card',
-      cardStyle: 'width: 684rpx; height: 446rpx; margin: 32rpx auto 0; box-shadow: none;',
-      titleClass: 'regular',
-      player: {
-        avatarClass: 'pink',
-        name: '李娜',
-        avatarText: getSurnameInitials('李娜', 'LI'),
-        role: '玩家',
-        state: '已确认',
-        stateClass: 'confirmed'
-      },
-      expert: {
-        avatarClass: 'blue',
-        name: '王强',
-        avatarText: getSurnameInitials('王强', 'WA'),
-        role: '行家',
-        state: '已确认',
-        stateClass: 'confirmed'
-      }
-    },
-    followUps: [
-      {
-        key: 'schedule',
-        title: '查看组局日程',
-        desc: '活动将于3月25日举行',
-        iconSrc: './assets/follow-schedule.png',
-        iconClass: 'schedule',
-        theme: 'blue'
-      },
-      {
-        key: 'feedback',
-        title: '询问双方反馈',
-        desc: '了解交流情况，促成深度合作',
-        iconSrc: './assets/follow-feedback.png',
-        iconClass: 'feedback',
-        theme: 'purple',
-        reward: '+20积分'
-      },
-      {
-        key: 'deal',
-        title: '促成交易',
-        desc: '协助双方达成合作意向',
-        iconSrc: './assets/follow-deal.png',
-        iconClass: 'deal',
-        theme: 'orange',
-        reward: '+100积分'
-      }
-    ]
+    queryParams: {},
+    timeline: [],
+    party: normalizeParty({}),
+    followUps: []
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      queryParams: options
+    })
+    this.loadSuccessGuide(options)
   },
 
   onShow() {
@@ -164,6 +204,28 @@ Page({
     this.setData({
       shellLayout: getWhiteShellLayoutStyles()
     })
+  },
+
+  async loadSuccessGuide(params = {}) {
+    try {
+      const data = await gameService.getGuideSuccess(params)
+
+      this.setData({
+        timeline: normalizeTimeline(data),
+        party: normalizeParty(data),
+        followUps: normalizeFollowUps(data)
+      })
+    } catch (error) {
+      this.setData({
+        timeline: [],
+        party: normalizeParty({}),
+        followUps: []
+      })
+      wx.showToast({
+        title: error.message || '组局成功信息加载失败',
+        icon: 'none'
+      })
+    }
   },
 
   onBackTap() {
@@ -182,8 +244,15 @@ Page({
   onFollowTap(event) {
     const item = this.data.followUps.find((entry) => entry.key === event.currentTarget.dataset.key)
 
+    if (item && item.route) {
+      wx.navigateTo({
+        url: item.route
+      })
+      return
+    }
+
     wx.showToast({
-      title: item ? item.title : '后续跟进待接入',
+      title: item && (item.message || item.title) || '后续跟进待接入',
       icon: 'none'
     })
   },

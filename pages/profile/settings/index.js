@@ -1,53 +1,114 @@
+const toast = require('../../../utils/toast')
+const profileService = require('../../../services/profile')
+
 const ASSET_BASE = '/pages/profile/settings/assets'
 
 function asset(name) {
   return `${ASSET_BASE}/${name}`
 }
 
-const SETTING_SECTIONS = [
-  {
-    title: '账号安全',
-    rows: [
-      { id: 'payPassword', label: '支付密码', icon: asset('icon-pay-lock.png'), value: '未设置', arrow: true },
-      { id: 'loginPassword', label: '登录密码', icon: asset('icon-login-lock.png'), arrow: true },
-      { id: 'phone', label: '更换手机号', icon: asset('icon-mobile.png'), value: '138****8888', arrow: true },
-      { id: 'facePay', label: '指纹/面容支付', icon: asset('icon-pay-shield.png'), switch: true, enabled: true }
-    ]
-  },
-  {
-    title: '通知设置',
-    rows: [
-      { id: 'gamePush', label: '局消息推送', icon: asset('icon-bell.png'), switch: true, enabled: true },
-      { id: 'systemNotice', label: '系统通知', icon: asset('icon-calendar.png'), switch: true, enabled: true },
-      { id: 'subscribeNotice', label: '订阅消息', icon: asset('icon-mail.png'), switch: true, enabled: true },
-      { id: 'emailNotice', label: '邮件通知', icon: asset('icon-mail-off.png'), switch: true, enabled: false },
-      { id: 'quietHours', label: '消息免打扰', icon: asset('icon-clock.png'), value: '22:00 - 08:00', arrow: true }
-    ]
-  },
-  {
-    title: '隐私设置',
-    rows: [
-      { id: 'showGames', label: '允许他人查看我的局', icon: asset('icon-eye.png'), switch: true, enabled: true },
-      { id: 'showReviews', label: '允许他人查看我的评价', icon: asset('icon-comment.png'), switch: true, enabled: true },
-      { id: 'findByPhone', label: '允许通过手机号找到我', icon: asset('icon-phone.png'), switch: true, enabled: false },
-      { id: 'personalized', label: '个性化推送', icon: asset('icon-star.png'), switch: true, enabled: true },
-      { id: 'privacySummary', label: '隐私政策摘要', icon: asset('icon-document.png'), arrow: true },
-      { id: 'thirdPartyList', label: '第三方共享清单', icon: asset('icon-users.png'), arrow: true },
-      { id: 'collectionList', label: '信息收集清单', icon: asset('icon-document-list.png'), arrow: true }
-    ]
-  },
-  {
-    title: '通用设置',
-    rows: [
-      { id: 'clearCache', label: '清除缓存', icon: asset('icon-trash.png'), value: '当前缓存 23.5MB', arrow: true },
-      { id: 'about', label: '关于我们', icon: asset('icon-info.png'), value: '版本 v1.0.0', arrow: true }
-    ]
+const DEFAULT_ICON = asset('icon-document.png')
+const ICON_MAP = {
+  payPassword: asset('icon-pay-lock.png'),
+  loginPassword: asset('icon-login-lock.png'),
+  phone: asset('icon-mobile.png'),
+  facePay: asset('icon-pay-shield.png'),
+  gamePush: asset('icon-bell.png'),
+  systemNotice: asset('icon-calendar.png'),
+  subscribeNotice: asset('icon-mail.png'),
+  emailNotice: asset('icon-mail-off.png'),
+  quietHours: asset('icon-clock.png'),
+  showGames: asset('icon-eye.png'),
+  showReviews: asset('icon-comment.png'),
+  findByPhone: asset('icon-phone.png'),
+  personalized: asset('icon-star.png'),
+  privacySummary: asset('icon-document.png'),
+  thirdPartyList: asset('icon-users.png'),
+  collectionList: asset('icon-document-list.png'),
+  clearCache: asset('icon-trash.png'),
+  about: asset('icon-info.png')
+}
+
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
   }
-]
+
+  return ''
+}
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return value === 1
+  }
+
+  return String(value || '').toLowerCase() === 'true'
+}
+
+function normalizeIcon(row, rowId) {
+  const icon = pickFirstValue(row.localIcon, row.iconLocal, row.icon)
+
+  if (typeof icon === 'string' && icon.indexOf('/pages/') === 0) {
+    return icon
+  }
+
+  return ICON_MAP[rowId] || DEFAULT_ICON
+}
+
+function normalizeRow(row) {
+  const source = row || {}
+  const id = pickFirstValue(source.id, source.key, source.settingKey)
+  const label = pickFirstValue(source.label, source.title, source.name)
+  const isSwitch = source.switch === true || source.type === 'switch' || typeof source.enabled === 'boolean'
+
+  return {
+    id,
+    label,
+    icon: normalizeIcon(source, id),
+    value: pickFirstValue(source.valueText, source.displayValue, source.value),
+    arrow: source.arrow !== undefined ? Boolean(source.arrow) : Boolean(source.route || source.url || source.action),
+    switch: isSwitch,
+    enabled: normalizeBoolean(source.enabled !== undefined ? source.enabled : source.value),
+    disabled: Boolean(source.disabled),
+    route: pickFirstValue(source.route, source.path),
+    url: pickFirstValue(source.url, source.webUrl),
+    action: pickFirstValue(source.action, source.actionKey),
+    message: pickFirstValue(source.message, source.toastText)
+  }
+}
+
+function normalizeSections(data) {
+  const source = data || {}
+  const sections = normalizeList(source.sections || source.groups || source.items)
+
+  return sections.map((section) => {
+    const group = section || {}
+    const rows = normalizeList(group.rows || group.items || group.children)
+      .map(normalizeRow)
+      .filter((row) => row.id || row.label)
+
+    return {
+      title: pickFirstValue(group.title, group.name, group.label),
+      rows
+    }
+  }).filter((section) => section.title || section.rows.length)
+}
 
 Page({
   data: {
-    sections: SETTING_SECTIONS,
+    sections: [],
     chevronIcon: asset('icon-chevron-right.svg'),
     previewMode: 'static'
   },
@@ -56,39 +117,134 @@ Page({
     this.setData({
       previewMode: options.mode || 'static'
     })
+    this.loadSettings()
   },
 
-  handleSwitch(event) {
+  async loadSettings() {
+    try {
+      const data = await profileService.getProfileSettings()
+
+      this.setData({
+        sections: normalizeSections(data)
+      })
+    } catch (error) {
+      this.setData({
+        sections: []
+      })
+      toast.info(error.message || '系统设置加载失败')
+    }
+  },
+
+  async handleSwitch(event) {
     const { sectionIndex, rowIndex } = event.currentTarget.dataset
+    const row = this.getRow(sectionIndex, rowIndex)
+
+    if (!row || row.disabled) {
+      return
+    }
+
     const key = `sections[${sectionIndex}].rows[${rowIndex}].enabled`
-    const current = this.data.sections[sectionIndex].rows[rowIndex].enabled
+    const nextValue = !row.enabled
 
     this.setData({
-      [key]: !current
+      [key]: nextValue
     })
+
+    try {
+      const data = await profileService.saveProfileSettings({
+        key: row.id,
+        value: nextValue,
+        enabled: nextValue
+      })
+
+      if (data && (data.sections || data.groups || data.items)) {
+        this.setData({
+          sections: normalizeSections(data)
+        })
+      }
+    } catch (error) {
+      this.setData({
+        [key]: row.enabled
+      })
+      toast.info(error.message || '设置保存失败')
+    }
   },
 
   handleRowTap(event) {
     const { label } = event.currentTarget.dataset
+    const row = this.findRowByLabel(label)
 
-    if (!label || typeof wx === 'undefined') {
+    if (!row || typeof wx === 'undefined') {
       return
     }
 
-    wx.showToast({
-      title: '待接入',
-      icon: 'none'
-    })
+    if (row.disabled) {
+      toast.info(row.message || '当前不可操作')
+      return
+    }
+
+    if (row.id === 'clearCache' || row.action === 'clearCache') {
+      this.handleClearCache()
+      return
+    }
+
+    if (row.route) {
+      wx.navigateTo({
+        url: row.route
+      })
+      return
+    }
+
+    toast.info(row.message || '待接入')
   },
 
-  handleLogout() {
+  async handleClearCache() {
+    try {
+      await profileService.clearProfileSettingsCache()
+      toast.info('缓存已清除')
+      this.loadSettings()
+    } catch (error) {
+      toast.info(error.message || '清除缓存失败')
+    }
+  },
+
+  async handleLogout() {
     if (typeof wx === 'undefined') {
       return
     }
 
-    wx.showToast({
-      title: '退出登录待接入',
-      icon: 'none'
-    })
+    try {
+      await profileService.logoutProfile()
+      wx.removeStorageSync('enjoy_token')
+      wx.removeStorageSync('enjoy_user')
+      wx.showToast({
+        title: '已退出登录',
+        icon: 'success'
+      })
+    } catch (error) {
+      toast.info(error.message || '退出登录失败')
+    }
+  },
+
+  getRow(sectionIndex, rowIndex) {
+    const section = this.data.sections[sectionIndex]
+
+    return section && section.rows ? section.rows[rowIndex] : null
+  },
+
+  findRowByLabel(label) {
+    const sections = this.data.sections || []
+
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
+      const rows = sections[sectionIndex].rows || []
+
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        if (rows[rowIndex].label === label) {
+          return rows[rowIndex]
+        }
+      }
+    }
+
+    return null
   }
 })

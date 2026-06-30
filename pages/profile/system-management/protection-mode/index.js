@@ -1,4 +1,5 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 
@@ -8,43 +9,42 @@ Page({
       lock: `${ASSET_BASE}/icon-lock.svg`,
       check: `${ASSET_BASE}/icon-check.svg`
     },
-    mode: 'hard',
-    modes: [
-      {
-        key: 'hard',
-        title: '硬保护',
-        desc: '完全过滤，用户无感知',
-        rules: [
-          { prefix: '', strong: '完全过滤', suffix: '，同类行家内容不展示' },
-          { prefix: '被保护用户 ', strong: '零曝光', suffix: '' },
-          { prefix: '适合竞争激烈的同城市', strong: '', suffix: '' }
-        ]
-      },
-      {
-        key: 'soft',
-        title: '软保护',
-        desc: '排序降权×0.1，推至第5页后',
-        rules: [
-          { prefix: '排序权重 ', strong: '×0.1', suffix: '，大幅降权' },
-          { prefix: '翻页至局列表第5页后', strong: '不受保护', suffix: '' },
-          { prefix: '适合内容不足或过渡期', strong: '', suffix: '' }
-        ]
-      }
-    ],
+    mode: '',
+    modes: [],
     activeRules: []
   },
 
   onLoad(options) {
-    const nextMode = options && options.mode === 'soft' ? 'soft' : 'hard'
-    this.applyMode(nextMode)
+    this.loadProtectionMode(options && options.mode)
+  },
+
+  async loadProtectionMode(optionMode) {
+    try {
+      const data = await profileService.getSystemBlockSettings()
+      const protection = data.protectionMode || data.protection || {}
+      const modes = Array.isArray(protection.modes || data.modes) ? (protection.modes || data.modes) : []
+      const mode = optionMode || protection.mode || protection.currentMode || data.mode || ''
+
+      this.setData({
+        modes
+      })
+      this.applyMode(mode)
+    } catch (error) {
+      this.setData({
+        mode: '',
+        modes: [],
+        activeRules: []
+      })
+      toast.info(error.message || '保护模式加载失败')
+    }
   },
 
   applyMode(mode) {
-    const active = this.data.modes.find((item) => item.key === mode) || this.data.modes[0]
+    const active = this.data.modes.find((item) => item.key === mode) || this.data.modes[0] || {}
 
     this.setData({
-      mode: active.key,
-      activeRules: active.rules
+      mode: active.key || '',
+      activeRules: Array.isArray(active.rules) ? active.rules : []
     })
   },
 
@@ -53,7 +53,19 @@ Page({
     this.applyMode(mode)
   },
 
-  handleConfirmTap() {
-    toast.success(this.data.mode === 'hard' ? '已选择硬保护' : '已选择软保护')
+  async handleConfirmTap() {
+    if (!this.data.mode) {
+      toast.info('请选择保护模式')
+      return
+    }
+
+    try {
+      await profileService.saveSystemProtectionMode({
+        mode: this.data.mode
+      })
+      toast.success('保护模式已保存')
+    } catch (error) {
+      toast.info(error.message || '保护模式保存失败')
+    }
   }
 })

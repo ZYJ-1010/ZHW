@@ -1,4 +1,5 @@
 const toast = require('../../../../utils/toast')
+const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/asset-center/points/assets'
 
@@ -9,109 +10,54 @@ Page({
       more: `${ASSET_BASE}/icon-ellipsis-vertical.svg`
     },
     summary: {
-      available: '2,580',
-      stats: [
-        { key: 'total', label: '累计积分', value: '5,000' },
-        { key: 'redeemed', label: '已兑换', value: '2,420' },
-        { key: 'expired', label: '过期积分', value: '0' }
-      ]
+      available: '',
+      stats: []
     },
-    rules: [
-      {
-        text: '每笔交易完成后，按各角色获得交易',
-        strong: '分润金额 × 10%',
-        suffix: '生成积分'
-      },
-      {
-        text: '积分有效期',
-        strong: '12个月',
-        suffix: '，过期自动清零'
-      },
-      {
-        text: '积分仅可兑换',
-        strong: '平台限定商品',
-        suffix: ''
-      }
-    ],
+    rules: [],
     earnExample: {
-      title: '交易分润积分',
-      subtitle: '唯一积分来源',
-      points: '+48',
-      rows: [
-        { label: '行家分润金额', value: '¥480' },
-        { label: '积分比例', value: '× 10%' }
-      ],
-      result: '= 积分 +48'
+      title: '',
+      subtitle: '',
+      points: '',
+      rows: [],
+      result: ''
     },
-    roleExamples: [
-      { key: 'expert', role: '行家（分润60%）', amount: '¥480', points: '+48', iconText: '🧑' },
-      { key: 'guide', role: '领路人（分润30%）', amount: '¥240', points: '+24', iconText: '👬' },
-      { key: 'platform', role: '平台（分润10%）', amount: '¥80', points: '+8', iconText: '🌐' }
-    ],
+    roleExamples: [],
     filters: ['全部', '收入', '支出'],
     activeFilter: '全部',
-    records: [
-      {
-        id: 'point-001',
-        title: '行家交易分润积分',
-        desc: '分润 ¥480 × 10%',
-        time: '2026-03-20 14:30 · 订单 REF-20260320-001',
-        points: '+48',
-        tone: 'plus',
-        iconText: '💰',
-        iconTone: 'green'
-      },
-      {
-        id: 'point-002',
-        title: '领路人交易分润积分',
-        desc: '分润 ¥240 × 10%',
-        time: '2026-03-20 14:30 · 订单 REF-...',
-        points: '+24',
-        tone: 'plus',
-        iconText: '👬',
-        iconTone: 'green'
-      },
-      {
-        id: 'point-003',
-        title: '行家交易分润积分',
-        desc: '分润 ¥600 × 10%',
-        time: '2026-03-15 11:20',
-        points: '+60',
-        tone: 'plus',
-        iconText: '💰',
-        iconTone: 'green'
-      },
-      {
-        id: 'point-004',
-        title: '兑换平台限定商品',
-        desc: '优先推荐权益包 x 1',
-        time: '2026-03-10 16:45',
-        points: '-500',
-        tone: 'minus',
-        iconText: '🎁',
-        iconTone: 'pink'
-      },
-      {
-        id: 'point-005',
-        title: '领路人交易分润积分',
-        desc: '分润 ¥150 × 10%',
-        time: '2026-03-08 09:10',
-        points: '+15',
-        tone: 'plus',
-        iconText: '👬',
-        iconTone: 'green'
-      },
-      {
-        id: 'point-006',
-        title: '行家交易分润积分',
-        desc: '分润 ¥320 × 10%',
-        time: '2026-03-01 10:01 · 订单 REF-20260301-001',
-        points: '+32',
-        tone: 'plus',
-        iconText: '💰',
-        iconTone: 'green'
-      }
-    ]
+    records: []
+  },
+
+  onLoad() {
+    this.loadPoints()
+  },
+
+  async loadPoints() {
+    try {
+      const data = await profileService.getProfilePoints({
+        filter: this.data.activeFilter
+      })
+
+      this.setData({
+        summary: this.normalizeSummary(data.summary || data.pointsSummary || data),
+        rules: this.normalizeList(data.rules),
+        earnExample: data.earnExample || data.example || this.data.earnExample,
+        roleExamples: this.normalizeList(data.roleExamples || data.rolePointExamples),
+        records: this.normalizeList(data.records || data.list || data.items)
+      })
+    } catch (error) {
+      toast.info(error.message || '积分信息加载失败')
+    }
+  },
+
+  normalizeSummary(summary = {}) {
+    return {
+      available: summary.available || summary.availablePoints || summary.points || '',
+      stats: this.normalizeList(summary.stats || summary.items)
+    }
+  },
+
+  normalizeList(list) {
+    return Array.isArray(list) ? list : []
   },
 
   handleFilterTap(event) {
@@ -120,6 +66,7 @@ Page({
     this.setData({
       activeFilter: filter
     })
+    this.loadPoints()
   },
 
   handleDeveloping() {
