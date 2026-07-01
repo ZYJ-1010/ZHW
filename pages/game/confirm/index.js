@@ -2,45 +2,6 @@ const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
-const DEFAULT_REPLAY_CONTEXT = {
-  sourceGameId: 'game-replay-001',
-  serviceOrderId: 'SO-20260613-001',
-  inviter: {
-    id: 'guide-wang',
-    name: '王引荐',
-    roleType: 'guide',
-    roleLabel: '领路人'
-  },
-  previousSession: {
-    serviceType: '产品架构咨询',
-    completedAtText: '2026-06-13 14:30',
-    participantText: '3人（行家+玩家+领路人）'
-  },
-  invitees: [
-    {
-      id: 'expert-zhang',
-      name: '张专家',
-      roleType: 'expert',
-      roleLabel: '行家',
-      desc: '产品架构咨询'
-    },
-    {
-      id: 'player-wang',
-      name: '王总',
-      roleType: 'player',
-      roleLabel: '玩家',
-      desc: '需求方'
-    }
-  ]
-}
-
-const QUICK_MESSAGES = [
-  '再来一局？',
-  '上次合作很愉快，继续！',
-  '有个新需求想聊聊',
-  '有空再约一局'
-]
-
 const ROLE_CLASS_MAP = {
   expert: 'blue',
   player: 'pink',
@@ -53,9 +14,9 @@ function getRoleClass(roleType) {
 
 function normalizePreviousSession(session = {}) {
   return {
-    serviceType: session.serviceType || session.serviceName || session.title || '产品架构咨询',
-    completedAtText: session.completedAtText || session.completedAt || session.finishTimeText || '2026-06-13 14:30',
-    participantText: session.participantText || session.membersText || '3人（行家+玩家+领路人）'
+    serviceType: session.serviceType || session.serviceName || session.title || '',
+    completedAtText: session.completedAtText || session.completedAt || session.finishTimeText || '',
+    participantText: session.participantText || session.membersText || ''
   }
 }
 
@@ -76,39 +37,42 @@ function normalizeInvitee(invitee = {}, index = 0) {
   }
 }
 
-function normalizeReplayContext(context = DEFAULT_REPLAY_CONTEXT) {
-  const source = context && typeof context === 'object' ? context : DEFAULT_REPLAY_CONTEXT
-  const invitees = (Array.isArray(source.invitees) && source.invitees.length
-    ? source.invitees
-    : DEFAULT_REPLAY_CONTEXT.invitees).map(normalizeInvitee)
+function normalizeReplayContext(context = {}) {
+  const source = context && typeof context === 'object' ? context : {}
+  const invitees = (Array.isArray(source.invitees) ? source.invitees : []).map(normalizeInvitee)
   const selectedInviteeIds = invitees
     .filter((item) => item.selected)
     .map((item) => item.id)
+  const quickMessages = Array.isArray(source.quickMessages || source.messageTemplates)
+    ? (source.quickMessages || source.messageTemplates)
+    : []
 
   return {
-    sourceGameId: source.sourceGameId || source.gameId || DEFAULT_REPLAY_CONTEXT.sourceGameId,
-    serviceOrderId: source.serviceOrderId || DEFAULT_REPLAY_CONTEXT.serviceOrderId,
-    inviter: source.inviter || DEFAULT_REPLAY_CONTEXT.inviter,
+    sourceGameId: source.sourceGameId || source.gameId || '',
+    serviceOrderId: source.serviceOrderId || '',
+    inviter: source.inviter || {},
     previousSession: normalizePreviousSession(source.previousSession || source.session || source),
     invitees,
     selectedInviteeIds,
     selectedCount: selectedInviteeIds.length,
-    maxInviteeCount: invitees.length
+    maxInviteeCount: invitees.length,
+    quickMessages,
+    selectedMessage: quickMessages[0] || ''
   }
 }
 
 Page({
   data: {
-    sourceGameId: DEFAULT_REPLAY_CONTEXT.sourceGameId,
-    serviceOrderId: DEFAULT_REPLAY_CONTEXT.serviceOrderId,
-    previousSession: normalizePreviousSession(DEFAULT_REPLAY_CONTEXT.previousSession),
-    inviter: DEFAULT_REPLAY_CONTEXT.inviter,
-    invitees: normalizeReplayContext(DEFAULT_REPLAY_CONTEXT).invitees,
-    selectedInviteeIds: normalizeReplayContext(DEFAULT_REPLAY_CONTEXT).selectedInviteeIds,
-    selectedCount: normalizeReplayContext(DEFAULT_REPLAY_CONTEXT).selectedCount,
-    maxInviteeCount: normalizeReplayContext(DEFAULT_REPLAY_CONTEXT).maxInviteeCount,
-    quickMessages: QUICK_MESSAGES,
-    selectedMessage: QUICK_MESSAGES[0],
+    sourceGameId: '',
+    serviceOrderId: '',
+    previousSession: normalizePreviousSession({}),
+    inviter: {},
+    invitees: [],
+    selectedInviteeIds: [],
+    selectedCount: 0,
+    maxInviteeCount: 0,
+    quickMessages: [],
+    selectedMessage: '',
     customMessage: '',
     loading: false,
     submitting: false
@@ -119,8 +83,8 @@ Page({
   },
 
   async loadReplayContext(options = {}) {
-    const sourceGameId = options.sourceGameId || options.gameId || DEFAULT_REPLAY_CONTEXT.sourceGameId
-    const serviceOrderId = options.serviceOrderId || DEFAULT_REPLAY_CONTEXT.serviceOrderId
+    const sourceGameId = options.sourceGameId || options.gameId || ''
+    const serviceOrderId = options.serviceOrderId || ''
 
     this.setData({
       sourceGameId,
@@ -136,12 +100,12 @@ Page({
 
       this.applyReplayContext(context)
     } catch (error) {
-      this.applyReplayContext(Object.assign({}, DEFAULT_REPLAY_CONTEXT, {
+      this.applyReplayContext({
         sourceGameId,
         serviceOrderId
-      }))
+      })
       wx.showToast({
-        title: error.message || '上局信息加载失败，已使用测试数据',
+        title: error.message || '上局信息加载失败',
         icon: 'none'
       })
     }

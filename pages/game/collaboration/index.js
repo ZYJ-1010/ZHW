@@ -1,3 +1,5 @@
+const gameService = require('../../../services/game')
+
 const WHITE_CONTENT_LEFT_RPX = 2
 const WHITE_CONTENT_TOP_RPX = 160
 const WHITE_CONTENT_WIDTH_RPX = 750
@@ -65,45 +67,108 @@ function getLayoutStyles() {
   }
 }
 
+function normalizePercent(value) {
+  const percent = Number(value)
+
+  if (!Number.isFinite(percent)) {
+    return 0
+  }
+
+  return Math.max(0, Math.min(100, percent))
+}
+
+function normalizeTask(task = {}) {
+  return {
+    title: task.title || task.statusText || task.status || '',
+    desc: task.desc || task.description || task.content || ''
+  }
+}
+
+function getMemberName(member = {}) {
+  return member.displayName || member.name || member.nickname || ''
+}
+
+function normalizeMessage(message = {}) {
+  return {
+    name: message.name || message.senderName || message.nickname || '',
+    content: message.content || message.text || message.message || ''
+  }
+}
+
+function normalizeCollaboration(data = {}) {
+  const progress = data.progress || {}
+  const members = Array.isArray(data.members) ? data.members : []
+  const tasks = Array.isArray(progress.tasks || data.tasks)
+    ? (progress.tasks || data.tasks).map(normalizeTask)
+    : []
+  const messages = Array.isArray(data.messages || data.chatMessages)
+    ? (data.messages || data.chatMessages).map(normalizeMessage)
+    : []
+  const membersText = data.membersText || members.map(getMemberName).filter(Boolean).join(' · ')
+
+  return {
+    progressPercent: normalizePercent(progress.percent || data.progressPercent),
+    membersText,
+    tasks,
+    messages,
+    memberManageRoute: data.memberManageRoute || '',
+    endRoute: data.endRoute || ''
+  }
+}
+
 Page({
   data: {
     layout: getLayoutStyles(),
-    progressPercent: 46,
-    membersText: '佩娜 (发起人) · 张伟 · 李娜 · 王刚',
-    tasks: [
-      {
-        title: '已完成',
-        desc: '确认产品方向'
-      },
-      {
-        title: '进行中',
-        desc: '完成用户旅程与页面结构'
-      },
-      {
-        title: '待完成',
-        desc: '输出 PRD 与字段清单'
-      }
-    ],
-    messages: [
-      {
-        name: '佩娜',
-        content: '欢迎大家加入，我们先把页面结构和MVP优先级收住。'
-      },
-      {
-        name: '张伟',
-        content: '我建议先打穿开局、入局、支付、反馈四条链路。'
-      },
-      {
-        name: '李娜',
-        content: '地图打卡可以作为第二增长曲线。'
-      }
-    ]
+    gameId: '',
+    progressPercent: 0,
+    membersText: '',
+    tasks: [],
+    messages: [],
+    memberManageRoute: '',
+    endRoute: '',
+    loading: false,
+    ending: false
+  },
+
+  onLoad(options = {}) {
+    this.loadCollaboration(options)
   },
 
   onShow() {
     this.setData({
       layout: getLayoutStyles()
     })
+  },
+
+  async loadCollaboration(options = {}) {
+    const gameId = options.gameId || options.id || this.data.gameId || ''
+
+    this.setData({
+      gameId,
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getGameCollaboration({
+        ...options,
+        gameId
+      })
+
+      this.setData({
+        ...normalizeCollaboration(data),
+        gameId: data.gameId || gameId,
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeCollaboration({}),
+        loading: false
+      })
+      wx.showToast({
+        title: error.message || '协作信息加载失败',
+        icon: 'none'
+      })
+    }
   },
 
   handleBack() {
@@ -118,16 +183,55 @@ Page({
   },
 
   handleMemberManage() {
+    if (this.data.memberManageRoute) {
+      wx.navigateTo({
+        url: this.data.memberManageRoute
+      })
+      return
+    }
+
     wx.showToast({
-      title: '成员管理',
+      title: '成员管理待接入',
       icon: 'none'
     })
   },
 
-  handleEndSession() {
-    wx.showToast({
-      title: '结束本局',
-      icon: 'none'
+  async handleEndSession() {
+    if (this.data.endRoute) {
+      wx.navigateTo({
+        url: this.data.endRoute
+      })
+      return
+    }
+
+    if (this.data.ending) {
+      return
+    }
+
+    this.setData({
+      ending: true
     })
+
+    try {
+      await gameService.endGameCollaboration({
+        gameId: this.data.gameId
+      })
+      wx.showToast({
+        title: '已提交结束',
+        icon: 'none'
+      })
+      this.loadCollaboration({
+        gameId: this.data.gameId
+      })
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '结束本局失败',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({
+        ending: false
+      })
+    }
   }
 })

@@ -1,4 +1,5 @@
-﻿const { ROUTES } = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
@@ -6,43 +7,120 @@ const DETAIL_SCROLL_TAP_STEP_RPX = 360
 const DETAIL_SCROLL_HOLD_STEP_RPX = 72
 const DETAIL_SCROLL_HOLD_INTERVAL_MS = 80
 const DETAIL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
-
-const GAME_PLAYER = {
-  requirementConfirmed: true,
-  requirementStatusText: '已确认需求',
-  confirmed: true,
-  statusText: '玩家已确认',
-  name: '李明',
-  avatarText: getSurnameInitials('李明', 'LI'),
-  desc: '某互联网公司 · 产品总监',
-  tags: ['B端产品', '金融科技'],
-  needText: '需求描述：需要资深产品经理帮忙梳理产品架构，预计咨询时长2小时，预算800元。',
-  expectedTime: '期望时间：本周内',
-  remark: '玩家备注：时间比较紧，希望能尽快开始'
+const GUIDE_ICON_SRC = '/pages/game/guide-chat/assets/icon-invite.png'
+const OPTION_ICON_MAP = {
+  time: '/pages/game/audit-detail/assets/option-time.png',
+  chat: '/pages/game/audit-detail/assets/option-chat.png'
 }
 
-const GAME_GUIDE = {
-  iconSrc: '/pages/game/guide-chat/assets/icon-invite.png',
-  online: true,
-  avatarText: 'WA',
-  name: '王引荐',
-  recommendation: '李明是我之前合作过的客户，非常靠谱，需求也很明确。他急需产品架构方面的建议，我觉得你的经验很匹配。预算方面也比较充足，建议可以接。'
+const EMPTY_PLAYER = {
+  requirementConfirmed: false,
+  requirementStatusText: '',
+  confirmed: false,
+  statusText: '',
+  name: '',
+  avatarText: '',
+  desc: '',
+  tags: [],
+  needText: '',
+  expectedTime: '',
+  remark: ''
 }
 
-const GAME_INFO = {
-  topic: '产品开发梳理（1v3）',
-  time: '2026年3月23日（周六）14:00-17:00',
-  location: '朝阳区图书馆（1号会议室）',
-  activityType: '产品架构梳理咨询',
-  serviceDuration: '2小时',
-  clientBudget: '¥800'
+const EMPTY_GUIDE = {
+  iconSrc: GUIDE_ICON_SRC,
+  online: false,
+  avatarText: '',
+  name: '',
+  recommendation: ''
 }
 
-const BACKEND_SETTLEMENT = {
-  platformFee: '¥80（10%）',
-  guideReward: '¥320（40%）',
-  partnerReward: '¥80（10%）',
-  expertIncome: '¥320'
+const EMPTY_GAME_INFO = {
+  topic: '',
+  time: '',
+  location: '',
+  activityType: '',
+  serviceDuration: '',
+  clientBudget: ''
+}
+
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    return value === 'true' || value === '1'
+  }
+
+  return Boolean(value)
+}
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
+
+function normalizePlayer(player = {}) {
+  const name = pickFirstValue(player.name, player.nickname)
+
+  return {
+    requirementConfirmed: normalizeBoolean(player.requirementConfirmed),
+    requirementStatusText: pickFirstValue(player.requirementStatusText, player.requirementStatus),
+    confirmed: normalizeBoolean(player.confirmed),
+    statusText: pickFirstValue(player.statusText, player.stateText),
+    name,
+    avatarText: pickFirstValue(player.avatarText, name ? getSurnameInitials(name, '') : ''),
+    desc: pickFirstValue(player.desc, player.description, player.title),
+    tags: normalizeList(player.tags),
+    needText: pickFirstValue(player.needText, player.requirementText, player.demandText),
+    expectedTime: pickFirstValue(player.expectedTime, player.expectedTimeText),
+    remark: pickFirstValue(player.remark, player.note)
+  }
+}
+
+function normalizeGuide(guide = {}) {
+  const name = pickFirstValue(guide.name, guide.nickname)
+
+  return {
+    iconSrc: pickFirstValue(guide.iconSrc, guide.icon, GUIDE_ICON_SRC),
+    online: normalizeBoolean(guide.online),
+    avatarText: pickFirstValue(guide.avatarText, name ? getSurnameInitials(name, '') : ''),
+    name,
+    recommendation: pickFirstValue(guide.recommendation, guide.recommendationText, guide.comment)
+  }
+}
+
+function normalizeExpert(expert = {}) {
+  const name = pickFirstValue(expert.name, expert.nickname)
+
+  return {
+    avatarText: pickFirstValue(expert.avatarText, name ? getSurnameInitials(name, '') : ''),
+    name,
+    roleText: pickFirstValue(expert.roleText, expert.roleName)
+  }
+}
+
+function normalizeGameInfo(gameInfo = {}) {
+  return {
+    topic: pickFirstValue(gameInfo.topic, gameInfo.title),
+    time: pickFirstValue(gameInfo.time, gameInfo.timeText, gameInfo.startTimeText),
+    location: pickFirstValue(gameInfo.location, gameInfo.address, gameInfo.locationText),
+    activityType: pickFirstValue(gameInfo.activityType, gameInfo.typeText),
+    serviceDuration: pickFirstValue(gameInfo.serviceDuration, gameInfo.durationText),
+    clientBudget: pickFirstValue(gameInfo.clientBudget, gameInfo.budgetText, gameInfo.priceText)
+  }
 }
 
 function buildSessionInfo(gameInfo) {
@@ -63,30 +141,112 @@ function buildSessionInfo(gameInfo) {
     {
       label: '地点',
       value: gameInfo.location,
-      actionText: '地图位置',
+      actionText: gameInfo.location ? '地图位置' : '',
       iconSrc: '/pages/game/detail/assets/icon-location.png',
       iconText: '',
       iconClass: 'place'
     }
-  ]
+  ].filter((item) => item.value)
 }
 
-function buildConfirmRows(gameInfo, settlement) {
+function buildConfirmRows(gameInfo, settlement = {}) {
   return [
     { label: '活动类型', value: gameInfo.activityType },
     { label: '服务时长', value: gameInfo.serviceDuration },
     { label: '客户预算', value: gameInfo.clientBudget, highlight: true, divider: true },
-    { label: '平台', value: settlement.platformFee },
-    { label: '领路人', value: settlement.guideReward },
-    { label: '生态合伙人', value: settlement.partnerReward, divider: true },
-    { label: '你的收益', value: settlement.expertIncome, success: true, total: true }
-  ]
+    { label: '平台', value: pickFirstValue(settlement.platformFee, settlement.platformFeeText) },
+    { label: '领路人', value: pickFirstValue(settlement.guideReward, settlement.guideRewardText) },
+    { label: '生态合伙人', value: pickFirstValue(settlement.partnerReward, settlement.partnerRewardText), divider: true },
+    { label: '你的收益', value: pickFirstValue(settlement.expertIncome, settlement.expertIncomeText), success: true, total: true }
+  ].filter((item) => item.value)
+}
+
+function normalizeStatus(data = {}, guide = {}) {
+  const status = data.status || data.statusCard || {}
+
+  return {
+    title: pickFirstValue(status.title, data.statusTitle),
+    quote: pickFirstValue(status.quote, data.quote),
+    guideName: pickFirstValue(status.guideName, guide.name),
+    countdown: pickFirstValue(status.countdown, data.countdownText)
+  }
+}
+
+function normalizeRelation(data = {}, player, guide, expert) {
+  const relation = data.relation || {}
+
+  return {
+    title: pickFirstValue(relation.title),
+    totalCount: Number(pickFirstValue(relation.totalCount, data.totalCount, 0)),
+    confirmedCount: Number(pickFirstValue(relation.confirmedCount, data.confirmedCount, 0)),
+    confirmedText: pickFirstValue(relation.confirmedText),
+    noticeVisible: typeof relation.noticeVisible === 'boolean' ? relation.noticeVisible : undefined,
+    noticeText: pickFirstValue(relation.noticeText),
+    expert: {
+      avatarText: pickFirstValue(relation.expert && relation.expert.avatarText, expert.avatarText),
+      name: pickFirstValue(relation.expert && relation.expert.name, expert.name),
+      roleText: pickFirstValue(relation.expert && relation.expert.roleText, expert.roleText)
+    },
+    guide: {
+      iconSrc: pickFirstValue(relation.guide && relation.guide.iconSrc, guide.iconSrc),
+      online: normalizeBoolean(relation.guide && relation.guide.online || guide.online),
+      avatarText: pickFirstValue(relation.guide && relation.guide.avatarText, guide.avatarText),
+      name: pickFirstValue(relation.guide && relation.guide.name, guide.name)
+    },
+    player: {
+      avatarText: pickFirstValue(relation.player && relation.player.avatarText, player.avatarText),
+      name: pickFirstValue(relation.player && relation.player.name, player.name),
+      confirmed: normalizeBoolean(relation.player && relation.player.confirmed || player.confirmed),
+      statusText: pickFirstValue(relation.player && relation.player.statusText, player.statusText)
+    }
+  }
+}
+
+function normalizeOptionalActions(data = {}) {
+  return normalizeList(data.optionalActions || data.actions)
+    .map((item) => {
+      const key = pickFirstValue(item.key, item.action)
+
+      return {
+        key,
+        name: pickFirstValue(item.name, item.title),
+        route: pickFirstValue(item.route, item.path),
+        message: pickFirstValue(item.message, item.toastText),
+        iconSrc: pickFirstValue(item.iconSrc, item.icon, OPTION_ICON_MAP[key])
+      }
+    })
+    .filter((item) => item.key && item.name)
+}
+
+function normalizeAuditDetail(data = {}) {
+  const player = normalizePlayer(data.player || data.game && data.game.player || {})
+  const guide = normalizeGuide(data.guide || data.game && data.game.guide || {})
+  const expert = normalizeExpert(data.expert || data.game && data.game.expert || {})
+  const gameInfo = normalizeGameInfo(data.info || data.gameInfo || data.game && data.game.info || {})
+  const settlement = data.backendSettlement || data.settlement || {}
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    status: normalizeStatus(data, guide),
+    relation: normalizeRelation(data, player, guide, expert),
+    game: {
+      player,
+      info: gameInfo,
+      guide
+    },
+    backendSettlement: settlement,
+    sessionInfo: buildSessionInfo(gameInfo),
+    confirmRows: buildConfirmRows(gameInfo, settlement),
+    optionalActions: normalizeOptionalActions(data),
+    noticeBullets: normalizeList(data.noticeBullets || data.notices).map((item) => typeof item === 'string' ? item : pickFirstValue(item.text, item.content)).filter(Boolean)
+  }
 }
 
 Page({
   data: {
     auditId: '',
     actionLoading: false,
+    loading: false,
     onlineText: '3999人在线',
     detailScrollTop: 0,
     navItems: [
@@ -96,65 +256,51 @@ Page({
       { name: '消息', active: false },
       { name: '首页', active: true }
     ],
-    status: {
-      title: '等待你通过',
-      quote: '老师！您好，目前在产品需求梳理和开发、设计方面遇到很多卡点，特别想参加该场局，以解决卡点',
-      guideName: GAME_GUIDE.name,
-      countdown: '23:45:12'
-    },
-    relation: {
-      title: '组局关系图',
-      totalCount: 6,
-      confirmedCount: 3,
-      expert: {
-        avatarText: 'ME',
-        name: '我（行家）',
-        roleText: '服务提供方'
-      },
-      guide: {
-        iconSrc: GAME_GUIDE.iconSrc,
-        online: GAME_GUIDE.online,
-        avatarText: GAME_GUIDE.avatarText,
-        name: GAME_GUIDE.name
-      },
-      player: {
-        avatarText: GAME_PLAYER.avatarText,
-        name: GAME_PLAYER.name,
-        confirmed: GAME_PLAYER.confirmed,
-        statusText: GAME_PLAYER.statusText
-      }
-    },
+    status: normalizeStatus({}),
+    relation: normalizeRelation({}, EMPTY_PLAYER, EMPTY_GUIDE, {}),
     game: {
-      player: GAME_PLAYER,
-      info: GAME_INFO,
-      guide: GAME_GUIDE
+      player: EMPTY_PLAYER,
+      info: EMPTY_GAME_INFO,
+      guide: EMPTY_GUIDE
     },
-    backendSettlement: BACKEND_SETTLEMENT,
-    sessionInfo: buildSessionInfo(GAME_INFO),
-    confirmRows: buildConfirmRows(GAME_INFO, BACKEND_SETTLEMENT),
-    optionalActions: [
-      {
-        key: 'time',
-        name: '提议具体时间',
-        iconSrc: '/pages/game/audit-detail/assets/option-time.png'
-      },
-      {
-        key: 'chat',
-        name: '与玩家沟通',
-        iconSrc: '/pages/game/audit-detail/assets/option-chat.png'
-      }
-    ],
-    noticeBullets: [
-      '确认后请准时参加，如需取消请提前24小时通知',
-      '双方确认后组局正式生效，领路人将获得积分奖励',
-      '请保持专业态度，维护平台信誉'
-    ]
+    backendSettlement: {},
+    sessionInfo: [],
+    confirmRows: [],
+    optionalActions: [],
+    noticeBullets: []
   },
 
   onLoad(options = {}) {
+    const auditId = options.auditId || options.id || ''
+
     this.setData({
-      auditId: options.auditId || options.id || ''
+      auditId
     })
+    this.loadAuditDetail({
+      ...options,
+      auditId
+    })
+  },
+
+  async loadAuditDetail(params = {}) {
+    this.setData({
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getGameAuditDetail(params)
+
+      this.setData({
+        ...normalizeAuditDetail(data),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeAuditDetail({}),
+        loading: false
+      })
+      toast.info(error.message || '审核详情加载失败')
+    }
   },
 
   handleMapTap() {
@@ -171,20 +317,27 @@ Page({
 
   handleOptionalActionTap(event) {
     const key = event.currentTarget.dataset.key
+    const item = this.data.optionalActions.find((action) => action.key === key)
 
-    if (key === 'chat') {
-      this.navigateToRoute(ROUTES.imRoom)
+    if (item && item.route) {
+      wx.navigateTo({
+        url: item.route
+      })
       return
     }
 
-    toast.info('提议具体时间功能开发中')
+    toast.info(item && (item.message || item.name) || '操作待接入')
   },
 
   handleDeclineTap() {
-    toast.info('已婉拒该组局审核')
+    this.respondAudit('reject')
   },
 
   handleApproveTap() {
+    this.respondAudit('approve')
+  },
+
+  async respondAudit(action) {
     if (this.data.actionLoading) {
       return
     }
@@ -193,13 +346,22 @@ Page({
       actionLoading: true
     })
 
-    this.approveTimer = setTimeout(() => {
-      this.approveTimer = null
+    try {
+      await gameService.respondGameAudit({
+        auditId: this.data.auditId,
+        action
+      })
+      toast.success('已提交审核结果')
+      this.loadAuditDetail({
+        auditId: this.data.auditId
+      })
+    } catch (error) {
+      toast.info(error.message || '审核处理失败')
+    } finally {
       this.setData({
         actionLoading: false
       })
-      toast.success('已确认通过')
-    }, 500)
+    }
   },
 
   handleShellNavTap(event) {
@@ -347,11 +509,6 @@ Page({
     if (this.detailScrollSuppressTimer) {
       clearTimeout(this.detailScrollSuppressTimer)
       this.detailScrollSuppressTimer = null
-    }
-
-    if (this.approveTimer) {
-      clearTimeout(this.approveTimer)
-      this.approveTimer = null
     }
 
     this.suppressNextNavTap = false

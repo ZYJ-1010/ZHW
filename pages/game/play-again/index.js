@@ -1,26 +1,29 @@
-const RECOMMEND_OPTIONS = [
-  {
-    id: 'same-friends',
-    theme: 'green',
-    iconText: '👫',
-    title: '同局好友再玩一局',
-    desc: '立即邀请王总、张专家等3人'
-  },
-  {
-    id: 'smart-match',
-    theme: 'blue',
-    iconText: '🤖',
-    title: '系统推荐适配组局',
-    desc: '基于你的偏好，已找到5个高匹配度新局'
-  },
-  {
-    id: 'create-new',
-    theme: 'pink',
-    iconType: 'plus',
-    title: '玩家创建新局',
-    desc: '自定义需求，开启全新体验'
+const gameService = require('../../../services/game')
+
+function normalizeOption(option = {}) {
+  return {
+    id: option.id || option.optionId || option.key || '',
+    theme: option.theme || '',
+    iconText: option.iconText || option.emoji || '',
+    iconType: option.iconType || '',
+    title: option.title || option.name || '',
+    desc: option.desc || option.description || '',
+    route: option.route || option.path || '',
+    message: option.message || option.toastText || ''
   }
-]
+}
+
+function normalizePlayAgainData(data = {}) {
+  const recommendOptions = Array.isArray(data.recommendOptions || data.options)
+    ? (data.recommendOptions || data.options).map(normalizeOption).filter((item) => item.id)
+    : []
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    recommendOptions,
+    selectedOption: data.selectedOption || data.defaultOptionId || recommendOptions[0] && recommendOptions[0].id || ''
+  }
+}
 
 Page({
   data: {
@@ -32,26 +35,87 @@ Page({
       { name: '消息', active: false },
       { name: '首页', active: true }
     ],
-    recommendOptions: RECOMMEND_OPTIONS,
-    selectedOption: 'same-friends'
+    recommendOptions: [],
+    selectedOption: '',
+    loading: false,
+    submitting: false,
+    queryParams: {}
   },
 
-  onOptionTap(event) {
-    const id = event.currentTarget.dataset.id
-    const option = RECOMMEND_OPTIONS.find((item) => item.id === id)
+  onLoad(options = {}) {
+    this.setData({
+      queryParams: options
+    })
+    this.loadPlayAgainOptions(options)
+  },
 
-    if (!option) {
+  async loadPlayAgainOptions(options = {}) {
+    this.setData({
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getPlayAgainOptions(options)
+
+      this.setData({
+        ...normalizePlayAgainData(data),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizePlayAgainData({}),
+        loading: false
+      })
+      this.showInfo(error.message || '再玩一局推荐加载失败')
+    }
+  },
+
+  async onOptionTap(event) {
+    const id = event.currentTarget.dataset.id
+    const option = this.data.recommendOptions.find((item) => item.id === id)
+
+    if (!option || this.data.submitting) {
       return
     }
 
     this.setData({
-      selectedOption: id
+      selectedOption: id,
+      submitting: true
     })
-    this.showInfo(`${option.title}待接入`)
+
+    try {
+      const result = await gameService.selectPlayAgainOption({
+        ...this.data.queryParams,
+        optionId: id
+      })
+      const route = result && (result.route || result.path) || option.route
+
+      if (route) {
+        wx.navigateTo({
+          url: route
+        })
+        return
+      }
+
+      this.showInfo(result && (result.message || result.toastText) || option.message || '已提交')
+    } catch (error) {
+      this.showInfo(error.message || '推荐方式提交失败')
+    } finally {
+      this.setData({
+        submitting: false
+      })
+    }
   },
 
   onCloseTap() {
-    this.showInfo('关闭推荐面板待接入')
+    const pages = getCurrentPages()
+
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+
+    this.showInfo('已关闭')
   },
 
   handleShellNavTap() {

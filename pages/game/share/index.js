@@ -30,6 +30,7 @@ function normalizeGameInfo(data = {}) {
   const organizerName = creator.name || creator.nickname || ''
 
   return {
+    onlineText: data.onlineText || '3999人在线',
     id: data.id || data.gameId || '',
     bannerImage: data.bannerImage || data.coverSrc || data.coverUrl || data.coverFileUrl || '',
     title: data.title || '',
@@ -91,6 +92,7 @@ Page({
 
       this.setData({
         loading: false,
+        onlineText: gameInfo.onlineText,
         gameInfo,
         currentJoinedCount: gameInfo.joinedCount
       })

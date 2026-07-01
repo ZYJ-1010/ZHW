@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
@@ -12,7 +13,29 @@ const MORE_BUTTON_SIZE_RPX = 44
 const MORE_BUTTON_LEFT_RPX = 658
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
-const DEFAULT_DELIVERY_MODE = 'paid'
+const PLAYER_ICON = '/pages/game/delivery/assets/i18@3x.png'
+
+const EMPTY_DELIVERY_STATE = {
+  deliveryMode: '',
+  pageTitle: '确认服务完成',
+  status: {},
+  statePill: {},
+  activity: {},
+  activityRows: [],
+  notice: {},
+  settlement: {},
+  settlementRows: [],
+  hasSettlement: false,
+  settlementNote: '',
+  timeline: [],
+  confirmItems: [],
+  allConfirmed: false,
+  confirmNote: '',
+  security: {},
+  submitHints: {},
+  submitToast: '',
+  quickActions: []
+}
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -76,259 +99,196 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
-const DELIVERY_MODE_CONFIGS = {
-  paid: {
-    pageTitle: '确认服务完成',
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
+}
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
+
+function normalizeDeliveryMode(value) {
+  const mode = String(value || '').toLowerCase()
+
+  return mode === 'free' ? 'free' : mode === 'paid' ? 'paid' : ''
+}
+
+function normalizeActivity(data) {
+  const source = data || {}
+  const expert = source.expert || {}
+  const service = source.service || {}
+  const expertName = pickFirstValue(expert.name, source.expertName)
+
+  return {
+    avatar: pickFirstValue(expert.avatarText, source.avatarText, expertName ? getSurnameInitials(expertName, '') : ''),
+    expertName,
+    serviceName: pickFirstValue(service.title, source.serviceName, source.serviceTitle),
+    orderNo: pickFirstValue(source.orderNo, source.orderNoText, source.serviceOrderNo)
+  }
+}
+
+function normalizeActivityRows(data) {
+  const source = data || {}
+  const service = source.service || {}
+  const rows = normalizeList(source.activityRows || source.infoRows)
+
+  if (rows.length) {
+    return rows.map((item) => ({
+      label: pickFirstValue(item.label, item.title),
+      value: pickFirstValue(item.value, item.text),
+      strong: Boolean(item.strong),
+      type: pickFirstValue(item.type, item.tone)
+    })).filter((item) => item.label || item.value)
+  }
+
+  return [
+    { label: '合同金额', value: pickFirstValue(service.contractAmountText, source.contractAmountText), strong: true },
+    { label: '服务时长', value: pickFirstValue(service.durationText, source.durationText) },
+    { label: '开始时间', value: pickFirstValue(service.startedAtText, source.startedAtText) },
+    { label: '完成时间', value: pickFirstValue(service.completedAtText, source.completedAtText) }
+  ].filter((item) => item.value)
+}
+
+function normalizeSettlementRows(settlement) {
+  const source = settlement || {}
+  const rows = normalizeList(source.rows || source.items)
+
+  if (rows.length) {
+    return rows.map((item) => ({
+      label: pickFirstValue(item.label, item.title),
+      value: pickFirstValue(item.value, item.text),
+      type: pickFirstValue(item.type, item.tone)
+    })).filter((item) => item.label || item.value)
+  }
+
+  return [
+    { label: '合同总金额', value: source.contractAmountText },
+    { label: '结算比例', value: source.settlementRatioText, type: 'success' },
+    { label: '结算金额', value: source.settlementAmountText, type: 'amount' },
+    { label: '平台服务费', value: source.platformFeeText, type: 'danger' },
+    { label: '领路人奖励', value: source.guideRewardText, type: 'warning' },
+    { label: '系统级领路人奖励', value: source.systemGuideRewardText, type: 'purple' }
+  ].filter((item) => item.value)
+}
+
+function normalizeNotice(notice) {
+  const source = notice || {}
+
+  return {
+    iconText: pickFirstValue(source.iconText),
+    title: pickFirstValue(source.title),
+    parts: normalizeList(source.parts || source.contents).map((item) => ({
+      text: pickFirstValue(item.text, item.value),
+      strong: Boolean(item.strong)
+    })).filter((item) => item.text)
+  }
+}
+
+function normalizeTimeline(data) {
+  return normalizeList(data).map((item) => ({
+    key: pickFirstValue(item.key, item.id),
+    title: pickFirstValue(item.title, item.name),
+    desc: pickFirstValue(item.desc, item.description),
+    timeText: pickFirstValue(item.timeText, item.time, item.createdAtText),
+    state: pickFirstValue(item.state, item.status),
+    hasLine: item.hasLine !== false,
+    actionText: pickFirstValue(item.actionText, item.actionTitle),
+    actionIconText: pickFirstValue(item.actionIconText),
+    actionPlacement: pickFirstValue(item.actionPlacement),
+    actionKey: pickFirstValue(item.actionKey, item.key, item.id)
+  })).filter((item) => item.title || item.desc)
+}
+
+function normalizeConfirmItems(data) {
+  return normalizeList(data).map((item) => ({
+    id: pickFirstValue(item.id, item.key),
+    title: pickFirstValue(item.title, item.name),
+    desc: pickFirstValue(item.desc, item.description),
+    checked: Boolean(item.checked),
+    locked: Boolean(item.locked || item.disabled)
+  })).filter((item) => item.id || item.title)
+}
+
+function normalizeQuickActions(data) {
+  return normalizeList(data).map((item) => {
+    const key = pickFirstValue(item.key, item.id, item.action)
+    const targetRole = pickFirstValue(item.targetRole, item.role)
+
+    return {
+      key,
+      targetRole,
+      title: pickFirstValue(item.title, item.name),
+      theme: pickFirstValue(item.theme, targetRole === 'guide' ? 'orange' : 'blue'),
+      iconSrc: pickFirstValue(item.iconSrc, item.localIcon, targetRole === 'player' ? PLAYER_ICON : ''),
+      iconText: pickFirstValue(item.iconText),
+      route: pickFirstValue(item.route, item.path),
+      message: pickFirstValue(item.message, item.toastText)
+    }
+  }).filter((item) => item.key || item.title)
+}
+
+function normalizeDeliveryData(data = {}) {
+  const settlement = data.settlement || {}
+  const confirmItems = normalizeConfirmItems(data.confirmItems || data.confirmations)
+  const settlementRows = normalizeSettlementRows(settlement)
+
+  return Object.assign({}, EMPTY_DELIVERY_STATE, {
+    deliveryMode: normalizeDeliveryMode(data.serviceType || data.deliveryMode || data.mode),
+    pageTitle: pickFirstValue(data.pageTitle, data.title, EMPTY_DELIVERY_STATE.pageTitle),
     status: {
-      theme: 'paid',
-      title: '服务已完成!',
-      desc: '双方确认后，资金将全额结算'
+      theme: pickFirstValue(data.statusTheme, data.status && data.status.theme, data.serviceType),
+      title: pickFirstValue(data.statusTitle, data.status && data.status.title),
+      desc: pickFirstValue(data.statusDesc, data.status && data.status.desc)
     },
     statePill: {
-      theme: 'green',
-      text: '待确认完成'
+      theme: pickFirstValue(data.stateTheme, data.statePill && data.statePill.theme),
+      text: pickFirstValue(data.stateText, data.statusText, data.statePill && data.statePill.text)
     },
-    activity: {
-      avatar: getSurnameInitials('李明', 'LI'),
-      expertName: '李明',
-      serviceName: '产品架构咨询',
-      orderNo: 'REF-20260320-001'
-    },
-    activityRows: [
-      { label: '合同金额', value: '¥800.00', strong: true },
-      { label: '服务时长', value: '2小时 (已完成)' },
-      { label: '开始时间', value: '03-20 14:30' },
-      { label: '完成时间', value: '03-20 16:30' }
-    ],
-    notice: {},
+    activity: normalizeActivity(data),
+    activityRows: normalizeActivityRows(data),
+    notice: normalizeNotice(data.notice),
     settlement: {
-      actualAmount: '¥192.00'
+      actualAmount: pickFirstValue(settlement.actualAmountText, data.actualAmountText)
     },
-    settlementRows: [
-      { label: '合同总金额', value: '¥800.00' },
-      { label: '结算比例', value: '60% (扣除成本40%)', type: 'success' },
-      { label: '结算金额', value: '¥480.00', type: 'amount' },
-      { label: '平台服务费 (10%)', value: '-¥48.00', type: 'danger' },
-      { label: '领路人奖励 (40%)', value: '-¥192.00', type: 'warning' },
-      { label: '系统级领路人奖励 (10%)', value: '-¥48.00', type: 'purple' }
-    ],
-    settlementNote: '正常交付无扣减：服务按时完成，全额结算',
-    timeline: [
-      {
-        key: 'completed',
-        title: '服务已完成',
-        desc: '行家标记服务已完成',
-        timeText: '03-20 16:35',
-        state: 'done',
-        hasLine: true
-      },
-      {
-        key: 'waiting-player',
-        title: '等待玩家确认',
-        desc: '需李明确认服务已达标',
-        state: 'active',
-        hasLine: true,
-        actionText: '提醒确认',
-        actionIconText: '🔔',
-        actionPlacement: 'head'
-      },
-      {
-        key: 'settlement',
-        title: '资金结算',
-        desc: '双方确认后自动到账',
-        state: 'pending',
-        hasLine: false
-      }
-    ],
-    confirmItems: [
-      {
-        id: 'completed',
-        title: '服务已全部完成',
-        desc: '约定的2小时咨询服务已完整交付',
-        checked: false
-      },
-      {
-        id: 'qualified',
-        title: '服务质量达标',
-        desc: '需求方对服务内容和质量无异议',
-        checked: false
-      },
-      {
-        id: 'communicated',
-        title: '双方已沟通确认',
-        desc: '已与需求方确认服务完成，对方同意结算',
-        checked: false
-      }
-    ],
-    confirmNote: '正常交付无需扣减任何费用，只需双方确认服务已完成，资金将按全额结算。如服务未完全达标，请与玩家沟通后再确认。',
-    security: {
-      title: '资金安全保障',
-      desc: '资金已托管，双方确认后自动结算，无需担心'
-    },
-    submitHints: {
-      ready: '确认后将通知玩家进行最终确认',
-      pending: '需勾选上方确认项后方可提交'
-    },
-    submitToast: '服务完成确认待接入'
-  },
-  free: {
-    pageTitle: '确认服务完成',
-    status: {
-      theme: 'free',
-      title: '服务已完成!',
-      desc: '双方确认后，服务正式结束'
-    },
-    statePill: {
-      theme: 'blue',
-      text: '待确认完成'
-    },
-    activity: {
-      avatar: getSurnameInitials('李明', 'LI'),
-      expertName: '李明',
-      serviceName: '产品架构咨询',
-      orderNo: 'REF-20260320-001'
-    },
-    activityRows: [
-      { label: '服务类型', value: '免费局', type: 'blue' },
-      { label: '服务时长', value: '6小时（已完成）' },
-      { label: '开始时间', value: '03-20 14:30' },
-      { label: '完成时间', value: '03-20 20:30' }
-    ],
-    notice: {
-      iconText: '🎁',
-      title: '免费局说明',
-      parts: [
-        { text: '本局为' },
-        { text: '免费体验局', strong: true },
-        { text: '不涉及资金结算。双方确认完成后，行家将获得' },
-        { text: '信用积分+5和免费局贡献徽章', strong: true },
-        { text: '，玩家' },
-        { text: '优先推荐权益', strong: true }
-      ]
-    },
-    settlement: {},
-    settlementRows: [],
-    settlementNote: '',
-    timeline: [
-      {
-        key: 'completed',
-        title: '服务已完成',
-        desc: '行家标记服务已完成',
-        timeText: '03-20 16:35',
-        state: 'done',
-        hasLine: true
-      },
-      {
-        key: 'waiting-player',
-        title: '等待玩家确认',
-        desc: '需李明确认服务已达标',
-        state: 'active',
-        hasLine: true,
-        actionText: '提醒确认',
-        actionIconText: '🔔',
-        actionPlacement: 'head'
-      },
-      {
-        key: 'archive',
-        title: '服务归档',
-        desc: '双方确认后自动归档',
-        state: 'pending',
-        hasLine: false
-      }
-    ],
-    confirmItems: [
-      {
-        id: 'completed',
-        title: '服务已全部完成',
-        desc: '约定的2小时咨询服务已完整交付',
-        checked: true,
-        locked: true
-      },
-      {
-        id: 'qualified',
-        title: '服务质量达标',
-        desc: '需求方对服务内容和质量无异议',
-        checked: true,
-        locked: true
-      },
-      {
-        id: 'communicated',
-        title: '双方已沟通确认',
-        desc: '已与需求方确认服务完成，对方同意归档',
-        checked: false
-      }
-    ],
-    confirmNote: '免费局无需扣除任何费用，只需双方确认服务已完成，系统将自动归档。如服务未完全达标，请与玩家沟通后再次确认。',
-    security: {
-      title: '服务保障',
-      desc: '免费局同样享受平台服务保障，评价真实有效'
-    },
-    submitHints: {
-      ready: '确认后将通知玩家进行最终确认',
-      pending: '需勾选上方确认项后方可提交'
-    },
-    submitToast: '免费局服务完成确认待接入'
-  }
-}
-
-function cloneList(list) {
-  return list.map((item) => ({ ...item }))
-}
-
-function cloneNotice(notice) {
-  if (!notice || !notice.title) {
-    return {}
-  }
-
-  return {
-    ...notice,
-    parts: cloneList(notice.parts || [])
-  }
-}
-
-function normalizeDeliveryMode(mode) {
-  return String(mode || '').toLowerCase() === 'free' ? 'free' : 'paid'
-}
-
-function createDeliveryState(mode) {
-  const deliveryMode = normalizeDeliveryMode(mode)
-  const config = DELIVERY_MODE_CONFIGS[deliveryMode]
-  const confirmItems = cloneList(config.confirmItems)
-
-  return {
-    deliveryMode,
-    pageTitle: config.pageTitle,
-    status: { ...config.status },
-    statePill: { ...config.statePill },
-    activity: { ...config.activity },
-    activityRows: cloneList(config.activityRows),
-    notice: cloneNotice(config.notice),
-    settlement: { ...config.settlement },
-    settlementRows: cloneList(config.settlementRows),
-    hasSettlement: config.settlementRows.length > 0,
-    settlementNote: config.settlementNote,
-    timeline: cloneList(config.timeline),
+    settlementRows,
+    hasSettlement: settlementRows.length > 0,
+    settlementNote: pickFirstValue(settlement.note, data.settlementNote),
+    timeline: normalizeTimeline(data.timeline || data.steps),
     confirmItems,
-    allConfirmed: confirmItems.every((item) => item.checked),
-    confirmNote: config.confirmNote,
-    security: { ...config.security },
-    submitHints: { ...config.submitHints },
-    submitToast: config.submitToast,
-    quickActions: [
-      { title: '联系玩家', theme: 'blue', iconSrc: '/pages/game/delivery/assets/i18@3x.png' },
-      { title: '联系领路人', theme: 'orange', iconText: '👬' }
-    ]
-  }
+    allConfirmed: confirmItems.length > 0 && confirmItems.every((item) => item.checked),
+    confirmNote: pickFirstValue(data.confirmNote),
+    security: data.security || {},
+    submitHints: data.submitHints || {},
+    submitToast: pickFirstValue(data.submitToast, data.submitMessage),
+    quickActions: normalizeQuickActions(data.quickActions || data.actionsList || data.contactActions)
+  })
 }
 
 Page({
-  data: {
+  data: Object.assign({
     shellLayout: getWhiteShellLayoutStyles(),
-    ...createDeliveryState(DEFAULT_DELIVERY_MODE)
-  },
+    queryParams: {},
+    serviceOrderId: '',
+    gameId: ''
+  }, EMPTY_DELIVERY_STATE),
 
   onLoad(options = {}) {
-    this.applyDeliveryMode(options.mode)
+    const serviceOrderId = options.serviceOrderId || options.orderId || options.id || ''
+
+    this.setData({
+      queryParams: options,
+      serviceOrderId,
+      gameId: options.gameId || ''
+    })
+    this.loadDeliveryDetail(options)
   },
 
   onShow() {
@@ -345,8 +305,28 @@ Page({
     })
   },
 
-  applyDeliveryMode(mode) {
-    this.setData(createDeliveryState(mode || DEFAULT_DELIVERY_MODE))
+  async loadDeliveryDetail(params = {}) {
+    const serviceOrderId = params.serviceOrderId || params.orderId || params.id || this.data.serviceOrderId
+
+    if (!serviceOrderId) {
+      this.showInfo('缺少服务订单信息')
+      this.setData(EMPTY_DELIVERY_STATE)
+      return
+    }
+
+    try {
+      const detail = await gameService.getServiceDeliveryDetail(Object.assign({}, params, {
+        serviceOrderId
+      }))
+
+      this.setData(Object.assign(normalizeDeliveryData(detail), {
+        serviceOrderId,
+        gameId: detail && detail.gameId || this.data.gameId
+      }))
+    } catch (error) {
+      this.setData(EMPTY_DELIVERY_STATE)
+      this.showInfo(error.message || '服务交付详情加载失败')
+    }
   },
 
   onBackTap() {
@@ -366,20 +346,49 @@ Page({
     this.showInfo('更多操作待接入')
   },
 
-  onTimelineActionTap(event) {
+  async onTimelineActionTap(event) {
     const item = event.detail && event.detail.item
 
-    if (item && item.key === 'waiting-player') {
-      this.showInfo('已提醒玩家确认')
+    if (!item) {
       return
     }
 
-    this.showInfo('操作待接入')
+    if (item.route) {
+      wx.navigateTo({ url: item.route })
+      return
+    }
+
+    if (item.actionKey === 'waiting-player' || item.actionKey === 'remindPlayer' || item.key === 'waiting-player') {
+      await this.remindPlayer()
+      return
+    }
+
+    this.showInfo(item.message || '操作待接入')
+  },
+
+  async remindPlayer() {
+    try {
+      await gameService.remindPlayerConfirm({
+        serviceOrderId: this.data.serviceOrderId,
+        gameId: this.data.gameId
+      })
+      this.showInfo('已提醒玩家确认')
+      this.loadDeliveryDetail(this.data.queryParams)
+    } catch (error) {
+      this.showInfo(error.message || '提醒玩家确认失败')
+    }
   },
 
   onQuickActionTap(event) {
     const { title } = event.currentTarget.dataset
-    this.showInfo(`${title || '操作'}待接入`)
+    const action = this.data.quickActions.find((item) => item.title === title)
+
+    if (action && action.route) {
+      wx.navigateTo({ url: action.route })
+      return
+    }
+
+    this.showInfo(action && action.message || `${title || '操作'}待接入`)
   },
 
   toggleConfirm(event) {
@@ -389,12 +398,11 @@ Page({
         return item
       }
 
-      return {
-        ...item,
+      return Object.assign({}, item, {
         checked: !item.checked
-      }
+      })
     })
-    const allConfirmed = confirmItems.every((item) => item.checked)
+    const allConfirmed = confirmItems.length > 0 && confirmItems.every((item) => item.checked)
 
     this.setData({
       confirmItems,
@@ -402,13 +410,34 @@ Page({
     })
   },
 
-  onSubmitTap() {
+  async onSubmitTap() {
     if (!this.data.allConfirmed) {
       this.showInfo('请先勾选全部确认项')
       return
     }
 
-    this.showInfo(this.data.submitToast || '服务完成确认待接入')
+    const confirmedItems = this.data.confirmItems
+      .filter((item) => item.checked)
+      .map((item) => item.id)
+
+    try {
+      const result = await gameService.confirmServiceDelivery({
+        serviceOrderId: this.data.serviceOrderId,
+        gameId: this.data.gameId,
+        confirmedItems
+      })
+
+      if (result && (result.timeline || result.status || result.service)) {
+        this.setData(Object.assign(normalizeDeliveryData(result), {
+          serviceOrderId: this.data.serviceOrderId,
+          gameId: result.gameId || this.data.gameId
+        }))
+      }
+
+      this.showInfo(this.data.submitToast || '服务完成确认已提交')
+    } catch (error) {
+      this.showInfo(error.message || '确认服务完成失败')
+    }
   },
 
   showInfo(title) {

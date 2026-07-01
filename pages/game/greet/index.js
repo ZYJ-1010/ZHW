@@ -1,11 +1,30 @@
-﻿const { ROUTES } = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
-const DEFAULT_CONTACT = {
-  name: '王引荐',
+const EMPTY_CONTACT = {
+  name: '',
   realName: '',
-  nickname: '王引荐',
-  avatarText: 'WA'
+  nickname: '',
+  avatarText: ''
+}
+
+const EMPTY_GROUP_INFO = {
+  headerTitle: '',
+  title: '',
+  guideLabel: '',
+  guideName: '',
+  expertLabel: '',
+  miniProgramText: '',
+  expert: {
+    name: '',
+    avatarText: '',
+    desc: '',
+    intro: '',
+    tags: []
+  },
+  stats: [],
+  confirmText: ''
 }
 
 function decodeQueryText(value = '') {
@@ -16,108 +35,213 @@ function decodeQueryText(value = '') {
   }
 }
 
-function getAvatarText(name = '') {
-  return getSurnameInitials(name, DEFAULT_CONTACT.avatarText)
+function decodeOptions(options = {}) {
+  return Object.keys(options).reduce((result, key) => {
+    result[key] = decodeQueryText(options[key])
+    return result
+  }, {})
 }
 
-function getDisplayName(contact) {
-  return contact.realName || contact.name || contact.nickname || DEFAULT_CONTACT.name
+function getAvatarText(name = '', fallback = '') {
+  return getSurnameInitials(name, fallback)
+}
+
+function getDisplayName(contact = {}) {
+  return contact.realName || contact.name || contact.nickname || ''
+}
+
+function normalizeContact(contact = {}) {
+  const name = contact.name || contact.displayName || contact.nickname || ''
+  const realName = contact.realName || ''
+  const nickname = contact.nickname || ''
+  const displayName = realName || name || nickname
+
+  return {
+    name: displayName,
+    realName,
+    nickname,
+    avatarText: contact.avatarText || getAvatarText(displayName, '')
+  }
+}
+
+function normalizeExpert(expert = {}) {
+  const name = expert.name || expert.nickname || ''
+
+  return {
+    name,
+    avatarText: expert.avatarText || getAvatarText(name, ''),
+    desc: expert.desc || expert.description || '',
+    intro: expert.intro || expert.bio || '',
+    tags: Array.isArray(expert.tags) ? expert.tags : []
+  }
+}
+
+function normalizeGroupInfo(info = {}) {
+  const expert = normalizeExpert(info.expert || {})
+
+  return {
+    ...EMPTY_GROUP_INFO,
+    ...info,
+    expert,
+    stats: Array.isArray(info.stats) ? info.stats : []
+  }
+}
+
+function normalizeSentMessage(message = {}, fallbackText = '', fallbackId = '') {
+  const text = message.text || message.content || message.message || fallbackText
+
+  if (!text) {
+    return null
+  }
+
+  return {
+    id: String(message.id || message.messageId || fallbackId),
+    text
+  }
+}
+
+function normalizeGreetContext(data = {}) {
+  const contact = normalizeContact(data.contact || data.referrer || data.guide || {})
+  const groupInfo = normalizeGroupInfo(data.groupInfo || data.gameInfo || {})
+  const messages = Array.isArray(data.sentMessages || data.messages)
+    ? (data.sentMessages || data.messages).map((message, index) => normalizeSentMessage(message, '', `message-${index}`)).filter(Boolean)
+    : []
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    pageTitle: data.pageTitle || data.title || getDisplayName(contact),
+    greetingId: data.greetingId || '',
+    gameId: data.gameId || '',
+    serviceOrderId: data.serviceOrderId || '',
+    invitationId: data.invitationId || '',
+    detailRoute: data.detailRoute || '',
+    contact,
+    groupInfo,
+    messageText: data.messageText || data.guideMessageText || '',
+    sentMessages: messages,
+    canvasMinHeight: data.canvasMinHeight || 1280
+  }
 }
 
 Page({
   data: {
     onlineText: '3999人在线',
-    pageTitle: DEFAULT_CONTACT.name,
-    contact: DEFAULT_CONTACT,
-    groupInfo: {
-      headerTitle: '组局信息',
-      title: '产品架构梳理咨询',
-      guideLabel: '领路人',
-      guideName: DEFAULT_CONTACT.name,
-      expertLabel: '行家',
-      miniProgramText: '小程序 · 真好玩',
-      expert: {
-        name: '张专家',
-        avatarText: getSurnameInitials('张专家', 'ZH'),
-        desc: '资深产品经理 · 10年经验',
-        intro: '擅长产品架构设计、MVP规划，10年大厂经验，服务过50+企业客户...',
-        tags: ['产品咨询', '架构梳理']
-      },
-      stats: [
-        {
-          label: '4.9分',
-          icon: '/pages/game/greet/assets/rating.png'
-        },
-        {
-          label: '已认证',
-          icon: '/pages/game/greet/assets/verified.png'
-        },
-        {
-          label: '¥800',
-          icon: '/pages/game/greet/assets/price.png'
-        }
-      ],
-      confirmText: '查看详情并确认'
-    },
-    messageText: '李明，这位张专家是我认识的产品大牛，正好符合你之前说的产品架构咨询需求，我帮你们牵个线！',
+    pageTitle: '',
+    greetingId: '',
+    gameId: '',
+    serviceOrderId: '',
+    invitationId: '',
+    detailRoute: '',
+    contact: EMPTY_CONTACT,
+    groupInfo: EMPTY_GROUP_INFO,
+    messageText: '',
     sentMessages: [],
-    canvasMinHeight: 1280
+    canvasMinHeight: 1280,
+    loading: false,
+    sending: false
   },
 
   onLoad(options = {}) {
-    const realName = decodeQueryText(options.realName || '')
-    const name = decodeQueryText(options.playerName || options.name || '')
-    const nickname = decodeQueryText(options.nickname || '')
-    const contactName = realName || name || nickname
+    this.localMessageSeq = 0
+    this.loadGreetContext(options)
+  },
 
-    if (!contactName) {
-      return
-    }
-
-    const contact = {
-      ...this.data.contact,
-      realName,
-      name: contactName,
-      nickname,
-      avatarText: getAvatarText(contactName)
-    }
+  async loadGreetContext(options = {}) {
+    const context = decodeOptions(options)
 
     this.setData({
-      contact,
-      pageTitle: getDisplayName(contact),
-      'groupInfo.guideName': getDisplayName(contact)
+      greetingId: context.greetingId || context.id || '',
+      gameId: context.gameId || '',
+      serviceOrderId: context.serviceOrderId || context.orderId || '',
+      invitationId: context.invitationId || '',
+      loading: true
     })
 
-    if (options.message) {
+    try {
+      const data = await gameService.getGameGreetingContext({
+        ...context,
+        greetingId: context.greetingId || context.id || '',
+        gameId: context.gameId || '',
+        serviceOrderId: context.serviceOrderId || context.orderId || '',
+        invitationId: context.invitationId || ''
+      })
+
       this.setData({
-        messageText: decodeQueryText(options.message)
+        ...normalizeGreetContext(data),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeGreetContext({}),
+        loading: false
+      })
+      wx.showToast({
+        title: error.message || '打招呼信息加载失败',
+        icon: 'none'
       })
     }
   },
 
   onConfirmTap() {
+    if (this.data.detailRoute) {
+      wx.navigateTo({
+        url: this.data.detailRoute
+      })
+      return
+    }
+
+    if (this.data.gameId) {
+      wx.navigateTo({
+        url: `/${ROUTES.gameDetail}?gameId=${this.data.gameId}`
+      })
+      return
+    }
+
     wx.showToast({
-      title: '已确认组局信息',
+      title: '缺少局信息',
       icon: 'none'
     })
   },
 
-  onSendMessage(event) {
+  async onSendMessage(event) {
     const value = String(event.detail && event.detail.value || '').trim()
 
-    if (!value) {
+    if (!value || this.data.sending) {
       return
     }
 
-    const sentMessages = this.data.sentMessages.concat({
-      id: `message-${Date.now()}`,
-      text: value
+    this.setData({
+      sending: true
     })
 
-    this.setData({
-      sentMessages,
-      canvasMinHeight: 1280 + sentMessages.length * 120
-    })
+    try {
+      const result = await gameService.sendGameGreetingMessage({
+        greetingId: this.data.greetingId,
+        gameId: this.data.gameId,
+        serviceOrderId: this.data.serviceOrderId,
+        invitationId: this.data.invitationId,
+        message: value
+      })
+      const nextMessage = normalizeSentMessage(result && (result.message || result), value, `local-message-${++this.localMessageSeq}`)
+
+      if (nextMessage) {
+        const sentMessages = this.data.sentMessages.concat(nextMessage)
+
+        this.setData({
+          sentMessages,
+          canvasMinHeight: 1280 + sentMessages.length * 120
+        })
+      }
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '消息发送失败',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({
+        sending: false
+      })
+    }
   },
 
   onRecordStart() {

@@ -1,102 +1,131 @@
-const SATISFACTION_OPTIONS = [
-  { id: 'great', emoji: '😄', title: '真好玩', desc: '五星体验' },
-  { id: 'ok', emoji: '😐', title: '还行', desc: '合格' },
-  { id: 'bad', emoji: '☹️', title: '不好玩', desc: '有待改进' }
-]
-
-const TARGET_EVALUATION_MAP = {
-  expert: {
-    id: 'expert',
-    avatarText: 'ZH',
-    avatarTheme: 'blue',
-    title: '评价行家：张专家',
-    desc: '产品架构咨询 · 已完成',
-    ratingTitle: '服务质量',
-    tagTitle: '行家标签（多选）',
-    tags: ['专业能力强', '交付及时', '沟通顺畅', '超出预期', '性价比高', '推荐再合作'],
-    placeholder: '分享你的服务体验...'
-  },
-  player: {
-    id: 'player',
-    avatarText: 'WA',
-    avatarTheme: 'pink',
-    title: '评价玩家：王总',
-    desc: '需求确认 · 配合度',
-    ratingTitle: '合作满意度',
-    tagTitle: '玩家标签（多选）',
-    tags: ['需求明确', '配合度高', '付款及时', '沟通友好', '长期合作潜力'],
-    placeholder: '写下对需求方的评价...'
-  },
-  guide: {
-    id: 'guide',
-    avatarText: 'WA',
-    avatarTheme: 'orange',
-    title: '评价领路人：王引荐',
-    desc: '撮合匹配度 · 协助交付',
-    ratingTitle: '引荐满意度',
-    tagTitle: '邀请标签（多选）',
-    tags: ['匹配精准', '响应及时', '协助积极', '沟通高效', '值得信赖'],
-    placeholder: '评价引荐人的服务质量...'
-  }
-}
-
-const ROLE_TARGETS = {
-  expert: ['player', 'guide'],
-  player: ['expert', 'guide'],
-  guide: ['expert', 'player']
-}
-
-const ROLE_ALIASES = {
-  master: 'expert',
-  specialist: 'expert',
-  leader: 'guide',
-  referrer: 'guide'
-}
+const gameService = require('../../../services/game')
 
 function normalizeRole(role) {
   const normalized = String(role || '').trim()
+  const roleAliases = {
+    master: 'expert',
+    specialist: 'expert',
+    leader: 'guide',
+    referrer: 'guide'
+  }
 
-  return ROLE_TARGETS[normalized]
-    ? normalized
-    : ROLE_ALIASES[normalized] || 'expert'
+  return roleAliases[normalized] || normalized
 }
 
-function cloneEvaluationSection(targetType) {
-  const section = TARGET_EVALUATION_MAP[targetType]
-
+function normalizeSatisfactionOption(option = {}) {
   return {
-    ...section,
-    score: 0,
-    tags: section.tags.map((label) => ({ label, selected: false })),
-    comment: ''
+    id: option.id || option.key || '',
+    emoji: option.emoji || '',
+    title: option.title || option.name || '',
+    desc: option.desc || option.description || ''
   }
 }
 
-function getEvaluationSectionsByRole(role) {
-  return ROLE_TARGETS[role].map(cloneEvaluationSection)
+function normalizeTag(tag) {
+  if (typeof tag === 'string') {
+    return {
+      label: tag,
+      selected: false
+    }
+  }
+
+  return {
+    label: tag.label || tag.name || '',
+    selected: Boolean(tag.selected)
+  }
+}
+
+function normalizeEvaluationSection(section = {}) {
+  return {
+    id: section.id || section.targetType || section.key || '',
+    avatarText: section.avatarText || '',
+    avatarTheme: section.avatarTheme || section.avatarClass || '',
+    title: section.title || '',
+    desc: section.desc || section.description || '',
+    ratingTitle: section.ratingTitle || '',
+    tagTitle: section.tagTitle || '',
+    tags: Array.isArray(section.tags) ? section.tags.map(normalizeTag).filter((item) => item.label) : [],
+    placeholder: section.placeholder || '',
+    score: Number(section.score || 0),
+    comment: section.comment || ''
+  }
+}
+
+function normalizeReviewConfig(data = {}, viewerRole = '') {
+  const satisfactionOptions = Array.isArray(data.satisfactionOptions)
+    ? data.satisfactionOptions.map(normalizeSatisfactionOption).filter((item) => item.id)
+    : []
+  const evaluationSections = Array.isArray(data.evaluationSections || data.sections)
+    ? (data.evaluationSections || data.sections).map(normalizeEvaluationSection).filter((item) => item.id)
+    : []
+
+  return {
+    satisfactionOptions,
+    selectedSatisfaction: data.selectedSatisfaction || data.defaultSatisfaction || satisfactionOptions[0] && satisfactionOptions[0].id || '',
+    storyText: data.storyText || '',
+    storyLength: String(data.storyText || '').length,
+    storyMaxLength: Number(data.storyMaxLength || 100),
+    stars: Array.isArray(data.stars) ? data.stars : [1, 2, 3, 4, 5],
+    viewerRole: data.viewerRole || viewerRole,
+    evaluationSections,
+    npsScores: Array.isArray(data.npsScores) ? data.npsScores : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    npsScore: Number(data.npsScore || data.defaultNpsScore || 0),
+    rewardText: data.rewardText || '',
+    queryContext: data.queryContext || {}
+  }
 }
 
 Page({
   data: {
-    satisfactionOptions: SATISFACTION_OPTIONS,
-    selectedSatisfaction: 'great',
+    satisfactionOptions: [],
+    selectedSatisfaction: '',
     storyText: '',
     storyLength: 0,
     storyMaxLength: 100,
     stars: [1, 2, 3, 4, 5],
-    viewerRole: 'expert',
-    evaluationSections: getEvaluationSectionsByRole('expert'),
+    viewerRole: '',
+    evaluationSections: [],
     npsScores: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    npsScore: 7
+    npsScore: 0,
+    rewardText: '',
+    queryParams: {},
+    queryContext: {},
+    loading: false,
+    submitting: false
   },
 
   onLoad(options = {}) {
     const viewerRole = normalizeRole(options.role)
 
     this.setData({
-      viewerRole,
-      evaluationSections: getEvaluationSectionsByRole(viewerRole)
+      queryParams: options,
+      viewerRole
     })
+    this.loadReviewConfig({
+      ...options,
+      role: viewerRole
+    })
+  },
+
+  async loadReviewConfig(params = {}) {
+    this.setData({
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getGameReviewConfig(params)
+
+      this.setData({
+        ...normalizeReviewConfig(data, this.data.viewerRole),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeReviewConfig({}, this.data.viewerRole),
+        loading: false
+      })
+      this.showInfo(error.message || '评价配置加载失败')
+    }
   },
 
   onSatisfactionTap(event) {
@@ -121,17 +150,7 @@ Page({
   },
 
   onAiSummaryTap() {
-    if (this.data.storyText.trim()) {
-      this.showInfo('AI总结功能开发中')
-      return
-    }
-
-    const summary = '本次合作沟通顺畅，需求清晰，过程里有不少新启发。'
-
-    this.setData({
-      storyText: summary,
-      storyLength: summary.length
-    })
+    this.showInfo('AI总结功能待接入')
   },
 
   onStarTap(event) {
@@ -209,8 +228,38 @@ Page({
     this.showInfo('已跳过评价')
   },
 
-  onSubmitTap() {
-    this.showInfo('提交评价待接入')
+  async onSubmitTap() {
+    if (this.data.submitting) {
+      return
+    }
+
+    this.setData({
+      submitting: true
+    })
+
+    try {
+      await gameService.submitGameReview({
+        ...this.data.queryParams,
+        ...this.data.queryContext,
+        role: this.data.viewerRole,
+        satisfaction: this.data.selectedSatisfaction,
+        storyText: this.data.storyText,
+        npsScore: this.data.npsScore,
+        evaluations: this.data.evaluationSections.map((section) => ({
+          id: section.id,
+          score: section.score,
+          tags: section.tags.filter((tag) => tag.selected).map((tag) => tag.label),
+          comment: section.comment
+        }))
+      })
+      this.showInfo('评价已提交')
+    } catch (error) {
+      this.showInfo(error.message || '提交评价失败')
+    } finally {
+      this.setData({
+        submitting: false
+      })
+    }
   },
 
   showInfo(title) {

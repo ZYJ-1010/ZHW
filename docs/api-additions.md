@@ -1252,19 +1252,21 @@ POST /api/app/role-applications
 
 页面：`pages/game/apply/index`
 
-功能：申请加入页顶部“微信信息”卡片需要展示用户的微信授权头像和微信授权昵称。该卡片文案当前为“微信信息 / 昵称：张伟 · 头像已同步”，生产环境不应简单假设等同于小程序平台个人资料昵称和头像。
+功能：申请加入页顶部“微信信息”卡片需要展示用户的微信授权头像和微信授权昵称。页面已改为读取当前用户中的 `wechatProfile`，并通过后台申请配置接口获取默认表单和协议默认状态；生产环境不再使用页面内写死昵称、头像、自我介绍和申请留言。在线人数文案按用户最新要求暂不清理，后续如需真实化再接后台字段。
 
 现有资料核对：
 
 - `GET /api/app/users/me` 已返回 `CurrentUserDTO`，包含用户资料类字段。
 - 登录/注册接口中有 `nickname`、`avatarUrl` 入参和 `user.nickname`、`user.avatarUrl` 返回字段。
 - 当前文档未明确 `CurrentUserDTO.nickname/avatarUrl` 是“微信授权信息”，还是“平台个人资料信息”。若用户在小程序内修改昵称/头像，这两个来源可能不一致。
-- 入局申请最终口径为 `POST /api/app/games/{gameId}/apply`，入参目前为 `applyReason`、`fromGuideId`，与微信信息卡片预填数据无直接字段关系。
+- 入局申请最终口径为 `POST /api/app/games/{gameId}/apply`，当前前端提交 `applyReason/intro/message/imageFiles/attachmentFiles/fromGuideId`；文件上传仍只是本地选择结果，上传入库接口待补。
 
 建议后端明确一种方案：
 
 ```text
 GET /api/app/users/me
+GET /api/app/games/{gameId}/apply-config
+POST /api/app/games/{gameId}/apply
 ```
 
 在 `CurrentUserDTO` 中补充分离字段：
@@ -1303,7 +1305,7 @@ GET /api/app/users/me/wechat-profile
 
 - 申请加入页“微信信息”卡片优先展示微信授权信息：`wechatProfile.nickname`、`wechatProfile.avatarUrl`。
 - 如果微信授权信息为空，展示授权缺失态或引导同步，不自动用平台资料冒充微信授权信息，除非产品明确允许兜底。
-- 当前静态开发阶段仍使用写死默认值，后续联调时替换为后端返回字段。
+- 当前前端已接 `GET /api/app/users/me`、`GET /api/app/games/{gameId}/apply-config` 和 `POST /api/app/games/{gameId}/apply`；接口失败或未返回字段时不再回填页面内本地用户 / 文案样例。
 
 待后端 / 产品确认：
 
@@ -1311,6 +1313,8 @@ GET /api/app/users/me/wechat-profile
 2. 是否需要把微信授权信息和平台个人资料信息分开返回。
 3. 微信头像昵称同步状态字段命名使用 `synced`、`wechatSynced` 还是 `avatarSynced`。
 4. 若用户未授权或授权过期，申请加入页应展示默认头像、平台资料兜底，还是弹出微信授权引导。
+5. `GET /api/app/games/{gameId}/apply-config` 是否为正式路径；该接口需返回 `onlineText`、`form.defaultIntro/defaultMessage/defaultAgreed`、协议文案 / 路由、上传限制和提交按钮权限。
+6. 图片和 PDF 附件是否需要先上传并转换为文件 ID，再提交入局申请。
 
 ## 21. 组局发起邀请页预算上限字段
 记录日期：2026-06-21
@@ -1542,8 +1546,12 @@ GET /api/app/game-invites/guide-progress
 候选接口：
 
 ```text
+GET /api/app/games/{gameId}/payment-config
+GET /api/app/game-payments/config
 POST /api/app/game-payments/wechat
 ```
+
+支付配置接口用于返回页面展示金额、分成明细、规则说明、预计积分说明和默认勾选状态。若页面入口没有 `gameId`，前端会请求通用配置 `GET /api/app/game-payments/config`；若后台不支持通用配置，可返回错误，前端展示空数据，不再用页面内固定 100 元和固定分成明细兜底。
 
 当前前端提交 payload：
 
@@ -1590,12 +1598,13 @@ POST /api/app/game-payments/wechat
 
 当前前端接入口径：
 
+- 页面加载时先请求支付配置接口；支付金额、分成明细、规则说明和预计积分说明均以后端返回为准。在线人数文案按用户最新要求暂不清理，接口返回时可覆盖。
 - 未勾选同意规则时，不请求后台，直接弹窗提示用户勾选。
 - 已勾选时，请求 `POST /api/app/game-payments/wechat`。
 - 后台返回 `paymentParams` 后，前端调用 `wx.requestPayment`。
 - 微信支付面板中用户取消时，前端保留在当前支付页并提示 `已取消支付`，方便重新发起支付。
 - 页面底部 `取消` 按钮：若有上一页则 `navigateBack`；若编译模式直开且有 `gameId`，则跳转到 `pages/game/detail/index?gameId=...`；若没有 `gameId`，则跳转到 `pages/game/hall/index`。
-- 当前 mock 环境返回 `mockPayment: true`，只表示支付请求已提交，不调用真实 `wx.requestPayment`。
+- 当前生产口径不再识别 `mockPayment`；缺少微信支付参数时直接提示支付参数不完整。
 
 待后端 / 产品确认：
 
@@ -1939,14 +1948,15 @@ POST /api/app/game-services/{serviceOrderId}/finish-delivery
 
 - 点击 `取消并赔付` 后，前端弹出专家赔付取消界面。
 - 取消界面需要展示赔付规则、预计赔付金额、取消原因输入 / 选择和确认按钮。
-- 合同金额、赔付金额、平台手续费、实际扣款需要由后台返回或以后端规则计算；前端当前仅支持从页面参数读取金额并做静态预览兜底，不能作为正式结算依据。
+- 合同金额、赔付金额、平台手续费、实际扣款需要由后台预览接口返回或以后端规则计算；前端不再用页面内金额样例作为正式结算依据。
 - 取消原因由后台返回可编辑的默认原因列表，前端单选，至少需要有 1 个可选原因并默认选中 1 个；用户填写的详细说明最多 50 字。
-- `pages/game/expert-cancel/index` 当前确认按钮只做必填项校验和静态提示，真实取消赔付提交接口后续添加。
+- `pages/game/expert-cancel/index` 当前已改为进入页面调用预览接口，确认后调用真实取消赔付接口。
 - 用户确认后应调用取消赔付接口，并刷新当前服务状态。
 
 候选路径：
 
 ```text
+GET /api/app/game-services/{serviceOrderId}/expert-cancel-preview
 POST /api/app/game-services/{serviceOrderId}/cancel-with-compensation
 ```
 
@@ -1990,6 +2000,7 @@ POST /api/app/game-services/{serviceOrderId}/cancel-with-compensation
 4. 是否需要二次确认、风控校验或客服介入。
 5. 专家取消页中的合同金额、平台手续费、实际扣款是否由预览接口完整返回；若仅返回费率，字段名使用 `platformFeeRate` 还是 `serviceFeeRate`，金额单位使用元还是分。
 6. 专家取消原因列表是否由后台运营配置返回，字段名使用 `reasonOptions` 还是 `cancelReasons`；详细说明最大长度当前按 50 字处理。
+7. 专家取消预览接口路径是否使用 `GET /api/app/game-services/{serviceOrderId}/expert-cancel-preview`，还是并入服务订单详情接口；前端当前按该候选路径接入。
 
 ### 联系玩家 / 联系领路人
 
@@ -2512,6 +2523,7 @@ POST /api/app/game-services/{serviceOrderId}/player-cancel-with-compensation
 GET /api/app/games/{gameId}/collaboration
 GET /api/app/games/{gameId}/members
 GET /api/app/games/{gameId}/messages
+POST /api/app/games/{gameId}/end
 ```
 
 建议协作页聚合返回：
@@ -2577,8 +2589,9 @@ GET /api/app/games/{gameId}/messages
 - `progress.percent` 控制进度条和进度标题；任务列表由 `progress.tasks` 渲染。
 - `members` 用于成员区域摘要，也用于点击 `成员管理` 后的成员列表页面 / 弹层。
 - `messages` 用于聊天区消息列表，消息发送、分页和实时刷新规则后续确认。
-- `成员管理` 不只是静态提示，后续应进入成员列表或弹出成员管理面板，并展示当前局所有成员。
-- `结束本局` 后续应跳转结束确认页面，确认页路径和参数以后端返回或前端路由约定为准。
+- 当前前端已接 `GET /api/app/games/{gameId}/collaboration`；页面内成员、任务、聊天样例已清空。
+- `成员管理` 优先使用后台返回的 `memberManageRoute` 跳转；未返回时只提示待接入。
+- `结束本局` 优先使用后台返回的 `endRoute` 跳转；未返回时调用 `POST /api/app/games/{gameId}/end`。
 
 待确认：
 
@@ -2596,7 +2609,7 @@ GET /api/app/games/{gameId}/messages
 
 页面：`pages/game/delivery/index`
 
-功能：服务交付确认页当前为静态 UI。快捷操作中的 `联系玩家`、`联系领路人` 后续需要进入对应人员的消息界面；确认状态里的 `提醒确认` 后续需要给玩家发消息 / 提醒玩家确认服务完成；底部 `确认服务完成` 后续需要提交服务完成确认，并触发玩家确认、状态刷新，以及有偿局结算流程或免费局归档流程。
+功能：服务交付确认页已改为从后台获取交付详情、活动信息、结算明细、确认状态、确认项、快捷操作和安全提示。确认状态里的 `提醒确认` 调用提醒接口，底部 `确认服务完成` 调用服务完成确认接口，并按接口返回刷新状态；页面 JS 不再写死行家、订单号、合同金额、服务时长、结算行、时间线和确认项样例。
 
 候选接口：
 
@@ -2657,11 +2670,11 @@ POST /api/app/game-services/{serviceOrderId}/confirm-delivery
 
 - 点击 `联系玩家` 后，应进入或创建与玩家的一对一消息会话，并给玩家发消息。
 - 点击 `联系领路人` 后，应进入或创建与领路人的一对一消息会话，并给领路人发消息。
-- 会话创建可复用 IM 会话接口，返回 `conversationId` 或可跳转的 `route`。
+- 当前页面优先使用后台在 `quickActions/contactActions` 中返回的 `route/message`；会话创建可复用 IM 会话接口，返回 `conversationId` 或可跳转的 `route`。
 
 提醒确认口径：
 
-- 确认状态里的 `提醒确认` 按钮当前只做静态提示，后续应给玩家发消息 / 提醒玩家进行服务完成确认。
+- 确认状态里的 `提醒确认` 按钮当前已调用 `POST /api/app/game-services/{serviceOrderId}/remind-player-confirm`；后续需确认冷却时间、重复提醒失败码和按钮状态回显。
 - 产品需确认该动作是进入玩家聊天页并预填确认话术，还是直接调用提醒接口发送系统提醒。
 - 若直接发送提醒，建议后端返回提醒发送时间、冷却时间和按钮文案，避免重复频繁提醒。
 
@@ -2706,7 +2719,7 @@ POST /api/app/game-services/{serviceOrderId}/remind-player-confirm
 
 确认完成口径：
 
-- 底部 `确认服务完成` 按钮当前只做静态提示，后续应调用服务完成确认接口。
+- 底部 `确认服务完成` 按钮当前已调用 `POST /api/app/game-services/{serviceOrderId}/confirm-delivery`。
 - 提交前需要校验服务确认勾选项，确认后由接口返回最新服务状态、确认状态和结算状态。
 - 如果仍需玩家二次确认，状态应进入 `waiting_player_confirm`；若双方均已确认，有偿局进入结算 / 已完成状态，免费局进入归档 / 已完成状态。
 
@@ -4669,3 +4682,134 @@ GET /api/app/games/player/manage
 | `serverTime/currentTime/now` | 后台当前时间；玩家侧进度、剩余天数只在该字段存在时计算，否则只展示后台直接返回的进度文案 |
 
 状态：两个页面已走 service 请求；`pages/game/manage/index` 中的本地样例订单兜底已删除，数据来自接口或 mock 后台。
+
+### 69.5 组局聊天、打招呼与支付配置
+
+注释：模块：组局；页面：`pages/game/guide-chat/index`、`pages/game/greet/index`、`pages/game/hall-greet/index`、`pages/game/payment/index`；功能：领路人聊天、组局打招呼、大厅打招呼、押金局支付。
+
+接口形式：
+
+```text
+GET /api/app/game-invites/guide-chat-context
+POST /api/app/game-invites/guide-chat/respond
+POST /api/app/game-invites/guide-chat/messages
+GET /api/app/game-greetings/context
+POST /api/app/game-greetings/messages
+GET /api/app/game-hall/greeting-context
+POST /api/app/game-hall/greetings/messages
+POST /api/app/game-hall/greetings/actions
+GET /api/app/games/{gameId}/payment-config
+GET /api/app/game-payments/config
+```
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `onlineText/pageTitle/shareTitle` | 顶部在线人数、页面标题和分享标题 |
+| `invitationId/greetingId/gameId/serviceOrderId/guideId/targetUserId` | 页面上下文和提交动作参数 |
+| `guideAssistantCard/card` | 领路人聊天邀请卡片，包含标题、领路人、玩家和局时间地点 |
+| `guideMessageText/messageText` | 领路人或打招呼消息气泡文案 |
+| `contact/referrer/guide` | 打招呼页联系人姓名、昵称、头像字 |
+| `groupInfo/gameInfo` | 打招呼页组局信息卡片 |
+| `quickActions` | 大厅打招呼快捷操作，字段包含 `key/label/iconSrc` |
+| `sentMessages/messages` | 已发送消息列表 |
+| `payment/paymentSplits/rules/pointsDescription/agreementChecked` | 支付页金额、分成明细、规则说明、预计积分和默认勾选状态 |
+
+状态：上述页面已改为通过 `services/game` 请求生产接口；原页面内李娜、王引荐、张专家、中关村创业大街、固定 100 元、固定服务费 / 押金池、固定快捷操作提示等样例数据已清空。缺少接口或接口失败时页面保持空数据 / 错误提示，不再从 mock 或页面常量填业务样例。
+
+### 69.6 组局审核列表与审核详情
+
+注释：模块：组局；页面：`pages/game/audit/index`、`pages/game/audit-detail/index`；功能：审核申请列表、行家审核组局详情。
+
+接口形式：
+
+```text
+GET /api/app/game-audits
+GET /api/app/game-audits/{auditId}
+POST /api/app/game-audits/{auditId}/respond
+POST /api/app/game-audits/batch-respond
+```
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `list/records/items` | 审核申请列表 |
+| `id/auditId/applicationId` | 审核申请 ID |
+| `initiator/applicant/user` | 申请人昵称、头像字、角色 |
+| `applyTime/applyTimeText/createdAtText` | 申请时间展示文案 |
+| `status/statusKey/statusText` | 审核状态 |
+| `status/statusCard` | 审核详情顶部状态卡 |
+| `player/guide/expert` | 玩家、领路人、行家信息 |
+| `info/gameInfo` | 局主题、时间、地点、活动类型、服务时长和预算 |
+| `settlement/backendSettlement` | 平台、领路人、生态合伙人和行家收益明细 |
+| `optionalActions/actions` | 审核详情可选操作 |
+| `noticeBullets/notices` | 确认须知列表 |
+
+状态：审核列表和审核详情已接入 `services/game`；本地四条申请样例、玩家需求、领路人推荐语、预算、结算比例和倒计时样例已清空。通过、拒绝和批量处理会提交后台接口；接口失败时不再模拟成功。
+
+### 69.7 再玩一局、行家成功页、引荐记录与评价
+
+注释：模块：组局；页面：`pages/game/play-again/index`、`pages/game/success-expert/index`、`pages/game/referral-record/index`、`pages/game/review/index`；功能：再玩一局推荐、行家视角组局成功、我的引荐记录、服务评价。
+
+接口形式：
+
+```text
+GET /api/app/game-replays/options
+POST /api/app/game-replays/options/select
+GET /api/app/game-invites/expert-success
+GET /api/app/game-referrals/records
+POST /api/app/game-referrals/actions
+GET /api/app/game-reviews/config
+POST /api/app/game-reviews
+GET /api/app/game-reviews/complete-config
+POST /api/app/game-reviews/complete-intent
+```
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `recommendOptions/options` | 再玩一局推荐项，含 `id/theme/iconText/title/desc/route` |
+| `group/chatGroup` | 行家成功页三方群标题、角色文案、提示和群聊路由 |
+| `participants/members` | 行家成功页参与人头像字和样式 |
+| `activityRows/infoRows` | 行家成功页活动信息 |
+| `nextSteps/steps` | 行家成功页下一步 |
+| `summary/tabs/records` | 引荐记录统计、tab 和记录列表 |
+| `records.actions` | 引荐记录操作项，含 `key/text/icon/theme/route/message` |
+| `satisfactionOptions/evaluationSections/npsScores` | 评价页满意度选项、评价对象和 NPS 配置 |
+| `storyMaxLength/rewardText/queryContext` | 评价页输入限制、奖励文案和提交上下文 |
+| `benefits/playOptions` | 评价完成页权益和后续参与意向 |
+
+状态：上述页面已接入 `services/game`；再玩一局推荐项、行家成功页三方群信息、引荐记录样例、评价对象、评价标签、评价完成权益 / 意向和 AI 总结样例已清空。分享页活动数据继续使用局详情接口，在线人数文案按用户最新要求暂不清理。`pages/game/referral-record/index.wxml` 当前未传记录 ID 到操作按钮，前端只能按可见记录反查 action，后续建议允许模板补 `data-record-id` 或由后端返回直接跳转路由。
+
+### 69.8 发起组局与发起邀请页剩余配置
+
+注释：模块：组局；页面：`pages/game/create/index`、`pages/game/invite/index`；功能：创建组局、向玩家发起邀请。
+
+接口形式：
+
+```text
+GET /api/app/games/profit-templates
+GET /api/app/game-invites/config
+POST /api/app/game-invites
+GET /api/app/game-invites/player-config
+GET /api/app/game-invites/recent-players
+GET /api/app/game-invites/players
+```
+
+页面使用字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `serverTime/currentTime/now/responseTime` | 发起组局页计算时间面板初始值和校验的后台当前时间 |
+| `templates` | 发起组局页分润模板列表 |
+| `depositRuleText/depositNoticeText` | 押金局规则和提示文案 |
+| `onlineText/activityTypes/expert/defaultTitle/defaultDetail/defaultBudget` | 发起邀请页顶部在线人数、活动类型、默认行家和默认表单 |
+| `rewardRateConfig/rewardRates/budgetMaxAmount` | 发起邀请页预算与奖励计算配置 |
+| `defaultPlayerIntroMessage` | 给玩家的默认引荐语 |
+| `minPlayerCount/maxPlayerCount` | 邀请玩家人数规则 |
+| `list/records/items` | 最近联系玩家 / 全部玩家列表 |
+
+状态：`pages/game/create/index.js` 已清空默认主题、默认押金文案和默认分润模板；接口失败时分润模板和押金提示保持空，不再回填页面常量。`pages/game/invite/index.js` 已接 `GET /api/app/game-invites/config` 和 `POST /api/app/game-invites`，默认行家、预算、活动标题、需求详情和引荐语样例已清空；玩家列表仍使用已接入的玩家配置 / 最近联系 / 全部玩家接口。在线人数文案按用户最新要求暂不清理。因本轮不改 WXML，`pages/game/invite/index.wxml` 中输入框 placeholder 示例文案仍待后续允许改模板时处理。

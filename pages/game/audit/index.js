@@ -1,4 +1,5 @@
-﻿const { ROUTES } = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
@@ -7,63 +8,34 @@ const AUDIT_SCROLL_HOLD_STEP_RPX = 72
 const AUDIT_SCROLL_HOLD_INTERVAL_MS = 80
 const AUDIT_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-const applications = [
-  {
-    id: 'audit-001',
-    initiator: {
-      nickname: '赛博导游阿强',
-      avatarText: getSurnameInitials('赛博导游阿强', 'SA'),
-      roleName: '行家'
-    },
-    roleKey: 'expert',
-    applyTime: '2026-03-30 10:45',
-    statusKey: 'pending',
-    statusText: '待审核'
-  },
-  {
-    id: 'audit-002',
-    initiator: {
-      nickname: '极客少女小夏',
-      avatarText: getSurnameInitials('极客少女小夏', 'JI'),
-      roleName: '玩家'
-    },
-    roleKey: 'player',
-    applyTime: '2026-03-30 11:20',
-    statusKey: 'pending',
-    statusText: '待审核'
-  },
-  {
-    id: 'audit-003',
-    initiator: {
-      nickname: '老顽童G',
-      avatarText: getSurnameInitials('老顽童G', 'LA'),
-      roleName: '领路人'
-    },
-    roleKey: 'guide',
-    applyTime: '2026-03-29 18:30',
-    statusKey: 'approved',
-    statusText: '已通过'
-  },
-  {
-    id: 'audit-004',
-    initiator: {
-      nickname: '城市玩家小林',
-      avatarText: getSurnameInitials('城市玩家小林', 'CH'),
-      roleName: '玩家'
-    },
-    roleKey: 'player',
-    applyTime: '2026-03-29 16:10',
-    statusKey: 'rejected',
-    statusText: '已拒绝'
-  }
-]
+function normalizeApplication(item = {}) {
+  const initiator = item.initiator || item.applicant || item.user || {}
+  const nickname = initiator.nickname || initiator.name || item.nickname || ''
 
-function getDisplayApplications(activeFilter) {
-  if (activeFilter === 'all') {
-    return applications
+  return {
+    id: item.id || item.auditId || item.applicationId || '',
+    initiator: {
+      nickname,
+      avatarText: initiator.avatarText || getSurnameInitials(nickname, ''),
+      roleName: initiator.roleName || initiator.roleText || item.roleName || ''
+    },
+    roleKey: item.roleKey || item.roleType || '',
+    applyTime: item.applyTime || item.applyTimeText || item.createdAtText || item.createdAt || '',
+    statusKey: item.statusKey || item.status || '',
+    statusText: item.statusText || ''
   }
+}
 
-  return applications.filter((item) => item.statusKey === activeFilter)
+function normalizeAuditList(data = {}) {
+  const list = Array.isArray(data.list || data.records || data.items)
+    ? (data.list || data.records || data.items).map(normalizeApplication).filter((item) => item.id)
+    : []
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    applications: list,
+    displayApplications: list
+  }
 }
 
 Page({
@@ -72,6 +44,9 @@ Page({
     auditScrollTop: 0,
     activeFilter: 'all',
     allSelected: false,
+    loading: false,
+    actionLoading: false,
+    applications: [],
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -85,16 +60,46 @@ Page({
       { key: 'approved', name: '已通过' },
       { key: 'rejected', name: '已拒绝' }
     ],
-    displayApplications: applications
+    displayApplications: []
+  },
+
+  onLoad(options = {}) {
+    this.loadAudits(options)
+  },
+
+  async loadAudits(extraParams = {}) {
+    this.setData({
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getGameAudits({
+        ...extraParams,
+        status: this.data.activeFilter === 'all' ? '' : this.data.activeFilter
+      })
+
+      this.setData({
+        ...normalizeAuditList(data),
+        loading: false,
+        allSelected: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeAuditList({}),
+        loading: false,
+        allSelected: false
+      })
+      toast.info(error.message || '审核申请加载失败')
+    }
   },
 
   handleFilterTap(event) {
     const key = event.currentTarget.dataset.key || 'all'
 
     this.setData({
-      activeFilter: key,
-      displayApplications: getDisplayApplications(key)
+      activeFilter: key
     })
+    this.loadAudits()
   },
 
   handleSelectAllTap() {
@@ -103,12 +108,37 @@ Page({
     })
   },
 
-  handleApproveTap() {
-    toast.info('通过申请功能开发中')
+  handleApproveTap(event) {
+    this.respondAudit(event.currentTarget.dataset.id, 'approve')
   },
 
-  handleRejectTap() {
-    toast.info('拒绝申请功能开发中')
+  handleRejectTap(event) {
+    this.respondAudit(event.currentTarget.dataset.id, 'reject')
+  },
+
+  async respondAudit(auditId, action) {
+    if (this.data.actionLoading) {
+      return
+    }
+
+    this.setData({
+      actionLoading: true
+    })
+
+    try {
+      await gameService.respondGameAudit({
+        auditId,
+        action
+      })
+      toast.success('已提交审核结果')
+      this.loadAudits()
+    } catch (error) {
+      toast.info(error.message || '审核处理失败')
+    } finally {
+      this.setData({
+        actionLoading: false
+      })
+    }
   },
 
   handleDetailTap(event) {
@@ -121,11 +151,40 @@ Page({
   },
 
   handleBatchApproveTap() {
-    toast.info('批量通过功能开发中')
+    this.batchRespondAudits('approve')
   },
 
   handleBatchRejectTap() {
-    toast.info('批量拒绝功能开发中')
+    this.batchRespondAudits('reject')
+  },
+
+  async batchRespondAudits(action) {
+    if (this.data.actionLoading) {
+      return
+    }
+
+    const auditIds = this.data.allSelected
+      ? this.data.displayApplications.map((item) => item.id).filter(Boolean)
+      : []
+
+    this.setData({
+      actionLoading: true
+    })
+
+    try {
+      await gameService.batchRespondGameAudits({
+        auditIds,
+        action
+      })
+      toast.success('已提交批量审核结果')
+      this.loadAudits()
+    } catch (error) {
+      toast.info(error.message || '批量审核处理失败')
+    } finally {
+      this.setData({
+        actionLoading: false
+      })
+    }
   },
 
   handleShellNavTap(event) {

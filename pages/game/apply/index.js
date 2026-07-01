@@ -1,4 +1,7 @@
-﻿const { ROUTES } = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
+const userService = require('../../../services/user')
+const { getSurnameInitials } = require('../../../utils/avatar')
 
 const APPLY_SCROLL_TAP_STEP_RPX = 360
 const APPLY_SCROLL_HOLD_STEP_RPX = 72
@@ -48,9 +51,61 @@ function isAllowedPdfFile(file = {}) {
   return PDF_EXTENSIONS.includes(getFileExtension(file))
 }
 
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    return value === 'true' || value === '1'
+  }
+
+  return Boolean(value)
+}
+
+function normalizeWechatInfo(user = {}) {
+  const wechatProfile = user.wechatProfile || {}
+  const nickname = pickFirstValue(wechatProfile.nickname)
+
+  return {
+    avatarFallback: nickname ? getSurnameInitials(nickname, '') : '',
+    avatarUrl: pickFirstValue(wechatProfile.avatarUrl),
+    nickname,
+    syncText: pickFirstValue(wechatProfile.syncText, wechatProfile.synced ? '头像已同步' : '')
+  }
+}
+
+function normalizeApplyConfig(data = {}) {
+  const form = data.form || {}
+
+  return {
+    onlineText: pickFirstValue(data.onlineText, '3999人在线'),
+    form: {
+      intro: pickFirstValue(form.intro, data.defaultIntro),
+      message: pickFirstValue(form.message, data.defaultMessage),
+      agreed: normalizeBoolean(pickFirstValue(form.agreed, data.defaultAgreed)),
+      imageFiles: [],
+      attachmentFiles: []
+    }
+  }
+}
+
 Page({
   data: {
     gameId: '',
+    fromGuideId: '',
     onlineText: '3999人在线',
     applyScrollTop: 0,
     navItems: [
@@ -61,24 +116,67 @@ Page({
       { name: '首页', active: true }
     ],
     wechatInfo: {
-      avatarFallback: '张',
+      avatarFallback: '',
       avatarUrl: '',
-      nickname: '张伟',
-      syncText: '头像已同步'
+      nickname: '',
+      syncText: ''
     },
     form: {
-      intro: '我有3年产品经验，做过增长和内容工具，对游戏化社交产品很感兴趣。',
-      message: '我很想一起把这个局玩成。',
+      intro: '',
+      message: '',
       imageFiles: [],
       attachmentFiles: [],
-      agreed: true
+      agreed: false
     }
   },
 
   onLoad(options = {}) {
+    const gameId = options.gameId || options.id || ''
+
     this.setData({
-      gameId: options.gameId || options.id || ''
+      gameId,
+      fromGuideId: options.fromGuideId || ''
     })
+    this.loadApplyContext({
+      gameId,
+      fromGuideId: options.fromGuideId || ''
+    })
+  },
+
+  async loadApplyContext(params = {}) {
+    this.loadWechatInfo()
+
+    if (!params.gameId) {
+      return
+    }
+
+    try {
+      const config = await gameService.getGameApplyConfig(params)
+      const normalized = normalizeApplyConfig(config)
+
+      this.setData({
+        onlineText: normalized.onlineText,
+        form: Object.assign({}, this.data.form, normalized.form)
+      })
+    } catch (error) {
+      this.setData({
+        onlineText: '3999人在线'
+      })
+    }
+  },
+
+  async loadWechatInfo() {
+    try {
+      const user = await userService.getCurrentUser()
+
+      this.setData({
+        wechatInfo: normalizeWechatInfo(user)
+      })
+    } catch (error) {
+      this.setData({
+        wechatInfo: normalizeWechatInfo({})
+      })
+    }
   },
 
   onIntroInput(event) {
@@ -217,7 +315,7 @@ Page({
     })
   },
 
-  onSubmit() {
+  async onSubmit() {
     if (!String(this.data.form.intro || '').trim()) {
       this.showInfo('请先填写自我介绍')
       return
@@ -228,7 +326,20 @@ Page({
       return
     }
 
-    this.showInfo('功能开发中')
+    try {
+      await gameService.applyGame({
+        gameId: this.data.gameId,
+        fromGuideId: this.data.fromGuideId,
+        intro: this.data.form.intro,
+        message: this.data.form.message,
+        imageFiles: this.data.form.imageFiles,
+        attachmentFiles: this.data.form.attachmentFiles
+      })
+      this.showInfo('申请已提交')
+      this.onCancel()
+    } catch (error) {
+      this.showInfo(error.message || '提交入局申请失败')
+    }
   },
 
   handleShellNavTap(event) {

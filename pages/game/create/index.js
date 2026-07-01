@@ -19,15 +19,7 @@ const AUDIENCE_MAX_LENGTH = 50
 const CURRENT_LOCATION_TEXT = '当前位置'
 const CAPACITY_MIN = 3
 const CAPACITY_MAX = 10
-const DEFAULT_DEPOSIT_RULE_TEXT = '连续打卡 7 天即完成。完成者拿回押金池金额，未完成者押金由完成者平分。'
-const DEFAULT_DEPOSIT_NOTICE_TEXT = '支付金额：100元 = 服务费10元 + 押金池90元。服务费不退，押金池按完成情况结算。'
-const DEFAULT_PROFIT_TEMPLATES = [
-  { key: 'standard', name: '标准 1441', desc: '平台10% · 流量方40% · 交付方40% · 推荐上级10%' },
-  { key: 'aa', name: 'AA局', desc: '平台2.5% · 交付方90% · 流量方5% · 推荐上级2.5%' },
-  { key: 'deposit', name: '押金局', desc: '平台2.5% · 交付方0% · 流量方5% · 推荐上级2.5% + 押金池90%，完成返还，未完成瓜分' },
-  { key: 'crowdfunding', name: '众筹局', desc: '平台2.5% · 交付方90% · 流量方5% · 推荐上级2.5%' },
-  { key: 'publicBenefit', name: '公益局', desc: '平台0% · 交付方100% · 流量方0% · 推荐上级0%', disabled: true, disabledReason: '仅平台账户可发起' }
-]
+let descriptionMediaIdSeed = 0
 
 function padNumber(value) {
   return String(value).padStart(2, '0')
@@ -223,7 +215,7 @@ function createDescriptionMediaItem(file = {}, type, mediaInfo = {}) {
   const tempFilePath = file.tempFilePath || ''
 
   return {
-    id: `${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+    id: `description-media-${descriptionMediaIdSeed += 1}`,
     type,
     tempFilePath,
     thumbTempFilePath: file.thumbTempFilePath || tempFilePath,
@@ -305,7 +297,7 @@ function normalizeProfitTemplates(data) {
     .map((item) => normalizeProfitTemplate(item, currentAccountType))
     .filter(Boolean)
 
-  return templates.length ? templates : DEFAULT_PROFIT_TEMPLATES
+  return templates
 }
 
 function getSelectableProfitTemplateKey(templates = [], currentKey = '') {
@@ -371,7 +363,7 @@ Page({
       { name: '首页', active: true }
     ],
     form: {
-      theme: '我想组一局，找到产品经理一起梳理真好玩 MVP',
+      theme: '',
       type: '',
       capacity: 5,
       participation: '',
@@ -382,7 +374,7 @@ Page({
       audience: '',
       feeType: 'paid',
       price: '',
-      profitTemplate: 'deposit'
+      profitTemplate: ''
     },
     gameTypes: [
       { key: 'task', name: '任务局' },
@@ -416,9 +408,9 @@ Page({
       { key: 'free', name: '免费局' },
       { key: 'paid', name: '收费局' }
     ],
-    profitTemplates: DEFAULT_PROFIT_TEMPLATES,
-    depositRuleText: DEFAULT_DEPOSIT_RULE_TEXT,
-    depositNoticeText: DEFAULT_DEPOSIT_NOTICE_TEXT
+    profitTemplates: [],
+    depositRuleText: '',
+    depositNoticeText: ''
   },
 
   onLoad() {
@@ -456,13 +448,11 @@ Page({
       )
       const depositRuleText = getProfitConfigText(
         data,
-        ['depositRuleText', 'ruleText', 'rule', 'depositRule'],
-        DEFAULT_DEPOSIT_RULE_TEXT
+        ['depositRuleText', 'ruleText', 'rule', 'depositRule']
       )
       const depositNoticeText = getProfitConfigText(
         data,
-        ['depositNoticeText', 'noticeText', 'tipText', 'notice', 'depositNotice'],
-        DEFAULT_DEPOSIT_NOTICE_TEXT
+        ['depositNoticeText', 'noticeText', 'tipText', 'notice', 'depositNotice']
       )
 
       this.setData({
@@ -474,17 +464,11 @@ Page({
       })
       this.syncPublishState()
     }).catch(() => {
-      const profitTemplates = DEFAULT_PROFIT_TEMPLATES
-      const profitTemplate = getSelectableProfitTemplateKey(
-        profitTemplates,
-        this.data.form && this.data.form.profitTemplate
-      )
-
       this.setData({
-        profitTemplates,
-        'form.profitTemplate': profitTemplate,
-        depositRuleText: DEFAULT_DEPOSIT_RULE_TEXT,
-        depositNoticeText: DEFAULT_DEPOSIT_NOTICE_TEXT
+        profitTemplates: [],
+        'form.profitTemplate': '',
+        depositRuleText: '',
+        depositNoticeText: ''
       })
       this.syncPublishState()
     })

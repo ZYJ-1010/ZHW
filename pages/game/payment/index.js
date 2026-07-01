@@ -1,20 +1,34 @@
-﻿const { ROUTES } = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 
-const DEFAULT_PAYMENT_AMOUNT = 100
-const PAYMENT_SPLITS = [
-  { key: 'serviceFee', marker: '├─', label: '服务费', amount: 10, amountText: '10元' },
-  { key: 'platformServiceFee', marker: '├─', label: '平台服务费', amount: 2.5, amountText: '2.5元' },
-  { key: 'inviterReward', marker: '├─', label: '邀请人奖励', amount: 5, amountText: '5元' },
-  { key: 'partnerReward', marker: '├─', label: '合伙人奖励', amount: 2.5, amountText: '2.5元' },
-  { key: 'depositPool', marker: '└─', label: '押金池', amount: 90, amountText: '90元', desc: '完成任务后返还' }
-]
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value
+  }
 
-function buildFeeBreakdown(splits = PAYMENT_SPLITS) {
+  if (typeof value === 'string') {
+    return value === 'true' || value === '1'
+  }
+
+  return Boolean(value)
+}
+
+function normalizePaymentSplit(split = {}) {
+  return {
+    key: split.key || split.type || '',
+    marker: split.marker || '',
+    label: split.label || split.name || '',
+    amount: split.amount,
+    amountText: split.amountText || split.value || '',
+    desc: split.desc || split.description || ''
+  }
+}
+
+function buildFeeBreakdown(splits = []) {
   return splits.map((item) => ({
-    marker: item.marker,
-    label: item.label,
-    value: item.desc ? `${item.amountText}（${item.desc}）` : item.amountText
+    marker: item.marker || '',
+    label: item.label || '',
+    value: item.desc ? `${item.amountText || item.amount || ''}（${item.desc}）` : (item.amountText || item.amount || '')
   }))
 }
 
@@ -28,7 +42,7 @@ function buildPaymentPayload(data = {}) {
     payChannel: 'wechat',
     amount: Number(payment.amount || 0),
     currency: payment.currency || 'CNY',
-    agreementChecked: Boolean(data.agreementChecked),
+    agreementChecked: normalizeBoolean(data.agreementChecked),
     splits: splits.map((item) => ({
       key: item.key,
       label: item.label,
@@ -50,10 +64,43 @@ function normalizeWechatPaymentParams(result = {}) {
   }
 }
 
+function normalizeRule(rule = {}) {
+  return {
+    icon: rule.icon || '',
+    type: rule.type || '',
+    text: rule.text || rule.content || ''
+  }
+}
+
+function normalizePaymentConfig(data = {}, fallbackGameId = '') {
+  const payment = data.payment || data
+  const paymentSplits = Array.isArray(data.paymentSplits || data.splits || data.feeSplits)
+    ? (data.paymentSplits || data.splits || data.feeSplits).map(normalizePaymentSplit)
+    : []
+  const rules = Array.isArray(data.rules || data.ruleItems)
+    ? (data.rules || data.ruleItems).map(normalizeRule)
+    : []
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    agreementChecked: normalizeBoolean(data.agreementChecked),
+    payment: {
+      gameId: payment.gameId || data.gameId || fallbackGameId || '',
+      amount: payment.amount || data.amount || '',
+      currency: payment.currency || data.currency || 'CNY'
+    },
+    paymentSplits,
+    feeBreakdown: buildFeeBreakdown(paymentSplits),
+    rules,
+    pointsDescription: data.pointsDescription || data.pointsText || ''
+  }
+}
+
 Page({
   data: {
     onlineText: '3999人在线',
     agreementChecked: false,
+    loading: false,
     paymentSubmitting: false,
     navItems: [
       { name: '我的', active: false },
@@ -64,26 +111,49 @@ Page({
     ],
     payment: {
       gameId: '',
-      amount: DEFAULT_PAYMENT_AMOUNT,
+      amount: '',
       currency: 'CNY'
     },
-    paymentSplits: PAYMENT_SPLITS,
-    feeBreakdown: buildFeeBreakdown(PAYMENT_SPLITS),
-    rules: [
-      { icon: '✅', type: 'success', text: '完成任务，拿回90元押金' },
-      { icon: '❌', type: 'danger', text: '未完成任务，90元押金由完成者平分' },
-      { icon: '💡', type: 'warning', text: '服务费10元不退还' }
-    ],
-    pointsDescription: '按模板规则，支付完成并结算后，相关角色将自动获得积分。'
+    paymentSplits: [],
+    feeBreakdown: [],
+    rules: [],
+    pointsDescription: ''
   },
 
   onLoad(options = {}) {
-    const amount = Number(options.amount)
+    this.setData({
+      'payment.gameId': options.gameId || options.id || ''
+    })
+    this.loadPaymentConfig(options)
+  },
+
+  async loadPaymentConfig(options = {}) {
+    const gameId = options.gameId || options.id || this.data.payment.gameId || ''
 
     this.setData({
-      'payment.gameId': options.gameId || options.id || '',
-      'payment.amount': Number.isFinite(amount) && amount > 0 ? amount : DEFAULT_PAYMENT_AMOUNT
+      loading: true
     })
+
+    try {
+      const data = await gameService.getGamePaymentConfig({
+        ...options,
+        gameId
+      })
+
+      this.setData({
+        ...normalizePaymentConfig(data, gameId),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizePaymentConfig({}, gameId),
+        loading: false
+      })
+      wx.showToast({
+        title: error.message || '支付配置加载失败',
+        icon: 'none'
+      })
+    }
   },
 
   toggleAgreement() {
@@ -131,12 +201,6 @@ Page({
 
     try {
       const order = await gameService.createGamePayment(buildPaymentPayload(this.data))
-
-      if (order.mockPayment) {
-        this.showInfo('支付请求已提交（mock）')
-        return
-      }
-
       const paymentParams = normalizeWechatPaymentParams(order)
 
       await this.requestWechatPayment(paymentParams)

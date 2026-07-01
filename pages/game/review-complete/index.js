@@ -1,44 +1,35 @@
-const BENEFITS = [
-  {
-    iconText: '⭐',
-    theme: 'blue',
-    title: '优先推荐权益',
-    desc: '下次组局时优先展示给行家'
-  },
-  {
-    iconText: '👑',
-    theme: 'purple',
-    title: '评价达人徽章',
-    desc: '累计评价3次可获得专属标识'
-  },
-  {
-    iconText: '📈',
-    theme: 'red',
-    title: '信用分提升',
-    desc: '活跃评价有助于提升账号权重'
-  }
-]
+const gameService = require('../../../services/game')
 
-const PLAY_OPTIONS = [
-  {
-    id: 'again',
-    theme: 'green',
-    title: '再玩一局',
-    desc: '随时可约'
-  },
-  {
-    id: 'pause',
-    theme: 'yellow',
-    title: '暂停',
-    desc: '想歇歇'
-  },
-  {
-    id: 'stop',
-    theme: 'red',
-    title: '不玩了',
-    desc: '不再参与'
+function normalizeBenefit(item = {}) {
+  return {
+    iconText: item.iconText || item.icon || '',
+    theme: item.theme || '',
+    title: item.title || item.name || '',
+    desc: item.desc || item.description || ''
   }
-]
+}
+
+function normalizePlayOption(item = {}) {
+  return {
+    id: item.id || item.key || '',
+    theme: item.theme || '',
+    title: item.title || item.name || '',
+    desc: item.desc || item.description || ''
+  }
+}
+
+function normalizeCompleteConfig(data = {}) {
+  const playOptions = Array.isArray(data.playOptions || data.options)
+    ? (data.playOptions || data.options).map(normalizePlayOption).filter((item) => item.id)
+    : []
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    benefits: Array.isArray(data.benefits) ? data.benefits.map(normalizeBenefit).filter((item) => item.title || item.desc) : [],
+    playOptions,
+    selectedPlayIntent: data.selectedPlayIntent || data.defaultPlayIntent || playOptions[0] && playOptions[0].id || ''
+  }
+}
 
 Page({
   data: {
@@ -51,9 +42,40 @@ Page({
       { name: '首页', active: true }
     ],
     pageScrollTop: 0,
-    benefits: BENEFITS,
-    playOptions: PLAY_OPTIONS,
-    selectedPlayIntent: 'again'
+    benefits: [],
+    playOptions: [],
+    selectedPlayIntent: '',
+    queryParams: {},
+    loading: false,
+    submitting: false
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      queryParams: options
+    })
+    this.loadCompleteConfig(options)
+  },
+
+  async loadCompleteConfig(options = {}) {
+    this.setData({
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getReviewCompleteConfig(options)
+
+      this.setData({
+        ...normalizeCompleteConfig(data),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeCompleteConfig({}),
+        loading: false
+      })
+      this.showInfo(error.message || '评价完成信息加载失败')
+    }
   },
 
   handlePageScroll(event) {
@@ -99,16 +121,30 @@ Page({
     })
   },
 
-  onPlayIntentTap(event) {
+  async onPlayIntentTap(event) {
     const id = event.currentTarget.dataset.id
 
-    if (!id) {
+    if (!id || this.data.submitting) {
       return
     }
 
     this.setData({
-      selectedPlayIntent: id
+      selectedPlayIntent: id,
+      submitting: true
     })
+
+    try {
+      await gameService.selectReviewCompleteIntent({
+        ...this.data.queryParams,
+        intentId: id
+      })
+    } catch (error) {
+      this.showInfo(error.message || '后续意向提交失败')
+    } finally {
+      this.setData({
+        submitting: false
+      })
+    }
   },
 
   showInfo(title) {

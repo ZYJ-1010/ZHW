@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 0
@@ -10,19 +11,19 @@ const NAV_TITLE_HEIGHT_RPX = 50
 const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = 1620
-const DEFAULT_ACTIVITY = {
-  serviceOrderId: 'service_order_001',
-  gameId: 'game_001',
-  playerId: 'player_001',
-  playerName: '李明',
-  avatarText: 'LI',
-  serviceTitle: '产品架构咨询',
-  amount: 800,
-  amountText: '¥800',
-  platformFeeRate: 10,
+const EMPTY_ACTIVITY = {
+  serviceOrderId: '',
+  gameId: '',
+  playerId: '',
+  playerName: '',
+  avatarText: '',
+  serviceTitle: '',
+  amount: 0,
+  amountText: '',
+  platformFeeRate: 0,
   platformFee: null,
   platformFeeText: '',
-  statusText: '进行中（第3天）'
+  statusText: ''
 }
 
 function roundRpx(value) {
@@ -85,11 +86,39 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
+function pickFirstValue() {
+  const values = Array.prototype.slice.call(arguments)
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
+      return values[index]
+    }
+  }
+
+  return ''
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    return value === 'true' || value === '1'
+  }
+
+  return Boolean(value)
+}
+
+function normalizeList(list) {
+  return Array.isArray(list) ? list : []
+}
+
 function parseAmountText(value) {
   const text = String(value || '').replace(/[^\d.]/g, '')
   const amount = Number(text)
 
-  return Number.isFinite(amount) ? amount : DEFAULT_ACTIVITY.amount
+  return Number.isFinite(amount) ? amount : 0
 }
 
 function decodeOption(value) {
@@ -118,63 +147,38 @@ function formatCurrency(value) {
   const amount = Number(value)
 
   if (!Number.isFinite(amount)) {
-    return '¥0'
+    return ''
   }
 
   return `¥${Math.round(amount).toLocaleString('zh-CN')}`
 }
 
-function getAvatarText(name, fallback = 'LI') {
-  return getSurnameInitials(name, fallback)
-}
-
-function normalizeAvatarText(value, name, fallback = 'LI') {
+function normalizeAvatarText(value, name) {
   const text = decodeOption(value).trim()
 
-  return getAvatarText(name, text || fallback)
+  return text || (name ? getSurnameInitials(name, '') : '')
 }
 
-function normalizeActivity(options = {}) {
-  const playerName = decodeOption(options.playerName || DEFAULT_ACTIVITY.playerName)
-  const serviceTitle = decodeOption(options.serviceTitle || DEFAULT_ACTIVITY.serviceTitle)
-  const amount = options.amount
-    ? Number(options.amount)
-    : parseAmountText(options.amountText || DEFAULT_ACTIVITY.amountText)
-  const platformFeeRate = getNumber(options.platformFeeRate, DEFAULT_ACTIVITY.platformFeeRate)
-  const platformFeeText = decodeOption(options.platformFeeText || '')
-  const platformFee = platformFeeText
-    ? parseAmountText(platformFeeText)
-    : options.platformFee || options.serviceFee
-      ? getNumber(options.platformFee || options.serviceFee)
-      : null
+function normalizeActivity(source = {}) {
+  const player = source.player || {}
+  const service = source.service || {}
+  const playerName = decodeOption(pickFirstValue(player.name, source.playerName))
+  const amountText = decodeOption(pickFirstValue(service.amountText, service.contractAmountText, source.amountText, source.contractAmountText))
+  const amount = getNumber(pickFirstValue(service.amount, service.contractAmount, source.amount), parseAmountText(amountText))
 
   return {
-    serviceOrderId: options.serviceOrderId || options.orderId || DEFAULT_ACTIVITY.serviceOrderId,
-    gameId: options.gameId || DEFAULT_ACTIVITY.gameId,
-    playerId: options.playerId || DEFAULT_ACTIVITY.playerId,
+    serviceOrderId: pickFirstValue(source.serviceOrderId, source.orderId, source.id),
+    gameId: pickFirstValue(source.gameId),
+    playerId: pickFirstValue(player.id, player.userId, source.playerId),
     playerName,
-    avatarText: normalizeAvatarText(options.avatarText || '', playerName, DEFAULT_ACTIVITY.avatarText),
-    serviceTitle,
+    avatarText: normalizeAvatarText(pickFirstValue(player.avatarText, source.avatarText), playerName),
+    serviceTitle: decodeOption(pickFirstValue(service.title, source.serviceTitle, source.title)),
     amount,
-    amountText: decodeOption(options.amountText || '') || formatCurrency(amount),
-    platformFeeRate,
-    platformFee,
-    platformFeeText,
-    statusText: decodeOption(options.statusText || DEFAULT_ACTIVITY.statusText)
-  }
-}
-
-function buildPaymentState(activity, ratio) {
-  const compensationAmount = activity.amount * ratio / 100
-  const serviceFee = activity.platformFee !== null && activity.platformFee !== undefined
-    ? activity.platformFee
-    : compensationAmount * activity.platformFeeRate / 100
-  const totalDebit = compensationAmount + serviceFee
-
-  return {
-    compensationAmountText: formatCurrency(compensationAmount),
-    serviceFeeText: activity.platformFeeText || formatCurrency(serviceFee),
-    totalDebitText: formatCurrency(totalDebit)
+    amountText: amountText || (amount ? formatCurrency(amount) : ''),
+    platformFeeRate: getNumber(pickFirstValue(source.platformFeeRate, source.serviceFeeRate), 0),
+    platformFee: source.platformFee || source.serviceFee || null,
+    platformFeeText: decodeOption(pickFirstValue(source.platformFeeText, source.serviceFeeText)),
+    statusText: decodeOption(pickFirstValue(source.statusText, source.serviceStatusText))
   }
 }
 
@@ -190,7 +194,39 @@ function buildActivityCard(activity) {
     rows: [
       { label: '合同金额', value: activity.amountText, tone: 'strong', divider: true },
       { label: '服务状态', value: activity.statusText, tone: 'active' }
-    ]
+    ].filter((item) => item.value)
+  }
+}
+
+function normalizeReasons(data) {
+  return normalizeList(data.reasonOptions || data.cancelReasons || data.reasons)
+    .map((item) => ({
+      key: pickFirstValue(item.key, item.code, item.id),
+      text: pickFirstValue(item.text, item.label, item.title)
+    }))
+    .filter((item) => item.key && item.text)
+}
+
+function normalizePreview(data = {}, query = {}) {
+  const activity = normalizeActivity(Object.assign({}, query, data))
+  const reasonOptions = normalizeReasons(data)
+  const selectedReasonKey = pickFirstValue(data.selectedReasonKey, data.defaultReasonKey, reasonOptions[0] && reasonOptions[0].key)
+  const compensationRatio = getNumber(
+    pickFirstValue(data.compensationRatio, data.compensationRate, data.defaultCompensationRate, data.suggestedRate),
+    0
+  )
+
+  return {
+    activity,
+    activityCard: buildActivityCard(activity),
+    compensationRatio,
+    compensationAmountText: pickFirstValue(data.compensationAmountText),
+    serviceFeeText: pickFirstValue(data.serviceFeeText, data.platformFeeText),
+    totalDebitText: pickFirstValue(data.totalDebitText, data.totalDebitAmountText),
+    reasonOptions,
+    selectedReasonKey,
+    agreementChecked: normalizeBoolean(data.agreementChecked),
+    agreementText: pickFirstValue(data.agreementText, data.cancelAgreementText)
   }
 }
 
@@ -202,34 +238,24 @@ Page({
   data: {
     shellLayout: getWhiteShellLayoutStyles(),
     queryParams: {},
-    activity: DEFAULT_ACTIVITY,
-    activityCard: buildActivityCard(DEFAULT_ACTIVITY),
-    compensationRatio: 20,
-    compensationAmountText: '¥160',
-    serviceFeeText: '¥16',
-    totalDebitText: '¥176',
-    reasonOptions: [
-      { key: 'schedule_conflict', text: '个人时间冲突，无法交付' },
-      { key: 'requirement_mismatch', text: '需求与描述不符，无法完成' },
-      { key: 'emergency', text: '身体原因/突发状况' },
-      { key: 'other', text: '其他原因' }
-    ],
-    selectedReasonKey: 'schedule_conflict',
+    activity: EMPTY_ACTIVITY,
+    activityCard: buildActivityCard(EMPTY_ACTIVITY),
+    compensationRatio: 0,
+    compensationAmountText: '',
+    serviceFeeText: '',
+    totalDebitText: '',
+    reasonOptions: [],
+    selectedReasonKey: '',
     reasonDetail: '',
-    agreementChecked: true,
-    agreementText: '我已阅读并同意《服务取消协议》，理解主动取消将对我的信用分产生影响（-5分），并同意按设置比例赔付玩家损失。'
+    agreementChecked: false,
+    agreementText: ''
   },
 
   onLoad(options = {}) {
-    const activity = normalizeActivity(options)
-    const paymentState = buildPaymentState(activity, this.data.compensationRatio)
-
     this.setData({
-      queryParams: options,
-      activity,
-      activityCard: buildActivityCard(activity),
-      ...paymentState
+      queryParams: options
     })
+    this.loadCancelPreview(options)
     this.updateShellLayout()
   },
 
@@ -247,19 +273,43 @@ Page({
     })
   },
 
-  updatePaymentState(ratio) {
-    this.setData({
-      compensationRatio: ratio,
-      ...buildPaymentState(this.data.activity, ratio)
-    })
+  async loadCancelPreview(params = {}) {
+    const serviceOrderId = params.serviceOrderId || params.orderId || params.id || this.data.activity.serviceOrderId
+
+    if (!serviceOrderId) {
+      this.setData(normalizePreview({}, params))
+      this.showInfo('缺少服务订单信息')
+      return
+    }
+
+    try {
+      const preview = await gameService.getExpertCancelPreview(Object.assign({}, params, {
+        serviceOrderId
+      }))
+
+      this.setData(normalizePreview(preview, params))
+    } catch (error) {
+      this.setData(normalizePreview({}, params))
+      this.showInfo(error.message || '取消赔付预览加载失败')
+    }
   },
 
   onRatioChanging(event) {
-    this.updatePaymentState(Number(event.detail.value))
+    this.setData({
+      compensationRatio: Number(event.detail.value)
+    })
   },
 
   onRatioChange(event) {
-    this.updatePaymentState(Number(event.detail.value))
+    const compensationRatio = Number(event.detail.value)
+
+    this.setData({
+      compensationRatio
+    })
+    this.loadCancelPreview(Object.assign({}, this.data.queryParams, {
+      serviceOrderId: this.data.activity.serviceOrderId,
+      compensationRate: compensationRatio
+    }))
   },
 
   onReasonChange(event) {
@@ -279,56 +329,44 @@ Page({
   },
 
   onAgreementChange(event) {
-    const agreementChecked = Boolean(event.detail.checked)
+    const agreementChecked = normalizeBoolean(event.detail.checked)
 
     this.setData({
       agreementChecked
     })
   },
 
-  onConfirmCancelTap() {
+  async onConfirmCancelTap() {
     const reasonDetail = normalizeRequiredText(this.data.reasonDetail)
 
     if (!this.data.selectedReasonKey) {
-      wx.showToast({
-        title: '请选择取消原因',
-        icon: 'none'
-      })
+      this.showInfo('请选择取消原因')
       return
     }
 
     if (!reasonDetail) {
-      wx.showToast({
-        title: '请填写详细说明',
-        icon: 'none'
-      })
+      this.showInfo('请填写详细说明')
       return
     }
 
     if (!this.data.agreementChecked) {
-      wx.showToast({
-        title: '请先同意服务取消协议',
-        icon: 'none'
-      })
+      this.showInfo('请先同意服务取消协议')
       return
     }
 
-    wx.showModal({
-      title: '确认取消服务',
-      content: `本次将扣款 ${this.data.totalDebitText}，确认后服务取消接口待接入。`,
-      confirmText: '确认取消',
-      confirmColor: '#ef4444',
-      success: (res) => {
-        if (!res.confirm) {
-          return
-        }
-
-        wx.showToast({
-          title: '取消赔付接口待接入',
-          icon: 'none'
-        })
-      }
-    })
+    try {
+      await gameService.cancelServiceWithCompensation({
+        serviceOrderId: this.data.activity.serviceOrderId,
+        gameId: this.data.activity.gameId,
+        reasonCode: this.data.selectedReasonKey,
+        reasonRemark: reasonDetail,
+        compensationRate: this.data.compensationRatio
+      })
+      this.showInfo('取消赔付已提交')
+      this.goBack()
+    } catch (error) {
+      this.showInfo(error.message || '取消赔付提交失败')
+    }
   },
 
   onReconsiderTap() {
@@ -349,6 +387,13 @@ Page({
 
     wx.navigateTo({
       url: `/${ROUTES.gameManage}`
+    })
+  },
+
+  showInfo(title) {
+    wx.showToast({
+      title,
+      icon: 'none'
     })
   }
 })

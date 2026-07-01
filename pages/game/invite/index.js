@@ -7,20 +7,19 @@ const INVITE_SCROLL_HOLD_STEP_RPX = 72
 const INVITE_SCROLL_HOLD_INTERVAL_MS = 80
 const INVITE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-const DEFAULT_BUDGET = '800'
 const DEFAULT_BUDGET_MAX_AMOUNT = 99999999
-const DEFAULT_REWARD_RATE_CONFIG = {
-  platformServiceRate: 10,
-  systemGuideRewardRate: 10,
-  inviteRewardRate: 40
+const EMPTY_REWARD_RATE_CONFIG = {
+  platformServiceRate: 0,
+  systemGuideRewardRate: 0,
+  inviteRewardRate: 0
 }
 const WORK_IMAGE_MAX_COUNT = 3
 const WORK_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-const PLAYER_INTRO_DEFAULT = '李明，这位张专家是我认识的产品大牛，正好符合你之前说的产品架构咨询需求，我帮你们牵个线！'
-const DEFAULT_INVITE_PLAYER_RULE = {
-  minPlayerCount: 1,
-  maxPlayerCount: 1
+const EMPTY_INVITE_PLAYER_RULE = {
+  minPlayerCount: 0,
+  maxPlayerCount: 0
 }
+let workImageIdSeed = 0
 
 function formatRateText(rate) {
   return `${rate}%`
@@ -40,16 +39,16 @@ function normalizeRate(value, fallback) {
 
 function normalizeRewardRateConfig(config = {}) {
   const normalized = {
-    platformServiceRate: normalizeRate(config.platformServiceRate, DEFAULT_REWARD_RATE_CONFIG.platformServiceRate),
-    systemGuideRewardRate: normalizeRate(config.systemGuideRewardRate, DEFAULT_REWARD_RATE_CONFIG.systemGuideRewardRate),
-    inviteRewardRate: normalizeRate(config.inviteRewardRate, DEFAULT_REWARD_RATE_CONFIG.inviteRewardRate)
+    platformServiceRate: normalizeRate(config.platformServiceRate, EMPTY_REWARD_RATE_CONFIG.platformServiceRate),
+    systemGuideRewardRate: normalizeRate(config.systemGuideRewardRate, EMPTY_REWARD_RATE_CONFIG.systemGuideRewardRate),
+    inviteRewardRate: normalizeRate(config.inviteRewardRate, EMPTY_REWARD_RATE_CONFIG.inviteRewardRate)
   }
   const totalRate = normalized.platformServiceRate + normalized.systemGuideRewardRate + normalized.inviteRewardRate
 
-  return totalRate <= 100 ? normalized : { ...DEFAULT_REWARD_RATE_CONFIG }
+  return totalRate <= 100 ? normalized : { ...EMPTY_REWARD_RATE_CONFIG }
 }
 
-function calculateReward(budget, rateConfig = DEFAULT_REWARD_RATE_CONFIG) {
+function calculateReward(budget, rateConfig = EMPTY_REWARD_RATE_CONFIG) {
   const amount = Number(budget) || 0
   const rates = normalizeRewardRateConfig(rateConfig)
   const serviceFee = Math.round((amount * rates.platformServiceRate) / 100)
@@ -117,7 +116,7 @@ function createWorkImage(file = {}, index = 0) {
   const name = getFileName(file) || `作品图片${index + 1}.jpg`
 
   return {
-    id: `work-image-${Date.now()}-${index}`,
+    id: `work-image-${workImageIdSeed += 1}-${index}`,
     src: path,
     name,
     desc: ''
@@ -144,8 +143,8 @@ function createWorkImageSlots(images = []) {
 }
 
 function normalizeInvitePlayerRule(config = {}) {
-  const minPlayerCount = Math.max(1, parsePositiveInteger(config.minPlayerCount, DEFAULT_INVITE_PLAYER_RULE.minPlayerCount))
-  const maxPlayerCount = Math.max(minPlayerCount, parsePositiveInteger(config.maxPlayerCount, DEFAULT_INVITE_PLAYER_RULE.maxPlayerCount))
+  const minPlayerCount = Math.max(0, parsePositiveInteger(config.minPlayerCount, EMPTY_INVITE_PLAYER_RULE.minPlayerCount))
+  const maxPlayerCount = Math.max(minPlayerCount, parsePositiveInteger(config.maxPlayerCount, EMPTY_INVITE_PLAYER_RULE.maxPlayerCount))
 
   return {
     minPlayerCount,
@@ -162,17 +161,17 @@ function parsePositiveInteger(value, fallback) {
 function getAvatarText(player = {}) {
   const name = String(player.name || player.nickname || '').trim()
 
-  return getSurnameInitials(name, player.avatarText || 'WA')
+  return getSurnameInitials(name, player.avatarText || '')
 }
 
 function normalizeInvitePlayer(player = {}, index = 0) {
-  const id = String(player.id || player.userId || player.playerId || `invite-player-${index}`)
+  const id = String(player.id || player.userId || player.playerId || '')
 
   return {
     id,
     avatarText: getAvatarText(player),
     avatarClass: player.avatarClass || ['pink', 'teal', 'purple', 'blue', 'orange'][index % 5],
-    name: player.name || player.nickname || '玩家',
+    name: player.name || player.nickname || '',
     tag: player.tag || player.tagText || '',
     desc: player.desc || player.description || player.title || '',
     meta: player.meta || player.metaText || player.extraText || ''
@@ -182,7 +181,54 @@ function normalizeInvitePlayer(player = {}, index = 0) {
 function normalizeInvitePlayers(result) {
   const list = Array.isArray(result) ? result : (result && result.list) || []
 
-  return list.map(normalizeInvitePlayer)
+  return list.map(normalizeInvitePlayer).filter((item) => item.id)
+}
+
+function normalizeExpert(expert = {}) {
+  const name = expert.name || expert.nickname || ''
+
+  return {
+    id: expert.id || expert.userId || '',
+    name,
+    avatarText: expert.avatarText || getSurnameInitials(name, ''),
+    roleName: expert.roleName || expert.roleText || '',
+    desc: expert.desc || expert.description || '',
+    tags: Array.isArray(expert.tags) ? expert.tags : []
+  }
+}
+
+function normalizeActivityType(item = {}) {
+  return {
+    key: item.key || item.id || item.code || '',
+    name: item.name || item.title || ''
+  }
+}
+
+function normalizeInviteConfig(data = {}, currentForm = {}) {
+  const budgetMaxAmount = Number.isInteger(Number(data.budgetMaxAmount)) && Number(data.budgetMaxAmount) > 0
+    ? Number(data.budgetMaxAmount)
+    : DEFAULT_BUDGET_MAX_AMOUNT
+  const rewardRateConfig = normalizeRewardRateConfig(data.rewardRateConfig || data.rewardRates || {})
+  const budget = normalizeBudgetInput(currentForm.budget || data.defaultBudget || data.budget, budgetMaxAmount)
+  const activityTypes = Array.isArray(data.activityTypes || data.types)
+    ? (data.activityTypes || data.types).map(normalizeActivityType).filter((item) => item.key)
+    : []
+
+  return {
+    onlineText: data.onlineText || '3999人在线',
+    selectedType: data.selectedType || data.defaultType || activityTypes[0] && activityTypes[0].key || '',
+    expert: normalizeExpert(data.expert || {}),
+    activityTypes,
+    form: {
+      title: data.title || data.defaultTitle || '',
+      detail: data.detail || data.defaultDetail || '',
+      budget
+    },
+    budgetMaxAmount,
+    rewardRateConfig,
+    reward: calculateReward(budget, rewardRateConfig),
+    playerIntroMessage: data.playerIntroMessage || data.defaultPlayerIntroMessage || ''
+  }
 }
 
 Page({
@@ -190,25 +236,25 @@ Page({
     onlineText: '3999人在线',
     inviteStep: 1,
     inviteScrollTop: 0,
-    selectedType: 'product',
+    selectedType: '',
     detailCount: 0,
     playerSearchKeyword: '',
     selectedPlayerId: '',
     selectedPlayerIds: [],
     selectedPlayerCount: 0,
-    minPlayerCount: DEFAULT_INVITE_PLAYER_RULE.minPlayerCount,
-    maxPlayerCount: DEFAULT_INVITE_PLAYER_RULE.maxPlayerCount,
-    playerRuleText: '至少 1 位，最多 1 位',
-    playerCountText: '已添加 0/1 位玩家',
+    minPlayerCount: EMPTY_INVITE_PLAYER_RULE.minPlayerCount,
+    maxPlayerCount: EMPTY_INVITE_PLAYER_RULE.maxPlayerCount,
+    playerRuleText: '',
+    playerCountText: '',
     invitePlayerLoading: false,
     playerPickerVisible: false,
     playerPickerLoading: false,
     allPlayerSearchKeyword: '',
     allPlayers: [],
-    playerIntroMessage: PLAYER_INTRO_DEFAULT,
-    playerIntroCount: PLAYER_INTRO_DEFAULT.length,
-    rewardRateConfig: DEFAULT_REWARD_RATE_CONFIG,
-    reward: calculateReward(DEFAULT_BUDGET, DEFAULT_REWARD_RATE_CONFIG),
+    playerIntroMessage: '',
+    playerIntroCount: 0,
+    rewardRateConfig: EMPTY_REWARD_RATE_CONFIG,
+    reward: calculateReward('', EMPTY_REWARD_RATE_CONFIG),
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -217,22 +263,19 @@ Page({
       { name: '首页', active: true }
     ],
     expert: {
-      name: '张专家',
-      avatarText: getSurnameInitials('张专家', 'ZH'),
-      roleName: '行家',
-      desc: '资深产品经理·10年经验',
-      tags: ['产品咨询', '架构梳理']
+      id: '',
+      name: '',
+      avatarText: '',
+      roleName: '',
+      desc: '',
+      tags: []
     },
-    activityTypes: [
-      { key: 'product', name: '产品咨询' },
-      { key: 'design', name: '设计服务' },
-      { key: 'tech', name: '技术开发' }
-    ],
+    activityTypes: [],
     players: [],
     form: {
-      title: '产品架构梳理咨询',
-      detail: '需要资深产品经理帮忙梳理B端产品架构，预计咨询时长2小时，涉及模块划分和数据流转设计。',
-      budget: DEFAULT_BUDGET
+      title: '',
+      detail: '',
+      budget: ''
     },
     budgetMaxAmount: DEFAULT_BUDGET_MAX_AMOUNT,
     workImageMaxCount: WORK_IMAGE_MAX_COUNT,
@@ -255,9 +298,33 @@ Page({
       detailCount: String(this.data.form.detail || '').length,
       playerIntroCount: String(this.data.playerIntroMessage || '').length
     })
+    this.loadInviteConfig(options)
 
     if (inviteStep === 2) {
       this.loadInvitePlayerStep()
+    }
+  },
+
+  async loadInviteConfig(options = {}) {
+    try {
+      const config = await gameService.getGameInviteConfig(options)
+      const normalized = normalizeInviteConfig(config, this.data.form)
+
+      this.setData({
+        onlineText: normalized.onlineText,
+        selectedType: normalized.selectedType,
+        expert: normalized.expert,
+        activityTypes: normalized.activityTypes,
+        form: Object.assign({}, this.data.form, normalized.form),
+        budgetMaxAmount: normalized.budgetMaxAmount,
+        rewardRateConfig: normalized.rewardRateConfig,
+        reward: normalized.reward,
+        playerIntroMessage: normalized.playerIntroMessage,
+        playerIntroCount: normalized.playerIntroMessage.length,
+        detailCount: normalized.form.detail.length
+      })
+    } catch (error) {
+      this.showInfo(error.message || '邀请配置加载失败')
     }
   },
 
@@ -628,13 +695,28 @@ Page({
     this.setInviteStep(1)
   },
 
-  onConfirmInviteTap() {
+  async onConfirmInviteTap() {
     if (this.data.selectedPlayerCount < this.data.minPlayerCount) {
       this.showInfo(`请至少添加${this.data.minPlayerCount}位玩家`)
       return
     }
 
-    this.showInfo('邀请已发起')
+    try {
+      await gameService.createGameInvite({
+        expertId: this.data.expert && this.data.expert.id || '',
+        expert: this.data.expert,
+        activityType: this.data.selectedType,
+        form: this.data.form,
+        rewardRateConfig: this.data.rewardRateConfig,
+        reward: this.data.reward,
+        playerIds: this.data.selectedPlayerIds,
+        playerIntroMessage: this.data.playerIntroMessage,
+        workImages: this.data.workImages
+      })
+      this.showInfo('邀请已发起')
+    } catch (error) {
+      this.showInfo(error.message || '发起邀请失败')
+    }
   },
 
   setInviteStep(inviteStep) {
@@ -677,7 +759,7 @@ Page({
       this.invitePlayerStepLoaded = false
       this.setData({
         invitePlayerLoading: false,
-        ...this.buildPlayerRuleData(DEFAULT_INVITE_PLAYER_RULE, this.data.selectedPlayerIds)
+        ...this.buildPlayerRuleData(EMPTY_INVITE_PLAYER_RULE, this.data.selectedPlayerIds)
       })
       this.showInfo(error.message || '玩家规则加载失败')
     }
@@ -744,18 +826,19 @@ Page({
     })
   },
 
-  normalizeSelectedPlayerIds(selectedPlayerIds = [], rule = DEFAULT_INVITE_PLAYER_RULE, players = []) {
-    const maxCount = Math.max(1, Number(rule.maxPlayerCount) || 1)
-    let ids = Array.from(new Set((selectedPlayerIds || []).filter(Boolean))).slice(0, maxCount)
+  normalizeSelectedPlayerIds(selectedPlayerIds = [], rule = EMPTY_INVITE_PLAYER_RULE) {
+    const maxCount = Math.max(0, Number(rule.maxPlayerCount) || 0)
 
-    if (!ids.length && players.length) {
-      ids = [players[0].id]
+    if (!maxCount) {
+      return []
     }
+
+    let ids = Array.from(new Set((selectedPlayerIds || []).filter(Boolean))).slice(0, maxCount)
 
     return ids
   },
 
-  buildPlayerRuleData(rule = DEFAULT_INVITE_PLAYER_RULE, selectedPlayerIds = []) {
+  buildPlayerRuleData(rule = EMPTY_INVITE_PLAYER_RULE, selectedPlayerIds = []) {
     const normalizedRule = normalizeInvitePlayerRule(rule)
     const selectedIds = selectedPlayerIds.slice(0, normalizedRule.maxPlayerCount)
     const selectedPlayerCount = selectedIds.length
@@ -767,8 +850,8 @@ Page({
       selectedPlayerId,
       selectedPlayerIds: selectedIds,
       selectedPlayerCount,
-      playerRuleText: `至少 ${normalizedRule.minPlayerCount} 位，最多 ${normalizedRule.maxPlayerCount} 位`,
-      playerCountText: `已添加 ${selectedPlayerCount}/${normalizedRule.maxPlayerCount} 位玩家`
+      playerRuleText: normalizedRule.maxPlayerCount ? `至少 ${normalizedRule.minPlayerCount} 位，最多 ${normalizedRule.maxPlayerCount} 位` : '',
+      playerCountText: normalizedRule.maxPlayerCount ? `已添加 ${selectedPlayerCount}/${normalizedRule.maxPlayerCount} 位玩家` : ''
     }
   },
 

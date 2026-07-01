@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
 const CONTENT_LEFT_RPX = 2
@@ -75,30 +76,73 @@ function getBlankShellLayoutStyles() {
   }
 }
 
+function normalizeParticipant(participant = {}, index = 0) {
+  const name = participant.name || participant.nickname || ''
+
+  return {
+    id: participant.id || participant.userId || `participant-${index}`,
+    avatar: participant.avatar || participant.avatarText || getSurnameInitials(name, ''),
+    colorClass: participant.colorClass || participant.avatarClass || ''
+  }
+}
+
+function normalizeExpertSuccess(data = {}) {
+  const group = data.group || data.chatGroup || {}
+  const participants = Array.isArray(data.participants || data.members)
+    ? (data.participants || data.members).map(normalizeParticipant)
+    : []
+  const activityRows = Array.isArray(data.activityRows || data.infoRows)
+    ? (data.activityRows || data.infoRows).map((item) => ({
+      label: item.label || item.name || '',
+      value: item.value || item.text || '',
+      highlight: Boolean(item.highlight)
+    })).filter((item) => item.label || item.value)
+    : []
+  const nextSteps = Array.isArray(data.nextSteps || data.steps)
+    ? (data.nextSteps || data.steps).map((item, index) => ({
+      index: item.index || index + 1,
+      title: item.title || item.name || '',
+      desc: item.desc || item.description || '',
+      active: Boolean(item.active || item.current)
+    })).filter((item) => item.title || item.desc)
+    : []
+
+  return {
+    group: {
+      title: group.title || '',
+      roles: group.roles || group.rolesText || '',
+      hint: group.hint || group.hintText || '',
+      chatRoute: group.chatRoute || data.chatRoute || '',
+      manageRoute: group.manageRoute || data.manageRoute || ''
+    },
+    participants,
+    activityRows,
+    nextSteps
+  }
+}
+
 Page({
   data: {
     shellLayout: getBlankShellLayoutStyles(),
+    queryParams: {},
+    loading: false,
     group: {
-      title: '产品架构咨询 - 三方群',
-      roles: '行家、领路人、玩家',
-      hint: '领路人王引荐将持续跟进活动进度，确保双方顺利对接'
+      title: '',
+      roles: '',
+      hint: '',
+      chatRoute: '',
+      manageRoute: ''
     },
-    participants: [
-      { id: 'me', avatar: 'ME', colorClass: 'blue' },
-      { id: 'wa', avatar: getSurnameInitials('王引荐', 'WA'), colorClass: 'orange' },
-      { id: 'lm', avatar: getSurnameInitials('李明', 'LI'), colorClass: 'pink' }
-    ],
-    activityRows: [
-      { label: '活动编号', value: 'REF-20260323-001' },
-      { label: '创建时间', value: '2026-03-23 10:23' },
-      { label: '组局时间', value: '2026-03-23 14:30' },
-      { label: '当前阶段', value: '待交付服务', highlight: true }
-    ],
-    nextSteps: [
-      { index: 1, title: '联系玩家确认具体时间', desc: '建议24小时内完成', active: true },
-      { index: 2, title: '按时交付服务', desc: '等待确认时间' },
-      { index: 3, title: '确认完成并收款', desc: '等待服务完成' }
-    ]
+    participants: [],
+    activityRows: [],
+    nextSteps: []
+  },
+
+  onLoad(options = {}) {
+    this.setData({
+      queryParams: options
+    })
+    this.loadExpertSuccess(options)
   },
 
   onShow() {
@@ -113,6 +157,27 @@ Page({
     this.setData({
       shellLayout: getBlankShellLayoutStyles()
     })
+  },
+
+  async loadExpertSuccess(options = {}) {
+    this.setData({
+      loading: true
+    })
+
+    try {
+      const data = await gameService.getExpertSuccess(options)
+
+      this.setData({
+        ...normalizeExpertSuccess(data),
+        loading: false
+      })
+    } catch (error) {
+      this.setData({
+        ...normalizeExpertSuccess({}),
+        loading: false
+      })
+      this.showInfo(error.message || '组局成功信息加载失败')
+    }
   },
 
   onBackTap() {
@@ -133,12 +198,19 @@ Page({
   },
 
   onEnterChatTap() {
+    if (this.data.group.chatRoute) {
+      wx.navigateTo({
+        url: this.data.group.chatRoute
+      })
+      return
+    }
+
     this.showInfo('群聊入口待接入')
   },
 
   onManageTap() {
     wx.navigateTo({
-      url: `/${ROUTES.gameManage || 'pages/game/manage/index'}`,
+      url: this.data.group.manageRoute || `/${ROUTES.gameManage || 'pages/game/manage/index'}`,
       fail: () => {
         this.showInfo('局管理页待接入')
       }
