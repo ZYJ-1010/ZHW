@@ -2,7 +2,7 @@ const profileService = require('../../../../services/profile')
 const toast = require('../../../../utils/toast')
 
 const ASSET_BASE = '/pages/profile/system-management/skill-config/assets'
-const DEFAULT_QUOTA_RESET_DATE = '2026-07-01'
+const DEFAULT_QUOTA_RESET_DATE = ''
 const MIN_CASE_DESC_LENGTH = 100
 const MAX_CASE_DESC_LENGTH = 300
 
@@ -481,6 +481,14 @@ Page({
     const roleSummary = this.data.roleSummary || {}
     const usedCount = Number(roleSummary.usedCount) || 0
     const monthlyLimit = Number(roleSummary.monthlyLimit) || 0
+    const resetDate = roleSummary.resetDate || this.data.quotaResetDate
+    const descLines = [
+      `本月修改次数已用完（${usedCount}/${monthlyLimit}）`
+    ]
+
+    if (resetDate) {
+      descLines.push(`下次重置时间为 ${resetDate}`)
+    }
 
     this.setData({
       responseDialog: {
@@ -489,10 +497,7 @@ Page({
         iconSrc: this.data.icons.hourglass,
         iconTone: 'warning',
         title: '修改次数不足',
-        descLines: [
-          `本月修改次数已用完（${usedCount}/${monthlyLimit}）`,
-          `下次重置时间为 ${roleSummary.resetDate || this.data.quotaResetDate}`
-        ],
+        descLines,
         confirmText: '我知道了',
         onlyConfirm: true
       }

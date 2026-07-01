@@ -19,11 +19,11 @@
         <view class="success-hero">
           <view class="hero-green-fill"></view>
           <image class="hero-trophy" src="./assets/success-trophy.png" mode="aspectFit"></image>
-          <text class="hero-title">恭喜！组局成功</text>
-          <text class="hero-desc">你成功促成了这次连接</text>
-          <view class="reward-card">
-            <text class="reward-value">+50</text>
-            <text class="reward-label">积分奖励已到账</text>
+          <text wx:if="{{hero.title}}" class="hero-title">{{hero.title}}</text>
+          <text wx:if="{{hero.desc}}" class="hero-desc">{{hero.desc}}</text>
+          <view class="reward-card" wx:if="{{hero.rewardValue || hero.rewardLabel}}">
+            <text wx:if="{{hero.rewardValue}}" class="reward-value">{{hero.rewardValue}}</text>
+            <text wx:if="{{hero.rewardLabel}}" class="reward-label">{{hero.rewardLabel}}</text>
           </view>
         </view>
 

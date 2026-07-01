@@ -19,12 +19,24 @@ function normalizePlayOption(item = {}) {
 }
 
 function normalizeCompleteConfig(data = {}) {
+  const success = data.success || data.successSection || {}
+  const reward = data.rewardCard || data.reward || {}
   const playOptions = Array.isArray(data.playOptions || data.options)
     ? (data.playOptions || data.options).map(normalizePlayOption).filter((item) => item.id)
     : []
 
   return {
     onlineText: data.onlineText || '3999人在线',
+    success: {
+      title: success.title || data.successTitle || '',
+      desc: success.desc || success.description || data.successDesc || ''
+    },
+    rewardCard: {
+      iconText: reward.iconText || reward.icon || '',
+      value: reward.value || reward.points || data.rewardValue || data.rewardText || '',
+      title: reward.title || reward.label || data.rewardTitle || '',
+      desc: reward.desc || reward.description || data.rewardDesc || ''
+    },
     benefits: Array.isArray(data.benefits) ? data.benefits.map(normalizeBenefit).filter((item) => item.title || item.desc) : [],
     playOptions,
     selectedPlayIntent: data.selectedPlayIntent || data.defaultPlayIntent || playOptions[0] && playOptions[0].id || ''
@@ -42,6 +54,16 @@ Page({
       { name: '首页', active: true }
     ],
     pageScrollTop: 0,
+    success: {
+      title: '',
+      desc: ''
+    },
+    rewardCard: {
+      iconText: '',
+      value: '',
+      title: '',
+      desc: ''
+    },
     benefits: [],
     playOptions: [],
     selectedPlayIntent: '',

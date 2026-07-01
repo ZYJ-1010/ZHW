@@ -24,15 +24,15 @@
         <view class="success-check">
           <view class="success-check-mark"></view>
         </view>
-        <text class="success-title">评价提交成功！</text>
-        <text class="success-desc">感谢你的反馈，让平台变得更好</text>
+        <text wx:if="{{success.title}}" class="success-title">{{success.title}}</text>
+        <text wx:if="{{success.desc}}" class="success-desc">{{success.desc}}</text>
       </view>
 
-      <view class="reward-card">
-        <view class="reward-icon">🎁</view>
-        <text class="reward-points">+50</text>
-        <text class="reward-title">PX已到账</text>
-        <text class="reward-desc">解锁优先推荐权益</text>
+      <view class="reward-card" wx:if="{{rewardCard.iconText || rewardCard.value || rewardCard.title || rewardCard.desc}}">
+        <view wx:if="{{rewardCard.iconText}}" class="reward-icon">{{rewardCard.iconText}}</view>
+        <text wx:if="{{rewardCard.value}}" class="reward-points">{{rewardCard.value}}</text>
+        <text wx:if="{{rewardCard.title}}" class="reward-title">{{rewardCard.title}}</text>
+        <text wx:if="{{rewardCard.desc}}" class="reward-desc">{{rewardCard.desc}}</text>
       </view>
 
       <view class="benefits-card">

@@ -82,14 +82,12 @@
 
     <view class="primary-report-button single-submit" bindtap="handleSubmitTap">提交举报</view>
 
-    <view class="report-card tip-card">
+    <view class="report-card tip-card" wx:if="{{tipLines.length}}">
       <view class="tip-title">
         <image class="tip-icon" src="{{icons.warning}}" mode="aspectFit"></image>
         <text>温馨提示</text>
       </view>
-      <text class="tip-line">举报属实且能核实金额：罚款20% (50%奖励举报人)</text>
-      <text class="tip-line">属实但无法核实：固定50元+信用分+5</text>
-      <text class="tip-line">不属实扣除举报人信用分2分，多次恶意举报封号</text>
+      <text wx:for="{{tipLines}}" wx:key="text" class="tip-line">{{item.text}}</text>
     </view>
   </view>
 </profile-white-shell>

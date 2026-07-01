@@ -14,6 +14,7 @@ Page({
       stats: []
     },
     rules: [],
+    limitRules: [],
     earnExample: {
       title: '',
       subtitle: '',
@@ -21,7 +22,9 @@ Page({
       rows: [],
       result: ''
     },
+    roleExampleTitle: '',
     roleExamples: [],
+    noteText: '',
     filters: ['全部', '收入', '支出'],
     activeFilter: '全部',
     records: []
@@ -36,13 +39,18 @@ Page({
       const data = await profileService.getProfilePoints({
         filter: this.data.activeFilter
       })
+      const points = data || {}
+      const roleExamplesSection = points.roleExamplesSection || points.rolePointExamplesSection || {}
 
       this.setData({
-        summary: this.normalizeSummary(data.summary || data.pointsSummary || data),
-        rules: this.normalizeList(data.rules),
-        earnExample: data.earnExample || data.example || this.data.earnExample,
-        roleExamples: this.normalizeList(data.roleExamples || data.rolePointExamples),
-        records: this.normalizeList(data.records || data.list || data.items)
+        summary: this.normalizeSummary(points.summary || points.pointsSummary || points),
+        rules: this.normalizeList(points.rules),
+        limitRules: this.normalizeList(points.limitRules || points.ruleLimits || points.limits || points.restrictions),
+        earnExample: points.earnExample || points.example || this.data.earnExample,
+        roleExampleTitle: points.roleExampleTitle || points.roleExamplesTitle || roleExamplesSection.title || '',
+        roleExamples: this.normalizeList(points.roleExamples || points.rolePointExamples || roleExamplesSection.items),
+        noteText: points.noteText || points.noticeText || points.rulesNote || '',
+        records: this.normalizeList(points.records || points.list || points.items)
       })
     } catch (error) {
       toast.info(error.message || '积分信息加载失败')

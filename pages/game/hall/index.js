@@ -352,6 +352,14 @@ function getDisplayEvents(options = {}, sourceList = []) {
   return getSortedEvents(list, options.sortKey, options.sortOrder)
 }
 
+function getFirstAvailableCityName(list = []) {
+  const city = list
+    .map((item) => item && item.cityName)
+    .find((value) => value)
+
+  return city || ''
+}
+
 Page({
   data: {
     onlineText: '',
@@ -536,10 +544,12 @@ Page({
   },
 
   selectAdvancedCity() {
+    const cityName = this.data.advancedDraft.cityName || getFirstAvailableCityName(this.data.eventsList)
+
     this.setData({
       advancedDraft: Object.assign({}, this.data.advancedDraft, {
         locationScope: 'city',
-        cityName: this.data.advancedDraft.cityName || '上海'
+        cityName
       })
     })
   },

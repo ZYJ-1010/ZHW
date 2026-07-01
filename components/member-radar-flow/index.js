@@ -1,3 +1,5 @@
+const profileService = require('../../services/profile')
+
 const ASSET_BASE = '/pages/profile/member/assets'
 const DEFAULT_STATUS_HEIGHT_RPX = 88
 const DEFAULT_NAV_HEIGHT_RPX = 88
@@ -5,112 +7,40 @@ const DEFAULT_FRAME_HEIGHT_RPX = 1624
 const TITLE_HEIGHT_RPX = 44
 const ACTION_SIZE_RPX = 42
 const CAPSULE_ACTION_GAP_RPX = 24
-const DEFAULT_RESULT_TOTAL = 10
+const DEFAULT_RESULT_TOTAL = 0
 
-const PROFILE_ROWS = [
-  { key: 'location', label: '地址定位', value: '', placeholder: '选择' },
-  { key: 'industry', label: '所在行业', value: '', placeholder: '选择' },
-  { key: 'revenueScale', label: '营收规模', value: '', placeholder: '选填' },
-  { key: 'interestedGames', label: '感兴趣组局', value: '', placeholder: '选择' },
-  { key: 'resources', label: '我的资源', value: '', placeholder: '前往个人主页填写' },
-  { key: 'needs', label: '我的需求', value: '', placeholder: '前往个人主页填写' },
-  { key: 'recentDemand', label: '近期诉求', value: '', placeholder: '自定义填写' }
-]
+const PROFILE_ROWS = []
 
 const MATCH_PROFILE = {
-  name: '陆毅',
-  title: '总经理｜上海创世界科技有限公司',
-  tag: '第一标签：上海TMT投资领军者，数字化内容服务',
-  need: '我的需求：AI赋能与市场运营助力企业IP打造',
-  resource: '我的资源：10年TMT投资经验',
-  address: '上海市浦东新区沙新镇黄赵路310号',
-  distance: '231 km',
-  avatar: `${ASSET_BASE}/radar-avatar.png`
+  id: '',
+  name: '',
+  title: '',
+  tag: '',
+  need: '',
+  resource: '',
+  address: '',
+  distance: '',
+  avatar: '',
+  profileRoute: ''
 }
 
-const QUERY_PROFILE = {
-  name: '胡芳',
-  title: '董事长、创始人｜千浪化研新材料（上海…',
-  tag: '第一标签：手机漆，汽车漆深耕者',
-  industry: '化学原料和化学制品制造业',
-  supply: '化工涂料的生产销售,专业的塑胶工业漆及手机漆生产者',
-  need: '期待与更多需要油漆涂料的岛亲链接交流',
-  city: '上海',
-  avatar: `${ASSET_BASE}/radar-avatar.png`
-}
-
-const MATCHED_PEOPLE = [
-  {
-    id: 'hu-fang',
-    className: 'node-leader',
-    name: QUERY_PROFILE.name,
-    title: QUERY_PROFILE.title,
-    avatar: QUERY_PROFILE.avatar
-  },
-  {
-    id: 'lu-yi',
-    className: 'node-maker',
-    name: MATCH_PROFILE.name,
-    title: MATCH_PROFILE.title,
-    avatar: MATCH_PROFILE.avatar
-  },
-  {
-    id: 'chen-zong',
-    className: 'node-owner',
-    name: '陈总',
-    title: '企业服务资源方',
-    avatar: '',
-    shortName: '陈'
-  },
-  {
-    id: 'wang-zong',
-    className: 'node-investor',
-    name: '王总',
-    title: '产业投资合伙人',
-    avatar: '',
-    shortName: '王'
-  },
-  {
-    id: 'li-zong',
-    className: 'node-expert',
-    name: '李总',
-    title: '品牌增长顾问',
-    avatar: '',
-    shortName: '李'
-  },
-  {
-    id: 'zhao-zong',
-    className: 'node-partner',
-    name: '赵总',
-    title: '渠道合作伙伴',
-    avatar: '',
-    shortName: '赵'
-  },
-  {
-    id: 'sun-zong',
-    className: 'node-small',
-    name: '孙总',
-    title: '本地服务主理人',
-    avatar: '',
-    shortName: '孙'
-  }
-]
+const MATCHED_PEOPLE = []
 
 const PAGE_CONFIGS = {
   radar: {
     key: 'radar',
     title: '组局雷达',
     skin: 'dark',
-    estimate: '预计可匹配7461位商界决策者',
-    primaryAction: '开启适配人脉',
-    tip: '信息填写越完整，人脉匹配越精准',
-    linkText: '填写适配信息 >'
+    estimate: '',
+    primaryAction: '',
+    tip: '',
+    linkText: ''
   },
   matching: {
     key: 'matching',
     title: '组局雷达',
     skin: 'dark',
-    statusText: '人脉雷达正在寻找与您适配的企业家…'
+    statusText: ''
   },
   info: {
     key: 'info',
@@ -122,23 +52,23 @@ const PAGE_CONFIGS = {
     key: 'query',
     title: '组局雷达',
     skin: 'dark result',
-    foundPrefix: '为您找到',
-    foundCount: '10',
-    foundSuffix: '位适配您的优质行家信息',
+    foundPrefix: '',
+    foundCount: '',
+    foundSuffix: '',
     profile: MATCH_PROFILE
   },
   result: {
     key: 'result',
     title: '组局雷达',
     skin: 'dark result',
-    loadingText: '正在寻找与您适配的优质业务主.....',
+    loadingText: '',
     profile: MATCH_PROFILE,
-    resultTitle: '本轮匹配组局已完成推荐',
-    resultCount: '10',
-    resultDescPrefix: '共推荐了',
-    resultDescSuffix: '位优质行家',
-    resultLink: '重新查看 >',
-    actionText: '再次重新匹配'
+    resultTitle: '',
+    resultCount: '',
+    resultDescPrefix: '',
+    resultDescSuffix: '',
+    resultLink: '',
+    actionText: ''
   }
 }
 
@@ -233,6 +163,59 @@ function saveResultSummary(summary) {
     }
   } catch (error) {
   }
+}
+
+function getStoredMatchId() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getStorageSync) {
+      return wx.getStorageSync('memberRadarMatchId') || ''
+    }
+  } catch (error) {
+  }
+
+  return ''
+}
+
+function saveMatchId(matchId) {
+  try {
+    if (typeof wx !== 'undefined' && wx.setStorageSync) {
+      wx.setStorageSync('memberRadarMatchId', matchId || '')
+    }
+  } catch (error) {
+  }
+}
+
+function normalizeRadarProfile(item = {}) {
+  return {
+    id: item.id || item.resultId || item.expertId || '',
+    name: item.name || item.nickname || '',
+    title: item.title || item.position || '',
+    tag: item.tag || item.firstTag || '',
+    need: item.need || item.needText || '',
+    resource: item.resource || item.supply || item.resourceText || '',
+    address: item.address || item.location || '',
+    distance: item.distance || item.distanceText || '',
+    avatar: item.avatar || item.avatarUrl || '',
+    profileRoute: item.profileRoute || item.route || '',
+    followed: Boolean(item.followed)
+  }
+}
+
+function normalizeRadarNode(item = {}, index = 0) {
+  return {
+    id: item.id || item.resultId || item.expertId || `radar-node-${index}`,
+    className: item.className || item.nodeClass || '',
+    name: item.name || item.nickname || '',
+    title: item.title || '',
+    avatar: item.avatar || item.avatarUrl || '',
+    shortName: item.shortName || item.avatarText || ''
+  }
+}
+
+function getMatchResultsList(data = {}) {
+  return Array.isArray(data.results || data.list || data.items)
+    ? (data.results || data.list || data.items)
+    : []
 }
 
 function buildQueryData() {
@@ -371,6 +354,7 @@ Component({
   observers: {
     pageKey(pageKey) {
       this.setData(buildDataForPage(pageKey))
+      this.loadRemotePageData(pageKey)
 
       if (pageKey === 'matching') {
         this.startScan()
@@ -384,6 +368,7 @@ Component({
     attached() {
       const pageKey = this.properties.pageKey
       this.setData(buildDataForPage(pageKey))
+      this.loadRemotePageData(pageKey)
 
       if (pageKey === 'matching') {
         this.startScan()
@@ -415,6 +400,67 @@ Component({
   },
 
   methods: {
+    async loadRemotePageData(pageKey) {
+      try {
+        if (pageKey === 'radar') {
+          const data = await profileService.getMemberRadarOverview()
+          const overview = data.overview || data
+
+          this.setData({
+            estimate: overview.estimateText || overview.estimate || '',
+            primaryAction: overview.primaryActionText || overview.primaryAction || '',
+            tip: overview.tip || overview.tipText || '',
+            linkText: overview.linkText || '',
+            radarNodes: (Array.isArray(data.nodes || data.radarNodes) ? (data.nodes || data.radarNodes) : []).map(normalizeRadarNode)
+          })
+          return
+        }
+
+        if (pageKey === 'info') {
+          const data = await profileService.getMemberRadarProfile()
+          const profileForm = data.profileForm || data
+
+          this.setData({
+            formRows: Array.isArray(profileForm.fields || profileForm.rows)
+              ? (profileForm.fields || profileForm.rows)
+              : []
+          })
+          return
+        }
+
+        if (pageKey === 'query' || pageKey === 'result') {
+          const matchId = getStoredMatchId()
+
+          if (!matchId) {
+            return
+          }
+
+          const data = await profileService.getMemberRadarMatchResults({ matchId })
+          const results = getMatchResultsList(data)
+          const profile = normalizeRadarProfile(data.current || data.currentResult || results[0] || {})
+          const total = Number(data.total || results.length) || 0
+
+          saveResultSummary({
+            matchId,
+            total,
+            profile
+          })
+
+          this.setData({
+            foundCount: String(total || ''),
+            resultCount: String(total || ''),
+            profile,
+            radarNodes: results.map(normalizeRadarNode)
+          })
+        }
+      } catch (error) {
+        wx.showToast({
+          title: error.message || '人脉雷达数据加载失败',
+          icon: 'none'
+        })
+      }
+    },
+
     stopScan() {
       if (this.scanTimer) {
         clearInterval(this.scanTimer)
@@ -435,6 +481,15 @@ Component({
           : '人脉雷达正在为您匹配全部适配企业家…'
       })
 
+      if (!nodes.length) {
+        saveResultSummary({
+          matchId: getStoredMatchId(),
+          total: DEFAULT_RESULT_TOTAL,
+          profile: MATCH_PROFILE
+        })
+        return
+      }
+
       let index = 0
 
       this.scanTimer = setInterval(() => {
@@ -452,10 +507,7 @@ Component({
         })
 
         if (done) {
-          saveResultSummary({
-            total: DEFAULT_RESULT_TOTAL,
-            profile: MATCH_PROFILE
-          })
+          saveResultSummary(getSavedResultSummary())
           this.stopScan()
         }
       }, 560)
@@ -474,7 +526,7 @@ Component({
       })
     },
 
-    handleAction(event) {
+    async handleAction(event) {
       const { action } = event.currentTarget.dataset
       const messageMap = {
         save: '保存接口待接入',
@@ -488,10 +540,28 @@ Component({
         const request = buildMatchRequest(getSavedProfileRows())
 
         try {
+          const result = await profileService.startMemberRadarMatch({
+            criteria: request.matchCriteria,
+            matchMode: request.matchMode
+          })
+          const matchId = result.matchId || result.id || ''
+
+          saveMatchId(matchId)
+          saveResultSummary({
+            matchId,
+            total: Number(result.total) || 0,
+            profile: normalizeRadarProfile(result.current || result.profile || {})
+          })
+
           if (typeof wx !== 'undefined' && wx.setStorageSync) {
             wx.setStorageSync('memberRadarMatchRequest', request)
           }
         } catch (error) {
+          wx.showToast({
+            title: error.message || '发起适配失败',
+            icon: 'none'
+          })
+          return
         }
 
         wx.navigateTo({
@@ -502,14 +572,23 @@ Component({
 
       if (action === 'save') {
         try {
+          await profileService.saveMemberRadarProfile({
+            fields: this.data.formRows || []
+          })
+
           if (typeof wx !== 'undefined' && wx.setStorageSync) {
             wx.setStorageSync('memberRadarProfileForm', this.data.formRows || PROFILE_ROWS)
           }
         } catch (error) {
+          wx.showToast({
+            title: error.message || '保存适配信息失败',
+            icon: 'none'
+          })
+          return
         }
 
         wx.showToast({
-          title: messageMap[action],
+          title: '已保存',
           icon: 'none'
         })
         return
@@ -532,6 +611,12 @@ Component({
       if (action === 'rematch') {
         const request = buildMatchRequest(getSavedProfileRows())
 
+        saveMatchId('')
+        saveResultSummary({
+          total: 0,
+          profile: MATCH_PROFILE
+        })
+
         try {
           if (typeof wx !== 'undefined' && wx.setStorageSync) {
             wx.setStorageSync('memberRadarMatchRequest', request)
@@ -541,6 +626,44 @@ Component({
 
         wx.redirectTo({
           url: '/pages/profile/member/match/index'
+        })
+        return
+      }
+
+      if (action === 'follow') {
+        const resultId = this.data.profile && this.data.profile.id
+
+        if (!resultId) {
+          wx.showToast({
+            title: '缺少适配对象信息',
+            icon: 'none'
+          })
+          return
+        }
+
+        try {
+          await profileService.followMemberRadarResult({ resultId })
+          this.setData({
+            'profile.followed': true
+          })
+          wx.showToast({
+            title: '已关注',
+            icon: 'none'
+          })
+        } catch (error) {
+          wx.showToast({
+            title: error.message || '关注失败',
+            icon: 'none'
+          })
+        }
+        return
+      }
+
+      if (action === 'profile' && this.data.profile && this.data.profile.profileRoute) {
+        wx.navigateTo({
+          url: this.data.profile.profileRoute.startsWith('/')
+            ? this.data.profile.profileRoute
+            : `/${this.data.profile.profileRoute}`
         })
         return
       }

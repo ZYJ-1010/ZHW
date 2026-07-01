@@ -62,6 +62,21 @@ const DEFAULT_DETAIL = {
   }
 }
 
+function createEmptyDetail() {
+  return Object.assign({}, DEFAULT_DETAIL, {
+    player: Object.assign({}, DEFAULT_DETAIL.player),
+    expert: Object.assign({}, DEFAULT_DETAIL.expert),
+    game: Object.assign({}, DEFAULT_DETAIL.game),
+    statusCard: {
+      title: '',
+      countdown: '',
+      progressStyle: DEFAULT_DETAIL.countdownProgressStyle
+    },
+    infoRows: [],
+    steps: []
+  })
+}
+
 function roundRpx(value) {
   return Math.round(value * 100) / 100
 }
@@ -369,6 +384,10 @@ function normalizeSteps(item, detail) {
 }
 
 function normalizeDetail(item = {}) {
+  if (!item || Object.keys(item).length === 0) {
+    return createEmptyDetail()
+  }
+
   const source = Object.assign({}, DEFAULT_DETAIL, item || {})
   const player = normalizeMember(getFirstMember(source, 'player') || {}, 'player', DEFAULT_DETAIL.player)
   const expert = normalizeMember(getFirstMember(source, 'expert') || {}, 'expert', DEFAULT_DETAIL.expert)
@@ -430,7 +449,7 @@ Page({
     detailScrollTop: 0,
     loading: false,
     errorText: '',
-    detail: normalizeDetail({})
+    detail: createEmptyDetail()
   },
 
   onLoad(options = {}) {
@@ -468,7 +487,7 @@ Page({
       this.setData({
         loading: false,
         errorText: '',
-        detail: normalizeDetail(item || {})
+        detail: item ? normalizeDetail(item) : createEmptyDetail()
       })
     } catch (error) {
       this.setData({

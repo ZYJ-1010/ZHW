@@ -1,115 +1,89 @@
+const profileService = require('../../services/profile')
+
 const ASSET_BASE = '/pages/profile/member/assets'
 
-const COMMON_RULES = {
-  step: '1. 选择会员等级 → 2. 在线支付 → 3. 即时生效',
-  notes: [
-    '支持微信支付、支持银行卡支付',
-    '升级后原有权益自动叠加，不重复收费',
-    '如需帮助，请联系客服：400-XXX-XXXX'
-  ]
+const LEVEL_KEYS = ['basic', 'advanced', 'premium']
+
+function normalizeList(value) {
+  return Array.isArray(value) ? value : []
 }
 
-const COMMON_RADAR_PEOPLE = [
-  { id: 'me', className: 'me', avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png', text: '我' },
-  { id: 'expert', className: 'expert', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', text: '行' },
-  { id: 'guide', className: 'guide', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', text: '领' },
-  { id: 'player', className: 'player', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', text: '玩' },
-  { id: 'nearby', className: 'nearby', avatarUrl: '', text: '局' },
-  { id: 'friend', className: 'friend', avatarUrl: '', text: '友' },
-  { id: 'resource', className: 'resource', avatarUrl: '', text: '资' }
-]
+function buildLevels(levelKey, levelConfig = {}) {
+  if (Array.isArray(levelConfig.levels) && levelConfig.levels.length) {
+    return levelConfig.levels
+  }
 
-const MEMBER_CONFIGS = {
-  basic: {
-    key: 'basic',
-    memberLevel: '基础会员',
-    cardClass: 'basic',
-    benefitClass: 'purple',
-    primaryBenefitTitle: '业务引荐权益',
-    price: '515',
-    profitRate: '40%',
-    noticeLevel: '高级会员',
-    levels: [
-      { key: 'basic', active: true },
-      { key: 'advanced', active: false },
-      { key: 'premium', active: false }
-    ],
-    referralBenefits: [
-      '可引荐平台业务',
-      '享受引荐收益'
-    ],
-    audience: [
-      '有人脉、善对接的社交达人、资源型人才；',
-      '希望不做销售、不投重金，只靠人脉赚钱；',
-      '有高客单价产品/资源，想初步了解；',
-      '连接供需，促成交易'
-    ]
-  },
-  advanced: {
-    key: 'advanced',
-    memberLevel: '高级会员',
-    cardClass: 'advanced',
-    benefitClass: 'advanced',
-    primaryBenefitTitle: '业务被引荐权益',
-    price: '10000',
-    profitRate: '40%',
-    noticeLevel: '高级会员',
-    levels: [
-      { key: 'basic', active: false },
-      { key: 'advanced', active: true },
-      { key: 'premium', active: false }
-    ],
-    referralBenefits: [
-      '您的产品或服务进入引荐池',
-      '平台引荐人主动为您引荐',
-      '享受被引荐带来的40%收益分成',
-      '提供推广数据报表和分析'
-    ],
-    audience: [
-      '有高客单价产品/资源、有技术的专业人士',
-      '希望获得额外收入来源'
-    ]
-  },
-  premium: {
-    key: 'premium',
-    memberLevel: '尊享会员',
-    cardClass: 'premium',
-    benefitClass: 'premium',
-    primaryBenefitTitle: '渠道引荐权益',
-    price: '39800',
-    profitRate: '10%',
-    noticeLevel: '高级会员',
-    levels: [
-      { key: 'basic', active: false },
-      { key: 'advanced', active: false },
-      { key: 'premium', active: true }
-    ],
-    referralBenefits: [
-      '可发展和管理下级推广团队',
-      '团队引荐收益的10%作为管理奖励',
-      '提供团队管理工具和数据看板'
-    ],
-    audience: [
-      '有人脉、爱分享、想裂变的推广能手',
-      '团队管理者、团长、行业主理人',
-      '拥有推广资源的个人/机构',
-      '希望建立推广体系的创业者'
-    ]
+  const activeIndex = Number(levelConfig.activeIndex)
+  const activeKey = levelConfig.key || levelKey
+
+  return LEVEL_KEYS.map((key, index) => ({
+    key,
+    active: Number.isInteger(activeIndex) ? index === activeIndex : key === activeKey
+  }))
+}
+
+function getBenefitItem(items, key, fallbackIndex) {
+  return items.find((item) => item && item.key === key) || items[fallbackIndex] || {}
+}
+
+function normalizeMemberCenterConfig(data = {}, levelKey = 'basic') {
+  const level = data.level || {}
+  const benefits = data.benefitsSection || {}
+  const benefitItems = normalizeList(benefits.items)
+  const referral = getBenefitItem(benefitItems, 'referral', 0)
+  const profit = getBenefitItem(benefitItems, 'profit', 1)
+  const radar = data.radarSection || {}
+  const audience = data.audienceSection || {}
+  const openRules = data.openRulesSection || {}
+  const purchase = data.purchase || {}
+  const latestNotice = data.latestNotice || null
+  const roleLink = data.roleLink || {}
+  const normalizedLevelKey = level.key || data.levelKey || data.key || levelKey
+
+  return {
+    key: normalizedLevelKey,
+    memberLevel: level.name || data.memberLevel || '',
+    cardClass: data.cardClass || normalizedLevelKey || '',
+    benefitSectionTitle: benefits.title || '',
+    benefitClass: referral.theme || referral.className || '',
+    primaryBenefitTitle: referral.title || '',
+    profitBenefitTitle: profit.title || '',
+    profitRate: profit.value || profit.rate || data.profitRate || '',
+    levels: buildLevels(levelKey, level),
+    referralBenefits: normalizeList(referral.points || referral.items || data.referralBenefits),
+    radarTitle: radar.title || '',
+    radarSubtitle: radar.subtitle || '',
+    radarButtonText: radar.buttonText || '',
+    radarPeople: normalizeList(radar.people || radar.nodes),
+    audienceTitle: audience.title || '',
+    audience: normalizeList(audience.items || data.audience),
+    openRulesTitle: openRules.title || '',
+    openRules: {
+      step: openRules.stepText || openRules.step || '',
+      notes: normalizeList(openRules.notes)
+    },
+    roleLinkText: roleLink.text || '',
+    roleLinkRoute: roleLink.route || '',
+    latestNotice,
+    purchase: {
+      buttonText: purchase.buttonText || '',
+      priceText: purchase.priceText || '',
+      route: purchase.route || '',
+      agreementPrefix: purchase.agreementPrefix || '',
+      agreementName: purchase.agreementName || '',
+      agreementRoute: purchase.agreementRoute || '',
+      agreementSuffix: purchase.agreementSuffix || '',
+      highlightText: purchase.highlightText || ''
+    },
+    assets: {
+      referral: `${ASSET_BASE}/i86@3x.png`,
+      profit: `${ASSET_BASE}/i87@3x.png`
+    }
   }
 }
 
 function buildDisplayData(levelKey) {
-  const config = MEMBER_CONFIGS[levelKey] || MEMBER_CONFIGS.basic
-
-  return {
-    ...config,
-    assets: {
-      referral: `${ASSET_BASE}/i86@3x.png`,
-      profit: `${ASSET_BASE}/i87@3x.png`
-    },
-    radarPeople: COMMON_RADAR_PEOPLE,
-    openRules: COMMON_RULES
-  }
+  return normalizeMemberCenterConfig({}, levelKey)
 }
 
 Component({
@@ -120,35 +94,72 @@ Component({
     }
   },
 
-  data: buildDisplayData('basic'),
+  data: {
+    ...buildDisplayData('basic'),
+    loading: false
+  },
 
   observers: {
     levelKey(levelKey) {
-      this.setData(buildDisplayData(levelKey))
+      this.loadMemberConfig(levelKey)
     }
   },
 
   lifetimes: {
     attached() {
-      this.setData(buildDisplayData(this.properties.levelKey))
+      this.loadMemberConfig(this.properties.levelKey)
     }
   },
 
   methods: {
+    async loadMemberConfig(levelKey = 'basic') {
+      this.setData({
+        ...buildDisplayData(levelKey),
+        loading: true
+      })
+
+      try {
+        const data = await profileService.getMemberCenterConfig({
+          level: levelKey
+        })
+
+        this.setData({
+          ...normalizeMemberCenterConfig(data, levelKey),
+          loading: false
+        })
+      } catch (error) {
+        this.setData({
+          loading: false
+        })
+        wx.showToast({
+          title: error.message || '会员中心配置加载失败',
+          icon: 'none'
+        })
+      }
+    },
+
     handleMatch() {
-      wx.showToast({
-        title: '适配功能待接入',
-        icon: 'none'
+      wx.navigateTo({
+        url: '/pages/profile/member/radar/index'
       })
     },
 
     handleUnlockRole() {
       wx.navigateTo({
-        url: '/pages/role/apply/index'
+        url: this.data.roleLinkRoute ? `/${this.data.roleLinkRoute}` : '/pages/role/apply/index'
       })
     },
 
     handleOpenMember() {
+      if (this.data.purchase && this.data.purchase.route) {
+        wx.navigateTo({
+          url: this.data.purchase.route.startsWith('/')
+            ? this.data.purchase.route
+            : `/${this.data.purchase.route}`
+        })
+        return
+      }
+
       wx.showToast({
         title: '会员支付待接入',
         icon: 'none'
@@ -156,6 +167,15 @@ Component({
     },
 
     handleAgreement() {
+      const route = this.data.purchase && this.data.purchase.agreementRoute
+
+      if (route) {
+        wx.navigateTo({
+          url: route.startsWith('/') ? route : `/${route}`
+        })
+        return
+      }
+
       wx.showToast({
         title: '服务协议待补充',
         icon: 'none'

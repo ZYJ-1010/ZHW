@@ -890,8 +890,115 @@ function handleRequest(options) {
     return wait(ok(buildSystemNotificationDetail(options.data || {})))
   }
 
+  if (method === 'GET' && /^\/api\/im\/rooms\/[^/]+\/messages$/.test(url)) {
+    return wait(ok({
+      page: Number(options.data && options.data.page) || 1,
+      pageSize: Number(options.data && options.data.pageSize) || 50,
+      total: 0,
+      list: []
+    }))
+  }
+
+  if (method === 'POST' && /^\/api\/im\/rooms\/[^/]+\/messages$/.test(url)) {
+    return wait(ok({
+      messageId: `mock-message-${Date.now()}`,
+      type: options.data && options.data.type || 'text',
+      content: options.data && options.data.content || ''
+    }))
+  }
+
   if (method === 'GET' && url === '/api/app/profile/home') {
     return wait(ok(mockProfileHome))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/assets') {
+    return wait(ok({
+      overview: {},
+      assetStats: [],
+      menuItems: [],
+      orderStatuses: [],
+      recentOrders: [],
+      faqLinks: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/points') {
+    return wait(ok({
+      summary: {},
+      rules: [],
+      earnExample: {},
+      roleExamples: [],
+      records: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/games') {
+    return wait(ok({
+      list: [],
+      statusTabs: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/service-center/reviews') {
+    return wait(ok({
+      score: {},
+      stats: [],
+      reviews: [],
+      pendingCount: 0
+    }))
+  }
+
+  if (method === 'GET' && /^\/api\/app\/profile\/service-center\/reviews\/[^/]+$/.test(url)) {
+    return wait(ok({
+      review: {},
+      templates: [],
+      history: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/invite/overview') {
+    return wait(ok({
+      user: {},
+      stats: [],
+      cards: [],
+      actions: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/invite-records') {
+    return wait(ok({
+      list: [],
+      tabs: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/invite/income') {
+    return wait(ok({
+      stats: [],
+      records: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/invite/network') {
+    return wait(ok({
+      stats: [],
+      members: []
+    }))
+  }
+
+  if (method === 'GET' && url === '/api/app/profile/invite/ranking') {
+    return wait(ok({
+      list: [],
+      tabs: []
+    }))
+  }
+
+  if (method === 'GET' && /^\/api\/app\/profile\/invite\/members\/[^/]+$/.test(url)) {
+    return wait(ok({
+      member: {},
+      stats: [],
+      records: []
+    }))
   }
 
   if (method === 'GET' && url === '/api/app/profile/system-management/skill-config') {

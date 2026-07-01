@@ -65,7 +65,7 @@ const mockHome = {
     roleName: '玩家',
     dateLabel: '2026.03.30',
     subtitle: '开启你的今日副本',
-    onlineText: '3999人在线'
+    onlineText: ''
   },
   notices: [
     {
@@ -89,65 +89,11 @@ const mockHome = {
       { key: 'nearby', name: '附近' }
     ]
   },
-  recommendedGames: [
-    {
-      id: '20001',
-      title: 'AI赋能系统搭建交流局',
-      cityName: '黄浦区',
-      distanceText: '8.2km',
-      memberText: '3/8人',
-      timeText: '2026年5月1日 14:00--16:00',
-      statusText: '任务局',
-      priceText: '¥0/人',
-      joinedText: '+3位玩家已入局',
-      actionText: '加入',
-      coverUrl: '/components/game-card/assets/cover-sunset.png',
-      scope: 'city',
-      actions: ['share', 'follow', 'refer', 'greet'],
-      route: 'pages/game/detail/index',
-      tags: ['AI', '系统搭建', '交流']
-    },
-    {
-      id: '20002',
-      title: '苏州河“记忆碎片”采集',
-      cityName: '静安区',
-      distanceText: '3.2km',
-      memberText: '5/8人',
-      timeText: '2026年5月1日 20:00--22:00',
-      statusText: '探索局',
-      priceText: '¥0/人',
-      joinedText: '+5位玩家已入局',
-      actionText: '加入',
-      coverUrl: '/components/game-card/assets/cover-city.png',
-      scope: 'nearby',
-      actions: ['share', 'follow', 'refer', 'greet'],
-      route: 'pages/game/detail/index',
-      tags: ['城市故事', '探索', '同城']
-    }
-  ],
+  recommendedGames: [],
   playerSummary: {
     currentRole: 'player',
     roleType: 'player',
-    displayName: 'Alex Chen',
-    nickname: 'Alex Chen',
-    roleLabel: '玩家 Lv.5',
-    title: '活跃达人',
-    level: 5,
-    nextLevel: 6,
-    experience: 580,
-    nextLevelExperience: 1000,
-    expToNextLevel: 420,
-    xpText: '580/1000 XP',
-    progressPercent: 58,
-    nextLevelText: '距离下一等级还需 420 经验值',
-    joinCount: 12,
-    monthlyMvpCount: 3,
-    participationRate: '98%',
-    stats: [
-      { label: '参与局数', value: '12' },
-      { label: '本月MVP', value: '3' },
-      { label: '参与率', value: '98%' }
-    ]
+    stats: []
   },
   rankingSection: {
     icon: '🏆',
@@ -160,81 +106,20 @@ const mockHome = {
       { key: 'guide', name: '领路人' }
     ]
   },
-  rankingBoards: {
-    player: {
-      list: [
-        {
-          id: 'rank-player-01',
-          rank: 1,
-          nickname: '领域专家 PRO',
-          avatarFallback: '👨🏾‍🎓',
-          desc: '本周组局 12 · MVP 5次',
-          xpText: '2,450 XP'
-        },
-        {
-          id: 'rank-player-02',
-          rank: 2,
-          nickname: '社交达人',
-          avatarFallback: '👩🏻‍🎤',
-          desc: '本周组局 8 次',
-          xpText: '1,890 XP'
-        },
-        {
-          id: 'rank-player-03',
-          rank: 3,
-          nickname: '探险家',
-          avatarFallback: '👨🏿‍🚀',
-          desc: '本周组局 6 次',
-          xpText: '1,560 XP'
-        }
-      ],
-      myRank: {
-        rank: 52,
-        nickname: '我（Alex）',
-        avatarFallback: '👩🏻‍💻',
-        desc: '上周排名 65 ↑',
-        xpText: '520 XP'
-      }
-    }
-  },
-  rankingList: [
-    { rank: '01', name: '领域专家 PRO', avatarFallback: '👨🏾‍🎓', desc: '本周组局 12 · MVP 5次', xpText: '2,450 XP' },
-    { rank: '02', name: '社交达人', avatarFallback: '👩🏻‍🎤', desc: '本周组局 8 次', xpText: '1,890 XP' },
-    { rank: '03', name: '探险家', avatarFallback: '👨🏿‍🚀', desc: '本周组局 6 次', xpText: '1,560 XP' }
-  ],
+  rankingBoards: {},
+  rankingList: [],
   achievementSection: {
     icon: '💎',
     title: '我的成就'
   },
-  achievementList: [
-    { id: 'hundred', code: 'hundred_king', title: '百场王者', icon: '🏆', statusText: '等级', unlocked: true },
-    { id: 'pilot', code: 'pilot_king', title: '引航王者', icon: '🏆', statusText: '等级', unlocked: true },
-    { id: 'earth', code: 'earth_roamer', title: '地球漫游者', icon: '🌍', statusText: '进度20%', progressPercent: 20, unlocked: true },
-    { id: 'hidden', code: 'hidden_badge', title: '隐藏徽章', icon: '🔒', statusText: '未解锁', unlocked: false }
-  ],
+  achievementList: [],
   friendSection: {
     icon: '🎲',
     title: '朋友在玩',
-    count: 2,
+    count: 0,
     moreText: '查看全部'
   },
-  friendGames: [
-    {
-      id: 'friend-1',
-      title: '盲盒路线：3小时点亮天际线',
-      cityName: '梧桐山',
-      distanceText: '1.5km',
-      memberText: '3/8人',
-      timeText: '2026年5月1日 14:00--16:00',
-      priceText: '¥29/人',
-      statusText: '探索局',
-      joinedText: '+3位玩家已入局',
-      coverUrl: '/components/game-card/assets/cover-sunset.png',
-      actionText: '加入',
-      actions: ['share', 'follow', 'refer', 'greet'],
-      route: 'pages/game/detail/index'
-    }
-  ],
+  friendGames: [],
   metaverseEntry: {
     title: '进入元宇宙',
     desc: '共创数字街区｜全球联机互动',
@@ -248,13 +133,7 @@ const mockHome = {
     actionText: '进入元宇宙',
     route: 'pages/placeholder/metaverse/index'
   },
-  nearbySummary: {
-    count: 12,
-    nearbyGameCount: 12,
-    checkedInCount: 8,
-    cityName: '上海',
-    accuracyText: '定位精度 300m 内'
-  }
+  nearbySummary: {}
 }
 
 const mockRoleHomes = {
@@ -522,23 +401,14 @@ const mockRoleHomes = {
 }
 
 const mockProfileHome = {
-  user: mockCurrentUser,
-  stats: [
-    { label: '我的局', value: 3 },
-    { label: '我的申请', value: 2 },
-    { label: '可评价', value: 1 },
-    { label: '消息', value: 3 }
-  ],
-  menuItems: [
-    { id: 'member', title: '会员中心', desc: '基础会员 · 分润资格待完善', route: 'pages/profile/member/index' },
-    { id: 'achievements', title: '成长与成就', desc: 'Lv.2 · 信用 100 · 积分 260', route: 'pages/profile/achievements/index' },
-    { id: 'games', title: '我的局', desc: '发起和参与的局', route: 'pages/game/hall/index' },
-    { id: 'reviews', title: '可评价的局', desc: '1 个局待评价', route: 'pages/game/review/index' },
-    { id: 'income', title: '收益信息', desc: '待结算收益和明细', route: 'pages/profile/index' }
-  ],
+  user: {},
+  stats: [],
+  assets: {
+    summary: []
+  },
   incomeSummary: {
-    pendingAmountText: '¥0.00',
-    settledAmountText: '¥0.00'
+    pendingAmountText: '',
+    settledAmountText: ''
   }
 }
 
@@ -1333,6 +1203,7 @@ const mockPlayerGameManage = {
 
 const mockGameProfitTemplates = {
   currentAccountType: 'player',
+  currentTime: '2026-03-19T14:00:00+08:00',
   depositRuleText: '连续打卡 7 天即完成。完成者拿回押金池金额，未完成者押金由完成者平分。',
   depositNoticeText: '支付金额：100元 = 服务费10元 + 押金池90元。服务费不退，押金池按完成情况结算。',
   templates: [
@@ -1392,283 +1263,37 @@ const mockRelationNetworkHome = {
 
 const mockMessageCenter = {
   pageTitle: '消息中心',
-  onlineText: '3999人在线',
+  onlineText: '',
   activeTab: 'all',
-  quickActions: [
-    { key: 'join', label: '组局加入', iconSrc: '/pages/message/assets/i53@3x.png', tone: 'blue', unreadCount: 1 },
-    { key: 'system', label: '系统通知', iconSrc: '/pages/message/assets/i54@3x.png', tone: 'green', unreadCount: 0 },
-    { key: 'achievement', label: '成就解锁', iconSrc: '/pages/message/assets/i55@3x.png', tone: 'yellow', unreadCount: 0 },
-    { key: 'warning', label: '预警通知', iconSrc: '/pages/message/assets/i56@3x.png', tone: 'red', unreadCount: 0 },
-    { key: 'friend', label: '好友', iconSrc: '/pages/message/assets/i57@3x.png', tone: 'cyan', unreadCount: 3 }
-  ],
-  tabs: [
-    { key: 'all', label: '全部消息' },
-    { key: 'unread', label: '未读 (3)', unreadCount: 3 },
-    { key: 'trade', label: '交易通知' }
-  ],
-  sections: [
-    {
-      key: 'system',
-      title: '系统通知',
-      items: [
-        {
-          id: 'platform-notice',
-          routeKey: 'system',
-          iconSrc: '/pages/message/assets/i58@3x.png',
-          tone: 'blue',
-          title: '平台公告',
-          timeText: '2小时前',
-          desc: '关于组局功能升级的通知：新增“智能匹配”功能，可自动推荐合适的组局对象...'
-        },
-        {
-          id: 'audit-result',
-          iconSrc: '/pages/message/assets/i59@3x.png',
-          tone: 'purple',
-          title: '活动审核结果',
-          timeText: '昨天',
-          desc: '你发布的活动“AI技术分享会”已通过审核，将于明天10:00开始展示或者前往组局中心手动发布',
-          tagText: '审核通过',
-          tagTone: 'success'
-        }
-      ]
-    },
-    {
-      key: 'group',
-      title: '组局动态',
-      moreText: '查看全部',
-      items: [
-        {
-          id: 'group-confirm',
-          iconSrc: '/pages/message/assets/i60@3x.png',
-          tone: 'orange',
-          unread: true,
-          title: '组局确认通知',
-          timeText: '10:23',
-          desc: '张伟 发起组局邀请你参与“周末篮球局”，需要你确认是否参加',
-          highlightText: '张伟',
-          actions: [
-            { key: 'accept', text: '确认参加', primary: true },
-            { key: 'reject', text: '婉拒' }
-          ]
-        },
-        {
-          id: 'group-success',
-          iconSrc: '/pages/message/assets/i54@3x.png',
-          tone: 'green',
-          title: '组局已成局',
-          timeText: '昨天',
-          desc: '你引荐的 李娜 与 王强 已成功组局“产品经理交流会”',
-          summaryText: '✓ 引荐成功',
-          subText: '获得积分 +50'
-        },
-        {
-          id: 'pay-success',
-          iconSrc: '/pages/message/assets/i61@3x.png',
-          tone: 'orangeLight',
-          title: '支付成功通知',
-          timeText: '昨天',
-          desc: '你成功支付了“早起星人挑战”押金 ¥100.00，资金已进入押金池托管。'
-        },
-        {
-          id: 'join-apply',
-          avatarText: '小',
-          title: '小红 申请加入你的局',
-          timeText: '10:30',
-          desc: '局：【武康路】复古胶片摄影局...',
-          actions: [
-            { key: 'decline', text: '拒绝' },
-            { key: 'chat', text: '通过并私聊', primary: true, orange: true }
-          ]
-        }
-      ]
-    },
-    {
-      key: 'achievement',
-      title: '新增成就',
-      items: [
-        {
-          id: 'achievement-unlock',
-          iconSrc: '/pages/message/assets/i62@3x.png',
-          tone: 'yellow',
-          title: '解锁新成就！',
-          timeText: '3月30日',
-          desc: '恭喜你解锁了“魔都探险家”成就，获得 200 积分奖励！'
-        }
-      ]
-    },
-    {
-      key: 'warning',
-      title: '预警提醒',
-      items: [
-        {
-          id: 'delivery-warning',
-          routeKey: 'warning',
-          iconSrc: '/pages/message/assets/i65@3x.png',
-          tone: 'red',
-          alert: true,
-          title: '待交付订单提醒',
-          timeText: '2小时前',
-          descParts: [
-            { text: '你有1个组局服务订单将于 ' },
-            { text: '2小时后', danger: true },
-            { text: ' 到期交付，请及时处理' }
-          ],
-          metaText: '订单号：GD2024032201',
-          linkText: '立即处理'
-        },
-        {
-          id: 'activity-soon',
-          iconSrc: '/pages/message/assets/i64@3x.png',
-          tone: 'yellow',
-          title: '活动即将开始',
-          timeText: '30分钟后',
-          desc: '你参与的组局“周末徒步”将于今天14:00开始，地点：奥林匹克森林公园南门',
-          actions: [
-            { key: 'route', text: '查看路线', primary: true },
-            { key: 'contact', text: '联系发起人' }
-          ]
-        }
-      ]
-    },
-    {
-      key: 'friends',
-      title: '好友消息',
-      items: [
-        {
-          id: 'friend-liming',
-          routeKey: 'friend',
-          avatarText: 'LM',
-          online: true,
-          title: '李明',
-          timeText: '12:30',
-          desc: '好的，那我们就周六下午2点在咖啡店见，我带上项目资料...',
-          unreadCount: 3
-        }
-      ]
-    }
-  ]
+  quickActions: [],
+  tabs: [],
+  sections: []
 }
 
 const mockTradeWarningDetail = {
-  id: 'trade-warning-001',
-  warningId: 'trade-warning-001',
+  id: '',
+  warningId: '',
   pageTitle: '交易预警',
-  onlineText: '3999人在线',
-  warning: {
-    title: '即将超时',
-    prefixText: '该订单将于',
-    highlightText: '1小时30分钟',
-    suffixText: '后自动标记为逾期，请立即处理'
-  },
-  countdown: [
-    { value: '01', label: '小时' },
-    { value: '30', label: '分钟' },
-    { value: '45', label: '秒' }
-  ],
-  order: {
-    orderNo: 'GD2024032201',
-    statusText: '待交付',
-    customerAvatarText: 'CL',
-    customerTitle: '客户需求',
-    customerDesc: '寻找资深产品经理进行业务咨询',
-    detailRows: [
-      { label: '约定交付时间', value: '今天 16:00' },
-      { label: '服务费用', value: '¥500', strong: true }
-    ]
-  },
-  deliveryMethods: [
-    {
-      id: 'online',
-      title: '线上确认',
-      desc: '双方在线确认服务完成',
-      active: true
-    },
-    {
-      id: 'upload',
-      title: '上传凭证',
-      desc: '上传服务完成截图或文件',
-      active: false
-    }
-  ],
-  actions: {
-    delayText: '申请延期',
-    deliverText: '立即交付'
-  }
+  onlineText: '',
+  warning: {},
+  countdown: [],
+  order: {},
+  deliveryMethods: [],
+  actions: {}
 }
 
 const mockSystemNotificationDetail = {
-  id: 'system-notification-001',
-  messageId: 'system-notification-001',
-  notificationId: 'system-notification-001',
+  id: '',
+  messageId: '',
+  notificationId: '',
   pageTitle: '系统通知',
-  onlineText: '3999人在线',
+  onlineText: '',
   article: {
-    tagText: '重要更新',
-    title: '组局功能全新升级：智能匹配系统上线',
-    author: '官方运营团队',
-    publishedAtText: '2026-03-20',
-    readText: '阅读 1.2k',
-    blocks: [
-      {
-        id: 'lead',
-        type: 'paragraph',
-        text: '亲爱的用户：',
-        lead: true
-      },
-      {
-        id: 'intro',
-        type: 'paragraph',
-        text: '为了提升组局效率和匹配精准度，我们于今日正式上新智能匹配功能，根据你的行业标签、兴趣爱好、地理位置等多维度信息，自动推荐最合适的组局对象。'
-      },
-      {
-        id: 'update-content',
-        type: 'updateBox',
-        icon: '★',
-        title: '主要更新内容',
-        points: [
-          'AI智能推荐：基于行为分析的个性化推荐',
-          '匹配度评分：直观展示双方契合程度',
-          '一键邀约：简化组局发起流程'
-        ]
-      },
-      {
-        id: 'message-center',
-        type: 'paragraph',
-        text: '同时，我们对消息触达中心进行了优化，新增消息分类和优先级标记，确保你不会错过任何重要组局信息。'
-      },
-      {
-        id: 'cover',
-        type: 'cover',
-        imageUrl: '/pages/message/system-detail/assets/system-update-cover.png',
-        caption: '智能匹配界面示意图'
-      },
-      {
-        id: 'closing',
-        type: 'paragraph',
-        text: '如有任何问题，欢迎联系客服团队。感谢你的支持与信任！'
-      },
-      {
-        id: 'signature',
-        type: 'signature',
-        teamText: '产品团队',
-        dateText: '2026年3月20日'
-      }
-    ]
+    blocks: []
   },
   feedback: {
-    question: '这篇文章对你有帮助吗？',
-    useful: {
-      icon: '👍',
-      label: '有用',
-      count: 128,
-      countText: '128'
-    },
-    useless: {
-      icon: '👎',
-      label: '没用',
-      count: 10,
-      countText: '10'
-    }
+    useful: {},
+    useless: {}
   }
 }
 

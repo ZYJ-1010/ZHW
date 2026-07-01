@@ -52,7 +52,7 @@ Page({
       this.setData({
         activeType: data.defaultType || reportTypes[0] && reportTypes[0].key || '',
         reportTypeRows: this.buildRows(reportTypes),
-        tipLines: this.normalizeList(data.tipLines || data.tips)
+        tipLines: this.normalizeTipLines(data.tipLines || data.tips)
       })
     } catch (error) {
       this.setData({
@@ -224,5 +224,19 @@ Page({
 
   normalizeList(list) {
     return Array.isArray(list) ? list : []
+  },
+
+  normalizeTipLines(list) {
+    return this.normalizeList(list).map((item) => {
+      if (typeof item === 'string') {
+        return {
+          text: item
+        }
+      }
+
+      return {
+        text: item.text || item.label || item.content || ''
+      }
+    }).filter((item) => item.text)
   }
 })

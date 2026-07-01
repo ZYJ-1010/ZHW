@@ -10,12 +10,12 @@
   back-icon-color="#f8fbff"
 >
   <view class="report-page with-bottom">
-    <view class="report-card detail-status-card">
-      <view class="status-icon success">
+    <view class="report-card detail-status-card" wx:if="{{statusCard.main || statusCard.sub}}">
+      <view class="status-icon {{statusCard.tone}}">
         <image src="{{icons.check}}" mode="aspectFit"></image>
       </view>
-      <text class="status-main">举报属实</text>
-      <text class="status-sub">平台已核实并处理完毕</text>
+      <text wx:if="{{statusCard.main}}" class="status-main">{{statusCard.main}}</text>
+      <text wx:if="{{statusCard.sub}}" class="status-sub">{{statusCard.sub}}</text>
     </view>
 
     <view class="report-card">
@@ -32,8 +32,8 @@
       <text class="paragraph">{{reportReason}}</text>
     </view>
 
-    <view class="report-card">
-      <text class="section-title">证据材料 (3张)</text>
+    <view class="report-card" wx:if="{{evidence.length}}">
+      <text class="section-title">{{evidenceTitle}}</text>
       <view class="evidence-row">
         <view wx:for="{{evidence}}" wx:key="label" class="evidence-card {{item.tone}}">
           <text class="evidence-text">{{item.label}}</text>
@@ -42,24 +42,16 @@
       </view>
     </view>
 
-    <view class="report-card">
+    <view class="report-card" wx:if="{{resultRows.length || resultNote}}">
       <text class="section-title">处理结果</text>
-      <view class="result-row">
-        <text class="result-label">核实结果</text>
-        <text class="result-value text-success">举报属实</text>
+      <view wx:for="{{resultRows}}" wx:key="label" class="result-row">
+        <text class="result-label">{{item.label}}</text>
+        <text class="result-value {{item.tone}}">{{item.value}}</text>
       </view>
-      <view class="result-row">
-        <text class="result-label">处罚措施</text>
-        <text class="result-value text-danger">扣除信用分5分，限制发布组局7天</text>
-      </view>
-      <view class="result-row">
-        <text class="result-label">平台奖励</text>
-        <text class="result-value text-success">¥25.00</text>
-      </view>
-      <view class="result-row">
+      <view wx:if="{{resultNote}}" class="result-row">
         <text class="result-label">处理说明</text>
       </view>
-      <text class="result-note">{{resultNote}}</text>
+      <text wx:if="{{resultNote}}" class="result-note">{{resultNote}}</text>
     </view>
 
     <view class="report-card">

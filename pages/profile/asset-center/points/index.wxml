@@ -38,9 +38,11 @@
             <text class="rule-text">{{item.text}} <text class="rule-strong">{{item.strong}}</text>{{item.suffix}}</text>
           </view>
         </view>
-        <view class="rule-limit-row">
-          <view class="rule-limit"><text class="limit-mark">❌</text><text>不可提</text></view>
-          <view class="rule-limit"><text class="limit-mark">❌</text><text>不可支付付费</text></view>
+        <view class="rule-limit-row" wx:if="{{limitRules.length}}">
+          <view wx:for="{{limitRules}}" wx:key="key" class="rule-limit">
+            <text class="limit-mark">{{item.iconText}}</text>
+            <text>{{item.text || item.label}}</text>
+          </view>
         </view>
       </view>
 
@@ -72,8 +74,8 @@
           </view>
         </view>
 
-        <view class="role-example-card">
-          <text class="role-example-title">各角色分润积分示例 (订单¥800)</text>
+        <view class="role-example-card" wx:if="{{roleExampleTitle || roleExamples.length}}">
+          <text wx:if="{{roleExampleTitle}}" class="role-example-title">{{roleExampleTitle}}</text>
           <view wx:for="{{roleExamples}}" wx:key="key" class="role-example-row">
             <view class="role-left">
               <text class="role-icon">{{item.iconText}}</text>
@@ -121,9 +123,9 @@
         </view>
       </view>
 
-      <view class="points-note">
+      <view class="points-note" wx:if="{{noteText}}">
         <text class="note-icon">ⓘ</text>
-        <text class="note-text">我可是有底线的～ 积分有效期为12个月，过期将自动清零。积分不可提现、不可支付付费局，仅可兑换平台限定商品。</text>
+        <text class="note-text">{{noteText}}</text>
       </view>
     </view>
   </view>

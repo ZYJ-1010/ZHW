@@ -176,10 +176,24 @@ function normalizeFollowUps(data) {
     .filter((item) => item.key)
 }
 
+function normalizeHero(data) {
+  const source = data || {}
+  const hero = source.hero || source.successHero || source.summary || {}
+  const reward = hero.reward || source.reward || {}
+
+  return {
+    title: pickFirstValue(hero.title, hero.heading, source.heroTitle),
+    desc: pickFirstValue(hero.desc, hero.description, hero.subtitle, source.heroDesc),
+    rewardValue: pickFirstValue(hero.rewardValue, source.rewardValue, reward.value, reward.amount, reward.points),
+    rewardLabel: pickFirstValue(hero.rewardLabel, source.rewardLabel, reward.label, reward.title, reward.desc)
+  }
+}
+
 Page({
   data: {
     shellLayout: getWhiteShellLayoutStyles(),
     queryParams: {},
+    hero: normalizeHero({}),
     timeline: [],
     party: normalizeParty({}),
     followUps: []
@@ -211,12 +225,14 @@ Page({
       const data = await gameService.getGuideSuccess(params)
 
       this.setData({
+        hero: normalizeHero(data),
         timeline: normalizeTimeline(data),
         party: normalizeParty(data),
         followUps: normalizeFollowUps(data)
       })
     } catch (error) {
       this.setData({
+        hero: normalizeHero({}),
         timeline: [],
         party: normalizeParty({}),
         followUps: []

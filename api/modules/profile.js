@@ -12,6 +12,38 @@ function getMemberStatus() {
   return request.get('/api/app/memberships/me')
 }
 
+function getMemberCenterConfig(data) {
+  return request.get('/api/app/profile/member-center', data || {})
+}
+
+function getMemberRadarOverview(data) {
+  return request.get('/api/app/profile/member-radar/overview', data || {})
+}
+
+function getMemberRadarProfile(data) {
+  return request.get('/api/app/profile/member-radar/profile', data || {})
+}
+
+function saveMemberRadarProfile(data) {
+  return request.post('/api/app/profile/member-radar/profile', data)
+}
+
+function startMemberRadarMatch(data) {
+  return request.post('/api/app/profile/member-radar/match', data)
+}
+
+function getMemberRadarMatch(matchId) {
+  return request.get(`/api/app/profile/member-radar/match/${matchId}`)
+}
+
+function getMemberRadarMatchResults(matchId, data) {
+  return request.get(`/api/app/profile/member-radar/match/${matchId}/results`, data || {})
+}
+
+function followMemberRadarResult(resultId, data) {
+  return request.post(`/api/app/profile/member-radar/results/${resultId}/follow`, data || {})
+}
+
 function replyServiceReview(reviewId, data) {
   return request.post(`/api/app/profile/service-center/reviews/${reviewId}/reply`, data)
 }
@@ -256,6 +288,14 @@ module.exports = {
   getProfileHome,
   getGrowth,
   getMemberStatus,
+  getMemberCenterConfig,
+  getMemberRadarOverview,
+  getMemberRadarProfile,
+  saveMemberRadarProfile,
+  startMemberRadarMatch,
+  getMemberRadarMatch,
+  getMemberRadarMatchResults,
+  followMemberRadarResult,
   replyServiceReview,
   getProfileAssets,
   getProfilePoints,

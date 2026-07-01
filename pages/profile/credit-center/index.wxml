@@ -2,13 +2,16 @@
   <view class="profile-page is-white">
     <text class="credit-heading">信用中心</text>
 
-    <view class="credit-score-card">
-      <text class="credit-score-label">信用分（默认100分）</text>
+    <view class="credit-score-card" wx:if="{{scoreCard.label || scoreCard.score || scoreCard.badges.length}}">
+      <text class="credit-score-label">{{scoreCard.label}}</text>
       <view class="credit-score-row">
-        <text class="credit-score-number">100</text>
+        <text class="credit-score-number">{{scoreCard.score}}</text>
         <view class="credit-score-badges">
-          <text class="profile-status green">优秀</text>
-          <text class="profile-status">+5 本月</text>
+          <text
+            wx:for="{{scoreCard.badges}}"
+            wx:key="text"
+            class="profile-status {{item.tone}}"
+          >{{item.text}}</text>
         </view>
       </view>
     </view>
@@ -33,6 +36,6 @@
       </view>
     </view>
 
-    <text class="credit-bottom-note">我可是有底线的～ 信用分低于80分将限制部分功能，低于60分将暂停服务资格。</text>
+    <text wx:if="{{bottomNote}}" class="credit-bottom-note">{{bottomNote}}</text>
   </view>
 </profile-white-shell>

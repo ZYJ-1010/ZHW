@@ -10,6 +10,104 @@ async function getProfileHome() {
   return result.data
 }
 
+async function getMemberCenterConfig(params = {}) {
+  const result = await profileApi.getMemberCenterConfig(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取会员中心配置失败')
+  }
+
+  return result.data
+}
+
+async function getMemberRadarOverview(params = {}) {
+  const result = await profileApi.getMemberRadarOverview(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取人脉雷达概览失败')
+  }
+
+  return result.data
+}
+
+async function getMemberRadarProfile(params = {}) {
+  const result = await profileApi.getMemberRadarProfile(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取适配信息失败')
+  }
+
+  return result.data
+}
+
+async function saveMemberRadarProfile(payload = {}) {
+  const result = await profileApi.saveMemberRadarProfile(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '保存适配信息失败')
+  }
+
+  return result.data
+}
+
+async function startMemberRadarMatch(payload = {}) {
+  const result = await profileApi.startMemberRadarMatch(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '发起适配失败')
+  }
+
+  return result.data
+}
+
+async function getMemberRadarMatch(params = {}) {
+  const matchId = String(params.matchId || params.id || '').trim()
+
+  if (!matchId) {
+    throw new Error('缺少适配任务信息')
+  }
+
+  const result = await profileApi.getMemberRadarMatch(encodeURIComponent(matchId))
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取适配任务失败')
+  }
+
+  return result.data
+}
+
+async function getMemberRadarMatchResults(params = {}) {
+  const matchId = String(params.matchId || params.id || '').trim()
+
+  if (!matchId) {
+    throw new Error('缺少适配任务信息')
+  }
+
+  const result = await profileApi.getMemberRadarMatchResults(encodeURIComponent(matchId), params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取适配结果失败')
+  }
+
+  return result.data
+}
+
+async function followMemberRadarResult(params = {}) {
+  const resultId = String(params.resultId || params.id || '').trim()
+
+  if (!resultId) {
+    throw new Error('缺少适配对象信息')
+  }
+
+  const result = await profileApi.followMemberRadarResult(encodeURIComponent(resultId), params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '关注失败')
+  }
+
+  return result.data
+}
+
 async function replyServiceReview(payload = {}) {
   const reviewId = String(payload.reviewId || '').trim()
   const content = String(payload.content || '').trim()
@@ -818,6 +916,14 @@ async function logoutProfile() {
 
 module.exports = {
   getProfileHome,
+  getMemberCenterConfig,
+  getMemberRadarOverview,
+  getMemberRadarProfile,
+  saveMemberRadarProfile,
+  startMemberRadarMatch,
+  getMemberRadarMatch,
+  getMemberRadarMatchResults,
+  followMemberRadarResult,
   replyServiceReview,
   getProfileAssets,
   getProfilePoints,

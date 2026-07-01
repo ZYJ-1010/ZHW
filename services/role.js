@@ -33,11 +33,21 @@ async function submitRoleApplication(payload) {
   return result.data
 }
 
-async function getExpertApplyConfig() {
-  const result = await roleApi.getExpertApplyConfig()
+async function getExpertApplyConfig(params) {
+  const result = await roleApi.getExpertApplyConfig(params || {})
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取行家申请配置失败')
+  }
+
+  return result.data
+}
+
+async function getExpertApplyPrecheck(params) {
+  const result = await roleApi.getExpertApplyPrecheck(params || {})
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取行家申请条件失败')
   }
 
   return result.data
@@ -47,5 +57,6 @@ module.exports = {
   getMyRoles,
   getMyRoleApplications,
   submitRoleApplication,
-  getExpertApplyConfig
+  getExpertApplyConfig,
+  getExpertApplyPrecheck
 }
