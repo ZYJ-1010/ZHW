@@ -18,7 +18,6 @@ const ROLE_META = {
   expert: {
     roleName: '行家',
     applyTitle: '行家申请',
-    certNo: 'ZHW-00126-2026',
     successAccent: 'cyan',
     approvedCopy: '现在可以开始创建新局、交付服务',
     primaryText: '开启行家之旅',
@@ -31,7 +30,6 @@ const ROLE_META = {
   guide: {
     roleName: '领路人',
     applyTitle: '领路人申请',
-    certNo: 'ZHW-00115-2026',
     successAccent: 'orange',
     approvedCopy: '现在可以开始邀约玩家进入组局',
     primaryText: '开启领路人之旅',
@@ -119,13 +117,6 @@ function addDays(dateText, days) {
   return `${year}.${month}.${day}`
 }
 
-function createFallbackApplication(roleType, status) {
-  return {
-    roleType,
-    status
-  }
-}
-
 function normalizeApplication(rawApplication = {}, roleType, status) {
   const normalizedRole = normalizeRoleType(
     rawApplication.roleType ||
@@ -170,6 +161,7 @@ function normalizeApplication(rawApplication = {}, roleType, status) {
     reviewedAt,
     expectedReviewAt,
     applicationId: pickFirstValue(rawApplication.applicationId, rawApplication.id, rawApplication.application_id, ''),
+    certNo: pickFirstValue(rawApplication.certNo, rawApplication.cert_no, rawApplication.certificateNo, rawApplication.certificate_no, ''),
     rejectReason: pickFirstValue(rawApplication.rejectReason, rawApplication.reject_reason, ''),
     rejectReasons: Array.isArray(rawApplication.rejectReasons) ? rawApplication.rejectReasons : [],
     canReapplyAt: formatDateTime(pickFirstValue(rawApplication.canReapplyAt, rawApplication.reapplyAt, ''))
@@ -185,7 +177,7 @@ function findApplication(applications, roleType, status) {
   const sameRole = normalizedList.filter((item) => item.roleType === normalizedRole)
 
   if (!sameRole.length) {
-    return normalizeApplication(createFallbackApplication(normalizedRole, normalizedStatus), normalizedRole, normalizedStatus)
+    return null
   }
 
   const matchedApplication = sameRole.find((item) => item.status === normalizedStatus)
@@ -195,9 +187,7 @@ function findApplication(applications, roleType, status) {
   }
 
   if (normalizedStatus && normalizedStatus !== 'none') {
-    return Object.assign({}, sameRole[0], {
-      status: normalizedStatus
-    })
+    return sameRole[0]
   }
 
   return sameRole[0]
@@ -303,15 +293,32 @@ function buildPageState(application) {
       { label: '驳回时间', value: reviewedAt || '以后台记录为准' },
       { label: '可重新申请', value: canReapplyAt ? `${canReapplyAt} 后` : '请关注后台通知', highlight: true }
     ],
-    certNo: application.applicationId || meta.certNo,
+    certNo: application.certNo || application.applicationId || '以后台为准',
     certTime: reviewedAt || '以后台记录为准',
     rewards: meta.rewards,
     nextActions: APPROVED_ACTIONS
   }
 }
 
+function buildEmptyState(roleType = 'guide', status = 'pending', message = '') {
+  return {
+    loading: false,
+    hasApplication: false,
+    roleType: normalizeRoleType(roleType),
+    status: normalizeStatus(status),
+    uiIcons: UI_ICONS,
+    meta: ROLE_META[normalizeRoleType(roleType)] || ROLE_META.guide,
+    pageTitle: '审核状态',
+    emptyTitle: '暂无申请记录',
+    emptyDesc: message || '后台暂未返回当前角色的申请记录，请从角色申请入口提交或稍后再试。',
+    isPending: false,
+    isApproved: false,
+    isRejected: false
+  }
+}
+
 Page({
-  data: buildPageState(normalizeApplication(createFallbackApplication('guide', 'pending'))),
+  data: buildEmptyState('guide', 'pending'),
 
   onLoad(options = {}) {
     const roleType = normalizeRoleType(options.roleType || 'guide')
@@ -330,12 +337,18 @@ Page({
       const applications = await roleService.getMyRoleApplications()
       const application = findApplication(applications, roleType, status)
 
-      this.setData(buildPageState(application))
-    } catch (error) {
-      const fallback = normalizeApplication(createFallbackApplication(roleType, status), roleType, status)
+      if (!application) {
+        this.setData(buildEmptyState(roleType, status))
+        return
+      }
 
-      this.setData(buildPageState(fallback))
-      toast.info(error.message || '审核状态加载失败，已展示本地状态')
+      this.setData({
+        hasApplication: true,
+        ...buildPageState(application)
+      })
+    } catch (error) {
+      this.setData(buildEmptyState(roleType, status, '审核状态加载失败，请稍后重试。'))
+      toast.info(error.message || '审核状态加载失败')
     }
   },
 

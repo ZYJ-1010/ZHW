@@ -17,26 +17,31 @@
       scroll-with-animation
     >
       <view class="friend-message-body">
-        <view class="friend-profile">
+        <view wx:if="{{friend.name}}" class="friend-profile">
           <view class="friend-avatar">
             <text>{{friend.initials}}</text>
-            <view class="friend-online"></view>
+            <view wx:if="{{friend.status}}" class="friend-online"></view>
           </view>
           <view class="friend-profile-copy">
             <text class="friend-name">{{friend.name}}</text>
-            <text class="friend-status">{{friend.status}}</text>
+            <text wx:if="{{friend.status}}" class="friend-status">{{friend.status}}</text>
           </view>
         </view>
 
         <view class="message-list">
-          <view
-            wx:for="{{messages}}"
-            wx:key="id"
-            class="chat-row {{item.type === 'self' ? 'self' : 'friend'}}"
-          >
-            <text class="chat-time">{{item.timeText}}</text>
-            <view class="chat-bubble">{{item.text}}</view>
-          </view>
+          <view wx:if="{{loading}}" class="message-empty">加载中...</view>
+          <view wx:elif="{{errorText}}" class="message-empty">{{errorText}}</view>
+          <view wx:elif="{{!messages.length}}" class="message-empty">暂无好友消息</view>
+          <block wx:else>
+            <view
+              wx:for="{{messages}}"
+              wx:key="id"
+              class="chat-row {{item.type === 'self' ? 'self' : 'friend'}}"
+            >
+              <text class="chat-time">{{item.timeText}}</text>
+              <view class="chat-bubble">{{item.text}}</view>
+            </view>
+          </block>
         </view>
       </view>
     </scroll-view>

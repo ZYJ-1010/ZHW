@@ -447,6 +447,34 @@ page {
   line-height: 38rpx;
 }
 
+.empty-state {
+  box-sizing: border-box;
+  width: 684rpx;
+  min-height: 260rpx;
+  padding: 56rpx 48rpx;
+  border-radius: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.04);
+}
+
+.empty-title {
+  display: block;
+  color: #1f2937;
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 44rpx;
+  text-align: center;
+}
+
+.empty-desc {
+  display: block;
+  margin-top: 18rpx;
+  color: #6b7280;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  text-align: center;
+}
+
 .content-spacer {
   height: 42rpx;
 }

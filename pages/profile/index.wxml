@@ -5,28 +5,35 @@
   topbar-title-visible="{{false}}"
   toolbar-avatar-visible="{{false}}"
   toolbar-actions-visible="{{false}}"
-  online-text="3999人在线"
+  online-text="{{onlineText}}"
   content-scroll-y="{{true}}"
   nav-toast-enabled="{{false}}"
 >
   <view class="profile-home-shell">
     <view class="profile-home-page">
+      <view wx:if="{{loading}}" class="profile-empty">加载中...</view>
+      <view wx:elif="{{errorText}}" class="profile-empty error">{{errorText}}</view>
+
+      <block wx:else>
       <view class="profile-user-block">
-        <view class="profile-user">
-          <view class="profile-avatar">{{user.avatarText}}</view>
+        <view wx:if="{{user.nickname || user.memberLevel || user.roleLevel || user.role || user.avatarText || user.avatarUrl}}" class="profile-user">
+          <view class="profile-avatar">
+            <image wx:if="{{user.avatarUrl}}" class="profile-avatar-img" src="{{user.avatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{user.avatarText}}</text>
+          </view>
           <view class="profile-user-copy">
             <view class="profile-name-row">
-              <text class="profile-name">{{user.nickname}}</text>
-              <text class="profile-member">{{user.memberLevel}}</text>
+              <text wx:if="{{user.nickname}}" class="profile-name">{{user.nickname}}</text>
+              <text wx:if="{{user.memberLevel}}" class="profile-member">{{user.memberLevel}}</text>
             </view>
-            <view class="profile-role-row">
-              <text>{{user.roleLevel}}</text>
-              <text>{{user.role}}</text>
+            <view wx:if="{{user.roleLevel || user.role}}" class="profile-role-row">
+              <text wx:if="{{user.roleLevel}}">{{user.roleLevel}}</text>
+              <text wx:if="{{user.role}}">{{user.role}}</text>
             </view>
           </view>
         </view>
 
-        <view class="profile-stat-grid">
+        <view wx:if="{{stats.length}}" class="profile-stat-grid">
           <view wx:for="{{stats}}" wx:key="label" class="profile-stat-card">
             <text class="profile-stat-value">{{item.value}}</text>
             <text class="profile-stat-label">{{item.label}}</text>
@@ -37,24 +44,25 @@
       <view class="profile-main">
         <view class="asset-card">
           <view class="asset-head">
-            <text class="asset-title">我的资产</text>
+            <text class="asset-title">{{assetTitle}}</text>
             <view class="asset-more" bindtap="handleAssetAllTap">
-              <text>查看全部</text>
+              <text>{{assetMoreText}}</text>
               <text class="asset-more-arrow">›</text>
             </view>
           </view>
-          <view class="asset-grid">
+          <view wx:if="{{assets.length}}" class="asset-grid">
             <view wx:for="{{assets}}" wx:key="label" class="asset-item">
               <text class="asset-value {{item.tone}}">{{item.value}}</text>
               <text class="asset-label">{{item.label}}</text>
             </view>
           </view>
-          <view class="vip-banner" bindtap="handleUpgradeTap">
+          <view wx:else class="profile-empty compact">暂无资产数据</view>
+          <view wx:if="{{vipBanner}}" class="vip-banner" bindtap="handleUpgradeTap">
             <view class="vip-left">
-              <text class="vip-chip">VIP</text>
-              <text class="vip-copy">升级会员，认证您的角色</text>
+              <text class="vip-chip">{{vipBanner.chip}}</text>
+              <text class="vip-copy">{{vipBanner.text}}</text>
             </view>
-            <text class="vip-link">增购会员 ></text>
+            <text class="vip-link">{{vipBanner.actionText}}</text>
           </view>
         </view>
 
@@ -83,6 +91,7 @@
           </view>
         </view>
       </view>
+      </block>
     </view>
   </view>
 </home-shell>

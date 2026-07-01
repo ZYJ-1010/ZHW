@@ -7,6 +7,12 @@
 
   <view wx:if="{{loading}}" class="role-status-loading">加载中...</view>
 
+  <view wx:elif="{{!hasApplication}}" class="role-status-empty">
+    <text class="role-status-empty-title">{{emptyTitle}}</text>
+    <text class="role-status-empty-desc">{{emptyDesc}}</text>
+    <button bindtap="handleBackHomeTap">返回玩家首页</button>
+  </view>
+
   <block wx:else>
     <scroll-view class="role-status-scroll" scroll-y enhanced show-scrollbar="false">
       <view wx:if="{{isPending}}" class="role-status-content pending">

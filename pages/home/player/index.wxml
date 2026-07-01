@@ -135,6 +135,7 @@
     <block wx:for="{{nearbyGames}}" wx:key="title">
       <game-card wx:if="{{nearbyFilter === 'all' || item.scope === nearbyFilter}}" item="{{item}}" bind:cardtap="handleActionTap" />
     </block>
+    <text wx:if="{{!nearbyGames.length}}" class="player-empty-text">暂无组局</text>
 
     <view class="player-section-head friends">
       <view>
@@ -146,6 +147,7 @@
     </view>
 
     <game-card wx:for="{{friendGames}}" wx:key="title" item="{{item}}" bind:cardtap="handleActionTap" />
+    <text wx:if="{{!friendGames.length}}" class="player-empty-text compact">暂无朋友在玩</text>
 
     <view class="player-ranking-panel">
       <view class="player-panel-head player-ranking-head">
@@ -180,8 +182,9 @@
           <text>{{item.xpUnit}}</text>
         </view>
       </view>
+      <text wx:if="{{!rankingList.length && !showMyRank}}" class="player-empty-text panel">暂无榜单数据</text>
 
-      <view class="player-rank-row me">
+      <view wx:if="{{showMyRank}}" class="player-rank-row me">
         <text class="player-rank-no">{{myRank.rank}}</text>
         <view class="player-rank-avatar me">
           <image wx:if="{{myRank.avatarUrl}}" src="{{myRank.avatarUrl}}" mode="aspectFill" />
@@ -234,6 +237,7 @@
           </view>
         </view>
       </view>
+      <text wx:if="{{!achievements.length}}" class="player-empty-text panel">暂无成就数据</text>
     </view>
 
     <view class="player-metaverse-card" bindtap="handleActionTap">

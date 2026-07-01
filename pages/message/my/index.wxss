@@ -89,6 +89,14 @@ page {
   margin-top: 42rpx;
 }
 
+.message-empty {
+  padding: 72rpx 24rpx;
+  color: #8a94a6;
+  font-size: 26rpx;
+  line-height: 38rpx;
+  text-align: center;
+}
+
 .chat-row {
   display: flex;
   flex-direction: column;

@@ -62,6 +62,10 @@
             wx:key="id"
             class="message-card {{message.alert ? 'alert' : ''}}"
             data-route-key="{{message.routeKey}}"
+            data-room-id="{{message.roomId}}"
+            data-conversation-id="{{message.conversationId}}"
+            data-name="{{message.title}}"
+            data-avatar-text="{{message.avatarText}}"
             bindtap="onMessageTap"
           >
             <view class="message-icon-wrap">
