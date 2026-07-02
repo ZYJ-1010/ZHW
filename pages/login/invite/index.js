@@ -5,10 +5,10 @@ const { ROUTES } = require('../../../config/routes')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 function getInviteCodeFromOptions(options) {
-  const directCode = String(options.code || options.inviteCode || '').trim()
+  const directCode = inviteService.normalizeInviteCode(options.code || options.inviteCode)
 
   if (directCode) {
-    return directCode.toUpperCase()
+    return directCode
   }
 
   const scene = decodeURIComponent(String(options.scene || '')).trim()
@@ -23,7 +23,20 @@ function getInviteCodeFromOptions(options) {
     return result
   }, {})
 
-  return String(params.inviteCode || params.code || scene).trim().toUpperCase()
+  return inviteService.normalizeInviteCode(params.inviteCode || params.code || scene)
+}
+
+function getEntryTypeFromOptions(options) {
+  const scene = decodeURIComponent(String(options.scene || '')).trim()
+  const sceneParams = scene
+    ? scene.split('&').reduce((result, item) => {
+      const pair = item.split('=')
+      result[pair[0]] = pair[1] || ''
+      return result
+    }, {})
+    : {}
+
+  return String(options.entryType || sceneParams.entryType || '').trim()
 }
 
 Page({
@@ -33,18 +46,21 @@ Page({
     statusText: INVITE_STATUS_TEXT.idle,
     statusMessage: INVITE_TIP.idle,
     invite: null,
+    entryType: '',
     isVerifying: false
   },
 
   onLoad(options) {
     const inviteCode = getInviteCodeFromOptions(options || {})
+    const entryType = getEntryTypeFromOptions(options || {})
 
     if (!inviteCode) {
       return
     }
 
     this.setData({
-      inviteCode
+      inviteCode,
+      entryType
     })
     this.verifyInvite()
   },
@@ -75,16 +91,21 @@ Page({
 
     try {
       const result = await inviteService.verifyInviteCode(this.data.inviteCode)
+      const invite = result.invite
+      const entryType = invite && invite.entryType ? invite.entryType : this.data.entryType
 
       this.setData({
         inviteStatus: result.status,
         statusText: INVITE_STATUS_TEXT[result.status],
         statusMessage: result.message || INVITE_TIP[result.status],
-        invite: result.invite
+        invite,
+        entryType
       })
 
       if (result.status === 'valid') {
-        inviteService.saveInviteContext(result.invite)
+        inviteService.saveInviteContext(Object.assign({}, invite, {
+          entryType
+        }))
         toast.success('邀请码已确认')
       }
     } catch (error) {
@@ -108,8 +129,26 @@ Page({
       return
     }
 
-    inviteService.saveInviteContext(this.data.invite)
-    navigateShellRoute(`/${ROUTES.login}?ui=1&mode=invite&inviteCode=${this.data.invite.code}`)
+    const invite = inviteService.saveInviteContext(Object.assign({}, this.data.invite, {
+      entryType: this.data.entryType
+    }))
+
+    if (!invite || !invite.code) {
+      toast.info('邀请码信息异常，请重新确认')
+      return
+    }
+
+    const query = [
+      'ui=1',
+      'mode=invite',
+      `inviteCode=${encodeURIComponent(invite.code)}`
+    ]
+
+    if (invite.entryType) {
+      query.push(`entryType=${encodeURIComponent(invite.entryType)}`)
+    }
+
+    navigateShellRoute(`/${ROUTES.login}?${query.join('&')}`)
   },
 
   goNormalLogin() {

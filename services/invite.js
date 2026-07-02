@@ -1,7 +1,43 @@
 const api = require('../api/request')
 
+const EMPTY_INVITE_CODE_VALUES = ['', 'UNDEFINED', 'NULL']
+
+function normalizeInviteCode(value) {
+  const code = String(value || '').trim().toUpperCase()
+
+  return EMPTY_INVITE_CODE_VALUES.includes(code) ? '' : code
+}
+
+function normalizeInviteContext(source, fallbackCode = '') {
+  if (!source || typeof source !== 'object') {
+    return null
+  }
+
+  const rawInvite = source.inviteCode && typeof source.inviteCode === 'object'
+    ? source.inviteCode
+    : source.invite && typeof source.invite === 'object'
+      ? source.invite
+      : source
+  const invite = Object.assign({}, rawInvite)
+  const code = normalizeInviteCode(invite.code || invite.inviteCode || fallbackCode)
+
+  if (!code) {
+    return null
+  }
+
+  const entryType = String(source.entryType || invite.entryType || '').trim()
+
+  return Object.assign({}, invite, {
+    code,
+    entryType,
+    authPageMode: source.authPageMode || invite.authPageMode || '',
+    boundWechat: Boolean(source.boundWechat || invite.boundWechat),
+    boundUserId: source.boundUserId || invite.boundUserId || invite.boundWechatUserId || 0
+  })
+}
+
 async function verifyInviteCode(code) {
-  const normalizedCode = String(code || '').trim().toUpperCase()
+  const normalizedCode = normalizeInviteCode(code)
 
   if (!normalizedCode) {
     return {
@@ -21,23 +57,37 @@ async function verifyInviteCode(code) {
     }
   }
 
+  const invite = normalizeInviteContext(result.data, normalizedCode)
+
+  if (!invite) {
+    return {
+      status: 'invalid',
+      invite: null,
+      message: '邀请码返回格式异常'
+    }
+  }
+
   return {
     status: 'valid',
-    invite: result.data,
+    invite,
+    precheck: result.data,
     message: '邀请码已确认'
   }
 }
 
 function saveInviteContext(invite) {
-  if (!invite || !invite.code) {
-    return
+  const normalizedInvite = normalizeInviteContext(invite)
+
+  if (!normalizedInvite) {
+    return null
   }
 
-  wx.setStorageSync('enjoy_invite_context', invite)
+  wx.setStorageSync('enjoy_invite_context', normalizedInvite)
+  return normalizedInvite
 }
 
 function getInviteContext() {
-  return wx.getStorageSync('enjoy_invite_context') || null
+  return normalizeInviteContext(wx.getStorageSync('enjoy_invite_context') || null)
 }
 
 function clearInviteContext() {
@@ -48,5 +98,7 @@ module.exports = {
   verifyInviteCode,
   saveInviteContext,
   getInviteContext,
-  clearInviteContext
+  clearInviteContext,
+  normalizeInviteCode,
+  normalizeInviteContext
 }

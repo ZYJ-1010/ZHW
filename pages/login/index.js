@@ -117,8 +117,12 @@ Page({
     }
 
     const inviteCode = this.normalizeInviteCode(options.inviteCode || options.code)
+    const entryType = String(options.entryType || '').trim()
     const inviteContext = inviteCode
-      ? { code: inviteCode }
+      ? inviteService.normalizeInviteContext({
+        code: inviteCode,
+        entryType
+      })
       : inviteService.getInviteContext()
 
     if (inviteContext && inviteContext.code) {
@@ -174,7 +178,7 @@ Page({
 
   onInviteCodeInput(event) {
     this.setData({
-      inviteCode: String(event.detail.value || '').trim().toUpperCase()
+      inviteCode: this.normalizeInviteCode(event.detail.value)
     })
   },
 
@@ -737,7 +741,7 @@ Page({
   },
 
   normalizeInviteCode(value) {
-    return String(value || '').trim().toUpperCase()
+    return inviteService.normalizeInviteCode(value)
   },
 
   async handlePhoneLogin() {
