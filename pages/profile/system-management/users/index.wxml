@@ -1,0 +1,99 @@
+<profile-white-shell
+  title="用户屏蔽"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page compact-page users-page no-bottom">
+    <view class="search-box user-search">
+      <image src="{{icons.search}}" mode="aspectFit"></image>
+      <input placeholder="搜索已屏蔽用户" placeholder-class="placeholder" />
+    </view>
+
+    <view class="stats-grid user-stats">
+      <view class="stat-card">
+        <text class="stat-value">{{users.length}}</text>
+        <text class="stat-label">已屏蔽</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-value gold">7</text>
+        <text class="stat-label">近30天</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-value green">24h</text>
+        <text class="stat-label">冷却期</text>
+      </view>
+    </view>
+
+    <view class="info-banner">
+      <image src="{{icons.lightbulb}}" mode="aspectFit"></image>
+      <text>被屏蔽用户无法查看您的局、向您发送邀约或私信。双方互不可见，历史互动记录保留。</text>
+    </view>
+
+    <view class="add-user-card" bindtap="handleOpenAddSheet">
+      <view class="icon-tile">
+        <image src="{{icons.plus}}" mode="aspectFit"></image>
+      </view>
+      <text>添加屏蔽用户</text>
+    </view>
+
+    <text class="section-label">已屏蔽用户（{{users.length}}）</text>
+    <view class="card blocked-list">
+      <view wx:for="{{users}}" wx:key="name" class="blocked-row">
+        <view class="avatar-circle red">
+          <image src="{{icons.avatar}}" mode="aspectFit"></image>
+        </view>
+        <view class="blocked-main">
+          <view class="blocked-title-row">
+            <text class="blocked-name">{{item.name}}</text>
+            <text class="role-tag {{item.role === '行家' ? 'expert' : ''}}">{{item.role}}</text>
+          </view>
+          <text class="row-desc">屏蔽原因：{{item.reason}}</text>
+        </view>
+        <text class="blocked-date">{{item.date}}</text>
+        <view class="danger-outline" data-index="{{index}}" bindtap="handleUnblockTap">解除</view>
+      </view>
+      <view wx:if="{{!users.length}}" class="empty-row">暂无屏蔽用户</view>
+    </view>
+
+    <text class="section-label">规则说明</text>
+    <view class="note-card">
+      <view wx:for="{{rules}}" wx:key="prefix" class="note-line">
+        <view class="note-dot"></view>
+        <text>{{item.prefix}}</text><text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showAddSheet}}" class="sheet-mask" catchtap="handleCloseSheet"></view>
+  <view wx:if="{{showAddSheet}}" class="bottom-sheet compact-sheet user-sheet">
+    <view class="sheet-head">
+      <text class="sheet-title">选择要屏蔽的用户</text>
+      <image class="sheet-close" src="{{icons.close}}" mode="aspectFit" bindtap="handleCloseSheet"></image>
+    </view>
+    <view class="search-box">
+      <image src="{{icons.search}}" mode="aspectFit"></image>
+      <input placeholder="搜索用户昵称或ID" placeholder-class="placeholder" />
+    </view>
+    <view class="candidate-list">
+      <view wx:for="{{candidates}}" wx:key="name" class="user-candidate-row" data-index="{{index}}" bindtap="handleCandidateToggle">
+        <view class="avatar-circle">
+          <image src="{{icons.avatar}}" mode="aspectFit"></image>
+        </view>
+        <view class="row-main">
+          <text class="row-title">{{item.name}}</text>
+          <text class="row-desc">{{item.meta}}</text>
+        </view>
+        <view class="candidate-check">
+          <image wx:if="{{item.checked}}" src="{{icons.check}}" mode="aspectFit"></image>
+        </view>
+      </view>
+      <view wx:if="{{!candidates.length}}" class="empty-row">暂无可添加候选人，请从用户主页或后台配置添加</view>
+    </view>
+    <view class="primary-btn {{hasSelection ? '' : 'disabled'}}" bindtap="handleConfirmBlock">确认屏蔽 ({{selectedCount}})</view>
+  </view>
+</profile-white-shell>

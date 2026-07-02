@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "全部参与者",
+  "usingComponents": {
+    "participant-card": "/components/participant-card/index"
+  }
+}

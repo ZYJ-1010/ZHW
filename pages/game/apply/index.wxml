@@ -1,0 +1,97 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  shell-variant="joinApply"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="game-apply-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{applyScrollTop}}"
+    bindscroll="handleApplyScroll"
+    enable-back-to-top
+  >
+    <view class="game-apply-page">
+      <view class="apply-heading">
+        <text class="apply-subtitle">{{applicationConfig.texts.subtitle}}</text>
+      </view>
+
+      <view class="wechat-card">
+        <image
+          wx:if="{{wechatInfo.avatarUrl}}"
+          class="wechat-avatar-image"
+          src="{{wechatInfo.avatarUrl}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="wechat-avatar">{{wechatInfo.avatarFallback}}</view>
+        <view class="wechat-copy">
+          <text class="wechat-title">{{applicationConfig.texts.wechatTitle}}</text>
+          <text class="wechat-desc">{{applicationConfig.texts.nicknameLabel}}：{{wechatInfo.nickname}} · {{wechatInfo.syncText}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{applicationConfig.agreementText || applicationConfig.recommendationHint}}" class="apply-rule-card">
+        <text wx:if="{{applicationConfig.agreementText}}" class="apply-rule-text">{{applicationConfig.agreementText}}</text>
+        <text wx:if="{{applicationConfig.recommendationHint}}" class="apply-rule-hint">{{applicationConfig.recommendationHint}}</text>
+      </view>
+
+      <view class="apply-section">
+        <view class="apply-section-label required">
+          <text>{{applicationConfig.texts.introLabel}}</text>
+          <text class="required-mark">*</text>
+        </view>
+        <textarea
+          class="apply-textarea intro"
+          value="{{form.intro}}"
+          maxlength="{{applicationConfig.maxIntroLength}}"
+          auto-height="{{false}}"
+          bindinput="onIntroInput"
+          placeholder="{{applicationConfig.texts.introPlaceholder}}"
+          placeholder-class="apply-placeholder"
+        />
+      </view>
+
+      <view class="apply-section">
+        <text class="apply-section-label">{{applicationConfig.texts.portfolioLabel}}{{applicationConfig.uploadRequired ? ' *' : ''}}</text>
+        <work-upload-panel panel-class="framed" bind:imageupload="onUploadImage" bind:fileupload="onUploadFile" />
+      </view>
+
+      <view class="apply-section">
+        <text class="apply-section-label">{{applicationConfig.texts.messageLabel}}</text>
+        <textarea
+          class="apply-textarea message"
+          value="{{form.message}}"
+          maxlength="{{applicationConfig.maxMessageLength || -1}}"
+          auto-height="{{false}}"
+          bindinput="onMessageInput"
+          placeholder="{{applicationConfig.texts.messagePlaceholder}}"
+          placeholder-class="apply-placeholder"
+        />
+      </view>
+
+      <checkbox-group class="agreement-group" bindchange="onAgreementChange">
+        <label class="agreement-row">
+          <checkbox class="agreement-checkbox-native" value="agreed" checked="{{form.agreed}}" />
+          <view class="agreement-checkbox-visual {{form.agreed ? 'checked' : ''}}">
+            <view wx:if="{{form.agreed}}" class="agreement-check-mark"></view>
+          </view>
+          <view class="agreement-copy">
+            <text>{{applicationConfig.texts.agreementPrefix}}</text>
+            <text class="agreement-link" catchtap="onAgreementTap">《{{applicationConfig.agreementTitle}}》</text>
+          </view>
+        </label>
+      </checkbox-group>
+
+      <view class="action-row">
+        <button class="action-button secondary" hover-class="none" bindtap="onCancel">{{applicationConfig.texts.cancelText}}</button>
+        <button class="action-button primary" hover-class="none" bindtap="onSubmit">{{applicationConfig.texts.submitText}}</button>
+      </view>
+    </view>
+  </scroll-view>
+</home-shell>

@@ -1,0 +1,149 @@
+<profile-white-shell
+  title="建议反馈"
+  background="#080d19"
+  nav-background="#080d19"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+  right-text="记录"
+  right-color="#8b91a0"
+  right-width="{{86}}"
+  bind:righttap="handleRecordTap"
+>
+  <view class="feedback-page feedback-home">
+    <view class="feedback-card form-section type-section">
+      <view class="section-title">反馈类型</view>
+      <view class="type-grid">
+        <view
+          wx:for="{{feedbackTypes}}"
+          wx:key="key"
+          class="feedback-pill {{activeType === item.key ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="handleTypeTap"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="feedback-card form-section session-section">
+      <view class="section-title">关联组局（选填）</view>
+      <scroll-view class="session-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view
+          wx:for="{{sessions}}"
+          wx:key="key"
+          class="session-card {{activeSession === item.key ? 'selected' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="handleSessionTap"
+        >
+          <text class="session-title">{{item.title}}</text>
+          <text class="session-meta">{{item.meta}}</text>
+          <view class="session-radio"></view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="feedback-card form-section content-section">
+      <view class="section-title">反馈内容</view>
+      <view class="textarea-wrap">
+        <textarea
+          value="{{feedbackContent}}"
+          maxlength="{{feedbackLimits.contentMaxLength}}"
+          placeholder="请详细描述您的建议或遇到的问题，我们会认真阅读每一条反馈..."
+          placeholder-class="placeholder"
+          bindinput="handleContentInput"
+        />
+        <text class="counter">{{feedbackContent.length}}/{{feedbackLimits.contentMaxLength}}</text>
+      </view>
+    </view>
+
+    <view class="feedback-card form-section upload-section">
+      <view class="section-title">上传截图（选填）</view>
+      <view class="upload-tile" bindtap="handleUploadTap">
+        <image class="upload-plus" src="{{icons.plus}}" mode="aspectFit"></image>
+      </view>
+      <text class="upload-note">{{feedbackLimits.uploadNote}}</text>
+    </view>
+
+    <view class="feedback-card form-section contact-section">
+      <view class="section-title">联系方式（推荐填写）</view>
+      <input
+        class="contact-input"
+        value="{{contact}}"
+        placeholder="手机号 / 邮箱"
+        placeholder-class="placeholder"
+        bindinput="handleContactInput"
+      />
+      <view class="contact-note">
+        <image class="contact-note-icon" src="{{icons.notify}}" mode="aspectFit"></image>
+        <text>填写后处理进度将第一时间通知您</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{quickMenuOpen}}" class="quick-fab-menu">
+    <view
+      wx:for="{{quickActions}}"
+      wx:key="key"
+      class="quick-action"
+      data-key="{{item.key}}"
+      bindtap="handleQuickActionTap"
+    >
+      <text class="quick-action-label">{{item.label}}</text>
+      <view class="quick-action-icon">
+        <image src="{{item.icon}}" mode="aspectFit"></image>
+      </view>
+    </view>
+    <view class="quick-menu-close" bindtap="handleCloseQuickMenu">
+      <image src="{{icons.closeWhite}}" mode="aspectFit"></image>
+    </view>
+  </view>
+
+  <view wx:else class="quick-fab" bindtap="handleQuickTap">
+    <image src="{{icons.plus}}" mode="aspectFit"></image>
+  </view>
+
+  <view class="bottom-submit">
+    <view class="primary-gradient-button" bindtap="handleSubmitTap">提交反馈</view>
+  </view>
+
+  <view wx:if="{{showQuickFeedback}}" class="quick-mask" catchtouchmove="noop" catchtap="handleCloseQuick"></view>
+  <view wx:if="{{showQuickFeedback}}" class="quick-sheet" catchtouchmove="noop">
+    <view class="quick-head">
+      <text class="quick-title">快捷反馈</text>
+      <view class="quick-close" bindtap="handleCloseQuick">
+        <image src="{{icons.close}}" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <view class="quick-type-grid">
+      <view
+        wx:for="{{quickTypes}}"
+        wx:key="key"
+        class="quick-type {{item.tone}} {{quickType === item.key ? 'selected' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleQuickTypeTap"
+      >
+        <view class="quick-type-icon">
+          <image src="{{item.icon}}" mode="aspectFit"></image>
+        </view>
+        <text>{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="quick-upload" bindtap="handleUploadTap">
+      <view class="quick-upload-icon">
+        <image src="{{icons.image}}" mode="aspectFit"></image>
+      </view>
+      <text class="quick-upload-title">点击上传截图</text>
+      <text class="quick-upload-desc">支持圈注问题位置</text>
+    </view>
+
+    <view class="voice-button" bindtap="handleVoiceTap">
+      <image src="{{icons.voice}}" mode="aspectFit"></image>
+      <text>{{voiceFiles.length ? '已添加语音' + voiceFiles.length + '条' : '按住说话'}}</text>
+    </view>
+
+    <view class="primary-gradient-button quick-submit" bindtap="handleSubmitTap">提交反馈</view>
+  </view>
+</profile-white-shell>

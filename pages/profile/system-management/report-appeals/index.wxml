@@ -1,0 +1,45 @@
+<profile-white-shell
+  title="我的申诉"
+  background="#071321"
+  nav-background="#071321"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="report-page appeals-page">
+    <view class="report-tabs">
+      <view class="report-tab" data-target="home" bindtap="handleTabTap">我要举报</view>
+      <view class="report-tab active">我的申诉</view>
+      <view class="report-tab" data-target="records" bindtap="handleTabTap">处理记录</view>
+    </view>
+
+    <view class="filter-row appeal-filters">
+      <view
+        wx:for="{{filters}}"
+        wx:key="key"
+        class="filter-chip {{activeFilter === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleFilterTap"
+      >{{item.label}}</view>
+    </view>
+
+    <view class="appeal-list">
+      <view wx:for="{{visibleAppeals}}" wx:key="id" class="list-card" data-id="{{item.id}}" bindtap="handleDetailTap">
+        <view class="list-head">
+          <text class="list-title">{{item.title}}</text>
+          <text class="status-badge {{item.statusClass}}">{{item.status}}</text>
+        </view>
+        <view class="list-desc">申诉原因：{{item.reason}}</view>
+        <view class="list-foot">
+          <text class="list-time">{{item.time}}</text>
+          <view class="detail-link" data-id="{{item.id}}" catchtap="handleDetailTap">查看详情 →</view>
+        </view>
+      </view>
+      <view wx:if="{{!visibleAppeals.length}}" class="list-card empty-card">
+        <view class="list-desc">{{emptyText}}</view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

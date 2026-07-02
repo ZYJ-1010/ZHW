@@ -1,0 +1,49 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="relation-network-page">
+    <image
+      class="relation-network-map"
+      src="./assets/relation-network-map.png"
+      mode="aspectFill"
+    />
+
+    <view class="relation-control-panel">
+      <view class="relation-control-main">
+        <button class="relation-back-button" hover-class="none" bindtap="handleBackTap">
+          <text class="relation-back-icon">←</text>
+        </button>
+
+        <view class="relation-location-copy">
+          <view class="relation-location-row">
+            <text class="relation-location-icon">{{header.titleIcon}}</text>
+            <text class="relation-location-title">{{header.title}}</text>
+            <text class="relation-status">● {{header.statusText}}</text>
+          </view>
+          <text class="relation-address">{{header.address}}</text>
+        </view>
+      </view>
+
+      <button class="relation-refresh-button" hover-class="none" loading="{{loading}}" bindtap="handleRefreshTap">
+        <text class="relation-refresh-icon">↻</text>
+        <text class="relation-refresh-text">刷新</text>
+      </button>
+
+      <view class="relation-tab-row">
+        <view
+          wx:for="{{relationTabs}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          class="relation-tab {{activeTab === item.key ? 'active' : ''}}"
+          bindtap="handleTabTap"
+        >
+          {{item.text}}
+        </view>
+      </view>
+    </view>
+  </view>
+</home-shell>

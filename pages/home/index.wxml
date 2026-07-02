@@ -1,0 +1,504 @@
+<view wx:if="{{isHomePreview}}" class="home-preview-page {{currentHomePreview.mode}}">
+  <role-dashboard-home
+    wx:if="{{currentHomePreview.mode === 'roleHome'}}"
+    role-type="{{currentHomePreview.roleType}}"
+  ></role-dashboard-home>
+
+  <view wx:elif="{{currentHomePreview.mode === 'launchAnimation'}}" class="home-game-shell home-launch-screen">
+    <view class="home-game-topbar">
+      <view class="home-game-brand">
+        <text class="home-game-logo-mark">🎮</text>
+        <view>
+          <text class="home-game-brand-name">{{currentHomePreview.brand}}</text>
+          <text class="home-game-online">{{currentHomePreview.onlineText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="home-launch-main">
+      <view class="home-launch-orb">
+        <view class="home-launch-console">
+          <text class="home-launch-plus">+</text>
+          <view class="home-launch-buttons">
+            <text></text>
+            <text></text>
+          </view>
+          <text class="home-launch-flash">ϟ</text>
+        </view>
+        <text class="home-launch-go">{{currentHomePreview.actionText}}</text>
+      </view>
+      <view class="home-launch-wordmark">
+        <text class="home-launch-title">{{currentHomePreview.title}}</text>
+        <text class="home-launch-subtitle">{{currentHomePreview.subtitle}}</text>
+      </view>
+    </view>
+
+    <view class="home-launch-dots">
+      <text wx:for="{{currentHomePreview.featureDots}}" wx:key="*this" class="{{item}}"></text>
+    </view>
+  </view>
+
+  <home-shell
+    wx:elif="{{currentHomePreview.mode === 'roleComparison'}}"
+    online-text="{{roleComparisonShell.onlineText}}"
+    nav-items="{{roleComparisonShell.navItems}}"
+    dock-visible="{{false}}"
+    content-scroll-y="{{true}}"
+    nav-toast-enabled="{{false}}"
+    shell-class="home-shell--content-only"
+  >
+    <view class="home-role-compare">
+      <view class="home-game-appbar">
+        <text class="home-game-back" bindtap="handleRoleCompareBackTap">‹</text>
+        <text class="home-game-app-title">{{currentHomePreview.title}}</text>
+      </view>
+      <view class="home-role-compare-content">
+        <view class="home-role-hero">
+          <view class="home-role-title-row">
+            <text class="home-role-title-icon">🎯</text>
+            <text class="home-role-title">{{currentHomePreview.title}}</text>
+          </view>
+          <text class="home-role-subtitle">{{currentHomePreview.subtitle}}</text>
+        </view>
+        <view class="home-role-cards">
+          <view wx:for="{{currentHomePreview.roles}}" wx:key="name" class="home-role-card {{item.key}} {{item.active ? 'active' : ''}}">
+            <text class="home-role-icon">{{item.icon}}</text>
+            <text class="home-role-name">{{item.name}}</text>
+            <text class="home-role-level">{{item.level}}</text>
+          </view>
+        </view>
+        <view class="home-role-table">
+          <view class="home-role-row head">
+            <text>权益功能</text>
+            <text class="player">玩家</text>
+            <text class="guide">领路人</text>
+            <text class="expert">行家</text>
+          </view>
+          <view wx:for="{{currentHomePreview.benefits}}" wx:for-index="benefitIndex" wx:key="name" class="home-role-row {{benefitIndex === 4 ? 'spaced' : ''}}">
+            <text>{{item.name}}</text>
+            <text class="player {{item.player === '✓' ? 'ok' : 'muted'}}">{{item.player}}</text>
+            <text class="guide {{item.leader === '✓' ? 'ok' : item.leader === '—' ? 'muted' : 'rate'}}">{{item.leader}}</text>
+            <text class="expert {{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
+          </view>
+        </view>
+        <view class="home-game-bottom-action" catchtap="handleRoleCompareApplyTap">
+          <text>{{currentHomePreview.primary}}</text>
+        </view>
+      </view>
+    </view>
+  </home-shell>
+
+  <home-apply-shell
+    wx:elif="{{currentHomePreview.mode === 'expertApplyForm' || currentHomePreview.mode === 'expertApplyOverview'}}"
+    nav-title="{{currentHomePreview.navTitle}}"
+    shell-class="home-expert-apply"
+    preview-switch-enabled="{{!homePreviewSingle}}"
+    bindpreviewswitch="handleHomePreviewTap"
+  >
+          <view class="home-expert-apply-toolbar">
+            <text class="home-expert-apply-back" catchtap="handleExpertApplyBackTap">‹</text>
+            <text wx:if="{{currentHomePreview.saveText && currentHomePreview.mode === 'expertApplyForm'}}" class="home-expert-apply-save" catchtap="handleExpertApplySaveTap">{{currentHomePreview.saveText}}</text>
+          </view>
+          <scroll-view class="home-master-apply-main home-expert-apply-main" scroll-y enhanced show-scrollbar="false">
+            <view class="home-expert-apply-hero">
+              <view class="home-expert-apply-icon">{{currentHomePreview.icon}}</view>
+              <text class="home-expert-apply-heading">{{currentHomePreview.title}}</text>
+              <text class="home-expert-apply-tagline">{{currentHomePreview.tagline}}</text>
+            </view>
+
+            <block wx:if="{{currentHomePreview.mode === 'expertApplyForm'}}">
+              <view class="home-expert-apply-panel">
+                <block wx:for="{{currentHomePreview.fields}}" wx:for-item="field" wx:key="label">
+                  <view class="home-expert-field">
+                    <view class="home-expert-field-label">
+                      <text>{{field.label}}</text>
+                      <text wx:if="{{field.required}}" class="required">*</text>
+                    </view>
+
+                    <block wx:if="{{field.type === 'chips'}}">
+                      <view class="home-expert-chip-grid" catchtap="stopExpertApplyTap">
+                        <text
+                          wx:for="{{currentHomePreview.skillOptions}}"
+                          wx:for-item="skill"
+                          wx:for-index="skillIndex"
+                          wx:key="name"
+                          data-index="{{skillIndex}}"
+                          class="home-expert-chip {{skill.active ? 'active' : ''}} {{skill.custom ? 'custom' : ''}}"
+                          catchtap="onExpertApplySkillTap"
+                        >{{skill.name}}</text>
+                      </view>
+                      <view wx:if="{{expertApplyCustomInputVisible}}" class="home-expert-custom-field" catchtap="stopExpertApplyTap">
+                        <input
+                          class="home-expert-custom-input"
+                          value="{{expertApplyCustomInput}}"
+                          placeholder="请输入技能领域"
+                          placeholder-class="home-expert-placeholder"
+                          maxlength="{{expertApplyCustomMaxLength}}"
+                          bindinput="onExpertApplyCustomInput"
+                        />
+                        <view class="home-expert-custom-confirm" catchtap="confirmExpertApplyCustomSkill">确定</view>
+                      </view>
+                      <text wx:if="{{expertApplyCustomError}}" class="home-expert-error">{{expertApplyCustomError}}</text>
+                    </block>
+
+                    <block wx:elif="{{field.type === 'textarea'}}">
+                      <view class="home-expert-textarea {{expertApplyErrors.intro ? 'error' : ''}}" catchtap="stopExpertApplyTap">
+                        <textarea
+                          class="home-expert-textarea-control"
+                          value="{{expertApplyForm.intro}}"
+                          placeholder="{{field.placeholder}}"
+                          placeholder-class="home-expert-placeholder"
+                          maxlength="{{field.maxlength}}"
+                          data-field="{{field.key}}"
+                          bindinput="onExpertApplyInput"
+                        />
+                      </view>
+                    </block>
+
+                    <block wx:elif="{{field.type === 'select'}}">
+                      <view class="home-expert-select" catchtap="stopExpertApplyTap">
+                        <view class="home-expert-input {{expertApplyErrors.experienceYears ? 'error' : ''}}" catchtap="toggleExpertApplyYearDropdown">
+                          <text class="{{expertApplyForm.experienceYears ? 'home-expert-input-value' : 'home-expert-input-placeholder'}}">{{expertApplyForm.experienceYears || field.placeholder}}</text>
+                          <text class="home-expert-select-arrow">{{expertApplyYearDropdownVisible ? '⌃' : '⌄'}}</text>
+                        </view>
+                        <view wx:if="{{expertApplyYearDropdownVisible}}" class="home-expert-select-menu">
+                          <text
+                            wx:for="{{expertApplyYearOptions}}"
+                            wx:for-item="yearOption"
+                            wx:for-index="yearIndex"
+                            wx:key="*this"
+                            data-index="{{yearIndex}}"
+                            class="home-expert-select-option {{expertApplyForm.experienceYears === yearOption ? 'active' : ''}}"
+                            catchtap="onExpertApplyYearOptionTap"
+                          >{{yearOption}}</text>
+                        </view>
+                      </view>
+                    </block>
+
+                    <block wx:else>
+                      <view class="home-expert-input {{expertApplyErrors.skillTags ? 'error' : ''}}" catchtap="stopExpertApplyTap">
+                        <input
+                          class="home-expert-input-control"
+                          value="{{expertApplyForm.skillTags}}"
+                          placeholder="{{field.placeholder}}"
+                          placeholder-class="home-expert-placeholder"
+                          maxlength="{{field.maxlength}}"
+                          data-field="{{field.key}}"
+                          bindinput="onExpertApplyInput"
+                        />
+                      </view>
+                    </block>
+                    <text wx:if="{{field.helper}}" class="home-expert-field-helper">{{field.helper}}</text>
+                    <text wx:if="{{field.key === 'skillDomain' && expertApplyErrors.skillDomain}}" class="home-expert-error">{{expertApplyErrors.skillDomain}}</text>
+                    <text wx:if="{{field.key === 'skillTags' && expertApplyErrors.skillTags}}" class="home-expert-error">{{expertApplyErrors.skillTags}}</text>
+                    <text wx:if="{{field.key === 'experienceYears' && expertApplyErrors.experienceYears}}" class="home-expert-error">{{expertApplyErrors.experienceYears}}</text>
+                    <text wx:if="{{field.key === 'intro' && expertApplyErrors.intro}}" class="home-expert-error">{{expertApplyErrors.intro}}</text>
+                  </view>
+                </block>
+              </view>
+
+              <view class="home-expert-apply-panel secondary">
+                <view class="home-expert-field">
+                  <view class="home-expert-field-label">
+                    <text>{{currentHomePreview.uploadField.label}}</text>
+                    <text wx:if="{{currentHomePreview.uploadField.required}}" class="required">*</text>
+                  </view>
+                  <view class="home-expert-upload {{expertApplyErrors.uploadFiles ? 'error' : ''}}" catchtap="onExpertApplyUploadTap">
+                    <text class="home-expert-upload-icon">{{currentHomePreview.uploadField.icon}}</text>
+                    <view class="home-expert-upload-copy">
+                      <text class="home-expert-upload-title">{{expertApplyForm.uploadFiles.length ? '继续上传作品集及凭证' : currentHomePreview.uploadField.title}}</text>
+                      <text class="home-expert-field-helper">{{expertApplyForm.uploadFiles.length ? '已上传 ' + expertApplyForm.uploadFiles.length + '/' + currentHomePreview.uploadField.maxCount + ' 个文件 · ' + currentHomePreview.uploadField.helper : currentHomePreview.uploadField.helper}}</text>
+                    </view>
+                  </view>
+                  <view wx:if="{{expertApplyForm.uploadFiles.length}}" class="home-expert-upload-list">
+                    <view wx:for="{{expertApplyForm.uploadFiles}}" wx:for-item="uploadFile" wx:for-index="uploadIndex" wx:key="path" class="home-expert-upload-file">
+                      <text class="home-expert-upload-file-index">{{uploadIndex + 1}}</text>
+                      <text class="home-expert-upload-file-name">{{uploadFile.name}}</text>
+                      <text class="home-expert-upload-file-remove" data-index="{{uploadIndex}}" catchtap="onExpertApplyRemoveFileTap">删除</text>
+                    </view>
+                  </view>
+                  <text wx:if="{{expertApplyErrors.uploadFiles}}" class="home-expert-error">{{expertApplyErrors.uploadFiles}}</text>
+                </view>
+
+                <view wx:for="{{currentHomePreview.serviceBlocks}}" wx:for-item="serviceBlock" wx:for-index="serviceIndex" wx:key="id" class="home-expert-service-block {{serviceIndex === 0 ? 'first' : ''}}">
+                  <view class="home-expert-service-title">
+                    <text>{{serviceBlock.title}}</text>
+                    <input
+                      class="home-expert-service-name-input {{expertApplyServiceErrors[serviceIndex].name ? 'error' : ''}}"
+                      value="{{expertApplyForm.services[serviceIndex].name}}"
+                      maxlength="{{expertApplyServiceNameMaxLength}}"
+                      data-index="{{serviceIndex}}"
+                      bindinput="onExpertApplyServiceNameInput"
+                      catchtap="stopExpertApplyTap"
+                    />
+                    <text class="required">*</text>
+                  </view>
+                  <text wx:if="{{expertApplyServiceErrors[serviceIndex].name}}" class="home-expert-error service-name">{{expertApplyServiceErrors[serviceIndex].name}}</text>
+
+                  <view class="home-expert-service-field">
+                    <view class="home-expert-field-label service">
+                      <text>服务定价（元/小时）</text>
+                      <text class="required">*</text>
+                    </view>
+                    <view class="home-expert-input price {{expertApplyServiceErrors[serviceIndex].price ? 'error' : ''}}" catchtap="stopExpertApplyTap">
+                      <input
+                        class="home-expert-input-control"
+                        value="{{expertApplyForm.services[serviceIndex].price}}"
+                        type="digit"
+                        maxlength="11"
+                        placeholder="请输入金额"
+                        placeholder-class="home-expert-placeholder"
+                        data-index="{{serviceIndex}}"
+                        data-field="price"
+                        bindinput="onExpertApplyMoneyInput"
+                      />
+                    </view>
+                    <text wx:if="{{expertApplyServiceErrors[serviceIndex].price}}" class="home-expert-error">{{expertApplyServiceErrors[serviceIndex].price}}</text>
+                  </view>
+
+                  <view class="home-expert-service-field">
+                    <view class="home-expert-field-label service">
+                      <text>服务成本</text>
+                    </view>
+                    <view class="home-expert-input price {{expertApplyServiceErrors[serviceIndex].cost ? 'error' : ''}}" catchtap="stopExpertApplyTap">
+                      <input
+                        class="home-expert-input-control"
+                        value="{{expertApplyForm.services[serviceIndex].cost}}"
+                        type="digit"
+                        maxlength="11"
+                        placeholder="请输入金额"
+                        placeholder-class="home-expert-placeholder"
+                        data-index="{{serviceIndex}}"
+                        data-field="cost"
+                        bindinput="onExpertApplyMoneyInput"
+                      />
+                    </view>
+                    <text wx:if="{{expertApplyServiceErrors[serviceIndex].cost}}" class="home-expert-error">{{expertApplyServiceErrors[serviceIndex].cost}}</text>
+                  </view>
+                </view>
+                <text class="home-expert-field-helper price">{{currentHomePreview.priceHint}}</text>
+              </view>
+            </block>
+
+            <block wx:else>
+              <view class="home-expert-overview-shell">
+                <view class="home-expert-requirements-card">
+                  <view class="home-expert-section-title">
+                    <text>📋</text>
+                    <text>{{currentHomePreview.requirementsTitle}}</text>
+                  </view>
+                  <view wx:for="{{currentHomePreview.requirements}}" wx:for-item="requirement" wx:key="title" class="home-expert-requirement">
+                    <view class="home-expert-status-dot {{requirement.checked ? 'checked' : ''}}">
+                      <text wx:if="{{requirement.checked}}">✓</text>
+                    </view>
+                    <view>
+                      <text class="home-expert-requirement-title">{{requirement.title}}</text>
+                      <text class="home-expert-requirement-status">{{requirement.status}}</text>
+                    </view>
+                  </view>
+
+                  <view class="home-expert-plan-card" catchtap="handleExpertApplyPlanTap">
+                    <view class="home-expert-status-dot {{currentHomePreview.planTask.checked ? 'checked' : ''}}">
+                      <text wx:if="{{currentHomePreview.planTask.checked}}">✓</text>
+                    </view>
+                    <view>
+                      <text class="home-expert-plan-title">{{currentHomePreview.planTask.title}}</text>
+                      <text class="home-expert-plan-desc">{{currentHomePreview.planTask.desc}}</text>
+                    </view>
+                    <text class="home-expert-plan-action" catchtap="handleExpertApplyPlanTap">{{currentHomePreview.planTask.action}}</text>
+                  </view>
+                </view>
+
+                <view class="home-expert-benefits-card">
+                  <view class="home-expert-section-title crown">
+                    <text>👑</text>
+                    <text>{{currentHomePreview.benefitsTitle}}</text>
+                  </view>
+                  <view wx:for="{{currentHomePreview.benefits}}" wx:for-item="benefit" wx:key="text" class="home-expert-benefit">
+                    <text class="home-expert-benefit-icon">{{benefit.icon}}</text>
+                    <text class="home-expert-benefit-text">{{benefit.text}}</text>
+                  </view>
+                </view>
+              </view>
+            </block>
+
+            <text class="home-expert-apply-hint">{{currentHomePreview.reviewHint}}</text>
+            <view wx:if="{{expertApplyNoticeVisible}}" class="home-expert-submit-notice">
+              <text wx:for="{{expertApplyNoticeLines}}" wx:key="*this">{{item}}</text>
+            </view>
+            <view class="home-expert-primary {{expertApplySubmitting ? 'disabled' : ''}}" catchtap="handleExpertApplyPrimaryTap">{{expertApplySubmitting ? '提交中...' : currentHomePreview.primary}}</view>
+          </scroll-view>
+  </home-apply-shell>
+
+  <view wx:else class="home-preview-screen {{currentHomePreview.mode}}">
+    <view class="home-preview-head">
+      <view>
+        <text class="home-preview-badge">{{currentHomePreview.roleBadge}}</text>
+        <text class="home-preview-title">{{currentHomePreview.title}}</text>
+        <text class="home-preview-subtitle">{{currentHomePreview.subtitle}}</text>
+      </view>
+      <text class="home-preview-count">{{homePreviewNo}}/{{homePreviewTotal}}</text>
+    </view>
+
+    <text class="home-preview-desc">{{currentHomePreview.desc || currentHomePreview.status}}</text>
+
+    <view wx:if="{{currentHomePreview.mode === 'compare'}}" class="home-preview-compare">
+      <view wx:for="{{currentHomePreview.plans}}" wx:key="name" class="home-preview-plan">
+        <text class="home-preview-plan-name">{{item.name}}</text>
+        <text class="home-preview-plan-desc">{{item.desc}}</text>
+        <view class="home-preview-plan-tags">
+          <text wx:for="{{item.highlights}}" wx:key="*this" class="home-preview-plan-tag">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="home-preview-theme">
+      <view wx:for="{{currentHomePreview.colors}}" wx:key="name" class="home-preview-color-row">
+        <text>{{item.name}}</text>
+        <text>{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{currentHomePreview.mode !== 'expertApplyForm' && currentHomePreview.mode !== 'expertApplyOverview' && currentHomePreview.mode !== 'roleComparison'}}" class="home-preview-hit left" data-direction="-1" catchtap="handleHomePreviewTap"></view>
+  <view wx:if="{{currentHomePreview.mode !== 'expertApplyForm' && currentHomePreview.mode !== 'expertApplyOverview' && currentHomePreview.mode !== 'roleComparison'}}" class="home-preview-hit right" data-direction="1" catchtap="handleHomePreviewTap"></view>
+</view>
+
+<view wx:else class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+
+  <block wx:else>
+    <view class="hero">
+      <view>
+        <text class="hello">HELLO, {{hero.roleName}}!</text>
+        <text class="hero-sub">{{hero.dateLabel}} | {{hero.subtitle}}</text>
+      </view>
+      <text class="online">{{hero.onlineText}}</text>
+    </view>
+
+    <view wx:for="{{notices}}" wx:key="id" class="notice">
+      <text>{{item.title}}</text>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">今日推荐</text>
+        <text class="section-more">附近正在发生</text>
+      </view>
+
+      <view
+        wx:for="{{recommendedGames}}"
+        wx:key="id"
+        class="game-card"
+        data-route="{{item.route}}"
+        bindtap="goAction"
+      >
+        <view class="game-main">
+          <view>
+            <text class="game-title">{{item.title}}</text>
+            <text class="game-meta">📍{{item.cityName}} · {{item.distanceText}} · {{item.memberText}}</text>
+            <text class="game-meta">⏰{{item.timeText}}</text>
+          </view>
+          <text class="join-pill">{{item.actionText}}</text>
+        </view>
+        <view class="game-bottom">
+          <text class="game-status">{{item.statusText}}</text>
+          <text class="game-price">{{item.priceText}}</text>
+          <text class="game-joined">{{item.joinedText}}</text>
+        </view>
+        <view class="tags">
+          <text wx:for="{{item.tags}}" wx:key="*this" class="tag">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="player-card">
+      <view class="player-head">
+        <view>
+          <text class="player-role">{{playerSummary.roleLabel}}</text>
+          <text class="player-name">{{playerSummary.title}} · {{playerSummary.displayName}}</text>
+        </view>
+        <text class="xp">{{playerSummary.xpText}}</text>
+      </view>
+      <view class="progress">
+        <view class="progress-bar" style="width: {{playerSummary.progressPercent}}%;"></view>
+      </view>
+      <text class="progress-tip">{{playerSummary.nextLevelText}}</text>
+      <view class="stats">
+        <view wx:for="{{playerSummary.stats}}" wx:key="label" class="stat">
+          <text class="stat-value">{{item.value}}</text>
+          <text class="stat-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">快捷入口</text>
+        <text class="section-more">下一步</text>
+      </view>
+      <view class="actions">
+        <view
+          wx:for="{{quickActions}}"
+          wx:key="id"
+          class="action"
+          data-route="{{item.route}}"
+          bindtap="goAction"
+        >
+          <text>{{item.title}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section two-col">
+      <view>
+        <view class="section-head">
+          <text class="section-title">本周玩霸榜</text>
+          <text class="section-more">XP</text>
+        </view>
+        <view wx:for="{{rankingList}}" wx:key="rank" class="rank-row">
+          <text class="rank-no">{{item.rank}}</text>
+          <view class="rank-copy">
+            <text class="rank-name">{{item.name}}</text>
+            <text class="rank-desc">{{item.desc}}</text>
+          </view>
+          <text class="rank-xp">{{item.xpText}}</text>
+        </view>
+      </view>
+
+      <view class="achievement-block">
+        <text class="section-title">我的成就</text>
+        <view wx:for="{{achievementList}}" wx:key="id" class="achievement">
+          <text>{{item.title}}</text>
+          <text>{{item.statusText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">朋友在玩</text>
+        <text class="section-more" data-route="{{friendMoreRoute}}" bindtap="goAction">查看全部</text>
+      </view>
+      <view
+        wx:for="{{friendGames}}"
+        wx:key="id"
+        class="friend-card"
+        data-route="{{item.route}}"
+        bindtap="goAction"
+      >
+        <text class="game-title">{{item.title}}</text>
+        <text class="game-meta">📍{{item.cityName}} · {{item.distanceText}} · {{item.memberText}}</text>
+        <text class="game-meta">{{item.timeText}} · {{item.priceText}}</text>
+      </view>
+    </view>
+
+    <view class="metaverse" data-route="{{metaverseEntry.route}}" bindtap="goAction">
+      <view>
+        <text class="metaverse-title">{{metaverseEntry.title}}</text>
+        <text class="metaverse-desc">{{metaverseEntry.desc}}</text>
+      </view>
+      <text class="metaverse-action">{{metaverseEntry.actionText}}</text>
+    </view>
+  </block>
+</view>

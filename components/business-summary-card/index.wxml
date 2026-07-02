@@ -1,0 +1,26 @@
+<view class="business-summary-card {{resolvedCard.themeClass}}" style="{{resolvedCard.cardStyle}}">
+  <view class="summary-header">
+    <view class="summary-copy">
+      <text class="summary-label">{{resolvedCard.label}}</text>
+      <text class="summary-amount">{{resolvedCard.amount}}</text>
+    </view>
+    <view class="summary-card-icon {{resolvedCard.iconClass}}">
+      <image
+        wx:if="{{resolvedCard.iconSrc}}"
+        class="summary-icon-image"
+        src="{{resolvedCard.iconSrc}}"
+        mode="aspectFit"
+      />
+      <view wx:elif="{{resolvedCard.iconClass === 'icon-income-trend'}}" class="summary-icon-trend">
+        <view class="summary-trend-axis"></view>
+        <view class="summary-trend-segment one"></view>
+        <view class="summary-trend-segment two"></view>
+        <view class="summary-trend-segment three"></view>
+      </view>
+      <view wx:else class="summary-icon-mark"></view>
+    </view>
+  </view>
+  <view class="summary-stats">
+    <text wx:for="{{resolvedCard.stats}}" wx:key="key" class="summary-stat">{{item.text}}</text>
+  </view>
+</view>

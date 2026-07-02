@@ -1,0 +1,43 @@
+<profile-white-shell
+  title="保护模式"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page compact-page protection-page">
+    <view
+      wx:for="{{modes}}"
+      wx:key="key"
+      class="mode-card {{mode === item.key ? 'active' : ''}}"
+      data-mode="{{item.key}}"
+      bindtap="handleModeTap"
+    >
+      <view class="mode-icon-wrap">
+        <text class="mode-lock-emoji">🔒</text>
+      </view>
+      <view class="mode-copy">
+        <text class="mode-title">{{item.title}}</text>
+        <text class="mode-desc">{{item.desc}}</text>
+      </view>
+      <view class="mode-radio">
+        <image wx:if="{{mode === item.key}}" src="{{icons.check}}" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <text class="section-label">说明</text>
+    <view class="card protection-rule-card">
+      <view wx:for="{{activeRules}}" wx:key="prefix" class="protection-rule">
+        <view class="cyan-dot"></view>
+        <text>{{item.prefix}}</text><text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-action compact-action">
+    <view class="primary-btn" bindtap="handleConfirmTap">确认选择</view>
+  </view>
+</profile-white-shell>

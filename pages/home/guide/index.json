@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "领路人首页",
+  "usingComponents": {
+    "role-dashboard-home": "/components/role-dashboard-home/index"
+  }
+}

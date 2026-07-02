@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "组局成功",
+  "disableScroll": true,
+  "usingComponents": {
+    "game-detail-party-card": "/components/game-detail/party-card/index"
+  }
+}

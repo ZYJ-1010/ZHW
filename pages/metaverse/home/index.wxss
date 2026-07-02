@@ -1,0 +1,372 @@
+page {
+  width: 100%;
+  height: 100%;
+  background: #efefef;
+}
+
+.metaverse-home {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 29%, rgba(131, 56, 236, 0.36) 0, rgba(131, 56, 236, 0.1) 18%, transparent 43%),
+    radial-gradient(circle at 20% 18%, rgba(0, 210, 255, 0.22) 0, transparent 34%),
+    radial-gradient(circle at 78% 64%, rgba(16, 185, 129, 0.2) 0, transparent 34%),
+    #000000;
+}
+
+.metaverse-home__field,
+.metaverse-home__ray,
+.metaverse-home__star {
+  position: absolute;
+  pointer-events: none;
+}
+
+.metaverse-home__field {
+  inset: 0;
+  opacity: 0.95;
+}
+
+.metaverse-home__field::before {
+  position: absolute;
+  left: 50%;
+  top: 118rpx;
+  width: 2rpx;
+  height: 756rpx;
+  background: linear-gradient(180deg, rgba(0, 210, 255, 0), rgba(0, 210, 255, 0.28), rgba(0, 210, 255, 0));
+  transform: translateX(-50%);
+  content: '';
+}
+
+.metaverse-home__field::after {
+  position: absolute;
+  left: 52rpx;
+  right: 52rpx;
+  top: 470rpx;
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.32), transparent);
+  content: '';
+}
+
+.metaverse-home__ray {
+  left: 50%;
+  top: 108rpx;
+  width: 2rpx;
+  height: 820rpx;
+  transform-origin: center center;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+}
+
+.metaverse-home__ray.ray-a {
+  transform: rotate(35deg);
+}
+
+.metaverse-home__ray.ray-b {
+  transform: rotate(-35deg);
+}
+
+.metaverse-home__ray.ray-c {
+  transform: rotate(90deg);
+}
+
+.metaverse-home__star {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 20rpx currentColor;
+}
+
+.metaverse-home__star.star-a {
+  left: 92rpx;
+  top: 128rpx;
+  color: #34f1f1;
+}
+
+.metaverse-home__star.star-b {
+  right: 104rpx;
+  top: 196rpx;
+  color: #ec4899;
+}
+
+.metaverse-home__star.star-c {
+  left: 154rpx;
+  bottom: 238rpx;
+  color: #fefa83;
+}
+
+.metaverse-home__star.star-d {
+  right: 92rpx;
+  bottom: 348rpx;
+  color: #10b981;
+}
+
+.metaverse-home__identity {
+  position: absolute;
+  right: 24rpx;
+  top: 6rpx;
+  z-index: 2;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20rpx;
+  line-height: 28rpx;
+}
+
+.metaverse-home__content {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 406rpx;
+  min-height: 786rpx;
+  transform: translate(-50%, -50%);
+}
+
+.metaverse-home__portal {
+  position: relative;
+  width: 250rpx;
+  height: 250rpx;
+  margin: 0 auto;
+  border-radius: 50%;
+}
+
+.metaverse-home__portal-halo {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.metaverse-home__portal-halo.outer {
+  inset: 0;
+  background: conic-gradient(from 120deg, #ff006e, #8338ec, #3a86ff, #00d2ff, #ff006e);
+  box-shadow: 0 0 54rpx rgba(131, 56, 236, 0.72), 0 0 96rpx rgba(0, 210, 255, 0.2);
+}
+
+.metaverse-home__portal-halo.middle {
+  left: 28rpx;
+  top: 28rpx;
+  width: 194rpx;
+  height: 194rpx;
+  background: #050512;
+  box-shadow: inset 0 0 44rpx rgba(0, 210, 255, 0.38);
+}
+
+.metaverse-home__portal-core {
+  position: absolute;
+  left: 58rpx;
+  top: 58rpx;
+  width: 134rpx;
+  height: 134rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), rgba(167, 139, 250, 0.12) 44%, transparent 68%);
+}
+
+.metaverse-home__portal-line {
+  position: absolute;
+  left: 50%;
+  top: 16rpx;
+  width: 2rpx;
+  height: 102rpx;
+  background: rgba(255, 255, 255, 0.32);
+  transform-origin: center center;
+}
+
+.metaverse-home__portal-line.line-a {
+  transform: rotate(55deg);
+}
+
+.metaverse-home__portal-line.line-b {
+  transform: rotate(-55deg);
+}
+
+.metaverse-home__portal-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: #00d2ff;
+  box-shadow: 0 0 34rpx rgba(0, 210, 255, 0.86);
+  transform: translate(-50%, -50%);
+}
+
+.metaverse-home__title,
+.metaverse-home__subtitle,
+.metaverse-home__return {
+  display: block;
+  text-align: center;
+}
+
+.metaverse-home__title {
+  margin-top: 30rpx;
+  color: #a78bfa;
+  font-size: 52rpx;
+  font-weight: 700;
+  line-height: 58rpx;
+}
+
+.metaverse-home__subtitle {
+  margin-top: 22rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 34rpx;
+  white-space: nowrap;
+}
+
+.metaverse-home__entries {
+  margin-top: 54rpx;
+}
+
+.metaverse-home__entry {
+  display: flex;
+  align-items: center;
+  width: 372rpx;
+  height: 92rpx;
+  margin: 0 auto 20rpx;
+  padding: 0 30rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(255, 255, 255, 0.24);
+  border-radius: 40rpx;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.metaverse-home__entry.cyan {
+  border-color: rgba(0, 210, 255, 0.4);
+  color: #00d2ff;
+}
+
+.metaverse-home__entry.violet {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: #a78bfa;
+}
+
+.metaverse-home__entry.green {
+  height: 80rpx;
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.metaverse-home__entry-icon {
+  position: relative;
+  flex: none;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 20rpx;
+}
+
+.metaverse-home__entry-title {
+  color: currentColor;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+  white-space: nowrap;
+}
+
+.metaverse-home__icon-shape {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+}
+
+.metaverse-home__entry-icon.avatar .metaverse-home__icon-shape {
+  border: 4rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.metaverse-home__entry-icon.avatar::before {
+  position: absolute;
+  left: 15rpx;
+  top: 9rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
+.metaverse-home__entry-icon.avatar::after {
+  position: absolute;
+  left: 10rpx;
+  bottom: 8rpx;
+  width: 24rpx;
+  height: 12rpx;
+  border-radius: 12rpx 12rpx 0 0;
+  background: currentColor;
+  content: '';
+}
+
+.metaverse-home__entry-icon.home .metaverse-home__icon-shape {
+  left: 8rpx;
+  top: 16rpx;
+  width: 28rpx;
+  height: 22rpx;
+  border: 4rpx solid currentColor;
+  border-top: 0;
+}
+
+.metaverse-home__entry-icon.home::before {
+  position: absolute;
+  left: 8rpx;
+  top: 7rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-left: 4rpx solid currentColor;
+  border-top: 4rpx solid currentColor;
+  transform: rotate(45deg);
+  content: '';
+}
+
+.metaverse-home__entry-icon.globe .metaverse-home__icon-shape {
+  border: 4rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.metaverse-home__entry-icon.globe::before,
+.metaverse-home__entry-icon.globe::after {
+  position: absolute;
+  box-sizing: border-box;
+  content: '';
+}
+
+.metaverse-home__entry-icon.globe::before {
+  left: 10rpx;
+  top: 4rpx;
+  width: 24rpx;
+  height: 36rpx;
+  border-left: 3rpx solid currentColor;
+  border-right: 3rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.metaverse-home__entry-icon.globe::after {
+  left: 5rpx;
+  top: 20rpx;
+  width: 34rpx;
+  height: 3rpx;
+  background: currentColor;
+}
+
+.metaverse-home__progress {
+  width: 252rpx;
+  height: 8rpx;
+  margin: 24rpx auto 0;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.metaverse-home__progress-fill {
+  width: 72%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #00d2ff 0%, #8b5cf6 54%, #ff006e 100%);
+}
+
+.metaverse-home__return {
+  margin-top: 28rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}

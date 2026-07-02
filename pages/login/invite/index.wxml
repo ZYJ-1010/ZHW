@@ -1,0 +1,43 @@
+<view class="page">
+  <view class="wrap">
+    <view class="hero">
+      <text class="hi">HI</text>
+      <text class="title">邀请注册</text>
+      <text class="desc">输入朋友给你的邀请码，确认后继续注册。</text>
+    </view>
+
+    <view class="form">
+      <view class="field enjoy-field enjoy-field--comfortable">
+        <input
+          class="field-input enjoy-input enjoy-input--comfortable"
+          value="{{inviteCode}}"
+          maxlength="20"
+          placeholder="请输入邀请码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onInviteInput"
+        />
+      </view>
+
+      <button class="primary-button enjoy-button enjoy-button--primary enjoy-button--comfortable {{isVerifying ? 'enjoy-button--disabled' : ''}}" bindtap="verifyInvite" disabled="{{isVerifying}}">
+        {{isVerifying ? '确认中...' : '确认邀请码'}}
+      </button>
+    </view>
+
+    <view class="status status-{{inviteStatus}}">
+      <text class="status-tag">{{statusText}}</text>
+      <text class="status-copy">{{statusMessage}}</text>
+    </view>
+
+    <view wx:if="{{invite}}" class="invite-card">
+      <text class="card-label">邀请人</text>
+      <text class="card-name">{{invite.inviterName}}</text>
+      <text class="card-desc">{{invite.city}} · 邀请关系将在注册后绑定</text>
+    </view>
+
+    <button class="continue-button enjoy-button enjoy-button--success enjoy-button--comfortable {{inviteStatus !== 'valid' ? 'enjoy-button--disabled' : ''}}" bindtap="continueToLogin" disabled="{{inviteStatus !== 'valid'}}">
+      继续注册
+    </button>
+
+    <button class="secondary-button enjoy-button enjoy-button--secondary enjoy-button--comfortable" bindtap="goNormalLogin">普通登录</button>
+  </view>
+</view>

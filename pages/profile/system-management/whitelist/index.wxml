@@ -1,0 +1,61 @@
+<profile-white-shell
+  title="白名单"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page compact-page whitelist-page">
+    <text class="section-label whitelist-count">已添加 {{whitelist.length}}/20</text>
+    <view class="card whitelist-card">
+      <view wx:for="{{whitelist}}" wx:key="name" class="whitelist-row">
+        <view class="avatar-circle">
+          <image src="{{icons.avatar}}" mode="aspectFit"></image>
+        </view>
+        <text class="whitelist-name">{{item.name}}</text>
+        <view class="danger-outline" data-index="{{index}}" catchtap="handleRemoveTap">移除</view>
+      </view>
+      <view wx:if="{{!whitelist.length}}" class="empty-row">暂无白名单行家</view>
+    </view>
+
+    <view class="add-dashed" bindtap="handleOpenAddSheet">+ 添加白名单行家</view>
+
+    <text class="section-label">说明</text>
+    <view class="note-card">
+      <view wx:for="{{rules}}" wx:key="prefix" class="note-line">
+        <view class="note-dot"></view>
+        <text>{{item.prefix}}</text><text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-action compact-action">
+    <view class="primary-btn" bindtap="handleDoneTap">完成</view>
+  </view>
+
+  <view wx:if="{{showAddSheet}}" class="sheet-mask" catchtap="handleCloseSheet"></view>
+  <view wx:if="{{showAddSheet}}" class="bottom-sheet compact-sheet whitelist-sheet">
+    <text class="sheet-title">添加白名单行家</text>
+    <view class="search-box whitelist-search">
+      <image src="{{icons.search}}" mode="aspectFit"></image>
+      <input placeholder="搜索行家昵称" placeholder-class="placeholder" />
+    </view>
+    <view class="candidate-list">
+      <view wx:for="{{candidates}}" wx:key="name" class="candidate-row">
+        <view class="avatar-circle">
+          <image src="{{icons.avatar}}" mode="aspectFit"></image>
+        </view>
+        <view class="row-main">
+          <text class="row-title">{{item.name}}</text>
+          <text class="row-desc">{{item.meta}}</text>
+        </view>
+        <view class="add-outline" data-index="{{index}}" bindtap="handleAddCandidateTap">添加</view>
+      </view>
+      <view wx:if="{{!candidates.length}}" class="empty-row">暂无可添加候选人，请从用户主页或后台配置添加</view>
+    </view>
+    <view class="secondary-btn sheet-cancel" bindtap="handleCloseSheet">取消</view>
+  </view>
+</profile-white-shell>

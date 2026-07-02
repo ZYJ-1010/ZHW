@@ -1,0 +1,12 @@
+<view class="notice-card">
+  <view class="notice-head">
+    <image class="info-mark" src="/pages/game/detail/assets/icon-info.png" mode="aspectFit"></image>
+    <text>确认须知</text>
+  </view>
+  <view class="notice-list">
+    <view wx:for="{{bullets}}" wx:key="*this" class="notice-item">
+      <view class="notice-dot"></view>
+      <text>{{item}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,44 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">{{texts.loadingText}}</view>
+
+  <block wx:else>
+    <view class="intro">
+      <text class="title">{{pageConfig.pageTitle}}</text>
+      <text class="desc">{{pageConfig.pageDesc}}</text>
+    </view>
+
+    <view wx:for="{{applications}}" wx:key="roleType" class="role-card">
+      <view class="role-head">
+        <view>
+          <text class="role-title">{{item.title}}</text>
+          <text class="role-desc">{{item.desc}}</text>
+        </view>
+        <text class="role-status {{item.status === 'pending' ? 'pending' : ''}}">{{item.statusText}}</text>
+      </view>
+
+      <view class="requirements">
+        <text wx:for="{{item.requirements}}" wx:key="*this" class="requirement">{{texts.requirementPrefix}}{{item}}</text>
+      </view>
+
+      <view wx:if="{{item.qualification}}" class="qualification">
+        <view class="qual-item">
+          <text>{{texts.conditionLabel}}</text>
+          <text class="{{item.qualification.conditionMet ? 'ok' : 'warn'}}">{{item.qualification.conditionText}}</text>
+        </view>
+        <view class="qual-item">
+          <text>{{texts.paymentLabel}}</text>
+          <text class="{{item.qualification.paymentMet ? 'ok' : 'warn'}}">{{item.qualification.paymentText}}</text>
+        </view>
+      </view>
+
+      <button
+        class="apply-button {{item.status === 'pending' ? 'disabled' : ''}}"
+        data-role="{{item.roleType}}"
+        bindtap="submitApplication"
+        disabled="{{item.status === 'pending' || submittingRole === item.roleType}}"
+      >
+        {{item.status === 'pending' ? texts.pendingButtonText : submittingRole === item.roleType ? texts.submittingText : texts.submitButtonText}}
+      </button>
+    </view>
+  </block>
+</view>

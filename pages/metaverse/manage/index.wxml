@@ -1,0 +1,62 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="metaverse-manage">
+    <view class="metaverse-manage__rings">
+      <view class="ring ring-a"></view>
+      <view class="ring ring-b"></view>
+      <view class="ring ring-c"></view>
+    </view>
+
+    <view class="metaverse-manage__profile">
+      <view class="metaverse-manage__avatar">
+        <view class="metaverse-manage__avatar-face"></view>
+      </view>
+      <view class="metaverse-manage__profile-copy">
+        <text class="metaverse-manage__id">ID: CyberPlayer_01</text>
+        <text class="metaverse-manage__credit">信用分: 98 (极好)</text>
+      </view>
+    </view>
+
+    <view class="metaverse-manage__roles">
+      <view wx:for="{{roles}}" wx:key="name" class="metaverse-manage__role {{item.active ? 'active' : ''}}">
+        {{item.name}}
+      </view>
+    </view>
+
+    <view class="metaverse-manage__asset-card">
+      <view class="metaverse-manage__asset-head">
+        <view class="metaverse-manage__asset-icon">
+          <view></view>
+        </view>
+        <text>元宇宙资产 (Digital Assets)</text>
+      </view>
+      <view class="metaverse-manage__asset-visual">
+        <view class="metaverse-manage__apartment">
+          <view wx:for="{{apartmentWindows}}" wx:key="*this"></view>
+        </view>
+      </view>
+      <text class="metaverse-manage__asset-name">静安·赛博公寓 #102</text>
+      <text class="metaverse-manage__asset-value">市值: 2.4 ETH</text>
+    </view>
+
+    <view class="metaverse-manage__actions">
+      <view
+        wx:for="{{actions}}"
+        wx:key="title"
+        class="metaverse-manage__action {{item.tone}}"
+        bindtap="handleActionTap"
+      >
+        <view class="metaverse-manage__action-mark"></view>
+        <view>
+          <text class="metaverse-manage__action-title">{{item.title}}</text>
+          <text class="metaverse-manage__action-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</home-shell>

@@ -1,0 +1,74 @@
+<profile-white-shell
+  title="举报详情"
+  background="#071321"
+  nav-background="#071321"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-url="/pages/profile/system-management/report-records/index"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="report-page with-bottom">
+    <view class="report-card detail-status-card">
+      <view class="status-icon success">
+        <image src="{{icons.check}}" mode="aspectFit"></image>
+      </view>
+      <text class="status-main">{{statusMain}}</text>
+      <text class="status-sub">{{statusSub}}</text>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">基本信息</text>
+      <view wx:for="{{basicInfo}}" wx:key="label" class="info-row">
+        <text class="info-label">{{item.label}}</text>
+        <text class="info-value">{{item.value}}</text>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">举报内容</text>
+      <text class="paragraph-label">举报原因</text>
+      <text class="paragraph">{{reportReason}}</text>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">{{evidenceTitle}}</text>
+      <view class="evidence-row">
+        <view wx:for="{{evidence}}" wx:key="label" class="evidence-card {{item.tone}}">
+          <text class="evidence-text">{{item.label}}</text>
+          <text class="evidence-index">{{item.index}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">处理结果</text>
+      <view wx:for="{{resultRows}}" wx:key="label" class="result-row">
+        <text class="result-label">{{item.label}}</text>
+        <text class="result-value {{item.className}}">{{item.value}}</text>
+      </view>
+      <view class="result-row">
+        <text class="result-label">处理说明</text>
+      </view>
+      <text class="result-note">{{resultNote}}</text>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">处理进度</text>
+      <view class="timeline">
+        <view wx:for="{{timeline}}" wx:key="title" class="timeline-item">
+          <view class="timeline-dot {{item.state}}"></view>
+          <text class="timeline-time">{{item.time}}</text>
+          <text class="timeline-title">{{item.title}}</text>
+          <text class="timeline-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="report-bottom-actions">
+    <view class="secondary-report-button" bindtap="handleBackList">返回列表</view>
+    <view class="primary-report-button" bindtap="handleAppealTap">我要申诉</view>
+  </view>
+</profile-white-shell>

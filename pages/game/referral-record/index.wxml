@@ -1,0 +1,99 @@
+<view class="referral-record-page">
+  <view class="referral-record-frame" style="{{shellLayout.frameStyle}}">
+    <view class="referral-record-top-bg"></view>
+    <view class="referral-record-nav">
+      <view class="referral-record-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <image class="referral-record-back-icon" src="/pages/game/referral-record/assets/chevron.png" mode="aspectFit"></image>
+      </view>
+      <text class="referral-record-title" style="{{shellLayout.titleStyle}}">{{pageTitle}}</text>
+    </view>
+
+    <scroll-view
+      class="referral-record-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <business-summary-card summary="{{summary}}" role-type="guide" icon-type="expert" />
+
+      <view class="tab-bar">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="tab-item {{activeTab === item.key ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onTabTap"
+        >
+          <text>{{item.label}}({{item.count}})</text>
+        </view>
+      </view>
+
+      <view class="record-list">
+        <block wx:for="{{visibleRecords}}" wx:key="id">
+          <view class="record-card {{item.cardClass}} state-{{item.state}}">
+            <view class="record-meta-row">
+              <view class="state-pill {{item.stateClass}}">
+                <image class="state-icon" src="{{item.stateIcon}}" mode="aspectFit"></image>
+                <text>{{item.stateText}}</text>
+              </view>
+              <text class="record-id">{{item.id}}</text>
+              <text wx:if="{{item.timeText}}" class="record-time">{{item.timeText}}</text>
+              <text wx:if="{{item.extraTag}}" class="extra-tag">{{item.extraTag}}</text>
+            </view>
+
+            <view class="relation-panel">
+              <view class="relation-line"></view>
+              <view class="person-node">
+                <view class="avatar {{item.expert.avatarClass}}">{{item.expert.avatarText}}</view>
+                <text class="person-name">{{item.expert.name}}</text>
+                <text class="role-tag expert">{{texts.expertRoleText}}</text>
+              </view>
+              <view class="match-node">
+                <image wx:if="{{item.state === 'completed'}}" class="match-complete-check" src="/pages/game/referral-record/assets/match-completed-check.png" mode="aspectFit"></image>
+                <image wx:else class="match-icon" src="{{item.matchIcon}}" mode="aspectFit"></image>
+                <view class="match-guide-line"></view>
+                <text class="match-label">{{texts.selfLabel}}</text>
+              </view>
+              <view class="person-node">
+                <view class="avatar {{item.player.avatarClass}}">{{item.player.avatarText}}</view>
+                <text class="person-name">{{item.player.name}}</text>
+                <text class="role-tag player">{{texts.playerRoleText}}</text>
+              </view>
+            </view>
+
+            <view class="service-row">
+              <text class="service-title">{{item.serviceTitle}}</text>
+              <text class="reward-value {{item.rewardClass}}">{{texts.rewardPrefix}}{{item.reward}}</text>
+            </view>
+
+            <view wx:if="{{item.actions.length}}" class="action-row {{item.actions.length === 1 ? 'single' : ''}}">
+              <button
+                wx:for="{{item.actions}}"
+                wx:key="key"
+                class="action-button {{item.theme}} {{item.disabled ? 'disabled' : ''}}"
+                disabled="{{item.disabled}}"
+                hover-class="none"
+                data-action="{{item.key}}"
+                data-record-id="{{item.id}}"
+                data-disabled="{{item.disabled}}"
+                bindtap="onActionTap"
+              >
+                <image wx:if="{{item.icon}}" class="action-icon" src="{{item.icon}}" mode="aspectFit"></image>
+                <text>{{item.text}}</text>
+              </button>
+            </view>
+
+            <view wx:if="{{item.noticeText}}" class="notice-strip">
+              <image class="notice-icon" src="/pages/game/referral-record/assets/warning.png" mode="aspectFit"></image>
+              <text>{{item.noticeText}}</text>
+            </view>
+          </view>
+        </block>
+        <view wx:if="{{!visibleRecords.length && !loading}}" class="empty-records">{{texts.emptyText}}</view>
+      </view>
+    </scroll-view>
+
+    <view class="referral-record-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

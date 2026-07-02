@@ -1,0 +1,86 @@
+<profile-white-shell
+  title="案例详情"
+  background="#070b14"
+  nav-background="#070b14"
+  title-color="#f4f7ff"
+  title-weight="700"
+  back-background="#070b14"
+  back-border-color="transparent"
+  back-icon-color="#030712"
+>
+  <view class="case-detail-page">
+    <view class="hero-card">
+      <view class="case-cover {{caseInfo.tone}}">
+        <text class="case-cover-emoji">{{caseInfo.iconText}}</text>
+      </view>
+      <text class="hero-title">{{caseInfo.title}}</text>
+      <view class="case-meta">
+        <view class="meta-item">
+          <image class="meta-icon" src="{{assets.calendar}}" mode="aspectFit"></image>
+          <text>{{caseInfo.date}}</text>
+        </view>
+        <view class="meta-item">
+          <image class="meta-icon users" src="{{assets.users}}" mode="aspectFit"></image>
+          <text>{{caseInfo.playersText}}</text>
+        </view>
+        <view class="mini-rating">
+          <image
+            wx:for="{{caseInfo.stars}}"
+            wx:key="key"
+            class="mini-star {{item.active ? 'active' : 'inactive'}}"
+            src="{{assets.star}}"
+            mode="aspectFit"
+          ></image>
+          <text>{{caseInfo.ratingText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="info-card rating-card">
+      <view class="rating-head">
+        <text class="card-title">玩家评分</text>
+        <view class="rating-score">
+          <image
+            wx:for="{{rating.stars}}"
+            wx:key="key"
+            class="score-star {{item.active ? 'active' : 'inactive'}}"
+            src="{{assets.star}}"
+            mode="aspectFit"
+          ></image>
+          <text class="score-text">{{rating.score}}</text>
+        </view>
+      </view>
+      <view class="tag-list">
+        <view wx:for="{{rating.tags}}" wx:key="*this" class="tag-pill">{{item}}</view>
+      </view>
+    </view>
+
+    <view class="info-card service-card">
+      <view class="card-title-row">
+        <image class="title-icon" src="{{assets.caseFile}}" mode="aspectFit"></image>
+        <text class="card-title">定制服务详情</text>
+      </view>
+      <view class="service-copy">
+        <view wx:for="{{detailSections}}" wx:key="label" class="service-line">
+          <text class="service-label">{{item.label}}</text>
+          <text class="service-text">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="info-card players-card">
+      <text class="card-title players-title">参与玩家（{{caseInfo.totalPlayers}}人）</text>
+      <view class="player-list">
+        <view wx:for="{{players}}" wx:key="name" class="player-row {{item.last ? 'last' : ''}}">
+          <view class="avatar-wrap">
+            <image class="avatar" src="{{assets.avatar}}" mode="aspectFit"></image>
+          </view>
+          <view class="player-copy">
+            <text class="player-name">{{item.name}}</text>
+            <text class="player-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

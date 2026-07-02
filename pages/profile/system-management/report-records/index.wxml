@@ -1,0 +1,53 @@
+<profile-white-shell
+  title="处理记录"
+  background="#071321"
+  nav-background="#071321"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="report-page records-page">
+    <view class="report-tabs">
+      <view class="report-tab" data-target="home" bindtap="handleTabTap">我要举报</view>
+      <view class="report-tab" data-target="appeals" bindtap="handleTabTap">我的申诉</view>
+      <view class="report-tab active">处理记录</view>
+    </view>
+
+    <view class="report-card stats-card">
+      <view wx:for="{{stats}}" wx:key="label" class="stat-item">
+        <text class="stat-value {{item.className}}">{{item.value}}</text>
+        <text class="stat-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="filter-row records-filters">
+      <view
+        wx:for="{{filters}}"
+        wx:key="key"
+        class="filter-chip {{activeFilter === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="handleFilterTap"
+      >{{item.label}}</view>
+    </view>
+
+    <view class="record-list">
+      <view wx:for="{{visibleRecords}}" wx:key="id" class="list-card" data-id="{{item.id}}" bindtap="handleDetailTap">
+        <view class="list-head">
+          <text class="list-title">{{item.title}}</text>
+          <text class="status-badge {{item.statusClass}}">{{item.status}}</text>
+        </view>
+        <view class="list-desc">
+          <block wx:for="{{item.parts}}" wx:key="text" wx:for-item="part">
+            <text class="{{part.className}}">{{part.text}}</text>
+          </block>
+        </view>
+        <view class="list-foot">
+          <text class="list-time">{{item.time}}</text>
+          <view class="detail-link" data-id="{{item.id}}" catchtap="handleDetailTap">查看详情 →</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

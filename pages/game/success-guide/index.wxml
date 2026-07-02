@@ -1,0 +1,90 @@
+<view class="success-guide-page">
+  <view class="success-guide-frame" style="{{shellLayout.frameStyle}}">
+    <view class="success-guide-top-bg"></view>
+    <view class="success-guide-nav">
+      <view class="success-guide-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="success-guide-back-icon"></view>
+      </view>
+      <text class="success-guide-title" style="{{shellLayout.titleStyle}}">组局成功</text>
+    </view>
+
+    <scroll-view
+      class="success-guide-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="success-guide-inner">
+        <view class="success-hero">
+          <view class="hero-green-fill"></view>
+          <image class="hero-trophy" src="./assets/success-trophy.png" mode="aspectFit"></image>
+          <text class="hero-title">恭喜！组局成功</text>
+          <text class="hero-desc">你成功促成了这次连接</text>
+          <view wx:if="{{reward.show}}" class="reward-card">
+            <text class="reward-value">{{reward.value}}</text>
+            <text class="reward-label">{{reward.label}}</text>
+          </view>
+        </view>
+
+        <view class="guide-card timeline-card">
+          <text class="card-title">成局历程</text>
+          <view class="timeline-list">
+            <view
+              wx:for="{{timeline}}"
+              wx:key="title"
+              class="timeline-item {{item.active ? 'active' : ''}}"
+            >
+              <view class="timeline-marker">
+                <view class="timeline-marker-core"></view>
+              </view>
+              <view class="timeline-copy">
+                <view class="timeline-row">
+                  <text class="timeline-title">{{item.title}}</text>
+                  <text class="timeline-time">{{item.time}}</text>
+                </view>
+                <text class="timeline-desc">{{item.desc}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <game-detail-party-card party="{{party}}" />
+
+        <view class="follow-section">
+          <text class="follow-title">后续跟进</text>
+          <view
+            wx:for="{{followUps}}"
+            wx:key="key"
+            class="follow-card"
+            data-key="{{item.key}}"
+            bindtap="onFollowTap"
+          >
+            <view class="follow-main">
+              <view class="follow-icon {{item.theme}}">
+                <image class="follow-icon-image {{item.iconClass}}" src="{{item.iconSrc}}" mode="aspectFit"></image>
+              </view>
+              <view class="follow-copy">
+                <text class="follow-card-title">{{item.title}}</text>
+                <text class="follow-card-desc">{{item.desc}}</text>
+              </view>
+            </view>
+            <text wx:if="{{item.reward}}" class="follow-reward {{item.theme}}">{{item.reward}}</text>
+            <view wx:else class="follow-chevron"></view>
+          </view>
+          <text wx:if="{{!followUps.length}}" class="follow-card-desc">暂无后续跟进项</text>
+        </view>
+
+        <view class="content-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view class="success-guide-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+    <view class="share-bar" style="{{shellLayout.ctaStyle}}">
+      <button class="share-button" open-type="share" hover-class="none">
+        <image class="share-icon" src="./assets/share-joy.png" mode="aspectFit"></image>
+        <text>分享成局喜悦</text>
+      </button>
+    </view>
+  </view>
+</view>

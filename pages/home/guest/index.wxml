@@ -1,0 +1,72 @@
+<view class="page">
+  <view class="topbar">
+    <view class="brand">
+      <text class="brand-mark">++</text>
+      <view>
+        <text class="brand-title">真好玩</text>
+        <text class="brand-online">{{onlineText || '在线人数获取中'}}</text>
+      </view>
+    </view>
+    <text class="avatar">玩</text>
+  </view>
+
+  <scroll-view class="content" scroll-y>
+    <view class="hello">
+      <text class="hello-title">HELLO, 玩家!</text>
+      <text class="hello-sub">2026.05.15 | 开启你的今日副本</text>
+    </view>
+
+    <view class="journey-card">
+      <view class="journey-copy">
+        <text class="journey-title">开启你的元宇宙之旅</text>
+        <text class="journey-desc">登录后解锁今日组局、附近玩法和成长记录</text>
+        <button class="login-pill" bindtap="goLogin">注册/登录</button>
+      </view>
+      <view class="rocket">
+        <text>GO</text>
+      </view>
+    </view>
+
+    <view class="quick-grid">
+      <view class="quick-card quick-hot">
+        <text class="quick-icon">1</text>
+        <text class="quick-title">发起组局</text>
+        <text class="quick-desc">创建你的第一局</text>
+      </view>
+      <view class="quick-card">
+        <text class="quick-icon">2</text>
+        <text class="quick-title">局前大厅</text>
+        <text class="quick-desc">准备加入一局</text>
+      </view>
+    </view>
+
+    <view class="earth-card">
+      <view>
+        <text class="section-title">地球online</text>
+        <text class="section-desc">探索附近城市副本，解锁同城玩法</text>
+      </view>
+      <view class="earth">地</view>
+    </view>
+
+    <view class="section-head">
+      <text class="section-title">附近正在发生</text>
+      <text class="section-filter">附近</text>
+    </view>
+
+    <view wx:for="{{nearbyGames}}" wx:key="id" class="nearby-card">
+      <view class="cover"></view>
+      <view class="nearby-copy">
+        <text class="nearby-tag">找搭子</text>
+        <text class="nearby-title">{{item.title}}</text>
+        <text class="nearby-meta">{{item.place}}</text>
+        <text class="nearby-meta">{{item.time}}</text>
+      </view>
+      <view class="nearby-action">
+        <text>{{item.memberText}}</text>
+        <button bindtap="goLogin">加入</button>
+      </view>
+    </view>
+
+    <button class="invite-link" bindtap="goInvite">我有邀请码</button>
+  </scroll-view>
+</view>

@@ -1,0 +1,47 @@
+<view class="progress-card {{item.theme}}" bindtap="onCardTap">
+  <view class="progress-card-head">
+    <view class="progress-card-meta">
+      <text class="progress-status">{{item.tag}}</text>
+      <text class="progress-time">{{item.time}}</text>
+    </view>
+    <image class="progress-chevron" src="/pages/game/guide-progress/assets/chevron-right.png" mode="aspectFit"></image>
+  </view>
+
+  <view class="member-flow">
+    <view wx:if="{{item.player}}" class="member-node first">
+      <view class="member-avatar {{item.player.avatarClass}}">
+        <image wx:if="{{item.player.avatarUrl}}" class="member-avatar-img" src="{{item.player.avatarUrl}}" mode="aspectFill"></image>
+        <text wx:else>{{item.player.avatarText}}</text>
+      </view>
+      <text class="member-name">{{item.player.name}}</text>
+      <view class="member-state {{item.player.stateClass}}">
+        <image wx:if="{{item.player.icon}}" class="member-state-icon" src="{{item.player.icon}}" mode="aspectFit"></image>
+        <text>{{item.player.state}}</text>
+      </view>
+    </view>
+
+    <view class="progress-line-wrap">
+      <view class="progress-line">
+        <view class="progress-line-fill" style="{{item.progressStyle}}"></view>
+      </view>
+      <text class="progress-line-text">{{item.progressText}}</text>
+    </view>
+
+    <view wx:if="{{item.expert}}" class="member-node last">
+      <view class="member-avatar {{item.expert.avatarClass}}">
+        <image wx:if="{{item.expert.avatarUrl}}" class="member-avatar-img" src="{{item.expert.avatarUrl}}" mode="aspectFill"></image>
+        <text wx:else>{{item.expert.avatarText}}</text>
+      </view>
+      <text class="member-name">{{item.expert.name}}</text>
+      <view class="member-state {{item.expert.stateClass}}">
+        <image wx:if="{{item.expert.icon}}" class="member-state-icon" src="{{item.expert.icon}}" mode="aspectFit"></image>
+        <text>{{item.expert.state}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{item.notice}}" class="progress-notice">
+    <image class="progress-notice-icon" src="/pages/game/guide-progress/assets/notice-alert.png" mode="aspectFit"></image>
+    <text>{{item.notice}}</text>
+  </view>
+</view>

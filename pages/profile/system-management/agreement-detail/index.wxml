@@ -1,0 +1,36 @@
+<profile-white-shell
+  title="{{title}}"
+  background="#0d1117"
+  nav-background="#0d1117"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="agreement-detail-page {{canSign ? 'can-sign' : 'signed-view'}}">
+    <view class="agreement-content">
+      <view wx:for="{{sections}}" wx:key="title" class="agreement-section">
+        <text class="section-title">{{item.title}}</text>
+        <text class="section-body">{{item.content}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{canSign}}" class="agreement-bottom-bar">
+    <view class="agreement-sign-button" bindtap="handleSignTap">{{signActionText}}</view>
+  </view>
+
+  <view wx:if="{{confirmVisible}}" class="agreement-modal-mask" catchtouchmove="noop"></view>
+  <view wx:if="{{confirmVisible}}" class="agreement-confirm-dialog" catchtouchmove="noop">
+    <view class="dialog-icon-wrap">
+      <image class="dialog-icon" src="{{dialogIcon}}" mode="aspectFit"></image>
+    </view>
+    <text class="dialog-title">{{signConfirm.title}}</text>
+    <text class="dialog-desc">{{signConfirm.desc}}</text>
+    <view class="dialog-actions">
+      <view class="dialog-button cancel" bindtap="handleCancelTap">{{signConfirm.cancelText}}</view>
+      <view class="dialog-button confirm" bindtap="handleConfirmTap">{{signConfirm.confirmText}}</view>
+    </view>
+  </view>
+</profile-white-shell>

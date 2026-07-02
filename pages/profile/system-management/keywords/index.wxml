@@ -1,0 +1,77 @@
+<profile-white-shell
+  title="关键词屏蔽"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page compact-page keyword-page">
+    <view class="stats-grid">
+      <view wx:for="{{stats}}" wx:key="label" class="stat-card">
+        <text class="stat-value {{item.color}}">{{item.value}}</text>
+        <text class="stat-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="info-banner">
+      <text class="keyword-emoji-icon">💡</text>
+      <text>设置后，包含关键词的局标题、描述、评论等内容将被自动过滤，您将不会看到。</text>
+    </view>
+
+    <view class="form-card keyword-form">
+      <view class="keyword-input-row">
+        <input value="{{keywordInput}}" bindinput="handleKeywordInput" placeholder="输入要屏蔽的关键词" placeholder-class="placeholder" />
+        <view class="keyword-add-btn" bindtap="handleAddTap">添加</view>
+      </view>
+      <view class="fuzzy-tip">
+        <text class="keyword-tip-emoji">⚠️</text>
+        <text>支持模糊匹配</text>
+        <text class="keyword-used">已用 {{keywords.length}}/20</text>
+      </view>
+    </view>
+
+    <view class="keyword-section-head">
+      <text>已屏蔽关键词</text>
+      <text>{{keywords.length}}个</text>
+    </view>
+    <view class="keyword-tags card">
+      <view wx:for="{{keywords}}" wx:key="*this" class="keyword-tag">
+        <text>{{item}}</text>
+        <view class="keyword-remove" data-index="{{index}}" bindtap="handleRemoveTap">×</view>
+      </view>
+    </view>
+
+    <text class="section-label">推荐屏蔽</text>
+    <view class="recommend-card">
+      <view class="recommend-title">
+        <text class="keyword-tip-emoji">🎯</text>
+        <text>根据平台数据推荐</text>
+      </view>
+      <view class="suggestions">
+        <view
+          wx:for="{{suggestions}}"
+          wx:key="*this"
+          class="suggestion-pill"
+          data-keyword="{{item}}"
+          bindtap="handleSuggestionTap"
+        >+ {{item}}</view>
+      </view>
+    </view>
+
+    <text class="section-label">规则说明</text>
+    <view class="note-card keyword-rules">
+      <view wx:for="{{rules}}" wx:key="prefix" class="note-line">
+        <view class="note-dot"></view>
+        <text>{{item.prefix}}</text><text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-action two compact-action">
+    <view class="secondary-btn" bindtap="handleResetTap">重置</view>
+    <view class="primary-btn" bindtap="handleSaveTap">保存设置</view>
+  </view>
+</profile-white-shell>

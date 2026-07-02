@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "玩家首页",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "game-card": "/components/game-card/index"
+  }
+}

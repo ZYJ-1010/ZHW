@@ -1,0 +1,173 @@
+<view class="role-status-page {{roleType}} {{status}}">
+  <view class="role-status-appbar">
+    <view class="role-status-back" bindtap="handleBackTap">‹</view>
+    <text>{{pageTitle}}</text>
+    <view></view>
+  </view>
+
+  <view wx:if="{{loading}}" class="role-status-loading">{{texts.loadingText}}</view>
+
+  <view wx:elif="{{loadError}}" class="role-status-error">
+    <text class="role-status-error-title">{{texts.errorTitle}}</text>
+    <text class="role-status-error-desc">{{loadError}}</text>
+    <view class="role-status-error-actions">
+      <button bindtap="handleBackHomeTap">{{texts.backHomeText}}</button>
+      <button bindtap="handleRetryTap">{{texts.retryText}}</button>
+    </view>
+  </view>
+
+  <block wx:else>
+    <scroll-view class="role-status-scroll" scroll-y enhanced show-scrollbar="false">
+      <view wx:if="{{isPending}}" class="role-status-content pending">
+        <view class="role-status-hero">
+          <view class="role-status-hourglass">
+            <text>{{uiIcons.status.pending}}</text>
+          </view>
+          <text class="role-status-title">{{statusTitle}}</text>
+          <text class="role-status-subtitle">{{statusSubTitle}}</text>
+          <text class="role-status-desc">{{statusDesc}}</text>
+        </view>
+
+        <view class="role-status-estimate">
+          <view>
+            <text>{{uiIcons.panel.estimate}}</text>
+            <text>{{texts.expectedLabel}}</text>
+          </view>
+          <text>{{expectedText}}</text>
+        </view>
+
+        <view class="role-status-timeline">
+          <view
+            wx:for="{{timeline}}"
+            wx:key="title"
+            class="role-status-timeline-item {{item.state}}"
+          >
+            <view class="role-status-timeline-line"></view>
+            <view class="role-status-timeline-dot"></view>
+            <view class="role-status-timeline-copy">
+              <text>{{item.title}}</text>
+              <text>{{item.desc}}</text>
+              <text>{{item.time}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="role-status-detail-card">
+          <view class="role-status-card-title">
+            <text>{{uiIcons.panel.record}}</text>
+            <text>{{texts.detailTitle}}</text>
+          </view>
+          <view
+            wx:for="{{details}}"
+            wx:key="label"
+            class="role-status-detail-row"
+          >
+            <text>{{item.label}}</text>
+            <text class="{{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+          </view>
+        </view>
+
+        <text class="role-status-helper">{{texts.pendingHelper}}</text>
+      </view>
+
+      <view wx:elif="{{isApproved}}" class="role-status-content approved {{meta.successAccent}}">
+        <view class="role-status-success-hero">
+          <view class="role-status-success-icon">
+            <text>{{uiIcons.status.approved}}</text>
+          </view>
+          <text class="role-status-success-title">{{statusTitle}}</text>
+          <text class="role-status-success-role">{{statusSubTitle}}</text>
+          <text class="role-status-success-desc">{{texts.approvedAuditDesc}}</text>
+          <text class="role-status-success-desc">{{statusDesc}}</text>
+        </view>
+
+        <view wx:if="{{certNo}}" class="role-status-cert-card">
+          <text>{{texts.certNoLabel}}</text>
+          <text>{{certNo}}</text>
+          <text>{{texts.certTimePrefix}}{{certTime}}</text>
+        </view>
+
+        <view wx:if="{{hasRewards}}" class="role-status-gift-card">
+          <view class="role-status-card-title">
+            <text>{{uiIcons.panel.gift}}</text>
+            <text>{{texts.giftTitle}}</text>
+          </view>
+          <view wx:for="{{rewards}}" wx:key="name" class="role-status-gift-row">
+            <view>
+              <text class="role-status-gift-icon">{{item.icon}}</text>
+              <text>{{item.name}}</text>
+            </view>
+            <text class="{{item.tone}}">{{item.tag}}</text>
+          </view>
+        </view>
+
+        <view class="role-status-action-grid">
+          <view wx:for="{{nextActions}}" wx:key="text" data-route="{{item.route}}" bindtap="handleApprovedActionTap">
+            <text>{{item.icon}}</text>
+            <text>{{item.text}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:else class="role-status-content rejected">
+        <view class="role-status-reject-hero">
+          <view class="role-status-reject-icon">
+            <text>{{uiIcons.status.rejected}}</text>
+          </view>
+          <text class="role-status-reject-title">{{statusTitle}}</text>
+          <text class="role-status-reject-desc">{{statusDesc}}</text>
+          <text class="role-status-reject-desc">{{statusSubTitle}}</text>
+        </view>
+
+        <view class="role-status-reason-card">
+          <view class="role-status-card-title reject">
+            <text>{{uiIcons.panel.warning}}</text>
+            <text>{{texts.reasonTitle}}</text>
+          </view>
+          <text wx:for="{{rejectReasons}}" wx:key="*this" class="role-status-reason-item">{{item}}</text>
+        </view>
+
+        <view class="role-status-suggestion-card">
+          <view class="role-status-card-title">
+            <text>{{uiIcons.panel.suggestion}}</text>
+            <text>{{texts.suggestionTitle}}</text>
+          </view>
+          <text wx:for="{{suggestions}}" wx:key="*this" class="role-status-suggestion-item">{{index + 1}}. {{item}}</text>
+        </view>
+
+        <view class="role-status-reapply-card">
+          <view class="role-status-card-title">
+            <text>{{uiIcons.panel.reapply}}</text>
+            <text>{{texts.reapplyTitle}}</text>
+          </view>
+          <text>{{texts.reapplyDesc}}</text>
+        </view>
+
+        <view class="role-status-detail-card rejected">
+          <view class="role-status-card-title">
+            <text>{{uiIcons.panel.record}}</text>
+            <text>{{texts.recordTitle}}</text>
+          </view>
+          <view wx:for="{{history}}" wx:key="label" class="role-status-detail-row">
+            <text>{{item.label}}</text>
+            <text class="{{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{isPending}}" class="role-status-footer pending">
+      <button bindtap="handleBackHomeTap">{{texts.pendingFooterHomeText}}</button>
+      <button bindtap="handleBenefitsTap">{{texts.pendingFooterBenefitsText}}</button>
+    </view>
+
+    <view wx:elif="{{isApproved}}" class="role-status-footer approved {{meta.successAccent}}">
+      <button bindtap="handleBackHomeTap">{{primaryText}}</button>
+    </view>
+
+    <view wx:else class="role-status-footer rejected">
+      <button bindtap="handleHelpTap">{{texts.rejectedHelpText}}</button>
+      <button bindtap="handleImproveTap">{{texts.rejectedImproveText}}</button>
+    </view>
+  </block>
+</view>

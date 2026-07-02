@@ -1,0 +1,138 @@
+.page {
+  min-height: 100vh;
+  padding: 34rpx 28rpx 56rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.loading,
+.title,
+.desc,
+.role-title,
+.role-desc,
+.requirement {
+  display: block;
+}
+
+.loading {
+  padding-top: 120rpx;
+  color: rgba(17, 17, 17, 0.56);
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.intro {
+  padding: 18rpx 0 10rpx;
+}
+
+.title {
+  color: #111111;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.desc {
+  margin-top: 14rpx;
+  color: rgba(17, 17, 17, 0.6);
+  font-size: 26rpx;
+  line-height: 1.55;
+}
+
+.role-card {
+  margin-top: 24rpx;
+  padding: 30rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.08);
+  border-radius: 8rpx;
+  background: #ffffff;
+}
+
+.role-head,
+.qual-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.role-title {
+  color: #111111;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.role-desc {
+  margin-top: 10rpx;
+  color: rgba(17, 17, 17, 0.56);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.role-status {
+  flex: 0 0 auto;
+  padding: 8rpx 14rpx;
+  border-radius: 8rpx;
+  color: #111111;
+  background: rgba(17, 17, 17, 0.06);
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.role-status.pending {
+  color: #07c160;
+  background: rgba(7, 193, 96, 0.08);
+}
+
+.requirements {
+  margin-top: 22rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 8rpx;
+  background: rgba(17, 17, 17, 0.04);
+}
+
+.requirement {
+  color: rgba(17, 17, 17, 0.68);
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+
+.qualification {
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 2rpx solid rgba(17, 17, 17, 0.06);
+}
+
+.qual-item {
+  color: rgba(17, 17, 17, 0.68);
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+
+.ok {
+  color: #07c160;
+}
+
+.warn {
+  color: #111111;
+}
+
+.apply-button {
+  width: 100%;
+  height: 88rpx;
+  margin: 26rpx 0 0;
+  border: 0;
+  border-radius: 8rpx;
+  color: #ffffff;
+  background: #07c160;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+}
+
+.apply-button::after {
+  border: 0;
+}
+
+.apply-button.disabled {
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(7, 193, 96, 0.45);
+}

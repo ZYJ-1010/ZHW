@@ -1,0 +1,241 @@
+<view class="detail-page">
+  <view class="detail-nav" style="{{navLayout.headerStyle}}">
+    <view class="detail-nav-back" style="{{navLayout.backStyle}}" bindtap="onBack">
+      <view class="detail-nav-back-icon"></view>
+    </view>
+    <text class="detail-nav-title" style="{{navLayout.titleStyle}}">活动详情</text>
+    <button class="detail-nav-share" style="{{navLayout.shareStyle}}" bindtap="onOpenShare">
+      <image class="detail-share-image" src="/pages/game/detail/assets/i41@3x.png" mode="aspectFit" />
+    </button>
+  </view>
+
+  <scroll-view
+    class="detail-scroll"
+    style="{{navLayout.scrollStyle}}"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{detailScrollTop}}"
+    bindscroll="handleDetailScroll"
+    enable-back-to-top
+  >
+    <view class="detail-content">
+      <image class="cover-image" src="{{event.coverSrc}}" mode="aspectFill" />
+
+      <view class="detail-stack">
+        <view class="event-card">
+          <text class="event-title">{{event.title}}</text>
+
+          <view class="event-info-list">
+            <view class="event-info-line">
+              <text>{{event.time}}</text>
+            </view>
+            <view class="event-info-line" bindtap="onMapTap">
+              <image class="event-info-icon" src="/pages/game/assets/icons/icon-location-pin.svg" mode="aspectFit" />
+              <text>{{event.location}}</text>
+            </view>
+          </view>
+
+          <view class="event-meta-row">
+            <view class="event-meta-list">
+              <view class="event-meta-item">
+                <image class="event-meta-icon" src="{{event.categoryIcon}}" mode="aspectFit" />
+                <text>{{event.category}}</text>
+              </view>
+              <view class="event-meta-item">
+                <image class="event-meta-icon" src="/pages/game/assets/icons/icon-fee-bag.svg" mode="aspectFit" />
+                <text>{{event.fee}}</text>
+              </view>
+            </view>
+            <view class="interest-button {{interested ? 'active' : ''}}" bindtap="toggleInterest">
+              <text class="interest-mark">{{interested ? '已' : '+'}}</text>
+              <text>{{interested ? '感兴趣' : '感兴趣'}}</text>
+            </view>
+          </view>
+
+          <view class="stats-row">
+            <view wx:for="{{stats}}" wx:key="text" class="stats-item" data-action="{{item.action}}" bindtap="onStatTap">
+              <image wx:if="{{item.iconSrc}}" class="stats-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
+              <text wx:elif="{{item.iconText}}" class="stats-emoji">{{item.iconText}}</text>
+              <view wx:else class="stats-icon {{item.iconClass}}"></view>
+              <text>{{item.text}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="tag-row">
+          <view wx:for="{{tags}}" wx:key="name" class="tag-pill {{item.tone}}">{{item.name}}</view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">组局者</text>
+          <view class="organizer-card">
+            <image class="organizer-avatar-image" src="{{organizer.avatarSrc}}" mode="aspectFill" />
+            <view class="organizer-main">
+              <view class="organizer-name-row">
+                <text class="organizer-name">{{organizer.name}}</text>
+                <text class="organizer-role">{{organizer.role}}</text>
+              </view>
+              <text class="organizer-summary">{{organizer.summary}}</text>
+            </view>
+            <view class="rating-badge">
+              <image class="rating-icon" src="/pages/game/detail/assets/i30@3x.png" mode="aspectFit" />
+              <text>{{organizer.rating}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">局介绍</text>
+          <view class="plain-card compact-text-card">
+            <text>{{introduction}}</text>
+          </view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">亮点</text>
+          <view class="plain-card highlight-card compact-text-card">
+            <view wx:for="{{highlights}}" wx:key="*this" class="number-row">
+              <text class="number-index">{{index + 1}}.</text>
+              <text>{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="detail-section">
+          <view class="section-heading-row">
+            <text class="section-title">局详情</text>
+            <text class="section-helper">支持文字/上传图片（9张）/视频（60秒内）</text>
+          </view>
+          <view class="plain-card flow-card compact-text-card">
+            <text class="flow-title">局流程安排</text>
+            <view class="flow-list">
+              <view wx:for="{{schedule}}" wx:key="title" class="flow-row">
+                <text class="flow-index">{{index + 1}}.</text>
+                <text class="flow-body">{{item.title}} <text class="flow-time">（{{item.time}}）</text>：{{item.desc}}</text>
+              </view>
+            </view>
+            <view class="detail-image-grid">
+              <image wx:for="{{detailImages}}" wx:key="*this" class="detail-image" src="{{item}}" mode="aspectFill" />
+            </view>
+          </view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">局须知</text>
+          <view class="plain-card notice-card">
+            <view class="notice-tip">
+              <text class="notice-tip-icon">💡</text>
+              <text>{{noticeLead}}</text>
+            </view>
+            <view class="notice-list">
+              <view wx:for="{{noticeBullets}}" wx:key="*this" class="bullet-row">
+                <view class="bullet-dot"></view>
+                <text>{{item}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">受众群体</text>
+          <view class="plain-card">
+            <text>{{audience}}</text>
+          </view>
+        </view>
+
+        <view class="detail-section participants-section">
+          <view class="section-topline">
+            <text class="section-title">参与者（{{participants.length}}人）</text>
+            <view class="section-link" bindtap="onViewAllParticipants">
+              <text>全部</text>
+              <view class="section-link-arrow"></view>
+            </view>
+          </view>
+          <view class="participants-panel">
+            <view class="participants-list">
+              <participant-card
+                wx:for="{{participants}}"
+                wx:key="name"
+                participant="{{item}}"
+                bind:tapcard="onParticipantTap"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="bottom-action-bar {{isGameEnded ? 'ended' : ''}}">
+    <view wx:if="{{!isGameEnded}}" class="bottom-tools">
+      <view class="tool-button" bindtap="onOpenShare">
+        <image class="tool-image" src="/pages/game/detail/assets/i45@3x.png" mode="aspectFit" />
+        <text>分享</text>
+      </view>
+      <view class="tool-button" data-action="引荐" bindtap="onToolTap">
+        <image class="tool-image" src="/pages/game/detail/assets/i46@3x.png" mode="aspectFit" />
+        <text>引荐</text>
+      </view>
+      <view class="tool-button" data-action="签到" bindtap="onToolTap">
+        <image class="tool-image" src="/pages/game/detail/assets/i47@3x.png" mode="aspectFit" />
+        <text>签到</text>
+      </view>
+      <view class="tool-button" data-action="打招呼" bindtap="onToolTap">
+        <image class="tool-image" src="/pages/game/detail/assets/i48@3x.png" mode="aspectFit" />
+        <text>打招呼</text>
+      </view>
+    </view>
+    <view class="enroll-button {{isGameEnded ? 'ended' : ''}}" bindtap="onEnroll">{{isGameEnded ? endedActionText : '立即报名'}}</view>
+    <text wx:if="{{isGameEnded}}" class="ended-action-hint">{{endedNoticeText}}</text>
+    <view class="safe-area-fill"></view>
+  </view>
+
+  <view wx:if="{{showShareWindow}}" class="detail-share-mask" bindtap="onCloseShare" catchtouchmove="onPreventTouch">
+    <view class="detail-share-sheet" catchtap="onPreventBubble">
+      <text class="detail-share-title">分享给朋友</text>
+
+      <view class="detail-share-options">
+        <button class="detail-share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
+          <view class="detail-share-option-icon wechat">
+            <image class="detail-share-option-image" src="/pages/game/share/assets/share-wechat.png" mode="aspectFit" />
+          </view>
+          <text class="detail-share-option-label">微信好友</text>
+        </button>
+
+        <button class="detail-share-option" hover-class="none" bindtap="onShareTimelineTap">
+          <view class="detail-share-option-icon moments">
+            <view class="detail-moments-icon">
+              <view class="detail-moments-dot dot-one"></view>
+              <view class="detail-moments-dot dot-two"></view>
+              <view class="detail-moments-dot dot-three"></view>
+              <view class="detail-moments-dot dot-four"></view>
+              <view class="detail-moments-dot dot-five"></view>
+              <view class="detail-moments-dot dot-six"></view>
+            </view>
+          </view>
+          <text class="detail-share-option-label">朋友圈</text>
+        </button>
+
+        <button class="detail-share-option" hover-class="none" bindtap="onShareDirect">
+          <view class="detail-share-option-icon direct">
+            <image class="detail-share-option-image" src="/pages/game/share/assets/share-private-message.png" mode="aspectFit" />
+          </view>
+          <text class="detail-share-option-label">私信好友</text>
+        </button>
+      </view>
+
+      <button class="detail-share-cancel" hover-class="none" bindtap="onCloseShare">取消</button>
+    </view>
+  </view>
+
+  <view wx:if="{{authPromptVisible}}" class="auth-prompt-mask" catchtap="closeAuthPrompt">
+    <view class="auth-prompt-card" catchtap="noop">
+      <text class="auth-prompt-title">完成认证可使用此功能</text>
+      <text class="auth-prompt-desc">益企玩诚邀企业者实名认证</text>
+      <view class="auth-prompt-primary" bindtap="goRealnameAuth">前往认证</view>
+      <text class="auth-prompt-status">你当前身份为注册用户未实名认证</text>
+    </view>
+  </view>
+</view>
