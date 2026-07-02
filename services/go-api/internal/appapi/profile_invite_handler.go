@@ -1,0 +1,378 @@
+package appapi
+
+import (
+	"net/http"
+	"strconv"
+	"strings"
+
+	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/connections"
+	"zhw-mini/services/go-api/internal/revenue"
+)
+
+func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	items := s.connections.My(userID)
+	income := s.revenue.IncomeSummary(userID)
+	inviteCode, _ := s.auth.InviteCodeForUser(userID)
+	s.recordBehavior(userID, "view_profile_invite_overview", "profile_invite", userID, nil)
+	httpx.OK(w, map[string]interface{}{
+		"profile": map[string]interface{}{
+			"level": "V" + strconv.Itoa(maxInt(1, len(items)+1)) + " 探险家",
+			"name":  s.displayName(userID, "用户"),
+			"desc":  "邀请码: " + inviteCode + " · 关系数 " + strconv.Itoa(len(items)),
+		},
+		"metrics": []map[string]interface{}{
+			{"value": strconv.Itoa(len(items)), "label": "总邀约数", "trend": "▲", "tone": "up"},
+			{"value": strconv.Itoa(countStrongConnections(items)), "label": "成功转化", "trend": "▲", "tone": "up"},
+			{"value": conversionRateText(countStrongConnections(items), len(items)), "label": "转化率", "trend": "▲", "tone": "up"},
+			{"value": moneyYuanText(income.TotalCent), "label": "分润收益", "trend": "▲", "tone": "up"},
+		},
+		"actions": []map[string]interface{}{
+			{"key": "share_card", "icon": "🔗", "label": "分享邀请码", "inviteCode": inviteCode},
+			{"key": "qrcode", "icon": "▦", "label": "二维码", "iconClass": "white", "inviteCode": inviteCode},
+			{"key": "poster", "icon": "▧", "label": "生成海报", "iconClass": "white", "inviteCode": inviteCode},
+		},
+		"tabs": []string{"数据概览", "关系网络", "邀约记录", "贡献排行", "收益明细"},
+		"trends": []map[string]interface{}{
+			{"label": "本周新增邀约", "value": "+" + strconv.Itoa(len(items)), "tone": "cyan"},
+			{"label": "本周新增转化", "value": "+" + strconv.Itoa(countStrongConnections(items)), "tone": "green"},
+			{"label": "本周分润", "value": moneyYuanText(income.SettledCent), "tone": "cyan"},
+		},
+	})
+}
+
+func (s *Server) profileInviteNetwork(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	items := s.connections.My(userID)
+	income := s.revenue.IncomeSummary(userID)
+	s.recordBehavior(userID, "view_profile_invite_network", "profile_invite", userID, nil)
+	httpx.OK(w, map[string]interface{}{
+		"summary": []map[string]interface{}{
+			{"value": strconv.Itoa(len(items)), "label": "已服务\n位玩家"},
+			{"value": moneyYuanText(income.SettledCent), "label": "本周收益"},
+		},
+		"networkNodes": inviteNetworkNodes(items),
+		"avatars":      inviteAvatarList(s, items),
+		"members":      s.inviteMembers(items),
+	})
+}
+
+func (s *Server) profileInviteRecords(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	items := s.connections.My(userID)
+	records := s.inviteRecords(items)
+	role := strings.TrimSpace(r.URL.Query().Get("role"))
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	if role == "" {
+		role = "referred"
+	}
+	if status == "" {
+		status = "all"
+	}
+	s.recordBehavior(userID, "view_profile_invite_records", "profile_invite", userID, map[string]interface{}{"role": role, "status": status})
+	httpx.OK(w, map[string]interface{}{
+		"activeRole":   role,
+		"activeStatus": status,
+		"roleTabs": []map[string]interface{}{
+			{"key": "referred", "label": "我引荐的", "count": len(records)},
+			{"key": "created", "label": "我发起的", "count": 0},
+		},
+		"filters": []map[string]interface{}{
+			{"key": "all", "label": "全部"},
+			{"key": "progress", "label": "进行中(" + strconv.Itoa(countInviteRecordsByStatus(records, "progress")) + ")"},
+			{"key": "completed", "label": "已完成(" + strconv.Itoa(countInviteRecordsByStatus(records, "completed")) + ")"},
+			{"key": "timeout", "label": "超时(0)"},
+			{"key": "cancelled", "label": "已取消(0)"},
+		},
+		"allRecords": records,
+		"records":    filterInviteRecords(records, role, status),
+		"emptyText":  "暂无邀约记录",
+	})
+}
+
+func (s *Server) profileInviteRanking(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	items := s.connections.My(userID)
+	s.recordBehavior(userID, "view_profile_invite_ranking", "profile_invite", userID, nil)
+	httpx.OK(w, map[string]interface{}{
+		"activePeriodIndex": 0,
+		"activeType":        defaultString(r.URL.Query().Get("type"), "inviteCount"),
+		"periods": []map[string]string{
+			{"key": "week", "label": "本周"},
+			{"key": "month", "label": "本月"},
+			{"key": "quarter", "label": "本季"},
+			{"key": "year", "label": "本年"},
+			{"key": "all", "label": "全部"},
+		},
+		"rankTypes": []map[string]string{
+			{"key": "inviteCount", "label": "邀约数排行"},
+			{"key": "profitContribution", "label": "分润贡献排行"},
+		},
+		"members": s.inviteRankingMembers(items),
+	})
+}
+
+func (s *Server) profileInviteIncome(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	summary := s.revenue.IncomeSummary(userID)
+	logs := s.revenue.IncomeLogs(userID, "")
+	s.recordBehavior(userID, "view_profile_invite_income", "profile_invite", userID, nil)
+	httpx.OK(w, map[string]interface{}{
+		"trendSeries": inviteIncomeTrendSeries(summary),
+		"metrics": []map[string]interface{}{
+			{"label": "本月分润", "value": moneyYuanText(summary.SettledCent), "desc": "已结算收益"},
+			{"label": "累计分润", "value": moneyYuanText(summary.TotalCent), "desc": "含待结算收益"},
+			{"label": "活跃成员", "value": strconv.Itoa(len(s.connections.My(userID))), "desc": "当前关系数"},
+			{"label": "产生分润局数", "value": strconv.Itoa(len(logs)), "desc": "累计流水"},
+		},
+		"flows": inviteIncomeFlows(logs),
+	})
+}
+
+func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	memberID := parseInviteMemberID(r.URL.Query().Get("memberId"))
+	if memberID == 0 {
+		memberID = parseInviteMemberID(r.URL.Query().Get("id"))
+	}
+	if memberID == 0 {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "成员 ID 错误")
+		return
+	}
+	var matched connections.Connection
+	for _, item := range s.connections.My(userID) {
+		if item.ConnectedUserID == memberID || item.ID == memberID {
+			matched = item
+			break
+		}
+	}
+	if matched.ID == 0 {
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "成员不存在")
+		return
+	}
+	name := s.displayName(matched.ConnectedUserID, "成员")
+	s.recordBehavior(userID, "view_profile_invite_member", "profile_invite_member", matched.ConnectedUserID, nil)
+	httpx.OK(w, map[string]interface{}{
+		"memberId": strconv.FormatInt(matched.ConnectedUserID, 10),
+		"member": map[string]interface{}{
+			"avatar": avatarTextForName(name, matched.ConnectedUserID),
+			"name":   name,
+			"level":  "一级成员",
+		},
+		"stats": []map[string]interface{}{
+			{"value": strconv.Itoa(maxInt(1, matched.StrengthScore)), "label": "总邀约"},
+			{"value": strconv.Itoa(maxInt(0, matched.StrengthScore/2)), "label": "成功转化"},
+			{"value": conversionRateText(maxInt(0, matched.StrengthScore/2), maxInt(1, matched.StrengthScore)), "label": "转化率"},
+		},
+		"income": []map[string]interface{}{
+			{"label": "直接贡献收益", "value": moneyYuanText(int64(matched.StrengthScore) * 1000)},
+			{"label": "团队贡献收益", "value": moneyYuanText(int64(matched.StrengthScore) * 600)},
+			{"label": "合计贡献", "value": moneyYuanText(int64(matched.StrengthScore) * 1600), "highlight": true},
+		},
+		"activities": []map[string]interface{}{
+			{"icon": "🎯", "title": "邀请关系建立", "time": matched.CreatedAt.Format("01-02 15:04"), "amount": "+"},
+			{"icon": "📈", "title": "关系强度更新", "time": matched.UpdatedAt.Format("01-02 15:04"), "amount": "+"},
+		},
+	})
+}
+
+func (s *Server) inviteMembers(items []connections.Connection) []map[string]interface{} {
+	members := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		name := s.displayName(item.ConnectedUserID, "成员")
+		members = append(members, map[string]interface{}{
+			"id":     strconv.FormatInt(item.ConnectedUserID, 10),
+			"avatar": avatarTextForName(name, item.ConnectedUserID),
+			"name":   name,
+			"desc":   "邀约 " + strconv.Itoa(maxInt(1, item.StrengthScore)) + " · 转化 " + strconv.Itoa(maxInt(0, item.StrengthScore/2)) + " · 活跃 " + strconv.Itoa(maxInt(1, item.StrengthScore)) + "天",
+			"direct": "+",
+			"team":   "贡献 " + moneyYuanText(int64(item.StrengthScore)*1600),
+		})
+	}
+	return members
+}
+
+func (s *Server) inviteRecords(items []connections.Connection) []map[string]interface{} {
+	records := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		name := s.displayName(item.ConnectedUserID, "成员")
+		status := "progress"
+		statusText := "进行中"
+		statusClass := "blue"
+		if item.StrengthScore >= 3 {
+			status = "completed"
+			statusText = "已完成"
+			statusClass = "green"
+		}
+		records = append(records, map[string]interface{}{
+			"role":         "referred",
+			"statusKey":    status,
+			"status":       statusText,
+			"statusClass":  statusClass,
+			"id":           "REF-" + strconv.FormatInt(item.ID, 10),
+			"time":         item.CreatedAt.Format("01-02 15:04"),
+			"expertAvatar": avatarTextForName(name, item.ConnectedUserID),
+			"expert":       name,
+			"memberId":     strconv.FormatInt(item.ConnectedUserID, 10),
+			"playerAvatar": "我",
+			"player":       "我",
+			"title":        "邀请关系服务",
+			"budget":       "你的奖励：" + moneyYuanText(int64(item.StrengthScore)*1000),
+			"income":       incomeStatusText(status),
+			"route":        "/pages/profile/service-center/invite/member-detail/index?memberId=" + strconv.FormatInt(item.ConnectedUserID, 10),
+			"steps": []map[string]interface{}{
+				{"label": "邀请关系建立", "time": item.CreatedAt.Format("01-02 15:04")},
+				{"label": statusText, "time": item.UpdatedAt.Format("01-02 15:04")},
+			},
+			"actions": []string{"查看详情"},
+		})
+	}
+	return records
+}
+
+func (s *Server) inviteRankingMembers(items []connections.Connection) []map[string]interface{} {
+	members := make([]map[string]interface{}, 0, len(items))
+	for index, item := range items {
+		name := s.displayName(item.ConnectedUserID, "成员")
+		members = append(members, map[string]interface{}{
+			"id":                 strconv.FormatInt(item.ConnectedUserID, 10),
+			"rank":               index + 1,
+			"avatar":             avatarTextForName(name, item.ConnectedUserID),
+			"name":               name,
+			"level":              "一级成员",
+			"activeDays":         maxInt(1, item.StrengthScore),
+			"inviteCount":        maxInt(1, item.StrengthScore),
+			"profitContribution": moneyYuanText(int64(item.StrengthScore) * 1600),
+		})
+	}
+	return members
+}
+
+func inviteNetworkNodes(items []connections.Connection) []string {
+	count := maxInt(1, len(items))
+	nodes := make([]string, 0, count)
+	for i := 1; i <= count && i <= 8; i++ {
+		nodes = append(nodes, strconv.Itoa(i))
+	}
+	return nodes
+}
+
+func inviteAvatarList(s *Server, items []connections.Connection) []string {
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		name := s.displayName(item.ConnectedUserID, "成员")
+		result = append(result, avatarTextForName(name, item.ConnectedUserID))
+	}
+	return result
+}
+
+func filterInviteRecords(records []map[string]interface{}, role string, status string) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(records))
+	for _, record := range records {
+		if role != "" && record["role"] != role {
+			continue
+		}
+		if status != "" && status != "all" && record["statusKey"] != status {
+			continue
+		}
+		result = append(result, record)
+	}
+	return result
+}
+
+func countInviteRecordsByStatus(records []map[string]interface{}, status string) int {
+	count := 0
+	for _, record := range records {
+		if record["statusKey"] == status {
+			count++
+		}
+	}
+	return count
+}
+
+func inviteIncomeTrendSeries(summary revenue.IncomeSummary) []map[string]interface{} {
+	base := summary.TotalCent / 100
+	if base == 0 {
+		base = 1
+	}
+	return []map[string]interface{}{
+		{"month": "1月", "amount": maxInt64(1, base/6)},
+		{"month": "2月", "amount": maxInt64(1, base/5)},
+		{"month": "3月", "amount": maxInt64(1, base/4)},
+		{"month": "4月", "amount": maxInt64(1, base/3)},
+		{"month": "5月", "amount": maxInt64(1, base/2)},
+		{"month": "6月", "amount": maxInt64(1, base)},
+	}
+}
+
+func inviteIncomeFlows(logs []revenue.IncomeLog) []map[string]interface{} {
+	flows := make([]map[string]interface{}, 0, len(logs))
+	for _, log := range logs {
+		flows = append(flows, map[string]interface{}{
+			"icon":   "🎯",
+			"title":  "组局分润 · " + log.Role,
+			"time":   log.CreatedAt.Format("01-02 15:04"),
+			"amount": "+" + moneyYuanText(log.AmountCent),
+		})
+	}
+	return flows
+}
+
+func parseInviteMemberID(value string) int64 {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "member-")
+	id, _ := strconv.ParseInt(value, 10, 64)
+	return id
+}
+
+func conversionRateText(success int, total int) string {
+	if total <= 0 {
+		return "0%"
+	}
+	return strconv.Itoa(success*100/total) + "%"
+}
+
+func moneyYuanText(cent int64) string {
+	return "¥" + strconv.FormatFloat(float64(cent)/100, 'f', 2, 64)
+}
+
+func incomeStatusText(status string) string {
+	if status == "completed" {
+		return "已到账"
+	}
+	return ""
+}
+
+func defaultString(value string, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func maxInt64(a int64, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}

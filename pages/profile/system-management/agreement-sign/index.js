@@ -1,50 +1,26 @@
-const toast = require('../../../../utils/toast')
 const profileService = require('../../../../services/profile')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/system-management/agreement-sign/assets'
 
-const ROW_META = [
-  { tone: 'green', icon: `${ASSET_BASE}/icon-agreement-doc.svg` },
-  { tone: 'deep-green', icon: `${ASSET_BASE}/icon-agreement-lock.svg` },
-  { tone: 'orange', icon: `${ASSET_BASE}/icon-agreement-box.svg` }
-]
-
-function pickFirstValue() {
-  const values = Array.prototype.slice.call(arguments)
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
-      return values[index]
-    }
-  }
-
-  return ''
+const ICON_MAP = {
+  doc: `${ASSET_BASE}/icon-agreement-doc.svg`,
+  lock: `${ASSET_BASE}/icon-agreement-lock.svg`,
+  box: `${ASSET_BASE}/icon-agreement-box.svg`
 }
 
-function normalizeList(list) {
-  return Array.isArray(list) ? list : []
-}
-
-function normalizeAgreements(data) {
-  const source = data || {}
-  const list = normalizeList(source.agreements || source.list || source.items)
-
-  return list.map((item, index) => {
-    const agreement = item || {}
-    const meta = ROW_META[index % ROW_META.length]
-    const key = pickFirstValue(agreement.key, agreement.agreementId, agreement.id)
-    const status = String(agreement.status || '').toLowerCase()
-
-    return {
-      key,
-      title: pickFirstValue(agreement.title, agreement.name),
-      desc: pickFirstValue(agreement.desc, agreement.description, agreement.summary),
-      signed: Boolean(agreement.signed || agreement.signedAt || status === 'signed'),
-      tone: pickFirstValue(agreement.tone, agreement.iconTone, meta.tone),
-      last: index === list.length - 1,
-      icon: pickFirstValue(agreement.localIcon, meta.icon)
-    }
-  }).filter((item) => item.key)
+function normalizeAgreement(item = {}, index = 0, total = 0) {
+  return Object.assign({}, item, {
+    key: item.key || `agreement-${index}`,
+    title: item.title || '平台协议',
+    desc: item.desc || '协议说明',
+    signed: Boolean(item.signed) && !Boolean(item.requiresResign),
+    requiresResign: Boolean(item.requiresResign),
+    version: item.version || '',
+    tone: item.tone || 'green',
+    last: typeof item.last === 'boolean' ? item.last : index === total - 1,
+    icon: item.icon || ICON_MAP[item.iconKey] || ICON_MAP.doc
+  })
 }
 
 Page({
@@ -56,22 +32,24 @@ Page({
     }
   },
 
+  onLoad() {
+    this.loadAgreements()
+  },
+
   onShow() {
     this.loadAgreements()
   },
 
   async loadAgreements() {
     try {
-      const data = await profileService.getSystemAgreements()
+      const result = await profileService.getProfileAgreements()
+      const items = Array.isArray(result && result.items) ? result.items : []
 
       this.setData({
-        agreements: normalizeAgreements(data)
+        agreements: items.map((item, index) => normalizeAgreement(item, index, items.length))
       })
     } catch (error) {
-      this.setData({
-        agreements: []
-      })
-      toast.info(error.message || '协议列表加载失败')
+      this.showToast(error.message || '协议列表加载失败')
     }
   },
 
@@ -86,11 +64,21 @@ Page({
     const query = [
       `agreement=${encodeURIComponent(agreement.key)}`,
       `title=${encodeURIComponent(agreement.title)}`,
-      `signed=${agreement.signed ? 1 : 0}`
+      `signed=${agreement.signed ? 1 : 0}`,
+      `requiresResign=${agreement.requiresResign ? 1 : 0}`
     ].join('&')
 
-    wx.navigateTo({
-      url: `/pages/profile/system-management/agreement-detail/index?${query}`
+    navigateShellRoute(`/pages/profile/system-management/agreement-detail/index?${query}`)
+  },
+
+  showToast(title) {
+    if (typeof wx === 'undefined') {
+      return
+    }
+
+    wx.showToast({
+      title,
+      icon: 'none'
     })
   }
 })

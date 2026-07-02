@@ -1,18 +1,23 @@
 const request = require('../request')
 
+function getChatRoom(gameId) {
+  return request.get(`/api/app/games/${gameId}/chat-room`)
+}
+
 function getRoomByGame(gameId) {
-  return request.get(`/api/im/games/${gameId}/room`)
+  return request.get(`/api/app/games/${gameId}/chat-session`)
 }
 
-function getMessages(roomId, params) {
-  return request.get(`/api/im/rooms/${roomId}/messages`, params)
+function getMessages(gameId, params) {
+  return request.get(`/api/app/games/${gameId}/chat/messages`, params)
 }
 
-function sendMessage(roomId, data) {
-  return request.post(`/api/im/rooms/${roomId}/messages`, data)
+function sendMessage(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/chat/messages`, data)
 }
 
 module.exports = {
+  getChatRoom,
   getRoomByGame,
   getMessages,
   sendMessage

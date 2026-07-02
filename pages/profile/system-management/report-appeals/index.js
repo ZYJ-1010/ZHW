@@ -1,36 +1,68 @@
-const toast = require('../../../../utils/toast')
-const profileService = require('../../../../services/profile')
+const reportService = require('../../../../services/report')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
+
+function formatTime(value) {
+  return value ? String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/, '') : ''
+}
+
+function normalizeAppeal(report) {
+  return {
+    id: report.id,
+    title: `被举报「${report.reportType || '申诉'}」`,
+    filter: report.status === 'appealed' ? 'processing' : 'resolved',
+    status: report.status === 'appealed' ? '处理中' : '已处理',
+    statusClass: report.status === 'closed' ? 'danger' : 'success',
+    reason: report.handleResult || report.content || '',
+    time: formatTime(report.handledAt || report.createdAt),
+    raw: report
+  }
+}
 
 Page({
   data: {
     activeFilter: 'all',
-    filters: [],
+    filters: [
+      { key: 'all', label: '全部' },
+      { key: 'pending', label: '待处理' },
+      { key: 'processing', label: '处理中' },
+      { key: 'resolved', label: '已处理' }
+    ],
     appeals: [],
-    visibleAppeals: []
+    visibleAppeals: [],
+    emptyText: '暂无申诉记录',
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    hasMore: false
   },
 
   onLoad() {
     this.loadAppeals()
   },
 
+  onShow() {
+    this.loadAppeals()
+  },
+
   async loadAppeals() {
     try {
-      const data = await profileService.getSystemReportAppeals({
-        status: this.data.activeFilter
+      const data = await reportService.getMyAppeals({
+        page: this.data.page,
+        pageSize: this.data.pageSize
       })
-      const appeals = this.normalizeList(data.appeals || data.list || data.items)
+      const appeals = Array.isArray(data.items) ? data.items.map(normalizeAppeal) : []
 
       this.setData({
-        filters: this.normalizeList(data.filters || data.tabs),
-        appeals
-      }, () => this.applyFilter(this.data.activeFilter))
-    } catch (error) {
-      this.setData({
-        filters: [],
-        appeals: [],
-        visibleAppeals: []
+        appeals,
+        total: Number(data.total || appeals.length),
+        hasMore: Boolean(data.hasMore)
       })
-      toast.info(error.message || '申诉列表加载失败')
+      this.applyFilter(this.data.activeFilter)
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '获取申诉记录失败',
+        icon: 'none'
+      })
     }
   },
 
@@ -42,7 +74,7 @@ Page({
     }
 
     if (routeMap[target]) {
-      wx.redirectTo({ url: routeMap[target] })
+      navigateShellRoute(routeMap[target])
     }
   },
 
@@ -50,16 +82,14 @@ Page({
     const { key } = event.currentTarget.dataset
 
     if (key) {
-      this.setData({
-        activeFilter: key
-      }, () => this.loadAppeals())
+      this.applyFilter(key)
     }
   },
 
   applyFilter(key) {
     const visibleAppeals = key === 'all'
       ? this.data.appeals
-      : this.data.appeals.filter((item) => this.getStatusKey(item) === key)
+      : this.data.appeals.filter((item) => item.filter === key)
 
     this.setData({
       activeFilter: key,
@@ -69,22 +99,8 @@ Page({
 
   handleDetailTap(event) {
     const { id } = event.currentTarget.dataset
-    const query = id ? `?appealId=${id}` : ''
+    const query = id ? `?reportId=${id}` : ''
 
-    wx.redirectTo({
-      url: `/pages/profile/system-management/appeal-detail/index${query}`
-    })
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
-  },
-
-  getStatusKey(item) {
-    if (!item || typeof item !== 'object') {
-      return ''
-    }
-
-    return item.filter || item.statusKey || item.statusType || item.status || ''
+    navigateShellRoute(`/pages/profile/system-management/appeal-detail/index${query}`)
   }
 })

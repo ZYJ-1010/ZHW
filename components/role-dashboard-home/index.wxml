@@ -194,7 +194,7 @@
         </view>
       </view>
 
-      <view class="player-world-card" bindtap="handleActionTap">
+      <view class="player-world-card" data-route="{{onlineCard.route}}" bindtap="handleActionTap">
         <view>
           <text class="player-world-title">{{onlineCard.title}}</text>
           <text class="player-world-desc">{{onlineCard.desc}}</text>
@@ -229,6 +229,7 @@
         <text
           wx:elif="{{mainSection.moreEnabled}}"
           class="role-section-more enabled"
+          data-route="{{mainSection.route}}"
           bindtap="handleActionTap"
         >{{mainSection.moreText}}</text>
         <text wx:else class="role-section-more disabled">{{mainSection.moreText}}</text>
@@ -239,6 +240,7 @@
         <view
           wx:if="{{currentRoleType === 'expert' && (mainFilter === 'all' || item.scope === mainFilter)}}"
           class="role-session-card"
+          data-route="{{item.route}}"
           bindtap="handleActionTap"
         >
           <view class="role-session-time">
@@ -371,7 +373,7 @@
           </view>
         </view>
 
-        <view class="player-rank-more" bindtap="handleActionTap">{{rankingSection.moreText}}</view>
+        <view class="player-rank-more" data-route="{{rankingSection.route}}" bindtap="handleActionTap">{{rankingSection.moreText}}</view>
       </view>
 
       <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-achievement-panel">
@@ -410,7 +412,7 @@
         </view>
       </view>
 
-      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-metaverse-card" bindtap="handleActionTap">
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-metaverse-card" data-route="{{metaverse.route}}" bindtap="handleActionTap">
         <view class="player-metaverse-copy">
           <view class="player-metaverse-heading">
             <view class="player-metaverse-dot"></view>

@@ -89,18 +89,6 @@ page {
   gap: 24rpx;
 }
 
-.mall-empty {
-  padding: 92rpx 24rpx 120rpx;
-  color: #8b949e;
-  font-size: 26rpx;
-  line-height: 38rpx;
-  text-align: center;
-}
-
-.mall-empty.error {
-  color: #ef4444;
-}
-
 .goods-card {
   overflow: hidden;
   min-width: 0;

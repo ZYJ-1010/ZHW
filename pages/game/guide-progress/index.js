@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -467,9 +468,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameGuideProgressDetail}?id=${encodeURIComponent(item.id)}`
-    })
+    navigateShellRoute(`/${ROUTES.gameGuideProgressDetail}?id=${encodeURIComponent(item.id)}`)
   },
 
   onBackTap() {
@@ -480,8 +479,6 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: '/pages/game/hall/index'
-    })
+    navigateShellRoute('/pages/game/hall/index')
   }
 })

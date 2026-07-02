@@ -2,6 +2,7 @@ const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -16,16 +17,40 @@ const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
 const DAY_MS = 24 * 60 * 60 * 1000
 
-const DEFAULT_SUMMARY = {
-  label: '本月服务支出',
-  amount: '¥0',
+const EMPTY_SUMMARY = {
+  label: '',
+  amount: '',
   activeCount: 0,
   completedCount: 0,
   canceledCount: 0
 }
 
-const DEFAULT_ORDERS = [
-]
+const EMPTY_ORDER = {
+  id: '',
+  statusType: 'active',
+  statusText: '',
+  ref: '',
+  avatar: '',
+  name: '',
+  title: '',
+  amount: '',
+  guideText: '',
+  startedAt: '',
+  expectedDeliveryAt: '',
+  noticeText: '',
+  primaryActionText: '',
+  secondaryActionText: ''
+}
+
+function navigateRoute(route) {
+  const url = route ? `/${String(route).replace(/^\/+/, '')}` : ''
+  if (!url) {
+    return false
+  }
+
+  navigateShellRoute(url)
+  return true
+}
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -195,16 +220,16 @@ function formatDateTime(value) {
 
 function buildSummary(rawSummary = {}) {
   const source = rawSummary || {}
-  const activeCount = getCount(firstDefined(source.activeCount, source.ongoingCount, source.processingCount), DEFAULT_SUMMARY.activeCount)
-  const completedCount = getCount(firstDefined(source.completedCount, source.completeCount, source.doneCount), DEFAULT_SUMMARY.completedCount)
-  const canceledCount = getCount(firstDefined(source.canceledCount, source.cancelledCount, source.refundCount, source.refundCancelCount), DEFAULT_SUMMARY.canceledCount)
+  const activeCount = getCount(firstDefined(source.activeCount, source.ongoingCount, source.processingCount), EMPTY_SUMMARY.activeCount)
+  const completedCount = getCount(firstDefined(source.completedCount, source.completeCount, source.doneCount), EMPTY_SUMMARY.completedCount)
+  const canceledCount = getCount(firstDefined(source.canceledCount, source.cancelledCount, source.refundCount, source.refundCancelCount), EMPTY_SUMMARY.canceledCount)
   const amount = firstDefined(source.amountText, source.serviceExpenseText, source.monthlyServiceExpenseText)
 
   return {
-    label: source.label || source.title || DEFAULT_SUMMARY.label,
+    label: source.label || source.title || EMPTY_SUMMARY.label,
     amount: amount || formatCurrency(
       firstDefined(source.amount, source.serviceExpense, source.monthlyServiceExpense),
-      DEFAULT_SUMMARY.amount
+      EMPTY_SUMMARY.amount
     ),
     activeCount,
     completedCount,
@@ -286,7 +311,10 @@ function normalizeBooleanFlag(value) {
 }
 
 function getDefaultOrder(statusType) {
-  return DEFAULT_ORDERS.find((item) => item.statusType === statusType) || DEFAULT_ORDERS[0] || {}
+  return {
+    ...EMPTY_ORDER,
+    statusType
+  }
 }
 
 function splitTitleAndAmount(value) {
@@ -309,7 +337,7 @@ function splitTitleAndAmount(value) {
   }
 }
 
-function getAvatarText(rawOrder, fallback = {}) {
+function getAvatarText(rawOrder, fallback) {
   const name = firstDefined(rawOrder.name, rawOrder.expertName, rawOrder.playerName, fallback.name)
   const fallbackText = firstDefined(rawOrder.avatar, rawOrder.avatarText, rawOrder.initials, rawOrder.expertInitials, fallback.avatar)
 
@@ -320,7 +348,7 @@ function getNestedValue(source, path) {
   return path.reduce((value, key) => (value && value[key] !== undefined ? value[key] : undefined), source)
 }
 
-function buildSchedule(rawOrder, fallback = {}, currentTime) {
+function buildSchedule(rawOrder, fallback, currentTime) {
   const startAt = firstDefined(
     rawOrder.startedAt,
     rawOrder.startAt,
@@ -338,18 +366,15 @@ function buildSchedule(rawOrder, fallback = {}, currentTime) {
   )
   const startDate = parseDateTime(startAt)
   const deliveryDate = parseDateTime(expectedDeliveryAt)
-  const backendTime = firstDefined(rawOrder.currentTime, rawOrder.serverTime, rawOrder.now, currentTime)
-  const nowDate = parseDateTime(backendTime)
-  const progressValue = firstDefined(rawOrder.progressPercent, rawOrder.progress, fallback.progressPercent)
-  const fallbackPercent = clampPercent(progressValue, 0)
-  const hasProgressValue = progressValue !== undefined && progressValue !== null && progressValue !== ''
+  const nowDate = parseDateTime(firstDefined(rawOrder.currentTime, rawOrder.serverTime, currentTime)) || new Date()
+  const fallbackPercent = clampPercent(firstDefined(rawOrder.progressPercent, rawOrder.progress), fallback.progressPercent || 0)
   const fallbackDeliveryText = rawOrder.deliveryText || rawOrder.expectedDeliveryText || fallback.deliveryText
 
-  if (!startDate || !deliveryDate || deliveryDate <= startDate || !nowDate) {
+  if (!startDate || !deliveryDate || deliveryDate <= startDate) {
     return {
       progressPercent: fallbackPercent,
-      progressText: rawOrder.progressText || fallback.progressText || (hasProgressValue ? `${fallbackPercent}%` : ''),
-      progressStyle: hasProgressValue ? `width: ${fallbackPercent}%;` : '',
+      progressText: `${fallbackPercent}%`,
+      progressStyle: `width: ${fallbackPercent}%;`,
       deliveryText: fallbackDeliveryText || '',
       elapsedText: rawOrder.elapsedText || fallback.elapsedText || '',
       remainingText: rawOrder.remainingText || fallback.remainingText || ''
@@ -402,6 +427,7 @@ function getReviewState(rawOrder = {}, fallback = {}) {
 function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
   const statusType = normalizeStatusType(firstDefined(rawOrder.statusType, rawOrder.status, rawOrder.state, rawOrder.statusText))
   const fallback = getDefaultOrder(statusType)
+  const actionConfig = rawOrder.actions || {}
   const serviceParts = splitTitleAndAmount(firstDefined(rawOrder.serviceText, rawOrder.service, fallback.title))
   const schedule = buildSchedule(rawOrder, fallback, context.currentTime)
   const reviewState = getReviewState(rawOrder, fallback)
@@ -456,7 +482,7 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
   const servedText = buildServedText(servedDurationText, totalDurationText) || rawServedText || ''
 
   return {
-    id: rawOrder.id || rawOrder.orderId || rawOrder.gameId || `player-manage-order-${index}`,
+    id: rawOrder.id || rawOrder.orderId || rawOrder.gameId || '',
     serviceOrderId: rawOrder.serviceOrderId || rawOrder.orderId || rawOrder.id || '',
     gameId: rawOrder.gameId || '',
     expertId: expert.id || rawOrder.expertId || '',
@@ -507,6 +533,9 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
     noticeText: rawOrder.noticeText || fallback.noticeText,
     primaryActionText: rawOrder.primaryActionText || fallback.primaryActionText,
     secondaryActionText: rawOrder.secondaryActionText || fallback.secondaryActionText,
+    contactExpertRoute: firstDefined(actionConfig.contactExpertRoute, rawOrder.contactExpertRoute),
+    playerCancelRoute: firstDefined(actionConfig.playerCancelRoute, actionConfig.cancelRoute, rawOrder.playerCancelRoute, rawOrder.cancelRoute),
+    reviewRoute: firstDefined(actionConfig.reviewRoute, rawOrder.reviewRoute),
     completeSummary: rawOrder.completeSummary || rawOrder.completedSummary || fallback.completeSummary,
     completedAt: rawOrder.completedAtText || rawOrder.completedAt || fallback.completedAt,
     resultText: rawOrder.resultText || fallback.resultText,
@@ -530,9 +559,9 @@ function getOrdersPayload(data = {}) {
   )
 }
 
-function normalizeOrders(rawOrders, context = {}, useDefault = false) {
+function normalizeOrders(rawOrders, context = {}) {
   if (!Array.isArray(rawOrders)) {
-    return useDefault ? DEFAULT_ORDERS.map((item, index) => normalizeOrder(item, index, context)) : []
+    return []
   }
 
   return rawOrders.map((item, index) => normalizeOrder(item, index, context))
@@ -547,8 +576,31 @@ function buildDisplayState(orders, activeTabKey) {
 
   return {
     displayOrders,
-    hasDisplayOrders: displayOrders.length > 0
+    hasDisplayOrders: displayOrders.length > 0,
+    emptyText: getEmptyText(activeTabKey)
   }
+}
+
+function getEmptyText(activeTabKey) {
+  if (activeTabKey === 'complete') {
+    return '暂无已完成业务'
+  }
+
+  if (activeTabKey === 'refund') {
+    return '暂无退款/取消订单'
+  }
+
+  return '暂无进行中的业务'
+}
+
+function findOrderByEvent(orders = [], event = {}) {
+  const orderId = event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.id : ''
+
+  if (!orderId) {
+    return null
+  }
+
+  return orders.find((item) => String(item.id) === String(orderId)) || null
 }
 
 function buildCancelQuery(order = {}) {
@@ -577,7 +629,7 @@ function buildCancelQuery(order = {}) {
     .join('&')
 }
 
-const INITIAL_SUMMARY = buildSummary(DEFAULT_SUMMARY)
+const INITIAL_SUMMARY = buildSummary(EMPTY_SUMMARY)
 const INITIAL_ORDERS = []
 const INITIAL_DISPLAY_STATE = buildDisplayState(INITIAL_ORDERS, 'active')
 
@@ -589,7 +641,8 @@ Page({
     activeTabKey: 'active',
     orders: INITIAL_ORDERS,
     displayOrders: INITIAL_DISPLAY_STATE.displayOrders,
-    hasDisplayOrders: INITIAL_DISPLAY_STATE.hasDisplayOrders
+    hasDisplayOrders: INITIAL_DISPLAY_STATE.hasDisplayOrders,
+    emptyText: INITIAL_DISPLAY_STATE.emptyText
   },
 
   onLoad(options = {}) {
@@ -638,9 +691,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameHall}`
-    })
+    navigateShellRoute(ROUTES.gameHall)
   },
 
   onTabTap(event) {
@@ -657,25 +708,56 @@ Page({
     })
   },
 
-  onContactExpert() {
-    toast.info('联系行家功能开发中')
+  onContactExpert(event = {}) {
+    const order = findOrderByEvent(this.data.orders, event)
+
+    if (!order || !order.gameId) {
+      toast.info('暂无可联系的行家')
+      return
+    }
+
+    if (navigateRoute(order.contactExpertRoute)) {
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.imRoom}?gameId=${encodeURIComponent(order.gameId)}&prefill=${encodeURIComponent('你好，我这边想确认一下服务内容。')}`)
   },
 
   onCancelOrder(event) {
-    const id = event && event.currentTarget ? event.currentTarget.dataset.id : ''
-    const order = (this.data.orders || []).find((item) => item.id === id)
+    const order = findOrderByEvent(this.data.orders, event)
 
     if (!order) {
       toast.info('未找到服务信息')
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.gamePlayerCancel}?${buildCancelQuery(order)}`
-    })
+    if (navigateRoute(order.playerCancelRoute)) {
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.gamePlayerCancel}?${buildCancelQuery(order)}`)
   },
 
-  onReviewBoth() {
-    toast.info('评价页待接入')
+  onReviewBoth(event = {}) {
+    const order = findOrderByEvent(this.data.orders, event)
+
+    if (!order || !order.gameId) {
+      toast.info('暂无可评价的业务')
+      return
+    }
+
+    if (navigateRoute(order.reviewRoute)) {
+      return
+    }
+
+    const params = [
+      `gameId=${encodeURIComponent(order.gameId)}`,
+      `targetUserId=${encodeURIComponent(order.expertId || '')}`,
+      `targetRole=${encodeURIComponent('member')}`,
+      `title=${encodeURIComponent(order.title || '')}`,
+      `name=${encodeURIComponent(order.name || '')}`
+    ].join('&')
+
+    navigateShellRoute(`${ROUTES.gameReview}?${params}`)
   }
 })

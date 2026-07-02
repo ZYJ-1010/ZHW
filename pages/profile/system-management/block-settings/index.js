@@ -1,5 +1,6 @@
 const toast = require('../../../../utils/toast')
 const profileService = require('../../../../services/profile')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 const PAGE_ROUTES = {
@@ -15,36 +16,9 @@ const PAGE_NAMES = {
   protection: '保护模式',
   scene: '分场景配置',
   whitelist: '白名单',
-  renewal: '续期保护期',
+  renewal: '续期保护',
   keywords: '关键词屏蔽',
   users: '用户屏蔽'
-}
-
-const DEBUG_PREFIX = '[block-settings]'
-const CONFIG_ROW_META = [
-  { key: 'protection', title: '保护模式', iconText: '🎯', tone: '', route: PAGE_ROUTES.protection },
-  { key: 'scene', title: '分场景配置', iconText: '⚙️', tone: 'green', route: PAGE_ROUTES.scene },
-  { key: 'whitelist', title: '白名单', iconText: '📋', tone: 'gold', route: PAGE_ROUTES.whitelist }
-]
-const MANAGE_ROW_META = [
-  { key: 'users', title: '用户屏蔽', iconText: '🚫', tone: 'red', route: PAGE_ROUTES.users },
-  { key: 'keywords', title: '关键词屏蔽', iconText: '🔤', tone: '', route: PAGE_ROUTES.keywords }
-]
-
-function normalizeList(list) {
-  return Array.isArray(list) ? list : []
-}
-
-function mergeRows(metaRows, remoteRows) {
-  const remoteMap = normalizeList(remoteRows).reduce((result, item) => {
-    result[item.key] = item
-    return result
-  }, {})
-
-  return metaRows.map((item) => ({
-    ...item,
-    ...(remoteMap[item.key] || {})
-  }))
 }
 
 Page({
@@ -53,12 +27,16 @@ Page({
       chevron: `${ASSET_BASE}/icon-chevron-right.svg`
     },
     routes: PAGE_ROUTES,
-    enabled: false,
+    enabled: true,
     debugMessage: '',
-    summary: {},
+    summary: {
+      protectedUserText: '',
+      blockedExpertText: '',
+      renewalDaysText: ''
+    },
     stats: [],
-    configRows: CONFIG_ROW_META,
-    manageRows: MANAGE_ROW_META,
+    configRows: [],
+    manageRows: [],
     rules: []
   },
 
@@ -69,44 +47,35 @@ Page({
   async loadBlockSettings() {
     try {
       const data = await profileService.getSystemBlockSettings()
-
       this.setData({
-        enabled: !!data.enabled,
-        summary: data.summary || {},
-        stats: normalizeList(data.stats),
-        configRows: mergeRows(CONFIG_ROW_META, data.configRows),
-        manageRows: mergeRows(MANAGE_ROW_META, data.manageRows),
-        rules: normalizeList(data.rules || data.ruleLines)
+        enabled: data.enabled !== false,
+        summary: data.summary || this.data.summary,
+        stats: Array.isArray(data.stats) ? data.stats : [],
+        configRows: Array.isArray(data.configRows) ? data.configRows.map(withRoute) : [],
+        manageRows: Array.isArray(data.manageRows) ? data.manageRows.map(withRoute) : [],
+        rules: Array.isArray(data.rules) ? data.rules : []
       })
     } catch (error) {
       this.setData({
-        enabled: false,
-        summary: {},
         stats: [],
-        configRows: CONFIG_ROW_META,
-        manageRows: MANAGE_ROW_META,
+        configRows: [],
+        manageRows: [],
         rules: []
       })
-      toast.info(error.message || '屏蔽设置加载失败')
+      toast.info(error.message || '屏蔽设置暂时不可用')
     }
   },
 
   async handleToggle() {
     const enabled = !this.data.enabled
-
-    this.setData({
-      enabled
-    })
+    this.setData({ enabled })
 
     try {
-      await profileService.saveSystemBlockStatus({
-        enabled
-      })
+      await profileService.saveSystemBlockSettings({ enabled })
+      toast.success(enabled ? '已开启保护' : '已关闭保护')
     } catch (error) {
-      this.setData({
-        enabled: !enabled
-      })
-      toast.info(error.message || '屏蔽设置保存失败')
+      this.setData({ enabled: !enabled })
+      toast.info(error.message || '保存失败')
     }
   },
 
@@ -114,7 +83,6 @@ Page({
     const { key } = event.currentTarget.dataset
     const url = PAGE_ROUTES[key]
     const name = PAGE_NAMES[key] || '页面'
-    const page = this
 
     if (!url) {
       this.setData({
@@ -123,36 +91,21 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url,
-      success() {
-        if (page.data.debugMessage) {
-          page.setData({ debugMessage: '' })
-        }
-      },
-      fail(error) {
-        const errMsg = error && error.errMsg ? error.errMsg : ''
+    if (this.data.debugMessage) {
+      this.setData({ debugMessage: '' })
+    }
 
-        if (errMsg.indexOf('timeout') > -1) {
-          console.warn(`${DEBUG_PREFIX} navigate timeout`, {
-            key,
-            name,
-            url
-          })
-          return
-        }
-
-        console.error(`${DEBUG_PREFIX} navigate failed`, {
-          key,
-          name,
-          url,
-          errMsg
-        })
-
-        page.setData({
-          debugMessage: `打开失败：${name}；${errMsg}`
-        })
-      }
-    })
+    if (!navigateShellRoute(url)) {
+      this.setData({
+        debugMessage: `${name}暂时无法打开`
+      })
+    }
   }
 })
+
+function withRoute(item) {
+  return {
+    ...item,
+    route: PAGE_ROUTES[item.key] || ''
+  }
+}

@@ -42,7 +42,7 @@ async function loginByWechat(options = {}) {
     throw new Error(result.message || '授权失败')
   }
 
-  wx.setStorageSync('enjoy_token', result.data.token)
+  wx.setStorageSync('enjoy_token', result.data.token || result.data.preAuthToken || '')
   wx.setStorageSync('enjoy_user', result.data.user)
 
   return result.data
@@ -77,51 +77,34 @@ async function verifyPhoneCode(options) {
   return result.data
 }
 
-async function loginByPhone(options) {
-  const result = await api.loginWithPhone({
-    phone: options.phone || '',
-    code: options.code || '',
-    inviteCode: options.inviteCode || ''
-  })
+async function loginByPhone() {
+  throw new Error('\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55')
+}
+
+async function loginByPassword() {
+  throw new Error('\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55')
+}
+
+async function resetPassword() {
+  throw new Error('\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55\uff0c\u65e0\u9700\u627e\u56de\u5bc6\u7801')
+}
+
+async function issueTokenAfterIdentity() {
+  const result = await api.issueTokenAfterIdentity({})
 
   if (result.code !== 0) {
-    throw new Error(result.message || '手机号登录失败')
+    throw new Error(result.message || '身份认证后登录态换发失败')
   }
 
-  wx.setStorageSync('enjoy_token', result.data.token)
-  wx.setStorageSync('enjoy_user', result.data.user)
+  wx.setStorageSync('enjoy_token', result.data.token || '')
 
   return result.data
 }
 
-async function loginByPassword(options) {
-  const result = await api.loginWithPassword({
-    phone: options.phone || '',
-    password: options.password || ''
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '密码登录失败')
-  }
-
-  wx.setStorageSync('enjoy_token', result.data.token)
-  wx.setStorageSync('enjoy_user', result.data.user)
-
-  return result.data
-}
-
-async function resetPassword(options) {
-  const result = await api.resetPassword({
-    phone: options.phone || '',
-    code: options.code || '',
-    password: options.password || ''
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '密码找回失败')
-  }
-
-  return result.data
+function logout() {
+  wx.removeStorageSync('enjoy_token')
+  wx.removeStorageSync('enjoy_user')
+  wx.removeStorageSync('enjoy_invite_context')
 }
 
 module.exports = {
@@ -130,5 +113,7 @@ module.exports = {
   verifyPhoneCode,
   loginByPhone,
   loginByPassword,
-  resetPassword
+  resetPassword,
+  issueTokenAfterIdentity,
+  logout
 }

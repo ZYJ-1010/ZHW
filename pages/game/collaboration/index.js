@@ -1,4 +1,7 @@
 const gameService = require('../../../services/game')
+const { ROUTES } = require('../../../config/routes')
+const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const WHITE_CONTENT_LEFT_RPX = 2
 const WHITE_CONTENT_TOP_RPX = 160
@@ -67,71 +70,31 @@ function getLayoutStyles() {
   }
 }
 
-function normalizePercent(value) {
-  const percent = Number(value)
-
-  if (!Number.isFinite(percent)) {
-    return 0
-  }
-
-  return Math.max(0, Math.min(100, percent))
-}
-
-function normalizeTask(task = {}) {
-  return {
-    title: task.title || task.statusText || task.status || '',
-    desc: task.desc || task.description || task.content || ''
-  }
-}
-
-function getMemberName(member = {}) {
-  return member.displayName || member.name || member.nickname || ''
-}
-
-function normalizeMessage(message = {}) {
-  return {
-    name: message.name || message.senderName || message.nickname || '',
-    content: message.content || message.text || message.message || ''
-  }
-}
-
-function normalizeCollaboration(data = {}) {
-  const progress = data.progress || {}
-  const members = Array.isArray(data.members) ? data.members : []
-  const tasks = Array.isArray(progress.tasks || data.tasks)
-    ? (progress.tasks || data.tasks).map(normalizeTask)
-    : []
-  const messages = Array.isArray(data.messages || data.chatMessages)
-    ? (data.messages || data.chatMessages).map(normalizeMessage)
-    : []
-  const membersText = data.membersText || members.map(getMemberName).filter(Boolean).join(' · ')
-
-  return {
-    progressPercent: normalizePercent(progress.percent || data.progressPercent),
-    membersText,
-    tasks,
-    messages,
-    memberManageRoute: data.memberManageRoute || '',
-    endRoute: data.endRoute || ''
-  }
-}
-
 Page({
   data: {
     layout: getLayoutStyles(),
     gameId: '',
+    loading: false,
+    loadError: '',
+    title: '局内协作',
+    subtitle: '',
     progressPercent: 0,
+    members: [],
     membersText: '',
     tasks: [],
     messages: [],
-    memberManageRoute: '',
-    endRoute: '',
-    loading: false,
-    ending: false
+    actions: {
+      canManageMembers: false,
+      canEndGame: false,
+      manageRoute: `${ROUTES.gameParticipants}?gameId=`,
+      endConfirmRoute: `${ROUTES.gameDelivery}?gameId=`
+    }
   },
 
   onLoad(options = {}) {
-    this.loadCollaboration(options)
+    const gameId = options.gameId || options.id || ''
+    this.setData({ gameId })
+    this.loadCollaboration(gameId)
   },
 
   onShow() {
@@ -140,33 +103,36 @@ Page({
     })
   },
 
-  async loadCollaboration(options = {}) {
-    const gameId = options.gameId || options.id || this.data.gameId || ''
+  async loadCollaboration(gameId = this.data.gameId) {
+    if (!gameId) {
+      return
+    }
 
-    this.setData({
-      gameId,
-      loading: true
-    })
+    this.setData({ loading: true, loadError: '' })
 
     try {
-      const data = await gameService.getGameCollaboration({
-        ...options,
-        gameId
-      })
-
-      this.setData({
-        ...normalizeCollaboration(data),
-        gameId: data.gameId || gameId,
-        loading: false
-      })
+      const detail = await gameService.getGameCollaboration(gameId)
+      const normalized = normalizeCollaboration(detail, gameId)
+      this.setData(Object.assign({}, normalized, {
+        loading: false,
+        loadError: ''
+      }))
     } catch (error) {
       this.setData({
-        ...normalizeCollaboration({}),
-        loading: false
-      })
-      wx.showToast({
-        title: error.message || '协作信息加载失败',
-        icon: 'none'
+        loading: false,
+        loadError: error && error.message ? error.message : '协作数据加载失败',
+        subtitle: '',
+        progressPercent: 0,
+        members: [],
+        membersText: '',
+        tasks: [],
+        messages: [],
+        actions: {
+          canManageMembers: false,
+          canEndGame: false,
+          manageRoute: `${ROUTES.gameParticipants}?gameId=${gameId || ''}`,
+          endConfirmRoute: `${ROUTES.gameDelivery}?gameId=${gameId || ''}`
+        }
       })
     }
   },
@@ -177,61 +143,103 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: '/pages/game/hall/index'
-    })
+    navigateShellRoute('/pages/game/hall/index')
   },
 
   handleMemberManage() {
-    if (this.data.memberManageRoute) {
-      wx.navigateTo({
-        url: this.data.memberManageRoute
+    const actions = this.data.actions || {}
+    const route = actions.manageRoute || `${ROUTES.gameParticipants}?gameId=${this.data.gameId || ''}`
+
+    if (route) {
+      navigateShellRoute(route.startsWith('/') ? route : `/${route}`)
+      return
+    }
+
+    const members = Array.isArray(this.data.members) ? this.data.members : []
+    if (!members.length) {
+      wx.showToast({
+        title: '暂无成员',
+        icon: 'none'
       })
       return
     }
 
-    wx.showToast({
-      title: '成员管理待接入',
-      icon: 'none'
+    wx.showModal({
+      title: '成员管理',
+      content: members.map((item) => `${item.name}${item.roleText ? `（${item.roleText}）` : ''}`).join('\n'),
+      showCancel: false,
+      confirmText: '知道了'
     })
   },
 
-  async handleEndSession() {
-    if (this.data.endRoute) {
-      wx.navigateTo({
-        url: this.data.endRoute
+  handleEndSession() {
+    const actions = this.data.actions || {}
+    const route = actions.endConfirmRoute || `${ROUTES.gameDelivery}?gameId=${this.data.gameId || ''}`
+
+    if (!actions.canEndGame) {
+      wx.showToast({
+        title: '当前状态不可结束',
+        icon: 'none'
       })
       return
     }
 
-    if (this.data.ending) {
-      return
-    }
-
-    this.setData({
-      ending: true
-    })
-
-    try {
-      await gameService.endGameCollaboration({
-        gameId: this.data.gameId
-      })
-      wx.showToast({
-        title: '已提交结束',
-        icon: 'none'
-      })
-      this.loadCollaboration({
-        gameId: this.data.gameId
-      })
-    } catch (error) {
-      wx.showToast({
-        title: error.message || '结束本局失败',
-        icon: 'none'
-      })
-    } finally {
-      this.setData({
-        ending: false
-      })
-    }
+    navigateShellRoute(route.startsWith('/') ? route : `/${route}`)
   }
 })
+
+function normalizeCollaboration(data = {}, fallbackGameId = '') {
+  const source = data && typeof data === 'object' ? data : {}
+  const progress = source.progress || {}
+  const tasks = Array.isArray(progress.tasks) && progress.tasks.length
+    ? progress.tasks.map((item, index) => ({
+      title: item.title || `阶段 ${index + 1}`,
+      desc: item.desc || item.description || '',
+      state: item.state || ''
+    }))
+    : []
+  const members = Array.isArray(source.members)
+    ? source.members.map((item, index) => {
+      const name = item.name || item.nickname || `成员${index + 1}`
+      return {
+        id: item.id || item.userId || `member-${index}`,
+        name,
+        roleText: item.roleText || item.roleLabel || item.role || '',
+        avatarText: item.avatarText || getSurnameInitials(name, 'ME')
+      }
+    })
+    : []
+  const messages = Array.isArray(source.messages)
+    ? source.messages.map((item, index) => ({
+      id: item.id || item.messageId || `message-${index}`,
+      name: item.senderName || item.name || item.nickname || '成员',
+      content: item.content || ''
+    })).filter((item) => item.content)
+    : []
+  const progressPercent = clampPercent(Number(progress.percent || source.progressPercent || 0))
+  const membersText = source.membersText || members.map((item) => `${item.name}${item.roleText ? ` (${item.roleText})` : ''}`).join(' · ')
+
+  return {
+    gameId: source.gameId || fallbackGameId,
+    title: source.title || '局内协作',
+    subtitle: [source.statusText, source.dayText].filter(Boolean).join(' · '),
+    progressPercent,
+    tasks,
+    members,
+    membersText,
+    messages,
+    actions: Object.assign({
+      canManageMembers: true,
+      canEndGame: false,
+      manageRoute: `${ROUTES.gameParticipants}?gameId=${source.gameId || fallbackGameId}`,
+      endConfirmRoute: `${ROUTES.gameDelivery}?gameId=${source.gameId || fallbackGameId}`
+    }, source.actions || {})
+  }
+}
+
+function clampPercent(value) {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+  return Math.max(0, Math.min(100, Math.round(value)))
+}

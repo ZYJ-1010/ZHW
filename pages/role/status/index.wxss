@@ -46,50 +46,49 @@ page {
   text-align: center;
 }
 
-.role-status-empty {
-  box-sizing: border-box;
-  margin: 160rpx 40rpx 0;
-  padding: 56rpx 40rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 28rpx;
-  background: #12121e;
+.role-status-error {
+  padding: 220rpx 48rpx 0;
   text-align: center;
 }
 
-.role-status-empty-title,
-.role-status-empty-desc {
+.role-status-error-title,
+.role-status-error-desc {
   display: block;
 }
 
-.role-status-empty-title {
+.role-status-error-title {
   color: #ffffff;
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  line-height: 44rpx;
 }
 
-.role-status-empty-desc {
-  margin-top: 16rpx;
+.role-status-error-desc {
+  margin-top: 20rpx;
   color: #9ca3af;
   font-size: 26rpx;
-  line-height: 40rpx;
+  line-height: 38rpx;
 }
 
-.role-status-empty button {
-  width: 100%;
+.role-status-error-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 48rpx;
+}
+
+.role-status-error-actions button {
+  flex: 1;
   height: 84rpx;
-  margin-top: 40rpx;
   border: 0;
   border-radius: 999rpx;
-  color: #000000;
-  background: #00f0ff;
+  color: #ffffff;
   font-size: 28rpx;
-  font-weight: 800;
   line-height: 84rpx;
+  background: #111827;
 }
 
-.role-status-empty button::after {
-  display: none;
+.role-status-error-actions button:last-child {
+  color: #001018;
+  background: #22d3ee;
 }
 
 .role-status-scroll {

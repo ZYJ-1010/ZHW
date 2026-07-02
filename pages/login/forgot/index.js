@@ -1,6 +1,7 @@
 const authService = require('../../../services/auth')
 const toast = require('../../../utils/toast')
 const env = require('../../../config/env')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const TEST_PHONE = '13888888888'
 const TEST_CODE = '123456'
@@ -27,28 +28,13 @@ Page({
       success: 'success'
     }
 
-    if (!env.isMock) {
-      if (options.ui === '1') {
-        this.setData({
-          isUiPreview: true,
-          step: previewStepMap[options.step] || 'phone',
-          phone: TEST_PHONE,
-          verifyCode: TEST_CODE,
-          password: TEST_PASSWORD,
-          confirmPassword: TEST_PASSWORD
-        })
-      }
-
-      return
-    }
-
     this.setData({
       isUiPreview: options.ui === '1',
       step: previewStepMap[options.step] || 'phone',
-      phone: TEST_PHONE,
-      verifyCode: TEST_CODE,
-      password: TEST_PASSWORD,
-      confirmPassword: TEST_PASSWORD
+      phone: env.isMock || options.ui === '1' ? TEST_PHONE : '',
+      verifyCode: env.isMock || options.ui === '1' ? TEST_CODE : '',
+      password: env.isMock || options.ui === '1' ? TEST_PASSWORD : '',
+      confirmPassword: env.isMock || options.ui === '1' ? TEST_PASSWORD : ''
     })
   },
 
@@ -116,7 +102,7 @@ Page({
 
     try {
       await authService.sendPhoneCode(this.data.phone)
-      toast.success('验证码已发送：123456')
+      toast.success('验证码已发送')
     } catch (error) {
       toast.info(error.message || '验证码发送失败')
     } finally {
@@ -210,6 +196,6 @@ Page({
   },
 
   backToLogin() {
-    toast.developing()
+    navigateShellRoute('/pages/login/index')
   }
 })

@@ -1,121 +1,165 @@
 const toast = require('../../../../utils/toast')
 const profileService = require('../../../../services/profile')
-const FA_BASE = '/pages/profile/asset-center/manage/assets/fa'
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 Page({
   data: {
-    overview: {
-      label: '总资产（元）',
-      value: ''
-    },
+    loaded: false,
+    loadError: '',
+    overview: {},
     assetStats: [],
-    quickActions: [
-      { key: 'withdraw', label: '提现', tone: 'green', iconSrc: `${FA_BASE}/download.svg` },
-      { key: 'recharge', label: '充值', tone: 'blue', iconSrc: `${FA_BASE}/plus.svg` }
-    ],
-    menuItems: [
-      {
-        key: 'balance',
-        title: '余额明细',
-        desc: '收入支出记录',
-        iconSrc: `${FA_BASE}/list-ul.svg`,
-        tone: 'blue'
-      },
-      {
-        key: 'bankCards',
-        title: '银行卡',
-        desc: '管理收款账户',
-        value: '',
-        iconSrc: `${FA_BASE}/credit-card.svg`,
-        tone: 'green'
-      },
-      {
-        key: 'orders',
-        title: '我的订单',
-        desc: '查看全部订单',
-        iconSrc: `${FA_BASE}/bag-shopping.svg`,
-        tone: 'purple',
-        route: '/pages/profile/asset-center/orders/index'
-      }
-    ],
-    orderStatuses: [
-      { key: 'pendingPay', label: '待付款', iconSrc: `${FA_BASE}/hourglass-half.svg`, tone: 'blue' },
-      { key: 'processing', label: '进行中', iconSrc: `${FA_BASE}/spinner.svg`, tone: 'orange' },
-      { key: 'completed', label: '已完成', iconSrc: `${FA_BASE}/check.svg`, tone: 'green' },
-      { key: 'refund', label: '退款/售后', iconSrc: `${FA_BASE}/rotate-left.svg`, tone: 'red' },
-      { key: 'review', label: '待评价', iconSrc: `${FA_BASE}/star.svg`, tone: 'gray' }
-    ],
+    quickActions: [],
+    menuItems: [],
+    orderStatuses: [],
     recentOrders: [],
-    faqLinks: [
-      { key: 'withdrawArrival', label: '提现多久到账？' },
-      { key: 'bindBankCard', label: '如何绑定银行卡？' }
-    ]
+    balanceRecords: [],
+    bankCards: null,
+    faqLinks: []
   },
 
   onLoad() {
     this.loadAssets()
   },
 
+  onShow() {
+    if (this.data.loaded) {
+      this.loadAssets()
+    }
+  },
+
   async loadAssets() {
     try {
       const data = await profileService.getProfileAssets()
 
-      this.setData({
-        overview: this.normalizeOverview(data.overview || data.summary || {}),
-        assetStats: this.normalizeList(data.assetStats || data.stats || data.summaryItems),
-        menuItems: this.mergeMenuItems(data.menuItems || data.menus),
-        orderStatuses: this.normalizeOrderStatuses(data.orderStatuses || data.statuses),
-        recentOrders: this.normalizeList(data.recentOrders || data.orders),
-        faqLinks: this.normalizeList(data.faqLinks || data.faqs)
-      })
+      this.setData(Object.assign({}, normalizeAssetHome(data), {
+        loadError: ''
+      }))
     } catch (error) {
-      toast.info(error.message || '资产信息加载失败')
+      this.setData({
+        loaded: true,
+        loadError: error.message || '资产数据加载失败',
+        quickActions: [],
+        menuItems: [],
+        orderStatuses: [],
+        recentOrders: [],
+        balanceRecords: [],
+        faqLinks: []
+      })
+      console.warn('[profile-assets] load failed', error)
     }
-  },
-
-  normalizeOverview(source = {}) {
-    return {
-      label: source.label || source.title || '总资产（元）',
-      value: source.value || source.amountText || source.totalAssetText || ''
-    }
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
-  },
-
-  mergeMenuItems(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      return this.data.menuItems
-    }
-
-    return this.data.menuItems.map((item) => {
-      const remote = list.find((entry) => entry.key === item.key || entry.title === item.title) || {}
-
-      return Object.assign({}, item, remote)
-    })
-  },
-
-  normalizeOrderStatuses(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      return this.data.orderStatuses
-    }
-
-    return list
   },
 
   handleMenuTap(event) {
-    const { route } = event.currentTarget.dataset
+    const { route, key } = event.currentTarget.dataset
 
     if (!route) {
-      toast.developing()
+      if (key === 'balance') {
+        this.showBalanceRecords()
+        return
+      }
+      if (key === 'bankCards') {
+        this.showBankCards()
+        return
+      }
+      toast.info('该资产入口暂未开放')
       return
     }
 
-    wx.navigateTo({ url: route })
+    navigateShellRoute(route)
   },
 
-  handleDeveloping() {
-    toast.developing()
+  handleActionTap(event) {
+    const { enabled, reason, key } = event.currentTarget.dataset
+
+    if (enabled === false || enabled === 'false') {
+      toast.info(reason || '该功能暂未开放')
+      return
+    }
+
+    if (key === 'withdraw') {
+      toast.info(reason || '提现需后台财务审核后处理')
+      return
+    }
+
+    toast.info(reason || '一期未开放真实支付充值')
+  },
+
+  handleStatusTap(event) {
+    const { route, key } = event.currentTarget.dataset
+
+    const targetRoute = route || (key ? `/pages/profile/asset-center/orders/index?status=${encodeURIComponent(key)}` : '/pages/profile/asset-center/orders/index')
+
+    navigateShellRoute(targetRoute)
+  },
+
+  handleOrderTap(event) {
+    const { route, orderId, id } = event.currentTarget.dataset
+    const targetId = orderId || id
+    const targetRoute = route || (targetId ? `/pages/profile/asset-center/orders/index?orderId=${encodeURIComponent(targetId)}` : '/pages/profile/asset-center/orders/index')
+
+    navigateShellRoute(targetRoute)
+  },
+
+  handleFAQTap(event) {
+    const key = event.currentTarget.dataset.key
+    const item = this.data.faqLinks.find((faq) => faq.key === key)
+
+    wx.showModal({
+      title: item && item.label || '常见问题',
+      content: item && item.answer || '暂无说明',
+      showCancel: false
+    })
+  },
+
+  showBalanceRecords() {
+    const records = this.data.balanceRecords || []
+    const menu = this.data.menuItems.find((item) => item.key === 'balance') || {}
+
+    if (!records.length) {
+      toast.info('暂无余额流水')
+      return
+    }
+
+    wx.showModal({
+      title: menu.title || '余额明细',
+      content: records.map((item) => `${item.title} ${item.amount} ${item.status || ''}`).join('\n'),
+      showCancel: false
+    })
+  },
+
+  showBankCards() {
+    const bankCards = this.data.bankCards || {}
+    const items = Array.isArray(bankCards.items) ? bankCards.items : []
+    const menu = this.data.menuItems.find((item) => item.key === 'bankCards') || {}
+
+    wx.showModal({
+      title: menu.title || '银行卡',
+      content: items.length
+        ? items.map((item) => `${item.bankName || '银行卡'} ${item.cardNo || ''}`).join('\n')
+        : (bankCards.summaryText || '未绑定'),
+      showCancel: false
+    })
   }
 })
+
+function normalizeAssetHome(data = {}) {
+  const patch = { loaded: true }
+
+  ;[
+    'overview',
+    'assetStats',
+    'quickActions',
+    'menuItems',
+    'orderStatuses',
+    'recentOrders',
+    'faqLinks',
+    'balanceRecords',
+    'bankCards'
+  ].forEach((key) => {
+    if (data[key]) {
+      patch[key] = data[key]
+    }
+  })
+
+  return patch
+}

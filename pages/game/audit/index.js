@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
 const { getSurnameInitials } = require('../../../utils/avatar')
@@ -8,45 +9,89 @@ const AUDIT_SCROLL_HOLD_STEP_RPX = 72
 const AUDIT_SCROLL_HOLD_INTERVAL_MS = 80
 const AUDIT_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-function normalizeApplication(item = {}) {
-  const initiator = item.initiator || item.applicant || item.user || {}
-  const nickname = initiator.nickname || initiator.name || item.nickname || ''
+const EMPTY_APPLICATIONS = []
+const EMPTY_AUDIT_PAGE = {
+  pageTitle: '',
+  filters: [],
+  statusTexts: {},
+  roleNames: {},
+  texts: {}
+}
+
+function normalizeStatus(status) {
+  const value = String(status || '').toLowerCase()
+
+  if (value === 'approved' || value === 'pass' || value === 'passed') {
+    return 'approved'
+  }
+
+  if (value === 'rejected' || value === 'reject') {
+    return 'rejected'
+  }
+
+  return 'pending'
+}
+
+function applyTemplate(template, values = {}) {
+  let text = String(template || '')
+
+  Object.keys(values).forEach((key) => {
+    text = text.replace(new RegExp(`\\{${key}\\}`, 'g'), String(values[key]))
+  })
+
+  return text
+}
+
+function normalizeAuditPage(source = {}) {
+  const auditPage = source.auditPage || source || {}
 
   return {
-    id: item.id || item.auditId || item.applicationId || '',
-    initiator: {
-      nickname,
-      avatarText: initiator.avatarText || getSurnameInitials(nickname, ''),
-      roleName: initiator.roleName || initiator.roleText || item.roleName || ''
-    },
-    roleKey: item.roleKey || item.roleType || '',
-    applyTime: item.applyTime || item.applyTimeText || item.createdAtText || item.createdAt || '',
-    statusKey: item.statusKey || item.status || '',
-    statusText: item.statusText || ''
+    pageTitle: String(auditPage.pageTitle || ''),
+    filters: Array.isArray(auditPage.filters) ? auditPage.filters : [],
+    statusTexts: auditPage.statusTexts || {},
+    roleNames: auditPage.roleNames || {},
+    texts: auditPage.texts || {}
   }
 }
 
-function normalizeAuditList(data = {}) {
-  const list = Array.isArray(data.list || data.records || data.items)
-    ? (data.list || data.records || data.items).map(normalizeApplication).filter((item) => item.id)
-    : []
+function normalizeApplication(item = {}, auditPage = EMPTY_AUDIT_PAGE) {
+  const statusKey = normalizeStatus(item.status || item.statusKey)
+  const texts = auditPage.texts || {}
+  const userId = item.userId || item.userID || ''
+  const nickname = item.nickname || item.userName || item.userNickname || applyTemplate(texts.userFallbackTemplate, { userId })
+  const roleKey = item.roleKey || item.role || 'player'
+  const fallbackRoleName = auditPage.roleNames.player || auditPage.roleNames.member || ''
 
   return {
-    onlineText: data.onlineText || '3999人在线',
-    applications: list,
-    displayApplications: list
+    id: item.id || item.applicationId || '',
+    gameId: item.gameId || '',
+    initiator: {
+      nickname,
+      avatarText: getSurnameInitials(nickname, texts.avatarFallback || ''),
+      roleName: auditPage.roleNames[roleKey] || fallbackRoleName
+    },
+    roleKey,
+    applyTime: item.createdAt || item.applyTime || '-',
+    statusKey,
+    statusText: auditPage.statusTexts[statusKey] || auditPage.statusTexts.pending || '',
+    reason: item.reason || ''
   }
+}
+
+function filterApplications(items, activeFilter) {
+  if (activeFilter === 'all') {
+    return items
+  }
+
+  return items.filter((item) => item.statusKey === activeFilter)
 }
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线',
     auditScrollTop: 0,
     activeFilter: 'all',
     allSelected: false,
-    loading: false,
-    actionLoading: false,
-    applications: [],
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -54,42 +99,60 @@ Page({
       { name: '消息', active: false },
       { name: '首页', active: true }
     ],
-    filters: [
-      { key: 'all', name: '全部' },
-      { key: 'pending', name: '待审核' },
-      { key: 'approved', name: '已通过' },
-      { key: 'rejected', name: '已拒绝' }
-    ],
-    displayApplications: []
+    auditPage: EMPTY_AUDIT_PAGE,
+    filters: [],
+    applications: EMPTY_APPLICATIONS,
+    displayApplications: EMPTY_APPLICATIONS,
+    loading: false,
+    reviewing: false
   },
 
-  onLoad(options = {}) {
-    this.loadAudits(options)
+  onLoad() {
+    this.loadAuditPageConfig()
+      .then(() => this.loadApplications())
   },
 
-  async loadAudits(extraParams = {}) {
-    this.setData({
-      loading: true
-    })
-
+  async loadAuditPageConfig() {
     try {
-      const data = await gameService.getGameAudits({
-        ...extraParams,
-        status: this.data.activeFilter === 'all' ? '' : this.data.activeFilter
-      })
-
+      const config = await gameService.getApplicationConfig()
+      const auditPage = normalizeAuditPage(config)
       this.setData({
-        ...normalizeAuditList(data),
-        loading: false,
-        allSelected: false
+        auditPage,
+        filters: auditPage.filters
       })
     } catch (error) {
+      toast.info(error.message || this.textOf('loadFailedText'))
       this.setData({
-        ...normalizeAuditList({}),
-        loading: false,
-        allSelected: false
+        auditPage: EMPTY_AUDIT_PAGE,
+        filters: []
       })
-      toast.info(error.message || '审核申请加载失败')
+    }
+  },
+
+  textOf(key, values = {}) {
+    const texts = this.data.auditPage && this.data.auditPage.texts || {}
+
+    return applyTemplate(texts[key], values)
+  },
+
+  async loadApplications() {
+    this.setData({ loading: true })
+
+    try {
+      const data = await gameService.getReceivedApplications({})
+      const items = (data.items || []).map((item) => normalizeApplication(item, this.data.auditPage))
+
+      this.setData({
+        applications: items,
+        displayApplications: filterApplications(items, this.data.activeFilter)
+      })
+    } catch (error) {
+      toast.info(error.message || this.textOf('loadFailedText'))
+      this.setData({
+        displayApplications: filterApplications(this.data.applications, this.data.activeFilter)
+      })
+    } finally {
+      this.setData({ loading: false })
     }
   },
 
@@ -97,9 +160,9 @@ Page({
     const key = event.currentTarget.dataset.key || 'all'
 
     this.setData({
-      activeFilter: key
+      activeFilter: key,
+      displayApplications: filterApplications(this.data.applications, key)
     })
-    this.loadAudits()
   },
 
   handleSelectAllTap() {
@@ -109,94 +172,81 @@ Page({
   },
 
   handleApproveTap(event) {
-    this.respondAudit(event.currentTarget.dataset.id, 'approve')
+    this.reviewApplication(event.currentTarget.dataset.id, true)
   },
 
   handleRejectTap(event) {
-    this.respondAudit(event.currentTarget.dataset.id, 'reject')
-  },
-
-  async respondAudit(auditId, action) {
-    if (this.data.actionLoading) {
-      return
-    }
-
-    this.setData({
-      actionLoading: true
-    })
-
-    try {
-      await gameService.respondGameAudit({
-        auditId,
-        action
-      })
-      toast.success('已提交审核结果')
-      this.loadAudits()
-    } catch (error) {
-      toast.info(error.message || '审核处理失败')
-    } finally {
-      this.setData({
-        actionLoading: false
-      })
-    }
+    this.reviewApplication(event.currentTarget.dataset.id, false)
   },
 
   handleDetailTap(event) {
     const id = event.currentTarget.dataset.id || ''
     const query = id ? `?auditId=${id}` : ''
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameAuditDetail}${query}`
-    })
+    navigateShellRoute(`/${ROUTES.gameAuditDetail}${query}`)
   },
 
   handleBatchApproveTap() {
-    this.batchRespondAudits('approve')
+    this.reviewVisiblePending(true)
   },
 
   handleBatchRejectTap() {
-    this.batchRespondAudits('reject')
+    this.reviewVisiblePending(false)
   },
 
-  async batchRespondAudits(action) {
-    if (this.data.actionLoading) {
+  async reviewApplication(applicationId, approve) {
+    if (!applicationId || this.data.reviewing) {
       return
     }
 
-    const auditIds = this.data.allSelected
-      ? this.data.displayApplications.map((item) => item.id).filter(Boolean)
-      : []
-
-    this.setData({
-      actionLoading: true
+    this.setData({ reviewing: true })
+    wx.showLoading({
+      title: approve ? this.textOf('approvingText') : this.textOf('rejectingText'),
+      mask: true
     })
 
     try {
-      await gameService.batchRespondGameAudits({
-        auditIds,
-        action
-      })
-      toast.success('已提交批量审核结果')
-      this.loadAudits()
+      await gameService.reviewGameApplication(applicationId, approve)
+      toast.info(approve ? this.textOf('approveSuccessText') : this.textOf('rejectSuccessText'))
+      await this.loadApplications()
     } catch (error) {
-      toast.info(error.message || '批量审核处理失败')
+      toast.info(error.message || this.textOf('reviewFailedText'))
     } finally {
-      this.setData({
-        actionLoading: false
-      })
+      wx.hideLoading()
+      this.setData({ reviewing: false })
+    }
+  },
+
+  async reviewVisiblePending(approve) {
+    const items = this.data.displayApplications.filter((item) => item.statusKey === 'pending' && item.id)
+
+    if (!items.length || this.data.reviewing) {
+      toast.info(this.textOf('emptyPendingText'))
+      return
+    }
+
+    this.setData({ reviewing: true })
+    wx.showLoading({
+      title: approve ? this.textOf('batchApprovingText') : this.textOf('batchRejectingText'),
+      mask: true
+    })
+
+    try {
+      for (const item of items) {
+        await gameService.reviewGameApplication(item.id, approve)
+      }
+      toast.info(approve ? this.textOf('batchApproveSuccess') : this.textOf('batchRejectSuccess'))
+      await this.loadApplications()
+    } catch (error) {
+      toast.info(error.message || this.textOf('batchReviewFailedText'))
+    } finally {
+      wx.hideLoading()
+      this.setData({ reviewing: false })
     }
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -205,8 +255,9 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      toast.info('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameAudit
+    })) {
       return
     }
 
@@ -215,14 +266,6 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -243,7 +286,7 @@ Page({
 
   handleShellAction(key) {
     if (key === 'home') {
-      this.scrollAuditToTop()
+      this.navigateToRoute(ROUTES.playerHome || ROUTES.home)
       return
     }
 
@@ -259,7 +302,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -270,9 +313,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleAuditScroll(event) {

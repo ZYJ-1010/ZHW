@@ -10,99 +10,27 @@ async function getProfileHome() {
   return result.data
 }
 
-async function getMemberCenterConfig(params = {}) {
-  const result = await profileApi.getMemberCenterConfig(params)
+async function getServiceReviews(params = {}) {
+  const result = await profileApi.getServiceReviews(params)
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取会员中心配置失败')
+    throw new Error(result.message || '获取评价列表失败')
   }
 
   return result.data
 }
 
-async function getMemberRadarOverview(params = {}) {
-  const result = await profileApi.getMemberRadarOverview(params)
+async function getServiceReviewDetail(reviewId) {
+  const id = String(reviewId || '').trim()
+
+  if (!id) {
+    throw new Error('缺少评价信息，无法查看详情')
+  }
+
+  const result = await profileApi.getServiceReviewDetail(encodeURIComponent(id))
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取人脉雷达概览失败')
-  }
-
-  return result.data
-}
-
-async function getMemberRadarProfile(params = {}) {
-  const result = await profileApi.getMemberRadarProfile(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取适配信息失败')
-  }
-
-  return result.data
-}
-
-async function saveMemberRadarProfile(payload = {}) {
-  const result = await profileApi.saveMemberRadarProfile(payload)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '保存适配信息失败')
-  }
-
-  return result.data
-}
-
-async function startMemberRadarMatch(payload = {}) {
-  const result = await profileApi.startMemberRadarMatch(payload)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '发起适配失败')
-  }
-
-  return result.data
-}
-
-async function getMemberRadarMatch(params = {}) {
-  const matchId = String(params.matchId || params.id || '').trim()
-
-  if (!matchId) {
-    throw new Error('缺少适配任务信息')
-  }
-
-  const result = await profileApi.getMemberRadarMatch(encodeURIComponent(matchId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取适配任务失败')
-  }
-
-  return result.data
-}
-
-async function getMemberRadarMatchResults(params = {}) {
-  const matchId = String(params.matchId || params.id || '').trim()
-
-  if (!matchId) {
-    throw new Error('缺少适配任务信息')
-  }
-
-  const result = await profileApi.getMemberRadarMatchResults(encodeURIComponent(matchId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取适配结果失败')
-  }
-
-  return result.data
-}
-
-async function followMemberRadarResult(params = {}) {
-  const resultId = String(params.resultId || params.id || '').trim()
-
-  if (!resultId) {
-    throw new Error('缺少适配对象信息')
-  }
-
-  const result = await profileApi.followMemberRadarResult(encodeURIComponent(resultId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '关注失败')
+    throw new Error(result.message || '获取评价详情失败')
   }
 
   return result.data
@@ -135,143 +63,33 @@ async function replyServiceReview(payload = {}) {
   return result.data
 }
 
-async function getProfileAssets() {
-  const result = await profileApi.getProfileAssets()
+async function likeServiceReview(reviewId) {
+  const id = String(reviewId || '').trim()
+
+  if (!id) {
+    throw new Error('缺少评价信息，无法点赞')
+  }
+
+  const result = await profileApi.likeServiceReview(encodeURIComponent(id))
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取资产信息失败')
+    throw new Error(result.message || '评价点赞失败')
   }
 
   return result.data
 }
 
-async function getProfilePoints(params = {}) {
-  const result = await profileApi.getProfilePoints(params)
+async function getServiceReviewActions(reviewId) {
+  const id = String(reviewId || '').trim()
+
+  if (!id) {
+    throw new Error('缺少评价信息，无法查看操作')
+  }
+
+  const result = await profileApi.getServiceReviewActions(encodeURIComponent(id))
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取积分信息失败')
-  }
-
-  return result.data
-}
-
-async function getProfileGames(params = {}) {
-  const result = await profileApi.getProfileGames(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取我的局失败')
-  }
-
-  return result.data
-}
-
-async function getServiceReviews(params = {}) {
-  const result = await profileApi.getServiceReviews(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取评价列表失败')
-  }
-
-  return result.data
-}
-
-async function getServiceReviewDetail(params = {}) {
-  const reviewId = String(params.reviewId || params.id || '').trim()
-
-  if (!reviewId) {
-    throw new Error('缺少评价信息')
-  }
-
-  const result = await profileApi.getServiceReviewDetail(encodeURIComponent(reviewId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取评价详情失败')
-  }
-
-  return result.data
-}
-
-async function getInviteOverview() {
-  const result = await profileApi.getInviteOverview()
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取邀请概览失败')
-  }
-
-  return result.data
-}
-
-async function getInviteRecords(params = {}) {
-  const result = await profileApi.getInviteRecords(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取邀请记录失败')
-  }
-
-  return result.data
-}
-
-async function getInviteIncome(params = {}) {
-  const result = await profileApi.getInviteIncome(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取邀请收益失败')
-  }
-
-  return result.data
-}
-
-async function getInviteNetwork(params = {}) {
-  const result = await profileApi.getInviteNetwork(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取邀请网络失败')
-  }
-
-  return result.data
-}
-
-async function getInviteRanking(params = {}) {
-  const result = await profileApi.getInviteRanking(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取邀请排行失败')
-  }
-
-  return result.data
-}
-
-async function getInviteMemberDetail(params = {}) {
-  const memberId = String(params.memberId || params.id || '').trim()
-
-  if (!memberId) {
-    throw new Error('缺少成员信息')
-  }
-
-  const result = await profileApi.getInviteMemberDetail(encodeURIComponent(memberId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取成员详情失败')
-  }
-
-  return result.data
-}
-
-async function getProfileCredit() {
-  const result = await profileApi.getProfileCredit()
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取信用中心失败')
-  }
-
-  return result.data
-}
-
-async function getProfileAchievements(params = {}) {
-  const result = await profileApi.getProfileAchievements(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取成就墙失败')
+    throw new Error(result.message || '获取评价操作失败')
   }
 
   return result.data
@@ -287,6 +105,65 @@ async function getPointsMall() {
   return result.data
 }
 
+async function getPointsSummary() {
+  const result = await profileApi.getPointsSummary()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取积分概览失败')
+  }
+
+  return result.data
+}
+
+async function getPointsLogs(params = {}) {
+  const result = await profileApi.getPointsLogs(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取积分明细失败')
+  }
+
+  return result.data
+}
+
+async function getGrowth() {
+  const result = await profileApi.getGrowth()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取成长数据失败')
+  }
+
+  return result.data
+}
+
+async function submitMemberRadarAction(payload = {}) {
+  const action = String(payload.action || '').trim()
+
+  if (!action) {
+    throw new Error('请选择可用的人脉雷达操作')
+  }
+
+  const formRows = Array.isArray(payload.formRows) ? payload.formRows : []
+
+  if (formRows.length > 20) {
+    throw new Error('适配信息过多，请精简后再保存')
+  }
+
+  const result = await profileApi.submitMemberRadarAction({
+    action,
+    targetId: String(payload.targetId || '').trim(),
+    targetUserId: Number(payload.targetUserId || 0) || 0,
+    matchMode: payload.matchMode || 'all',
+    matchCriteria: payload.matchCriteria || {},
+    formRows
+  })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '人脉雷达操作失败')
+  }
+
+  return result.data
+}
+
 async function exchangePointsMallGood(payload = {}) {
   const goodId = String(payload.goodId || payload.productId || '').trim()
 
@@ -295,7 +172,7 @@ async function exchangePointsMallGood(payload = {}) {
   }
 
   const result = await profileApi.exchangePointsMallGood({
-    goodId
+    itemId: Number(goodId) || goodId
   })
 
   return {
@@ -334,11 +211,121 @@ async function getPointsOrderLogistics(params = {}) {
   return result.data
 }
 
-async function saveSystemProfileInfo(payload = {}) {
-  const result = await profileApi.saveSystemProfileInfo(payload)
+async function getProfileAssets() {
+  const result = await profileApi.getProfileAssets()
 
   if (result.code !== 0) {
-    throw new Error(result.message || '资料保存失败')
+    throw new Error(result.message || '获取资产中心失败')
+  }
+
+  return result.data
+}
+
+async function getCreditCenter() {
+  const result = await profileApi.getCreditCenter()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取信用中心失败')
+  }
+
+  return result.data
+}
+
+async function getPointsOrderDetail(params = {}) {
+  const orderId = String(params.orderId || params.id || '').trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单信息，无法查看详情')
+  }
+
+  const result = await profileApi.getPointsOrderDetail(encodeURIComponent(orderId))
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取订单详情失败')
+  }
+
+  return result.data
+}
+
+async function cancelPointsOrder(params = {}) {
+  const orderId = String(params.orderId || params.id || '').trim()
+
+  if (!orderId) {
+    throw new Error('缺少订单信息，无法取消订单')
+  }
+
+  const result = await profileApi.cancelPointsOrder(encodeURIComponent(orderId), {
+    reason: params.reason || '用户主动取消'
+  })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '取消订单失败')
+  }
+
+  return result.data
+}
+
+async function getInviteOverview() {
+  const result = await profileApi.getInviteOverview()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取邀请概览失败')
+  }
+
+  return result.data
+}
+
+async function getInviteNetwork() {
+  const result = await profileApi.getInviteNetwork()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取关系网络失败')
+  }
+
+  return result.data
+}
+
+async function getInviteRecords(params = {}) {
+  const result = await profileApi.getInviteRecords(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取邀约记录失败')
+  }
+
+  return result.data
+}
+
+async function getInviteRanking(params = {}) {
+  const result = await profileApi.getInviteRanking(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取贡献排行失败')
+  }
+
+  return result.data
+}
+
+async function getInviteIncome(params = {}) {
+  const result = await profileApi.getInviteIncome(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取收益明细失败')
+  }
+
+  return result.data
+}
+
+async function getInviteMemberDetail(params = {}) {
+  const memberId = String(params.memberId || params.id || '').trim()
+
+  if (!memberId) {
+    throw new Error('缺少成员信息')
+  }
+
+  const result = await profileApi.getInviteMemberDetail(encodeURIComponent(memberId))
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取成员详情失败')
   }
 
   return result.data
@@ -348,7 +335,17 @@ async function getSystemProfileInfo() {
   const result = await profileApi.getSystemProfileInfo()
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取资料设置失败')
+    throw new Error(result.message || '获取资料失败')
+  }
+
+  return result.data
+}
+
+async function saveSystemProfileInfo(payload = {}) {
+  const result = await profileApi.saveSystemProfileInfo(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '资料保存失败')
   }
 
   return result.data
@@ -364,6 +361,22 @@ async function getSystemSkillConfig() {
   return result.data
 }
 
+async function getSystemServiceCaseDetail(caseId) {
+  const id = String(caseId || '').trim()
+
+  if (!id) {
+    throw new Error('缺少案例信息')
+  }
+
+  const result = await profileApi.getSystemServiceCaseDetail(encodeURIComponent(id))
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取案例详情失败')
+  }
+
+  return result.data
+}
+
 async function saveSystemSkillConfig(payload = {}) {
   const result = await profileApi.saveSystemSkillConfig(payload)
 
@@ -374,235 +387,54 @@ async function saveSystemSkillConfig(payload = {}) {
   return result.data
 }
 
-async function getSystemSkillCaseDetail(params = {}) {
-  const caseId = String(params.caseId || params.id || '').trim()
-
-  if (!caseId) {
-    throw new Error('缺少案例信息')
-  }
-
-  const result = await profileApi.getSystemSkillCaseDetail(encodeURIComponent(caseId))
+async function getSystemFeedbackHome() {
+  const result = await profileApi.getSystemFeedbackHome()
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取案例详情失败')
+    throw new Error(result.message || '获取反馈配置失败')
   }
 
   return result.data
 }
 
-async function getSystemBlockSettings() {
-  const result = await profileApi.getSystemBlockSettings()
+async function submitSystemFeedback(payload = {}) {
+  const typeKey = String(payload.typeKey || '').trim()
+  const sessionKey = String(payload.sessionKey || '').trim()
+  const content = String(payload.content || '').trim()
+  const contact = String(payload.contact || '').trim()
+  const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds : []
 
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取屏蔽设置失败')
+  if (!typeKey) {
+    throw new Error('请选择反馈类型')
   }
 
-  return result.data
-}
+  if (!content && !fileIds.length) {
+    throw new Error('请输入反馈内容或添加附件')
+  }
 
-async function saveSystemBlockStatus(payload = {}) {
-  const result = await profileApi.saveSystemBlockStatus({
-    enabled: !!payload.enabled
+  if (content.length > 500) {
+    throw new Error('反馈内容不能超过500字')
+  }
+
+  if (contact.length > 80) {
+    throw new Error('联系方式不能超过80字')
+  }
+
+  if (fileIds.length > 9) {
+    throw new Error('最多上传9个反馈附件')
+  }
+
+  const result = await profileApi.submitSystemFeedback({
+    typeKey,
+    sessionKey,
+    content,
+    contact,
+    fileIds,
+    quick: Boolean(payload.quick)
   })
 
   if (result.code !== 0) {
-    throw new Error(result.message || '屏蔽设置保存失败')
-  }
-
-  return result.data
-}
-
-async function saveSystemProtectionMode(payload = {}) {
-  const mode = String(payload.mode || '').trim()
-
-  if (!mode) {
-    throw new Error('请选择保护模式')
-  }
-
-  const result = await profileApi.saveSystemProtectionMode({
-    mode
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '保护模式保存失败')
-  }
-
-  return result.data
-}
-
-async function saveSystemBlockScenes(payload = {}) {
-  const scenes = Array.isArray(payload.scenes) ? payload.scenes : []
-
-  if (!scenes.length) {
-    throw new Error('缺少分场景配置')
-  }
-
-  const result = await profileApi.saveSystemBlockScenes({
-    scenes
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '分场景配置保存失败')
-  }
-
-  return result.data
-}
-
-async function getSystemBlockWhitelist(params = {}) {
-  const result = await profileApi.getSystemBlockWhitelist(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取白名单失败')
-  }
-
-  return result.data
-}
-
-async function addSystemBlockWhitelist(payload = {}) {
-  const expertId = String(payload.expertId || payload.id || '').trim()
-
-  if (!expertId) {
-    throw new Error('请选择要添加的行家')
-  }
-
-  const result = await profileApi.addSystemBlockWhitelist({
-    expertId
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '添加白名单失败')
-  }
-
-  return result.data
-}
-
-async function removeSystemBlockWhitelist(payload = {}) {
-  const expertId = String(payload.expertId || payload.id || '').trim()
-
-  if (!expertId) {
-    throw new Error('缺少白名单行家信息')
-  }
-
-  const result = await profileApi.removeSystemBlockWhitelist(encodeURIComponent(expertId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '移除白名单失败')
-  }
-
-  return result.data
-}
-
-async function getSystemBlockedUsers(params = {}) {
-  const result = await profileApi.getSystemBlockedUsers(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取屏蔽用户失败')
-  }
-
-  return result.data
-}
-
-async function addSystemBlockedUsers(payload = {}) {
-  const userIds = Array.isArray(payload.userIds) ? payload.userIds.filter(Boolean) : []
-
-  if (!userIds.length) {
-    throw new Error('请选择要屏蔽的用户')
-  }
-
-  const result = await profileApi.addSystemBlockedUsers({
-    userIds
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '添加屏蔽用户失败')
-  }
-
-  return result.data
-}
-
-async function removeSystemBlockedUser(payload = {}) {
-  const userId = String(payload.userId || payload.id || '').trim()
-
-  if (!userId) {
-    throw new Error('缺少屏蔽用户信息')
-  }
-
-  const result = await profileApi.removeSystemBlockedUser(encodeURIComponent(userId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '解除屏蔽失败')
-  }
-
-  return result.data
-}
-
-async function getSystemBlockRenewalOptions() {
-  const result = await profileApi.getSystemBlockRenewalOptions()
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取续期选项失败')
-  }
-
-  return result.data
-}
-
-async function renewSystemBlockSettings(payload = {}) {
-  const days = Number(payload.days)
-
-  if (!Number.isFinite(days) || days <= 0) {
-    throw new Error('请选择续期天数')
-  }
-
-  const result = await profileApi.renewSystemBlockSettings({
-    days
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '续期保护期失败')
-  }
-
-  return result.data
-}
-
-async function getSystemBlockKeywords(params = {}) {
-  const result = await profileApi.getSystemBlockKeywords(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取关键词屏蔽失败')
-  }
-
-  return result.data
-}
-
-async function addSystemBlockKeyword(payload = {}) {
-  const keyword = String(payload.keyword || payload.text || '').trim()
-
-  if (!keyword) {
-    throw new Error('请输入关键词')
-  }
-
-  const result = await profileApi.addSystemBlockKeyword({
-    keyword
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '添加关键词失败')
-  }
-
-  return result.data
-}
-
-async function removeSystemBlockKeyword(payload = {}) {
-  const keywordId = String(payload.keywordId || payload.id || '').trim()
-
-  if (!keywordId) {
-    throw new Error('缺少关键词信息')
-  }
-
-  const result = await profileApi.removeSystemBlockKeyword(encodeURIComponent(keywordId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '删除关键词失败')
+    throw new Error(result.message || '反馈提交失败')
   }
 
   return result.data
@@ -618,14 +450,14 @@ async function getSystemFeedbackRecords(params = {}) {
   return result.data
 }
 
-async function getSystemFeedbackDetail(params = {}) {
-  const feedbackId = String(params.feedbackId || params.id || '').trim()
+async function getSystemFeedbackDetail(recordId) {
+  const id = String(recordId || '').trim()
 
-  if (!feedbackId) {
-    throw new Error('缺少反馈信息')
+  if (!id) {
+    throw new Error('缺少反馈记录')
   }
 
-  const result = await profileApi.getSystemFeedbackDetail(encodeURIComponent(feedbackId))
+  const result = await profileApi.getSystemFeedbackDetail(encodeURIComponent(id))
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取反馈详情失败')
@@ -634,235 +466,50 @@ async function getSystemFeedbackDetail(params = {}) {
   return result.data
 }
 
-async function getSystemFeedbackOptions() {
-  const result = await profileApi.getSystemFeedbackOptions()
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取反馈配置失败')
-  }
-
-  return result.data
-}
-
-async function getSystemFeedbackGames(params = {}) {
-  const result = await profileApi.getSystemFeedbackGames(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取可反馈组局失败')
-  }
-
-  return result.data
-}
-
-async function submitSystemFeedback(payload = {}) {
-  const type = String(payload.type || payload.feedbackType || '').trim()
+async function appendSystemFeedbackMessage(recordId, payload = {}) {
+  const id = String(recordId || '').trim()
   const content = String(payload.content || '').trim()
+  const fileIds = Array.isArray(payload.fileIds) ? payload.fileIds : []
 
-  if (!type) {
-    throw new Error('请选择反馈类型')
+  if (!id) {
+    throw new Error('缺少反馈记录')
   }
 
-  if (!content) {
-    throw new Error('请填写反馈内容')
+  if (!content && !fileIds.length) {
+    throw new Error('请输入补充说明或添加附件')
   }
 
-  const result = await profileApi.submitSystemFeedback(payload)
+  if (content.length > 500) {
+    throw new Error('补充说明不能超过500字')
+  }
+
+  const result = await profileApi.appendSystemFeedbackMessage(encodeURIComponent(id), {
+    content,
+    fileIds
+  })
 
   if (result.code !== 0) {
-    throw new Error(result.message || '反馈提交失败')
+    throw new Error(result.message || '补充说明提交失败')
   }
 
   return result.data
 }
 
-async function getCreditAppealOptions(params = {}) {
-  const result = await profileApi.getCreditAppealOptions(params)
+async function getSystemBlockSettings() {
+  const result = await profileApi.getSystemBlockSettings()
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取信用申诉配置失败')
+    throw new Error(result.message || '获取屏蔽设置失败')
   }
 
   return result.data
 }
 
-async function submitCreditAppeal(payload = {}) {
-  const reason = String(payload.reason || payload.reasonKey || '').trim()
-  const content = String(payload.content || '').trim()
-
-  if (!reason) {
-    throw new Error('请选择申诉原因')
-  }
-
-  if (!content) {
-    throw new Error('请填写详细说明')
-  }
-
-  const result = await profileApi.submitCreditAppeal(payload)
+async function saveSystemBlockSettings(payload = {}) {
+  const result = await profileApi.saveSystemBlockSettings(payload)
 
   if (result.code !== 0) {
-    throw new Error(result.message || '信用申诉提交失败')
-  }
-
-  return result.data
-}
-
-async function getSystemReportRecords(params = {}) {
-  const result = await profileApi.getSystemReportRecords(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取举报记录失败')
-  }
-
-  return result.data
-}
-
-async function getSystemReportOptions() {
-  const result = await profileApi.getSystemReportOptions()
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取举报配置失败')
-  }
-
-  return result.data
-}
-
-async function submitSystemReport(payload = {}) {
-  const type = String(payload.type || payload.reportType || '').trim()
-  const reportedUser = String(payload.reportedUser || payload.reportedUserId || '').trim()
-  const reason = String(payload.reason || '').trim()
-
-  if (!type) {
-    throw new Error('请选择举报类型')
-  }
-
-  if (!reportedUser) {
-    throw new Error('请输入被举报人')
-  }
-
-  if (!reason) {
-    throw new Error('请填写举报原因')
-  }
-
-  const result = await profileApi.submitSystemReport(payload)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '举报提交失败')
-  }
-
-  return result.data
-}
-
-async function getSystemReportDetail(params = {}) {
-  const reportId = String(params.reportId || params.id || '').trim()
-
-  if (!reportId) {
-    throw new Error('缺少举报信息')
-  }
-
-  const result = await profileApi.getSystemReportDetail(encodeURIComponent(reportId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取举报详情失败')
-  }
-
-  return result.data
-}
-
-async function getSystemReportRecordDetail(params = {}) {
-  const recordId = String(params.recordId || params.id || '').trim()
-
-  if (!recordId) {
-    throw new Error('缺少处理记录信息')
-  }
-
-  const result = await profileApi.getSystemReportRecordDetail(encodeURIComponent(recordId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取处理详情失败')
-  }
-
-  return result.data
-}
-
-async function getSystemReportAppeals(params = {}) {
-  const result = await profileApi.getSystemReportAppeals(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取申诉列表失败')
-  }
-
-  return result.data
-}
-
-async function getSystemReportAppealDetail(params = {}) {
-  const appealId = String(params.appealId || params.id || '').trim()
-
-  if (!appealId) {
-    throw new Error('缺少申诉信息')
-  }
-
-  const result = await profileApi.getSystemReportAppealDetail(encodeURIComponent(appealId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取申诉详情失败')
-  }
-
-  return result.data
-}
-
-async function withdrawSystemReportAppeal(params = {}) {
-  const appealId = String(params.appealId || params.id || '').trim()
-
-  if (!appealId) {
-    throw new Error('缺少申诉信息')
-  }
-
-  const result = await profileApi.withdrawSystemReportAppeal(encodeURIComponent(appealId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '撤回申诉失败')
-  }
-
-  return result.data
-}
-
-async function getSystemAgreements(params = {}) {
-  const result = await profileApi.getSystemAgreements(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取协议列表失败')
-  }
-
-  return result.data
-}
-
-async function getSystemAgreementDetail(params = {}) {
-  const agreementId = String(params.agreementId || params.agreement || params.id || '').trim()
-
-  if (!agreementId) {
-    throw new Error('缺少协议信息')
-  }
-
-  const result = await profileApi.getSystemAgreementDetail(encodeURIComponent(agreementId))
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取协议详情失败')
-  }
-
-  return result.data
-}
-
-async function signSystemAgreement(params = {}) {
-  const agreementId = String(params.agreementId || params.agreement || params.id || '').trim()
-
-  if (!agreementId) {
-    throw new Error('缺少协议信息')
-  }
-
-  const result = await profileApi.signSystemAgreement(encodeURIComponent(agreementId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '协议签署失败')
+    throw new Error(result.message || '屏蔽设置保存失败')
   }
 
   return result.data
@@ -879,36 +526,52 @@ async function getProfileSettings() {
 }
 
 async function saveProfileSettings(payload = {}) {
-  const key = String(payload.key || payload.settingKey || payload.id || '').trim()
-
-  if (!key) {
-    throw new Error('缺少设置信息')
-  }
-
   const result = await profileApi.saveProfileSettings(payload)
 
   if (result.code !== 0) {
-    throw new Error(result.message || '设置保存失败')
+    throw new Error(result.message || '保存系统设置失败')
   }
 
   return result.data
 }
 
-async function clearProfileSettingsCache() {
-  const result = await profileApi.clearProfileSettingsCache()
+async function getProfileAgreements() {
+  const result = await profileApi.getProfileAgreements()
 
   if (result.code !== 0) {
-    throw new Error(result.message || '清除缓存失败')
+    throw new Error(result.message || '获取协议列表失败')
   }
 
   return result.data
 }
 
-async function logoutProfile() {
-  const result = await profileApi.logoutProfile()
+async function getProfileAgreementDetail(agreementKey) {
+  const key = String(agreementKey || '').trim()
+
+  if (!key) {
+    throw new Error('缺少协议信息')
+  }
+
+  const result = await profileApi.getProfileAgreementDetail(encodeURIComponent(key))
 
   if (result.code !== 0) {
-    throw new Error(result.message || '退出登录失败')
+    throw new Error(result.message || '获取协议详情失败')
+  }
+
+  return result.data
+}
+
+async function signProfileAgreement(agreementKey) {
+  const key = String(agreementKey || '').trim()
+
+  if (!key) {
+    throw new Error('缺少协议信息')
+  }
+
+  const result = await profileApi.signProfileAgreement(encodeURIComponent(key), {})
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '签署协议失败')
   }
 
   return result.data
@@ -916,72 +579,43 @@ async function logoutProfile() {
 
 module.exports = {
   getProfileHome,
-  getMemberCenterConfig,
-  getMemberRadarOverview,
-  getMemberRadarProfile,
-  saveMemberRadarProfile,
-  startMemberRadarMatch,
-  getMemberRadarMatch,
-  getMemberRadarMatchResults,
-  followMemberRadarResult,
-  replyServiceReview,
   getProfileAssets,
-  getProfilePoints,
-  getProfileGames,
+  getCreditCenter,
   getServiceReviews,
   getServiceReviewDetail,
-  getInviteOverview,
-  getInviteRecords,
-  getInviteIncome,
-  getInviteNetwork,
-  getInviteRanking,
-  getInviteMemberDetail,
-  getProfileCredit,
-  getProfileAchievements,
+  replyServiceReview,
+  likeServiceReview,
+  getServiceReviewActions,
+  getPointsSummary,
+  getPointsLogs,
+  getGrowth,
   getPointsMall,
   exchangePointsMallGood,
   getPointsOrders,
   getPointsOrderLogistics,
-  saveSystemProfileInfo,
+  getPointsOrderDetail,
+  cancelPointsOrder,
+  getInviteOverview,
+  getInviteNetwork,
+  getInviteRecords,
+  getInviteRanking,
+  getInviteIncome,
+  getInviteMemberDetail,
   getSystemProfileInfo,
+  saveSystemProfileInfo,
   getSystemSkillConfig,
+  getSystemServiceCaseDetail,
   saveSystemSkillConfig,
-  getSystemSkillCaseDetail,
-  getSystemBlockSettings,
-  saveSystemBlockStatus,
-  saveSystemProtectionMode,
-  saveSystemBlockScenes,
-  getSystemBlockWhitelist,
-  addSystemBlockWhitelist,
-  removeSystemBlockWhitelist,
-  getSystemBlockedUsers,
-  addSystemBlockedUsers,
-  removeSystemBlockedUser,
-  getSystemBlockRenewalOptions,
-  renewSystemBlockSettings,
-  getSystemBlockKeywords,
-  addSystemBlockKeyword,
-  removeSystemBlockKeyword,
+  getSystemFeedbackHome,
+  submitSystemFeedback,
   getSystemFeedbackRecords,
   getSystemFeedbackDetail,
-  getSystemFeedbackOptions,
-  getSystemFeedbackGames,
-  submitSystemFeedback,
-  getCreditAppealOptions,
-  submitCreditAppeal,
-  getSystemReportRecords,
-  getSystemReportOptions,
-  submitSystemReport,
-  getSystemReportDetail,
-  getSystemReportRecordDetail,
-  getSystemReportAppeals,
-  getSystemReportAppealDetail,
-  withdrawSystemReportAppeal,
-  getSystemAgreements,
-  getSystemAgreementDetail,
-  signSystemAgreement,
+  appendSystemFeedbackMessage,
+  getSystemBlockSettings,
+  saveSystemBlockSettings,
   getProfileSettings,
   saveProfileSettings,
-  clearProfileSettingsCache,
-  logoutProfile
+  getProfileAgreements,
+  getProfileAgreementDetail,
+  signProfileAgreement
 }

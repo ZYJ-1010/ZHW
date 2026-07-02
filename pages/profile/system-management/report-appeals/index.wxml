@@ -37,6 +37,9 @@
           <view class="detail-link" data-id="{{item.id}}" catchtap="handleDetailTap">查看详情 →</view>
         </view>
       </view>
+      <view wx:if="{{!visibleAppeals.length}}" class="list-card empty-card">
+        <view class="list-desc">{{emptyText}}</view>
+      </view>
     </view>
   </view>
 </profile-white-shell>

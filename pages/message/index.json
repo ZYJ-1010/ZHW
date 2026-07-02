@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "消息中心",
+  "navigationBarTitleText": "",
   "usingComponents": {
     "home-shell": "/components/home-shell/index"
   }

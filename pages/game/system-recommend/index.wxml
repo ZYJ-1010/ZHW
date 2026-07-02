@@ -1,5 +1,5 @@
 <home-apply-shell
-  nav-title="系统推荐适配局"
+  nav-title="{{recommendationTitle}}"
   shell-class="system-recommend-master"
   show-back="{{true}}"
   bindbacktap="onBackTap"
@@ -42,9 +42,9 @@
           </view>
         </scroll-view>
 
-        <view wx:if="{{loading}}" class="recommend-state">推荐数据加载中</view>
+        <view wx:if="{{loading}}" class="recommend-state">{{loadingText}}</view>
 
-        <view wx:elif="{{!visibleExperts.length}}" class="recommend-state">暂无匹配行家</view>
+        <view wx:elif="{{!visibleExperts.length}}" class="recommend-state">{{emptyText}}</view>
 
         <view wx:else class="expert-list">
           <view
@@ -90,7 +90,7 @@
         </view>
 
         <view class="selection-summary">
-          <text class="summary-title">已选择 {{selectedExperts.length}} 位行家</text>
+          <text class="summary-title">{{summaryText}}</text>
           <view class="summary-avatar-row">
             <view
               wx:for="{{selectedExperts}}"
@@ -98,7 +98,7 @@
               class="summary-avatar {{item.avatarClass}}"
             >{{item.avatarText}}</view>
           </view>
-          <text class="summary-desc">还可以选择多位行家组成顾问团，或搭配玩家共同组局</text>
+          <text class="summary-desc">{{summaryDesc}}</text>
         </view>
 
         <view class="recommend-bottom-spacer"></view>
@@ -106,8 +106,8 @@
     </scroll-view>
 
     <view class="recommend-action-bar">
-      <view class="action-button cancel" bindtap="onCancelTap">取消</view>
-      <view class="action-button primary" bindtap="onConfirmTap">确认组局</view>
+      <view class="action-button cancel" bindtap="onCancelTap">{{cancelText}}</view>
+      <view class="action-button primary" bindtap="onConfirmTap">{{confirmText}}</view>
     </view>
   </view>
 </home-apply-shell>

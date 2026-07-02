@@ -152,3 +152,10 @@
 .user-sheet .primary-btn {
   margin-top: 18rpx;
 }
+
+.empty-row {
+  padding: 28rpx 24rpx;
+  color: #6b7a90;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}

@@ -23,8 +23,9 @@
     >
       <view class="collab-main">
         <view class="collab-header">
-          <text class="collab-title">局内协作</text>
-          <text class="collab-subtitle">进行中 · 第 6 天 / 共 15 天</text>
+          <text class="collab-title">{{title}}</text>
+          <text class="collab-subtitle">{{subtitle}}</text>
+          <text wx:if="{{loadError}}" class="collab-error">{{loadError}}</text>
         </view>
 
         <view class="collab-card progress-card">
@@ -43,12 +44,13 @@
                 <text class="task-desc">{{item.desc}}</text>
               </view>
             </view>
+            <view wx:if="{{!tasks.length}}" class="collab-empty">暂无进度任务</view>
           </view>
         </view>
 
         <view class="collab-card">
           <text class="card-title">成员</text>
-          <text class="members-text">{{membersText}}</text>
+          <text class="members-text">{{membersText || '暂无成员数据'}}</text>
         </view>
 
         <view class="collab-card chat-card">
@@ -58,6 +60,7 @@
               <text class="chat-name">{{item.name}}:</text>
               <text class="chat-content"> {{item.content}}</text>
             </view>
+            <view wx:if="{{!messages.length}}" class="collab-empty">暂无聊天记录</view>
           </view>
         </view>
       </view>

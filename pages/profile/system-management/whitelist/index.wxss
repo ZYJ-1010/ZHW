@@ -99,6 +99,13 @@
   margin-left: 20rpx;
 }
 
+.empty-row {
+  padding: 28rpx 24rpx;
+  color: #6b7a90;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
 .sheet-cancel {
   margin-top: 18rpx;
   color: #ff6b6b;

@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "系统推荐适配局",
+  "navigationBarTitleText": "",
   "usingComponents": {
     "home-apply-shell": "/components/home-apply-shell/index"
   }

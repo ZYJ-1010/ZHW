@@ -97,7 +97,7 @@
   >
           <view class="home-expert-apply-toolbar">
             <text class="home-expert-apply-back" catchtap="handleExpertApplyBackTap">‹</text>
-            <text class="home-expert-apply-save">{{currentHomePreview.saveText}}</text>
+            <text wx:if="{{currentHomePreview.saveText && currentHomePreview.mode === 'expertApplyForm'}}" class="home-expert-apply-save" catchtap="handleExpertApplySaveTap">{{currentHomePreview.saveText}}</text>
           </view>
           <scroll-view class="home-master-apply-main home-expert-apply-main" scroll-y enhanced show-scrollbar="false">
             <view class="home-expert-apply-hero">
@@ -297,7 +297,7 @@
                     </view>
                   </view>
 
-                  <view class="home-expert-plan-card">
+                  <view class="home-expert-plan-card" catchtap="handleExpertApplyPlanTap">
                     <view class="home-expert-status-dot {{currentHomePreview.planTask.checked ? 'checked' : ''}}">
                       <text wx:if="{{currentHomePreview.planTask.checked}}">✓</text>
                     </view>
@@ -305,7 +305,7 @@
                       <text class="home-expert-plan-title">{{currentHomePreview.planTask.title}}</text>
                       <text class="home-expert-plan-desc">{{currentHomePreview.planTask.desc}}</text>
                     </view>
-                    <text class="home-expert-plan-action">{{currentHomePreview.planTask.action}}</text>
+                    <text class="home-expert-plan-action" catchtap="handleExpertApplyPlanTap">{{currentHomePreview.planTask.action}}</text>
                   </view>
                 </view>
 
@@ -478,7 +478,7 @@
     <view class="section">
       <view class="section-head">
         <text class="section-title">朋友在玩</text>
-        <text class="section-more">查看全部</text>
+        <text class="section-more" data-route="{{friendMoreRoute}}" bindtap="goAction">查看全部</text>
       </view>
       <view
         wx:for="{{friendGames}}"

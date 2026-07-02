@@ -1,7 +1,61 @@
-<view class="page-shell">
-  <view class="module-card">
-    <text class="module-kicker">P0</text>
-    <text class="module-title">{{title}}</text>
-    <text class="module-desc">{{desc}}</text>
+<view class="achievement-page">
+  <view class="summary-card">
+    <text class="summary-kicker">成长档案</text>
+    <view class="summary-title-row">
+      <text class="summary-title">{{levelName}}</text>
+      <text wx:if="{{levelValue}}" class="summary-level">{{levelValue}}</text>
+    </view>
+    <view class="summary-grid">
+      <view class="summary-item">
+        <text class="summary-value">{{xpText}}</text>
+        <text class="summary-label">经验</text>
+      </view>
+      <view class="summary-item">
+        <text class="summary-value">{{creditText}}</text>
+        <text class="summary-label">信用</text>
+      </view>
+      <view class="summary-item">
+        <text class="summary-value">{{pointsText}}</text>
+        <text class="summary-label">积分</text>
+      </view>
+    </view>
   </view>
+
+  <view class="section-card">
+    <view class="section-head">
+      <text class="section-title">成就墙</text>
+      <text class="section-count">{{achievementCount}}</text>
+    </view>
+    <view wx:if="{{achievements.length}}" class="achievement-list">
+      <view wx:for="{{achievements}}" wx:key="id" class="achievement-item {{item.unlocked ? 'unlocked' : ''}}">
+        <view class="achievement-main">
+          <text class="achievement-title">{{item.title}}</text>
+          <text wx:if="{{item.statusText}}" class="achievement-status">{{item.statusText}}</text>
+        </view>
+        <text wx:if="{{item.desc}}" class="achievement-desc">{{item.desc}}</text>
+        <view class="progress-track">
+          <view class="progress-bar" style="{{item.progressStyle}}"></view>
+        </view>
+        <text class="progress-text">{{item.progressText}}</text>
+      </view>
+    </view>
+    <view wx:else class="empty-block">暂无成就数据</view>
+  </view>
+
+  <view class="section-card">
+    <view class="section-head">
+      <text class="section-title">足迹</text>
+      <text class="section-count">{{footprintCount}}</text>
+    </view>
+    <view wx:if="{{footprints.length}}" class="footprint-list">
+      <view wx:for="{{footprints}}" wx:key="id" class="footprint-item">
+        <text class="footprint-title">{{item.title}}</text>
+        <text wx:if="{{item.desc}}" class="footprint-desc">{{item.desc}}</text>
+        <text wx:if="{{item.time}}" class="footprint-time">{{item.time}}</text>
+      </view>
+    </view>
+    <view wx:else class="empty-block">暂无足迹数据</view>
+  </view>
+
+  <view wx:if="{{loadError}}" class="error-text">{{loadError}}</view>
 </view>

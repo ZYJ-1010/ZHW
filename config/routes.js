@@ -40,6 +40,13 @@ const ROUTES = {
   gameReview: 'pages/game/review/index',
   gameReviewComplete: 'pages/game/review-complete/index',
   gamePlayAgain: 'pages/game/play-again/index',
+  map: 'pages/map/index',
+  mapBlindRoute: 'pages/map/blind-route/index',
+  mapCityAtlas: 'pages/map/city-atlas/index',
+  mapRealCheckin: 'pages/map/real-checkin/index',
+  mapFootprintHeatmap: 'pages/map/footprint-heatmap/index',
+  mapFriendCity: 'pages/map/friend-city/index',
+  mapMyCity: 'pages/map/my-city/index',
   relationNetwork: 'pages/relation/network/index',
   message: 'pages/message/index',
   messageMy: 'pages/message/my/index',
@@ -57,7 +64,7 @@ const ROUTES = {
   profileMember: 'pages/profile/member/index',
   profileAchievements: 'pages/profile/achievements/index',
   profileFootprintAchievements: 'pages/profile/footprint/achievements/index',
-  metaverse: 'pages/placeholder/metaverse/index'
+  metaverse: 'pages/metaverse/home/index'
 }
 
 module.exports = {

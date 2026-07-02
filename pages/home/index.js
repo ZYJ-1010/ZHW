@@ -3,6 +3,7 @@ const roleService = require('../../services/role')
 const toast = require('../../utils/toast')
 const { ROUTES } = require('../../config/routes')
 const UI_ICONS = require('../../config/ui-icons')
+const { navigateShellRoute } = require('../../utils/shell-nav')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_NAV_TOP_RPX = 108
@@ -18,7 +19,8 @@ const DEFAULT_EXPERT_APPLY_FORM = {
   experienceYearIndex: -1,
   experienceYears: '',
   intro: '',
-  uploadFiles: []
+  uploadFiles: [],
+  services: []
 }
 const DEFAULT_EXPERT_APPLY_CONFIG = {
   skillOptions: [
@@ -29,7 +31,7 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
     { name: '手工', active: false },
     { name: '运动', active: false },
     { name: '音乐', active: false },
-    { name: '+ 自定义', active: false, custom: true }
+    { name: '+自定义', active: false, custom: true }
   ],
   fields: [
     {
@@ -98,31 +100,6 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   yearOptions: EXPERT_APPLY_YEAR_OPTIONS,
   serviceCount: EXPERT_SERVICE_COUNT,
   priceHint: '平台将收取 10% 服务费'
-}
-const DEFAULT_EXPERT_APPLY_PRECHECK = {
-  requirementsTitle: '申请条件',
-  requirements: [
-    { key: 'level', title: '玩家等级达到 Lv.20', status: '待后台返回', checked: false },
-    { key: 'realname', title: '完成实名认证', status: '待后台返回', checked: false },
-    { key: 'enterprise', title: '完成企业认证', status: '待后台返回', checked: false },
-    { key: 'games', title: '发起过 5次以上组局', status: '待后台返回', checked: false },
-    { key: 'credit', title: '信用分 ≥ 90 分', status: '待后台返回', checked: false },
-    { key: 'member', title: '会员等级≥ 高级会员', status: '待后台返回', checked: false }
-  ],
-  planTask: {
-    key: 'expertPlan',
-    title: '提交行家计划书',
-    desc: '需描述你的资源、能力和项目说明书',
-    action: '去填写 ›',
-    checked: false,
-    route: ''
-  },
-  benefitsTitle: '行家特权',
-  benefits: [
-    { icon: UI_ICONS.panel.revenue, text: '有权益的行家可发起有偿局并可获得相应收入' },
-    { icon: UI_ICONS.panel.featured, text: '专属行家标识与优先推荐位' },
-    { icon: UI_ICONS.panel.data, text: '数据看板：查看服务数据与收益分析' }
-  ]
 }
 
 function getPositiveInteger(value, fallback) {
@@ -237,7 +214,9 @@ function normalizeSkillOptions(options) {
     : DEFAULT_EXPERT_APPLY_CONFIG.skillOptions
   const normalized = sourceOptions
     .map((item) => {
-      const name = trimText(item.name || item.label || item.text || item.value)
+      const rawName = trimText(item.name || item.label || item.text || item.value)
+      const isCustom = Boolean(item.custom || item.type === 'custom' || rawName === '+ 自定义' || rawName === '+自定义')
+      const name = isCustom ? '+自定义' : rawName
 
       if (!name) {
         return null
@@ -246,7 +225,7 @@ function normalizeSkillOptions(options) {
       return {
         name,
         active: Boolean(item.active),
-        custom: Boolean(item.custom || item.type === 'custom' || name === '+ 自定义'),
+        custom: isCustom,
         generatedCustom: Boolean(item.generatedCustom)
       }
     })
@@ -258,7 +237,7 @@ function normalizeSkillOptions(options) {
   }))
 
   if (!nextOptions.some((item) => item.custom)) {
-    nextOptions.push({ name: '+ 自定义', active: false, custom: true })
+    nextOptions.push({ name: '+自定义', active: false, custom: true })
   }
 
   return nextOptions
@@ -325,113 +304,6 @@ function normalizeExpertApplyConfig(config) {
   }
 }
 
-function createExpertApplyPrecheckFallback() {
-  return cloneObject(DEFAULT_EXPERT_APPLY_PRECHECK)
-}
-
-function getFirstDefinedValue(values) {
-  return values.find((value) => value !== undefined && value !== null)
-}
-
-function normalizeBoolean(value) {
-  if (typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return value === 1
-  }
-
-  const text = trimText(value).toLowerCase()
-
-  return ['1', 'true', 'yes', 'passed', 'met', 'completed'].includes(text)
-}
-
-function normalizeExpertPrecheckRequirement(requirement) {
-  const rawRequirement = requirement && typeof requirement === 'object' ? requirement : {}
-  const title = trimText(rawRequirement.title || rawRequirement.label || rawRequirement.name)
-
-  if (!title) {
-    return null
-  }
-
-  const checkedValue = getFirstDefinedValue([
-    rawRequirement.checked,
-    rawRequirement.met,
-    rawRequirement.completed,
-    rawRequirement.passed
-  ])
-
-  return {
-    key: trimText(rawRequirement.key || rawRequirement.code || rawRequirement.type || title),
-    title,
-    status: trimText(rawRequirement.status || rawRequirement.statusText || rawRequirement.desc || rawRequirement.description),
-    checked: normalizeBoolean(checkedValue)
-  }
-}
-
-function normalizeExpertPlanTask(planTask, fallbackPlanTask) {
-  const rawTask = planTask && typeof planTask === 'object' ? planTask : {}
-  const fallback = fallbackPlanTask || DEFAULT_EXPERT_APPLY_PRECHECK.planTask
-  const checkedValue = getFirstDefinedValue([
-    rawTask.checked,
-    rawTask.met,
-    rawTask.completed,
-    rawTask.submitted
-  ])
-
-  return {
-    key: trimText(rawTask.key || rawTask.code || fallback.key),
-    title: trimText(rawTask.title || rawTask.label || fallback.title),
-    desc: trimText(rawTask.desc || rawTask.description || fallback.desc),
-    action: trimText(rawTask.action || rawTask.actionText || fallback.action),
-    checked: normalizeBoolean(checkedValue),
-    route: trimText(rawTask.route || rawTask.url || rawTask.path || fallback.route)
-  }
-}
-
-function normalizeExpertBenefits(benefits, fallbackBenefits) {
-  const sourceBenefits = Array.isArray(benefits) && benefits.length
-    ? benefits
-    : fallbackBenefits
-
-  return sourceBenefits
-    .map((benefit, index) => {
-      const rawBenefit = typeof benefit === 'string' ? { text: benefit } : benefit
-      const text = trimText(rawBenefit && (rawBenefit.text || rawBenefit.title || rawBenefit.name))
-
-      if (!text) {
-        return null
-      }
-
-      return {
-        icon: (rawBenefit && rawBenefit.icon) || ((fallbackBenefits[index] || {}).icon) || '',
-        text
-      }
-    })
-    .filter(Boolean)
-}
-
-function normalizeExpertApplyPrecheck(precheck) {
-  const rawPrecheck = precheck && typeof precheck === 'object' ? precheck : {}
-  const fallback = createExpertApplyPrecheckFallback()
-  const rawRequirements = Array.isArray(rawPrecheck.requirements) && rawPrecheck.requirements.length
-    ? rawPrecheck.requirements
-    : fallback.requirements
-  const requirements = rawRequirements
-    .map(normalizeExpertPrecheckRequirement)
-    .filter(Boolean)
-  const benefits = normalizeExpertBenefits(rawPrecheck.benefits || rawPrecheck.privileges, fallback.benefits)
-
-  return {
-    requirementsTitle: trimText(rawPrecheck.requirementsTitle || rawPrecheck.title) || fallback.requirementsTitle,
-    requirements: requirements.length ? requirements : fallback.requirements,
-    planTask: normalizeExpertPlanTask(rawPrecheck.planTask || rawPrecheck.plan || rawPrecheck.expertPlan, fallback.planTask),
-    benefitsTitle: trimText(rawPrecheck.benefitsTitle || rawPrecheck.privilegesTitle) || fallback.benefitsTitle,
-    benefits: benefits.length ? benefits : fallback.benefits
-  }
-}
-
 function applyExpertApplyConfigToPage(page, config) {
   if (!page || page.mode !== 'expertApplyForm') {
     return page
@@ -445,22 +317,6 @@ function applyExpertApplyConfigToPage(page, config) {
     uploadField: normalizedConfig.uploadField,
     serviceBlocks: normalizedConfig.serviceBlocks,
     priceHint: normalizedConfig.priceHint
-  })
-}
-
-function applyExpertApplyPrecheckToPage(page, precheck) {
-  if (!page || page.mode !== 'expertApplyOverview') {
-    return page
-  }
-
-  const normalizedPrecheck = normalizeExpertApplyPrecheck(precheck)
-
-  return Object.assign({}, page, {
-    requirementsTitle: normalizedPrecheck.requirementsTitle,
-    requirements: normalizedPrecheck.requirements,
-    planTask: normalizedPrecheck.planTask,
-    benefitsTitle: normalizedPrecheck.benefitsTitle,
-    benefits: normalizedPrecheck.benefits
   })
 }
 
@@ -577,12 +433,35 @@ const ROLE_COMPARISON_PREVIEW_PAGE = {
   primary: '立即申请角色'
 }
 
+function applyRoleBenefitConfigToPage(page, config = {}) {
+  if (!page || page.mode !== 'roleComparison') {
+    return page
+  }
+
+  const comparison = config.roleComparison || {}
+  const roles = Array.isArray(comparison.roles) && comparison.roles.length
+    ? comparison.roles
+    : ROLE_COMPARISON_PREVIEW_PAGE.roles
+
+  return {
+    ...page,
+    ...comparison,
+    mode: 'roleComparison',
+    roles: roles.map((role) => ({
+      ...role,
+      icon: role.icon || (UI_ICONS.role && UI_ICONS.role[role.key]) || ''
+    })),
+    benefits: Array.isArray(comparison.benefits) ? comparison.benefits : page.benefits,
+    primary: comparison.primary || page.primary
+  }
+}
+
 const HOME_CONVERTED_PAGES = [
   {
     name: '启动动画',
     mode: 'launchAnimation',
     brand: '眞好玩',
-    onlineText: '2999+人在线',
+    onlineText: '在线',
     title: '真好玩',
     subtitle: 'Zhen Hao Wan',
     actionText: 'GO',
@@ -590,7 +469,6 @@ const HOME_CONVERTED_PAGES = [
   }
 ]
 
-const DEFAULT_EXPERT_APPLY_OVERVIEW = createExpertApplyPrecheckFallback()
 const EXPERT_APPLY_PREVIEW_PAGES = [
   {
     name: '申请行家内页',
@@ -614,17 +492,33 @@ const EXPERT_APPLY_PREVIEW_PAGES = [
     mode: 'expertApplyOverview',
     roleBadge: '申请',
     navTitle: '申请行家',
-    saveText: '保存',
+    saveText: '',
     title: '申请成为行家',
     icon: UI_ICONS.role.expert,
     tagline: '我懂玩家需要什么！我申请成为行家',
     reviewHint: '审核预计 1-3 个工作日',
     primary: '下一步',
-    requirementsTitle: DEFAULT_EXPERT_APPLY_OVERVIEW.requirementsTitle,
-    requirements: DEFAULT_EXPERT_APPLY_OVERVIEW.requirements,
-    planTask: DEFAULT_EXPERT_APPLY_OVERVIEW.planTask,
-    benefitsTitle: DEFAULT_EXPERT_APPLY_OVERVIEW.benefitsTitle,
-    benefits: DEFAULT_EXPERT_APPLY_OVERVIEW.benefits
+    requirementsTitle: '申请条件',
+    requirements: [
+      { title: '玩家等级达到 Lv.20', status: '当前等级: Lv.21 / 已满足', checked: true },
+      { title: '完成实名认证', status: '认证状态: 已通过 / 已满足', checked: true },
+      { title: '完成企业认证', status: '认证状态: 已通过 / 已满足', checked: true },
+      { title: '发起过 5次以上组局', status: '当前: 5 次 / 已满足', checked: true },
+      { title: '信用分 ≥ 90 分', status: '当前: 92 分 / 已满足', checked: true },
+      { title: '会员等级≥ 高级会员', status: '当前: 高级会员 / 已满足', checked: true }
+    ],
+    planTask: {
+      title: '提交行家计划书',
+      desc: '需描述你的资源、能力和项目说明书',
+      action: '去填写 ›',
+      checked: false
+    },
+    benefitsTitle: '行家特权',
+    benefits: [
+      { icon: UI_ICONS.panel.revenue, text: '有权益的行家可发起有偿局并可获得相应收入' },
+      { icon: UI_ICONS.panel.featured, text: '专属行家标识与优先推荐位' },
+      { icon: UI_ICONS.panel.data, text: '数据看板：查看服务数据与收益分析' }
+    ]
   }
 ]
 
@@ -681,8 +575,9 @@ Page({
     expertApplyNoticeVisible: false,
     expertApplyNoticeLines: [],
     roleComparisonReturnTo: '',
+    roleBenefitConfig: {},
     roleComparisonShell: {
-      onlineText: '3999人在线',
+      onlineText: '在线',
       navItems: [
         { name: '我的', active: false },
         { name: '元宇宙', active: false },
@@ -722,11 +617,21 @@ Page({
     rankingList: [],
     achievementList: [],
     friendGames: [],
+    friendMoreRoute: ROUTES.gameHall,
     metaverseEntry: {
       title: '',
       desc: '',
       actionText: '',
       route: ''
+    },
+    earth: {
+      nodes: [],
+      heatPoints: [],
+      edges: []
+    },
+    visualization: {
+      earth: {},
+      network: {}
     },
     nearbySummary: {
       cityName: '',
@@ -763,13 +668,11 @@ Page({
     }
     const route = roleHomeRoutes[roleType]
 
-    if (!route || typeof wx.redirectTo !== 'function') {
+    if (!route) {
       return false
     }
 
-    wx.redirectTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
 
     return true
   },
@@ -810,22 +713,32 @@ Page({
       currentHomePreview
     })
 
-    this.loadHomePreviewData(currentHomePreview)
+    if (currentHomePreview && currentHomePreview.mode === 'expertApplyForm') {
+      this.loadExpertApplyConfig()
+    }
+    if (currentHomePreview && currentHomePreview.mode === 'roleComparison') {
+      this.loadRoleBenefitConfig()
+    }
   },
 
-  loadHomePreviewData(page) {
-    if (!page) {
-      return
+  async loadRoleBenefitConfig() {
+    try {
+      const config = await roleService.getRoleBenefitConfig()
+      this.applyRoleBenefitConfig(config)
+    } catch (error) {
+      this.applyRoleBenefitConfig({})
     }
+  },
 
-    if (page.mode === 'expertApplyForm') {
-      this.loadExpertApplyConfig()
-      return
-    }
+  applyRoleBenefitConfig(config = {}) {
+    const currentHomePreview = applyRoleBenefitConfigToPage(this.data.currentHomePreview, config)
+    const homePreviewPages = (this.data.homePreviewPages || []).map((page) => applyRoleBenefitConfigToPage(page, config))
 
-    if (page.mode === 'expertApplyOverview') {
-      this.loadExpertApplyPrecheck()
-    }
+    this.setData({
+      roleBenefitConfig: config,
+      currentHomePreview,
+      homePreviewPages
+    })
   },
 
   async loadExpertApplyConfig() {
@@ -865,28 +778,6 @@ Page({
     })
   },
 
-  async loadExpertApplyPrecheck() {
-    const fallbackPrecheck = normalizeExpertApplyPrecheck()
-
-    try {
-      const remotePrecheck = await roleService.getExpertApplyPrecheck()
-      this.applyExpertApplyPrecheck(remotePrecheck)
-    } catch (error) {
-      this.applyExpertApplyPrecheck(fallbackPrecheck)
-    }
-  },
-
-  applyExpertApplyPrecheck(precheck) {
-    const normalizedPrecheck = normalizeExpertApplyPrecheck(precheck)
-    const currentHomePreview = applyExpertApplyPrecheckToPage(this.data.currentHomePreview, normalizedPrecheck)
-    const homePreviewPages = (this.data.homePreviewPages || []).map((page) => applyExpertApplyPrecheckToPage(page, normalizedPrecheck))
-
-    this.setData({
-      currentHomePreview,
-      homePreviewPages
-    })
-  },
-
   handleHomePreviewTap(event) {
     if (!this.data.isHomePreview) {
       return
@@ -912,15 +803,11 @@ Page({
       return
     }
 
-    const nextPreview = previewPages[nextIndex]
-
     this.setData({
       homePreviewIndex: nextIndex,
       homePreviewNo: nextIndex + 1,
-      currentHomePreview: nextPreview
+      currentHomePreview: previewPages[nextIndex]
     })
-
-    this.loadHomePreviewData(nextPreview)
   },
 
   stopExpertApplyTap() {},
@@ -943,10 +830,11 @@ Page({
       expertApplyYearDropdownVisible: false
     })
 
-    this.loadHomePreviewData(previewPages[formIndex])
+    this.loadExpertApplyConfig()
   },
 
   handleExpertApplyPlanTap() {
+    this.showExpertApplyForm()
   },
 
   handleExpertApplyPrimaryTap() {
@@ -958,6 +846,16 @@ Page({
     }
 
     this.handleExpertApplySubmit()
+  },
+
+  handleExpertApplySaveTap() {
+    const currentHomePreview = this.data.currentHomePreview || {}
+
+    if (currentHomePreview.mode !== 'expertApplyForm') {
+      return
+    }
+
+    toast.info('已暂存申请信息')
   },
 
   onExpertApplySkillTap(event) {
@@ -1027,7 +925,7 @@ Page({
       active: true,
       generatedCustom: true
     })
-    nextOptions.push({ name: '+ 自定义', active: false, custom: true })
+    nextOptions.push({ name: '+自定义', active: false, custom: true })
 
     this.setData({
       'currentHomePreview.skillOptions': nextOptions,
@@ -1282,11 +1180,16 @@ Page({
     const previewPages = this.data.homePreviewPages || []
     const currentIndex = this.data.homePreviewIndex
     const previousPage = previewPages[currentIndex - 1]
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
 
-    if (this.data.currentHomePreview && this.data.currentHomePreview.mode === 'expertApplyForm' && previousPage) {
+    if (
+      this.data.currentHomePreview
+      && this.data.currentHomePreview.mode === 'expertApplyForm'
+      && previousPage
+    ) {
       this.setData({
         homePreviewIndex: currentIndex - 1,
-        homePreviewNo: currentIndex,
+        homePreviewNo: Math.max(1, currentIndex),
         currentHomePreview: previousPage,
         expertApplyCustomInputVisible: false,
         expertApplyCustomInput: '',
@@ -1296,10 +1199,13 @@ Page({
       return
     }
 
-    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
-
     if (pages.length > 1 && typeof wx.navigateBack === 'function') {
       wx.navigateBack()
+      return
+    }
+
+    if (this.data.roleComparisonReturnTo) {
+      navigateShellRoute(this.data.roleComparisonReturnTo)
       return
     }
 
@@ -1318,12 +1224,8 @@ Page({
       return
     }
 
-    if (this.data.roleComparisonReturnTo && typeof wx.redirectTo === 'function') {
-      wx.redirectTo({
-        url: this.data.roleComparisonReturnTo.startsWith('/')
-          ? this.data.roleComparisonReturnTo
-          : `/${this.data.roleComparisonReturnTo}`
-      })
+    if (this.data.roleComparisonReturnTo) {
+      navigateShellRoute(this.data.roleComparisonReturnTo)
       return
     }
 
@@ -1352,8 +1254,11 @@ Page({
         rankingList: home.rankingList,
         achievementList: home.achievementList,
         friendGames: home.friendGames,
+        friendMoreRoute: (home.friendSection && (home.friendSection.route || home.friendSection.moreRoute || home.friendSection.actionRoute)) || ROUTES.gameHall,
         metaverseEntry: home.metaverseEntry,
-        nearbySummary: home.nearbySummary
+        nearbySummary: home.nearbySummary,
+        earth: home.earth,
+        visualization: home.visualization
       })
     } catch (error) {
       this.setData({
@@ -1370,6 +1275,8 @@ Page({
       return
     }
 
-    toast.developing()
+    navigateShellRoute(route, {
+      currentRoute: ROUTES.home
+    })
   }
 })

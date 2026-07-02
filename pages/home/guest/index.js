@@ -1,18 +1,12 @@
 const homeService = require('../../../services/home')
 const toast = require('../../../utils/toast')
+const { ROUTES } = require('../../../config/routes')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 Page({
   data: {
     onlineText: '',
-    nearbyGames: [
-      {
-        id: 'guest-1',
-        title: '苏州河记忆碎片采集',
-        place: '静安区 · 2.1km',
-        time: '2026.05.15 20:00-22:00',
-        memberText: '0/8人'
-      }
-    ]
+    nearbyGames: []
   },
 
   onLoad() {
@@ -23,20 +17,32 @@ Page({
     try {
       const homeData = await homeService.getHome()
       this.setData({
-        onlineText: homeData.hero ? homeData.hero.onlineText : ''
+        onlineText: homeData.hero ? homeData.hero.onlineText : '',
+        nearbyGames: this.normalizeNearbyGames(homeData.nearbyGames)
       })
     } catch (error) {
       this.setData({
-        onlineText: '在线人数获取中'
+        onlineText: '在线人数获取中',
+        nearbyGames: []
       })
     }
   },
 
+  normalizeNearbyGames(items) {
+    return (Array.isArray(items) ? items : []).map((item) => ({
+      id: item.id || item.gameId || '',
+      title: item.title || item.name || '附近组局',
+      place: item.place || item.locationText || item.address || '附近',
+      time: item.time || item.timeText || item.startTimeText || '',
+      memberText: item.memberText || item.membersText || `${item.currentPlayers || item.joinedCount || 0}/${item.maxPlayers || 8}人`
+    }))
+  },
+
   goLogin() {
-    toast.developing()
+    navigateShellRoute(ROUTES.login)
   },
 
   goInvite() {
-    toast.developing()
+    navigateShellRoute(ROUTES.loginInvite)
   }
 })

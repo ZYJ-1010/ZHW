@@ -28,6 +28,7 @@
   position: absolute;
   left: 27rpx;
   bottom: 0;
+  z-index: 0;
   width: 704rpx;
   height: 34rpx;
   background: #007bd3;
@@ -46,16 +47,19 @@
 
 .home-shell-nav {
   position: relative;
+  z-index: 1;
   height: 94rpx;
   background: transparent;
 }
 
 .home-shell-brand {
   position: absolute;
+  z-index: 2;
   left: -40rpx;
   top: -3rpx;
   width: 142rpx;
-  height: 60rpx;
+  height: 96rpx;
+  overflow: visible;
 }
 
 .home-shell-brand__icon {
@@ -81,6 +85,7 @@
   display: flex;
   align-items: center;
   width: 140rpx;
+  height: 24rpx;
 }
 
 .home-shell-brand__online-dot {
@@ -96,7 +101,7 @@
   color: #00f2ff;
   font-family: "Noto Sans SC", sans-serif;
   font-size: 16rpx;
-  line-height: 16rpx;
+  line-height: 24rpx;
   white-space: nowrap;
 }
 

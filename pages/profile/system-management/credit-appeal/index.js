@@ -1,5 +1,7 @@
 const toast = require('../../../../utils/toast')
-const profileService = require('../../../../services/profile')
+const reportService = require('../../../../services/report')
+const fileService = require('../../../../services/file')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const LOCAL_ASSET_BASE = '/pages/profile/system-management/credit-appeal/assets'
 const BLOCK_ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
@@ -7,10 +9,14 @@ const BLOCK_ASSET_BASE = '/pages/profile/system-management/block-settings/assets
 Page({
   data: {
     activeReason: '',
-    recordId: '',
     appealContent: '',
     appealContentLength: 0,
+    reportId: 0,
+    creditLogId: 0,
+    submitting: false,
+    evidenceImages: [],
     submitClass: 'disabled',
+    appealReasons: [],
     icons: {
       ban: `${BLOCK_ASSET_BASE}/icon-ban.svg`,
       chevron: `${BLOCK_ASSET_BASE}/icon-chevron-right.svg`,
@@ -18,53 +24,114 @@ Page({
       clock: `${LOCAL_ASSET_BASE}/icon-clock.svg`
     },
     reasonOptions: [],
-    relatedRecord: {},
+    relatedRecord: {
+      title: '管理员处罚 -10分',
+      desc: '违规行为 · 02-28'
+    },
     appealPlaceholder: '',
     uploadRequirement: '',
-    uploadSlots: [
-      { key: 'slot-1' },
-      { key: 'slot-2' },
-      { key: 'slot-3' },
-      { key: 'slot-4' }
-    ],
+    uploadFullText: '',
+    uploadSelectedTemplate: '',
+    appealFileMaxCount: 0,
+    uploadSlots: [],
     reviewTitle: '',
     reviewRules: []
   },
 
   onLoad(options = {}) {
-    this.setData({
-      recordId: options.recordId || options.id || ''
-    })
-    this.loadAppealOptions()
+    const reportId = Number(options.reportId || 0) || 0
+    const creditLogId = Number(options.creditLogId || 0) || 0
+
+    this.loadAppealConfig()
+
+    if (reportId) {
+      this.setData({ reportId })
+      this.loadReport(reportId)
+      return
+    }
+
+    if (creditLogId) {
+      this.setData({
+        creditLogId,
+        relatedRecord: {
+          title: `信用记录 #${creditLogId}`,
+          desc: '信用处罚 · 可提交申诉'
+        }
+      })
+    }
   },
 
-  async loadAppealOptions() {
+  async loadAppealConfig() {
     try {
-      const data = await profileService.getCreditAppealOptions({
-        recordId: this.data.recordId
-      })
-      const activeReason = data.defaultReason || data.activeReason || data.reasons && data.reasons[0] && data.reasons[0].key || ''
+      const config = await reportService.getReportConfig()
+      const reasons = Array.isArray(config.appealReasons)
+        ? config.appealReasons.filter((item) => item && item.visible !== false && item.key && item.label)
+        : []
+      const activeReason = reasons[0] ? reasons[0].key : ''
 
       this.setData({
         activeReason,
-        reasonOptions: this.buildReasonOptions(data.reasons || data.reasonOptions, activeReason),
-        relatedRecord: data.relatedRecord || data.record || {},
-        appealPlaceholder: data.appealPlaceholder || data.placeholder || '',
-        uploadRequirement: data.uploadRequirement || '',
-        reviewTitle: data.reviewTitle || '',
-        reviewRules: this.normalizeList(data.reviewRules || data.rules)
+        appealReasons: reasons,
+        reasonOptions: this.buildReasonOptions(reasons, activeReason),
+        appealPlaceholder: config.appealPlaceholder || '',
+        uploadRequirement: config.appealUploadNote || '',
+        uploadFullText: config.appealUploadFullText || '',
+        uploadSelectedTemplate: config.appealUploadSelectedTemplate || '',
+        appealFileMaxCount: this.appealFileMaxCount(config),
+        uploadSlots: this.buildUploadSlots(this.appealFileMaxCount(config)),
+        reviewTitle: config.appealReviewTitle || '',
+        reviewRules: (Array.isArray(config.appealReviewRules) ? config.appealReviewRules : []).map((text, index) => ({
+          key: `rule-${index + 1}`,
+          text
+        }))
       })
     } catch (error) {
       this.setData({
         activeReason: '',
+        appealReasons: [],
         reasonOptions: [],
-        relatedRecord: {},
-        appealPlaceholder: '',
-        uploadRequirement: '',
-        reviewTitle: '',
         reviewRules: []
       })
-      toast.info(error.message || '信用申诉配置加载失败')
+      toast.info(error.message || '获取申诉配置失败')
+    }
+  },
+
+  buildReasonOptions(reasons = [], activeKey = '') {
+    return reasons.map((item) => ({
+      key: item.key,
+      label: item.label,
+      className: [
+        'reason-pill',
+        item.key === activeKey ? 'active' : '',
+        item.key === 'other' ? 'compact' : ''
+      ].filter(Boolean).join(' ')
+    }))
+  },
+
+  appealFileMaxCount(config = {}) {
+    const count = Number(config.appealFileMaxCount || config.maxEvidenceCount || 0)
+
+    return Math.max(0, count)
+  },
+
+  buildUploadSlots(count) {
+    return Array.from({ length: count }, (_, index) => ({
+      key: `slot-${index + 1}`
+    }))
+  },
+
+  async loadReport(reportId) {
+    try {
+      const report = await reportService.getReportDetail(reportId)
+
+      this.setData({
+        relatedRecord: {
+          title: `举报记录 RP${String(report.id).padStart(8, '0')}`,
+          desc: `${report.reportType || 'other'} · 局ID ${report.gameId}`
+        }
+      })
+    } catch (error) {
+      toast.info(error.message || '获取举报记录失败')
     }
   },
 
@@ -74,13 +141,18 @@ Page({
     if (key && key !== this.data.activeReason) {
       this.setData({
         activeReason: key,
-        reasonOptions: this.buildReasonOptions(this.data.reasonOptions, key)
+        reasonOptions: this.buildReasonOptions(this.data.appealReasons, key)
       })
     }
   },
 
   handleRecordTap() {
-    toast.developing('处罚记录详情待接入信用明细接口')
+    if (!this.data.reportId) {
+      toast.info('暂无关联记录')
+      return
+    }
+
+    navigateShellRoute(`/pages/profile/system-management/appeal-detail/index?reportId=${this.data.reportId}`)
   },
 
   handleContentInput(event) {
@@ -94,40 +166,102 @@ Page({
   },
 
   handleUploadTap() {
-    toast.developing('证明材料上传待接入文件接口')
+    const restCount = Math.max(0, Number(this.data.appealFileMaxCount || 0) - this.data.evidenceImages.length)
+
+    if (!restCount) {
+      toast.info(this.data.uploadFullText || '证明材料数量已达上限')
+      return
+    }
+
+    const appendImages = (paths = []) => {
+      const nextImages = this.data.evidenceImages.concat(paths.map((path, index) => ({
+        id: `${Date.now()}-${index}`,
+        path
+      }))).slice(0, this.data.evidenceImages.length + restCount)
+
+      this.setData({
+        evidenceImages: nextImages,
+        uploadRequirement: this.uploadSelectedText(nextImages.length)
+      })
+    }
+
+    if (wx.chooseMedia) {
+      wx.chooseMedia({
+        count: restCount,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera'],
+        sizeType: ['compressed'],
+        success: (res) => {
+          appendImages((res.tempFiles || []).map((item) => item.tempFilePath).filter(Boolean))
+        }
+      })
+      return
+    }
+
+    wx.chooseImage({
+      count: restCount,
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        appendImages(res.tempFilePaths || [])
+      }
+    })
+  },
+
+  uploadSelectedText(selectedCount) {
+    const maxCount = Number(this.data.appealFileMaxCount || 0)
+    const template = this.data.uploadSelectedTemplate || ''
+
+    if (template) {
+      return template.replace('{selected}', selectedCount).replace('{max}', maxCount)
+    }
+
+    return `已选择 ${selectedCount}/${maxCount} 张证明材料`
   },
 
   async handleSubmitTap() {
+    if (this.data.submitting) {
+      return
+    }
+
+    if (!this.data.reportId && !this.data.creditLogId) {
+      toast.info('缺少关联记录，无法提交申诉')
+      return
+    }
+
     if (!this.data.appealContent.trim()) {
       toast.info('请先填写详细说明')
       return
     }
 
-    try {
-      await profileService.submitCreditAppeal({
-        recordId: this.data.recordId,
-        reason: this.data.activeReason,
-        content: this.data.appealContent
-      })
-      toast.success('申诉已提交')
-    } catch (error) {
-      toast.info(error.message || '信用申诉提交失败')
+    if (!this.data.activeReason) {
+      toast.info('请选择申诉原因')
+      return
     }
-  },
 
-  buildReasonOptions(list, activeReason) {
-    return this.normalizeList(list).map((item) => ({
-      ...item,
-      key: item.key || item.reason || item.id,
-      className: [
-        'reason-pill',
-        (item.key || item.reason || item.id) === activeReason ? 'active' : '',
-        (item.key || item.reason || item.id) === 'other' ? 'compact' : ''
-      ].filter(Boolean).join(' ')
-    }))
-  },
+    this.setData({ submitting: true })
 
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
+    try {
+      const fileIds = await fileService.uploadEvidenceImages(
+        this.data.evidenceImages.map((item) => item.path).filter(Boolean),
+        { bizType: 'report_attachment', objectId: this.data.reportId || this.data.creditLogId }
+      )
+      const payload = {
+        reason: this.data.activeReason,
+        content: this.data.appealContent.trim(),
+        fileId: fileIds[0] || 0,
+        fileIds
+      }
+      const report = this.data.reportId
+        ? await reportService.submitAppeal(this.data.reportId, payload)
+        : await reportService.submitCreditAppeal(Object.assign({}, payload, { creditLogId: this.data.creditLogId }))
+
+      toast.success('申诉已提交')
+      navigateShellRoute(`/pages/profile/system-management/appeal-detail/index?reportId=${report.id || this.data.reportId}`)
+    } catch (error) {
+      toast.info(error.message || '提交申诉失败')
+    } finally {
+      this.setData({ submitting: false })
+    }
   }
 })

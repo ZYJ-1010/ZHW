@@ -226,7 +226,7 @@ Component({
       wx.chooseMessageFile({
         count: 5,
         type: 'file',
-        extension: ['pdf'],
+        extension: ['pdf', 'txt', 'zip'],
         success: (result) => {
           this.triggerEvent('choosefile', result)
         }

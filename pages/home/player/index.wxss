@@ -43,6 +43,7 @@ page {
   display: block;
 }
 
+/* source: HTML 2_1143 */
 .player-hero {
   width: 380rpx;
   height: 96rpx;
@@ -175,23 +176,6 @@ page {
   border-radius: 50%;
   background: #a2ef4d;
   content: "";
-}
-
-.player-empty-text {
-  display: block;
-  margin: 22rpx 0 0;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 24rpx;
-  line-height: 36rpx;
-  text-align: center;
-}
-
-.player-empty-text.compact {
-  margin-top: 12rpx;
-}
-
-.player-empty-text.panel {
-  margin-top: 30rpx;
 }
 
 .player-tabs,
@@ -720,6 +704,7 @@ page {
   bottom: -28rpx;
 }
 
+/* source: HTML 2_1715 */
 .player-summary-card {
   position: relative;
   height: 420rpx;
@@ -1177,6 +1162,7 @@ page {
   left: 442rpx;
 }
 
+/* source: HTML 2_1870-2_1887 */
 .player-role-tags {
   position: absolute;
   left: 44rpx;
@@ -1223,6 +1209,7 @@ page {
   font-weight: 700;
 }
 
+/* source: HTML 2_1835 */
 .player-action-grid {
   position: relative;
   width: 664rpx;
@@ -1353,6 +1340,7 @@ page {
   color: rgba(34, 211, 238, 0.6);
 }
 
+/* source: HTML 2_1802 */
 .player-world-card {
   position: relative;
   height: 208rpx;

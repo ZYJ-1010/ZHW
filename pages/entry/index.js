@@ -1,9 +1,11 @@
+const homeService = require('../../services/home')
+
 const DEFAULT_TOPBAR_HEIGHT_RPX = 182
 const BRAND_ONLINE_BOTTOM_OFFSET_RPX = 82
 
 Page({
   data: {
-    onlineCount: 3999,
+    onlineText: '',
     entryTopbarStyle: '',
     entryStatusFillStyle: '',
     entryNavStyle: '',
@@ -12,6 +14,7 @@ Page({
 
   onLoad() {
     this.updateEntryTopbarLayout()
+    this.loadOnlineText()
   },
 
   onShow() {
@@ -23,6 +26,23 @@ Page({
   },
 
   goGuestHome() {
+    // Static walkthrough only. Wire this page into the app flow after the UI is confirmed.
+  },
+
+  async loadOnlineText() {
+    try {
+      const data = await homeService.getHome({})
+      const hero = data && data.hero ? data.hero : {}
+      const onlineText = hero.onlineText || data.onlineText || ''
+
+      this.setData({
+        onlineText
+      })
+    } catch (error) {
+      this.setData({
+        onlineText: ''
+      })
+    }
   },
 
   roundRpx(value) {

@@ -43,6 +43,35 @@ page {
   box-shadow: 0 14rpx 30rpx rgba(0, 0, 0, 0.18);
 }
 
+.audit-empty-card {
+  width: 682rpx;
+  margin: 36rpx auto 0;
+  padding: 42rpx 34rpx;
+  box-sizing: border-box;
+  border-radius: 32rpx;
+  background: #ffffff;
+}
+
+.audit-empty-title,
+.audit-empty-text {
+  display: block;
+  letter-spacing: 0;
+}
+
+.audit-empty-title {
+  color: #111827;
+  font-size: 32rpx;
+  font-weight: 800;
+  line-height: 44rpx;
+}
+
+.audit-empty-text {
+  margin-top: 14rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
 .card-head,
 .card-title {
   color: #111827;

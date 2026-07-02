@@ -109,6 +109,11 @@
         </view>
         <image class="case-summary-arrow" src="{{icons.chevronRight}}" mode="aspectFit"></image>
       </view>
+      <view wx:if="{{!displayedSkills.length}}" class="hidden-empty">
+        <view class="hidden-empty-lock">◎</view>
+        <text class="hidden-empty-title">暂无服务案例</text>
+        <text class="hidden-empty-desc">完成组局、服务确认和评价后，后台会沉淀可展示案例</text>
+      </view>
     </view>
 
     <view wx:elif="{{hasDisplayedSkills}}" class="skill-list">
@@ -179,6 +184,12 @@
       <text class="hidden-empty-title">暂无隐形技能</text>
       <text class="hidden-empty-desc">系统将根据您的组局表现自动评估并解锁隐形技能</text>
       <text class="hidden-empty-desc">解锁后仅平台可见，用于智能匹配推荐</text>
+    </view>
+
+    <view wx:else class="hidden-empty">
+      <view class="hidden-empty-lock">+</view>
+      <text class="hidden-empty-title">暂无已配置技能</text>
+      <text class="hidden-empty-desc">请从后台或本页添加技能配置，前端不再使用本地示例案例</text>
     </view>
 
     <view wx:if="{{showUnlockSuggestion}}" class="unlock-card">

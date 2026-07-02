@@ -2,9 +2,7 @@ const inviteService = require('../../../services/invite')
 const toast = require('../../../utils/toast')
 const { INVITE_STATUS_TEXT, INVITE_TIP } = require('../../../config/constants')
 const { ROUTES } = require('../../../config/routes')
-const env = require('../../../config/env')
-
-const TEST_INVITE_CODE = 'ENJOY2026'
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 function getInviteCodeFromOptions(options) {
   const directCode = String(options.code || options.inviteCode || '').trim()
@@ -39,7 +37,7 @@ Page({
   },
 
   onLoad(options) {
-    const inviteCode = getInviteCodeFromOptions(options) || (env.isMock ? TEST_INVITE_CODE : '')
+    const inviteCode = getInviteCodeFromOptions(options || {})
 
     if (!inviteCode) {
       return
@@ -111,15 +109,11 @@ Page({
     }
 
     inviteService.saveInviteContext(this.data.invite)
-    wx.redirectTo({
-      url: `/${ROUTES.login}?ui=1&mode=invite&inviteCode=${this.data.invite.code}`
-    })
+    navigateShellRoute(`/${ROUTES.login}?ui=1&mode=invite&inviteCode=${this.data.invite.code}`)
   },
 
   goNormalLogin() {
     inviteService.clearInviteContext()
-    wx.redirectTo({
-      url: `/${ROUTES.login}`
-    })
+    navigateShellRoute(ROUTES.login)
   }
 })

@@ -42,25 +42,25 @@
           </view>
         </view>
         <view class="network-stat stat-served">
-          <text>已服务 </text><text class="stat-cyan">156</text><text> 位玩家</text>
+          <text>{{summary[0].label}}</text><text class="stat-cyan"> {{summary[0].value}}</text>
         </view>
         <view class="network-stat stat-income">
-          <text>本周收益 </text><text class="stat-cyan">¥1,240</text>
+          <text>{{summary[1].label}}</text><text class="stat-cyan"> {{summary[1].value}}</text>
         </view>
       </view>
       <view class="invite-member-summary">
         <view class="avatar-stack">
           <text wx:for="{{avatars}}" wx:key="*this" class="stack-avatar">{{item}}</text>
-          <text class="stack-more">+8</text>
+          <text wx:if="{{members.length > avatars.length}}" class="stack-more">+{{members.length - avatars.length}}</text>
         </view>
         <view class="summary-copy">
-          <text class="summary-main">12 位一级成员</text>
+          <text class="summary-main">{{members.length}} 位一级成员</text>
           <text class="summary-sub">直接连接的玩家</text>
         </view>
       </view>
       <view class="network-actions">
-        <text class="primary-btn">管理我的邀约</text>
-        <text class="secondary-btn">查看分润</text>
+        <text class="primary-btn" bindtap="handleManageTap">管理我的邀约</text>
+        <text class="secondary-btn" bindtap="handleIncomeTap">查看分润</text>
       </view>
     </view>
 
@@ -81,6 +81,7 @@
       </view>
         <text class="arrow">›</text>
       </view>
+      <view wx:if="{{!members.length}}" class="empty-state">暂无一级成员</view>
     </view>
   </view>
 </profile-white-shell>

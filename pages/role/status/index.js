@@ -2,80 +2,57 @@ const roleService = require('../../../services/role')
 const toast = require('../../../utils/toast')
 const { ROUTES } = require('../../../config/routes')
 const UI_ICONS = require('../../../config/ui-icons')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
-const ROLE_TYPE_MAP = {
-  player: 'player',
-  expert: 'expert',
-  master: 'expert',
-  guide: 'guide',
-  leader: 'guide',
-  玩家: 'player',
-  行家: 'expert',
-  领路人: 'guide'
+const EMPTY_STATUS_CONFIG = {
+  roleAliases: {},
+  statusMap: {},
+  roleMeta: {},
+  pendingTimeline: [],
+  approvedActions: [],
+  texts: {},
+  defaultRejectReasons: [],
+  suggestionTemplates: [],
+  improvePlanTextByRole: {},
+  reapplyDays: 7
 }
 
-const ROLE_META = {
-  expert: {
-    roleName: '行家',
-    applyTitle: '行家申请',
-    successAccent: 'cyan',
-    approvedCopy: '现在可以开始创建新局、交付服务',
-    primaryText: '开启行家之旅',
-    rewards: [
-      { icon: UI_ICONS.panel.giftLimit, name: '每月添加行家30位', tag: '限时', tone: 'yellow' },
-      { icon: UI_ICONS.panel.traffic, name: '首页推荐 7 天', tag: '流量', tone: 'blue' },
-      { icon: UI_ICONS.panel.reward, name: '赠送300经验值', tag: '奖励', tone: 'green' }
-    ]
-  },
-  guide: {
-    roleName: '领路人',
-    applyTitle: '领路人申请',
-    successAccent: 'orange',
-    approvedCopy: '现在可以开始邀约玩家进入组局',
-    primaryText: '开启领路人之旅',
-    rewards: [
-      { icon: UI_ICONS.panel.giftLimit, name: '每月添加行家15位', tag: '限时', tone: 'yellow' },
-      { icon: UI_ICONS.panel.traffic, name: '首页推荐 7 天', tag: '流量', tone: 'blue' },
-      { icon: UI_ICONS.panel.reward, name: '赠送100经验值', tag: '奖励', tone: 'green' }
-    ]
+function normalizeStatusConfig(config = {}) {
+  return {
+    roleAliases: config.roleAliases || {},
+    statusMap: config.statusMap || {},
+    roleMeta: config.roleMeta || {},
+    pendingTimeline: Array.isArray(config.pendingTimeline) ? config.pendingTimeline : [],
+    approvedActions: Array.isArray(config.approvedActions) ? config.approvedActions : [],
+    texts: config.texts || {},
+    defaultRejectReasons: Array.isArray(config.defaultRejectReasons) ? config.defaultRejectReasons : [],
+    suggestionTemplates: Array.isArray(config.suggestionTemplates) ? config.suggestionTemplates : [],
+    improvePlanTextByRole: config.improvePlanTextByRole || {},
+    reapplyDays: Number(config.reapplyDays || 7)
   }
 }
 
-const APPROVED_ACTIONS = [
-  { icon: UI_ICONS.action.network, text: '关系网开启', route: ROUTES.relationNetwork },
-  { icon: UI_ICONS.action.invite, text: '邀请玩家', route: ROUTES.gameInvite },
-  { icon: UI_ICONS.action.profile, text: '完善资料', route: ROUTES.profileSystemProfileInfo }
-]
-
-const STATUS_MAP = {
-  active: 'approved',
-  enabled: 'approved',
-  passed: 'approved',
-  success: 'approved',
-  waiting: 'pending',
-  reviewing: 'pending',
-  auditing: 'pending',
-  pending_audit: 'pending',
-  rejected_audit: 'rejected',
-  reject: 'rejected',
-  disabled: 'disabled',
-  available: 'none',
-  locked: 'none',
-  unavailable: 'none'
+function textOf(config, key) {
+  const texts = config && config.texts ? config.texts : {}
+  return texts[key] || ''
 }
 
-function normalizeRoleType(roleType) {
-  return ROLE_TYPE_MAP[roleType] || 'guide'
+function applyTemplate(template, values = {}) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => values[key] == null ? '' : values[key])
 }
 
-function normalizeStatus(status) {
+function normalizeRoleType(roleType, config = EMPTY_STATUS_CONFIG) {
+  return config.roleAliases[roleType] || 'guide'
+}
+
+function normalizeStatus(status, config = EMPTY_STATUS_CONFIG) {
   if (status == null || status === '') {
     return 'pending'
   }
 
   const value = String(status).trim()
 
-  return STATUS_MAP[value] || value
+  return config.statusMap[value] || value
 }
 
 function pickFirstValue(...values) {
@@ -117,14 +94,22 @@ function addDays(dateText, days) {
   return `${year}.${month}.${day}`
 }
 
-function normalizeApplication(rawApplication = {}, roleType, status) {
+function createFallbackApplication(roleType, status) {
+  return {
+    roleType,
+    status
+  }
+}
+
+function normalizeApplication(rawApplication = {}, roleType, status, config = EMPTY_STATUS_CONFIG) {
   const normalizedRole = normalizeRoleType(
     rawApplication.roleType ||
     rawApplication.role_type ||
     rawApplication.type ||
     rawApplication.key ||
     rawApplication.name ||
-    roleType
+    roleType,
+    config
   )
   const normalizedStatus = normalizeStatus(
     rawApplication.status ||
@@ -132,7 +117,8 @@ function normalizeApplication(rawApplication = {}, roleType, status) {
     rawApplication.applicationStatus ||
     rawApplication.roleStatus ||
     rawApplication.role_status ||
-    status
+    status,
+    config
   )
   const submittedAt = formatDateTime(pickFirstValue(
     rawApplication.submittedAt,
@@ -161,23 +147,27 @@ function normalizeApplication(rawApplication = {}, roleType, status) {
     reviewedAt,
     expectedReviewAt,
     applicationId: pickFirstValue(rawApplication.applicationId, rawApplication.id, rawApplication.application_id, ''),
-    certNo: pickFirstValue(rawApplication.certNo, rawApplication.cert_no, rawApplication.certificateNo, rawApplication.certificate_no, ''),
     rejectReason: pickFirstValue(rawApplication.rejectReason, rawApplication.reject_reason, ''),
     rejectReasons: Array.isArray(rawApplication.rejectReasons) ? rawApplication.rejectReasons : [],
     canReapplyAt: formatDateTime(pickFirstValue(rawApplication.canReapplyAt, rawApplication.reapplyAt, ''))
+    ,
+    approvedCopy: pickFirstValue(rawApplication.approvedCopy, rawApplication.successCopy, ''),
+    primaryText: pickFirstValue(rawApplication.primaryText, rawApplication.primaryActionText, ''),
+    certNo: pickFirstValue(rawApplication.certNo, rawApplication.certNumber, rawApplication.certificateNo, ''),
+    rewards: Array.isArray(rawApplication.rewards) ? rawApplication.rewards : []
   }
 }
 
-function findApplication(applications, roleType, status) {
-  const normalizedRole = normalizeRoleType(roleType)
-  const normalizedStatus = normalizeStatus(status)
+function findApplication(applications, roleType, status, config = EMPTY_STATUS_CONFIG) {
+  const normalizedRole = normalizeRoleType(roleType, config)
+  const normalizedStatus = normalizeStatus(status, config)
   const normalizedList = Array.isArray(applications)
-    ? applications.map((item) => normalizeApplication(item, normalizedRole, normalizedStatus))
+    ? applications.map((item) => normalizeApplication(item, normalizedRole, normalizedStatus, config))
     : []
   const sameRole = normalizedList.filter((item) => item.roleType === normalizedRole)
 
   if (!sameRole.length) {
-    return null
+    return normalizeApplication(createFallbackApplication(normalizedRole, normalizedStatus), normalizedRole, normalizedStatus, config)
   }
 
   const matchedApplication = sameRole.find((item) => item.status === normalizedStatus)
@@ -187,54 +177,40 @@ function findApplication(applications, roleType, status) {
   }
 
   if (normalizedStatus && normalizedStatus !== 'none') {
-    return sameRole[0]
+    return Object.assign({}, sameRole[0], {
+      status: normalizedStatus
+    })
   }
 
   return sameRole[0]
 }
 
-function buildPendingTimeline(application, roleName) {
-  return [
-    {
-      title: '提交申请',
-      desc: `已成功提交${roleName}申请资料`,
-      time: application.submittedAt || '已提交',
-      state: 'done'
-    },
-    {
-      title: '资料初审',
-      desc: '平台审核团队已接收并开始初审',
-      time: application.submittedAt ? '已接收' : '待系统同步',
-      state: 'done'
-    },
-    {
-      title: '深度审核',
-      desc: roleName === '领路人'
-        ? '正在评估你的组局记录、信用分及领路计划书'
-        : '正在评估你的专业能力、资质材料及服务说明',
-      time: '进行中...',
-      state: 'active'
-    },
-    {
-      title: '结果通知',
-      desc: '审核结果将通过消息推送通知你',
-      time: '待完成',
-      state: 'pending'
+function buildPendingTimeline(application, roleName, config) {
+  return config.pendingTimeline.map((item) => {
+    const descByRole = item.descByRole || {}
+
+    return {
+      title: item.title || '',
+      desc: applyTemplate(descByRole[application.roleType] || item.descTemplate || item.desc || '', { roleName }),
+      time: item.timeField === 'submittedAt'
+        ? (application.submittedAt || item.fallbackTime || '')
+        : (item.timeWhenSubmitted ? (application.submittedAt ? item.timeWhenSubmitted : item.fallbackTime || '') : item.time || ''),
+      state: item.state || ''
     }
-  ]
+  })
 }
 
-function buildDetails(application, meta) {
+function buildDetails(application, meta, config) {
   return [
-    { label: '申请角色', value: meta.roleName, highlight: true },
-    { label: '申请时间', value: application.submittedAt || '以后台记录为准' },
-    { label: '申请编号', value: application.applicationId || '审核中生成' },
-    { label: '当前状态', value: application.status === 'pending' ? '深度审核中' : application.statusText || '待确认', highlight: true },
-    { label: '预计完成', value: application.expectedReviewAt || '预计 1-3 个工作日' }
+    { label: textOf(config, 'fieldRoleLabel'), value: meta.roleName, highlight: true },
+    { label: textOf(config, 'fieldApplyTimeLabel'), value: application.submittedAt || textOf(config, 'backendRecordFallback') },
+    { label: textOf(config, 'fieldApplicationNoLabel'), value: application.applicationId || textOf(config, 'applicationNoFallback') },
+    { label: textOf(config, 'fieldCurrentStatusLabel'), value: application.status === 'pending' ? textOf(config, 'pendingStatusText') : application.statusText || textOf(config, 'statusFallback'), highlight: true },
+    { label: textOf(config, 'fieldExpectedLabel'), value: application.expectedReviewAt || textOf(config, 'expectedDoneFallback') }
   ]
 }
 
-function buildRejectReasons(application) {
+function buildRejectReasons(application, config) {
   if (application.rejectReasons.length) {
     return application.rejectReasons
   }
@@ -243,89 +219,88 @@ function buildRejectReasons(application) {
     return [application.rejectReason]
   }
 
-  return [
-    '申请资料暂未达到当前角色审核要求',
-    '部分证明材料或计划说明仍需补充完善'
-  ]
+  return config.defaultRejectReasons
 }
 
-function buildPageState(application) {
-  const meta = ROLE_META[application.roleType] || ROLE_META.guide
-  const status = normalizeStatus(application.status)
+function buildSuggestions(application, meta, config) {
+  const improvePlanText = config.improvePlanTextByRole[application.roleType] || ''
+
+  return config.suggestionTemplates.map((item) => applyTemplate(item, {
+    roleName: meta.roleName,
+    improvePlanText
+  }))
+}
+
+function buildApprovedActions(config) {
+  return config.approvedActions.map((item) => ({
+    icon: UI_ICONS.action[item.iconKey] || '',
+    text: item.text || '',
+    route: ROUTES[item.routeKey] || ''
+  }))
+}
+
+function buildPageState(application, rawConfig = EMPTY_STATUS_CONFIG) {
+  const config = normalizeStatusConfig(rawConfig)
+  const meta = config.roleMeta[application.roleType] || config.roleMeta.guide || {}
+  const status = normalizeStatus(application.status, config)
   const isApproved = status === 'approved'
   const isRejected = status === 'rejected'
   const isPending = !isApproved && !isRejected
   const reviewedAt = application.reviewedAt || ''
-  const canReapplyAt = application.canReapplyAt || addDays(reviewedAt || application.submittedAt, 7)
+  const canReapplyAt = application.canReapplyAt || addDays(reviewedAt || application.submittedAt, config.reapplyDays)
 
   return {
     loading: false,
+    loadError: '',
     roleType: application.roleType,
     status,
     uiIcons: UI_ICONS,
+    pageConfig: config,
+    texts: config.texts,
     meta,
     isPending,
     isApproved,
     isRejected,
-    pageTitle: isPending ? '审核进度' : '审核结果',
-    statusTitle: isPending ? '审核中' : (isApproved ? '恭喜审核通过！' : '审核未通过'),
+    pageTitle: isPending ? textOf(config, 'pendingPageTitle') : textOf(config, 'resultPageTitle'),
+    statusTitle: isPending ? textOf(config, 'pendingTitle') : (isApproved ? textOf(config, 'approvedTitle') : textOf(config, 'rejectedTitle')),
     statusSubTitle: isPending
-      ? `${meta.roleName}申请正在审核`
-      : (isApproved ? `你已成为「${meta.roleName}」` : '查看原因并完善后可再次申请'),
+      ? applyTemplate(textOf(config, 'pendingSubtitleTemplate'), { roleName: meta.roleName })
+      : (isApproved ? applyTemplate(textOf(config, 'approvedSubtitleTemplate'), { roleName: meta.roleName }) : textOf(config, 'rejectedSubtitle')),
     statusDesc: isPending
-      ? '平台正在评估你的申请资料，请耐心等待'
-      : (isApproved ? meta.approvedCopy : '感谢你的申请，但本次审核未通过'),
+      ? textOf(config, 'pendingDesc')
+      : (isApproved ? (application.approvedCopy || meta.approvedCopy || '') : textOf(config, 'rejectedDesc')),
     expectedText: application.expectedReviewAt
-      ? `预计 ${application.expectedReviewAt} 前完成审核，届时将通过站内消息通知你审核结果。`
-      : '审核预计 1-3 个工作日，结果将通过站内消息通知你。',
-    timeline: buildPendingTimeline(application, meta.roleName),
-    details: buildDetails(application, meta),
-    rejectReasons: buildRejectReasons(application),
-    suggestions: [
-      '多参与平台组局活动，积累带队经验',
-      '完善个人资料，提升信用评分',
-      `${meta.roleName === '领路人' ? '重新撰写领路计划书' : '补充服务说明'}，详细描述你的服务优势`,
-      '获得同伴推荐背书可提升审核通过率'
-    ],
+      ? applyTemplate(textOf(config, 'expectedTemplate'), { expectedReviewAt: application.expectedReviewAt })
+      : textOf(config, 'expectedFallback'),
+    timeline: buildPendingTimeline(application, meta.roleName, config),
+    details: buildDetails(application, meta, config),
+    rejectReasons: buildRejectReasons(application, config),
+    suggestions: buildSuggestions(application, meta, config),
     history: [
-      { label: '申请角色', value: meta.roleName, highlight: true },
-      { label: '申请时间', value: application.submittedAt || '以后台记录为准' },
-      { label: '驳回时间', value: reviewedAt || '以后台记录为准' },
-      { label: '可重新申请', value: canReapplyAt ? `${canReapplyAt} 后` : '请关注后台通知', highlight: true }
+      { label: textOf(config, 'fieldRoleLabel'), value: meta.roleName, highlight: true },
+      { label: textOf(config, 'fieldApplyTimeLabel'), value: application.submittedAt || textOf(config, 'backendRecordFallback') },
+      { label: textOf(config, 'fieldRejectTimeLabel'), value: reviewedAt || textOf(config, 'backendRecordFallback') },
+      { label: textOf(config, 'fieldReapplyLabel'), value: canReapplyAt ? `${canReapplyAt}${textOf(config, 'reapplySuffix')}` : textOf(config, 'reapplyNotifyFallback'), highlight: true }
     ],
-    certNo: application.certNo || application.applicationId || '以后台为准',
-    certTime: reviewedAt || '以后台记录为准',
-    rewards: meta.rewards,
-    nextActions: APPROVED_ACTIONS
-  }
-}
-
-function buildEmptyState(roleType = 'guide', status = 'pending', message = '') {
-  return {
-    loading: false,
-    hasApplication: false,
-    roleType: normalizeRoleType(roleType),
-    status: normalizeStatus(status),
-    uiIcons: UI_ICONS,
-    meta: ROLE_META[normalizeRoleType(roleType)] || ROLE_META.guide,
-    pageTitle: '审核状态',
-    emptyTitle: '暂无申请记录',
-    emptyDesc: message || '后台暂未返回当前角色的申请记录，请从角色申请入口提交或稍后再试。',
-    isPending: false,
-    isApproved: false,
-    isRejected: false
+    certNo: application.certNo || application.applicationId || '',
+    certTime: reviewedAt || textOf(config, 'backendRecordFallback'),
+    rewards: application.rewards,
+    hasRewards: application.rewards.length > 0,
+    primaryText: application.primaryText || meta.primaryText,
+    nextActions: buildApprovedActions(config)
   }
 }
 
 Page({
-  data: buildEmptyState('guide', 'pending'),
+  data: buildPageState(normalizeApplication(createFallbackApplication('guide', 'pending'), 'guide', 'pending', EMPTY_STATUS_CONFIG), EMPTY_STATUS_CONFIG),
 
   onLoad(options = {}) {
-    const roleType = normalizeRoleType(options.roleType || 'guide')
-    const status = normalizeStatus(options.status || 'pending')
+    const roleType = options.roleType || 'guide'
+    const status = options.status || 'pending'
 
     this.setData({
       loading: true,
+      loadError: '',
       roleType,
       status
     })
@@ -334,22 +309,34 @@ Page({
 
   async loadRoleStatus(roleType, status) {
     try {
-      const applications = await roleService.getMyRoleApplications()
-      const application = findApplication(applications, roleType, status)
+      const results = await Promise.all([
+        roleService.getRoleStatusPageConfig(),
+        roleService.getMyRoleApplications()
+      ])
+      const config = normalizeStatusConfig(results[0])
+      const applications = Array.isArray(results[1])
+        ? results[1]
+        : (results[1] && Array.isArray(results[1].items) ? results[1].items : [])
+      const application = findApplication(applications, roleType, status, config)
 
-      if (!application) {
-        this.setData(buildEmptyState(roleType, status))
-        return
-      }
-
-      this.setData({
-        hasApplication: true,
-        ...buildPageState(application)
-      })
+      this.setData(buildPageState(application, config))
     } catch (error) {
-      this.setData(buildEmptyState(roleType, status, '审核状态加载失败，请稍后重试。'))
-      toast.info(error.message || '审核状态加载失败')
+      const config = normalizeStatusConfig(this.data.pageConfig)
+      this.setData({
+        loading: false,
+        loadError: error.message || textOf(config, 'loadFailedText'),
+        roleType: normalizeRoleType(roleType, config),
+        status: normalizeStatus(status, config),
+        pageConfig: config,
+        texts: config.texts
+      })
+      toast.info(error.message || textOf(config, 'loadFailedText'))
     }
+  },
+
+  handleRetryTap() {
+    this.setData({ loading: true, loadError: '' })
+    this.loadRoleStatus(this.data.roleType, this.data.status)
   },
 
   handleBackTap() {
@@ -384,28 +371,22 @@ Page({
     const route = event.currentTarget.dataset.route
 
     if (!route) {
-      toast.info('功能开发中')
+      toast.info(textOf(this.data.pageConfig, 'routeMissingText'))
       return
     }
 
-    wx.navigateTo({
-      url: route.indexOf('/') === 0 ? route : `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleBenefitsTap() {
-    wx.navigateTo({
-      url: `/${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(ROUTES.roleStatus)}`
-    })
+    navigateShellRoute(`${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(ROUTES.roleStatus)}`)
   },
 
   handleHelpTap() {
-    toast.info('审核帮助正在完善中')
+    navigateShellRoute('/pages/profile/system-management/feedback/index?sheet=quick')
   },
 
   handleImproveTap() {
-    wx.navigateTo({
-      url: `/${ROUTES.profile}`
-    })
+    navigateShellRoute(ROUTES.profileSystemProfileInfo)
   }
 })

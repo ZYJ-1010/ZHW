@@ -62,7 +62,7 @@
     </view>
 
     <view class="report-card">
-      <text class="section-title">上传证据 (最多9张)</text>
+      <text class="section-title">上传证据 (最多{{maxEvidenceCount}}张)</text>
       <view class="upload-grid">
         <view
           wx:for="{{evidenceImages}}"
@@ -82,12 +82,12 @@
 
     <view class="primary-report-button single-submit" bindtap="handleSubmitTap">提交举报</view>
 
-    <view class="report-card tip-card" wx:if="{{tipLines.length}}">
+    <view class="report-card tip-card">
       <view class="tip-title">
         <image class="tip-icon" src="{{icons.warning}}" mode="aspectFit"></image>
         <text>温馨提示</text>
       </view>
-      <text wx:for="{{tipLines}}" wx:key="text" class="tip-line">{{item.text}}</text>
+      <text wx:for="{{tips}}" wx:key="*this" class="tip-line">{{item}}</text>
     </view>
   </view>
 </profile-white-shell>

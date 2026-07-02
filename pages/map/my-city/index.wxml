@@ -1,0 +1,161 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="my-city-page">
+    <view class="my-city-header">
+      <button class="my-city-back" hover-class="none" bindtap="handleBackTap">
+        <view class="my-city-back-icon"></view>
+      </button>
+      <text class="my-city-title">{{pageTitle}}</text>
+    </view>
+
+    <view class="my-city-stat-card">
+      <view wx:for="{{summaryStats}}" wx:key="label" class="my-city-stat">
+        <text class="my-city-stat-value tone-{{item.tone}}">{{item.value}}</text>
+        <text class="my-city-stat-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="my-city-map-panel">
+      <image class="my-city-map-bg" src="/pages/map/my-city/assets/china-dark-map.png" mode="aspectFill"></image>
+      <view class="my-city-map-shade"></view>
+
+      <block wx:if="{{showMapOverlay}}">
+        <view class="my-city-map-legend">
+          <view wx:for="{{mapLegends}}" wx:key="label" class="my-city-legend-item">
+            <view class="my-city-legend-dot tone-{{item.tone}}"></view>
+            <text>{{item.label}}</text>
+          </view>
+        </view>
+
+        <view class="my-city-route-tip">
+          <view class="my-city-lock-icon"></view>
+          <text>{{routeTip}}</text>
+        </view>
+        <button class="my-city-switch-button" hover-class="none" bindtap="handleSwitchMapTap">{{switchMapText}}</button>
+      </block>
+
+    </view>
+
+    <view class="my-city-map-user">
+      <view class="my-city-user-avatar"></view>
+      <text class="my-city-user-name">{{profileName}}</text>
+      <view class="my-city-user-divider"></view>
+      <view class="my-city-map-data">
+        <view wx:for="{{mapStats}}" wx:key="label" class="my-city-map-data-item">
+          <text>{{item.label}}</text>
+          <view>
+            <text class="my-city-map-data-value">{{item.value}}</text>
+            <text class="my-city-map-data-unit">{{item.unit}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="my-city-journey-head">
+      <view>
+        <text class="my-city-section-title">{{journeyTitle}}</text>
+        <text class="my-city-section-desc">{{journeyDesc}}</text>
+      </view>
+      <button class="my-city-filter" hover-class="none" bindtap="handleFilterTap">
+        <view></view>
+      </button>
+    </view>
+
+    <view class="my-city-timeline">
+      <block wx:for="{{storyGroups}}" wx:key="year" wx:for-item="group">
+        <view class="my-city-year-row">
+          <view class="my-city-year-dot"></view>
+          <text>{{group.year}}年</text>
+        </view>
+
+        <view
+          wx:for="{{group.stories}}"
+          wx:key="id"
+          wx:for-item="story"
+          class="my-city-story-card {{story.cover ? 'featured' : ''}} {{story.type === 'first' ? 'first-use' : ''}}"
+          data-id="{{story.id}}"
+          bindtap="handleStoryTap"
+        >
+          <view wx:if="{{story.cover}}" class="my-city-story-cover-wrap">
+            <image class="my-city-story-cover" src="{{story.cover}}" mode="aspectFill"></image>
+            <view class="my-city-story-cover-tag tone-{{story.tagTone}}">{{story.tag}}</view>
+            <view class="my-city-story-location">{{story.coverLocation}}</view>
+          </view>
+
+          <block wx:if="{{story.type === 'first'}}">
+            <view class="my-city-first-icon">
+              <text>🌱</text>
+            </view>
+            <view class="my-city-first-content">
+              <view class="my-city-first-head">
+                <text class="my-city-story-title">{{story.title}}</text>
+                <view class="my-city-first-pill">
+                  <text wx:if="{{story.highlightEmoji}}">{{story.highlightEmoji}}</text>
+                  <text>{{story.highlightTag}}</text>
+                </view>
+              </view>
+              <view wx:if="{{story.location}}" class="my-city-story-place">
+                <text class="my-city-story-place-text">{{story.date}} · {{story.location}}</text>
+              </view>
+              <text class="my-city-story-desc">{{story.desc}}</text>
+              <view class="my-city-first-badge">{{story.tag}}</view>
+            </view>
+          </block>
+
+          <block wx:else>
+            <view class="my-city-story-top">
+              <view class="my-city-story-tags">
+                <view class="my-city-story-tag tone-{{story.tagTone}}">
+                  <text wx:if="{{story.tagEmoji}}" class="my-city-story-tag-emoji">{{story.tagEmoji}}</text>
+                  <text class="my-city-story-tag-text">{{story.tag}}</text>
+                </view>
+                <text wx:if="{{story.subTag}}" class="my-city-story-subtag">{{story.subTag}}</text>
+              </view>
+              <text class="my-city-story-date">{{story.date}}</text>
+            </view>
+
+            <text class="my-city-story-title">{{story.title}}</text>
+            <view wx:if="{{story.location}}" class="my-city-story-place">
+              <text class="my-city-story-place-icon">📍</text>
+              <text class="my-city-story-place-text">{{story.location}}</text>
+            </view>
+            <text class="my-city-story-desc">{{story.desc}}</text>
+
+            <view class="my-city-story-foot">
+              <view class="my-city-story-participants">
+                <text>{{participantLabel}}</text>
+                <view class="my-city-participant-dots">
+                  <view wx:for="{{story.participants}}" wx:key="*this"></view>
+                </view>
+              </view>
+              <view
+                wx:if="{{story.actionText}}"
+                class="my-city-story-action tone-{{story.actionTone}}"
+                style="{{story.actionStyle}}"
+                data-id="{{story.id}}"
+                catchtap="handleStoryActionTap"
+              >{{story.actionText}}</view>
+            </view>
+
+            <view wx:if="{{story.badgeTitle}}" class="my-city-story-badge">
+              <text>
+                <text wx:if="{{story.badgeEmoji}}" class="my-city-story-badge-icon">{{story.badgeEmoji}}</text>{{story.badgeTitle}}
+              </text>
+              <text>{{story.badgeDesc}}</text>
+            </view>
+          </block>
+        </view>
+      </block>
+    </view>
+
+    <view class="my-city-ending">
+      <text>{{endingTitle}}</text>
+      <text>{{endingDesc}}</text>
+    </view>
+  </view>
+</home-shell>

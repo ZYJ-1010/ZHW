@@ -86,6 +86,29 @@ page {
   line-height: 36rpx;
 }
 
+.apply-rule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  padding: 24rpx 26rpx;
+  border: 2rpx solid rgba(0, 242, 255, 0.24);
+  border-radius: 24rpx;
+  background: rgba(0, 242, 255, 0.08);
+}
+
+.apply-rule-text,
+.apply-rule-hint {
+  display: block;
+  color: #e5f8ff;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.apply-rule-hint {
+  color: #9ee7ff;
+}
+
 .apply-section {
   margin-top: 28rpx;
 }

@@ -11,10 +11,6 @@ async function getGameList(params) {
 }
 
 async function getGameDetail(gameId) {
-  if (!gameId) {
-    throw new Error('缺少局信息')
-  }
-
   const result = await gameApi.getGameDetail(gameId)
 
   if (result.code !== 0) {
@@ -24,15 +20,71 @@ async function getGameDetail(gameId) {
   return result.data
 }
 
-async function getGameMembers(gameId, params) {
-  if (!gameId) {
-    throw new Error('缺少局信息')
-  }
-
-  const result = await gameApi.getGameMembers(gameId, params)
+async function getGameMembers(gameId) {
+  const result = await gameApi.getGameMembers(gameId)
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取局成员失败')
+    throw new Error(result.message || '获取参与者失败')
+  }
+
+  return result.data
+}
+
+async function getGameSuccessDetail(gameId, params) {
+  const result = await gameApi.getGameSuccessDetail(gameId, params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取组局成功详情失败')
+  }
+
+  return result.data
+}
+
+async function getGameGuideSuccessDetail(gameId, params) {
+  const result = await gameApi.getGameGuideSuccessDetail(gameId, params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取领路人成功详情失败')
+  }
+
+  return result.data
+}
+
+async function getGameCollaboration(gameId, params) {
+  const result = await gameApi.getGameCollaboration(gameId, params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取局内协作失败')
+  }
+
+  return result.data
+}
+
+async function createGuideFollowUp(gameId, payload) {
+  const result = await gameApi.createGuideFollowUp(gameId, payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '记录领路人跟进失败')
+  }
+
+  return result.data
+}
+
+async function createGame(payload) {
+  const result = await gameApi.createGame(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '创建局失败')
+  }
+
+  return result.data
+}
+
+async function createInviteEntry(payload) {
+  const result = await gameApi.createInviteEntry(payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '生成邀请入口失败')
   }
 
   return result.data
@@ -43,16 +95,6 @@ async function getInvitePlayerConfig(params) {
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取邀请玩家配置失败')
-  }
-
-  return result.data
-}
-
-async function getGameInviteConfig(params = {}) {
-  const result = await gameApi.getGameInviteConfig(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取邀请配置失败')
   }
 
   return result.data
@@ -108,14 +150,18 @@ async function getProfitTemplates(params) {
   return result.data
 }
 
-async function getGameApplyConfig(params = {}) {
-  const gameId = String(params.gameId || params.id || '').trim()
+async function getCategoryConfig(params) {
+  const result = await gameApi.getCategoryConfig(params)
 
-  if (!gameId) {
-    throw new Error('缺少局信息')
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取组局分类配置失败')
   }
 
-  const result = await gameApi.getGameApplyConfig(encodeURIComponent(gameId), params)
+  return result.data
+}
+
+async function getApplicationConfig(params) {
+  const result = await gameApi.getApplicationConfig(params)
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取入局申请配置失败')
@@ -124,30 +170,43 @@ async function getGameApplyConfig(params = {}) {
   return result.data
 }
 
-async function applyGame(params = {}) {
-  const gameId = String(params.gameId || params.id || '').trim()
+async function getConditionRuleConfig(params) {
+  const result = await gameApi.getConditionRuleConfig(params)
 
-  if (!gameId) {
-    throw new Error('缺少局信息')
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取条件局规则失败')
   }
 
-  const intro = String(params.intro || params.applyReason || '').trim()
+  return result.data
+}
 
-  if (!intro) {
-    throw new Error('请先填写自我介绍')
+async function applyGame(gameId, payload) {
+  const result = await gameApi.applyGame(gameId, payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '提交报名申请失败')
   }
 
-  const result = await gameApi.applyGame(encodeURIComponent(gameId), {
-    applyReason: intro,
-    intro,
-    message: params.message || '',
-    imageFiles: params.imageFiles || [],
-    attachmentFiles: params.attachmentFiles || [],
-    fromGuideId: params.fromGuideId || ''
+  return result.data
+}
+
+async function getReceivedApplications(params) {
+  const result = await gameApi.getReceivedApplications(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取申请列表失败')
+  }
+
+  return result.data
+}
+
+async function reviewGameApplication(applicationId, approve) {
+  const result = await gameApi.reviewGameApplication(applicationId, {
+    approve: Boolean(approve)
   })
 
   if (result.code !== 0) {
-    throw new Error(result.message || '提交入局申请失败')
+    throw new Error(result.message || '审核申请失败')
   }
 
   return result.data
@@ -163,109 +222,11 @@ async function createReplayInvitation(payload) {
   return result.data
 }
 
-async function createGameInvite(payload = {}) {
-  const result = await gameApi.createGameInvite(payload)
+async function sendGuideReminder(payload) {
+  const result = await gameApi.sendGuideReminder(payload)
 
   if (result.code !== 0) {
-    throw new Error(result.message || '发起邀请失败')
-  }
-
-  return result.data
-}
-
-async function getServiceDeliveryDetail(params = {}) {
-  const serviceOrderId = String(params.serviceOrderId || params.orderId || params.id || '').trim()
-
-  if (!serviceOrderId) {
-    throw new Error('缺少服务订单信息')
-  }
-
-  const result = await gameApi.getServiceDeliveryDetail(encodeURIComponent(serviceOrderId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取服务交付详情失败')
-  }
-
-  return result.data
-}
-
-async function remindPlayerConfirm(params = {}) {
-  const serviceOrderId = String(params.serviceOrderId || params.orderId || params.id || '').trim()
-
-  if (!serviceOrderId) {
-    throw new Error('缺少服务订单信息')
-  }
-
-  const result = await gameApi.remindPlayerConfirm(encodeURIComponent(serviceOrderId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '提醒玩家确认失败')
-  }
-
-  return result.data
-}
-
-async function confirmServiceDelivery(params = {}) {
-  const serviceOrderId = String(params.serviceOrderId || params.orderId || params.id || '').trim()
-  const confirmedItems = Array.isArray(params.confirmedItems) ? params.confirmedItems.filter(Boolean) : []
-
-  if (!serviceOrderId) {
-    throw new Error('缺少服务订单信息')
-  }
-
-  if (!confirmedItems.length) {
-    throw new Error('请先确认服务内容')
-  }
-
-  const result = await gameApi.confirmServiceDelivery(encodeURIComponent(serviceOrderId), {
-    gameId: params.gameId || '',
-    confirmedItems
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '确认服务完成失败')
-  }
-
-  return result.data
-}
-
-async function getExpertCancelPreview(params = {}) {
-  const serviceOrderId = String(params.serviceOrderId || params.orderId || params.id || '').trim()
-
-  if (!serviceOrderId) {
-    throw new Error('缺少服务订单信息')
-  }
-
-  const result = await gameApi.getExpertCancelPreview(encodeURIComponent(serviceOrderId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取取消赔付预览失败')
-  }
-
-  return result.data
-}
-
-async function cancelServiceWithCompensation(params = {}) {
-  const serviceOrderId = String(params.serviceOrderId || params.orderId || params.id || '').trim()
-  const reasonCode = String(params.reasonCode || params.reasonKey || '').trim()
-  const reasonRemark = String(params.reasonRemark || params.reasonDetail || '').trim()
-
-  if (!serviceOrderId) {
-    throw new Error('缺少服务订单信息')
-  }
-
-  if (!reasonCode) {
-    throw new Error('请选择取消原因')
-  }
-
-  if (!reasonRemark) {
-    throw new Error('请填写详细说明')
-  }
-
-  const result = await gameApi.cancelServiceWithCompensation(encodeURIComponent(serviceOrderId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '取消赔付提交失败')
+    throw new Error(result.message || '发送提醒失败')
   }
 
   return result.data
@@ -281,21 +242,31 @@ async function getGuideProgress(params) {
   return result.data
 }
 
-async function getGuideSuccess(params) {
-  const result = await gameApi.getGuideSuccess(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取组局成功信息失败')
-  }
-
-  return result.data
-}
-
 async function getGuideCancelDetail(params) {
   const result = await gameApi.getGuideCancelDetail(params)
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取组局取消详情失败')
+  }
+
+  return result.data
+}
+
+async function getCancelConfig(params) {
+  const result = await gameApi.getCancelConfig(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取取消配置失败')
+  }
+
+  return result.data
+}
+
+async function getReferralRecords(params) {
+  const result = await gameApi.getReferralRecords(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取引荐记录失败')
   }
 
   return result.data
@@ -321,231 +292,11 @@ async function getPlayerGameManage(params) {
   return result.data
 }
 
-async function getGameCollaboration(params = {}) {
-  const gameId = String(params.gameId || params.id || '').trim()
-
-  if (!gameId) {
-    throw new Error('缺少局信息')
-  }
-
-  const result = await gameApi.getGameCollaboration(encodeURIComponent(gameId), params)
+async function getMyFavoriteGames(params) {
+  const result = await gameApi.getMyFavoriteGames(params)
 
   if (result.code !== 0) {
-    throw new Error(result.message || '获取局内协作信息失败')
-  }
-
-  return result.data
-}
-
-async function endGameCollaboration(params = {}) {
-  const gameId = String(params.gameId || params.id || '').trim()
-
-  if (!gameId) {
-    throw new Error('缺少局信息')
-  }
-
-  const result = await gameApi.endGameCollaboration(encodeURIComponent(gameId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '结束本局失败')
-  }
-
-  return result.data
-}
-
-async function getGameAudits(params = {}) {
-  const result = await gameApi.getGameAudits(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取审核申请失败')
-  }
-
-  return result.data
-}
-
-async function getGameAuditDetail(params = {}) {
-  const auditId = String(params.auditId || params.id || '').trim()
-
-  if (!auditId) {
-    throw new Error('缺少审核信息')
-  }
-
-  const result = await gameApi.getGameAuditDetail(encodeURIComponent(auditId), params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取审核详情失败')
-  }
-
-  return result.data
-}
-
-async function respondGameAudit(params = {}) {
-  const auditId = String(params.auditId || params.id || '').trim()
-  const action = String(params.action || '').trim()
-
-  if (!auditId) {
-    throw new Error('缺少审核信息')
-  }
-
-  if (!action) {
-    throw new Error('缺少审核动作')
-  }
-
-  const result = await gameApi.respondGameAudit(encodeURIComponent(auditId), {
-    ...params,
-    action
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '审核处理失败')
-  }
-
-  return result.data
-}
-
-async function batchRespondGameAudits(params = {}) {
-  const auditIds = Array.isArray(params.auditIds) ? params.auditIds.filter(Boolean) : []
-  const action = String(params.action || '').trim()
-
-  if (!auditIds.length) {
-    throw new Error('请选择审核申请')
-  }
-
-  if (!action) {
-    throw new Error('缺少审核动作')
-  }
-
-  const result = await gameApi.batchRespondGameAudits({
-    ...params,
-    auditIds,
-    action
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '批量审核处理失败')
-  }
-
-  return result.data
-}
-
-async function getPlayAgainOptions(params = {}) {
-  const result = await gameApi.getPlayAgainOptions(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取再玩一局推荐失败')
-  }
-
-  return result.data
-}
-
-async function selectPlayAgainOption(params = {}) {
-  const optionId = String(params.optionId || params.id || '').trim()
-
-  if (!optionId) {
-    throw new Error('请选择推荐方式')
-  }
-
-  const result = await gameApi.selectPlayAgainOption({
-    ...params,
-    optionId
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '推荐方式提交失败')
-  }
-
-  return result.data
-}
-
-async function getExpertSuccess(params = {}) {
-  const result = await gameApi.getExpertSuccess(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取组局成功信息失败')
-  }
-
-  return result.data
-}
-
-async function getReferralRecords(params = {}) {
-  const result = await gameApi.getReferralRecords(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取引荐记录失败')
-  }
-
-  return result.data
-}
-
-async function triggerReferralRecordAction(params = {}) {
-  const recordId = String(params.recordId || params.id || '').trim()
-  const actionKey = String(params.actionKey || params.action || params.key || '').trim()
-
-  if (!recordId) {
-    throw new Error('缺少引荐记录')
-  }
-
-  if (!actionKey) {
-    throw new Error('缺少操作类型')
-  }
-
-  const result = await gameApi.triggerReferralRecordAction({
-    ...params,
-    recordId,
-    actionKey
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '引荐记录操作失败')
-  }
-
-  return result.data
-}
-
-async function getGameReviewConfig(params = {}) {
-  const result = await gameApi.getGameReviewConfig(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取评价配置失败')
-  }
-
-  return result.data
-}
-
-async function submitGameReview(params = {}) {
-  const result = await gameApi.submitGameReview(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '提交评价失败')
-  }
-
-  return result.data
-}
-
-async function getReviewCompleteConfig(params = {}) {
-  const result = await gameApi.getReviewCompleteConfig(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取评价完成信息失败')
-  }
-
-  return result.data
-}
-
-async function selectReviewCompleteIntent(params = {}) {
-  const intentId = String(params.intentId || params.id || '').trim()
-
-  if (!intentId) {
-    throw new Error('请选择后续意向')
-  }
-
-  const result = await gameApi.selectReviewCompleteIntent({
-    ...params,
-    intentId
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '后续意向提交失败')
+    throw new Error(result.message || '获取收藏组局失败')
   }
 
   return result.data
@@ -556,160 +307,17 @@ async function respondGameInvitation(invitationId, action) {
     throw new Error('缺少邀约信息，无法处理')
   }
 
+  const normalizedAction = String(action || '').trim().toLowerCase()
+  const acceptActions = ['accept', 'accepted', 'approve', 'approved', 'yes', 'confirm', 'confirmed', 'join', 'agree', '确认', '确认参加', '接受', '同意', '加入']
+  const accept = acceptActions.indexOf(normalizedAction) !== -1
+
   const result = await gameApi.respondGameInvitation(invitationId, {
+    accept,
     action
   })
 
   if (result.code !== 0) {
     throw new Error(result.message || '处理邀约失败')
-  }
-
-  return result.data
-}
-
-function hasAnyContext(params, keys) {
-  return keys.some((key) => String(params[key] || '').trim())
-}
-
-async function getGuideChatContext(params = {}) {
-  if (!hasAnyContext(params, ['invitationId', 'gameId', 'serviceOrderId', 'guideId'])) {
-    throw new Error('缺少邀请信息')
-  }
-
-  const result = await gameApi.getGuideChatContext(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取领路人聊天信息失败')
-  }
-
-  return result.data
-}
-
-async function respondGuideChatInvitation(params = {}) {
-  const invitationId = String(params.invitationId || '').trim()
-  const action = String(params.action || '').trim()
-
-  if (!action) {
-    throw new Error('缺少处理动作')
-  }
-
-  const result = invitationId
-    ? await gameApi.respondGameInvitation(encodeURIComponent(invitationId), { action })
-    : await gameApi.respondGuideChatInvitation(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '处理邀请失败')
-  }
-
-  return result.data
-}
-
-async function sendGuideChatMessage(params = {}) {
-  const message = String(params.message || params.text || '').trim()
-
-  if (!message) {
-    throw new Error('请输入消息内容')
-  }
-
-  const result = await gameApi.sendGuideChatMessage({
-    ...params,
-    message
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '消息发送失败')
-  }
-
-  return result.data
-}
-
-async function getGameGreetingContext(params = {}) {
-  if (!hasAnyContext(params, ['greetingId', 'gameId', 'serviceOrderId', 'invitationId'])) {
-    throw new Error('缺少打招呼信息')
-  }
-
-  const result = await gameApi.getGameGreetingContext(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取打招呼信息失败')
-  }
-
-  return result.data
-}
-
-async function sendGameGreetingMessage(params = {}) {
-  const message = String(params.message || params.text || '').trim()
-
-  if (!message) {
-    throw new Error('请输入消息内容')
-  }
-
-  const result = await gameApi.sendGameGreetingMessage({
-    ...params,
-    message
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '消息发送失败')
-  }
-
-  return result.data
-}
-
-async function getHallGreetingContext(params = {}) {
-  const result = await gameApi.getHallGreetingContext(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取大厅打招呼配置失败')
-  }
-
-  return result.data
-}
-
-async function sendHallGreetingMessage(params = {}) {
-  const message = String(params.message || params.text || '').trim()
-
-  if (!message) {
-    throw new Error('请输入消息内容')
-  }
-
-  const result = await gameApi.sendHallGreetingMessage({
-    ...params,
-    message
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '消息发送失败')
-  }
-
-  return result.data
-}
-
-async function triggerHallGreetingAction(params = {}) {
-  const actionKey = String(params.actionKey || params.key || '').trim()
-
-  if (!actionKey) {
-    throw new Error('缺少操作类型')
-  }
-
-  const result = await gameApi.triggerHallGreetingAction({
-    ...params,
-    actionKey
-  })
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '操作提交失败')
-  }
-
-  return result.data
-}
-
-async function getGamePaymentConfig(params = {}) {
-  const gameId = String(params.gameId || params.id || '').trim()
-  const result = await gameApi.getGamePaymentConfig(gameId ? encodeURIComponent(gameId) : '', params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取支付配置失败')
   }
 
   return result.data
@@ -725,55 +333,92 @@ async function createGamePayment(payload) {
   return result.data
 }
 
+async function confirmService(gameId, payload) {
+  const result = await gameApi.confirmService(gameId, payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '服务确认失败')
+  }
+
+  return result.data
+}
+
+async function createRetrospective(gameId, payload) {
+  const result = await gameApi.createRetrospective(gameId, payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '复盘意愿提交失败')
+  }
+
+  return result.data
+}
+
+async function requestPlayerCancel(gameId, payload) {
+  const result = await gameApi.requestPlayerCancel(gameId, payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '取消申请提交失败')
+  }
+
+  return result.data
+}
+
+async function requestExpertCancel(gameId, payload) {
+  const result = await gameApi.requestExpertCancel(gameId, payload)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '专家取消赔付提交失败')
+  }
+
+  return result.data
+}
+
+async function favoriteGame(gameId) {
+  const result = await gameApi.favoriteGame(gameId)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '收藏组局失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
   getGameList,
   getGameDetail,
   getGameMembers,
+  getGameSuccessDetail,
+  getGameGuideSuccessDetail,
+  getGameCollaboration,
+  createGuideFollowUp,
+  createGame,
+  createInviteEntry,
   respondGameInvitation,
   getInvitePlayerConfig,
-  getGameInviteConfig,
   getInviteRecentPlayers,
   getInvitePlayers,
   getReplayConfirmContext,
   getSystemRecommendations,
   getProfitTemplates,
-  getGameApplyConfig,
+  getCategoryConfig,
+  getApplicationConfig,
+  getConditionRuleConfig,
   applyGame,
+  getReceivedApplications,
+  reviewGameApplication,
   createReplayInvitation,
-  createGameInvite,
+  sendGuideReminder,
   getGuideProgress,
-  getGuideSuccess,
   getGuideCancelDetail,
+  getCancelConfig,
+  getReferralRecords,
   getGameManage,
   getPlayerGameManage,
-  getGameCollaboration,
-  endGameCollaboration,
-  getGameAudits,
-  getGameAuditDetail,
-  respondGameAudit,
-  batchRespondGameAudits,
-  getPlayAgainOptions,
-  selectPlayAgainOption,
-  getExpertSuccess,
-  getReferralRecords,
-  triggerReferralRecordAction,
-  getGameReviewConfig,
-  submitGameReview,
-  getReviewCompleteConfig,
-  selectReviewCompleteIntent,
-  getGuideChatContext,
-  respondGuideChatInvitation,
-  sendGuideChatMessage,
-  getGameGreetingContext,
-  sendGameGreetingMessage,
-  getHallGreetingContext,
-  sendHallGreetingMessage,
-  triggerHallGreetingAction,
-  getGamePaymentConfig,
-  getServiceDeliveryDetail,
-  remindPlayerConfirm,
-  confirmServiceDelivery,
-  getExpertCancelPreview,
-  cancelServiceWithCompensation,
-  createGamePayment
+  getMyFavoriteGames,
+  createGamePayment,
+  confirmService,
+  createRetrospective,
+  requestPlayerCancel,
+  requestExpertCancel,
+  favoriteGame
 }

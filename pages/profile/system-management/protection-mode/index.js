@@ -9,42 +9,40 @@ Page({
       lock: `${ASSET_BASE}/icon-lock.svg`,
       check: `${ASSET_BASE}/icon-check.svg`
     },
+    blockSettings: null,
     mode: '',
     modes: [],
     activeRules: []
   },
 
   onLoad(options) {
-    this.loadProtectionMode(options && options.mode)
+    const nextMode = options && options.mode ? options.mode : ''
+    this.loadProtectionMode(nextMode)
   },
 
-  async loadProtectionMode(optionMode) {
+  async loadProtectionMode(fallbackMode) {
     try {
       const data = await profileService.getSystemBlockSettings()
-      const protection = data.protectionMode || data.protection || {}
-      const modes = Array.isArray(protection.modes || data.modes) ? (protection.modes || data.modes) : []
-      const mode = optionMode || protection.mode || protection.currentMode || data.mode || ''
+      const modes = Array.isArray(data.protectionModes) ? data.protectionModes : []
+      const selectedMode = data.protectionMode || fallbackMode || (modes[0] && modes[0].key) || ''
 
       this.setData({
+        blockSettings: data || null,
         modes
       })
-      this.applyMode(mode)
+      this.applyMode(selectedMode)
     } catch (error) {
-      this.setData({
-        mode: '',
-        modes: [],
-        activeRules: []
-      })
-      toast.info(error.message || '保护模式加载失败')
+      this.setData({ modes: [], activeRules: [], mode: '' })
+      toast.info(error.message || '保护模式暂时不可用')
     }
   },
 
   applyMode(mode) {
-    const active = this.data.modes.find((item) => item.key === mode) || this.data.modes[0] || {}
+    const active = this.data.modes.find((item) => item.key === mode) || this.data.modes[0]
 
     this.setData({
-      mode: active.key || '',
-      activeRules: Array.isArray(active.rules) ? active.rules : []
+      mode: active ? active.key : '',
+      activeRules: active && Array.isArray(active.rules) ? active.rules : []
     })
   },
 
@@ -58,14 +56,14 @@ Page({
       toast.info('请选择保护模式')
       return
     }
-
     try {
-      await profileService.saveSystemProtectionMode({
-        mode: this.data.mode
+      await profileService.saveSystemBlockSettings({
+        ...(this.data.blockSettings || {}),
+        protectionMode: this.data.mode
       })
       toast.success('保护模式已保存')
     } catch (error) {
-      toast.info(error.message || '保护模式保存失败')
+      toast.info(error.message || '保存失败')
     }
   }
 })

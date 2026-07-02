@@ -26,7 +26,7 @@
         </view>
         <view class="agreement-status {{item.signed ? 'signed' : 'unsigned'}}">
           <image wx:if="{{item.signed}}" class="agreement-check" src="{{icons.check}}" mode="aspectFit"></image>
-          <text>{{item.signed ? '已签署' : '未签署'}}</text>
+          <text>{{item.signed ? '已签署' : (item.requiresResign ? '需重签' : '未签署')}}</text>
           <image wx:if="{{!item.signed}}" class="agreement-arrow" src="{{icons.arrow}}" mode="aspectFit"></image>
         </view>
       </view>

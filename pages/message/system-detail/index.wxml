@@ -9,11 +9,6 @@
 >
   <view class="system-detail-page">
     <view class="system-inner">
-        <view wx:if="{{loading}}" class="system-empty">加载中...</view>
-        <view wx:elif="{{errorText}}" class="system-empty error">{{errorText}}</view>
-        <view wx:elif="{{!hasArticle}}" class="system-empty">暂无通知内容</view>
-
-        <block wx:else>
         <view class="article-card message-card">
           <view class="article-head">
             <text class="tag">{{article.tagText}}</text>
@@ -57,7 +52,7 @@
           </view>
         </view>
 
-        <view wx:if="{{hasFeedback}}" class="feedback-row">
+        <view class="feedback-row">
           <text>{{feedback.question}}</text>
           <view class="feedback-actions">
             <button class="feedback-button" hover-class="none" data-value="useful" bindtap="onFeedbackTap">
@@ -76,7 +71,6 @@
             </button>
           </view>
         </view>
-        </block>
     </view>
   </view>
 </home-shell>

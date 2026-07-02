@@ -1,8 +1,8 @@
 <home-apply-shell
-  nav-title="服务评价"
+  nav-title="{{navTitle}}"
   shell-class="game-review-shell"
   show-back="{{true}}"
-  right-text="跳过"
+  right-text="{{skipText}}"
   bindbacktap="onBackTap"
   bindrighttap="onSkipTap"
 >
@@ -18,12 +18,12 @@
         <view class="status-check">
           <view class="status-check-mark"></view>
         </view>
-        <text class="status-title">服务已完成！</text>
-        <text class="status-desc">请对本次服务进行评价</text>
+        <text class="status-title">{{statusTitle}}</text>
+        <text class="status-desc">{{statusDesc}}</text>
       </view>
 
       <view class="review-card satisfaction-card">
-        <text class="card-question">这一局好玩吗？</text>
+        <text class="card-question">{{satisfactionQuestion}}</text>
         <view class="satisfaction-list">
           <view
             wx:for="{{satisfactionOptions}}"
@@ -40,17 +40,17 @@
       </view>
 
       <view class="review-card story-card">
-        <text class="card-title">发生了什么有趣的事？</text>
+        <text class="card-title">{{storyTitle}}</text>
         <view class="ai-tip">
           <image class="ai-icon" src="/pages/game/player-cancel/assets/i39@3x.png" mode="aspectFit"></image>
-          <text class="ai-copy">AI小助手提示：可以从收获、惊喜、合作感受等方面描述哦</text>
+          <text class="ai-copy">{{aiTip}}</text>
         </view>
         <textarea
           class="story-textarea"
           value="{{storyText}}"
           maxlength="{{storyMaxLength}}"
           auto-height="{{false}}"
-          placeholder="我们碰撞出了产品架构的新思路，张伟的经验帮了大忙！"
+          placeholder="{{storyPlaceholder}}"
           placeholder-class="review-placeholder"
           bindinput="onStoryInput"
         />
@@ -58,7 +58,7 @@
           <text class="counter">{{storyLength}}/{{storyMaxLength}}</text>
           <view class="ai-summary" bindtap="onAiSummaryTap">
             <text class="summary-pen-icon">🖊</text>
-            <text>AI帮我总结</text>
+            <text>{{aiSummaryText}}</text>
           </view>
         </view>
       </view>
@@ -90,7 +90,7 @@
               bindtap="onStarTap"
             >★</text>
           </view>
-          <text class="rating-hint">点击星星评分</text>
+          <text class="rating-hint">{{ratingHint}}</text>
         </view>
 
         <view class="tag-block">
@@ -121,20 +121,20 @@
         />
       </view>
 
-      <view class="reward-card">
+      <view wx:if="{{reward.show}}" class="reward-card">
         <text class="reward-icon">🎁</text>
         <view class="reward-copy">
-          <text class="reward-title">评价奖励</text>
-          <text class="reward-desc">完成评价可获得50PX + 优先推荐权益</text>
+          <text class="reward-title">{{reward.title}}</text>
+          <text class="reward-desc">{{reward.desc}}</text>
         </view>
       </view>
 
       <view class="nps-card">
         <view class="nps-head">
           <text class="crown-icon">👑</text>
-          <text class="nps-title">发起人专属</text>
+          <text class="nps-title">{{npsHeadTitle}}</text>
         </view>
-        <text class="nps-question">你会推荐“真好玩”给朋友吗？ (NPS)</text>
+        <text class="nps-question">{{npsQuestion}}</text>
         <view class="nps-list">
           <button
             wx:for="{{npsScores}}"
@@ -146,14 +146,14 @@
           >{{item}}</button>
         </view>
         <view class="nps-labels">
-          <text>不可能</text>
-          <text>极有可能</text>
+          <text>{{npsLowLabel}}</text>
+          <text>{{npsHighLabel}}</text>
         </view>
       </view>
 
       <view class="submit-area">
-        <button class="submit-button" hover-class="none" bindtap="onSubmitTap">提交评价</button>
-        <text class="submit-note">评价内容仅双方可见，请客观公正</text>
+        <button class="submit-button" hover-class="none" bindtap="onSubmitTap">{{submitText}}</button>
+        <text class="submit-note">{{submitNote}}</text>
       </view>
     </view>
   </scroll-view>

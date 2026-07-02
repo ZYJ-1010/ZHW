@@ -1,30 +1,14 @@
 const { ROUTES } = require('../../../config/routes')
-const gameService = require('../../../services/game')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const imService = require('../../../services/im')
+const chatMedia = require('../../../services/chat-media')
 
-const EMPTY_CONTACT = {
+const DEFAULT_CONTACT = {
   name: '',
   realName: '',
   nickname: '',
-  avatarText: ''
-}
-
-const EMPTY_GROUP_INFO = {
-  headerTitle: '',
-  title: '',
-  guideLabel: '',
-  guideName: '',
-  expertLabel: '',
-  miniProgramText: '',
-  expert: {
-    name: '',
-    avatarText: '',
-    desc: '',
-    intro: '',
-    tags: []
-  },
-  stats: [],
-  confirmText: ''
+  avatarText: 'WA'
 }
 
 function decodeQueryText(value = '') {
@@ -35,170 +19,80 @@ function decodeQueryText(value = '') {
   }
 }
 
-function decodeOptions(options = {}) {
-  return Object.keys(options).reduce((result, key) => {
-    result[key] = decodeQueryText(options[key])
-    return result
-  }, {})
+function getAvatarText(name = '') {
+  return getSurnameInitials(name, DEFAULT_CONTACT.avatarText)
 }
 
-function getAvatarText(name = '', fallback = '') {
-  return getSurnameInitials(name, fallback)
-}
-
-function getDisplayName(contact = {}) {
-  return contact.realName || contact.name || contact.nickname || ''
-}
-
-function normalizeContact(contact = {}) {
-  const name = contact.name || contact.displayName || contact.nickname || ''
-  const realName = contact.realName || ''
-  const nickname = contact.nickname || ''
-  const displayName = realName || name || nickname
-
-  return {
-    name: displayName,
-    realName,
-    nickname,
-    avatarText: contact.avatarText || getAvatarText(displayName, '')
-  }
-}
-
-function normalizeExpert(expert = {}) {
-  const name = expert.name || expert.nickname || ''
-
-  return {
-    name,
-    avatarText: expert.avatarText || getAvatarText(name, ''),
-    desc: expert.desc || expert.description || '',
-    intro: expert.intro || expert.bio || '',
-    tags: Array.isArray(expert.tags) ? expert.tags : []
-  }
-}
-
-function normalizeGroupInfo(info = {}) {
-  const expert = normalizeExpert(info.expert || {})
-
-  return {
-    ...EMPTY_GROUP_INFO,
-    ...info,
-    expert,
-    stats: Array.isArray(info.stats) ? info.stats : []
-  }
-}
-
-function normalizeSentMessage(message = {}, fallbackText = '', fallbackId = '') {
-  const text = message.text || message.content || message.message || fallbackText
-
-  if (!text) {
-    return null
-  }
-
-  return {
-    id: String(message.id || message.messageId || fallbackId),
-    text
-  }
-}
-
-function normalizeGreetContext(data = {}) {
-  const contact = normalizeContact(data.contact || data.referrer || data.guide || {})
-  const groupInfo = normalizeGroupInfo(data.groupInfo || data.gameInfo || {})
-  const messages = Array.isArray(data.sentMessages || data.messages)
-    ? (data.sentMessages || data.messages).map((message, index) => normalizeSentMessage(message, '', `message-${index}`)).filter(Boolean)
-    : []
-
-  return {
-    onlineText: data.onlineText || '3999人在线',
-    pageTitle: data.pageTitle || data.title || getDisplayName(contact),
-    greetingId: data.greetingId || '',
-    gameId: data.gameId || '',
-    serviceOrderId: data.serviceOrderId || '',
-    invitationId: data.invitationId || '',
-    detailRoute: data.detailRoute || '',
-    contact,
-    groupInfo,
-    messageText: data.messageText || data.guideMessageText || '',
-    sentMessages: messages,
-    canvasMinHeight: data.canvasMinHeight || 1280
-  }
+function getDisplayName(contact) {
+  return contact.realName || contact.name || contact.nickname || DEFAULT_CONTACT.name || '联系人'
 }
 
 Page({
   data: {
-    onlineText: '3999人在线',
-    pageTitle: '',
-    greetingId: '',
-    gameId: '',
-    serviceOrderId: '',
-    invitationId: '',
-    detailRoute: '',
-    contact: EMPTY_CONTACT,
-    groupInfo: EMPTY_GROUP_INFO,
+    onlineText: '在线',
+    pageTitle: '打招呼',
+    contact: DEFAULT_CONTACT,
+    groupInfo: {
+      headerTitle: '组局信息',
+      title: '',
+      guideLabel: '领路人',
+      guideName: '',
+      expertLabel: '行家',
+      miniProgramText: '小程序 · 真好玩',
+      expert: {
+        name: '',
+        avatarText: '',
+        desc: '',
+        intro: '',
+        tags: []
+      },
+      stats: [],
+      confirmText: '查看详情并确认'
+    },
     messageText: '',
     sentMessages: [],
-    canvasMinHeight: 1280,
-    loading: false,
-    sending: false
+    gameId: 0,
+    canvasMinHeight: 1280
   },
 
   onLoad(options = {}) {
-    this.localMessageSeq = 0
-    this.loadGreetContext(options)
-  },
-
-  async loadGreetContext(options = {}) {
-    const context = decodeOptions(options)
-
+    const realName = decodeQueryText(options.realName || '')
+    const name = decodeQueryText(options.playerName || options.name || '')
+    const nickname = decodeQueryText(options.nickname || '')
+    const contactName = realName || name || nickname
+    const gameId = Number(options.gameId || options.sourceGameId || 0)
     this.setData({
-      greetingId: context.greetingId || context.id || '',
-      gameId: context.gameId || '',
-      serviceOrderId: context.serviceOrderId || context.orderId || '',
-      invitationId: context.invitationId || '',
-      loading: true
+      gameId: Number.isInteger(gameId) && gameId > 0 ? gameId : 0
     })
 
-    try {
-      const data = await gameService.getGameGreetingContext({
-        ...context,
-        greetingId: context.greetingId || context.id || '',
-        gameId: context.gameId || '',
-        serviceOrderId: context.serviceOrderId || context.orderId || '',
-        invitationId: context.invitationId || ''
-      })
+    if (!contactName) {
+      return
+    }
 
+    const contact = {
+      ...this.data.contact,
+      realName,
+      name: contactName,
+      nickname,
+      avatarText: getAvatarText(contactName)
+    }
+
+    this.setData({
+      contact,
+      pageTitle: getDisplayName(contact),
+      'groupInfo.guideName': getDisplayName(contact)
+    })
+
+    if (options.message) {
       this.setData({
-        ...normalizeGreetContext(data),
-        loading: false
-      })
-    } catch (error) {
-      this.setData({
-        ...normalizeGreetContext({}),
-        loading: false
-      })
-      wx.showToast({
-        title: error.message || '打招呼信息加载失败',
-        icon: 'none'
+        messageText: decodeQueryText(options.message)
       })
     }
   },
 
   onConfirmTap() {
-    if (this.data.detailRoute) {
-      wx.navigateTo({
-        url: this.data.detailRoute
-      })
-      return
-    }
-
-    if (this.data.gameId) {
-      wx.navigateTo({
-        url: `/${ROUTES.gameDetail}?gameId=${this.data.gameId}`
-      })
-      return
-    }
-
     wx.showToast({
-      title: '缺少局信息',
+      title: '已确认组局信息',
       icon: 'none'
     })
   },
@@ -206,42 +100,31 @@ Page({
   async onSendMessage(event) {
     const value = String(event.detail && event.detail.value || '').trim()
 
-    if (!value || this.data.sending) {
+    if (!value) {
       return
     }
 
-    this.setData({
-      sending: true
+    if (this.data.gameId) {
+      try {
+        await imService.sendMessage(this.data.gameId, {
+          messageType: 'text',
+          content: value
+        })
+      } catch (error) {
+        this.showInfo(error && error.message ? error.message : '发送失败')
+        return
+      }
+    }
+
+    const sentMessages = this.data.sentMessages.concat({
+      id: `message-${Date.now()}`,
+      text: value
     })
 
-    try {
-      const result = await gameService.sendGameGreetingMessage({
-        greetingId: this.data.greetingId,
-        gameId: this.data.gameId,
-        serviceOrderId: this.data.serviceOrderId,
-        invitationId: this.data.invitationId,
-        message: value
-      })
-      const nextMessage = normalizeSentMessage(result && (result.message || result), value, `local-message-${++this.localMessageSeq}`)
-
-      if (nextMessage) {
-        const sentMessages = this.data.sentMessages.concat(nextMessage)
-
-        this.setData({
-          sentMessages,
-          canvasMinHeight: 1280 + sentMessages.length * 120
-        })
-      }
-    } catch (error) {
-      wx.showToast({
-        title: error.message || '消息发送失败',
-        icon: 'none'
-      })
-    } finally {
-      this.setData({
-        sending: false
-      })
-    }
+    this.setData({
+      sentMessages,
+      canvasMinHeight: 1280 + sentMessages.length * 120
+    })
   },
 
   onRecordStart() {
@@ -249,29 +132,49 @@ Page({
   },
 
   onRecordStop() {
-    this.showInfo('录音发送功能待接入')
+    this.showInfo('当前支持文字、图片和文件消息')
   },
 
   onRecordError() {
     this.showInfo('录音失败')
   },
 
-  onChooseImage() {
-    this.showInfo('图片发送功能待接入')
+  onChooseImage(event) {
+    this.sendMediaMessage('image', event)
   },
 
-  onChooseFile() {
-    this.showInfo('文件发送功能待接入')
+  onChooseFile(event) {
+    this.sendMediaMessage('file', event)
+  },
+
+  async sendMediaMessage(messageType, event) {
+    if (!this.data.gameId) {
+      this.showInfo('请从局内消息入口发送文件')
+      return
+    }
+
+    try {
+      const result = await chatMedia.sendChosenFile(this.data.gameId, event, messageType)
+      const sentMessages = this.data.sentMessages.concat({
+        id: `message-${Date.now()}`,
+        text: result.text
+      })
+
+      this.setData({
+        sentMessages,
+        canvasMinHeight: 1280 + sentMessages.length * 120
+      })
+    } catch (error) {
+      this.showInfo(error && error.message ? error.message : '发送失败')
+    }
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameGreet
+    })) {
       return
     }
 
@@ -286,9 +189,9 @@ Page({
     }
 
     const routeMap = {
-      home: ROUTES.home,
+      home: ROUTES.playerHome || ROUTES.home,
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -299,9 +202,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   showInfo(title) {

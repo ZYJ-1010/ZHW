@@ -1,6 +1,8 @@
-﻿const toast = require('../../../utils/toast')
+const toast = require('../../../utils/toast')
 const gameService = require('../../../services/game')
+const locationService = require('../../../services/location')
 const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CREATE_SCROLL_TAP_STEP_RPX = 360
 const CREATE_SCROLL_HOLD_STEP_RPX = 72
@@ -16,11 +18,28 @@ const INTRO_MAX_LENGTH = 200
 const HIGHLIGHTS_MAX_LENGTH = 100
 const NOTICE_MAX_LENGTH = 100
 const AUDIENCE_MAX_LENGTH = 50
-const CURRENT_LOCATION_TEXT = '当前位置'
-const CAPACITY_MIN = 3
-const CAPACITY_MAX = 10
-let descriptionMediaIdSeed = 0
-
+const LOCATION_SEARCH_RADIUS_METER = 50000
+const EMPTY_DEPOSIT_RULE_TEXT = ''
+const EMPTY_DEPOSIT_NOTICE_TEXT = ''
+const EMPTY_GAME_TYPES = []
+const EMPTY_PROFIT_TEMPLATES = []
+const EMPTY_CONDITION_RULE_CONFIG = {
+  enabled: false,
+  visibleInMiniProgram: false,
+  adminOnlyCreate: true,
+  ruleItems: [],
+  defaultVisibility: '',
+  reviewRequired: false,
+  paymentRequired: false
+}
+const EMPTY_CREATE_FORM = {
+  capacity: { min: 0, max: 0 },
+  currentLocationText: '',
+  participationModes: [],
+  tags: [],
+  completionRules: [],
+  feeTypes: []
+}
 function padNumber(value) {
   return String(value).padStart(2, '0')
 }
@@ -45,52 +64,23 @@ function addHours(date, hours) {
   return next
 }
 
-function parseBackendDate(value) {
-  if (value === undefined || value === null || value === '') {
-    return null
-  }
-
-  const date = value instanceof Date
-    ? value
-    : new Date(value)
-
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function getEmptyTimeDraft() {
-  return {
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: ''
-  }
-}
-
-function getInitialTimeDraft(currentTime) {
-  const now = parseBackendDate(currentTime)
-
-  if (!now) {
-    return getEmptyTimeDraft()
-  }
-
-  const end = addHours(now, 2)
+function getInitialTimeDraft() {
+  const now = new Date()
+  const start = addHours(now, 1)
+  const end = addHours(start, 2)
 
   return {
-    startDate: formatDate(now),
-    startTime: formatTime(now),
+    startDate: formatDate(start),
+    startTime: formatTime(start),
     endDate: formatDate(end),
     endTime: formatTime(end)
   }
 }
 
-function getInitialSignupTimeDraft(currentTime) {
-  const now = parseBackendDate(currentTime)
-
-  if (!now) {
-    return getEmptyTimeDraft()
-  }
-
-  const end = addHours(now, 24)
+function getInitialSignupTimeDraft() {
+  const now = new Date()
+  const gameStart = addHours(now, 1)
+  const end = new Date(gameStart.getTime() - 10 * 60 * 1000)
 
   return {
     startDate: formatDate(now),
@@ -108,51 +98,22 @@ function getTimeDraftText(draft = {}) {
   return `${draft.startDate} ${draft.startTime} - ${draft.endDate} ${draft.endTime}`
 }
 
-function hasTimeDraftValue(draft = {}) {
-  return Boolean(draft.startDate || draft.startTime || draft.endDate || draft.endTime)
-}
-
 function getDraftTimestamp(dateText, timeText) {
   return Date.parse(`${dateText}T${timeText}:00+08:00`)
 }
 
-function getCurrentMinuteTimestamp(currentTime) {
-  const now = parseBackendDate(currentTime)
-
-  if (!now) {
-    return null
-  }
+function getCurrentMinuteTimestamp() {
+  const now = new Date()
 
   now.setSeconds(0, 0)
 
   return now.getTime()
 }
 
-function getBackendCurrentTime(data = {}) {
-  return data.serverTime || data.currentTime || data.now || data.responseTime || ''
-}
+function isDraftBeforeNow(draft = {}) {
+  const timestamp = getDraftTimestamp(draft.startDate, draft.startTime)
 
-function buildInitialTimeState(currentTime, currentData = {}) {
-  const date = parseBackendDate(currentTime)
-
-  if (!date) {
-    return {}
-  }
-
-  const state = {
-    serverTime: currentTime,
-    todayDate: formatDate(date)
-  }
-
-  if (!currentData.gameTimeConfirmed && !hasTimeDraftValue(currentData.timeDraft)) {
-    state.timeDraft = getInitialTimeDraft(currentTime)
-  }
-
-  if (!currentData.signupTimeConfirmed && !hasTimeDraftValue(currentData.signupTimeDraft)) {
-    state.signupTimeDraft = getInitialSignupTimeDraft(currentTime)
-  }
-
-  return state
+  return !timestamp || Number.isNaN(timestamp) || timestamp < getCurrentMinuteTimestamp()
 }
 
 function getDurationText(startTimestamp, endTimestamp) {
@@ -174,14 +135,20 @@ function getDurationText(startTimestamp, endTimestamp) {
   return hours > 0 ? `${days}天${hours}小时` : `${days}天`
 }
 
-function clampCapacity(value) {
+function clampCapacity(value, capacity = EMPTY_CREATE_FORM.capacity) {
   const numberValue = Number(value)
+  const min = Number(capacity.min || 0)
+  const max = Number(capacity.max || min)
 
-  if (Number.isNaN(numberValue)) {
-    return CAPACITY_MIN
+  if (!min || !max) {
+    return 0
   }
 
-  return Math.min(CAPACITY_MAX, Math.max(CAPACITY_MIN, Math.round(numberValue)))
+  if (Number.isNaN(numberValue)) {
+    return min
+  }
+
+  return Math.min(max, Math.max(min, Math.round(numberValue)))
 }
 
 function getFileExtension(filePath = '') {
@@ -215,7 +182,7 @@ function createDescriptionMediaItem(file = {}, type, mediaInfo = {}) {
   const tempFilePath = file.tempFilePath || ''
 
   return {
-    id: `description-media-${descriptionMediaIdSeed += 1}`,
+    id: `${Date.now()}-${Math.floor(Math.random() * 100000)}`,
     type,
     tempFilePath,
     thumbTempFilePath: file.thumbTempFilePath || tempFilePath,
@@ -300,6 +267,58 @@ function normalizeProfitTemplates(data) {
   return templates
 }
 
+function normalizeGameTypes(data) {
+  const source = Array.isArray(data && data.primaryCategories) ? data.primaryCategories : []
+  const list = source
+    .filter((item) => item && item.visible !== false && item.key)
+    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+    .map((item) => ({
+      key: String(item.key || '').trim(),
+      name: String(item.name || item.key || '').trim(),
+      children: (Array.isArray(item.children) ? item.children : [])
+        .filter((child) => child && child.visible !== false && child.key)
+        .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+        .map((child) => ({
+          key: String(child.key || '').trim(),
+          name: String(child.name || child.key || '').trim()
+        }))
+        .filter((child) => child.key && child.name)
+    }))
+    .filter((item) => item.key && item.name)
+
+  return list
+}
+
+function normalizeCreateFormConfig(data = {}) {
+  const source = data.createForm || {}
+  const capacity = source.capacity || {}
+  const normalizeOptions = (items) => (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      key: String(item.key || '').trim(),
+      name: String(item.name || item.label || item.key || '').trim(),
+      active: Boolean(item.active)
+    }))
+    .filter((item) => item.key && item.name)
+
+  return {
+    capacity: {
+      min: Number(capacity.min || 0),
+      max: Number(capacity.max || 0)
+    },
+    currentLocationText: String(source.currentLocationText || '').trim(),
+    participationModes: normalizeOptions(source.participationModes),
+    tags: normalizeOptions(source.tags),
+    completionRules: normalizeOptions(source.completionRules),
+    feeTypes: normalizeOptions(source.feeTypes)
+  }
+}
+
+function getSelectedCategory(gameTypes = [], primaryKey = '') {
+  const primary = gameTypes.find((item) => item.key === primaryKey) || gameTypes[0] || {}
+  const secondary = Array.isArray(primary.children) && primary.children.length ? primary.children[0] : {}
+
+  return { primary, secondary }
+}
 function getSelectableProfitTemplateKey(templates = [], currentKey = '') {
   const current = templates.find((item) => item.key === currentKey)
 
@@ -312,12 +331,73 @@ function getSelectableProfitTemplateKey(templates = [], currentKey = '') {
   return fallback ? fallback.key : ''
 }
 
+function activeOptionKeys(items = []) {
+  return items
+    .filter((item) => item && item.active)
+    .map((item) => item.key || item.name)
+    .filter(Boolean)
+}
+
+function normalizeMapPlace(item = {}) {
+  const longitude = Number(item.longitude)
+  const latitude = Number(item.latitude)
+  const title = String(item.title || item.name || '').trim()
+  const address = String(item.address || '').trim()
+  const cityName = String(item.city || item.cityName || item.district || '').trim()
+
+  if (!title || !Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+    return null
+  }
+
+  return {
+    id: String(item.id || `${title}-${longitude}-${latitude}`),
+    title,
+    address,
+    cityName,
+    cityCode: String(item.cityCode || '').trim(),
+    longitude,
+    latitude,
+    displayAddress: address || cityName || title
+  }
+}
+
+function normalizeMapPlaces(data) {
+  const source = Array.isArray(data && data.items) ? data.items : Array.isArray(data) ? data : []
+
+  return source.map(normalizeMapPlace).filter(Boolean)
+}
+
+function normalizeConditionRuleConfig(data = {}) {
+  const ruleItems = Array.isArray(data.ruleItems)
+    ? data.ruleItems
+      .filter((item) => item && item.key && item.name)
+      .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+      .map((item) => ({
+        key: String(item.key || '').trim(),
+        name: String(item.name || '').trim(),
+        description: String(item.description || '').trim(),
+        required: item.required !== false
+      }))
+    : []
+
+  return {
+    enabled: Boolean(data.enabled),
+    visibleInMiniProgram: Boolean(data.visibleInMiniProgram),
+    adminOnlyCreate: data.adminOnlyCreate !== false,
+    ruleItems,
+    defaultVisibility: String(data.defaultVisibility || '').trim(),
+    reviewRequired: Boolean(data.reviewRequired),
+    paymentRequired: Boolean(data.paymentRequired)
+  }
+}
+
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线',
     createScrollTop: 0,
     coverImage: '',
     publishDisabled: true,
+    showProfitTemplate: false,
     themeMaxLength: THEME_MAX_LENGTH,
     themeLength: 0,
     introMaxLength: INTRO_MAX_LENGTH,
@@ -329,10 +409,10 @@ Page({
     audienceMaxLength: AUDIENCE_MAX_LENGTH,
     audienceLength: 0,
     descriptionMedia: [],
-    capacityMin: CAPACITY_MIN,
-    capacityMax: CAPACITY_MAX,
-    serverTime: '',
-    todayDate: '',
+    createForm: EMPTY_CREATE_FORM,
+    capacityMin: 0,
+    capacityMax: 0,
+    todayDate: formatDate(new Date()),
     timePanelVisible: false,
     timeDraft: getInitialTimeDraft(),
     gameTimeConfirmed: false,
@@ -352,9 +432,15 @@ Page({
     locationInfo: {
       name: '',
       address: '',
+      cityCode: '',
+      cityName: '',
       latitude: '',
       longitude: ''
     },
+    locationSearchVisible: false,
+    locationSearchKeyword: '',
+    locationSearchLoading: false,
+    locationSearchResults: [],
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -365,52 +451,33 @@ Page({
     form: {
       theme: '',
       type: '',
-      capacity: 5,
+      capacity: 0,
       participation: '',
       intro: '',
       highlights: '',
       description: '',
       notice: '',
       audience: '',
-      feeType: 'paid',
+      feeType: '',
       price: '',
       profitTemplate: ''
     },
-    gameTypes: [
-      { key: 'task', name: '任务局' },
-      { key: 'social', name: '社交局' },
-      { key: 'explore', name: '探索局' },
-      { key: 'growth', name: '成长局' }
-    ],
+    gameTypes: EMPTY_GAME_TYPES,
     scheduleFields: [
       { key: 'gameTime', label: '局时间', required: false, value: '', hint: '展开日期面板，选择开始和结束日期+时间' },
       { key: 'signupTime', label: '报名时间', required: true, value: '', hint: '展开日期面板，选择报名开始和结束日期+时间' },
       { key: 'location', label: '组局地址', required: false, value: '', hint: '点击在地图上标记位置' }
     ],
-    participationModes: [
-      { key: 'online', name: '线上' },
-      { key: 'offline', name: '线下' },
-      { key: 'hybrid', name: '混合' }
-    ],
-    tags: [
-      { name: '产品研发', active: false },
-      { name: '创业', active: false },
-      { name: '城市探索', active: false },
-      { name: '共创', active: false }
-    ],
-    completionRules: [
-      { key: 'time', name: '时间截止', active: false },
-      { key: 'goal', name: '目标达成', active: true },
-      { key: 'capacity', name: '人数满额', active: false },
-      { key: 'manual', name: '手动结束', active: true }
-    ],
-    feeTypes: [
-      { key: 'free', name: '免费局' },
-      { key: 'paid', name: '收费局' }
-    ],
-    profitTemplates: [],
-    depositRuleText: '',
-    depositNoticeText: ''
+    participationModes: [],
+    tags: [],
+    completionRules: [],
+    feeTypes: [],
+    profitTemplates: EMPTY_PROFIT_TEMPLATES,
+    conditionRuleConfig: EMPTY_CONDITION_RULE_CONFIG,
+    conditionRuleItems: [],
+    conditionRuleNotice: '',
+    depositRuleText: EMPTY_DEPOSIT_RULE_TEXT,
+    depositNoticeText: EMPTY_DEPOSIT_NOTICE_TEXT
   },
 
   onLoad() {
@@ -433,13 +500,127 @@ Page({
       audienceLength: Math.min(audience.length, AUDIENCE_MAX_LENGTH)
     })
     this.syncPublishState()
-    this.initGameLocation()
+    this.loadCategoryConfig()
+    this.loadConditionRuleConfig()
     this.loadProfitTemplates()
   },
 
+  loadCategoryConfig() {
+    gameService.getCategoryConfig().then((data) => {
+      const gameTypes = normalizeGameTypes(data)
+      const createForm = normalizeCreateFormConfig(data)
+      const currentType = String(this.data.form && this.data.form.type || '').trim()
+      const defaultType = String(data && data.defaultPrimaryCategory || '').trim()
+      const selected = getSelectedCategory(gameTypes, currentType || defaultType)
+      const nextData = {
+        gameTypes,
+        createForm,
+        capacityMin: createForm.capacity.min,
+        capacityMax: createForm.capacity.max,
+        participationModes: createForm.participationModes,
+        tags: createForm.tags,
+        completionRules: createForm.completionRules,
+        feeTypes: createForm.feeTypes
+      }
+
+      if (!currentType && selected.primary && selected.primary.key) {
+        nextData['form.type'] = selected.primary.key
+      }
+      if (!Number(this.data.form && this.data.form.capacity) && createForm.capacity.min) {
+        nextData['form.capacity'] = createForm.capacity.min
+      }
+      if (!this.data.form.participation && createForm.participationModes[0]) {
+        nextData['form.participation'] = createForm.participationModes[0].key
+      }
+      if (!this.data.form.feeType && createForm.feeTypes[0]) {
+        const freeFeeType = createForm.feeTypes.find((item) => item && item.key === 'free')
+        nextData['form.feeType'] = (freeFeeType || createForm.feeTypes[0]).key
+      }
+
+      if (selected.secondary && selected.secondary.key) {
+        nextData['form.secondaryCategory'] = selected.secondary.key
+      }
+
+      this.setData(nextData)
+      this.initGameLocation()
+      if (nextData['form.feeType']) {
+        this.loadProfitTemplates(nextData['form.feeType'])
+      }
+      this.syncPublishState()
+    }).catch((error) => {
+      this.setData({
+        gameTypes: EMPTY_GAME_TYPES,
+        createForm: EMPTY_CREATE_FORM,
+        capacityMin: 0,
+        capacityMax: 0,
+        participationModes: [],
+        tags: [],
+        completionRules: [],
+        feeTypes: []
+      })
+      this.syncPublishState()
+      toast.info(error.message || '组局类型配置加载失败')
+    })
+  },
+
+  loadConditionRuleConfig() {
+    gameService.getConditionRuleConfig().then((data) => {
+      const config = normalizeConditionRuleConfig(data)
+
+      this.setData({
+        conditionRuleConfig: config,
+        conditionRuleItems: config.enabled && config.visibleInMiniProgram ? config.ruleItems : [],
+        conditionRuleNotice: this.formatConditionRuleNotice(config)
+      })
+    }).catch(() => {
+      this.setData({
+        conditionRuleConfig: EMPTY_CONDITION_RULE_CONFIG,
+        conditionRuleItems: [],
+        conditionRuleNotice: ''
+      })
+    })
+  },
+
+  formatConditionRuleNotice(config = EMPTY_CONDITION_RULE_CONFIG) {
+    if (!config.enabled || !config.visibleInMiniProgram) {
+      return ''
+    }
+
+    const parts = []
+    if (config.adminOnlyCreate) {
+      parts.push('条件局由后台开局')
+    }
+    if (config.reviewRequired) {
+      parts.push('需平台审核')
+    }
+    if (config.paymentRequired) {
+      parts.push('需满足付费条件')
+    }
+    if (config.defaultVisibility === 'invite_only') {
+      parts.push('默认仅邀请可见')
+    }
+
+    return parts.join(' · ')
+  },
+
   loadProfitTemplates(feeType) {
+    const normalizedFeeType = feeType || (this.data.form && this.data.form.feeType)
+    const shouldShowProfitTemplate = this.shouldRequireProfitTemplate(normalizedFeeType)
+
+    if (!shouldShowProfitTemplate) {
+      this.setData({
+        profitTemplates: EMPTY_PROFIT_TEMPLATES,
+        'form.profitTemplate': '',
+        showProfitTemplate: false,
+        depositRuleText: EMPTY_DEPOSIT_RULE_TEXT,
+        depositNoticeText: EMPTY_DEPOSIT_NOTICE_TEXT
+      })
+      this.syncPublishState()
+      return
+    }
+
     gameService.getProfitTemplates({
-      feeType: feeType || (this.data.form && this.data.form.feeType)
+      feeType: normalizedFeeType
     }).then((data) => {
       const profitTemplates = normalizeProfitTemplates(data)
       const profitTemplate = getSelectableProfitTemplateKey(
@@ -448,29 +629,33 @@ Page({
       )
       const depositRuleText = getProfitConfigText(
         data,
-        ['depositRuleText', 'ruleText', 'rule', 'depositRule']
+        ['depositRuleText', 'ruleText', 'rule', 'depositRule'],
+        EMPTY_DEPOSIT_RULE_TEXT
       )
       const depositNoticeText = getProfitConfigText(
         data,
-        ['depositNoticeText', 'noticeText', 'tipText', 'notice', 'depositNotice']
+        ['depositNoticeText', 'noticeText', 'tipText', 'notice', 'depositNotice'],
+        EMPTY_DEPOSIT_NOTICE_TEXT
       )
 
       this.setData({
         profitTemplates,
         'form.profitTemplate': profitTemplate,
+        showProfitTemplate: shouldShowProfitTemplate,
         depositRuleText,
-        depositNoticeText,
-        ...buildInitialTimeState(getBackendCurrentTime(data), this.data)
+        depositNoticeText
       })
       this.syncPublishState()
     }).catch(() => {
       this.setData({
-        profitTemplates: [],
+        profitTemplates: EMPTY_PROFIT_TEMPLATES,
         'form.profitTemplate': '',
-        depositRuleText: '',
-        depositNoticeText: ''
+        showProfitTemplate: false,
+        depositRuleText: EMPTY_DEPOSIT_RULE_TEXT,
+        depositNoticeText: EMPTY_DEPOSIT_NOTICE_TEXT
       })
       this.syncPublishState()
+      toast.info('收益模板配置加载失败')
     })
   },
 
@@ -561,18 +746,30 @@ Page({
     const key = event.currentTarget.dataset.key
 
     if (key === 'gameTime') {
-      this.setData({
+      const nextData = {
         timePanelVisible: !this.data.timePanelVisible,
         signupTimePanelVisible: false
-      })
+      }
+
+      if (!this.data.timePanelVisible && isDraftBeforeNow(this.data.timeDraft)) {
+        nextData.timeDraft = getInitialTimeDraft()
+      }
+
+      this.setData(nextData)
       return
     }
 
     if (key === 'signupTime') {
-      this.setData({
+      const nextData = {
         signupTimePanelVisible: !this.data.signupTimePanelVisible,
         timePanelVisible: false
-      })
+      }
+
+      if (!this.data.signupTimePanelVisible && isDraftBeforeNow(this.data.signupTimeDraft)) {
+        nextData.signupTimeDraft = getInitialSignupTimeDraft()
+      }
+
+      this.setData(nextData)
       return
     }
 
@@ -581,11 +778,11 @@ Page({
         timePanelVisible: false,
         signupTimePanelVisible: false
       })
-      this.chooseGameLocation()
+      this.openLocationSearchPanel()
       return
     }
 
-    toast.info('选择器待接入')
+    toast.info('请选择有效的局属性')
   },
 
   chooseGameLocation() {
@@ -624,6 +821,110 @@ Page({
     })
   },
 
+  openLocationSearchPanel() {
+    const locationInfo = this.data.locationInfo || {}
+    const keyword = String(this.data.locationSearchKeyword || locationInfo.name || locationInfo.address || '').trim()
+
+    this.setData({
+      locationSearchVisible: true,
+      locationSearchKeyword: keyword
+    })
+
+    if (keyword) {
+      this.searchLocationByKeyword()
+    }
+  },
+
+  closeLocationSearchPanel() {
+    this.setData({
+      locationSearchVisible: false,
+      locationSearchLoading: false
+    })
+  },
+
+  onLocationSearchInput(event) {
+    this.setData({
+      locationSearchKeyword: event.detail.value || ''
+    })
+  },
+
+  async searchLocationByKeyword() {
+    const keyword = String(this.data.locationSearchKeyword || '').trim()
+    const locationInfo = this.data.locationInfo || {}
+    const params = {
+      keyword,
+      page: 1,
+      pageSize: 10
+    }
+
+    if (!keyword) {
+      toast.info('请输入地点关键词')
+      return
+    }
+
+    if (typeof locationInfo.longitude === 'number' && typeof locationInfo.latitude === 'number') {
+      params.longitude = locationInfo.longitude
+      params.latitude = locationInfo.latitude
+      params.radiusMeter = LOCATION_SEARCH_RADIUS_METER
+    } else if (locationInfo.cityName) {
+      params.city = locationInfo.cityName
+    }
+
+    this.setData({
+      locationSearchLoading: true
+    })
+
+    try {
+      const data = await locationService.searchMapPlaces(params)
+      const places = normalizeMapPlaces(data)
+
+      this.setData({
+        locationSearchResults: places,
+        locationSearchLoading: false
+      })
+
+      if (!places.length) {
+        toast.info('未找到匹配地点')
+      }
+    } catch (error) {
+      this.setData({
+        locationSearchLoading: false
+      })
+      toast.info(error.message || '地图地点搜索失败')
+    }
+  },
+
+  selectLocationSearchResult(event) {
+    const index = Number(event.currentTarget.dataset.index)
+    const place = this.data.locationSearchResults[index]
+
+    if (!place) {
+      return
+    }
+
+    this.applyGameLocation(place)
+  },
+
+  applyGameLocation(place = {}) {
+    const name = place.title || place.name || ''
+    const address = place.address || ''
+    const text = name || address || '已选择位置'
+
+    this.updateScheduleField('location', text)
+    this.setData({
+      locationInfo: {
+        name,
+        address,
+        cityCode: place.cityCode || '',
+        cityName: place.cityName || '',
+        latitude: typeof place.latitude === 'number' ? place.latitude : '',
+        longitude: typeof place.longitude === 'number' ? place.longitude : ''
+      },
+      locationSearchVisible: false,
+      locationSearchResults: []
+    })
+  },
+
   initGameLocation() {
     if (!wx.getLocation) {
       return
@@ -636,10 +937,10 @@ Page({
           return
         }
 
-        this.updateScheduleField('location', CURRENT_LOCATION_TEXT)
+        this.updateScheduleField('location', this.data.createForm.currentLocationText)
         this.setData({
           locationInfo: {
-            name: CURRENT_LOCATION_TEXT,
+            name: this.data.createForm.currentLocationText,
             address: '',
             latitude: res.latitude,
             longitude: res.longitude
@@ -672,15 +973,8 @@ Page({
     const draft = this.data.timeDraft || {}
     const startTimestamp = getDraftTimestamp(draft.startDate, draft.startTime)
     const endTimestamp = getDraftTimestamp(draft.endDate, draft.endTime)
-    const nowTimestamp = getCurrentMinuteTimestamp(this.data.serverTime)
-
     if (!startTimestamp || !endTimestamp || Number.isNaN(startTimestamp) || Number.isNaN(endTimestamp)) {
       toast.info('请选择完整局时间')
-      return
-    }
-
-    if (nowTimestamp !== null && startTimestamp < nowTimestamp) {
-      toast.info('局开始时间不能早于当前时间')
       return
     }
 
@@ -742,15 +1036,9 @@ Page({
     const draft = this.data.signupTimeDraft || {}
     const signupStartTimestamp = getDraftTimestamp(draft.startDate, draft.startTime)
     const signupEndTimestamp = getDraftTimestamp(draft.endDate, draft.endTime)
-    const nowTimestamp = getCurrentMinuteTimestamp(this.data.serverTime)
 
     if (!signupStartTimestamp || !signupEndTimestamp || Number.isNaN(signupStartTimestamp) || Number.isNaN(signupEndTimestamp)) {
       toast.info('请选择完整报名时间')
-      return
-    }
-
-    if (nowTimestamp !== null && signupStartTimestamp < nowTimestamp) {
-      toast.info('报名开始时间不能早于当前时间')
       return
     }
 
@@ -784,14 +1072,14 @@ Page({
 
   onCapacityChange(event) {
     this.setData({
-      'form.capacity': clampCapacity(event.detail.value)
+      'form.capacity': clampCapacity(event.detail.value, this.data.createForm.capacity)
     })
     this.syncPublishState()
   },
 
   onCapacityInput(event) {
     this.setData({
-      'form.capacity': clampCapacity(event.detail.value)
+      'form.capacity': clampCapacity(event.detail.value, this.data.createForm.capacity)
     })
     this.syncPublishState()
   },
@@ -1059,9 +1347,11 @@ Page({
       nextData['form.price'] = ''
     }
 
-    this.setData({
-      ...nextData
-    })
+    if (feeType === 'free') {
+      nextData['form.profitTemplate'] = ''
+    }
+
+    this.setData(nextData)
     this.syncPublishState()
     this.loadProfitTemplates(feeType)
   },
@@ -1092,47 +1382,165 @@ Page({
   },
 
   saveDraft() {
-    toast.info('草稿保存待接入')
+    toast.info('草稿已在本页保留，正式发布后同步后台审核')
   },
 
   previewSubmit() {
-    toast.info('预览提交待接入')
+    const payload = this.buildCreateGamePayload()
+    toast.info(payload ? '预览通过，可发布' : this.getPublishBlockedMessage())
   },
 
-  publishGame() {
+  async publishGame() {
     if (this.data.publishDisabled) {
-      toast.info('请先完善局属性')
+      toast.info(this.getPublishBlockedMessage())
       return
     }
 
-    toast.info('发布接口待接入')
+    const payload = this.buildCreateGamePayload()
+    if (!payload) {
+      toast.info(this.getPublishBlockedMessage())
+      return
+    }
+
+    wx.showLoading({ title: '发布中', mask: true })
+    try {
+      const game = await gameService.createGame(payload)
+      wx.hideLoading()
+      toast.success('已提交后台审核')
+      setTimeout(() => {
+        navigateShellRoute(`${ROUTES.gameDetail}?id=${game.id}`, {
+          currentRoute: ROUTES.gameCreate
+        })
+      }, 500)
+    } catch (error) {
+      wx.hideLoading()
+      toast.info(error.message || '发布失败')
+    }
+  },
+
+  getPublishBlockedMessage() {
+    const missing = this.getPublishMissingFields()
+
+    if (!missing.length) {
+      return '请先完善局属性'
+    }
+
+    return `请先完善：${missing.slice(0, 3).join('、')}`
+  },
+
+  getPublishMissingFields() {
+    const form = this.data.form || {}
+    const capacity = this.data.createForm.capacity || {}
+    const missing = []
+
+    if (!Array.isArray(this.data.gameTypes) || !this.data.gameTypes.length) {
+      missing.push('局类型配置')
+    }
+    if (!String(form.theme || '').trim()) {
+      missing.push('局主题')
+    }
+    if (!String(form.type || '').trim()) {
+      missing.push('局类型')
+    }
+    if (Number(form.capacity) < Number(capacity.min || 0) || Number(form.capacity) > Number(capacity.max || 0)) {
+      missing.push('人数')
+    }
+    if (!Array.isArray(this.data.completionRules) || !this.data.completionRules.some((item) => item.active)) {
+      missing.push('完成规则')
+    }
+    if (!Array.isArray(this.data.feeTypes) || !this.data.feeTypes.some((item) => item.key === form.feeType)) {
+      missing.push('收费类型')
+    }
+    if (this.shouldRequireProfitTemplate(form.feeType) && !this.hasSelectableProfitTemplate(form.profitTemplate)) {
+      missing.push('分润模板')
+    }
+
+    return missing
+  },
+
+  shouldRequireProfitTemplate(feeType) {
+    return Boolean(feeType) && feeType !== 'free'
+  },
+
+  hasSelectableProfitTemplate(profitTemplate) {
+    return Array.isArray(this.data.profitTemplates)
+      && this.data.profitTemplates.some((item) => item.key === profitTemplate && !item.disabled)
+  },
+
+  buildCreateGamePayload() {
+    const form = this.data.form || {}
+    const locationInfo = this.data.locationInfo || {}
+    const title = String(form.theme || '').trim()
+    const capacity = this.data.createForm.capacity || {}
+    const minPlayers = Number(capacity.min || 0)
+    const maxCapacity = Number(capacity.max || 0)
+    const maxPlayers = clampCapacity(form.capacity, capacity)
+
+    if (!title || !String(form.type || '').trim() || maxPlayers < minPlayers || maxPlayers > maxCapacity) {
+      return null
+    }
+
+    const gameTypes = this.data.gameTypes || EMPTY_GAME_TYPES
+    if (!gameTypes.length) {
+      toast.info('组局类型配置加载失败')
+      return null
+    }
+
+    const selected = getSelectedCategory(gameTypes, form.type)
+    const primary = selected.primary || {}
+    const secondary = selected.secondary || {}
+
+    return {
+      title,
+      gameType: form.feeType === 'paid' ? 'paid' : 'free',
+      coverImage: this.data.coverImage || '',
+      description: String(form.intro || '').trim(),
+      highlights: String(form.highlights || '').trim(),
+      notice: String(form.notice || '').trim(),
+      audience: String(form.audience || '').trim(),
+      participation: form.participation || '',
+      startAt: this.data.gameTimeConfirmed ? `${this.data.timeDraft.startDate} ${this.data.timeDraft.startTime}` : '',
+      endAt: this.data.gameTimeConfirmed ? `${this.data.timeDraft.endDate} ${this.data.timeDraft.endTime}` : '',
+      signupStartAt: this.data.signupTimeConfirmed ? `${this.data.signupTimeDraft.startDate} ${this.data.signupTimeDraft.startTime}` : '',
+      signupEndAt: this.data.signupTimeConfirmed ? `${this.data.signupTimeDraft.endDate} ${this.data.signupTimeDraft.endTime}` : '',
+      tags: activeOptionKeys(this.data.tags),
+      completionRules: activeOptionKeys(this.data.completionRules),
+      primaryCategory: primary.key || form.type || '',
+      primaryCategoryText: primary.name || '',
+      secondaryCategory: form.secondaryCategory || secondary.key || '',
+      secondaryCategoryText: secondary.name || '',
+      type: form.feeType || 'free',
+      price: form.feeType === 'paid' ? Number(form.price || 0) : 0,
+      profitTemplate: this.shouldRequireProfitTemplate(form.feeType) ? form.profitTemplate : '',
+      minPlayers,
+      maxPlayers,
+      cityCode: locationInfo.cityCode || '',
+      cityName: locationInfo.cityName || locationInfo.name || '',
+      address: locationInfo.address || '',
+      longitude: typeof locationInfo.longitude === 'number' ? locationInfo.longitude : 0,
+      latitude: typeof locationInfo.latitude === 'number' ? locationInfo.latitude : 0
+    }
   },
 
   syncPublishState() {
     const form = this.data.form || {}
+    const hasGameTypes = Array.isArray(this.data.gameTypes) && this.data.gameTypes.length > 0
     const hasTheme = String(form.theme || '').trim().length > 0
     const hasType = String(form.type || '').trim().length > 0
-    const hasCapacity = Number(form.capacity) >= CAPACITY_MIN && Number(form.capacity) <= CAPACITY_MAX
+    const capacity = this.data.createForm.capacity || {}
+    const hasCapacity = Number(form.capacity) >= Number(capacity.min || 0) && Number(form.capacity) <= Number(capacity.max || 0)
     const hasCompletionRule = Array.isArray(this.data.completionRules) && this.data.completionRules.some((item) => item.active)
     const hasFeeType = Array.isArray(this.data.feeTypes) && this.data.feeTypes.some((item) => item.key === form.feeType)
-    const hasProfitTemplate = Array.isArray(this.data.profitTemplates)
-      && this.data.profitTemplates.some((item) => item.key === form.profitTemplate && !item.disabled)
+    const hasProfitTemplate = !this.shouldRequireProfitTemplate(form.feeType)
+      || this.hasSelectableProfitTemplate(form.profitTemplate)
 
     this.setData({
-      publishDisabled: !(hasTheme && hasType && hasCapacity && hasCompletionRule && hasFeeType && hasProfitTemplate)
+      publishDisabled: !(hasGameTypes && hasTheme && hasType && hasCapacity && hasCompletionRule && hasFeeType && hasProfitTemplate)
     })
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -1141,8 +1549,9 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      toast.info('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameCreate
+    })) {
       return
     }
 
@@ -1151,14 +1560,6 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -1179,12 +1580,12 @@ Page({
 
   handleShellAction(key) {
     if (key === 'home') {
-      this.scrollCreateToTop()
+      this.navigateToRoute(ROUTES.playerHome || ROUTES.home)
       return
     }
 
     if (key === 'search') {
-      toast.info('搜索功能开发中')
+      this.navigateToRoute(ROUTES.gameHall)
       return
     }
 
@@ -1200,7 +1601,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -1211,9 +1612,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleCreateScroll(event) {

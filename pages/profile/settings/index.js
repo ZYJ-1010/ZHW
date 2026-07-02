@@ -1,5 +1,7 @@
-const toast = require('../../../utils/toast')
 const profileService = require('../../../services/profile')
+
+const authService = require('../../../services/auth')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/settings/assets'
 
@@ -7,7 +9,6 @@ function asset(name) {
   return `${ASSET_BASE}/${name}`
 }
 
-const DEFAULT_ICON = asset('icon-document.png')
 const ICON_MAP = {
   payPassword: asset('icon-pay-lock.png'),
   loginPassword: asset('icon-login-lock.png'),
@@ -29,88 +30,30 @@ const ICON_MAP = {
   about: asset('icon-info.png')
 }
 
-function pickFirstValue() {
-  const values = Array.prototype.slice.call(arguments)
+function normalizeSections(sections) {
+  const source = Array.isArray(sections) ? sections : []
 
-  for (let index = 0; index < values.length; index += 1) {
-    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
-      return values[index]
-    }
-  }
+  return source.map((section) => ({
+    title: section.title || '设置',
+    rows: (Array.isArray(section.rows) ? section.rows : []).map((row) => {
+      const iconKey = row.iconKey || row.id
 
-  return ''
-}
-
-function normalizeList(list) {
-  return Array.isArray(list) ? list : []
-}
-
-function normalizeBoolean(value) {
-  if (typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return value === 1
-  }
-
-  return String(value || '').toLowerCase() === 'true'
-}
-
-function normalizeIcon(row, rowId) {
-  const icon = pickFirstValue(row.localIcon, row.iconLocal, row.icon)
-
-  if (typeof icon === 'string' && icon.indexOf('/pages/') === 0) {
-    return icon
-  }
-
-  return ICON_MAP[rowId] || DEFAULT_ICON
-}
-
-function normalizeRow(row) {
-  const source = row || {}
-  const id = pickFirstValue(source.id, source.key, source.settingKey)
-  const label = pickFirstValue(source.label, source.title, source.name)
-  const isSwitch = source.switch === true || source.type === 'switch' || typeof source.enabled === 'boolean'
-
-  return {
-    id,
-    label,
-    icon: normalizeIcon(source, id),
-    value: pickFirstValue(source.valueText, source.displayValue, source.value),
-    arrow: source.arrow !== undefined ? Boolean(source.arrow) : Boolean(source.route || source.url || source.action),
-    switch: isSwitch,
-    enabled: normalizeBoolean(source.enabled !== undefined ? source.enabled : source.value),
-    disabled: Boolean(source.disabled),
-    route: pickFirstValue(source.route, source.path),
-    url: pickFirstValue(source.url, source.webUrl),
-    action: pickFirstValue(source.action, source.actionKey),
-    message: pickFirstValue(source.message, source.toastText)
-  }
-}
-
-function normalizeSections(data) {
-  const source = data || {}
-  const sections = normalizeList(source.sections || source.groups || source.items)
-
-  return sections.map((section) => {
-    const group = section || {}
-    const rows = normalizeList(group.rows || group.items || group.children)
-      .map(normalizeRow)
-      .filter((row) => row.id || row.label)
-
-    return {
-      title: pickFirstValue(group.title, group.name, group.label),
-      rows
-    }
-  }).filter((section) => section.title || section.rows.length)
+      return Object.assign({}, row, {
+        iconKey,
+        icon: row.icon || ICON_MAP[iconKey] || ICON_MAP.about,
+        enabled: Boolean(row.enabled)
+      })
+    })
+  }))
 }
 
 Page({
   data: {
     sections: [],
     chevronIcon: asset('icon-chevron-right.svg'),
-    previewMode: 'static'
+    previewMode: 'static',
+    isSaving: false,
+    loadError: ''
   },
 
   onLoad(options = {}) {
@@ -122,129 +65,116 @@ Page({
 
   async loadSettings() {
     try {
-      const data = await profileService.getProfileSettings()
-
+      const settings = await profileService.getProfileSettings()
       this.setData({
-        sections: normalizeSections(data)
+        sections: normalizeSections(settings && settings.sections),
+        loadError: ''
       })
     } catch (error) {
       this.setData({
-        sections: []
+        sections: [],
+        loadError: error.message || '系统设置加载失败'
       })
-      toast.info(error.message || '系统设置加载失败')
+      this.showToast(error.message || '系统设置加载失败')
     }
   },
 
   async handleSwitch(event) {
-    const { sectionIndex, rowIndex } = event.currentTarget.dataset
-    const row = this.getRow(sectionIndex, rowIndex)
-
-    if (!row || row.disabled) {
+    if (this.data.isSaving) {
       return
     }
 
+    const { sectionIndex, rowIndex } = event.currentTarget.dataset
     const key = `sections[${sectionIndex}].rows[${rowIndex}].enabled`
-    const nextValue = !row.enabled
+    const current = this.data.sections[sectionIndex].rows[rowIndex].enabled
 
     this.setData({
-      [key]: nextValue
+      [key]: !current,
+      isSaving: true
     })
 
     try {
-      const data = await profileService.saveProfileSettings({
-        key: row.id,
-        value: nextValue,
-        enabled: nextValue
+      const saved = await profileService.saveProfileSettings({
+        sections: this.data.sections
       })
-
-      if (data && (data.sections || data.groups || data.items)) {
-        this.setData({
-          sections: normalizeSections(data)
-        })
-      }
-    } catch (error) {
       this.setData({
-        [key]: row.enabled
+        sections: normalizeSections(saved && saved.sections)
       })
-      toast.info(error.message || '设置保存失败')
+    } catch (error) {
+      this.setData({ [key]: current })
+      this.showToast(error.message || '设置保存失败')
+    } finally {
+      this.setData({ isSaving: false })
     }
   },
 
   handleRowTap(event) {
-    const { label } = event.currentTarget.dataset
-    const row = this.findRowByLabel(label)
+    const { sectionIndex, rowIndex } = event.currentTarget.dataset
+    const row = this.data.sections[sectionIndex] && this.data.sections[sectionIndex].rows[rowIndex]
 
-    if (!row || typeof wx === 'undefined') {
+    if (!row || row.switch) {
       return
     }
 
-    if (row.disabled) {
-      toast.info(row.message || '当前不可操作')
+    if (row.disabledReason) {
+      this.showToast(row.disabledReason)
       return
     }
 
-    if (row.id === 'clearCache' || row.action === 'clearCache') {
-      this.handleClearCache()
+    if (row.action === 'clear_cache') {
+      this.clearCache()
       return
     }
 
     if (row.route) {
-      wx.navigateTo({
-        url: row.route
-      })
+      navigateShellRoute(row.route)
       return
     }
 
-    toast.info(row.message || '待接入')
+    if (row.agreementKey) {
+      navigateShellRoute(`/pages/profile/system-management/agreement-detail/index?agreement=${encodeURIComponent(row.agreementKey)}&title=${encodeURIComponent(row.label || '协议详情')}`)
+      return
+    }
+
+    this.showToast('该设置项暂未开放')
   },
 
-  async handleClearCache() {
+  clearCache() {
     try {
-      await profileService.clearProfileSettingsCache()
-      toast.info('缓存已清除')
-      this.loadSettings()
+      wx.clearStorageSync()
+      this.showToast('缓存已清理')
     } catch (error) {
-      toast.info(error.message || '清除缓存失败')
+      this.showToast('缓存清理失败')
     }
   },
 
-  async handleLogout() {
+  handleLogout() {
+    wx.showModal({
+      title: '退出登录',
+      content: '退出后需要重新通过邀请入口登录。',
+      confirmText: '退出',
+      confirmColor: '#ff4d57',
+      success: (res) => {
+        if (!res.confirm) {
+          return
+        }
+
+        authService.logout()
+        wx.reLaunch({
+          url: '/pages/login/index'
+        })
+      }
+    })
+  },
+
+  showToast(title) {
     if (typeof wx === 'undefined') {
       return
     }
 
-    try {
-      await profileService.logoutProfile()
-      wx.removeStorageSync('enjoy_token')
-      wx.removeStorageSync('enjoy_user')
-      wx.showToast({
-        title: '已退出登录',
-        icon: 'success'
-      })
-    } catch (error) {
-      toast.info(error.message || '退出登录失败')
-    }
-  },
-
-  getRow(sectionIndex, rowIndex) {
-    const section = this.data.sections[sectionIndex]
-
-    return section && section.rows ? section.rows[rowIndex] : null
-  },
-
-  findRowByLabel(label) {
-    const sections = this.data.sections || []
-
-    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
-      const rows = sections[sectionIndex].rows || []
-
-      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
-        if (rows[rowIndex].label === label) {
-          return rows[rowIndex]
-        }
-      }
-    }
-
-    return null
+    wx.showToast({
+      title,
+      icon: 'none'
+    })
   }
 })

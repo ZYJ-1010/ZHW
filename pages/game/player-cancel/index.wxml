@@ -17,117 +17,110 @@
       enable-back-to-top
     >
       <view class="player-cancel-inner">
-        <block wx:if="{{hasDetail}}">
-          <view class="warning-card">
-            <view class="warning-icon">
-              <view class="warning-mark">!</view>
-            </view>
-            <view class="warning-copy">
-              <text class="warning-title">{{detail.warningTitle}}</text>
-              <text class="warning-desc">{{detail.warningDesc}}</text>
-            </view>
+        <view class="warning-card">
+          <view class="warning-icon">
+            <view class="warning-mark">!</view>
           </view>
-
-          <service-activity-card info="{{activityCard}}"></service-activity-card>
-
-          <view class="section-card compensation-card">
-            <view class="card-heading-row">
-              <text class="section-title">自定义赔付比例</text>
-              <text class="negotiable-tag">可协商</text>
-            </view>
-            <view class="ratio-head">
-              <text class="ratio-label">建议赔付比例</text>
-              <text class="ratio-value">{{compensationRate}}%</text>
-            </view>
-            <slider
-              class="ratio-slider"
-              min="{{detail.minRate}}"
-              max="{{detail.maxRate}}"
-              step="1"
-              value="{{compensationRate}}"
-              activeColor="#1890ff"
-              backgroundColor="#e5e7eb"
-              block-color="#ffffff"
-              block-size="24"
-              bindchanging="onRateChanging"
-              bindchange="onRateChange"
-            />
-            <view class="ratio-limit-row">
-              <text>最低{{detail.minRate}}%</text>
-              <text>最高{{detail.maxRate}}%</text>
-            </view>
-
-            <view class="suggestion-card">
-              <view class="suggestion-heading">
-                <image class="suggestion-icon" src="./assets/i39@3x.png" mode="aspectFit" />
-                <text class="suggestion-title">智能建议</text>
-              </view>
-              <text class="suggestion-text">{{detail.smartSuggestion}}</text>
-            </view>
-
-            <view class="amount-panel">
-              <view class="amount-row">
-                <text class="amount-label">赔付金额</text>
-                <text class="amount-value danger">{{compensationAmountText}}</text>
-              </view>
-              <view class="amount-row fee">
-                <view class="fee-label">
-                  <text>平台手续费</text>
-                  <text class="fee-rate">（{{detail.platformFeeRate}}%）</text>
-                </view>
-                <text class="amount-value muted">{{platformFeeText}}</text>
-              </view>
-              <view class="amount-row total">
-                <text class="total-label">实际支付</text>
-                <text class="amount-value danger">{{payAmountText}}</text>
-              </view>
-            </view>
-            <view class="refund-panel">
-              <text class="refund-label">剩余可退金额</text>
-              <text class="amount-value success">{{refundAmountText}}</text>
-            </view>
+          <view class="warning-copy">
+            <text class="warning-title">{{detail.warningTitle}}</text>
+            <text class="warning-desc">{{detail.warningDesc}}</text>
           </view>
-
-          <cancel-reason-card
-            card-class="player"
-            options="{{reasonOptions}}"
-            selected-key="{{selectedReasonKey}}"
-            value="{{reasonText}}"
-            maxlength="{{50}}"
-            placeholder="详细说明取消原因，有助于业务主理解..."
-            bindreasonchange="onReasonChange"
-            bindreasoninput="onReasonInput"
-          ></cancel-reason-card>
-
-          <view class="agreement-card" bindtap="onAgreementCardTap">
-            <text class="agreement-title">赔付协议确认</text>
-            <view class="agreement-list">
-              <view
-                wx:for="{{agreementItems}}"
-                wx:key="*this"
-                class="agreement-item"
-              >
-                <view class="agreement-check {{agreementChecked ? 'checked' : ''}}"></view>
-                <text class="agreement-text">{{item}}</text>
-              </view>
-            </view>
-          </view>
-
-          <cancel-action-buttons
-            bar-class="player inline"
-            primary-tone="gradient"
-            primary-loading="{{submitting}}"
-            primary-disabled="{{submitting}}"
-            tip-text="我已阅读并同意上述赔付协议，确认主动取消服务并承担相应赔付责任。"
-            bindsecondarytap="onKeepServiceTap"
-            bindprimarytap="onConfirmCancelTap"
-          ></cancel-action-buttons>
-        </block>
-
-        <view wx:else class="empty-state">
-          <text class="empty-title">缺少服务信息</text>
-          <text class="empty-desc">请从组局管理选择需要取消的服务，或等待后台补充取消预览接口字段。</text>
         </view>
+
+        <service-activity-card info="{{activityCard}}"></service-activity-card>
+
+        <view class="section-card compensation-card">
+          <view class="card-heading-row">
+            <text class="section-title">自定义赔付比例</text>
+            <text class="negotiable-tag">可协商</text>
+          </view>
+          <view class="ratio-head">
+            <text class="ratio-label">建议赔付比例</text>
+            <text class="ratio-value">{{compensationRate}}%</text>
+          </view>
+          <slider
+            class="ratio-slider"
+            min="{{detail.minRate}}"
+            max="{{detail.maxRate}}"
+            step="1"
+            value="{{compensationRate}}"
+            activeColor="#1890ff"
+            backgroundColor="#e5e7eb"
+            block-color="#ffffff"
+            block-size="24"
+            bindchanging="onRateChanging"
+            bindchange="onRateChange"
+          />
+          <view class="ratio-limit-row">
+            <text>最低{{detail.minRate}}%</text>
+            <text>最高{{detail.maxRate}}%</text>
+          </view>
+
+          <view class="suggestion-card">
+            <view class="suggestion-heading">
+              <image class="suggestion-icon" src="./assets/i39@3x.png" mode="aspectFit" />
+              <text class="suggestion-title">智能建议</text>
+            </view>
+            <text class="suggestion-text">{{detail.smartSuggestion}}</text>
+          </view>
+
+          <view class="amount-panel">
+            <view class="amount-row">
+              <text class="amount-label">赔付金额</text>
+              <text class="amount-value danger">{{compensationAmountText}}</text>
+            </view>
+            <view class="amount-row fee">
+              <view class="fee-label">
+                <text>平台手续费</text>
+                <text class="fee-rate">（{{detail.platformFeeRate}}%）</text>
+              </view>
+              <text class="amount-value muted">{{platformFeeText}}</text>
+            </view>
+            <view class="amount-row total">
+              <text class="total-label">实际支付</text>
+              <text class="amount-value danger">{{payAmountText}}</text>
+            </view>
+          </view>
+          <view class="refund-panel">
+            <text class="refund-label">剩余可退金额</text>
+            <text class="amount-value success">{{refundAmountText}}</text>
+          </view>
+        </view>
+
+        <cancel-reason-card
+          card-class="player"
+          options="{{reasonOptions}}"
+          selected-key="{{selectedReasonKey}}"
+          value="{{reasonText}}"
+          maxlength="{{50}}"
+          placeholder="详细说明取消原因，有助于业务主理解..."
+          bindreasonchange="onReasonChange"
+          bindreasoninput="onReasonInput"
+        ></cancel-reason-card>
+
+        <view class="agreement-card" bindtap="onAgreementCardTap">
+          <text class="agreement-title">赔付协议确认</text>
+          <view class="agreement-list">
+            <view
+              wx:for="{{agreementItems}}"
+              wx:key="*this"
+              class="agreement-item"
+            >
+              <view class="agreement-check {{agreementChecked ? 'checked' : ''}}"></view>
+              <text class="agreement-text">{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        <cancel-action-buttons
+          bar-class="player inline"
+          primary-tone="gradient"
+          primary-loading="{{submitting}}"
+          primary-disabled="{{submitting}}"
+          tip-text="我已阅读并同意上述赔付协议，确认主动取消服务并承担相应赔付责任。"
+          bindsecondarytap="onKeepServiceTap"
+          bindprimarytap="onConfirmCancelTap"
+        ></cancel-action-buttons>
 
         <view class="content-spacer"></view>
       </view>

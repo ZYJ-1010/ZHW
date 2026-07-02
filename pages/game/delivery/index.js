@@ -1,6 +1,8 @@
-const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const { ROUTES } = require('../../../config/routes')
+const fileService = require('../../../services/file')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -13,29 +15,7 @@ const MORE_BUTTON_SIZE_RPX = 44
 const MORE_BUTTON_LEFT_RPX = 658
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
-const PLAYER_ICON = '/pages/game/delivery/assets/i18@3x.png'
-
-const EMPTY_DELIVERY_STATE = {
-  deliveryMode: '',
-  pageTitle: '确认服务完成',
-  status: {},
-  statePill: {},
-  activity: {},
-  activityRows: [],
-  notice: {},
-  settlement: {},
-  settlementRows: [],
-  hasSettlement: false,
-  settlementNote: '',
-  timeline: [],
-  confirmItems: [],
-  allConfirmed: false,
-  confirmNote: '',
-  security: {},
-  submitHints: {},
-  submitToast: '',
-  quickActions: []
-}
+const DEFAULT_DELIVERY_MODE = 'paid'
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -99,7 +79,115 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
-function pickFirstValue() {
+const EMPTY_DELIVERY_PAGE_CONFIG = {
+  paid: {
+    pageTitle: '',
+    status: {
+      theme: 'paid',
+      title: '',
+      desc: ''
+    },
+    statePill: {
+      theme: 'green',
+      text: ''
+    },
+    activity: {},
+    activityRows: [],
+    notice: {},
+    settlement: {},
+    settlementRows: [],
+    settlementNote: '',
+    timeline: [],
+    confirmItems: [],
+    confirmNote: '',
+    security: {
+      title: '',
+      desc: ''
+    },
+    submitHints: {
+      ready: '',
+      pending: ''
+    },
+    submitToast: '',
+    submitLoadingText: '',
+    amountRowLabel: ''
+  },
+  free: {
+    pageTitle: '',
+    status: {
+      theme: 'free',
+      title: '',
+      desc: ''
+    },
+    statePill: {
+      theme: 'blue',
+      text: ''
+    },
+    activity: {},
+    activityRows: [],
+    notice: {},
+    settlement: {},
+    settlementRows: [],
+    settlementNote: '',
+    timeline: [],
+    confirmItems: [],
+    confirmNote: '',
+    security: {
+      title: '',
+      desc: ''
+    },
+    submitHints: {
+      ready: '',
+      pending: ''
+    },
+    submitToast: '',
+    submitLoadingText: '',
+    amountRowLabel: ''
+  },
+  quickActions: []
+}
+
+function cloneList(list) {
+  return Array.isArray(list) ? list.map((item) => ({ ...item })) : []
+}
+
+function cloneNotice(notice) {
+  if (!notice || !notice.title) {
+    return {}
+  }
+
+  return {
+    ...notice,
+    parts: cloneList(notice.parts || [])
+  }
+}
+
+function normalizeDeliveryMode(mode) {
+  return String(mode || '').toLowerCase() === 'free' ? 'free' : 'paid'
+}
+
+function mergeModeConfig(modeConfig = {}, fallback = {}) {
+  return {
+    ...fallback,
+    ...modeConfig,
+    status: { ...(fallback.status || {}), ...(modeConfig.status || {}) },
+    statePill: { ...(fallback.statePill || {}), ...(modeConfig.statePill || {}) },
+    notice: cloneNotice(modeConfig.notice || fallback.notice),
+    confirmItems: cloneList(modeConfig.confirmItems || fallback.confirmItems),
+    security: { ...(fallback.security || {}), ...(modeConfig.security || {}) },
+    submitHints: { ...(fallback.submitHints || {}), ...(modeConfig.submitHints || {}) }
+  }
+}
+
+function normalizeDeliveryPageConfig(config = {}) {
+  return {
+    paid: mergeModeConfig(config.paid, EMPTY_DELIVERY_PAGE_CONFIG.paid),
+    free: mergeModeConfig(config.free, EMPTY_DELIVERY_PAGE_CONFIG.free),
+    quickActions: cloneList(config.quickActions || EMPTY_DELIVERY_PAGE_CONFIG.quickActions)
+  }
+}
+
+function firstValue() {
   const values = Array.prototype.slice.call(arguments)
 
   for (let index = 0; index < values.length; index += 1) {
@@ -111,184 +199,170 @@ function pickFirstValue() {
   return ''
 }
 
-function normalizeList(list) {
-  return Array.isArray(list) ? list : []
+function emptyActivity() {
+  return {
+    avatar: '',
+    expertName: '',
+    serviceName: '',
+    orderNo: ''
+  }
 }
 
-function normalizeDeliveryMode(value) {
-  const mode = String(value || '').toLowerCase()
-
-  return mode === 'free' ? 'free' : mode === 'paid' ? 'paid' : ''
+function emptyDeliveryBusinessState() {
+  return {
+    activity: emptyActivity(),
+    activityRows: [],
+    settlement: {},
+    settlementRows: [],
+    hasSettlement: false,
+    settlementNote: '',
+    timeline: []
+  }
 }
 
-function normalizeActivity(data) {
-  const source = data || {}
-  const expert = source.expert || {}
-  const service = source.service || {}
-  const expertName = pickFirstValue(expert.name, source.expertName)
+function createDeliveryState(mode, pageConfig = EMPTY_DELIVERY_PAGE_CONFIG) {
+  const deliveryMode = normalizeDeliveryMode(mode)
+  const deliveryPage = normalizeDeliveryPageConfig(pageConfig)
+  const config = deliveryPage[deliveryMode]
+  const confirmItems = cloneList(config.confirmItems)
 
   return {
-    avatar: pickFirstValue(expert.avatarText, source.avatarText, expertName ? getSurnameInitials(expertName, '') : ''),
-    expertName,
-    serviceName: pickFirstValue(service.title, source.serviceName, source.serviceTitle),
-    orderNo: pickFirstValue(source.orderNo, source.orderNoText, source.serviceOrderNo)
-  }
-}
-
-function normalizeActivityRows(data) {
-  const source = data || {}
-  const service = source.service || {}
-  const rows = normalizeList(source.activityRows || source.infoRows)
-
-  if (rows.length) {
-    return rows.map((item) => ({
-      label: pickFirstValue(item.label, item.title),
-      value: pickFirstValue(item.value, item.text),
-      strong: Boolean(item.strong),
-      type: pickFirstValue(item.type, item.tone)
-    })).filter((item) => item.label || item.value)
-  }
-
-  return [
-    { label: '合同金额', value: pickFirstValue(service.contractAmountText, source.contractAmountText), strong: true },
-    { label: '服务时长', value: pickFirstValue(service.durationText, source.durationText) },
-    { label: '开始时间', value: pickFirstValue(service.startedAtText, source.startedAtText) },
-    { label: '完成时间', value: pickFirstValue(service.completedAtText, source.completedAtText) }
-  ].filter((item) => item.value)
-}
-
-function normalizeSettlementRows(settlement) {
-  const source = settlement || {}
-  const rows = normalizeList(source.rows || source.items)
-
-  if (rows.length) {
-    return rows.map((item) => ({
-      label: pickFirstValue(item.label, item.title),
-      value: pickFirstValue(item.value, item.text),
-      type: pickFirstValue(item.type, item.tone)
-    })).filter((item) => item.label || item.value)
-  }
-
-  return [
-    { label: '合同总金额', value: source.contractAmountText },
-    { label: '结算比例', value: source.settlementRatioText, type: 'success' },
-    { label: '结算金额', value: source.settlementAmountText, type: 'amount' },
-    { label: '平台服务费', value: source.platformFeeText, type: 'danger' },
-    { label: '领路人奖励', value: source.guideRewardText, type: 'warning' },
-    { label: '系统级领路人奖励', value: source.systemGuideRewardText, type: 'purple' }
-  ].filter((item) => item.value)
-}
-
-function normalizeNotice(notice) {
-  const source = notice || {}
-
-  return {
-    iconText: pickFirstValue(source.iconText),
-    title: pickFirstValue(source.title),
-    parts: normalizeList(source.parts || source.contents).map((item) => ({
-      text: pickFirstValue(item.text, item.value),
-      strong: Boolean(item.strong)
-    })).filter((item) => item.text)
-  }
-}
-
-function normalizeTimeline(data) {
-  return normalizeList(data).map((item) => ({
-    key: pickFirstValue(item.key, item.id),
-    title: pickFirstValue(item.title, item.name),
-    desc: pickFirstValue(item.desc, item.description),
-    timeText: pickFirstValue(item.timeText, item.time, item.createdAtText),
-    state: pickFirstValue(item.state, item.status),
-    hasLine: item.hasLine !== false,
-    actionText: pickFirstValue(item.actionText, item.actionTitle),
-    actionIconText: pickFirstValue(item.actionIconText),
-    actionPlacement: pickFirstValue(item.actionPlacement),
-    actionKey: pickFirstValue(item.actionKey, item.key, item.id)
-  })).filter((item) => item.title || item.desc)
-}
-
-function normalizeConfirmItems(data) {
-  return normalizeList(data).map((item) => ({
-    id: pickFirstValue(item.id, item.key),
-    title: pickFirstValue(item.title, item.name),
-    desc: pickFirstValue(item.desc, item.description),
-    checked: Boolean(item.checked),
-    locked: Boolean(item.locked || item.disabled)
-  })).filter((item) => item.id || item.title)
-}
-
-function normalizeQuickActions(data) {
-  return normalizeList(data).map((item) => {
-    const key = pickFirstValue(item.key, item.id, item.action)
-    const targetRole = pickFirstValue(item.targetRole, item.role)
-
-    return {
-      key,
-      targetRole,
-      title: pickFirstValue(item.title, item.name),
-      theme: pickFirstValue(item.theme, targetRole === 'guide' ? 'orange' : 'blue'),
-      iconSrc: pickFirstValue(item.iconSrc, item.localIcon, targetRole === 'player' ? PLAYER_ICON : ''),
-      iconText: pickFirstValue(item.iconText),
-      route: pickFirstValue(item.route, item.path),
-      message: pickFirstValue(item.message, item.toastText)
-    }
-  }).filter((item) => item.key || item.title)
-}
-
-function normalizeDeliveryData(data = {}) {
-  const settlement = data.settlement || {}
-  const confirmItems = normalizeConfirmItems(data.confirmItems || data.confirmations)
-  const settlementRows = normalizeSettlementRows(settlement)
-
-  return Object.assign({}, EMPTY_DELIVERY_STATE, {
-    deliveryMode: normalizeDeliveryMode(data.serviceType || data.deliveryMode || data.mode),
-    pageTitle: pickFirstValue(data.pageTitle, data.title, EMPTY_DELIVERY_STATE.pageTitle),
-    status: {
-      theme: pickFirstValue(data.statusTheme, data.status && data.status.theme, data.serviceType),
-      title: pickFirstValue(data.statusTitle, data.status && data.status.title),
-      desc: pickFirstValue(data.statusDesc, data.status && data.status.desc)
-    },
-    statePill: {
-      theme: pickFirstValue(data.stateTheme, data.statePill && data.statePill.theme),
-      text: pickFirstValue(data.stateText, data.statusText, data.statePill && data.statePill.text)
-    },
-    activity: normalizeActivity(data),
-    activityRows: normalizeActivityRows(data),
-    notice: normalizeNotice(data.notice),
-    settlement: {
-      actualAmount: pickFirstValue(settlement.actualAmountText, data.actualAmountText)
-    },
-    settlementRows,
-    hasSettlement: settlementRows.length > 0,
-    settlementNote: pickFirstValue(settlement.note, data.settlementNote),
-    timeline: normalizeTimeline(data.timeline || data.steps),
+    deliveryMode,
+    pageTitle: config.pageTitle,
+    status: { ...config.status },
+    statePill: { ...config.statePill },
+    activity: emptyActivity(),
+    activityRows: [],
+    notice: cloneNotice(config.notice),
+    settlement: {},
+    settlementRows: [],
+    hasSettlement: false,
+    settlementNote: '',
+    timeline: [],
     confirmItems,
     allConfirmed: confirmItems.length > 0 && confirmItems.every((item) => item.checked),
-    confirmNote: pickFirstValue(data.confirmNote),
-    security: data.security || {},
-    submitHints: data.submitHints || {},
-    submitToast: pickFirstValue(data.submitToast, data.submitMessage),
-    quickActions: normalizeQuickActions(data.quickActions || data.actionsList || data.contactActions)
-  })
+    confirmNote: config.confirmNote,
+    security: { ...config.security },
+    submitHints: { ...config.submitHints },
+    submitToast: config.submitToast,
+    proofImages: [],
+    proofFileIds: [],
+    deliveryProof: {},
+    quickActions: cloneList(deliveryPage.quickActions)
+  }
+}
+
+function normalizeDeliveryDetail(detail = {}, mode = DEFAULT_DELIVERY_MODE) {
+  const deliveryPage = normalizeDeliveryPageConfig(detail.deliveryPage)
+  const pageState = createDeliveryState(mode, deliveryPage)
+  const deliveryProof = normalizeDeliveryProof(detail.deliveryProof)
+  const group = detail.group || {}
+  const fund = detail.fund || {}
+  const participants = Array.isArray(detail.participants) ? detail.participants : []
+  const player = participants.find((item) => item.role === 'member' || item.roleLabel === '玩家') || participants[0] || {}
+  const activityRows = Array.isArray(detail.activityRows) ? detail.activityRows : []
+  const amountText = firstValue(fund.amountText, fund.amount ? `¥${Number(fund.amount).toLocaleString('zh-CN')}` : '')
+  const normalizedRows = amountText
+    ? [{ label: pageState.amountRowLabel, value: amountText, strong: true }].concat(activityRows)
+    : activityRows
+  const timeline = Array.isArray(detail.nextSteps) ? detail.nextSteps.map((item, index) => ({
+    key: item.action || item.key || `step-${index}`,
+    title: item.title || '',
+    desc: item.desc || '',
+    timeText: item.timeText || '',
+    state: item.active ? 'active' : index === 0 ? 'done' : 'pending',
+    hasLine: index < detail.nextSteps.length - 1,
+    actionText: item.action === 'contact_player' ? deliveryProof.timelineActionText : '',
+    actionPlacement: item.action === 'contact_player' ? 'head' : ''
+  })) : []
+
+  return {
+    ...pageState,
+    activity: {
+      avatar: player.avatarText || player.avatar || getSurnameInitials(player.name || '', '玩'),
+      expertName: player.name || '',
+      serviceName: group.title || '',
+      orderNo: group.gameId ? `GAME-${group.gameId}` : ''
+    },
+    activityRows: normalizedRows,
+    settlement: amountText ? { actualAmount: amountText } : {},
+    settlementRows: [],
+    hasSettlement: false,
+    settlementNote: '',
+    timeline,
+    deliveryProof,
+    security: fund.status === 'free_no_pay'
+      ? pageState.security
+      : {
+          title: fund.title || '',
+          desc: fund.desc || ''
+        }
+  }
+}
+
+function normalizeDeliveryProof(proof = {}) {
+  const maxCount = Math.max(0, Number(proof.maxCount || 0))
+
+  return {
+    maxCount,
+    emptyText: proof.emptyText || '',
+    fullText: proof.fullText || '',
+    selectedTemplate: proof.selectedTemplate || '',
+    uploadActionText: proof.uploadActionText || '',
+    contactPlayerText: proof.contactPlayerText || '',
+    contactGuideText: proof.contactGuideText || '',
+    cancelServiceText: proof.cancelServiceText || '',
+    unavailableTextTemplate: proof.unavailableTextTemplate || '',
+    contactPlayerPrefill: proof.contactPlayerPrefill || '',
+    contactGuidePrefill: proof.contactGuidePrefill || '',
+    timelinePrefill: proof.timelinePrefill || '',
+    idleTimelineText: proof.idleTimelineText || '',
+    timelineActionText: proof.timelineActionText || '',
+    proofNoteTemplate: proof.proofNoteTemplate || ''
+  }
+}
+
+function deliveryQuickActions(baseActions = [], proof = {}) {
+  const titleMap = {
+    upload: proof.uploadActionText,
+    contact_player: proof.contactPlayerText,
+    contact_guide: proof.contactGuideText
+  }
+
+  return baseActions.map((item) => ({
+    ...item,
+    title: titleMap[item.key] || item.title
+  }))
 }
 
 Page({
-  data: Object.assign({
+  data: {
     shellLayout: getWhiteShellLayoutStyles(),
-    queryParams: {},
-    serviceOrderId: '',
-    gameId: ''
-  }, EMPTY_DELIVERY_STATE),
+    ...createDeliveryState(DEFAULT_DELIVERY_MODE)
+  },
 
   onLoad(options = {}) {
-    const serviceOrderId = options.serviceOrderId || options.orderId || options.id || ''
+    this.applyDeliveryMode(options.mode)
+    this.gameId = Number(options.gameId || options.id || 0) || 0
+    this.confirmNote = String(options.note || options.confirmNote || '').trim()
+    this.loadDeliveryDetail()
+  },
 
-    this.setData({
-      queryParams: options,
-      serviceOrderId,
-      gameId: options.gameId || ''
-    })
-    this.loadDeliveryDetail(options)
+  async loadDeliveryDetail() {
+    if (!this.gameId) {
+      this.setData(emptyDeliveryBusinessState())
+      return
+    }
+
+    try {
+      const detail = await gameService.getGameSuccessDetail(this.gameId, { role: 'expert' })
+      const nextState = normalizeDeliveryDetail(detail, this.data.deliveryMode)
+      nextState.quickActions = deliveryQuickActions(nextState.quickActions, nextState.deliveryProof)
+      this.setData(nextState)
+    } catch (error) {
+      this.setData(emptyDeliveryBusinessState())
+      this.showInfo(error.message || '服务确认数据加载失败')
+    }
   },
 
   onShow() {
@@ -305,28 +379,8 @@ Page({
     })
   },
 
-  async loadDeliveryDetail(params = {}) {
-    const serviceOrderId = params.serviceOrderId || params.orderId || params.id || this.data.serviceOrderId
-
-    if (!serviceOrderId) {
-      this.showInfo('缺少服务订单信息')
-      this.setData(EMPTY_DELIVERY_STATE)
-      return
-    }
-
-    try {
-      const detail = await gameService.getServiceDeliveryDetail(Object.assign({}, params, {
-        serviceOrderId
-      }))
-
-      this.setData(Object.assign(normalizeDeliveryData(detail), {
-        serviceOrderId,
-        gameId: detail && detail.gameId || this.data.gameId
-      }))
-    } catch (error) {
-      this.setData(EMPTY_DELIVERY_STATE)
-      this.showInfo(error.message || '服务交付详情加载失败')
-    }
+  applyDeliveryMode(mode) {
+    this.setData(createDeliveryState(mode || DEFAULT_DELIVERY_MODE))
   },
 
   onBackTap() {
@@ -337,58 +391,136 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.gamePlayerManage || 'pages/game/player-manage/index'}`
-    })
+    navigateShellRoute(ROUTES.gamePlayerManage || 'pages/game/player-manage/index')
   },
 
   onMoreTap() {
-    this.showInfo('更多操作待接入')
+    const actions = [
+      { key: 'upload', title: this.data.deliveryProof.uploadActionText },
+      { key: 'contact_player', title: this.data.deliveryProof.contactPlayerText },
+      { key: 'cancel_service', title: this.data.deliveryProof.cancelServiceText }
+    ].filter((item) => item.title)
+
+    if (!actions.length) {
+      return
+    }
+
+    wx.showActionSheet({
+      itemList: actions.map((item) => item.title),
+      success: (result) => {
+        const action = actions[result.tapIndex]
+
+        if (!action) {
+          return
+        }
+
+        if (action.key === 'upload') {
+          this.chooseProofImages()
+          return
+        }
+
+        if (action.key === 'contact_player') {
+          this.openIM(this.data.deliveryProof.contactPlayerPrefill)
+          return
+        }
+
+        if (action.key === 'cancel_service') {
+          navigateShellRoute(`/${ROUTES.gameExpertCancel || 'pages/game/expert-cancel/index'}?gameId=${encodeURIComponent(this.gameId || 0)}`)
+        }
+      }
+    })
   },
 
-  async onTimelineActionTap(event) {
+  onTimelineActionTap(event) {
     const item = event.detail && event.detail.item
 
-    if (!item) {
+    if (item && item.key === 'waiting-player') {
+      this.openIM(this.data.deliveryProof.timelinePrefill)
       return
     }
 
-    if (item.route) {
-      wx.navigateTo({ url: item.route })
-      return
-    }
-
-    if (item.actionKey === 'waiting-player' || item.actionKey === 'remindPlayer' || item.key === 'waiting-player') {
-      await this.remindPlayer()
-      return
-    }
-
-    this.showInfo(item.message || '操作待接入')
-  },
-
-  async remindPlayer() {
-    try {
-      await gameService.remindPlayerConfirm({
-        serviceOrderId: this.data.serviceOrderId,
-        gameId: this.data.gameId
-      })
-      this.showInfo('已提醒玩家确认')
-      this.loadDeliveryDetail(this.data.queryParams)
-    } catch (error) {
-      this.showInfo(error.message || '提醒玩家确认失败')
-    }
+    this.showInfo(this.data.deliveryProof.idleTimelineText)
   },
 
   onQuickActionTap(event) {
-    const { title } = event.currentTarget.dataset
-    const action = this.data.quickActions.find((item) => item.title === title)
+    const { key, title } = event.currentTarget.dataset
 
-    if (action && action.route) {
-      wx.navigateTo({ url: action.route })
+    if (key === 'upload') {
+      this.chooseProofImages()
       return
     }
 
-    this.showInfo(action && action.message || `${title || '操作'}待接入`)
+    if (key === 'contact_player' || key === 'contact_guide') {
+      this.openIM(key === 'contact_player' ? this.data.deliveryProof.contactPlayerPrefill : this.data.deliveryProof.contactGuidePrefill)
+      return
+    }
+
+    this.showInfo((this.data.deliveryProof.unavailableTextTemplate || '').replace('{action}', title || ''))
+  },
+
+  chooseProofImages() {
+    const maxCount = Number(this.data.deliveryProof.maxCount || 0)
+    const remain = Math.max(0, maxCount - this.data.proofImages.length)
+
+    if (!remain) {
+      this.showInfo(this.data.deliveryProof.fullText || '')
+      return
+    }
+
+    const onSuccess = (result = {}) => {
+      const files = Array.isArray(result.tempFiles) ? result.tempFiles : []
+      const proofImages = this.data.proofImages.concat(files
+        .map((item) => item.tempFilePath || item.path)
+        .filter(Boolean)
+        .slice(0, remain)
+        .map((path) => ({ path }))).slice(0, this.data.proofImages.length + remain)
+
+      this.setData({ proofImages })
+      this.showInfo(this.proofSelectedText(proofImages.length))
+    }
+
+    if (wx.chooseMedia) {
+      wx.chooseMedia({
+        count: remain,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera'],
+        success: onSuccess
+      })
+      return
+    }
+
+    wx.chooseImage({
+      count: remain,
+      sourceType: ['album', 'camera'],
+      success: onSuccess
+    })
+  },
+
+  proofSelectedText(selectedCount) {
+    const maxCount = Number(this.data.deliveryProof.maxCount || 0)
+    const template = this.data.deliveryProof.selectedTemplate || ''
+
+    if (template) {
+      return template.replace('{selected}', selectedCount).replace('{max}', maxCount)
+    }
+
+    return ''
+  },
+
+  removeProofImage(event) {
+    const index = Number(event.currentTarget.dataset.index)
+
+    if (Number.isNaN(index)) {
+      return
+    }
+
+    this.setData({
+      proofImages: this.data.proofImages.filter((_, itemIndex) => itemIndex !== index)
+    })
+  },
+
+  openIM(prefill) {
+    navigateShellRoute(`/${ROUTES.imRoom}?gameId=${encodeURIComponent(this.gameId || 0)}&prefill=${encodeURIComponent(prefill)}`)
   },
 
   toggleConfirm(event) {
@@ -398,11 +530,12 @@ Page({
         return item
       }
 
-      return Object.assign({}, item, {
+      return {
+        ...item,
         checked: !item.checked
-      })
+      }
     })
-    const allConfirmed = confirmItems.length > 0 && confirmItems.every((item) => item.checked)
+    const allConfirmed = confirmItems.every((item) => item.checked)
 
     this.setData({
       confirmItems,
@@ -412,38 +545,59 @@ Page({
 
   async onSubmitTap() {
     if (!this.data.allConfirmed) {
-      this.showInfo('请先勾选全部确认项')
+      this.showInfo(this.data.submitHints.pending || '')
       return
     }
 
-    const confirmedItems = this.data.confirmItems
-      .filter((item) => item.checked)
-      .map((item) => item.id)
+    if (!this.gameId) {
+      this.showInfo('缺少局信息，无法确认服务')
+      return
+    }
+
+    wx.showLoading({ title: this.data.submitLoadingText || '', mask: true })
 
     try {
-      const result = await gameService.confirmServiceDelivery({
-        serviceOrderId: this.data.serviceOrderId,
-        gameId: this.data.gameId,
-        confirmedItems
+      const fileIds = await fileService.uploadEvidenceImages(
+        this.data.proofImages.map((item) => item.path).filter(Boolean),
+        {
+          bizType: 'delivery_proof',
+          objectId: this.gameId
+        }
+      )
+      const note = this.confirmNote || this.data.confirmNote || ''
+
+      const proofNote = fileIds.length
+        ? (this.data.deliveryProof.proofNoteTemplate || '').replace('{fileIds}', fileIds.join(','))
+        : ''
+
+      await gameService.confirmService(this.gameId, {
+        note: [note, proofNote].filter(Boolean).join('\n'),
+        fileIds
       })
 
-      if (result && (result.timeline || result.status || result.service)) {
-        this.setData(Object.assign(normalizeDeliveryData(result), {
-          serviceOrderId: this.data.serviceOrderId,
-          gameId: result.gameId || this.data.gameId
-        }))
-      }
-
-      this.showInfo(this.data.submitToast || '服务完成确认已提交')
+      wx.hideLoading()
+      this.showInfo(this.data.submitToast || '')
+      this.setData({
+        proofFileIds: fileIds,
+        statePill: {
+          ...this.data.statePill,
+          text: this.data.statePill.text
+        }
+      })
     } catch (error) {
-      this.showInfo(error.message || '确认服务完成失败')
+      wx.hideLoading()
+      this.showInfo(error.message || '')
     }
   },
-
   showInfo(title) {
+    if (!title) {
+      return
+    }
+
     wx.showToast({
       title,
       icon: 'none'
     })
   }
 })
+

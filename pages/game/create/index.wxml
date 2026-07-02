@@ -1,4 +1,4 @@
-<home-shell
+﻿<home-shell
   online-text="{{onlineText}}"
   topbar-title=""
   nav-items="{{navItems}}"
@@ -226,6 +226,33 @@
               <text class="time-summary-value location-summary-value">{{item.value}}</text>
             </view>
           </view>
+          <view wx:if="{{item.key === 'location' && locationSearchVisible}}" class="time-panel">
+            <input
+              class="location-search-input"
+              value="{{locationSearchKeyword}}"
+              placeholder="输入地点关键词"
+              confirm-type="search"
+              bindinput="onLocationSearchInput"
+              bindconfirm="searchLocationByKeyword"
+            />
+            <view wx:if="{{locationSearchResults.length}}" class="time-summary location-summary">
+              <view
+                wx:for="{{locationSearchResults}}"
+                wx:for-item="place"
+                wx:key="id"
+                class="time-summary-item location-summary-item"
+                data-index="{{index}}"
+                bindtap="selectLocationSearchResult"
+              >
+                <text class="time-summary-label">{{place.title}}</text>
+                <text class="time-summary-value location-summary-value">{{place.displayAddress}}</text>
+              </view>
+            </view>
+            <view class="time-panel-actions">
+              <button class="time-panel-button secondary" bindtap="closeLocationSearchPanel">取消</button>
+              <button class="time-panel-button primary" loading="{{locationSearchLoading}}" bindtap="searchLocationByKeyword">搜索</button>
+            </view>
+          </view>
         </view>
 
         <view class="divider"></view>
@@ -439,7 +466,7 @@
           </view>
         </view>
 
-        <view class="form-field">
+        <view wx:if="{{showProfitTemplate}}" class="form-field">
           <text class="field-label">分润模板</text>
           <view class="profit-list">
             <view
@@ -474,8 +501,9 @@
       <view class="action-row">
         <button class="secondary-action" bindtap="saveDraft">保存草稿</button>
         <button class="secondary-action" bindtap="previewSubmit">浏览提交</button>
-        <button class="primary-action {{publishDisabled ? 'disabled' : ''}}" disabled="{{publishDisabled}}" bindtap="publishGame">发布并同步到地球网</button>
+        <button class="primary-action {{publishDisabled ? 'disabled' : ''}}" bindtap="publishGame">发布并同步到地球网</button>
       </view>
     </view>
   </scroll-view>
 </home-shell>
+

@@ -131,13 +131,28 @@
           </view>
         </view>
 
+        <view class="card proof-card">
+          <view class="section-head">
+            <text class="section-title">交付凭证</text>
+            <button class="proof-upload-button" hover-class="none" bindtap="chooseProofImages">上传</button>
+          </view>
+          <view wx:if="{{proofImages.length}}" class="proof-list">
+            <view wx:for="{{proofImages}}" wx:key="path" class="proof-item">
+              <image class="proof-image" src="{{item.path}}" mode="aspectFill"></image>
+              <view class="proof-remove" data-index="{{index}}" bindtap="removeProofImage">×</view>
+            </view>
+          </view>
+          <text wx:else class="proof-empty">{{deliveryProof.emptyText}}</text>
+        </view>
+
         <view class="card quick-card">
           <text class="section-title standalone">快捷操作</text>
           <view class="quick-grid">
             <button
               wx:for="{{quickActions}}"
-              wx:key="title"
+              wx:key="key"
               class="quick-button {{item.theme}}"
+              data-key="{{item.key}}"
               data-title="{{item.title}}"
               hover-class="none"
               bindtap="onQuickActionTap"
@@ -156,7 +171,7 @@
           </view>
         </view>
 
-        <view class="security-row">
+        <view wx:if="{{security.title || security.desc}}" class="security-row">
           <image class="security-icon" src="/pages/game/detail/assets/icon-shield.png" mode="aspectFit"></image>
           <view class="security-copy">
             <text class="security-title">{{security.title}}</text>

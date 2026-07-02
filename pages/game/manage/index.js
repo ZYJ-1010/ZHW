@@ -2,6 +2,7 @@ const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const toast = require('../../../utils/toast')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -13,17 +14,44 @@ const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
 
-const DEFAULT_BUSINESS_SUMMARY = {
-  label: '本月服务收入',
-  amount: '¥0',
+const EMPTY_BUSINESS_SUMMARY = {
+  label: '',
+  amount: '',
   activeCount: 0,
   pendingSettlementCount: 0,
   completedCount: 0,
   disputeCount: 0
 }
 
-const DEFAULT_TIMELINE = []
-const DEFAULT_BUSINESS_ORDERS = []
+const EMPTY_TIMELINE = []
+const EMPTY_BUSINESS_ORDER = {
+  id: '',
+  statusType: 'active',
+  statusText: '',
+  ref: '',
+  avatarText: '',
+  avatarClass: 'pink',
+  name: '',
+  roleTag: '',
+  serviceTitle: '',
+  amountText: '',
+  guideText: '',
+  timeline: EMPTY_TIMELINE,
+  primaryActionText: '',
+  secondaryActionText: '',
+  playerActionText: '',
+  guideActionText: ''
+}
+
+function navigateRoute(route) {
+  const url = route ? `/${String(route).replace(/^\/+/, '')}` : ''
+  if (!url) {
+    return false
+  }
+
+  navigateShellRoute(url)
+  return true
+}
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -119,17 +147,17 @@ function firstArray(...values) {
 
 function buildBusinessSummary(rawSummary = {}) {
   const source = rawSummary || {}
-  const activeCount = getCount(firstDefined(source.activeCount, source.ongoingCount, source.processingCount), DEFAULT_BUSINESS_SUMMARY.activeCount)
-  const pendingSettlementCount = getCount(firstDefined(source.pendingSettlementCount, source.settlementCount, source.waitingSettlementCount), DEFAULT_BUSINESS_SUMMARY.pendingSettlementCount)
-  const completedCount = getCount(firstDefined(source.completedCount, source.completeCount, source.doneCount), DEFAULT_BUSINESS_SUMMARY.completedCount)
-  const disputeCount = getCount(firstDefined(source.disputeCount, source.canceledCount, source.cancelledCount, source.refundCount), DEFAULT_BUSINESS_SUMMARY.disputeCount)
+  const activeCount = getCount(firstDefined(source.activeCount, source.ongoingCount, source.processingCount), EMPTY_BUSINESS_SUMMARY.activeCount)
+  const pendingSettlementCount = getCount(firstDefined(source.pendingSettlementCount, source.settlementCount, source.waitingSettlementCount), EMPTY_BUSINESS_SUMMARY.pendingSettlementCount)
+  const completedCount = getCount(firstDefined(source.completedCount, source.completeCount, source.doneCount), EMPTY_BUSINESS_SUMMARY.completedCount)
+  const disputeCount = getCount(firstDefined(source.disputeCount, source.canceledCount, source.cancelledCount, source.refundCount), EMPTY_BUSINESS_SUMMARY.disputeCount)
   const amount = firstDefined(source.amountText, source.serviceIncomeText, source.monthlyServiceIncomeText, source.monthlyIncomeText)
 
   return {
-    label: source.label || source.title || DEFAULT_BUSINESS_SUMMARY.label,
+    label: source.label || source.title || EMPTY_BUSINESS_SUMMARY.label,
     amount: amount || formatCurrency(
       firstDefined(source.amount, source.serviceIncome, source.monthlyServiceIncome, source.monthlyIncome),
-      DEFAULT_BUSINESS_SUMMARY.amount
+      EMPTY_BUSINESS_SUMMARY.amount
     ),
     activeCount,
     pendingSettlementCount,
@@ -178,11 +206,10 @@ function getTabKeyByStatus(statusType) {
 }
 
 function getDefaultOrder(statusType) {
-  if (statusType === 'complete') {
-    return DEFAULT_BUSINESS_ORDERS.find((item) => item.id === 'business-complete-001') || DEFAULT_BUSINESS_ORDERS[0] || {}
+  return {
+    ...EMPTY_BUSINESS_ORDER,
+    statusType
   }
-
-  return DEFAULT_BUSINESS_ORDERS.find((item) => item.statusType === statusType) || DEFAULT_BUSINESS_ORDERS[0] || {}
 }
 
 function splitTitleAndAmount(value) {
@@ -222,7 +249,7 @@ function buildAvatarText(rawOrder, fallback) {
 }
 
 function normalizeTimeline(rawTimeline, fallbackTimeline) {
-  const source = Array.isArray(rawTimeline) && rawTimeline.length ? rawTimeline : fallbackTimeline || DEFAULT_TIMELINE
+  const source = Array.isArray(rawTimeline) && rawTimeline.length ? rawTimeline : fallbackTimeline || EMPTY_TIMELINE
 
   return source.map((item, index) => {
     const state = normalizeStageState(item.state || item.status || item.statusType || item.type, index)
@@ -256,7 +283,7 @@ function normalizeStageState(value, index) {
   return index === 0 ? 'done' : index === 1 ? 'current' : 'future'
 }
 
-function normalizeSettlementRows(rawOrder, fallback = {}) {
+function normalizeSettlementRows(rawOrder, fallback) {
   const sourceRows = Array.isArray(rawOrder.settlementRows) && rawOrder.settlementRows.length
     ? rawOrder.settlementRows
     : fallback.settlementRows
@@ -269,7 +296,19 @@ function normalizeSettlementRows(rawOrder, fallback = {}) {
     }))
   }
 
-  return []
+  const rows = []
+  const durationText = firstDefined(rawOrder.actualDurationText, rawOrder.serviceDurationText)
+  const incomeText = firstDefined(rawOrder.actualIncomeText, rawOrder.settlementAmountText)
+
+  if (durationText) {
+    rows.push({ label: '实际服务时长', value: durationText })
+  }
+
+  if (incomeText) {
+    rows.push({ label: '实际收入', value: incomeText, highlight: true })
+  }
+
+  return rows
 }
 
 function hasSettlementRows(rawOrder, statusText) {
@@ -364,7 +403,7 @@ function normalizeBusinessOrder(rawOrder = {}, index = 0) {
   const shouldAutoShowGuide = statusType === 'active' || (statusType === 'complete' && !isEarlyComplete)
 
   return {
-    id: rawOrder.id || rawOrder.orderId || rawOrder.gameId || `business-order-${index}`,
+    id: rawOrder.id || rawOrder.orderId || rawOrder.gameId || '',
     serviceOrderId: rawOrder.serviceOrderId || rawOrder.orderId || rawOrder.id || '',
     gameId: rawOrder.gameId || service.gameId || '',
     playerId: player.id || rawOrder.playerId || '',
@@ -401,10 +440,15 @@ function normalizeBusinessOrder(rawOrder = {}, index = 0) {
       rawOrder.progressTimeline,
       rawOrder.statusTimeline
     ), fallback.timeline),
-    primaryActionText: rawOrder.primaryActionText || fallback.primaryActionText || '提前结束交付',
-    secondaryActionText: rawOrder.secondaryActionText || fallback.secondaryActionText || '取消并赔付',
-    playerActionText: rawOrder.playerActionText || fallback.playerActionText || '联系玩家',
-    guideActionText: rawOrder.guideActionText || fallback.guideActionText || '联系领路人',
+    primaryActionText: rawOrder.primaryActionText || fallback.primaryActionText,
+    secondaryActionText: rawOrder.secondaryActionText || fallback.secondaryActionText,
+    playerActionText: rawOrder.playerActionText || fallback.playerActionText,
+    guideActionText: rawOrder.guideActionText || fallback.guideActionText,
+    deliveryRoute: firstDefined(actionConfig.finishDeliveryRoute, actionConfig.deliveryRoute, rawOrder.finishDeliveryRoute, rawOrder.deliveryRoute),
+    expertCancelRoute: firstDefined(actionConfig.expertCancelRoute, actionConfig.cancelRoute, rawOrder.expertCancelRoute, rawOrder.cancelRoute),
+    contactPlayerRoute: firstDefined(actionConfig.contactPlayerRoute, rawOrder.contactPlayerRoute),
+    contactGuideRoute: firstDefined(actionConfig.contactGuideRoute, rawOrder.contactGuideRoute),
+    reviewRoute: firstDefined(actionConfig.reviewRoute, rawOrder.reviewRoute),
     canFinishDelivery: firstDefined(actionConfig.canFinishDelivery, rawOrder.canFinishDelivery, true),
     canCancelWithCompensation: firstDefined(actionConfig.canCancelWithCompensation, rawOrder.canCancelWithCompensation, true),
     canContactPlayer: firstDefined(actionConfig.canContactPlayer, rawOrder.canContactPlayer, true),
@@ -414,11 +458,11 @@ function normalizeBusinessOrder(rawOrder = {}, index = 0) {
     reviewed: reviewState.reviewed,
     reviewDisabled: reviewState.reviewed,
     reviewActionText: reviewState.reviewActionText,
-    completeSummary: rawOrder.completeSummary || rawOrder.completedSummary || fallback.completeSummary || '服务已完成',
+    completeSummary: rawOrder.completeSummary || rawOrder.completedSummary || fallback.completeSummary,
     completedAt: rawOrder.completedAtText || rawOrder.completedAt || fallback.completedAtText || fallback.completedAt,
-    resultText: rawOrder.resultText || fallback.resultText || '双方已确认，收入已进入结算',
-    reasonSummary: rawOrder.reasonSummary || rawOrder.cancelSummary || fallback.reasonSummary || '争议处理中',
-    reasonText: rawOrder.reasonText || rawOrder.cancelReasonText || rawOrder.reason || fallback.reasonText || '请关注双方协商与平台处理结果'
+    resultText: rawOrder.resultText || fallback.resultText,
+    reasonSummary: rawOrder.reasonSummary || rawOrder.cancelSummary || fallback.reasonSummary,
+    reasonText: rawOrder.reasonText || rawOrder.cancelReasonText || rawOrder.reason || fallback.reasonText
   }
 }
 
@@ -470,7 +514,17 @@ function buildDisplayState(orders, activeTabKey) {
   }
 }
 
-const INITIAL_BUSINESS_SUMMARY = buildBusinessSummary(DEFAULT_BUSINESS_SUMMARY)
+function findOrderByEvent(orders = [], event = {}) {
+  const orderId = event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.id : ''
+
+  if (!orderId) {
+    return null
+  }
+
+  return orders.find((item) => String(item.id) === String(orderId)) || null
+}
+
+const INITIAL_BUSINESS_SUMMARY = buildBusinessSummary(EMPTY_BUSINESS_SUMMARY)
 const INITIAL_BUSINESS_ORDERS = []
 const INITIAL_DISPLAY_STATE = buildDisplayState(INITIAL_BUSINESS_ORDERS, 'active')
 
@@ -531,9 +585,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameHall}`
-    })
+    navigateShellRoute(ROUTES.gameHall)
   },
 
   onTabTap(event) {
@@ -550,16 +602,36 @@ Page({
     })
   },
 
-  onEndDelivery() {
-    toast.info('提前结束交付功能开发中')
+  onEndDelivery(event = {}) {
+    const order = findOrderByEvent(this.data.orders, event)
+
+    if (!order || !order.gameId) {
+      toast.info('暂无可结束的业务')
+      return
+    }
+
+    if (navigateRoute(order.deliveryRoute)) {
+      return
+    }
+
+    const params = [
+      `gameId=${encodeURIComponent(order.gameId)}`,
+      `mode=${encodeURIComponent('paid')}`,
+      `note=${encodeURIComponent('确认服务完成')}`
+    ].join('&')
+
+    navigateShellRoute(`${ROUTES.gameDelivery}?${params}`)
   },
 
   onCancelWithCompensation(event = {}) {
-    const orderId = event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.id : ''
-    const order = this.data.orders.find((item) => item.id === orderId) || this.data.displayOrders[0]
+    const order = findOrderByEvent(this.data.orders, event)
 
     if (!order) {
-      toast.info('取消服务确认页待接入')
+      toast.info('暂无可取消的业务')
+      return
+    }
+
+    if (navigateRoute(order.expertCancelRoute)) {
       return
     }
 
@@ -574,20 +646,59 @@ Page({
       `statusText=${encodeURIComponent(order.statusText || '')}`
     ].join('&')
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameExpertCancel}?${params}`
-    })
+    navigateShellRoute(`${ROUTES.gameExpertCancel}?${params}`)
   },
 
-  onContactPlayer() {
-    toast.info('联系玩家功能开发中')
+  onContactPlayer(event = {}) {
+    const order = findOrderByEvent(this.data.orders, event)
+
+    if (!order || !order.gameId) {
+      toast.info('暂无可联系的玩家')
+      return
+    }
+
+    if (navigateRoute(order.contactPlayerRoute)) {
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.imRoom}?gameId=${encodeURIComponent(order.gameId)}&prefill=${encodeURIComponent('你好，想和你确认一下服务进度。')}`)
   },
 
-  onContactGuide() {
-    toast.info('联系领路人功能开发中')
+  onContactGuide(event = {}) {
+    const order = findOrderByEvent(this.data.orders, event)
+
+    if (!order || !order.gameId) {
+      toast.info('暂无可联系的领路人')
+      return
+    }
+
+    if (navigateRoute(order.contactGuideRoute)) {
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.imRoom}?gameId=${encodeURIComponent(order.gameId)}&prefill=${encodeURIComponent('你好，辛苦同步一下组局进度。')}`)
   },
 
-  onReviewBoth() {
-    toast.info('评价双方功能开发中')
+  onReviewBoth(event = {}) {
+    const order = findOrderByEvent(this.data.orders, event)
+
+    if (!order || !order.gameId) {
+      toast.info('暂无可评价的业务')
+      return
+    }
+
+    if (navigateRoute(order.reviewRoute)) {
+      return
+    }
+
+    const params = [
+      `gameId=${encodeURIComponent(order.gameId)}`,
+      `targetUserId=${encodeURIComponent(order.playerId || order.guideId || '')}`,
+      `targetRole=${encodeURIComponent('member')}`,
+      `title=${encodeURIComponent(order.title || '')}`,
+      `name=${encodeURIComponent(order.name || '')}`
+    ].join('&')
+
+    navigateShellRoute(`${ROUTES.gameReview}?${params}`)
   }
 })

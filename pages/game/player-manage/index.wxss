@@ -651,3 +651,16 @@ page {
   background: #f3f4f6;
   opacity: 1;
 }
+
+.manage-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 686rpx;
+  height: 180rpx;
+  margin: 32rpx auto 0;
+  border-radius: 24rpx;
+  color: #9ca3af;
+  font-size: 26rpx;
+  background: #ffffff;
+}

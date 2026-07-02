@@ -143,6 +143,10 @@
             </view>
           </block>
         </view>
+
+        <view wx:if="{{!hasDisplayOrders}}" class="manage-empty">
+          <text>{{emptyText}}</text>
+        </view>
       </view>
     </scroll-view>
 

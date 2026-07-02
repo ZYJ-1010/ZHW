@@ -1,34 +1,15 @@
 const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const gameService = require('../../../services/game')
 
-function normalizeBoolean(value) {
-  if (typeof value === 'boolean') {
-    return value
-  }
+const DEFAULT_PAYMENT_AMOUNT = 0
+const PAYMENT_SPLITS = []
 
-  if (typeof value === 'string') {
-    return value === 'true' || value === '1'
-  }
-
-  return Boolean(value)
-}
-
-function normalizePaymentSplit(split = {}) {
-  return {
-    key: split.key || split.type || '',
-    marker: split.marker || '',
-    label: split.label || split.name || '',
-    amount: split.amount,
-    amountText: split.amountText || split.value || '',
-    desc: split.desc || split.description || ''
-  }
-}
-
-function buildFeeBreakdown(splits = []) {
+function buildFeeBreakdown(splits = PAYMENT_SPLITS) {
   return splits.map((item) => ({
-    marker: item.marker || '',
-    label: item.label || '',
-    value: item.desc ? `${item.amountText || item.amount || ''}（${item.desc}）` : (item.amountText || item.amount || '')
+    marker: item.marker,
+    label: item.label,
+    value: item.desc ? `${item.amountText}（${item.desc}）` : item.amountText
   }))
 }
 
@@ -42,7 +23,7 @@ function buildPaymentPayload(data = {}) {
     payChannel: 'wechat',
     amount: Number(payment.amount || 0),
     currency: payment.currency || 'CNY',
-    agreementChecked: normalizeBoolean(data.agreementChecked),
+    agreementChecked: Boolean(data.agreementChecked),
     splits: splits.map((item) => ({
       key: item.key,
       label: item.label,
@@ -64,43 +45,10 @@ function normalizeWechatPaymentParams(result = {}) {
   }
 }
 
-function normalizeRule(rule = {}) {
-  return {
-    icon: rule.icon || '',
-    type: rule.type || '',
-    text: rule.text || rule.content || ''
-  }
-}
-
-function normalizePaymentConfig(data = {}, fallbackGameId = '') {
-  const payment = data.payment || data
-  const paymentSplits = Array.isArray(data.paymentSplits || data.splits || data.feeSplits)
-    ? (data.paymentSplits || data.splits || data.feeSplits).map(normalizePaymentSplit)
-    : []
-  const rules = Array.isArray(data.rules || data.ruleItems)
-    ? (data.rules || data.ruleItems).map(normalizeRule)
-    : []
-
-  return {
-    onlineText: data.onlineText || '3999人在线',
-    agreementChecked: normalizeBoolean(data.agreementChecked),
-    payment: {
-      gameId: payment.gameId || data.gameId || fallbackGameId || '',
-      amount: payment.amount || data.amount || '',
-      currency: payment.currency || data.currency || 'CNY'
-    },
-    paymentSplits,
-    feeBreakdown: buildFeeBreakdown(paymentSplits),
-    rules,
-    pointsDescription: data.pointsDescription || data.pointsText || ''
-  }
-}
-
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线',
     agreementChecked: false,
-    loading: false,
     paymentSubmitting: false,
     navItems: [
       { name: '我的', active: false },
@@ -111,49 +59,25 @@ Page({
     ],
     payment: {
       gameId: '',
-      amount: '',
+      amount: DEFAULT_PAYMENT_AMOUNT,
       currency: 'CNY'
     },
-    paymentSplits: [],
-    feeBreakdown: [],
-    rules: [],
-    pointsDescription: ''
+    paymentSplits: PAYMENT_SPLITS,
+    feeBreakdown: buildFeeBreakdown(PAYMENT_SPLITS),
+    rules: [
+      { icon: '✅', type: 'success', text: '一期免费局不发起真实微信支付' },
+      { icon: '💡', type: 'warning', text: '收费、押金、分账能力由后端订单接口返回后展示' }
+    ],
+    pointsDescription: '免费局确认后进入组局流程，积分与成长由服务确认和评价链路沉淀。'
   },
 
   onLoad(options = {}) {
-    this.setData({
-      'payment.gameId': options.gameId || options.id || ''
-    })
-    this.loadPaymentConfig(options)
-  },
-
-  async loadPaymentConfig(options = {}) {
-    const gameId = options.gameId || options.id || this.data.payment.gameId || ''
+    const amount = Number(options.amount)
 
     this.setData({
-      loading: true
+      'payment.gameId': options.gameId || options.id || '',
+      'payment.amount': Number.isFinite(amount) && amount >= 0 ? amount : DEFAULT_PAYMENT_AMOUNT
     })
-
-    try {
-      const data = await gameService.getGamePaymentConfig({
-        ...options,
-        gameId
-      })
-
-      this.setData({
-        ...normalizePaymentConfig(data, gameId),
-        loading: false
-      })
-    } catch (error) {
-      this.setData({
-        ...normalizePaymentConfig({}, gameId),
-        loading: false
-      })
-      wx.showToast({
-        title: error.message || '支付配置加载失败',
-        icon: 'none'
-      })
-    }
   },
 
   toggleAgreement() {
@@ -169,15 +93,11 @@ Page({
     }
 
     if (this.data.payment.gameId) {
-      wx.redirectTo({
-        url: `/${ROUTES.gameDetail}?gameId=${this.data.payment.gameId}`
-      })
+      navigateShellRoute(`/${ROUTES.gameDetail}?gameId=${this.data.payment.gameId}`)
       return
     }
 
-    wx.redirectTo({
-      url: `/${ROUTES.gameHall}`
-    })
+    navigateShellRoute(ROUTES.gameHall)
   },
 
   async handleWechatPay() {
@@ -201,6 +121,18 @@ Page({
 
     try {
       const order = await gameService.createGamePayment(buildPaymentPayload(this.data))
+      this.applyOrderPayment(order)
+
+      if (order.needWechatPay === false) {
+        this.handlePlaceholderPaymentSuccess(order)
+        return
+      }
+
+      if (order.mockPayment) {
+        this.handlePlaceholderPaymentSuccess(order)
+        return
+      }
+
       const paymentParams = normalizeWechatPaymentParams(order)
 
       await this.requestWechatPayment(paymentParams)
@@ -222,10 +154,40 @@ Page({
   showAgreementRequired() {
     wx.showModal({
       title: '请先勾选规则',
-      content: '请勾选“我已了解并同意押金局规则”后再继续微信支付。',
+      content: '请勾选“我已了解并同意当前组局规则”后再确认订单。',
       showCancel: false,
       confirmText: '知道了'
     })
+  },
+
+  applyOrderPayment(order = {}) {
+    const source = order.payment || order.order || order
+    const amount = Number(source.amount || source.totalAmount || source.amountYuan || 0)
+    const splits = Array.isArray(order.paymentSplits) ? order.paymentSplits : []
+
+    this.setData({
+      payment: {
+        ...this.data.payment,
+        gameId: source.gameId || this.data.payment.gameId,
+        amount: Number.isFinite(amount) ? amount : 0,
+        currency: source.currency || this.data.payment.currency || 'CNY'
+      },
+      paymentSplits: splits,
+      feeBreakdown: buildFeeBreakdown(splits)
+    })
+  },
+
+  handlePlaceholderPaymentSuccess(order = {}) {
+    const gameId = order.gameId || (order.order && order.order.gameId) || this.data.payment.gameId
+    this.showInfo('已确认，无需微信支付')
+
+    if (!gameId) {
+      return
+    }
+
+    setTimeout(() => {
+      navigateShellRoute(`/${ROUTES.gameDetail}?gameId=${encodeURIComponent(gameId)}`)
+    }, 500)
   },
 
   requestWechatPayment(paymentParams) {
@@ -248,16 +210,14 @@ Page({
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
 
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gamePayment
+    })) {
       return
     }
 
     if (key === 'search') {
-      this.showInfo('搜索功能开发中')
+      this.navigateToRoute(ROUTES.gameHall)
       return
     }
 
@@ -272,9 +232,9 @@ Page({
     }
 
     const routeMap = {
-      home: ROUTES.home,
+      home: ROUTES.playerHome || ROUTES.home,
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -285,9 +245,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   showInfo(title) {

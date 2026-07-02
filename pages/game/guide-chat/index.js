@@ -1,31 +1,13 @@
 const { ROUTES } = require('../../../config/routes')
-const gameService = require('../../../services/game')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const imService = require('../../../services/im')
+const chatMedia = require('../../../services/chat-media')
 
 const CHAT_SCROLL_TAP_STEP_RPX = 360
 const CHAT_SCROLL_HOLD_STEP_RPX = 72
 const CHAT_SCROLL_HOLD_INTERVAL_MS = 80
 const CHAT_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
-
-const EMPTY_GUIDE_ASSISTANT_CARD = {
-  title: '',
-  guideLabel: '',
-  guideName: '',
-  player: {
-    name: '',
-    avatarText: '',
-    role: '',
-    desc: ''
-  },
-  submittedDemand: {
-    targetRole: '',
-    actionText: ''
-  },
-  game: {
-    dateText: '',
-    location: ''
-  }
-}
 
 function decodeQueryText(value = '') {
   try {
@@ -35,88 +17,29 @@ function decodeQueryText(value = '') {
   }
 }
 
-function decodeOptions(options = {}) {
-  return Object.keys(options).reduce((result, key) => {
-    result[key] = decodeQueryText(options[key])
-    return result
-  }, {})
+function getAvatarText(name = '') {
+  return getSurnameInitials(name, '我')
 }
 
-function normalizePlayer(player = {}) {
-  const name = player.name || player.nickname || ''
+function buildGuideMessage(card) {
+  const player = card.player || {}
+  const demand = card.submittedDemand || {}
+  const playerName = player.name || ''
+  const playerRole = player.role || '成员'
+  const targetRole = demand.targetRole || ''
+  const actionText = demand.actionText || ''
 
-  return {
-    name,
-    avatarText: player.avatarText || getSurnameInitials(name, ''),
-    role: player.role || player.roleName || '',
-    desc: player.desc || player.description || ''
-  }
-}
-
-function normalizeGuideAssistantCard(card = {}) {
-  const player = normalizePlayer(card.player || card.targetUser || {})
-  const demand = card.submittedDemand || card.demand || {}
-  const game = card.game || card.session || {}
-
-  return {
-    title: card.title || '',
-    guideLabel: card.guideLabel || card.referrerLabel || '',
-    guideName: card.guideName || card.referrerName || '',
-    player,
-    submittedDemand: {
-      targetRole: demand.targetRole || demand.role || '',
-      actionText: demand.actionText || demand.text || ''
-    },
-    game: {
-      dateText: game.dateText || game.timeText || game.startTimeText || '',
-      location: game.location || game.locationText || ''
-    }
-  }
-}
-
-function normalizeSentMessage(message = {}, fallbackText = '', fallbackId = '') {
-  const text = message.text || message.content || message.message || fallbackText
-
-  if (!text) {
-    return null
+  if (!playerName || !targetRole || !actionText) {
+    return ''
   }
 
-  return {
-    id: String(message.id || message.messageId || fallbackId),
-    text
-  }
-}
-
-function normalizeGuideChatContext(data = {}) {
-  const card = normalizeGuideAssistantCard(data.guideAssistantCard || data.assistantCard || data.card || {})
-  const messages = Array.isArray(data.sentMessages || data.messages)
-    ? (data.sentMessages || data.messages).map((message, index) => normalizeSentMessage(message, '', `message-${index}`)).filter(Boolean)
-    : []
-
-  return {
-    onlineText: data.onlineText || '3999人在线',
-    pageTitle: data.pageTitle || data.title || '',
-    invitationId: data.invitationId || data.gameInvitationId || '',
-    gameId: data.gameId || '',
-    serviceOrderId: data.serviceOrderId || '',
-    guideId: data.guideId || data.referrerId || '',
-    sender: {
-      avatarText: data.sender && data.sender.avatarText || ''
-    },
-    guideAssistantCard: card,
-    guideMessageText: data.guideMessageText || data.messageText || '',
-    sentMessages: messages
-  }
+  return `"${playerName}是我认识的${playerRole}，正在找${targetRole}${actionText}，我觉得你们很匹配，要不要聊聊？"`
 }
 
 Page({
   data: {
-    onlineText: '3999人在线',
-    pageTitle: '',
-    invitationId: '',
-    gameId: '',
-    serviceOrderId: '',
-    guideId: '',
+    onlineText: '在线',
+    pageTitle: '小程序通知',
     chatScrollTop: 0,
     navItems: [
       { name: '我的', active: false },
@@ -126,136 +49,143 @@ Page({
       { name: '首页', active: true }
     ],
     sender: {
-      avatarText: ''
+      avatarText: 'ME'
     },
-    guideAssistantCard: EMPTY_GUIDE_ASSISTANT_CARD,
+    guideAssistantCard: {
+      title: '收到组局邀请',
+      guideLabel: '领路人',
+      guideName: '我',
+      player: {
+        name: '',
+        avatarText: '',
+        role: '',
+        desc: ''
+      },
+      submittedDemand: {
+        targetRole: '',
+        actionText: ''
+      },
+      game: {
+        dateText: '',
+        location: ''
+      }
+    },
+    hasGuideCard: false,
     guideMessageText: '',
     sentMessages: [],
-    loading: false,
-    responding: false,
-    sending: false
+    gameId: 0
   },
 
   onLoad(options = {}) {
-    this.localMessageSeq = 0
-    this.loadGuideChatContext(options)
-  },
+    const playerName = decodeQueryText(options.playerName || options.name || '')
+    const playerDesc = decodeQueryText(options.playerDesc || options.desc || '')
+    const playerRole = decodeQueryText(options.playerRole || options.playerTitle || options.role || '')
+    const demandTargetRole = decodeQueryText(options.demandTargetRole || options.expertRole || options.expertTitle || '')
+    const demandAction = decodeQueryText(options.demandAction || options.demandText || options.requirement || '')
+    const referrerName = decodeQueryText(options.referrerName || options.guideName || '')
+    const dateText = decodeQueryText(options.dateText || '')
+    const location = decodeQueryText(options.location || '')
+    const gameId = Number(options.gameId || options.sourceGameId || 0)
 
-  async loadGuideChatContext(options = {}) {
-    const context = decodeOptions(options)
-
-    this.setData({
-      invitationId: context.invitationId || context.gameInvitationId || '',
-      gameId: context.gameId || context.id || '',
-      serviceOrderId: context.serviceOrderId || context.orderId || '',
-      guideId: context.guideId || context.referrerId || '',
-      loading: true
-    })
-
-    try {
-      const data = await gameService.getGuideChatContext({
-        ...context,
-        invitationId: context.invitationId || context.gameInvitationId || '',
-        gameId: context.gameId || context.id || '',
-        serviceOrderId: context.serviceOrderId || context.orderId || '',
-        guideId: context.guideId || context.referrerId || ''
-      })
-
-      this.setData({
-        ...normalizeGuideChatContext(data),
-        loading: false
-      })
-    } catch (error) {
-      this.setData({
-        ...normalizeGuideChatContext({}),
-        loading: false
-      })
-      wx.showToast({
-        title: error.message || '聊天信息加载失败',
-        icon: 'none'
-      })
+    const nextData = {
+      gameId: Number.isInteger(gameId) && gameId > 0 ? gameId : 0
     }
+    const guideAssistantCard = {
+      ...this.data.guideAssistantCard,
+      player: {
+        ...this.data.guideAssistantCard.player
+      },
+      submittedDemand: {
+        ...this.data.guideAssistantCard.submittedDemand
+      },
+      game: {
+        ...this.data.guideAssistantCard.game
+      }
+    }
+
+    if (playerName) {
+      guideAssistantCard.player.name = playerName
+      guideAssistantCard.player.avatarText = getAvatarText(playerName)
+    }
+
+    if (playerDesc) {
+      guideAssistantCard.player.desc = playerDesc
+    }
+
+    if (playerRole) {
+      guideAssistantCard.player.role = playerRole
+    }
+
+    if (demandTargetRole) {
+      guideAssistantCard.submittedDemand.targetRole = demandTargetRole
+    }
+
+    if (demandAction) {
+      guideAssistantCard.submittedDemand.actionText = demandAction
+    }
+
+    if (referrerName) {
+      guideAssistantCard.guideName = referrerName
+    }
+
+    if (dateText) {
+      guideAssistantCard.game.dateText = dateText
+    }
+
+    if (location) {
+      guideAssistantCard.game.location = location
+    }
+
+    nextData.guideAssistantCard = guideAssistantCard
+    nextData.guideMessageText = buildGuideMessage(guideAssistantCard)
+    nextData.hasGuideCard = Boolean(
+      guideAssistantCard.player.name ||
+      guideAssistantCard.submittedDemand.targetRole ||
+      guideAssistantCard.submittedDemand.actionText ||
+      guideAssistantCard.game.dateText ||
+      guideAssistantCard.game.location
+    )
+
+    this.setData(nextData)
   },
 
   onAcceptTap() {
-    this.handleInvitationResponse('accept')
+    this.showInfo('已确认参加')
   },
 
   onDeclineTap() {
-    this.handleInvitationResponse('decline')
-  },
-
-  async handleInvitationResponse(action) {
-    if (this.data.responding) {
-      return
-    }
-
-    this.setData({
-      responding: true
-    })
-
-    try {
-      await gameService.respondGuideChatInvitation({
-        invitationId: this.data.invitationId,
-        gameId: this.data.gameId,
-        serviceOrderId: this.data.serviceOrderId,
-        guideId: this.data.guideId,
-        action
-      })
-      wx.showToast({
-        title: '已提交',
-        icon: 'none'
-      })
-    } catch (error) {
-      wx.showToast({
-        title: error.message || '处理失败',
-        icon: 'none'
-      })
-    } finally {
-      this.setData({
-        responding: false
-      })
-    }
+    this.showInfo('已婉拒')
   },
 
   async onSendMessage(event) {
     const value = String(event.detail && event.detail.value || '').trim()
 
-    if (!value || this.data.sending) {
+    if (!value) {
       return
     }
 
-    this.setData({
-      sending: true
+    if (this.data.gameId) {
+      try {
+        await imService.sendMessage(this.data.gameId, {
+          messageType: 'text',
+          content: value
+        })
+      } catch (error) {
+        this.showInfo(error && error.message ? error.message : '发送失败')
+        return
+      }
+    }
+
+    const sentMessages = this.data.sentMessages.concat({
+      id: `message-${Date.now()}`,
+      text: value
     })
 
-    try {
-      const result = await gameService.sendGuideChatMessage({
-        invitationId: this.data.invitationId,
-        gameId: this.data.gameId,
-        serviceOrderId: this.data.serviceOrderId,
-        guideId: this.data.guideId,
-        message: value
-      })
-      const nextMessage = normalizeSentMessage(result && (result.message || result), value, `local-message-${++this.localMessageSeq}`)
-
-      if (nextMessage) {
-        this.setData({
-          sentMessages: this.data.sentMessages.concat(nextMessage),
-          chatScrollTop: 999999
-        })
-        this.chatScrollTopValue = 999999
-      }
-    } catch (error) {
-      wx.showToast({
-        title: error.message || '消息发送失败',
-        icon: 'none'
-      })
-    } finally {
-      this.setData({
-        sending: false
-      })
-    }
+    this.setData({
+      sentMessages,
+      chatScrollTop: 999999
+    })
+    this.chatScrollTopValue = 999999
   },
 
   onRecordStart() {
@@ -263,19 +193,42 @@ Page({
   },
 
   onRecordStop() {
-    this.showInfo('录音发送功能待接入')
+    this.showInfo('当前支持文字、图片和文件消息')
   },
 
   onRecordError() {
     this.showInfo('录音失败')
   },
 
-  onChooseImage() {
-    this.showInfo('图片发送功能待接入')
+  onChooseImage(event) {
+    this.sendMediaMessage('image', event)
   },
 
-  onChooseFile() {
-    this.showInfo('文件发送功能待接入')
+  onChooseFile(event) {
+    this.sendMediaMessage('file', event)
+  },
+
+  async sendMediaMessage(messageType, event) {
+    if (!this.data.gameId) {
+      this.showInfo('请从局内消息入口发送文件')
+      return
+    }
+
+    try {
+      const result = await chatMedia.sendChosenFile(this.data.gameId, event, messageType)
+      const sentMessages = this.data.sentMessages.concat({
+        id: `message-${Date.now()}`,
+        text: result.text
+      })
+
+      this.setData({
+        sentMessages,
+        chatScrollTop: 999999
+      })
+      this.chatScrollTopValue = 999999
+    } catch (error) {
+      this.showInfo(error && error.message ? error.message : '发送失败')
+    }
   },
 
   handleShellNavTap(event) {
@@ -288,8 +241,9 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      this.showInfo('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameGuideChat
+    })) {
       return
     }
 
@@ -318,7 +272,7 @@ Page({
 
   handleShellAction(key) {
     if (key === 'home') {
-      this.scrollChatToTop()
+      this.navigateToRoute(ROUTES.playerHome || ROUTES.home)
       return
     }
 
@@ -329,8 +283,8 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ROUTES.gameHall,
-      message: ROUTES.gameCreate
+      map: ROUTES.map,
+      message: ROUTES.message
     }
 
     this.navigateToRoute(routeMap[key])
@@ -341,9 +295,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleChatScroll(event) {

@@ -1,4 +1,5 @@
-﻿const { ROUTES } = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
 
@@ -7,7 +8,8 @@ const INVITE_SCROLL_HOLD_STEP_RPX = 72
 const INVITE_SCROLL_HOLD_INTERVAL_MS = 80
 const INVITE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-const DEFAULT_BUDGET_MAX_AMOUNT = 99999999
+const EMPTY_BUDGET = ''
+const MAX_BUDGET_AMOUNT = 99999999
 const EMPTY_REWARD_RATE_CONFIG = {
   platformServiceRate: 0,
   systemGuideRewardRate: 0,
@@ -16,10 +18,17 @@ const EMPTY_REWARD_RATE_CONFIG = {
 const WORK_IMAGE_MAX_COUNT = 3
 const WORK_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 const EMPTY_INVITE_PLAYER_RULE = {
-  minPlayerCount: 0,
-  maxPlayerCount: 0
+  minPlayerCount: 1,
+  maxPlayerCount: 1
 }
-let workImageIdSeed = 0
+const EMPTY_ACTIVITY_TYPES = []
+const EMPTY_EXPERT = {
+  name: '',
+  avatarText: '',
+  roleName: '',
+  desc: '',
+  tags: []
+}
 
 function formatRateText(rate) {
   return `${rate}%`
@@ -66,10 +75,10 @@ function calculateReward(budget, rateConfig = EMPTY_REWARD_RATE_CONFIG) {
   }
 }
 
-function normalizeBudgetInput(value, maxAmount = DEFAULT_BUDGET_MAX_AMOUNT) {
+function normalizeBudgetInput(value, maxAmount = MAX_BUDGET_AMOUNT) {
   const safeMaxAmount = Number.isInteger(Number(maxAmount)) && Number(maxAmount) > 0
     ? Number(maxAmount)
-    : DEFAULT_BUDGET_MAX_AMOUNT
+    : MAX_BUDGET_AMOUNT
   const maxInputLength = String(safeMaxAmount).length + 1
   const digits = String(value || '')
     .replace(/\D/g, '')
@@ -116,7 +125,7 @@ function createWorkImage(file = {}, index = 0) {
   const name = getFileName(file) || `作品图片${index + 1}.jpg`
 
   return {
-    id: `work-image-${workImageIdSeed += 1}-${index}`,
+    id: `work-image-${Date.now()}-${index}`,
     src: path,
     name,
     desc: ''
@@ -143,7 +152,7 @@ function createWorkImageSlots(images = []) {
 }
 
 function normalizeInvitePlayerRule(config = {}) {
-  const minPlayerCount = Math.max(0, parsePositiveInteger(config.minPlayerCount, EMPTY_INVITE_PLAYER_RULE.minPlayerCount))
+  const minPlayerCount = Math.max(1, parsePositiveInteger(config.minPlayerCount, EMPTY_INVITE_PLAYER_RULE.minPlayerCount))
   const maxPlayerCount = Math.max(minPlayerCount, parsePositiveInteger(config.maxPlayerCount, EMPTY_INVITE_PLAYER_RULE.maxPlayerCount))
 
   return {
@@ -161,17 +170,17 @@ function parsePositiveInteger(value, fallback) {
 function getAvatarText(player = {}) {
   const name = String(player.name || player.nickname || '').trim()
 
-  return getSurnameInitials(name, player.avatarText || '')
+  return getSurnameInitials(name, player.avatarText || 'WA')
 }
 
 function normalizeInvitePlayer(player = {}, index = 0) {
-  const id = String(player.id || player.userId || player.playerId || '')
+  const id = String(player.id || player.userId || player.playerId || `invite-player-${index}`)
 
   return {
     id,
     avatarText: getAvatarText(player),
     avatarClass: player.avatarClass || ['pink', 'teal', 'purple', 'blue', 'orange'][index % 5],
-    name: player.name || player.nickname || '',
+    name: player.name || player.nickname || '玩家',
     tag: player.tag || player.tagText || '',
     desc: player.desc || player.description || player.title || '',
     meta: player.meta || player.metaText || player.extraText || ''
@@ -181,61 +190,38 @@ function normalizeInvitePlayer(player = {}, index = 0) {
 function normalizeInvitePlayers(result) {
   const list = Array.isArray(result) ? result : (result && result.list) || []
 
-  return list.map(normalizeInvitePlayer).filter((item) => item.id)
+  return list.map(normalizeInvitePlayer)
 }
 
-function normalizeExpert(expert = {}) {
-  const name = expert.name || expert.nickname || ''
+function normalizeActivityTypes(config = {}) {
+  const list = Array.isArray(config.activityTypes) ? config.activityTypes : []
+
+  return list
+    .filter((item) => item && item.key && item.name)
+    .map((item) => ({
+      key: String(item.key),
+      name: String(item.name)
+    }))
+}
+
+function normalizeInviteExpert(expert = {}) {
+  const name = String(expert.name || expert.nickname || '').trim()
 
   return {
-    id: expert.id || expert.userId || '',
     name,
-    avatarText: expert.avatarText || getSurnameInitials(name, ''),
-    roleName: expert.roleName || expert.roleText || '',
-    desc: expert.desc || expert.description || '',
+    avatarText: getSurnameInitials(name, expert.avatarText || 'EX'),
+    roleName: expert.roleLabel || expert.roleName || '行家',
+    desc: expert.desc || expert.description || expert.title || '',
     tags: Array.isArray(expert.tags) ? expert.tags : []
-  }
-}
-
-function normalizeActivityType(item = {}) {
-  return {
-    key: item.key || item.id || item.code || '',
-    name: item.name || item.title || ''
-  }
-}
-
-function normalizeInviteConfig(data = {}, currentForm = {}) {
-  const budgetMaxAmount = Number.isInteger(Number(data.budgetMaxAmount)) && Number(data.budgetMaxAmount) > 0
-    ? Number(data.budgetMaxAmount)
-    : DEFAULT_BUDGET_MAX_AMOUNT
-  const rewardRateConfig = normalizeRewardRateConfig(data.rewardRateConfig || data.rewardRates || {})
-  const budget = normalizeBudgetInput(currentForm.budget || data.defaultBudget || data.budget, budgetMaxAmount)
-  const activityTypes = Array.isArray(data.activityTypes || data.types)
-    ? (data.activityTypes || data.types).map(normalizeActivityType).filter((item) => item.key)
-    : []
-
-  return {
-    onlineText: data.onlineText || '3999人在线',
-    selectedType: data.selectedType || data.defaultType || activityTypes[0] && activityTypes[0].key || '',
-    expert: normalizeExpert(data.expert || {}),
-    activityTypes,
-    form: {
-      title: data.title || data.defaultTitle || '',
-      detail: data.detail || data.defaultDetail || '',
-      budget
-    },
-    budgetMaxAmount,
-    rewardRateConfig,
-    reward: calculateReward(budget, rewardRateConfig),
-    playerIntroMessage: data.playerIntroMessage || data.defaultPlayerIntroMessage || ''
   }
 }
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线',
     inviteStep: 1,
     inviteScrollTop: 0,
+    submittingInvite: false,
     selectedType: '',
     detailCount: 0,
     playerSearchKeyword: '',
@@ -244,8 +230,8 @@ Page({
     selectedPlayerCount: 0,
     minPlayerCount: EMPTY_INVITE_PLAYER_RULE.minPlayerCount,
     maxPlayerCount: EMPTY_INVITE_PLAYER_RULE.maxPlayerCount,
-    playerRuleText: '',
-    playerCountText: '',
+    playerRuleText: '至少 1 位，最多 1 位',
+    playerCountText: '已添加 0/1 位玩家',
     invitePlayerLoading: false,
     playerPickerVisible: false,
     playerPickerLoading: false,
@@ -254,7 +240,7 @@ Page({
     playerIntroMessage: '',
     playerIntroCount: 0,
     rewardRateConfig: EMPTY_REWARD_RATE_CONFIG,
-    reward: calculateReward('', EMPTY_REWARD_RATE_CONFIG),
+    reward: calculateReward(EMPTY_BUDGET, EMPTY_REWARD_RATE_CONFIG),
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -262,22 +248,17 @@ Page({
       { name: '消息', active: false },
       { name: '首页', active: true }
     ],
-    expert: {
-      id: '',
-      name: '',
-      avatarText: '',
-      roleName: '',
-      desc: '',
-      tags: []
-    },
-    activityTypes: [],
+    expert: EMPTY_EXPERT,
+    expertCandidates: [],
+    expertCandidateIndex: 0,
+    activityTypes: EMPTY_ACTIVITY_TYPES,
     players: [],
     form: {
       title: '',
       detail: '',
-      budget: ''
+      budget: EMPTY_BUDGET
     },
-    budgetMaxAmount: DEFAULT_BUDGET_MAX_AMOUNT,
+    budgetMaxAmount: MAX_BUDGET_AMOUNT,
     workImageMaxCount: WORK_IMAGE_MAX_COUNT,
     workImages: [],
     workImageSlots: createWorkImageSlots(),
@@ -292,39 +273,20 @@ Page({
 
   onLoad(options = {}) {
     const inviteStep = this.resolveInviteStep(options)
+    const gameId = options.gameId || options.id || options.sourceGameId || ''
 
     this.setData({
+      gameId,
+      sourceGameId: gameId,
       inviteStep,
       detailCount: String(this.data.form.detail || '').length,
       playerIntroCount: String(this.data.playerIntroMessage || '').length
     })
-    this.loadInviteConfig(options)
 
     if (inviteStep === 2) {
       this.loadInvitePlayerStep()
-    }
-  },
-
-  async loadInviteConfig(options = {}) {
-    try {
-      const config = await gameService.getGameInviteConfig(options)
-      const normalized = normalizeInviteConfig(config, this.data.form)
-
-      this.setData({
-        onlineText: normalized.onlineText,
-        selectedType: normalized.selectedType,
-        expert: normalized.expert,
-        activityTypes: normalized.activityTypes,
-        form: Object.assign({}, this.data.form, normalized.form),
-        budgetMaxAmount: normalized.budgetMaxAmount,
-        rewardRateConfig: normalized.rewardRateConfig,
-        reward: normalized.reward,
-        playerIntroMessage: normalized.playerIntroMessage,
-        playerIntroCount: normalized.playerIntroMessage.length,
-        detailCount: normalized.form.detail.length
-      })
-    } catch (error) {
-      this.showInfo(error.message || '邀请配置加载失败')
+    } else {
+      this.loadInviteConfig()
     }
   },
 
@@ -439,10 +401,45 @@ Page({
     })
   },
 
+  async loadInviteConfig() {
+    try {
+      const config = await gameService.getInvitePlayerConfig()
+
+      this.applyInviteConfig(config)
+    } catch (error) {
+      this.showInfo(error.message || '邀请配置加载失败')
+    }
+  },
+
+  applyInviteConfig(config = {}) {
+    const activityTypes = normalizeActivityTypes(config)
+    const experts = Array.isArray(config.experts) ? config.experts.map(normalizeInviteExpert) : []
+    const selectedType = activityTypes.length ? activityTypes[0].key : ''
+    const defaultTitle = String(config.defaultTitle || '').trim()
+    const defaultDetail = String(config.defaultDetail || '').trim()
+    const intro = String(config.playerIntroTemplate || '').trim()
+    const defaultBudget = normalizeBudgetInput(config.defaultBudget || this.data.form.budget, config.budgetMaxAmount)
+
+    this.applyInvitePricingConfig(config)
+    this.setData({
+      activityTypes,
+      selectedType,
+      expert: experts[0] || normalizeInviteExpert(config.expert || {}),
+      expertCandidates: experts,
+      expertCandidateIndex: 0,
+      playerIntroMessage: intro,
+      playerIntroCount: intro.length,
+      'form.title': defaultTitle,
+      'form.detail': defaultDetail,
+      'form.budget': defaultBudget,
+      detailCount: defaultDetail.length
+    })
+  },
+
   applyInvitePricingConfig(config = {}) {
     const budgetMaxAmount = Number.isInteger(Number(config.budgetMaxAmount)) && Number(config.budgetMaxAmount) > 0
       ? Number(config.budgetMaxAmount)
-      : DEFAULT_BUDGET_MAX_AMOUNT
+      : MAX_BUDGET_AMOUNT
     const rewardRateConfig = normalizeRewardRateConfig(config.rewardRateConfig || config.rewardRates || config)
     const budget = normalizeBudgetInput(this.data.form.budget, budgetMaxAmount)
 
@@ -454,8 +451,33 @@ Page({
     })
   },
 
-  onReplaceExpert() {
-    this.showInfo('更换行家待接入')
+  async onReplaceExpert() {
+    let experts = this.data.expertCandidates || []
+
+    if (!experts.length) {
+      try {
+        const result = await gameService.getSystemRecommendations({
+          category: this.data.selectedType || 'all'
+        })
+        experts = Array.isArray(result.experts) ? result.experts.map(normalizeInviteExpert) : []
+      } catch (error) {
+        this.showInfo(error.message || '行家列表加载失败')
+        return
+      }
+    }
+
+    if (!experts.length) {
+      this.showInfo('暂无可更换行家')
+      return
+    }
+
+    const nextIndex = (Number(this.data.expertCandidateIndex || 0) + 1) % experts.length
+
+    this.setData({
+      expert: experts[nextIndex],
+      expertCandidates: experts,
+      expertCandidateIndex: nextIndex
+    })
   },
 
   onAddWorkImage() {
@@ -701,21 +723,47 @@ Page({
       return
     }
 
+    if (!this.data.sourceGameId) {
+      this.showInfo('缺少组局信息')
+      return
+    }
+
+    if (this.data.submittingInvite) {
+      return
+    }
+
+    this.setData({ submittingInvite: true })
+    wx.showLoading({
+      title: '发起邀请中',
+      mask: true
+    })
+
     try {
-      await gameService.createGameInvite({
-        expertId: this.data.expert && this.data.expert.id || '',
-        expert: this.data.expert,
-        activityType: this.data.selectedType,
-        form: this.data.form,
-        rewardRateConfig: this.data.rewardRateConfig,
-        reward: this.data.reward,
-        playerIds: this.data.selectedPlayerIds,
-        playerIntroMessage: this.data.playerIntroMessage,
-        workImages: this.data.workImages
+      const invitees = (this.data.selectedPlayerIds || []).map((id) => ({
+        id,
+        roleType: 'player'
+      }))
+      const result = await gameService.createReplayInvitation({
+        sourceGameId: this.data.sourceGameId,
+        invitees,
+        message: this.data.playerIntroMessage || this.data.form.detail || this.data.form.title || ''
       })
+
       this.showInfo('邀请已发起')
+      setTimeout(() => {
+        const invitationId = result.invitationId || result.replayInvitationId || ''
+        const query = [
+          invitationId ? `invitationId=${encodeURIComponent(invitationId)}` : '',
+          this.data.sourceGameId ? `gameId=${encodeURIComponent(this.data.sourceGameId)}` : ''
+        ].filter(Boolean).join('&')
+
+        navigateShellRoute(`/${ROUTES.gameGuideProgressDetail}${query ? `?${query}` : ''}`)
+      }, 500)
     } catch (error) {
-      this.showInfo(error.message || '发起邀请失败')
+      this.showInfo(error.message || '邀请发起失败')
+    } finally {
+      wx.hideLoading()
+      this.setData({ submittingInvite: false })
     }
   },
 
@@ -750,6 +798,7 @@ Page({
       const players = normalizeInvitePlayers(playersResult)
       const selectedPlayerIds = this.normalizeSelectedPlayerIds(this.data.selectedPlayerIds, rule, players)
 
+      this.applyInviteConfig(config)
       this.setData({
         players,
         invitePlayerLoading: false,
@@ -826,14 +875,13 @@ Page({
     })
   },
 
-  normalizeSelectedPlayerIds(selectedPlayerIds = [], rule = EMPTY_INVITE_PLAYER_RULE) {
-    const maxCount = Math.max(0, Number(rule.maxPlayerCount) || 0)
-
-    if (!maxCount) {
-      return []
-    }
-
+  normalizeSelectedPlayerIds(selectedPlayerIds = [], rule = EMPTY_INVITE_PLAYER_RULE, players = []) {
+    const maxCount = Math.max(1, Number(rule.maxPlayerCount) || 1)
     let ids = Array.from(new Set((selectedPlayerIds || []).filter(Boolean))).slice(0, maxCount)
+
+    if (!ids.length && players.length) {
+      ids = [players[0].id]
+    }
 
     return ids
   },
@@ -850,21 +898,13 @@ Page({
       selectedPlayerId,
       selectedPlayerIds: selectedIds,
       selectedPlayerCount,
-      playerRuleText: normalizedRule.maxPlayerCount ? `至少 ${normalizedRule.minPlayerCount} 位，最多 ${normalizedRule.maxPlayerCount} 位` : '',
-      playerCountText: normalizedRule.maxPlayerCount ? `已添加 ${selectedPlayerCount}/${normalizedRule.maxPlayerCount} 位玩家` : ''
+      playerRuleText: `至少 ${normalizedRule.minPlayerCount} 位，最多 ${normalizedRule.maxPlayerCount} 位`,
+      playerCountText: `已添加 ${selectedPlayerCount}/${normalizedRule.maxPlayerCount} 位玩家`
     }
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -873,8 +913,9 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      this.showInfo('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameInvite
+    })) {
       return
     }
 
@@ -883,14 +924,6 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -916,7 +949,7 @@ Page({
     }
 
     if (key === 'search') {
-      this.showInfo('搜索功能开发中')
+      this.navigateToRoute(ROUTES.gameHall)
       return
     }
 
@@ -932,7 +965,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -943,9 +976,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleInviteScroll(event) {

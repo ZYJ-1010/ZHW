@@ -10,12 +10,12 @@
   back-icon-color="#f8fbff"
 >
   <view class="report-page with-bottom">
-    <view class="report-card detail-status-card" wx:if="{{statusCard.main || statusCard.sub}}">
-      <view class="status-icon {{statusCard.tone}}">
+    <view class="report-card detail-status-card">
+      <view class="status-icon success">
         <image src="{{icons.check}}" mode="aspectFit"></image>
       </view>
-      <text wx:if="{{statusCard.main}}" class="status-main">{{statusCard.main}}</text>
-      <text wx:if="{{statusCard.sub}}" class="status-sub">{{statusCard.sub}}</text>
+      <text class="status-main">{{statusMain}}</text>
+      <text class="status-sub">{{statusSub}}</text>
     </view>
 
     <view class="report-card">
@@ -32,7 +32,7 @@
       <text class="paragraph">{{reportReason}}</text>
     </view>
 
-    <view class="report-card" wx:if="{{evidence.length}}">
+    <view class="report-card">
       <text class="section-title">{{evidenceTitle}}</text>
       <view class="evidence-row">
         <view wx:for="{{evidence}}" wx:key="label" class="evidence-card {{item.tone}}">
@@ -42,16 +42,16 @@
       </view>
     </view>
 
-    <view class="report-card" wx:if="{{resultRows.length || resultNote}}">
+    <view class="report-card">
       <text class="section-title">处理结果</text>
       <view wx:for="{{resultRows}}" wx:key="label" class="result-row">
         <text class="result-label">{{item.label}}</text>
-        <text class="result-value {{item.tone}}">{{item.value}}</text>
+        <text class="result-value {{item.className}}">{{item.value}}</text>
       </view>
-      <view wx:if="{{resultNote}}" class="result-row">
+      <view class="result-row">
         <text class="result-label">处理说明</text>
       </view>
-      <text wx:if="{{resultNote}}" class="result-note">{{resultNote}}</text>
+      <text class="result-note">{{resultNote}}</text>
     </view>
 
     <view class="report-card">

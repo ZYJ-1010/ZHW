@@ -1,13 +1,13 @@
 const { getSurnameInitials } = require('../../utils/avatar')
 
-const DEFAULT_INFO = {
-  headerTitle: '组局信息',
+const EMPTY_INFO = {
+  headerTitle: '',
   title: '',
-  guideLabel: '领路人',
+  guideLabel: '',
   guideName: '',
-  expertLabel: '行家',
-  miniProgramText: '小程序 · 真好玩',
-  confirmText: '查看详情并确认',
+  expertLabel: '',
+  miniProgramText: '',
+  confirmText: '',
   expert: {
     name: '',
     avatarText: '',
@@ -27,7 +27,7 @@ Component({
   },
 
   data: {
-    resolvedInfo: DEFAULT_INFO
+    resolvedInfo: EMPTY_INFO
   },
 
   observers: {
@@ -49,7 +49,7 @@ Component({
   methods: {
     normalizeInfo(info = {}) {
       const expert = {
-        ...DEFAULT_INFO.expert,
+        ...EMPTY_INFO.expert,
         ...(info.expert || {})
       }
       const normalizedExpert = {
@@ -58,10 +58,10 @@ Component({
       }
 
       return {
-        ...DEFAULT_INFO,
+        ...EMPTY_INFO,
         ...info,
         expert: normalizedExpert,
-        stats: Array.isArray(info.stats) ? info.stats : DEFAULT_INFO.stats
+        stats: Array.isArray(info.stats) ? info.stats : EMPTY_INFO.stats
       }
     },
 

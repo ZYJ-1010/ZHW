@@ -1,3 +1,6 @@
+const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey } = require('../../../utils/shell-nav')
+
 Page({
   data: {
     onlineText: '3999人在线',
@@ -25,5 +28,10 @@ Page({
     })
   },
 
-  handleShellNavTap() {}
+  handleShellNavTap(event) {
+    const { key } = event.detail || {}
+    navigateShellKey(key, {
+      currentRoute: 'pages/metaverse/list/index'
+    })
+  }
 })

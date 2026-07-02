@@ -1,11 +1,36 @@
 const toast = require('../../../../utils/toast')
-const profileService = require('../../../../services/profile')
+const reportService = require('../../../../services/report')
+const fileService = require('../../../../services/file')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/system-management/report-center/assets'
-const MAX_EVIDENCE_COUNT = 9
+const DEFAULT_MAX_EVIDENCE_COUNT = 9
 
-function getUploadSlots(imageCount) {
-  const restCount = MAX_EVIDENCE_COUNT - imageCount
+function chunkRows(items, size) {
+  const rows = []
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size))
+  }
+  return rows
+}
+
+function normalizeReportTypes(items = []) {
+  return items
+    .filter((item) => item && item.key && item.label)
+    .map((item, index) => ({
+      key: item.key,
+      label: item.label,
+      reportType: item.reportType || 'other',
+      order: Number(item.order || index + 1),
+      visible: item.visible !== false
+    }))
+    .filter((item) => item.visible)
+    .sort((left, right) => left.order - right.order)
+}
+
+function getUploadSlots(imageCount, maxCount = DEFAULT_MAX_EVIDENCE_COUNT) {
+  const limit = Math.max(0, Number(maxCount) || DEFAULT_MAX_EVIDENCE_COUNT)
+  const restCount = limit - imageCount
 
   if (restCount <= 0) {
     return []
@@ -26,41 +51,57 @@ Page({
     activeType: '',
     reportedUser: '',
     reason: '',
+    gameId: 0,
+    targetUserId: 0,
+    reviewId: 0,
+    submitting: false,
+    reportTypes: [],
+    reportTypeMap: {},
+    maxEvidenceCount: DEFAULT_MAX_EVIDENCE_COUNT,
+    tips: [],
     evidenceImages: [],
     uploadSlots: getUploadSlots(0),
     icons: {
       plus: `${ASSET_BASE}/icon-plus-green.png`,
       warning: `${ASSET_BASE}/icon-warning.png`
     },
-    reportTypeRows: [],
-    tipLines: []
+    reportTypeRows: []
   },
 
-  onLoad() {
-    this.loadReportOptions()
+  onLoad(options = {}) {
+    this.setData({
+      gameId: Number(options.gameId || 0) || 0,
+      targetUserId: Number(options.targetUserId || 0) || 0,
+      reviewId: Number(options.reviewId || 0) || 0,
+      reportedUser: options.targetName || options.nickname || ''
+    })
+    this.loadReportConfig()
   },
 
-  async loadReportOptions() {
+  async loadReportConfig() {
     try {
-      const data = await profileService.getSystemReportOptions()
-      const reportTypes = this.normalizeList(data.reportTypes || data.types)
-        .map((item) => ({
-          ...item,
-          key: item.key || item.type || item.id
-        }))
+      const config = await reportService.getReportConfig()
+      const reportTypes = normalizeReportTypes(config.types)
+      const reportTypeMap = reportTypes.reduce((result, item) => {
+        result[item.key] = item.reportType || 'other'
+        return result
+      }, {})
+      const activeType = reportTypeMap[this.data.activeType]
+        ? this.data.activeType
+        : (config.defaultType && reportTypeMap[config.defaultType] ? config.defaultType : (reportTypes[0] && reportTypes[0].key) || '')
+      const maxEvidenceCount = Math.min(Math.max(Number(config.maxEvidenceCount || DEFAULT_MAX_EVIDENCE_COUNT), 1), DEFAULT_MAX_EVIDENCE_COUNT)
 
       this.setData({
-        activeType: data.defaultType || reportTypes[0] && reportTypes[0].key || '',
-        reportTypeRows: this.buildRows(reportTypes),
-        tipLines: this.normalizeTipLines(data.tipLines || data.tips)
+        activeType,
+        reportTypes,
+        reportTypeMap,
+        reportTypeRows: chunkRows(reportTypes, 3),
+        maxEvidenceCount,
+        tips: Array.isArray(config.tips) ? config.tips : [],
+        uploadSlots: getUploadSlots(this.data.evidenceImages.length, maxEvidenceCount)
       })
     } catch (error) {
-      this.setData({
-        activeType: '',
-        reportTypeRows: [],
-        tipLines: []
-      })
-      toast.info(error.message || '举报配置加载失败')
+      toast.info(error.message || '获取举报配置失败')
     }
   },
 
@@ -72,7 +113,7 @@ Page({
     }
 
     if (routeMap[target]) {
-      wx.redirectTo({ url: routeMap[target] })
+      navigateShellRoute(routeMap[target])
     }
   },
 
@@ -99,10 +140,10 @@ Page({
   },
 
   handleUploadTap() {
-    const restCount = MAX_EVIDENCE_COUNT - this.data.evidenceImages.length
+    const restCount = this.data.maxEvidenceCount - this.data.evidenceImages.length
 
     if (restCount <= 0) {
-      toast.info(`最多上传${MAX_EVIDENCE_COUNT}张证据`)
+      toast.info(`最多上传${this.data.maxEvidenceCount}张证据`)
       return
     }
 
@@ -140,11 +181,11 @@ Page({
         id: `${Date.now()}-${index}`,
         path
       }))
-    ).slice(0, MAX_EVIDENCE_COUNT)
+    ).slice(0, this.data.maxEvidenceCount)
 
     this.setData({
       evidenceImages: nextImages,
-      uploadSlots: getUploadSlots(nextImages.length)
+      uploadSlots: getUploadSlots(nextImages.length, this.data.maxEvidenceCount)
     })
   },
 
@@ -168,13 +209,22 @@ Page({
 
     this.setData({
       evidenceImages: nextImages,
-      uploadSlots: getUploadSlots(nextImages.length)
+      uploadSlots: getUploadSlots(nextImages.length, this.data.maxEvidenceCount)
     })
   },
 
   async handleSubmitTap() {
+    if (this.data.submitting) {
+      return
+    }
+
     if (!this.data.activeType) {
       toast.info('请选择举报类型')
+      return
+    }
+
+    if (!this.data.gameId) {
+      toast.info('缺少局ID，请从局详情、聊天或评价入口发起举报')
       return
     }
 
@@ -188,55 +238,38 @@ Page({
       return
     }
 
+    const targetUserId = this.data.targetUserId || Number(String(this.data.reportedUser).replace(/\D/g, '') || 0)
+    const reportType = this.data.reportTypeMap[this.data.activeType] || 'other'
+    const type = this.data.reportTypes.find((item) => item.key === this.data.activeType)
+    this.setData({ submitting: true })
+
     try {
-      const data = await profileService.submitSystemReport({
-        type: this.data.activeType,
-        reportedUser: this.data.reportedUser,
-        reason: this.data.reason,
-        evidenceFileIds: this.data.evidenceImages.map((item) => item.fileId).filter(Boolean)
+      const fileIds = await fileService.uploadEvidenceImages(
+        this.data.evidenceImages.map((item) => item.path).filter(Boolean),
+        { bizType: 'report_attachment', objectId: this.data.gameId }
+      )
+      const content = [
+        type ? `举报类型：${type.label}` : '',
+        `被举报人：${this.data.reportedUser.trim()}`,
+        `举报原因：${this.data.reason.trim()}`,
+        fileIds.length ? `证据文件ID：${fileIds.join(',')}` : ''
+      ].filter(Boolean).join('\n')
+      const result = await reportService.createReport({
+        gameId: this.data.gameId,
+        targetUserId,
+        reportType,
+        content,
+        fileId: fileIds[0] || 0,
+        reviewId: this.data.reviewId || 0
       })
-      const reportId = data.reportId || data.id || ''
-      const query = reportId ? `?reportId=${encodeURIComponent(reportId)}` : ''
+      const report = result.report || result
 
-      wx.navigateTo({
-        url: `/pages/profile/system-management/report-detail/index${query}`
-      })
+      toast.success('举报已提交')
+      navigateShellRoute(`/pages/profile/system-management/feedback-success/index?source=report&reportId=${report.id || ''}`)
     } catch (error) {
-      toast.info(error.message || '举报提交失败')
+      toast.info(error.message || '提交举报失败')
+    } finally {
+      this.setData({ submitting: false })
     }
-  },
-
-  buildRows(list) {
-    const rows = []
-
-    this.normalizeList(list).forEach((item, index) => {
-      const rowIndex = Math.floor(index / 3)
-
-      if (!rows[rowIndex]) {
-        rows[rowIndex] = []
-      }
-
-      rows[rowIndex].push(item)
-    })
-
-    return rows
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
-  },
-
-  normalizeTipLines(list) {
-    return this.normalizeList(list).map((item) => {
-      if (typeof item === 'string') {
-        return {
-          text: item
-        }
-      }
-
-      return {
-        text: item.text || item.label || item.content || ''
-      }
-    }).filter((item) => item.text)
   }
 })

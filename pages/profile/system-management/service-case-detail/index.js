@@ -1,7 +1,5 @@
-const toast = require('../../../../utils/toast')
-const profileService = require('../../../../services/profile')
-
 const ASSET_BASE = '/pages/profile/system-management/service-case-detail/assets'
+const profileService = require('../../../../services/profile')
 
 function buildStars(activeCount = 5) {
   return Array.from({ length: 5 }, (_, index) => ({
@@ -22,31 +20,52 @@ function decodeOption(value) {
   }
 }
 
-function normalizeCaseDetail(detail = {}, iconOptions = {}) {
-  const caseInfo = detail.caseInfo || detail.info || {}
+function buildEmptyCaseDetail(iconOptions = {}) {
+  return {
+    caseInfo: {
+      title: '服务案例',
+      date: '',
+      playersText: '加载中',
+      totalPlayers: 0,
+      ratingText: '待评分',
+      iconText: iconOptions.iconText || '★',
+      tone: iconOptions.tone || 'blue',
+      stars: buildStars(0)
+    },
+    rating: {
+      score: '待评分',
+      tags: [],
+      stars: buildStars(0)
+    },
+    detailSections: [],
+    players: []
+  }
+}
+
+function normalizeRemoteCaseDetail(detail = {}, iconOptions = {}) {
+  const caseInfo = detail.caseInfo || {}
   const rating = detail.rating || {}
-  const rawScore = rating.score || caseInfo.score
-  const score = Number(rawScore)
-  const starCount = rawScore !== undefined && rawScore !== '' && Number.isFinite(score)
-    ? Math.max(0, Math.min(5, Math.round(score)))
-    : 0
+  const score = Number(rating.score || String(caseInfo.ratingText || '').replace('分', ''))
+  const starCount = Number.isFinite(score) ? Math.max(1, Math.min(5, Math.round(score))) : 5
 
   return {
     caseInfo: {
-      ...caseInfo,
-      iconText: iconOptions.iconText || caseInfo.iconText || '',
-      tone: iconOptions.tone || caseInfo.tone || '',
-      totalPlayers: caseInfo.totalPlayers || caseInfo.playerCount || 0,
-      stars: Array.isArray(caseInfo.stars) ? caseInfo.stars : buildStars(starCount)
+      title: caseInfo.title || '服务案例',
+      date: caseInfo.date || '',
+      playersText: caseInfo.playersText || '待绑定',
+      totalPlayers: Number(caseInfo.totalPlayers) || 0,
+      ratingText: caseInfo.ratingText || `${Number.isFinite(score) ? score.toFixed(1) : '5.0'}分`,
+      iconText: iconOptions.iconText || caseInfo.iconText || '★',
+      tone: iconOptions.tone || caseInfo.tone || 'blue',
+      stars: buildStars(starCount)
     },
     rating: {
-      ...rating,
-      score: rating.score || caseInfo.rating || '',
+      score: rating.score || (Number.isFinite(score) ? score.toFixed(1) : '5.0'),
       tags: Array.isArray(rating.tags) ? rating.tags : [],
-      stars: Array.isArray(rating.stars) ? rating.stars : buildStars(starCount)
+      stars: buildStars(starCount)
     },
-    detailSections: Array.isArray(detail.detailSections || detail.sections) ? (detail.detailSections || detail.sections) : [],
-    players: Array.isArray(detail.players || detail.participants) ? (detail.players || detail.participants) : []
+    detailSections: Array.isArray(detail.detailSections) ? detail.detailSections : [],
+    players: Array.isArray(detail.players) ? detail.players : []
   }
 }
 
@@ -59,40 +78,26 @@ Page({
       star: `${ASSET_BASE}/icon-star.svg`,
       avatar: `${ASSET_BASE}/avatar-default.png`
     },
-    caseId: '',
-    ...normalizeCaseDetail()
+    ...buildEmptyCaseDetail()
   },
 
   onLoad(options = {}) {
-    const caseId = options.caseId || options.id || ''
-
-    this.setData({
-      caseId,
+    const iconOptions = {
       iconText: decodeOption(options.iconText),
       tone: decodeOption(options.tone)
-    })
-
-    if (caseId) {
-      this.loadCaseDetail()
     }
+    const caseId = options.caseId || 'case-stranger'
+
+    this.setData(buildEmptyCaseDetail(iconOptions))
+    this.loadRemoteCaseDetail(caseId, iconOptions)
   },
 
-  async loadCaseDetail() {
+  async loadRemoteCaseDetail(caseId, iconOptions = {}) {
     try {
-      const data = await profileService.getSystemSkillCaseDetail({
-        caseId: this.data.caseId
-      })
-
-      this.setData(normalizeCaseDetail(data.detail || data, {
-        iconText: this.data.iconText,
-        tone: this.data.tone
-      }))
+      const detail = await profileService.getSystemServiceCaseDetail(caseId)
+      this.setData(normalizeRemoteCaseDetail(detail, iconOptions))
     } catch (error) {
-      this.setData(normalizeCaseDetail({}, {
-        iconText: this.data.iconText,
-        tone: this.data.tone
-      }))
-      toast.info(error.message || '案例详情加载失败')
+      console.warn('get service case detail failed', error)
     }
   }
 })

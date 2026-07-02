@@ -16,18 +16,6 @@ page {
   background: #ffffff;
 }
 
-.system-empty {
-  padding: 160rpx 48rpx;
-  color: #9ca3af;
-  font-size: 26rpx;
-  line-height: 38rpx;
-  text-align: center;
-}
-
-.system-empty.error {
-  color: #ef4444;
-}
-
 .article-card {
   width: 100%;
   min-height: 1010rpx;

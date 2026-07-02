@@ -26,6 +26,7 @@
       wx:for="{{records}}"
       wx:key="id"
       class="feedback-card record-card"
+      data-id="{{item.id}}"
       bindtap="handleRecordTap"
     >
       <view class="record-head">

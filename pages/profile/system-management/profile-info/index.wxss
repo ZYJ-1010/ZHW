@@ -11,6 +11,19 @@ page {
   font-family: "Noto Sans SC", "PingFang SC", sans-serif;
 }
 
+.profile-info-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160rpx;
+  margin-bottom: 24rpx;
+  border-radius: 24rpx;
+  color: #9ca3af;
+  background: #ffffff;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
 .section-title-row,
 .info-row,
 .info-row-main,
@@ -142,6 +155,10 @@ page {
   font-size: 31rpx;
   font-weight: 500;
   line-height: 38rpx;
+}
+
+.avatar-circle.empty {
+  background: #cbd5e1;
 }
 
 .chevron-icon {

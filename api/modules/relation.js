@@ -1,7 +1,7 @@
 const request = require('../request')
 
 function getNetworkHome(params) {
-  return request.get('/api/app/relations/network-home', params || {})
+  return request.get('/api/app/connections/my', params || {})
 }
 
 module.exports = {

@@ -1,12 +1,10 @@
 const profileService = require('../../../../services/profile')
 const toast = require('../../../../utils/toast')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/system-management/skill-config/assets'
-const DEFAULT_QUOTA_RESET_DATE = ''
 const MIN_CASE_DESC_LENGTH = 100
 const MAX_CASE_DESC_LENGTH = 300
-
-const ADDABLE_SKILLS = []
 
 function buildStars(activeCount) {
   return Array.from({ length: 5 }, (_, index) => ({
@@ -169,7 +167,7 @@ function findSkillInGroups(skillGroups = {}, skillId, preferredGroup) {
 }
 
 function normalizeSkillConfig(config = {}) {
-  const fallback = getDefaultSkillConfig()
+  const fallback = getEmptySkillConfig()
   const icons = buildIcons()
   const rawSkillGroups = config.skillGroups && typeof config.skillGroups === 'object'
     ? config.skillGroups
@@ -202,6 +200,7 @@ function normalizeSkillConfig(config = {}) {
       ...(config.sectionMap || {})
     },
     skillGroups,
+    addableSkills: Array.isArray(config.addableSkills) ? config.addableSkills : fallback.addableSkills,
     unlockSuggestion: {
       ...fallback.unlockSuggestion,
       ...(config.unlockSuggestion || {})
@@ -209,20 +208,49 @@ function normalizeSkillConfig(config = {}) {
   }
 }
 
-function getDefaultSkillConfig() {
+function getEmptySkillConfig() {
   const icons = buildIcons()
 
   return {
     icons,
     roleSummary: {
-      roleName: '',
-      maxSkillCount: '',
-      monthlyLimit: '',
-      usedCount: '',
-      remainingCount: '',
-      configuredCount: ''
+      roleName: '行家',
+      maxSkillCount: 3,
+      monthlyLimit: 3,
+      usedCount: 0,
+      remainingCount: 3,
+      configuredCount: 0
     },
-    skillSlots: [],
+    skillSlots: [
+      {
+        id: 'empty-1',
+        title: '添加技能',
+        iconSrc: icons.plus,
+        iconText: '+',
+        tone: 'gray',
+        active: false,
+        empty: true
+      },
+      {
+        id: 'empty-2',
+        title: '添加技能',
+        iconSrc: icons.plus,
+        iconText: '+',
+        tone: 'gray',
+        active: false,
+        empty: true
+      },
+      {
+        id: 'empty-3',
+        title: '添加技能',
+        iconSrc: icons.plus,
+        iconText: '+',
+        tone: 'gray',
+        active: false,
+        empty: true,
+        locked: true
+      }
+    ],
     tabs: [
       { key: 'visible', label: '显性技能' },
       { key: 'hidden', label: '隐形技能' },
@@ -247,10 +275,11 @@ function getDefaultSkillConfig() {
       hidden: [],
       cases: []
     },
+    addableSkills: [],
     unlockSuggestion: {
-      title: '',
-      desc: '',
-      actionText: ''
+      title: '解锁第三个技能',
+      desc: '解锁后可在上方槽位添加新的显性技能',
+      actionText: '立即解锁'
     }
   }
 }
@@ -281,7 +310,7 @@ function unlockFirstLockedSkillSlot(skillSlots = []) {
   })
 }
 
-function buildPageData(config = getDefaultSkillConfig(), activeTab = 'visible') {
+function buildPageData(config = getEmptySkillConfig(), activeTab = 'visible') {
   const normalizedConfig = normalizeSkillConfig(config)
   const nextActiveTab = activeTab || 'visible'
   const displayedSkills = normalizedConfig.skillGroups[nextActiveTab] || []
@@ -308,7 +337,7 @@ Page({
   data: {
     ...buildPageData(),
     isSaving: false,
-    quotaResetDate: DEFAULT_QUOTA_RESET_DATE,
+    quotaResetDate: '',
     caseDescMinLength: MIN_CASE_DESC_LENGTH,
     caseDescMaxLength: MAX_CASE_DESC_LENGTH,
     responseDialog: {
@@ -331,11 +360,11 @@ Page({
       const remoteConfig = await profileService.getSystemSkillConfig()
       const config = remoteConfig && typeof remoteConfig === 'object'
         ? remoteConfig
-        : getDefaultSkillConfig()
+        : getEmptySkillConfig()
 
       this.setData(buildPageData(config, config.activeTab || this.data.activeTab))
     } catch (error) {
-      this.setData(buildPageData(getDefaultSkillConfig(), this.data.activeTab))
+      this.setData(buildPageData(getEmptySkillConfig(), this.data.activeTab))
     }
   },
 
@@ -353,6 +382,7 @@ Page({
       tabs: this.data.tabs,
       sectionMap: this.data.sectionMap,
       skillGroups: this.data.skillGroups,
+      addableSkills: this.data.addableSkills,
       unlockSuggestion: this.data.unlockSuggestion
     }, key))
   },
@@ -393,9 +423,7 @@ Page({
       caseItem.tone ? `tone=${encodeURIComponent(caseItem.tone)}` : ''
     ].filter(Boolean).join('&')
 
-    wx.navigateTo({
-      url: `/pages/profile/system-management/service-case-detail/index?${params}`
-    })
+    navigateShellRoute(`/pages/profile/system-management/service-case-detail/index?${params}`)
   },
 
   handleSkillEditTap(event) {
@@ -466,6 +494,7 @@ Page({
       tabs: clone(this.data.tabs),
       sectionMap: clone(this.data.sectionMap),
       skillGroups: clone(this.data.skillGroups),
+      addableSkills: clone(this.data.addableSkills),
       unlockSuggestion: clone(this.data.unlockSuggestion)
     }
   },
@@ -481,14 +510,6 @@ Page({
     const roleSummary = this.data.roleSummary || {}
     const usedCount = Number(roleSummary.usedCount) || 0
     const monthlyLimit = Number(roleSummary.monthlyLimit) || 0
-    const resetDate = roleSummary.resetDate || this.data.quotaResetDate
-    const descLines = [
-      `本月修改次数已用完（${usedCount}/${monthlyLimit}）`
-    ]
-
-    if (resetDate) {
-      descLines.push(`下次重置时间为 ${resetDate}`)
-    }
 
     this.setData({
       responseDialog: {
@@ -497,7 +518,10 @@ Page({
         iconSrc: this.data.icons.hourglass,
         iconTone: 'warning',
         title: '修改次数不足',
-        descLines,
+        descLines: [
+          `本月修改次数已用完（${usedCount}/${monthlyLimit}）`,
+          `下次重置时间为 ${roleSummary.resetDate || this.data.quotaResetDate}`
+        ],
         confirmText: '我知道了',
         onlyConfirm: true
       }
@@ -785,8 +809,9 @@ Page({
   getAddableCandidates() {
     const visibleIds = new Set(((this.data.skillGroups && this.data.skillGroups.visible) || [])
       .map((item) => item.id))
+    const configuredCandidates = Array.isArray(this.data.addableSkills) ? this.data.addableSkills : []
 
-    return ADDABLE_SKILLS.filter((item) => !visibleIds.has(item.id))
+    return configuredCandidates.filter((item) => !visibleIds.has(item.id))
   },
 
   openAddPanel() {
@@ -935,6 +960,7 @@ Page({
       activeTab: this.data.activeTab,
       skillSlots: this.data.skillSlots,
       skillGroups: this.data.skillGroups,
+      addableSkills: this.data.addableSkills,
       unlockSuggestion: this.data.unlockSuggestion
     }
   },

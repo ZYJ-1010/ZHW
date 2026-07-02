@@ -8,6 +8,8 @@ const TOOLBAR_HEIGHT_RPX = 58
 const TOOLBAR_CAPSULE_GAP_RPX = 14
 const NAV_BOTTOM_GAP_RPX = 13
 const BRAND_ONLINE_BOTTOM_OFFSET_RPX = 82
+const DPAD_SCROLL_STEP_RPX = 360
+const { navigateShellBack, navigateShellForward, navigateShellKey } = require('../../utils/shell-nav')
 
 Component({
   options: {
@@ -25,6 +27,8 @@ Component({
     shellBrandStyle: '',
     shellContentStyle: '',
     shellDockStyle: '',
+    shellContentScrollTop: 0,
+    shellOuterScrollTop: 0,
     resolvedTopbarTitle: '',
     resolvedBrandVisible: true,
     resolvedToolbarActionsVisible: true,
@@ -138,6 +142,10 @@ Component({
       }
     },
     contentScrollY: {
+      type: Boolean,
+      value: false
+    },
+    navAutoNavigate: {
       type: Boolean,
       value: false
     }
@@ -304,14 +312,94 @@ Component({
     handleNavTap(event) {
       const { key } = event.currentTarget.dataset
 
-      if (this.properties.navToastEnabled) {
-        wx.showToast({
-          title: '功能正在开发中',
-          icon: 'none'
-        })
+      if (key === 'up' || key === 'down') {
+        this.triggerEvent('navtap', { key })
+        if (this.properties.navAutoNavigate) {
+          this.scrollShellBy(key)
+        }
+        return
+      }
+
+      if (key === 'left') {
+        this.triggerEvent('navtap', { key })
+        if (this.properties.navAutoNavigate) {
+          navigateShellBack()
+        }
+        return
+      }
+
+      if (key === 'right') {
+        this.triggerEvent('navtap', { key })
+        if (this.properties.navAutoNavigate) {
+          navigateShellForward()
+        }
+        return
       }
 
       this.triggerEvent('navtap', { key })
+
+      if (this.properties.navAutoNavigate) {
+        if (navigateShellKey(key, {
+          onSameRoute: (routeKey) => {
+            if (routeKey === 'home') {
+              this.scrollShellToTop()
+            }
+          }
+        })) {
+          return
+        }
+      }
+    },
+
+    handleOuterScroll(event) {
+      const scrollTop = event.detail && event.detail.scrollTop
+
+      if (typeof scrollTop === 'number') {
+        this.shellOuterScrollTopValue = scrollTop
+      }
+    },
+
+    handleContentScroll(event) {
+      const scrollTop = event.detail && event.detail.scrollTop
+
+      if (typeof scrollTop === 'number') {
+        this.shellContentScrollTopValue = scrollTop
+      }
+    },
+
+    scrollShellBy(direction) {
+      const usesInnerScroll = this.properties.contentScrollY
+      const current = usesInnerScroll
+        ? Number(this.shellContentScrollTopValue || this.data.shellContentScrollTop || 0)
+        : Number(this.shellOuterScrollTopValue || this.data.shellOuterScrollTop || 0)
+      const next = direction === 'up'
+        ? Math.max(0, current - this.rpxToPx(DPAD_SCROLL_STEP_RPX))
+        : current + this.rpxToPx(DPAD_SCROLL_STEP_RPX)
+
+      if (usesInnerScroll) {
+        this.shellContentScrollTopValue = next
+        this.setData({ shellContentScrollTop: next })
+        return
+      }
+
+      this.shellOuterScrollTopValue = next
+      this.setData({ shellOuterScrollTop: next })
+    },
+
+    scrollShellToTop() {
+      this.shellContentScrollTopValue = 0
+      this.shellOuterScrollTopValue = 0
+      this.setData({
+        shellContentScrollTop: 0,
+        shellOuterScrollTop: 0
+      })
+    },
+
+    rpxToPx(value) {
+      const windowInfo = this.getWindowInfo()
+      const width = windowInfo && windowInfo.windowWidth ? windowInfo.windowWidth : 375
+
+      return Math.round((Number(value) || 0) * width / 750)
     },
 
     handleNavLongPress(event) {

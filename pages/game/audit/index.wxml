@@ -1,7 +1,7 @@
 <home-shell
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
-  topbar-title="审核申请列表"
+  topbar-title="{{auditPage.pageTitle}}"
   toolbar-actions-visible="{{false}}"
   nav-toast-enabled="{{false}}"
   bindnavtap="handleShellNavTap"
@@ -42,14 +42,14 @@
                 <text class="audit-initiator-name">{{item.initiator.nickname}}</text>
                 <text class="audit-initiator-role {{item.roleKey}}">{{item.initiator.roleName}}</text>
               </view>
-              <text class="audit-initiator-time">申请时间: {{item.applyTime}}</text>
+              <text class="audit-initiator-time">{{auditPage.texts.applyTimeLabel}}: {{item.applyTime}}</text>
             </view>
           </view>
           <text class="audit-card-status {{item.statusKey}}">{{item.statusText}}</text>
-          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-approve-button" data-id="{{item.id}}" bindtap="handleApproveTap">通过申请</view>
-          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-reject-button" data-id="{{item.id}}" bindtap="handleRejectTap">拒绝</view>
-          <view wx:else class="audit-reviewed-button">已完成审核</view>
-          <view class="audit-detail-button" data-id="{{item.id}}" bindtap="handleDetailTap">详情</view>
+          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-approve-button" data-id="{{item.id}}" bindtap="handleApproveTap">{{auditPage.texts.approveText}}</view>
+          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-reject-button" data-id="{{item.id}}" bindtap="handleRejectTap">{{auditPage.texts.rejectText}}</view>
+          <view wx:else class="audit-reviewed-button">{{auditPage.texts.reviewedText}}</view>
+          <view class="audit-detail-button" data-id="{{item.id}}" bindtap="handleDetailTap">{{auditPage.texts.detailText}}</view>
         </view>
       </view>
 
@@ -58,10 +58,10 @@
           <view class="audit-checkbox {{allSelected ? 'checked' : ''}}">
             <view wx:if="{{allSelected}}" class="audit-checkmark"></view>
           </view>
-          <text>全选</text>
+          <text>{{auditPage.texts.selectAllText}}</text>
         </label>
-        <view class="audit-batch-button reject" bindtap="handleBatchRejectTap">批量拒绝</view>
-        <view class="audit-batch-button approve" bindtap="handleBatchApproveTap">批量通过</view>
+        <view class="audit-batch-button reject" bindtap="handleBatchRejectTap">{{auditPage.texts.batchRejectText}}</view>
+        <view class="audit-batch-button approve" bindtap="handleBatchApproveTap">{{auditPage.texts.batchApproveText}}</view>
       </view>
     </view>
   </scroll-view>

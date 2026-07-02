@@ -13,7 +13,7 @@ Component({
     defaultCover: '/components/game-card/assets/game-cover-default.png',
     tagTone: '',
     joinedText: '',
-    defaultAvatars: []
+    defaultAvatars: ['🤒', '🤡', '😵']
   },
 
   methods: {

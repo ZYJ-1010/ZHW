@@ -1,33 +1,12 @@
-const gameService = require('../../../services/game')
+const { ROUTES } = require('../../../config/routes')
+const gameApi = require('../../../api/modules/game')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
-function normalizeOption(option = {}) {
-  return {
-    id: option.id || option.optionId || option.key || '',
-    theme: option.theme || '',
-    iconText: option.iconText || option.emoji || '',
-    iconType: option.iconType || '',
-    title: option.title || option.name || '',
-    desc: option.desc || option.description || '',
-    route: option.route || option.path || '',
-    message: option.message || option.toastText || ''
-  }
-}
-
-function normalizePlayAgainData(data = {}) {
-  const recommendOptions = Array.isArray(data.recommendOptions || data.options)
-    ? (data.recommendOptions || data.options).map(normalizeOption).filter((item) => item.id)
-    : []
-
-  return {
-    onlineText: data.onlineText || '3999人在线',
-    recommendOptions,
-    selectedOption: data.selectedOption || data.defaultOptionId || recommendOptions[0] && recommendOptions[0].id || ''
-  }
-}
+const EMPTY_RECOMMEND_OPTIONS = []
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线',
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -35,79 +14,154 @@ Page({
       { name: '消息', active: false },
       { name: '首页', active: true }
     ],
-    recommendOptions: [],
+    panelTitle: '太棒了！你想怎么开启下一局？',
+    panelSubtitle: '后台会根据当前局和配置返回可用方式',
+    recommendOptions: EMPTY_RECOMMEND_OPTIONS,
     selectedOption: '',
-    loading: false,
-    submitting: false,
-    queryParams: {}
+    sourceGameId: '',
+    serviceOrderId: '',
+    loading: false
   },
 
   onLoad(options = {}) {
     this.setData({
-      queryParams: options
+      sourceGameId: options.sourceGameId || options.gameId || '',
+      serviceOrderId: options.serviceOrderId || ''
     })
-    this.loadPlayAgainOptions(options)
+    this.loadReplayContext()
   },
 
-  async loadPlayAgainOptions(options = {}) {
-    this.setData({
-      loading: true
+  loadReplayContext() {
+    this.setData({ loading: true })
+    gameApi.getReplayConfirmContext({
+      sourceGameId: this.data.sourceGameId,
+      gameId: this.data.sourceGameId,
+      serviceOrderId: this.data.serviceOrderId
+    }).then((res) => {
+      const data = res && res.data ? res.data : {}
+      const options = this.normalizeRecommendOptions(data.quickActions)
+
+      this.setData({
+        panelTitle: data.title || data.panelTitle || this.data.panelTitle,
+        panelSubtitle: data.desc || data.panelSubtitle || this.data.panelSubtitle,
+        recommendOptions: options,
+        selectedOption: options[0] ? options[0].id : '',
+        serviceOrderId: data.serviceOrderId || this.data.serviceOrderId,
+        loading: false
+      })
+    }).catch(() => {
+      this.setData({
+        recommendOptions: EMPTY_RECOMMEND_OPTIONS,
+        selectedOption: '',
+        loading: false
+      })
     })
-
-    try {
-      const data = await gameService.getPlayAgainOptions(options)
-
-      this.setData({
-        ...normalizePlayAgainData(data),
-        loading: false
-      })
-    } catch (error) {
-      this.setData({
-        ...normalizePlayAgainData({}),
-        loading: false
-      })
-      this.showInfo(error.message || '再玩一局推荐加载失败')
-    }
   },
 
-  async onOptionTap(event) {
+  normalizeRecommendOptions(items) {
+    const options = Array.isArray(items)
+      ? items.filter((item) => item && item.id && item.title)
+      : []
+
+    return options
+  },
+
+  onOptionTap(event) {
     const id = event.currentTarget.dataset.id
     const option = this.data.recommendOptions.find((item) => item.id === id)
 
-    if (!option || this.data.submitting) {
+    if (!option) {
       return
     }
 
     this.setData({
-      selectedOption: id,
-      submitting: true
+      selectedOption: id
     })
+    this.navigateByOption(id)
+  },
 
-    try {
-      const result = await gameService.selectPlayAgainOption({
-        ...this.data.queryParams,
-        optionId: id
+  onCloseTap() {
+    this.navigateBackOrHall()
+  },
+
+  handleShellNavTap(event) {
+    const route = this.getShellRoute(event.detail && event.detail.key)
+
+    if (!route) {
+      this.navigateBackOrHall()
+      return
+    }
+
+    navigateShellRoute(route, {
+      currentRoute: ROUTES.gamePlayAgain,
+      onSameRoute: () => this.navigateBackOrHall()
+    })
+  },
+
+  navigateByOption(id) {
+    const option = this.data.recommendOptions.find((item) => item.id === id) || {}
+    const route = option.route || id
+
+    if (route === 'confirm' || id === 'same-friends') {
+      this.navigateToRoute(ROUTES.gameConfirm, {
+        source: 'playAgain',
+        sourceGameId: this.data.sourceGameId,
+        gameId: this.data.sourceGameId,
+        serviceOrderId: this.data.serviceOrderId
       })
-      const route = result && (result.route || result.path) || option.route
+      return
+    }
 
-      if (route) {
-        wx.navigateTo({
-          url: route
-        })
-        return
-      }
+    if (route === 'system_recommend' || id === 'smart-match') {
+      this.navigateToRoute(ROUTES.gameSystemRecommend, {
+        source: 'playAgain',
+        sourceGameId: this.data.sourceGameId,
+        gameId: this.data.sourceGameId,
+        serviceOrderId: this.data.serviceOrderId
+      })
+      return
+    }
 
-      this.showInfo(result && (result.message || result.toastText) || option.message || '已提交')
-    } catch (error) {
-      this.showInfo(error.message || '推荐方式提交失败')
-    } finally {
-      this.setData({
-        submitting: false
+    if (route === 'create' || id === 'create-new') {
+      this.navigateToRoute(ROUTES.gameCreate, {
+        source: 'playAgain',
+        sourceGameId: this.data.sourceGameId,
+        serviceOrderId: this.data.serviceOrderId
       })
     }
   },
 
-  onCloseTap() {
+  navigateToRoute(route, params = {}) {
+    const url = this.buildUrl(route, params)
+
+    navigateShellRoute(url, {
+      currentRoute: ROUTES.gamePlayAgain
+    })
+  },
+
+  buildUrl(route, params = {}) {
+    const query = Object.keys(params)
+      .filter((key) => params[key])
+      .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&')
+
+    return `/${route}${query ? `?${query}` : ''}`
+  },
+
+  getShellRoute(key) {
+    const routes = {
+      home: ROUTES.playerHome || ROUTES.home,
+      mine: ROUTES.profile,
+      profile: ROUTES.profile,
+      map: ROUTES.map,
+      message: ROUTES.message,
+      metaverse: ROUTES.metaverse
+    }
+
+    return routes[key]
+  },
+
+  navigateBackOrHall() {
     const pages = getCurrentPages()
 
     if (pages.length > 1) {
@@ -115,17 +169,8 @@ Page({
       return
     }
 
-    this.showInfo('已关闭')
-  },
-
-  handleShellNavTap() {
-    this.showInfo('功能正在开发中')
-  },
-
-  showInfo(title) {
-    wx.showToast({
-      title,
-      icon: 'none'
+    navigateShellRoute(ROUTES.gameHall, {
+      currentRoute: ROUTES.gamePlayAgain
     })
   }
 })

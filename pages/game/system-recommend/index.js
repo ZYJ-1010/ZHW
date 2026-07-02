@@ -1,13 +1,10 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
-const DEFAULT_CATEGORIES = [
-  { key: 'all', name: '全部' },
-  { key: 'product', name: '产品架构' },
-  { key: 'tech', name: '技术咨询' },
-  { key: 'operation', name: '运营策略' }
-]
+const EMPTY_CATEGORIES = []
+const DEFAULT_SUMMARY_TEMPLATE = '{count}'
 
 function filterExperts(experts, category) {
   if (category === 'all') {
@@ -60,7 +57,7 @@ function normalizeExpert(expert = {}, selectedIds = []) {
 function normalizeRecommendationContext(context = {}) {
   const categories = Array.isArray(context.categories) && context.categories.length
     ? context.categories
-    : DEFAULT_CATEGORIES
+    : EMPTY_CATEGORIES
   const selectedIds = Array.isArray(context.defaultSelectedExpertIds)
     ? context.defaultSelectedExpertIds.map(String)
     : []
@@ -69,8 +66,17 @@ function normalizeRecommendationContext(context = {}) {
 
   return {
     recommendationId: context.recommendationId || '',
-    title: context.title || '系统推荐适配局',
-    desc: context.desc || '基于你的偏好，已找到高匹配度行家',
+    title: context.title || '',
+    desc: context.desc || '',
+    loadingText: context.loadingText || '',
+    emptyText: context.emptyText || '',
+    summaryTemplate: context.summaryTemplate || DEFAULT_SUMMARY_TEMPLATE,
+    summaryDesc: context.summaryDesc || '',
+    cancelText: context.cancelText || '',
+    confirmText: context.confirmText || '',
+    minSelectToast: context.minSelectToast || '',
+    confirmingText: context.confirmingText || '',
+    activeCategory: context.activeCategory || context.defaultCategory || 'all',
     categories,
     experts
   }
@@ -79,11 +85,20 @@ function normalizeRecommendationContext(context = {}) {
 Page({
   data: {
     recommendationId: '',
-    recommendationTitle: '系统推荐适配局',
-    recommendationDesc: '基于你的偏好，已找到高匹配度行家',
+    recommendationTitle: '',
+    recommendationDesc: '',
+    loadingText: '',
+    emptyText: '',
+    summaryTemplate: DEFAULT_SUMMARY_TEMPLATE,
+    summaryText: '',
+    summaryDesc: '',
+    cancelText: '',
+    confirmText: '',
+    minSelectToast: '',
+    confirmingText: '',
     sourceGameId: '',
     serviceOrderId: '',
-    categories: DEFAULT_CATEGORIES,
+    categories: EMPTY_CATEGORIES,
     activeCategory: 'all',
     experts: [],
     visibleExperts: [],
@@ -126,16 +141,27 @@ Page({
 
   applyRecommendationContext(context) {
     const normalized = normalizeRecommendationContext(context)
-    const activeCategory = this.data.activeCategory || 'all'
+    const activeCategory = normalized.activeCategory || this.data.activeCategory || 'all'
+    const selectedExperts = getSelectedExperts(normalized.experts)
 
     this.setData({
       recommendationId: normalized.recommendationId,
       recommendationTitle: normalized.title,
       recommendationDesc: normalized.desc,
+      loadingText: normalized.loadingText,
+      emptyText: normalized.emptyText,
+      summaryTemplate: normalized.summaryTemplate,
+      summaryText: normalized.summaryTemplate.replace('{count}', selectedExperts.length),
+      summaryDesc: normalized.summaryDesc,
+      cancelText: normalized.cancelText,
+      confirmText: normalized.confirmText,
+      minSelectToast: normalized.minSelectToast,
+      confirmingText: normalized.confirmingText,
       categories: normalized.categories,
+      activeCategory,
       experts: normalized.experts,
       visibleExperts: filterExperts(normalized.experts, activeCategory),
-      selectedExperts: getSelectedExperts(normalized.experts),
+      selectedExperts,
       loading: false
     })
   },
@@ -167,7 +193,8 @@ Page({
     this.setData({
       experts,
       visibleExperts: filterExperts(experts, this.data.activeCategory),
-      selectedExperts: getSelectedExperts(experts)
+      selectedExperts: getSelectedExperts(experts),
+      summaryText: this.buildSummaryText(getSelectedExperts(experts).length)
     })
   },
 
@@ -182,26 +209,19 @@ Page({
   onConfirmTap() {
     if (!this.data.selectedExperts.length) {
       wx.showToast({
-        title: '请选择至少一位行家',
+        title: this.data.minSelectToast,
         icon: 'none'
       })
       return
     }
 
     wx.showToast({
-      title: '正在进入组局',
+      title: this.data.confirmingText,
       icon: 'none',
       duration: 800
     })
 
-    wx.navigateTo({
-      url: this.buildCreateGameUrl(),
-      fail: () => {
-        wx.redirectTo({
-          url: this.buildCreateGameUrl()
-        })
-      }
-    })
+    navigateShellRoute(this.buildCreateGameUrl())
   },
 
   buildCreateGameUrl() {
@@ -220,6 +240,11 @@ Page({
     return `/${ROUTES.gameCreate}${query ? `?${query}` : ''}`
   },
 
+  buildSummaryText(count) {
+    const template = this.data.summaryTemplate || DEFAULT_SUMMARY_TEMPLATE
+    return template.replace('{count}', count)
+  },
+
   navigateBackOrHall() {
     const pages = getCurrentPages()
 
@@ -228,8 +253,6 @@ Page({
       return
     }
 
-    wx.redirectTo({
-      url: `/${ROUTES.gameHall}`
-    })
+    navigateShellRoute(ROUTES.gameHall)
   }
 })

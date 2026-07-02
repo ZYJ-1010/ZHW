@@ -18,7 +18,10 @@
         wx:for="{{quickActions}}"
         wx:key="key"
         class="quick-action {{item.tone}}"
-        bindtap="handleDeveloping"
+        data-key="{{item.key}}"
+        data-enabled="{{item.enabled}}"
+        data-reason="{{item.disabledReason}}"
+        bindtap="handleActionTap"
       >
         <image class="quick-action-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
         <text>{{item.label}}</text>
@@ -30,6 +33,7 @@
         wx:for="{{menuItems}}"
         wx:key="key"
         class="asset-menu-row"
+        data-key="{{item.key}}"
         data-route="{{item.route}}"
         bindtap="handleMenuTap"
       >
@@ -56,12 +60,15 @@
           wx:for="{{orderStatuses}}"
           wx:key="key"
           class="status-item"
-          bindtap="handleDeveloping"
+          data-key="{{item.key}}"
+          data-route="{{item.route}}"
+          bindtap="handleStatusTap"
         >
           <view class="status-icon-wrap {{item.tone}}">
             <image class="status-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
           </view>
           <text class="status-label">{{item.label}}</text>
+          <text wx:if="{{item.countText}}" class="status-label">{{item.countText}}</text>
         </view>
       </view>
     </view>
@@ -69,7 +76,7 @@
     <view class="asset-section recent-section">
       <view class="section-head">
         <text class="asset-section-title">最近订单</text>
-        <text class="section-link" bindtap="handleDeveloping">查看全部</text>
+        <text class="section-link" data-route="/pages/profile/asset-center/orders/index" bindtap="handleStatusTap">查看全部</text>
       </view>
 
       <view class="recent-list-card">
@@ -77,7 +84,10 @@
           wx:for="{{recentOrders}}"
           wx:key="id"
           class="order-card"
-          bindtap="handleDeveloping"
+          data-id="{{item.id}}"
+          data-order-id="{{item.orderId}}"
+          data-route="{{item.route}}"
+          bindtap="handleOrderTap"
         >
           <view class="order-top">
             <view class="order-copy">
@@ -91,8 +101,11 @@
             <text class="order-amount">{{item.amount}}</text>
           </view>
         </view>
+        <view wx:if="{{loaded && !recentOrders.length}}" class="asset-empty">暂无最近订单</view>
       </view>
     </view>
+
+    <view wx:if="{{loadError}}" class="asset-empty load-error">{{loadError}}</view>
 
     <view class="faq-card">
       <view class="faq-head">
@@ -104,7 +117,8 @@
           wx:for="{{faqLinks}}"
           wx:key="key"
           class="faq-link"
-          bindtap="handleDeveloping"
+          data-key="{{item.key}}"
+          bindtap="handleFAQTap"
         >{{item.label}}</text>
       </view>
     </view>

@@ -26,7 +26,7 @@
             <image class="success-icon" src="./assets/success-icon.png" mode="aspectFit"></image>
           </view>
           <text class="success-heading">组局成功!</text>
-          <text class="success-subtitle">三方连接已建立，活动正式开始</text>
+          <text class="success-subtitle">{{group.hint || '成功详情以接口返回为准'}}</text>
         </view>
 
         <view class="section group-section">
@@ -60,7 +60,7 @@
                     class="participant-avatar {{item.colorClass}}"
                   >{{item.avatar}}</view>
                 </view>
-                <text class="participant-count">3人</text>
+                <text class="participant-count">{{participantCount}}人</text>
               </view>
 
               <button class="chat-button" hover-class="none" bindtap="onEnterChatTap">
@@ -95,20 +95,19 @@
                   <image class="fund-lock-icon" src="./assets/fund-lock-icon.png" mode="aspectFit"></image>
                 </view>
                 <view class="fund-copy">
-                  <text class="fund-title">资金已托管</text>
-                  <text class="fund-desc">服务完成后自动结算</text>
+                  <text class="fund-title">{{fund.title}}</text>
+                  <text class="fund-desc">{{fund.desc}}</text>
                 </view>
               </view>
-              <text class="fund-amount">¥800</text>
+              <text class="fund-amount">{{fund.amountText}}</text>
             </view>
             <view class="fund-progress">
-              <view class="fund-progress-fill"></view>
+              <view class="fund-progress-fill" style="{{fund.progressStyle}}"></view>
             </view>
             <view class="fund-steps">
-              <text class="active">已托管</text>
-              <text>服务中</text>
-              <text>已完成</text>
+              <text wx:for="{{fund.stepLabels}}" wx:key="*this" class="{{index === 0 ? 'active' : ''}}">{{item}}</text>
             </view>
+            <text wx:if="{{!fund.stepLabels.length}}" class="fund-desc">暂无资金状态</text>
           </view>
         </view>
 
@@ -119,6 +118,8 @@
               wx:for="{{nextSteps}}"
               wx:key="index"
               class="step-item {{item.active ? 'active' : ''}}"
+              data-action="{{item.action}}"
+              bindtap="onStepTap"
             >
               <view class="step-index">{{item.index}}</view>
               <view class="step-copy">
@@ -127,6 +128,7 @@
               </view>
               <view wx:if="{{item.active}}" class="step-arrow"></view>
             </view>
+            <text wx:if="{{!nextSteps.length}}" class="step-desc">暂无下一步动作</text>
           </view>
         </view>
 

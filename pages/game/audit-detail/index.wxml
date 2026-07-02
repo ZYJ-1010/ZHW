@@ -1,7 +1,7 @@
 <home-shell
   online-text="{{onlineText}}"
   nav-items="{{navItems}}"
-  topbar-title="审核组局"
+  topbar-title="{{detailConfig.pageTitle}}"
   shell-variant="joinApply"
   toolbar-actions-visible="{{false}}"
   nav-toast-enabled="{{false}}"
@@ -21,13 +21,14 @@
       enable-back-to-top
     >
       <view class="audit-detail-page">
-        <game-detail-status-card status="{{status}}" referral-text="已撮合双方意向" />
+        <block wx:if="{{hasDetail}}">
+        <game-detail-status-card status="{{status}}" referral-text="{{detailConfig.referralText}}" />
 
         <game-detail-relation-card relation="{{relation}}" />
 
         <view class="detail-card player-card">
           <view class="card-head player-head">
-            <text class="card-title">玩家信息</text>
+            <text class="card-title">{{detailConfig.texts.playerTitle}}</text>
             <view wx:if="{{game.player.requirementStatusText}}" class="confirm-pill {{game.player.requirementConfirmed ? 'confirmed' : 'pending'}}">
               <view class="confirm-dot"></view>
               <text>{{game.player.requirementStatusText}}</text>
@@ -57,7 +58,7 @@
         </view>
 
         <view class="detail-card upload-card">
-          <text class="card-title block">相关经历/作品</text>
+          <text class="card-title block">{{detailConfig.texts.portfolioTitle}}</text>
           <work-upload-panel bind:imageupload="handleUploadImageTap" bind:fileupload="handleUploadFileTap" />
         </view>
 
@@ -69,7 +70,7 @@
         />
 
         <view class="detail-card confirm-card">
-          <text class="card-title block">局信息确认</text>
+          <text class="card-title block">{{detailConfig.texts.confirmTitle}}</text>
           <view class="confirm-list">
             <view wx:for="{{confirmRows}}" wx:key="label" class="confirm-row {{item.divider ? 'divider' : ''}} {{item.total ? 'total' : ''}}">
               <text class="confirm-label">{{item.label}}</text>
@@ -87,7 +88,7 @@
         </view>
 
         <view class="detail-card option-card">
-          <text class="card-title block">可选操作</text>
+          <text class="card-title block">{{detailConfig.texts.optionTitle}}</text>
           <view class="option-list">
             <view wx:for="{{optionalActions}}" wx:key="key" class="option-row" data-key="{{item.key}}" bindtap="handleOptionalActionTap">
               <view class="option-main">
@@ -102,7 +103,7 @@
         <view class="notice-card">
           <view class="notice-head">
             <view class="notice-icon">i</view>
-            <text>确认须知</text>
+            <text>{{detailConfig.texts.noticeTitle}}</text>
           </view>
           <view class="notice-list">
             <view wx:for="{{noticeBullets}}" wx:key="*this" class="notice-item">
@@ -113,13 +114,19 @@
         </view>
 
         <game-detail-action-bar
-          tip="确认后将建立三方连接群并冻结资金"
+          tip="{{detailConfig.texts.actionTip}}"
           loading="{{actionLoading}}"
-          loading-text="处理中..."
-          confirm-text="确认通过"
+          loading-text="{{detailConfig.texts.actionLoadingText}}"
+          confirm-text="{{detailConfig.texts.confirmText}}"
           bind:decline="handleDeclineTap"
           bind:confirm="handleApproveTap"
         />
+        </block>
+
+        <view wx:else class="audit-empty-card">
+          <text class="audit-empty-title">{{detailConfig.texts.emptyTitle}}</text>
+          <text class="audit-empty-text">{{detailConfig.texts.emptyText}}</text>
+        </view>
       </view>
     </scroll-view>
   </view>

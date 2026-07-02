@@ -9,19 +9,20 @@
       <view class="game-payment-page">
         <view class="payment-heading">
           <text class="payment-title">确认支付</text>
-          <text class="payment-subtitle">押金局支付说明</text>
+          <text class="payment-subtitle">组局订单确认</text>
         </view>
 
         <view class="payment-card deposit-card">
-          <text class="payment-card-title">你正在参与一个【押金局】</text>
+          <text class="payment-card-title">你正在确认一个【组局订单】</text>
           <text class="payment-muted">支付金额：{{payment.amount}}元</text>
-          <view class="payment-breakdown">
+          <view wx:if="{{feeBreakdown.length}}" class="payment-breakdown">
             <view wx:for="{{feeBreakdown}}" wx:key="label" class="payment-breakdown-row">
               <text class="payment-breakdown-marker">{{item.marker}}</text>
               <text class="payment-breakdown-label">{{item.label}}</text>
               <text class="payment-breakdown-value">{{item.value}}</text>
             </view>
           </view>
+          <text wx:else class="payment-muted">当前为一期免费局，占位订单不展示押金拆分。</text>
         </view>
 
         <view class="payment-card rule-card">
@@ -36,7 +37,7 @@
 
         <view class="agreement-row" bindtap="toggleAgreement">
           <view class="agreement-check {{agreementChecked ? 'checked' : ''}}"></view>
-          <text class="agreement-text">我已了解并同意押金局规则</text>
+          <text class="agreement-text">我已了解并同意当前组局规则</text>
         </view>
 
         <view class="payment-card points-card">
@@ -52,7 +53,7 @@
             loading="{{paymentSubmitting}}"
             disabled="{{paymentSubmitting}}"
             bindtap="handleWechatPay"
-          >微信支付</button>
+          >确认订单</button>
         </view>
       </view>
     </scroll-view>

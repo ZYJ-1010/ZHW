@@ -9,36 +9,27 @@ Page({
     },
     stats: [],
     income: [],
-    activities: []
+    activities: [],
+    loadError: ''
   },
 
   onLoad(options) {
     this.setData({
       memberId: options.id || ''
-    })
-    this.loadMemberDetail()
+    }, () => this.loadMemberDetail())
   },
 
   async loadMemberDetail() {
-    if (!this.data.memberId) {
-      return
-    }
-
     try {
-      const data = await profileService.getInviteMemberDetail({
+      const result = await profileService.getInviteMemberDetail({
         memberId: this.data.memberId
       })
 
-      this.setData({
-        member: data.member || data.profile || this.data.member,
-        stats: Array.isArray(data.stats) ? data.stats : [],
-        income: Array.isArray(data.income || data.incomeItems) ? (data.income || data.incomeItems) : [],
-        activities: Array.isArray(data.activities || data.records) ? (data.activities || data.records) : []
-      })
+      this.setData(result || {})
     } catch (error) {
-      wx.showToast({
-        title: error.message || '成员详情加载失败',
-        icon: 'none'
+      console.warn('get invite member detail failed', error)
+      this.setData({
+        loadError: error.message || '成员详情加载失败'
       })
     }
   }

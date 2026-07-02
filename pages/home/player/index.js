@@ -1,5 +1,8 @@
 const homeService = require('../../../services/home')
+const roleService = require('../../../services/role')
 const { ROUTES } = require('../../../config/routes')
+const toast = require('../../../utils/toast')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
 const HOME_SCROLL_TAP_STEP_RPX = 360
 const HOME_SCROLL_HOLD_STEP_RPX = 72
@@ -87,7 +90,7 @@ function createEmptyRoleAuditPrompt() {
 
 Page({
   data: {
-    onlineText: '',
+    onlineText: '在线',
     roleType: 'player',
     canvasStyle: '',
     contentStyle: '',
@@ -112,11 +115,43 @@ Page({
       { key: 'nearby', name: '附近', active: false }
     ],
     nearbyFilter: 'all',
-    nearbyGames: [],
+    nearbyGames: [
+      {
+        id: 'home-nearby-001',
+        title: '苏州河“记忆碎片”采集',
+        scope: 'nearby',
+        tag: '探索局',
+        coverSrc: '/components/game-card/assets/cover-city.png',
+        price: '￥0/人',
+        action: '加入',
+        location: '📍静安区 · 3.2km · 5/8人',
+        time: '⏰2026年5月1日 20:00--22:00',
+        joinedText: '+5位玩家已入局',
+        imageText: '河',
+        imageTone: 'small',
+        actions: ['分享', '关注', '引荐', '打招呼']
+      },
+      {
+        id: 'home-nearby-002',
+        title: 'AI赋能系统搭建交流局',
+        scope: 'city',
+        tag: '任务局',
+        coverSrc: '/components/game-card/assets/cover-sunset.png',
+        price: '￥0/人',
+        action: '加入',
+        location: '📍黄浦区 · 8.2km · 3/8人',
+        time: '⏰2026年5月1日 14:00--16:00',
+        joinedText: '+3位玩家已入局',
+        imageText: 'AI',
+        imageTone: '',
+        actions: ['分享', '关注', '引荐', '打招呼']
+      }
+    ],
     rankingSection: {
       icon: '🏆',
       title: '本周玩霸榜',
-      moreText: '查看全部榜单'
+      moreText: '查看全部榜单',
+      route: ROUTES.profileFootprintAchievements
     },
     rankingActiveRole: 'player',
     rankingTabs: [
@@ -124,23 +159,59 @@ Page({
       { key: 'expert', name: '行家', active: false },
       { key: 'guide', name: '领路人', active: false }
     ],
-    rankingBoards: {},
-    rankingList: [],
-    myRank: {},
-    showMyRank: false,
+    rankingBoards: {
+      player: {
+        list: [
+          { rank: '01', avatarFallback: '👨🏾‍🎓', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xp: '2,450', xpUnit: 'XP' },
+          { rank: '02', avatarFallback: '👩🏻‍🎤', name: '社交达人', desc: '本周组局 8 次', xp: '1,890', xpUnit: 'XP' },
+          { rank: '03', avatarFallback: '👨🏿‍🚀', name: '探险家', desc: '本周组局 6 次', xp: '1,560', xpUnit: 'XP' }
+        ],
+        myRank: {
+          rank: '52',
+          avatarFallback: '👩🏻‍💻',
+          name: '我（Alex）',
+          desc: '上周排名 65 ↑',
+          xp: '520',
+          xpUnit: 'XP'
+        }
+      }
+    },
+    rankingList: [
+      { rank: '01', avatarFallback: '👨🏾‍🎓', name: '领域专家 PRO', desc: '本周组局 12 · MVP 5次', xp: '2,450', xpUnit: 'XP' },
+      { rank: '02', avatarFallback: '👩🏻‍🎤', name: '社交达人', desc: '本周组局 8 次', xp: '1,890', xpUnit: 'XP' },
+      { rank: '03', avatarFallback: '👨🏿‍🚀', name: '探险家', desc: '本周组局 6 次', xp: '1,560', xpUnit: 'XP' }
+    ],
+    myRank: {
+      rank: '52',
+      avatarFallback: '👩🏻‍💻',
+      name: '我（Alex）',
+      desc: '上周排名 65 ↑',
+      xp: '520',
+      xpUnit: 'XP'
+    },
+    showMyRank: true,
     achievementSection: {
       icon: '💎',
       title: '我的成就'
     },
-    achievements: [],
+    achievements: [
+      { id: 'hundred', icon: '🏆', title: '百场王者', status: '▲ 等级', tone: 'gold', unlocked: true },
+      { id: 'pilot', icon: '🏆', title: '引航王者', status: '▲ 等级', tone: 'gold', unlocked: true },
+      { id: 'earth', icon: '🌍', title: '地球漫游者', status: '▲ 进度20%', tone: 'blue', unlocked: true, progressPercent: 20, showProgress: true },
+      { id: 'hidden', icon: '🔒', title: '隐藏徽章', status: '▲ 未解锁', tone: 'locked', unlocked: false }
+    ],
     playerCard: {
-      role: '',
-      title: '',
-      name: '',
-      xp: '',
-      progress: 0,
-      next: '',
-      stats: []
+      role: '玩家 Lv.5',
+      title: '活跃达人',
+      name: 'Alex Chen',
+      xp: '580/1000 XP',
+      progress: 58,
+      next: '距离下一等级还需 420 经验值',
+      stats: [
+        { value: '12', label: '参与局数' },
+        { value: '3', label: '本月MVP' },
+        { value: '98%', label: '参与率' }
+      ]
     },
     roleTags: ROLE_TAGS.map((item) => ({
       ...item,
@@ -154,13 +225,16 @@ Page({
       primary: '',
       secondary: ''
     },
+    roleBenefitConfig: {
+      permissionPrompts: ROLE_PERMISSION_PROMPTS
+    },
     roleStatusState: DEFAULT_ROLE_STATUS_STATE,
     roleApplicationList: [],
     roleAuditPrompt: createEmptyRoleAuditPrompt(),
     onlineCard: {
       title: '地球online',
       desc: '探索城市副本 · 解锁地图成就',
-      tags: []
+      tags: ['附近 12 个组局', '已打卡 8 处']
     },
     entries: [
       { title: '发起组局', desc: '创建你的带局房间', icon: '📍', theme: 'pink', route: ROUTES.gameCreate },
@@ -169,10 +243,26 @@ Page({
     friendSection: {
       icon: '🎲',
       title: '朋友在玩',
-      count: 0,
-      moreText: '查看全部'
+      count: 2,
+      moreText: '查看全部',
+      route: ROUTES.gameHall
     },
-    friendGames: [],
+    friendGames: [
+      {
+        id: 'home-friend-001',
+        title: '盲盒路线：3小时点亮天际线',
+        tag: '探索局',
+        coverSrc: '/components/game-card/assets/cover-sunset.png',
+        price: '￥29/人',
+        action: '加入',
+        location: '📍梧桐山 · 1.5km · 3/8人',
+        time: '2026年5月1日 14:00--16:00',
+        joinedText: '+3位玩家已入局',
+        imageText: '线',
+        imageTone: 'warm',
+        actions: ['分享', '关注', '引荐', '打招呼']
+      }
+    ],
     metaverse: {
       title: '进入元宇宙',
       desc: '共创数字街区｜全球联机互动',
@@ -188,7 +278,30 @@ Page({
   },
 
   onLoad() {
+    this.loadRoleBenefitConfig()
     this.loadPlayerHome()
+  },
+
+  async loadRoleBenefitConfig() {
+    try {
+      const config = await roleService.getRoleBenefitConfig()
+      const prompts = (config && config.permissionPrompts) || ROLE_PERMISSION_PROMPTS
+      const selectedRole = this.data.selectedRoleTag || 'player'
+
+      this.setData({
+        roleBenefitConfig: {
+          ...config,
+          permissionPrompts: prompts
+        },
+        rolePermissionPrompt: this.formatRolePermissionPromptWithPrompts(selectedRole, this.data.roleStatusState, prompts)
+      })
+    } catch (error) {
+      this.setData({
+        roleBenefitConfig: {
+          permissionPrompts: ROLE_PERMISSION_PROMPTS
+        }
+      })
+    }
   },
 
   onHide() {
@@ -208,6 +321,8 @@ Page({
       const nearbySummary = home && home.nearbySummary ? home.nearbySummary : {}
       const nearbySection = home && home.nearbySection ? home.nearbySection : {}
       const friendSection = home && home.friendSection ? home.friendSection : {}
+      const earth = home && home.earth ? home.earth : {}
+      const visualization = home && home.visualization ? home.visualization : {}
       const achievementState = this.formatAchievementState(home || {})
       const rankingState = this.formatRankingState(home || {})
       const roleStatusState = this.formatRoleStatusState(home || {})
@@ -218,8 +333,8 @@ Page({
         playerSummary.currentRole || playerSummary.roleType || hero.currentRole || hero.roleType || roleName
       )
       const selectedRole = this.resolveSelectedRole(activeRole, roleStatusState, roleApplicationList)
-      const nearbyGames = this.formatGameCards(home.nearbyGames || home.recommendedGames)
-      const friendGames = this.formatGameCards(home.friendGames)
+      const nearbyGames = this.formatGameCards(home.nearbyGames || home.recommendedGames, this.data.nearbyGames)
+      const friendGames = this.formatGameCards(home.friendGames, this.data.friendGames)
 
       this.setData({
         onlineText: hero.onlineText || this.data.onlineText,
@@ -236,7 +351,7 @@ Page({
         roleTags: this.formatRoleTags(selectedRole, roleStatusState),
         rolePermissionPrompt: this.formatRolePermissionPrompt(selectedRole, roleStatusState),
         roleAuditPrompt: this.formatRoleAuditPrompt(selectedRole, roleStatusState, roleApplicationList, currentUser),
-        onlineCard: this.formatOnlineCard(nearbySummary),
+        onlineCard: this.formatOnlineCard(nearbySummary, earth),
         nearbySection: this.formatNearbySection(nearbySection),
         nearbyTabs: this.formatNearbyTabs(nearbySection.tabs || nearbySection.filters),
         nearbyGames,
@@ -248,12 +363,12 @@ Page({
         rankingBoards: rankingState.boards,
         rankingList: rankingState.list,
         myRank: rankingState.myRank,
-        showMyRank: rankingState.showMyRank,
         achievementSection: achievementState.section,
         achievements: achievementState.list,
-        metaverse: this.formatMetaverseEntry(home.metaverseEntry || home.metaverse || {})
+        metaverse: this.formatMetaverseEntry(home.metaverseEntry || home.metaverse || {}, visualization)
       })
     } catch (error) {
+      // 首页静态内容可兜底展示，接口失败时不打断用户浏览。
     }
   },
 
@@ -321,39 +436,41 @@ Page({
       { value: this.formatStatValue(playerSummary.monthlyMvpCount), label: '本月MVP' },
       { value: this.formatParticipationRate(playerSummary.participationRate), label: '参与率' }
     ].map((item, index) => ({
-      value: item.value || (fallbackStats[index] && fallbackStats[index].value) || '',
+      value: item.value || fallbackStats[index].value,
       label: item.label
     }))
   },
 
-  formatOnlineCard(nearbySummary) {
+  formatOnlineCard(nearbySummary, earth = {}) {
     const current = this.data.onlineCard
+    const nodes = Array.isArray(earth.nodes) ? earth.nodes : []
+    const heatPoints = Array.isArray(earth.heatPoints) ? earth.heatPoints : []
     const nearbyGameCount = this.pickFirstValue(
       nearbySummary.nearbyGameCount,
       nearbySummary.count,
-      nearbySummary.gameCount
+      nearbySummary.gameCount,
+      earth.nearbyCount
     )
     const checkedInCount = this.pickFirstValue(
       nearbySummary.checkedInCount,
       nearbySummary.checkinCount,
-      nearbySummary.visitedCount
+      nearbySummary.visitedCount,
+      heatPoints.length
     )
-
-    const tags = []
-    const nearbyGameText = this.formatStatValue(nearbyGameCount)
-    const checkedInText = this.formatStatValue(checkedInCount)
-
-    if (nearbyGameText) {
-      tags.push(`附近 ${nearbyGameText} 个组局`)
-    }
-
-    if (checkedInText) {
-      tags.push(`已打卡 ${checkedInText} 处`)
-    }
+    const onlineNodeCount = this.pickFirstValue(
+      nearbySummary.onlineNodeCount,
+      earth.onlineCount,
+      nodes.length
+    )
 
     return {
       ...current,
-      tags
+      desc: onlineNodeCount ? `动态连接 ${this.formatStatValue(onlineNodeCount)} 个节点` : current.desc,
+      tags: [
+        `附近 ${this.formatStatValue(nearbyGameCount) || '12'} 个组局`,
+        `已打卡 ${this.formatStatValue(checkedInCount) || '8'} 处`
+      ],
+      route: nearbySummary.route || earth.route || ROUTES.map
     }
   },
 
@@ -385,7 +502,7 @@ Page({
       section.count,
       section.friendCount,
       section.total,
-      Array.isArray(friendGames) ? friendGames.length : 0
+      Array.isArray(friendGames) ? friendGames.length : current.count
     )
 
     return {
@@ -393,7 +510,8 @@ Page({
       icon: section.icon || current.icon,
       title: section.title || section.name || current.title,
       count,
-      moreText: section.moreText || section.moreLabel || section.actionText || current.moreText
+      moreText: section.moreText || section.moreLabel || section.actionText || current.moreText,
+      route: section.route || section.moreRoute || section.actionRoute || current.route || ROUTES.gameHall
     }
   },
 
@@ -407,43 +525,43 @@ Page({
         icon: section.icon || this.data.achievementSection.icon,
         title: section.title || section.name || this.data.achievementSection.title
       },
-      list: this.formatAchievements(list)
+      list: this.formatAchievements(list, this.data.achievements)
     }
   },
 
-  formatAchievements(list) {
+  formatAchievements(list, fallbackList) {
     if (!Array.isArray(list) || list.length === 0) {
-      return []
+      return fallbackList
     }
 
     return list
-      .map((item) => this.formatAchievement(item))
+      .map((item, index) => this.formatAchievement(item, fallbackList[index]))
       .sort((prev, next) => Number(prev.unlocked === false) - Number(next.unlocked === false))
   },
 
-  formatAchievement(item) {
-    const title = item.title || item.name || item.displayName || ''
-    const status = item.statusText || item.statusLabel || item.status || this.formatAchievementStatus(item) || ''
-    const unlocked = item.unlocked != null ? Boolean(item.unlocked) : item.locked !== true
+  formatAchievement(item, fallback = {}) {
+    const title = item.title || item.name || item.displayName || fallback.title || ''
+    const status = item.statusText || item.statusLabel || item.status || this.formatAchievementStatus(item) || fallback.status || ''
+    const unlocked = item.unlocked != null ? Boolean(item.unlocked) : fallback.unlocked !== false
 
     const progressPercent = this.normalizeProgress(
       this.pickFirstValue(item.progressPercent, item.progress),
-      0
+      fallback.progressPercent || 0
     )
 
     return {
-      id: item.id || item.code || title,
-      icon: item.icon || item.iconText || '🏆',
+      id: item.id || item.code || fallback.id || title,
+      icon: item.icon || item.iconText || fallback.icon || '🏆',
       title,
       status: status ? (status.startsWith('▲') ? status : `▲ ${status}`) : '',
-      tone: this.resolveAchievementTone(item, unlocked),
+      tone: this.resolveAchievementTone(item, fallback, unlocked),
       unlocked,
       progressPercent,
       showProgress: progressPercent > 0 && unlocked
     }
   },
 
-  resolveAchievementTone(item, unlocked = true) {
+  resolveAchievementTone(item, fallback = {}, unlocked = true) {
     if (!unlocked) {
       return 'locked'
     }
@@ -454,7 +572,7 @@ Page({
       return 'blue'
     }
 
-    return item.tone || 'gold'
+    return fallback.tone || 'gold'
   },
 
   formatAchievementStatus(item) {
@@ -471,28 +589,37 @@ Page({
     return ''
   },
 
-  formatMetaverseEntry(entry = {}) {
+  formatMetaverseEntry(entry = {}, visualization = {}) {
     const current = this.data.metaverse
+    const network = visualization.network || {}
+    const networkNodes = Array.isArray(network.nodes) ? network.nodes : []
+    const networkEdges = Array.isArray(network.edges) ? network.edges : []
     const tags = Array.isArray(entry.tags) && entry.tags.length > 0
       ? entry.tags
-      : this.splitMetaverseTags(entry.desc || entry.subtitle) || current.tags
+      : networkEdges.length > 0
+        ? ['关系网', `${networkEdges.length} 条连接`]
+        : this.splitMetaverseTags(entry.desc || entry.subtitle) || current.tags
 
     return {
       ...current,
       title: entry.actionText || entry.title || current.title,
-      desc: entry.summary || entry.description || entry.desc || current.desc,
+      desc: entry.summary || entry.description || entry.desc || (networkNodes.length ? `已连接 ${networkNodes.length} 个动态节点` : current.desc),
       tags,
-      avatars: this.formatMetaverseAvatars(entry.avatars || entry.users || current.avatars),
-      badge: this.formatMetaverseBadge(entry, current.badge),
+      avatars: this.formatMetaverseAvatars(entry.avatars || entry.users || networkNodes || current.avatars),
+      badge: this.formatMetaverseBadge(entry, current.badge, networkNodes.length),
       route: entry.route || current.route
     }
   },
 
-  formatMetaverseBadge(entry = {}, fallback = '') {
+  formatMetaverseBadge(entry = {}, fallback = '', nodeCount = 0) {
     const joinedCount = this.pickFirstValue(entry.joinedCount, entry.onlineCount, entry.participantCount)
 
     if (joinedCount != null && joinedCount !== '') {
       return `+${joinedCount}`
+    }
+
+    if (nodeCount > 0) {
+      return `+${nodeCount}`
     }
 
     return entry.badge || entry.badgeText || entry.onlineText || fallback
@@ -533,12 +660,12 @@ Page({
       section.defaultTab || section.activeKey || home.rankingActiveRole || this.data.rankingActiveRole
     )
     const tabs = this.formatRankingTabs(section.tabs || home.rankingTabs, requestedActiveKey)
-    const boards = this.formatRankingBoards(home)
+    const boards = this.formatRankingBoards(home, this.data.rankingBoards)
     const activeKey = boards[requestedActiveKey] ? requestedActiveKey : (tabs[0] && tabs[0].key) || 'player'
     const activeBoard = boards[activeKey] || {}
     const display = this.formatRankingDisplay(
-      activeBoard.list,
-      activeBoard.myRank
+      activeBoard.list || this.data.rankingList,
+      activeBoard.myRank || this.data.myRank
     )
 
     return {
@@ -560,7 +687,8 @@ Page({
       ...this.data.rankingSection,
       icon: section.icon || this.data.rankingSection.icon,
       title: section.title || section.name || this.data.rankingSection.title,
-      moreText: section.moreText || section.moreLabel || section.actionText || this.data.rankingSection.moreText
+      moreText: section.moreText || section.moreLabel || section.actionText || this.data.rankingSection.moreText,
+      route: section.route || section.moreRoute || section.actionRoute || this.data.rankingSection.route || ROUTES.profileFootprintAchievements
     }
   },
 
@@ -579,14 +707,14 @@ Page({
     })
   },
 
-  formatRankingBoards(home = {}) {
+  formatRankingBoards(home = {}, fallbackBoards = {}) {
     const sourceBoards = home.rankingBoards || home.rankings || home.rankingByRole
     const boards = {}
 
     if (sourceBoards && typeof sourceBoards === 'object' && !Array.isArray(sourceBoards)) {
       Object.keys(sourceBoards).forEach((key) => {
         const roleKey = this.normalizeRoleType(key)
-        boards[roleKey] = this.formatRankingBoard(sourceBoards[key])
+        boards[roleKey] = this.formatRankingBoard(sourceBoards[key], fallbackBoards[roleKey])
       })
     }
 
@@ -595,7 +723,7 @@ Page({
         const roleKey = this.normalizeRoleType(
           board.key || board.value || board.roleType || board.name || (ROLE_TAGS[index] && ROLE_TAGS[index].key)
         )
-        boards[roleKey] = this.formatRankingBoard(board)
+        boards[roleKey] = this.formatRankingBoard(board, fallbackBoards[roleKey])
       })
     }
 
@@ -604,14 +732,21 @@ Page({
         {
           list: home.rankingList,
           myRank: home.myRank || home.currentUserRank
-        }
+        },
+        fallbackBoards.player
       )
     }
+
+    Object.keys(fallbackBoards || {}).forEach((key) => {
+      if (!boards[key]) {
+        boards[key] = fallbackBoards[key]
+      }
+    })
 
     return boards
   },
 
-  formatRankingBoard(board) {
+  formatRankingBoard(board, fallback = {}) {
     const sourceList = Array.isArray(board)
       ? board
       : (board && (board.list || board.rankingList || board.items || board.records))
@@ -620,29 +755,28 @@ Page({
       : null
 
     return {
-      list: this.formatRankingList(sourceList),
-      myRank: this.formatRankingItem(sourceMyRank)
+      list: this.formatRankingList(sourceList, fallback.list || []),
+      myRank: this.formatRankingItem(sourceMyRank, fallback.myRank || this.data.myRank)
     }
   },
 
-  formatRankingList(list) {
+  formatRankingList(list, fallbackList) {
     if (!Array.isArray(list) || list.length === 0) {
-      return []
+      return fallbackList
     }
 
-    return list.map((item) => this.formatRankingItem(item)).filter((item) => item.name || item.rank)
+    return list.map((item, index) => this.formatRankingItem(item, fallbackList[index]))
   },
 
   formatRankingDisplay(list = [], myRank = {}) {
     const rankingList = Array.isArray(list) ? list : []
     const currentRank = myRank || {}
-    const hasCurrentRank = Boolean(currentRank.rank || currentRank.name || currentRank.avatarUrl || currentRank.avatarFallback)
 
     if (!this.shouldInlineMyRank(rankingList, currentRank)) {
       return {
         list: rankingList,
         myRank: currentRank,
-        showMyRank: hasCurrentRank
+        showMyRank: true
       }
     }
 
@@ -686,24 +820,24 @@ Page({
     return item.name && myRank.name && item.rank && myRank.rank && item.name === myRank.name && item.rank === myRank.rank
   },
 
-  formatRankingItem(item) {
+  formatRankingItem(item, fallback = {}) {
     if (!item || Object.keys(item).length === 0) {
-      return {}
+      return fallback
     }
 
     const avatarCandidate = item.avatarUrl || item.avatarSrc || item.avatarImage || item.avatar
-    const avatarUrl = this.isImagePath(avatarCandidate) ? avatarCandidate : ''
-    const name = item.name || item.nickname || item.displayName || ''
+    const avatarUrl = this.isImagePath(avatarCandidate) ? avatarCandidate : fallback.avatarUrl || ''
+    const name = item.name || item.nickname || item.displayName || fallback.name || ''
 
     return {
-      id: item.id,
-      rank: this.formatRankNo(this.pickFirstValue(item.rank, item.rankNo, item.position)),
+      id: item.id || fallback.id,
+      rank: this.formatRankNo(this.pickFirstValue(item.rank, item.rankNo, item.position, fallback.rank)),
       avatarUrl,
-      avatarFallback: item.avatarFallback || item.initials || (!avatarUrl && avatarCandidate) || this.makeAvatarFallback(name),
+      avatarFallback: item.avatarFallback || item.initials || (!avatarUrl && avatarCandidate) || this.makeAvatarFallback(name) || fallback.avatarFallback,
       name,
-      desc: item.desc || item.description || item.summary || item.rankText || this.formatRankingDesc(item) || '',
-      xp: this.formatRankingXp(this.pickFirstValue(item.xp, item.xpText, item.experience, item.weeklyXp)),
-      xpUnit: item.xpUnit || 'XP'
+      desc: item.desc || item.description || item.summary || item.rankText || this.formatRankingDesc(item) || fallback.desc || '',
+      xp: this.formatRankingXp(this.pickFirstValue(item.xp, item.xpText, item.experience, item.weeklyXp, fallback.xp)),
+      xpUnit: item.xpUnit || fallback.xpUnit || 'XP'
     }
   },
 
@@ -767,13 +901,13 @@ Page({
     return name.trim().slice(0, 2)
   },
 
-  formatGameCards(games) {
+  formatGameCards(games, fallbackGames) {
     if (!Array.isArray(games) || games.length === 0) {
-      return []
+      return this.ensureGameCardRoutes(fallbackGames)
     }
 
     return games.map((item) => ({
-      id: item.id,
+      id: this.resolveGameCardId(item),
       scope: item.scope || item.distanceScope || 'city',
       title: item.title,
       tag: item.typeText || item.statusText || item.tag || '',
@@ -781,12 +915,54 @@ Page({
       coverSrc: item.coverUrl || item.coverSrc || item.cover,
       avatarUrls: item.participantAvatars || item.avatarUrls || item.participantAvatarUrls || [],
       price: item.priceText || item.price || '',
-      action: item.actionText || item.action || '',
+      action: item.actionText || item.action || '加入',
       location: item.locationText || this.formatGameLocation(item),
       time: item.timeText || item.time || '',
       joinedText: item.joinedText || this.formatJoinedText(item.joinedCount),
-      actions: this.formatGameActions(item.actions)
+      actions: this.formatGameActions(item.actions),
+      route: this.resolveGameCardRoute(item)
     }))
+  },
+
+  ensureGameCardRoutes(games) {
+    if (!Array.isArray(games)) {
+      return []
+    }
+
+    return games.map((item) => ({
+      ...item,
+      route: this.resolveGameCardRoute(item)
+    }))
+  },
+
+  resolveGameCardRoute(item = {}) {
+    const configuredRoute = item.detailRoute || item.detailUrl || item.route || item.url || item.path
+
+    if (configuredRoute) {
+      return this.normalizeGameCardRoute(configuredRoute, this.resolveGameCardId(item))
+    }
+
+    const gameId = this.resolveGameCardId(item)
+
+    if (gameId != null && gameId !== '') {
+      return `${ROUTES.gameDetail}?id=${encodeURIComponent(gameId)}`
+    }
+
+    return ROUTES.gameHall
+  },
+
+  resolveGameCardId(item = {}) {
+    return this.pickFirstValue(item.gameId, item.id, item.gameID, item.game_id)
+  },
+
+  normalizeGameCardRoute(route, gameId) {
+    const normalizedRoute = String(route || '').replace(/^\/+/, '')
+
+    if (normalizedRoute === ROUTES.gameDetail && gameId != null && gameId !== '') {
+      return `${ROUTES.gameDetail}?id=${encodeURIComponent(gameId)}`
+    }
+
+    return normalizedRoute
   },
 
   formatGameLocation(item) {
@@ -813,7 +989,7 @@ Page({
     }
 
     if (!Array.isArray(actions) || actions.length === 0) {
-      return []
+      return ['分享', '关注', '引荐', '打招呼']
     }
 
     return actions.map((action) => actionMap[action] || action)
@@ -1003,7 +1179,23 @@ Page({
       }
     }
 
-    const prompt = ROLE_PERMISSION_PROMPTS[roleType]
+    const config = this.data.roleBenefitConfig || {}
+    const prompts = config.permissionPrompts || ROLE_PERMISSION_PROMPTS
+    return this.formatRolePermissionPromptWithPrompts(roleType, roleStatusState, prompts)
+  },
+
+  formatRolePermissionPromptWithPrompts(roleType, roleStatusState = this.data.roleStatusState, prompts = ROLE_PERMISSION_PROMPTS) {
+    if (this.isRolePending(roleStatusState[roleType])) {
+      return {
+        visible: false,
+        roleType: '',
+        title: '',
+        primary: '',
+        secondary: ''
+      }
+    }
+
+    const prompt = prompts[roleType] || ROLE_PERMISSION_PROMPTS[roleType]
 
     if (!prompt) {
       return {
@@ -1091,10 +1283,16 @@ Page({
     }
 
     if (key === 'left' || key === 'right') {
-      wx.showToast({
-        title: '功能正在开发中',
-        icon: 'none'
+      navigateShellKey(key, {
+        currentRoute: ROUTES.playerHome
       })
+      return
+    }
+
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.playerHome,
+      onSameRoute: () => this.scrollPlayerHomeToTop()
+    })) {
       return
     }
 
@@ -1217,11 +1415,13 @@ Page({
       }))
     }
 
-    const display = this.formatRankingDisplay(board.list, board.myRank)
+    if (board.list || board.myRank) {
+      const display = this.formatRankingDisplay(board.list || this.data.rankingList, board.myRank || this.data.myRank)
 
-    patch.rankingList = display.list
-    patch.myRank = display.myRank
-    patch.showMyRank = display.showMyRank
+      patch.rankingList = display.list
+      patch.myRank = display.myRank
+      patch.showMyRank = display.showMyRank
+    }
 
     this.setData(patch)
   },
@@ -1249,33 +1449,14 @@ Page({
       url = `/${ROUTES.homeOther}?page=guideApply&single=1&roleType=guide`
     }
 
-    if (normalizedRoleType === 'expert' && typeof wx.redirectTo === 'function') {
-      wx.redirectTo({ url })
-      return
-    }
-
-    if (typeof wx.navigateTo === 'function') {
-      wx.navigateTo({ url })
-      return
-    }
-
-    wx.showToast({
-      title: '功能正在开发中',
-      icon: 'none'
+    navigateShellRoute(url, {
+      currentRoute: ROUTES.playerHome
     })
   },
 
   handleRoleCompareTap() {
-    if (typeof wx.navigateTo === 'function') {
-      wx.navigateTo({
-        url: `/${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(ROUTES.playerHome)}`
-      })
-      return
-    }
-
-    wx.showToast({
-      title: '权益对比正在开发中',
-      icon: 'none'
+    navigateShellRoute(`${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(ROUTES.playerHome)}`, {
+      currentRoute: ROUTES.playerHome
     })
   },
 
@@ -1283,24 +1464,27 @@ Page({
     const prompt = this.data.roleAuditPrompt || {}
     const roleType = prompt.roleType || this.data.selectedRoleTag || 'guide'
 
-    wx.navigateTo({
-      url: `/${ROUTES.homeOther}?page=pendingCards&roleType=${roleType}`
+    navigateShellRoute(`${ROUTES.homeOther}?page=pendingCards&roleType=${roleType}`, {
+      currentRoute: ROUTES.playerHome
     })
   },
 
   handleActionTap(event) {
-    const route = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.route
+    const detail = event && event.detail ? event.detail : {}
+    const item = detail.item || detail
+    const currentDataset = event && event.currentTarget && event.currentTarget.dataset
+      ? event.currentTarget.dataset
+      : {}
+    const targetDataset = event && event.target && event.target.dataset ? event.target.dataset : {}
+    const route = currentDataset.route || targetDataset.route || detail.route || (item && item.route)
 
-    if (route && typeof wx.navigateTo === 'function') {
-      wx.navigateTo({
-        url: route.startsWith('/') ? route : `/${route}`
+    if (route) {
+      navigateShellRoute(route, {
+        currentRoute: ROUTES.playerHome
       })
       return
     }
 
-    wx.showToast({
-      title: '功能正在开发中',
-      icon: 'none'
-    })
+    toast.info('请选择可用入口')
   }
 })

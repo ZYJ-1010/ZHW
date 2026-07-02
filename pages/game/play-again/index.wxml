@@ -34,8 +34,8 @@
       <view class="drag-handle"></view>
       <view class="panel-header">
         <view class="panel-copy">
-          <text class="panel-title">太棒了！你想怎么开启下一局？</text>
-          <text class="panel-subtitle">基于你的偏好，为你准备了3种快速组局方式</text>
+          <text class="panel-title">{{panelTitle}}</text>
+          <text class="panel-subtitle">{{panelSubtitle}}</text>
         </view>
         <button class="close-button" hover-class="none" aria-label="关闭" bindtap="onCloseTap">
           <image class="close-icon" src="./assets/i8@3x.png" mode="aspectFit"></image>
@@ -43,6 +43,12 @@
       </view>
 
       <view class="option-list">
+        <view wx:if="{{!recommendOptions.length}}" class="option-card">
+          <view class="option-copy">
+            <text class="option-title">暂无可用组局方式</text>
+            <text class="option-desc">请稍后重试或在组局大厅创建新局</text>
+          </view>
+        </view>
         <view
           wx:for="{{recommendOptions}}"
           wx:key="id"

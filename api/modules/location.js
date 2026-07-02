@@ -12,8 +12,18 @@ function getNearbyGames(params) {
   return request.get('/api/app/games/nearby', params)
 }
 
+function searchMapPlaces(params) {
+  return request.get('/api/app/map/search', params)
+}
+
+function reverseGeocode(params) {
+  return request.get('/api/app/map/reverse-geocode', params)
+}
+
 module.exports = {
   saveCurrentLocation,
   saveManualLocation,
-  getNearbyGames
+  getNearbyGames,
+  searchMapPlaces,
+  reverseGeocode
 }

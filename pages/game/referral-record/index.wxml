@@ -47,24 +47,24 @@
               <view class="person-node">
                 <view class="avatar {{item.expert.avatarClass}}">{{item.expert.avatarText}}</view>
                 <text class="person-name">{{item.expert.name}}</text>
-                <text class="role-tag expert">行家</text>
+                <text class="role-tag expert">{{texts.expertRoleText}}</text>
               </view>
               <view class="match-node">
                 <image wx:if="{{item.state === 'completed'}}" class="match-complete-check" src="/pages/game/referral-record/assets/match-completed-check.png" mode="aspectFit"></image>
                 <image wx:else class="match-icon" src="{{item.matchIcon}}" mode="aspectFit"></image>
                 <view class="match-guide-line"></view>
-                <text class="match-label">我</text>
+                <text class="match-label">{{texts.selfLabel}}</text>
               </view>
               <view class="person-node">
                 <view class="avatar {{item.player.avatarClass}}">{{item.player.avatarText}}</view>
                 <text class="person-name">{{item.player.name}}</text>
-                <text class="role-tag player">玩家</text>
+                <text class="role-tag player">{{texts.playerRoleText}}</text>
               </view>
             </view>
 
             <view class="service-row">
               <text class="service-title">{{item.serviceTitle}}</text>
-              <text class="reward-value {{item.rewardClass}}">¥{{item.reward}}</text>
+              <text class="reward-value {{item.rewardClass}}">{{texts.rewardPrefix}}{{item.reward}}</text>
             </view>
 
             <view wx:if="{{item.actions.length}}" class="action-row {{item.actions.length === 1 ? 'single' : ''}}">
@@ -75,6 +75,7 @@
                 disabled="{{item.disabled}}"
                 hover-class="none"
                 data-action="{{item.key}}"
+                data-record-id="{{item.id}}"
                 data-disabled="{{item.disabled}}"
                 bindtap="onActionTap"
               >
@@ -89,6 +90,7 @@
             </view>
           </view>
         </block>
+        <view wx:if="{{!visibleRecords.length && !loading}}" class="empty-records">{{texts.emptyText}}</view>
       </view>
     </scroll-view>
 

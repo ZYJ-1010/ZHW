@@ -1,6 +1,20 @@
 const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
+
+const EMPTY_REPLAY_CONTEXT = {
+  sourceGameId: '',
+  serviceOrderId: '',
+  inviter: null,
+  previousSession: {
+    serviceType: '',
+    completedAtText: '',
+    participantText: ''
+  },
+  invitees: [],
+  quickMessages: []
+}
 
 const ROLE_CLASS_MAP = {
   expert: 'blue',
@@ -37,27 +51,26 @@ function normalizeInvitee(invitee = {}, index = 0) {
   }
 }
 
-function normalizeReplayContext(context = {}) {
-  const source = context && typeof context === 'object' ? context : {}
+function normalizeReplayContext(context = EMPTY_REPLAY_CONTEXT) {
+  const source = context && typeof context === 'object' ? context : EMPTY_REPLAY_CONTEXT
   const invitees = (Array.isArray(source.invitees) ? source.invitees : []).map(normalizeInvitee)
   const selectedInviteeIds = invitees
     .filter((item) => item.selected)
     .map((item) => item.id)
-  const quickMessages = Array.isArray(source.quickMessages || source.messageTemplates)
-    ? (source.quickMessages || source.messageTemplates)
-    : []
+  const quickMessages = (Array.isArray(source.quickMessages) ? source.quickMessages : [])
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
 
   return {
     sourceGameId: source.sourceGameId || source.gameId || '',
     serviceOrderId: source.serviceOrderId || '',
-    inviter: source.inviter || {},
+    inviter: source.inviter || null,
     previousSession: normalizePreviousSession(source.previousSession || source.session || source),
     invitees,
     selectedInviteeIds,
     selectedCount: selectedInviteeIds.length,
     maxInviteeCount: invitees.length,
-    quickMessages,
-    selectedMessage: quickMessages[0] || ''
+    quickMessages
   }
 }
 
@@ -65,8 +78,8 @@ Page({
   data: {
     sourceGameId: '',
     serviceOrderId: '',
-    previousSession: normalizePreviousSession({}),
-    inviter: {},
+    previousSession: normalizePreviousSession(EMPTY_REPLAY_CONTEXT.previousSession),
+    inviter: null,
     invitees: [],
     selectedInviteeIds: [],
     selectedCount: 0,
@@ -75,7 +88,8 @@ Page({
     selectedMessage: '',
     customMessage: '',
     loading: false,
-    submitting: false
+    submitting: false,
+    loadError: false
   },
 
   onLoad(options = {}) {
@@ -85,6 +99,18 @@ Page({
   async loadReplayContext(options = {}) {
     const sourceGameId = options.sourceGameId || options.gameId || ''
     const serviceOrderId = options.serviceOrderId || ''
+
+    if (!sourceGameId) {
+      this.setData({
+        loadError: true,
+        loading: false
+      })
+      wx.showToast({
+        title: '缺少上局信息',
+        icon: 'none'
+      })
+      return
+    }
 
     this.setData({
       sourceGameId,
@@ -100,10 +126,10 @@ Page({
 
       this.applyReplayContext(context)
     } catch (error) {
-      this.applyReplayContext({
+      this.applyReplayContext(Object.assign({}, EMPTY_REPLAY_CONTEXT, {
         sourceGameId,
         serviceOrderId
-      })
+      }))
       wx.showToast({
         title: error.message || '上局信息加载失败',
         icon: 'none'
@@ -112,9 +138,12 @@ Page({
   },
 
   applyReplayContext(context) {
+    const nextContext = normalizeReplayContext(context)
     this.setData({
-      ...normalizeReplayContext(context),
-      loading: false
+      ...nextContext,
+      selectedMessage: nextContext.quickMessages[0] || '',
+      loading: false,
+      loadError: !nextContext.sourceGameId
     })
   },
 
@@ -165,13 +194,25 @@ Page({
   },
 
   onCancelTap() {
-    wx.showToast({
-      title: '取消组局待接入',
-      icon: 'none'
-    })
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+
+    navigateShellRoute(ROUTES.gameGuideProgress)
   },
 
   onConfirmTap() {
+    if (this.data.loadError || !this.data.sourceGameId) {
+      wx.showToast({
+        title: '上局信息未加载，暂不能发起',
+        icon: 'none'
+      })
+      return
+    }
+
     if (!this.data.selectedCount) {
       wx.showToast({
         title: '请选择邀请对象',
@@ -206,15 +247,7 @@ Page({
         message: this.data.customMessage || this.data.selectedMessage
       })
 
-      wx.navigateTo({
-        url: this.buildProgressUrl(result),
-        fail: () => {
-          wx.showToast({
-            title: '已发起，进度页待接入',
-            icon: 'none'
-          })
-        }
-      })
+      navigateShellRoute(this.buildProgressUrl(result))
     } catch (error) {
       wx.showToast({
         title: error.message || '确认发起失败',

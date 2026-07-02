@@ -130,6 +130,13 @@ page {
   line-height: 38rpx;
 }
 
+.collab-error {
+  margin-top: 10rpx;
+  color: #fecaca;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
 .collab-card {
   width: 100%;
   margin-bottom: 24rpx;
@@ -253,6 +260,12 @@ page {
 
 .chat-content {
   color: #b4b9cc;
+}
+
+.collab-empty {
+  color: #949ab1;
+  font-size: 26rpx;
+  line-height: 38rpx;
 }
 
 .collab-footer {

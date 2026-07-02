@@ -1,11 +1,285 @@
-const validInvites = {
-  ENJOY2026: {
-    id: 'invite-code-001',
-    code: 'ENJOY2026',
-    ownerUserId: 'user-guide-001',
-    inviterName: '周领路人',
-    city: '上海',
-    status: 'active'
+const validInvites = {}
+
+const mockRoleStatusPageConfig = {
+  roleAliases: {
+    player: 'player',
+    expert: 'expert',
+    master: 'expert',
+    guide: 'guide',
+    leader: 'guide',
+    玩家: 'player',
+    行家: 'expert',
+    领路人: 'guide'
+  },
+  statusMap: {
+    active: 'approved',
+    enabled: 'approved',
+    passed: 'approved',
+    success: 'approved',
+    waiting: 'pending',
+    reviewing: 'pending',
+    auditing: 'pending',
+    pending_audit: 'pending',
+    rejected_audit: 'rejected',
+    reject: 'rejected',
+    disabled: 'disabled',
+    available: 'none',
+    locked: 'none',
+    unavailable: 'none'
+  },
+  roleMeta: {
+    expert: {
+      roleName: '行家',
+      applyTitle: '行家申请',
+      successAccent: 'cyan',
+      approvedCopy: '你已获得行家身份，可在平台内使用对应能力',
+      primaryText: '开启行家之旅'
+    },
+    guide: {
+      roleName: '领路人',
+      applyTitle: '领路人申请',
+      successAccent: 'orange',
+      approvedCopy: '你已获得领路人身份，可在平台内使用对应能力',
+      primaryText: '开启领路人之旅'
+    }
+  },
+  pendingTimeline: [
+    { title: '提交申请', descTemplate: '已成功提交{roleName}申请资料', timeField: 'submittedAt', fallbackTime: '已提交', state: 'done' },
+    { title: '资料初审', desc: '平台审核团队已接收并开始初审', timeWhenSubmitted: '已接收', fallbackTime: '待系统同步', state: 'done' },
+    {
+      title: '深度审核',
+      descByRole: {
+        guide: '正在评估你的组局记录、信用分及领路计划书',
+        expert: '正在评估你的专业能力、资质材料及服务说明'
+      },
+      time: '进行中...',
+      state: 'active'
+    },
+    { title: '结果通知', desc: '审核结果将通过消息推送通知你', time: '待完成', state: 'pending' }
+  ],
+  approvedActions: [
+    { iconKey: 'network', text: '关系网开启', routeKey: 'relationNetwork' },
+    { iconKey: 'invite', text: '邀请玩家', routeKey: 'gameInvite' },
+    { iconKey: 'profile', text: '完善资料', routeKey: 'profileSystemProfileInfo' }
+  ],
+  texts: {
+    loadingText: '加载中...',
+    errorTitle: '审核状态加载失败',
+    backHomeText: '返回首页',
+    retryText: '重试',
+    pendingPageTitle: '审核进度',
+    resultPageTitle: '审核结果',
+    pendingTitle: '审核中',
+    approvedTitle: '恭喜审核通过！',
+    rejectedTitle: '审核未通过',
+    pendingSubtitleTemplate: '{roleName}申请正在审核',
+    approvedSubtitleTemplate: '你已成为「{roleName}」',
+    rejectedSubtitle: '查看原因并完善后可再次申请',
+    pendingDesc: '平台正在评估你的申请资料，请耐心等待',
+    rejectedDesc: '感谢你的申请，但本次审核未通过',
+    approvedAuditDesc: '你的申请已通过平台审核',
+    expectedLabel: '预计完成时间',
+    expectedTemplate: '预计 {expectedReviewAt} 前完成审核，届时将通过站内消息通知你审核结果。',
+    expectedFallback: '审核预计 1-3 个工作日，结果将通过站内消息通知你。',
+    detailTitle: '申请详情',
+    pendingHelper: '审核期间你可以继续使用玩家身份',
+    certNoLabel: '认证编号',
+    certTimePrefix: '认证时间: ',
+    giftTitle: '新手礼包',
+    reasonTitle: '驳回原因',
+    suggestionTitle: '改进建议',
+    reapplyTitle: '重新申请',
+    reapplyDesc: '完善资料后可再次提交申请。建议根据驳回原因逐项改进，提高通过率。',
+    recordTitle: '申请记录',
+    pendingFooterHomeText: '返回玩家首页',
+    pendingFooterBenefitsText: '查看权益对比',
+    rejectedHelpText: '查看帮助',
+    rejectedImproveText: '完善资料',
+    routeMissingText: '请选择可用入口',
+    fieldRoleLabel: '申请角色',
+    fieldApplyTimeLabel: '申请时间',
+    fieldApplicationNoLabel: '申请编号',
+    fieldCurrentStatusLabel: '当前状态',
+    fieldExpectedLabel: '预计完成',
+    fieldRejectTimeLabel: '驳回时间',
+    fieldReapplyLabel: '可重新申请',
+    submittedFallback: '已提交',
+    backendRecordFallback: '以后台记录为准',
+    applicationNoFallback: '审核中生成',
+    pendingStatusText: '深度审核中',
+    statusFallback: '待确认',
+    expectedDoneFallback: '预计 1-3 个工作日',
+    reapplySuffix: ' 后',
+    reapplyNotifyFallback: '请关注后台通知',
+    loadFailedText: '审核状态加载失败'
+  },
+  defaultRejectReasons: [
+    '申请资料暂未达到当前角色审核要求',
+    '部分证明材料或计划说明仍需补充完善'
+  ],
+  suggestionTemplates: [
+    '多参与平台组局活动，积累带队经验',
+    '完善个人资料，提升信用评分',
+    '{improvePlanText}，详细描述你的服务优势',
+    '获得同伴推荐背书可提升审核通过率'
+  ],
+  improvePlanTextByRole: {
+    guide: '重新撰写领路计划书',
+    expert: '补充服务说明'
+  },
+  reapplyDays: 7
+}
+
+const mockRoleApplicationPageConfig = {
+  pageTitle: '选择你的身份',
+  pageDesc: '玩家为默认身份。行家和领路人需提交申请，审核通过后开放对应能力。',
+  texts: {
+    loadingText: '加载中...',
+    loadFailedText: '角色申请加载失败',
+    conditionLabel: '条件达成',
+    paymentLabel: '付费状态',
+    pendingButtonText: '已进入审核',
+    submittingText: '提交中...',
+    submitButtonText: '提交申请',
+    submitFailedText: '提交失败',
+    requirementPrefix: '• ',
+    defaultSuccessText: '申请已提交'
+  }
+}
+
+const mockGuideApplyConfig = {
+  applyRoleType: 'guide',
+  applyRoleName: '领路人',
+  requirements: [
+    { title: '玩家等级达到 Lv.5', text: '以后台资格规则为准', done: false },
+    { title: '完成实名认证', text: '领路人必须实名', done: false },
+    { title: '信用分 ≥ 80 分', text: '以信用记录为准', done: false }
+  ],
+  planTask: { title: '提交领路计划书', text: '描述你的带队风格、战绩、资源和规划', done: false, action: '去填写 ›' },
+  perks: [
+    { icon: '¥', text: '有权益的领路人引荐玩家组局可获得相应收入' },
+    { icon: '★', text: '专属领路人标识与优先推荐位' },
+    { icon: 'D', text: '数据看板：查看邀约数据与关系网络' }
+  ],
+  fields: [
+    { key: 'city', label: '所在城市', type: 'input', required: true, placeholder: '请输入常驻城市', maxlength: 20, helper: '用于匹配同城玩家与组局推荐' },
+    {
+      key: 'audience',
+      label: '可推荐人群',
+      type: 'chips',
+      required: true,
+      options: [
+        { name: '朋友', active: true },
+        { name: '同事', active: true },
+        { name: '同城玩家', active: true },
+        { name: '社群成员', active: false }
+      ],
+      helper: '可多选，后续将用于关系网推荐'
+    },
+    { key: 'contact', label: '常用联系方式', type: 'input', required: true, placeholder: '请输入微信号或手机号', maxlength: 30 },
+    { key: 'guidePlan', label: '领路计划书', type: 'textarea', required: true, placeholder: '请描述你的带队风格、战绩、资源和规划', maxlength: 300, helper: '不少于 50 字，说明你能帮助玩家完成组局的方式' }
+  ],
+  uploadField: {
+    label: '资质证明',
+    required: true,
+    icon: '📎',
+    title: '点击上传作品集及凭证',
+    helper: '支持 JPG、PNG、PDF，最多 5 张',
+    acceptTypes: ['JPG', 'PNG', 'PDF'],
+    maxCount: 5
+  },
+  serviceCount: 3,
+  serviceBlocks: [
+    { id: 'guide-service-1', title: '业务' },
+    { id: 'guide-service-2', title: '业务' },
+    { id: 'guide-service-3', title: '业务' }
+  ],
+  validationRules: {
+    guidePlan: { minLength: 50, maxLength: 300 },
+    serviceName: { minLength: 2, maxLength: 20 },
+    money: { integerMaxLength: 8, decimalMaxLength: 2 }
+  },
+  priceHint: '平台将收取 10% 服务费',
+  primaryText: '提交领路人申请',
+  helperText: '审核预计 1-3 个工作日'
+}
+
+const mockRoleBenefitConfig = {
+  version: '2026-07-01',
+  permissionPrompts: {
+    expert: {
+      roleType: 'expert',
+      title: '我懂玩家需要什么！我申请成为行家',
+      primary: '申请成为行家',
+      secondary: '查看权益对比'
+    },
+    guide: {
+      roleType: 'guide',
+      title: '我愿意带领更多人一起玩！我申请成为领路人',
+      primary: '申请成为领路人',
+      secondary: '查看权益对比'
+    }
+  },
+  roleComparison: {
+    name: '权益对比页',
+    mode: 'roleComparison',
+    roleBadge: '权益',
+    title: '角色权益对比',
+    subtitle: '选择适合你的角色，开启不同玩法',
+    roles: [
+      { key: 'player', name: '玩家', level: 'Lv.1+', active: true },
+      { key: 'guide', name: '领路人', level: 'Lv.5+', active: false },
+      { key: 'expert', name: '行家', level: 'Lv.20+', active: false }
+    ],
+    benefits: [
+      { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
+      { name: '加入组局', player: '✓', leader: '✓', expert: '✓' },
+      { name: '创建路线', player: '✓', leader: '—', expert: '✓' },
+      { name: '分润收益', player: '—', leader: '基础会员40%', expert: '高级会员40%' },
+      { name: '服务交易', player: '—', leader: '—', expert: '✓' },
+      { name: '数据看板', player: '—', leader: '✓', expert: '✓' },
+      { name: '信用背书', player: '—', leader: '✓', expert: '✓' }
+    ],
+    primary: '立即申请角色'
+  }
+}
+
+const mockReferralRecordsConfig = {
+  pageTitle: '我的引荐记录',
+  summary: {
+    label: '本月引荐收益',
+    background: 'linear-gradient(135deg, #ffb347 0%, #ff7b00 100%)',
+    iconSrc: '/pages/game/referral-record/assets/wallet.png',
+    statTemplates: {
+      success: '成功 {count}单',
+      processing: '进行中 {count}单',
+      review: '待评价 {count}单'
+    }
+  },
+  tabs: [
+    { key: 'processing', label: '进行中' },
+    { key: 'completed', label: '已完成' },
+    { key: 'canceled', label: '已取消' }
+  ],
+  texts: {
+    emptyText: '暂无引荐记录',
+    loadFailedText: '引荐记录加载失败',
+    expertRoleText: '行家',
+    playerRoleText: '玩家',
+    selfLabel: '我',
+    reviewedTagText: '已评价',
+    pendingReviewTagText: '待评价',
+    reviewedActionText: '已评价',
+    reviewActionText: '评价双方',
+    remindActionText: '提醒交付',
+    chatActionText: '查看群聊',
+    chatPrefill: '你好，我想查看本次引荐服务的群聊进度。',
+    unavailableText: '该操作暂不可用',
+    remindMessageTemplate: '请及时确认交付：{serviceTitle}',
+    remindServiceFallback: '引荐服务',
+    remindSuccessText: '已提醒交付',
+    remindFailedText: '提醒交付失败',
+    rewardPrefix: '¥'
   }
 }
 
@@ -65,7 +339,7 @@ const mockHome = {
     roleName: '玩家',
     dateLabel: '2026.03.30',
     subtitle: '开启你的今日副本',
-    onlineText: ''
+    onlineText: '在线'
   },
   notices: [
     {
@@ -78,7 +352,7 @@ const mockHome = {
     { id: 'create', title: '发起组局', route: 'pages/game/create/index' },
     { id: 'hall', title: '局前大厅', route: 'pages/game/hall/index' },
     { id: 'role', title: '角色申请', route: 'pages/role/apply/index' },
-    { id: 'map', title: '附近组局', route: '' },
+    { id: 'map', title: '附近组局', route: 'pages/map/index' },
     { id: 'message', title: '消息', route: 'pages/message/index' },
     { id: 'profile', title: '我的', route: 'pages/profile/index' }
   ],
@@ -89,11 +363,65 @@ const mockHome = {
       { key: 'nearby', name: '附近' }
     ]
   },
-  recommendedGames: [],
+  recommendedGames: [
+    {
+      id: '20001',
+      title: 'AI赋能系统搭建交流局',
+      cityName: '黄浦区',
+      distanceText: '8.2km',
+      memberText: '3/8人',
+      timeText: '2026年5月1日 14:00--16:00',
+      statusText: '任务局',
+      priceText: '¥0/人',
+      joinedText: '+3位玩家已入局',
+      actionText: '加入',
+      coverUrl: '/components/game-card/assets/cover-sunset.png',
+      scope: 'city',
+      actions: ['share', 'follow', 'refer', 'greet'],
+      route: 'pages/game/detail/index?id=20001',
+      tags: ['AI', '系统搭建', '交流']
+    },
+    {
+      id: '20002',
+      title: '苏州河“记忆碎片”采集',
+      cityName: '静安区',
+      distanceText: '3.2km',
+      memberText: '5/8人',
+      timeText: '2026年5月1日 20:00--22:00',
+      statusText: '探索局',
+      priceText: '¥0/人',
+      joinedText: '+5位玩家已入局',
+      actionText: '加入',
+      coverUrl: '/components/game-card/assets/cover-city.png',
+      scope: 'nearby',
+      actions: ['share', 'follow', 'refer', 'greet'],
+      route: 'pages/game/detail/index?id=20002',
+      tags: ['城市故事', '探索', '同城']
+    }
+  ],
   playerSummary: {
     currentRole: 'player',
     roleType: 'player',
-    stats: []
+    displayName: 'Alex Chen',
+    nickname: 'Alex Chen',
+    roleLabel: '玩家 Lv.5',
+    title: '活跃达人',
+    level: 5,
+    nextLevel: 6,
+    experience: 580,
+    nextLevelExperience: 1000,
+    expToNextLevel: 420,
+    xpText: '580/1000 XP',
+    progressPercent: 58,
+    nextLevelText: '距离下一等级还需 420 经验值',
+    joinCount: 12,
+    monthlyMvpCount: 3,
+    participationRate: '98%',
+    stats: [
+      { label: '参与局数', value: '12' },
+      { label: '本月MVP', value: '3' },
+      { label: '参与率', value: '98%' }
+    ]
   },
   rankingSection: {
     icon: '🏆',
@@ -106,20 +434,81 @@ const mockHome = {
       { key: 'guide', name: '领路人' }
     ]
   },
-  rankingBoards: {},
-  rankingList: [],
+  rankingBoards: {
+    player: {
+      list: [
+        {
+          id: 'rank-player-01',
+          rank: 1,
+          nickname: '领域专家 PRO',
+          avatarFallback: '👨🏾‍🎓',
+          desc: '本周组局 12 · MVP 5次',
+          xpText: '2,450 XP'
+        },
+        {
+          id: 'rank-player-02',
+          rank: 2,
+          nickname: '社交达人',
+          avatarFallback: '👩🏻‍🎤',
+          desc: '本周组局 8 次',
+          xpText: '1,890 XP'
+        },
+        {
+          id: 'rank-player-03',
+          rank: 3,
+          nickname: '探险家',
+          avatarFallback: '👨🏿‍🚀',
+          desc: '本周组局 6 次',
+          xpText: '1,560 XP'
+        }
+      ],
+      myRank: {
+        rank: 52,
+        nickname: '我（Alex）',
+        avatarFallback: '👩🏻‍💻',
+        desc: '上周排名 65 ↑',
+        xpText: '520 XP'
+      }
+    }
+  },
+  rankingList: [
+    { rank: '01', name: '领域专家 PRO', avatarFallback: '👨🏾‍🎓', desc: '本周组局 12 · MVP 5次', xpText: '2,450 XP' },
+    { rank: '02', name: '社交达人', avatarFallback: '👩🏻‍🎤', desc: '本周组局 8 次', xpText: '1,890 XP' },
+    { rank: '03', name: '探险家', avatarFallback: '👨🏿‍🚀', desc: '本周组局 6 次', xpText: '1,560 XP' }
+  ],
   achievementSection: {
     icon: '💎',
     title: '我的成就'
   },
-  achievementList: [],
+  achievementList: [
+    { id: 'hundred', code: 'hundred_king', title: '百场王者', icon: '🏆', statusText: '等级', unlocked: true },
+    { id: 'pilot', code: 'pilot_king', title: '引航王者', icon: '🏆', statusText: '等级', unlocked: true },
+    { id: 'earth', code: 'earth_roamer', title: '地球漫游者', icon: '🌍', statusText: '进度20%', progressPercent: 20, unlocked: true },
+    { id: 'hidden', code: 'hidden_badge', title: '隐藏徽章', icon: '🔒', statusText: '未解锁', unlocked: false }
+  ],
   friendSection: {
     icon: '🎲',
     title: '朋友在玩',
-    count: 0,
+    count: 2,
     moreText: '查看全部'
   },
-  friendGames: [],
+  friendGames: [
+    {
+      id: 'friend-1',
+      title: '盲盒路线：3小时点亮天际线',
+      cityName: '梧桐山',
+      distanceText: '1.5km',
+      memberText: '3/8人',
+      timeText: '2026年5月1日 14:00--16:00',
+      priceText: '¥29/人',
+      statusText: '探索局',
+      joinedText: '+3位玩家已入局',
+      coverUrl: '/components/game-card/assets/cover-sunset.png',
+      actionText: '加入',
+      actions: ['share', 'follow', 'refer', 'greet'],
+      route: 'pages/game/detail/index?id=friend-1'
+    }
+  ],
   metaverseEntry: {
     title: '进入元宇宙',
     desc: '共创数字街区｜全球联机互动',
@@ -133,7 +522,41 @@ const mockHome = {
     actionText: '进入元宇宙',
     route: 'pages/placeholder/metaverse/index'
   },
-  nearbySummary: {}
+  earth: {
+    onlineCount: 5,
+    nearbyCount: 2,
+    nodes: [
+      { id: 'user-10001', type: 'self', label: '我', weight: 5 },
+      { id: 'game-20001', type: 'game', label: 'AI交流局', longitude: 121.4737, latitude: 31.2304, weight: 3 },
+      { id: 'game-20002', type: 'game', label: '城市采集局', longitude: 121.4837, latitude: 31.2204, weight: 5 },
+      { id: 'user-20002', type: 'relation', label: '好友A', strength: 3 }
+    ],
+    heatPoints: [
+      { cityCode: '310100', cityName: '上海', longitude: 121.4737, latitude: 31.2304, weight: 3 },
+      { cityCode: '320500', cityName: '苏州', longitude: 120.5853, latitude: 31.2989, weight: 2 }
+    ],
+    edges: [
+      { source: 'user-10001', target: 'user-20002', relationType: 'invite' }
+    ]
+  },
+  visualization: {
+    network: {
+      nodes: [
+        { id: 'user-10001', label: '我', type: 'self' },
+        { id: 'user-20002', label: '好友A', type: 'relation' }
+      ],
+      edges: [
+        { source: 'user-10001', target: 'user-20002', relationType: 'invite' }
+      ]
+    }
+  },
+  nearbySummary: {
+    count: 12,
+    nearbyGameCount: 12,
+    checkedInCount: 8,
+    cityName: '上海',
+    accuracyText: '定位精度 300m 内'
+  }
 }
 
 const mockRoleHomes = {
@@ -143,7 +566,7 @@ const mockRoleHomes = {
       roleName: '行家',
       dateLabel: '2026.05.15',
       subtitle: '开启你的今日副本',
-      onlineText: '3999人在线'
+      onlineText: '在线'
     },
     roleDashboard: {
       roleName: '行家',
@@ -186,8 +609,8 @@ const mockRoleHomes = {
           id: 'expert-game-1',
           time: '14:00',
           day: '今天',
-          title: '《血染钟楼》10人局',
-          meta: '星巴克(万科店) · 1.2km · 3/10人',
+          title: '《血染钟楼》8人局',
+          meta: '星巴克(万科店) · 1.2km · 5/8人',
           dateText: '2026年5月1日 14:00--16:00',
           tags: ['专业场', '探索局'],
           status: '即将满员',
@@ -265,7 +688,7 @@ const mockRoleHomes = {
       roleName: '领路人',
       dateLabel: '2026.05.15',
       subtitle: '开启你的今日副本',
-      onlineText: '3999人在线'
+      onlineText: '在线'
     },
     roleDashboard: {
       roleName: '领路人',
@@ -317,7 +740,7 @@ const mockRoleHomes = {
           coverUrl: '/components/game-card/assets/cover-city.png',
           scope: 'nearby',
           actions: ['share', 'follow', 'refer', 'greet'],
-          route: 'pages/game/detail/index',
+          route: 'pages/game/detail/index?id=guide-game-1',
           tags: ['城市故事', '探索', '同城']
         },
         {
@@ -334,7 +757,7 @@ const mockRoleHomes = {
           coverUrl: '/components/game-card/assets/cover-sunset.png',
           scope: 'city',
           actions: ['share', 'follow', 'refer', 'greet'],
-          route: 'pages/game/detail/index',
+          route: 'pages/game/detail/index?id=guide-game-2',
           tags: ['AI', '系统搭建', '交流']
         }
       ],
@@ -401,161 +824,157 @@ const mockRoleHomes = {
 }
 
 const mockProfileHome = {
-  user: {},
-  stats: [],
-  assets: {
-    summary: []
+  user: {
+    nickname: '小明',
+    memberLevel: '基础会员',
+    roleLevel: 'V5 探险家',
+    growthLevel: 'V5 探险家',
+    role: '玩家',
+    avatarText: '小',
+    inviteCode: 'ZHW-2026'
   },
+  stats: [
+    { key: 'referrals', label: '引荐数', value: '128' },
+    { key: 'successes', label: '成功数', value: '86' },
+    { key: 'dealAmount', label: '成交总额', value: '¥45K' },
+    { key: 'credit', label: '信用度', value: '98' }
+  ],
+  assets: [
+    { key: 'totalDealAmount', label: '总成交额', value: '¥12,580' },
+    { key: 'withdrawable', label: '可提现', value: '¥3,200', tone: 'green' },
+    { key: 'pendingSettlement', label: '待结算', value: '¥800', tone: 'orange' }
+  ],
+  vipBanner: {
+    text: '升级会员，认证您的角色',
+    actionText: '增购会员 >',
+    route: '/pages/profile/member/index'
+  },
+  serviceSections: [
+    {
+      title: '服务中心',
+      items: [
+        { title: '我的局', iconSrc: '/pages/profile/assets/i66@3x.png', iconClass: 'purple-blue', badge: '2进行中', badgeClass: 'pink', route: '/pages/profile/service-center/my-games/index' },
+        { title: '我的邀请', iconSrc: '/pages/profile/assets/i68@3x.png', iconClass: 'purple-blue', badge: '3个关系', badgeClass: 'orange', route: '/pages/profile/service-center/invite/overview/index' },
+        { title: '评价管理', iconSrc: '/pages/profile/assets/i69@3x.png', iconClass: 'purple-blue', badge: '1待评价', badgeClass: 'pink', route: '/pages/profile/service-center/manage/review-manage/index' }
+      ]
+    },
+    {
+      title: '资产中心',
+      items: [
+        { title: '我的资产', iconSrc: '/pages/profile/assets/i70@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/manage/index' },
+        { title: '我的押金', iconSrc: '/pages/profile/assets/i71@3x.png', iconClass: 'orange' },
+        { title: '积分商城', iconSrc: '/pages/profile/assets/i72@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/mall/index' },
+        { title: '我的积分', iconSrc: '/pages/profile/assets/i73@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/points/index' },
+        { title: '开票中心', iconSrc: '/pages/profile/assets/i74@3x.png', iconClass: 'orange' }
+      ]
+    }
+  ],
   incomeSummary: {
-    pendingAmountText: '',
-    settledAmountText: ''
+    pendingAmountText: '¥0.00',
+    settledAmountText: '¥0.00'
   }
+}
+
+const mockProfileAssets = {
+  overview: {
+    label: '总资产（元）',
+    value: '¥4,000.00',
+    amountCent: 400000,
+    points: 260,
+    updatedText: '实时同步分润与积分账户'
+  },
+  assetStats: [
+    { key: 'totalDealAmount', label: '总成交额', value: '¥12,580.00', amountCent: 1258000 },
+    { key: 'withdrawable', label: '可提现', value: '¥3,200.00', amountCent: 320000, tone: 'green' },
+    { key: 'pendingSettlement', label: '待结算', value: '¥800.00', amountCent: 80000, tone: 'yellow' }
+  ],
+  quickActions: [
+    { key: 'withdraw', label: '提现', tone: 'green', iconSrc: '/pages/profile/asset-center/manage/assets/fa/download.svg', enabled: true },
+    { key: 'recharge', label: '充值', tone: 'blue', iconSrc: '/pages/profile/asset-center/manage/assets/fa/plus.svg', enabled: false, disabledReason: '一期未接真实支付充值' }
+  ],
+  menuItems: [
+    { key: 'balance', title: '余额明细', desc: '收入支出记录', iconSrc: '/pages/profile/asset-center/manage/assets/fa/list-ul.svg', tone: 'blue' },
+    { key: 'bankCards', title: '银行卡', desc: '管理收款账户', value: '未绑定', iconSrc: '/pages/profile/asset-center/manage/assets/fa/credit-card.svg', tone: 'green' },
+    { key: 'orders', title: '我的订单', desc: '查看全部订单', iconSrc: '/pages/profile/asset-center/manage/assets/fa/bag-shopping.svg', tone: 'purple', route: '/pages/profile/asset-center/orders/index' }
+  ],
+  orderStatuses: [
+    { key: 'pendingPay', label: '待付款', count: 0, countText: '0', iconSrc: '/pages/profile/asset-center/manage/assets/fa/hourglass-half.svg', tone: 'blue', route: '/pages/profile/asset-center/orders/index?status=pending_pay' },
+    { key: 'processing', label: '进行中', count: 1, countText: '1', iconSrc: '/pages/profile/asset-center/manage/assets/fa/spinner.svg', tone: 'orange', route: '/pages/profile/asset-center/orders/index?status=pending' },
+    { key: 'completed', label: '已完成', count: 1, countText: '1', iconSrc: '/pages/profile/asset-center/manage/assets/fa/check.svg', tone: 'green', route: '/pages/profile/asset-center/orders/index?status=fulfilled' },
+    { key: 'refund', label: '退款/售后', count: 0, countText: '0', iconSrc: '/pages/profile/asset-center/manage/assets/fa/rotate-left.svg', tone: 'red', route: '/pages/profile/asset-center/orders/index?status=canceled' },
+    { key: 'review', label: '待评价', count: 1, countText: '1', iconSrc: '/pages/profile/asset-center/manage/assets/fa/star.svg', tone: 'gray', route: '/pages/profile/service-center/manage/review-manage/index' }
+  ],
+  recentOrders: [
+    { id: 'RDM-1', orderId: 1, title: '产品架构咨询', status: '进行中', statusTone: 'blue', time: '2026-03-20 14:30:00', amount: '800积分', route: '/pages/profile/asset-center/orders/index' },
+    { id: 'RDM-2', orderId: 2, title: 'UI设计服务', status: '已完成', statusTone: 'green', time: '2026-03-15 09:15:00', amount: '600积分', route: '/pages/profile/asset-center/orders/index' }
+  ],
+  balanceRecords: [
+    { id: 'income-1', title: '分润收益', desc: 'REV-1', amount: '¥320.00', type: 'income', status: '已结算', createdAt: '2026-03-20 14:30:00' },
+    { id: 'points-1', title: '积分变动', desc: '兑换商品', amount: '-800积分', type: 'points', status: '已记录', createdAt: '2026-03-18 11:00:00' }
+  ],
+  bankCards: {
+    count: 0,
+    summaryText: '未绑定',
+    items: [],
+    canBind: true,
+    needIdentity: false
+  },
+  faqLinks: [
+    { key: 'withdrawArrival', label: '提现多久到账？', answer: '提现需在后台财务审核后处理。' },
+    { key: 'bindBankCard', label: '如何绑定银行卡？', answer: '银行卡绑定入口已预留，正式资金通道接入后开放。' }
+  ]
 }
 
 const mockSystemSkillConfig = {
   roleSummary: {
-    roleName: '行家',
+    roleName: '??',
     maxSkillCount: 3,
     monthlyLimit: 3,
-    usedCount: 1,
-    remainingCount: 2,
-    configuredCount: 2
+    usedCount: 0,
+    remainingCount: 3,
+    configuredCount: 0
   },
   skillSlots: [
-    { id: 'atmosphere', title: '氛围带动', iconKey: 'atmosphere', iconText: '🎭', tone: 'blue', active: true, empty: false },
-    { id: 'detail', title: '细节控', iconKey: 'detail', iconText: '🔍', tone: 'purple', active: false, empty: false },
-    { id: 'add', title: '添加技能', iconKey: 'plus', iconText: '+', tone: 'gray', active: false, empty: true, locked: true }
+    { id: 'empty-1', title: '????', iconKey: 'plus', iconText: '+', tone: 'gray', active: false, empty: true },
+    { id: 'empty-2', title: '????', iconKey: 'plus', iconText: '+', tone: 'gray', active: false, empty: true },
+    { id: 'empty-3', title: '????', iconKey: 'plus', iconText: '+', tone: 'gray', active: false, empty: true, locked: true }
   ],
   tabs: [
-    { key: 'visible', label: '显性技能' },
-    { key: 'hidden', label: '隐形技能' },
-    { key: 'cases', label: '服务案例' }
+    { key: 'visible', label: '????' },
+    { key: 'hidden', label: '????' },
+    { key: 'cases', label: '????' }
   ],
   sectionMap: {
     visible: {
-      title: '已配置显性技能',
-      desc: '玩家可见，用于建立信任'
+      title: '???????',
+      desc: '???????????'
     },
     hidden: {
-      title: '系统识别隐形技能',
-      desc: '由履约、评价与复盘内容沉淀，暂不直接展示给玩家'
+      title: '????????',
+      desc: '???????????????????????'
     },
     cases: {
-      title: '服务案例沉淀',
-      desc: '用于支撑技能标签和后续智能推荐'
+      title: '??????',
+      desc: '???????????????'
     }
   },
   skillGroups: {
-    visible: [
-      {
-        id: 'atmosphere',
-        title: '氛围带动',
-        iconKey: 'atmosphere',
-        iconText: '🎭',
-        tone: 'blue',
-        badge: '手动解锁',
-        badgeTone: 'info',
-        visibilityText: '显性技能 · 玩家可见',
-        sourceText: '行家手动配置',
-        lockedAt: '2026-06-01',
-        caseTitle: '定制服务案例',
-        caseBadge: '个性化',
-        caseDesc: '在「陌生人破冰局」中，通过“两真一假”游戏快速打破僵局，15分钟内让8位互不相识的玩家建立初步信任，整场局零冷场，玩家评价“像认识了很久的朋友”。',
-        caseDate: '2026-05-25',
-        casePlayers: '5人局',
-        rating: 5,
-        ratingText: '5.0分'
-      },
-      {
-        id: 'detail',
-        title: '细节控',
-        iconKey: 'detail',
-        iconText: '🔍',
-        tone: 'purple',
-        badge: 'AI解锁',
-        badgeTone: 'purple',
-        visibilityText: '显性技能 · 玩家可见',
-        sourceText: '系统综合评估自动解锁',
-        lockedAt: '2026-06-10',
-        caseTitle: '定制服务案例',
-        caseBadge: '个性化',
-        caseDesc: '与「沉浸式剧本杀局」提前踩点3次，根据玩家性格分配角色，准备道具12件，局中适时递上热饮，玩家反馈“被照顾到了每个细节”。',
-        caseDate: '2026-05-25',
-        casePlayers: '5人局',
-        rating: 5,
-        ratingText: '5.0分'
-      }
-    ],
+    visible: [],
     hidden: [],
-    cases: [
-      {
-        id: 'case-stranger',
-        title: '陌生人破冰局',
-        linkedSkillTitle: '氛围带动',
-        iconKey: 'atmosphere',
-        iconText: '🎭',
-        tone: 'blue',
-        badge: '已绑定',
-        badgeTone: 'green',
-        visibilityText: '服务案例 · 支撑技能',
-        sourceText: '历史组局服务',
-        lockedAt: '2026-05-25',
-        caseTitle: '案例摘要',
-        caseBadge: '可展示',
-        caseDesc: '通过轻互动机制帮助陌生玩家降低表达压力，并在关键节点引导复述需求，让玩家能自然进入合作讨论。',
-        caseDate: '2026-05-25',
-        casePlayers: '8人局',
-        rating: 5,
-        ratingText: '5.0分'
-      },
-      {
-        id: 'case-script',
-        title: '沉浸式剧本杀局',
-        linkedSkillTitle: '细节控',
-        iconKey: 'detail',
-        iconText: '🔍',
-        tone: 'purple',
-        badge: '已绑定',
-        badgeTone: 'green',
-        visibilityText: '服务案例 · 支撑技能',
-        sourceText: '玩家评价沉淀',
-        lockedAt: '2026-06-02',
-        caseTitle: '案例摘要',
-        caseBadge: '可展示',
-        caseDesc: '提前确认玩家偏好、角色接受度和到场时间，现场通过提示卡和节奏控场减少等待，让玩家评价集中在“细致、有安全感”。',
-        caseDate: '2026-06-02',
-        casePlayers: '6人局',
-        rating: 4,
-        ratingText: '4.0分'
-      },
-      {
-        id: 'case-board-game',
-        title: '桌游竞技局',
-        linkedSkillTitle: '策略引导',
-        iconText: '🎯',
-        tone: 'orange',
-        badge: '已绑定',
-        badgeTone: 'green',
-        visibilityText: '服务案例 · 支撑技能',
-        sourceText: '策略类组局',
-        lockedAt: '2026-05-18',
-        caseTitle: '案例摘要',
-        caseBadge: '可展示',
-        caseDesc: '在竞技桌游局中先确认玩家经验差异，再按阶段提示胜负关键点，让新手能跟上节奏，也保留老玩家的策略空间。',
-        caseDate: '2026-05-18',
-        casePlayers: '4人局',
-        rating: 5,
-        ratingText: '4.8分'
-      }
-    ]
+    cases: []
   },
+  addableSkills: [
+    { id: 'review', title: '?????', desc: '????????', iconText: '??', tone: 'orange' },
+    { id: 'mood', title: '?????', desc: '?????????', iconText: '??', tone: 'pink' },
+    { id: 'rules', title: '?????', desc: '????????', iconText: '??', tone: 'green' },
+    { id: 'photo', title: '?????', desc: '????????', iconText: '??', tone: 'cyan' }
+  ],
   unlockSuggestion: {
-    title: '解锁第三个技能',
-    desc: '解锁后可在上方槽位添加新的显性技能',
-    actionText: '立即解锁'
+    title: '???????',
+    desc: '?????????????????',
+    actionText: '????'
   }
 }
-
 const mockPointsMall = {
   pointsAvailable: 2580,
   expireTip: '积分有效期12个月，请及时兑换',
@@ -605,7 +1024,73 @@ const mockPointsMall = {
   ]
 }
 
+const mockPointsPageConfig = {
+  stats: [
+    { key: 'total', label: '累计积分' },
+    { key: 'redeemed', label: '已兑换' },
+    { key: 'expired', label: '过期积分' }
+  ],
+  rules: [
+    {
+      text: '服务完成、举报核实、平台活动等行为可产生积分，具体比例以后台配置为准',
+      strong: '后台规则',
+      suffix: ''
+    },
+    {
+      text: '积分有效期按平台规则执行，到期后由后台任务处理',
+      strong: '有效期规则',
+      suffix: ''
+    },
+    {
+      text: '积分仅可兑换',
+      strong: '平台限定商品',
+      suffix: '，不可提现或抵扣付费局'
+    }
+  ],
+  earnExample: {
+    title: '可获得积分的行为',
+    subtitle: '服务分润、举报核实、活动奖励',
+    points: '+20',
+    rows: [
+      { label: '举报核实奖励', value: '后台确认后发放' },
+      { label: '服务分润积分', value: '按后台比例生成' }
+    ],
+    result: '积分以后台流水为准'
+  },
+  roleExamples: [
+    { key: 'expert', role: '行家服务完成', amount: '按分润金额', points: '+积分', iconText: '行' },
+    { key: 'guide', role: '领路人引荐成功', amount: '按引荐收益', points: '+积分', iconText: '领' },
+    { key: 'platform', role: '平台核实奖励', amount: '后台配置', points: '+积分', iconText: '奖' }
+  ],
+  filters: [
+    { key: 'all', label: '全部', tone: 'all' },
+    { key: 'income', label: '收入', tone: 'income' },
+    { key: 'expense', label: '支出', tone: 'expense' }
+  ],
+  noteText: '积分规则、比例、有效期和兑换限制均以后端后台配置为准。积分不可提现，不可支付付费局，仅可兑换平台限定商品。',
+  version: '2026-07-01'
+}
+
 const mockPointsOrders = {
+  pageConfig: {
+    emptyText: '\u6682\u65e0\u5151\u6362\u8ba2\u5355',
+    logisticsEmptyText: '\u6682\u65e0\u7269\u6d41\u4fe1\u606f',
+    detailEmptyText: '\u6682\u65e0\u8ba2\u5355\u8be6\u60c5',
+    cancelConfirm: {
+      title: '\u53d6\u6d88\u8ba2\u5355',
+      content: '\u53d6\u6d88\u540e\u79ef\u5206\u5c06\u9000\u56de\u5230\u8d26\u6237\uff0c\u786e\u8ba4\u53d6\u6d88\u8fd9\u4e2a\u5151\u6362\u8ba2\u5355\u5417\uff1f',
+      confirmText: '\u786e\u8ba4\u53d6\u6d88',
+      cancelText: '\u518d\u60f3\u60f3',
+      reason: '\u7528\u6237\u4e3b\u52a8\u53d6\u6d88'
+    },
+    actions: {
+      detail: '\u67e5\u770b\u8be6\u60c5',
+      cancel: '\u53d6\u6d88\u8ba2\u5355',
+      logistics: '\u67e5\u770b\u7269\u6d41',
+      again: '\u518d\u6b21\u5151\u6362'
+    },
+    version: '2026-07-01'
+  },
   tabs: [
     { key: 'all', label: '全部' },
     { key: 'pending_ship', label: '待发货' },
@@ -747,141 +1232,229 @@ const mockRoleApplications = [
 
 const mockInvitePlayerConfig = {
   minPlayerCount: 1,
-  maxPlayerCount: 1
+  maxPlayerCount: 1,
+  budgetMaxAmount: 99999999,
+  defaultBudget: '800',
+  defaultTitle: '产品架构梳理咨询',
+  defaultDetail: '需要资深产品经理帮忙梳理B端产品架构，预计咨询时长2小时，涉及模块划分和数据流转设计。',
+  playerIntroTemplate: '我帮你邀请了行家，可以一起确认需求、预算和服务节奏。',
+  expert: {
+    id: 'expert-demo',
+    userId: 'expert-demo',
+    name: '行家',
+    avatarText: 'EX',
+    roleLabel: '行家',
+    desc: '资深产品经理·10年经验',
+    tags: ['产品咨询', '架构梳理']
+  },
+  activityTypes: [
+    { key: 'product', name: '产品咨询' },
+    { key: 'design', name: '设计服务' },
+    { key: 'tech', name: '技术开发' }
+  ],
+  rewardRateConfig: {
+    platformServiceRate: 10,
+    systemGuideRewardRate: 10,
+    inviteRewardRate: 40
+  }
 }
 
-const mockInvitePlayers = [
-  {
-    id: 'liming',
-    avatarText: 'LM',
-    avatarClass: 'pink',
-    name: '李明',
-    tag: '需求匹配',
-    desc: '某互联网公司 · 产品总监',
-    meta: '预算: ¥500-1000 | 时间: 本周'
-  },
-  {
-    id: 'wanghua',
-    avatarText: 'WH',
-    avatarClass: 'teal',
-    name: '王华',
-    tag: '',
-    desc: '寻找UI设计合作',
-    meta: '预算: ¥2000+ | 长期合作'
-  },
-  {
-    id: 'chenzhe',
-    avatarText: 'CZ',
-    avatarClass: 'purple',
-    name: '陈哲',
-    tag: '',
-    desc: '需要技术顾问',
-    meta: '预算: 面议 | 长期需求'
-  },
-  {
-    id: 'zhaomin',
-    avatarText: 'ZM',
-    avatarClass: 'blue',
-    name: '赵敏',
-    tag: '常合作',
-    desc: '品牌运营 · 社群增长',
-    meta: '预算: ¥1000-2000 | 下周可约'
-  },
-  {
-    id: 'sunyan',
-    avatarText: 'SY',
-    avatarClass: 'orange',
-    name: '孙岩',
-    tag: '',
-    desc: '独立开发者 · 技术顾问',
-    meta: '预算: 面议 | 晚间方便'
-  }
-]
+const mockInvitePlayers = []
 
 const mockSystemRecommendations = {
   recommendationId: 'system-rec-20260624-001',
   title: '系统推荐适配局',
-  desc: '基于你的偏好，已找到5个高匹配度行家',
-  defaultSelectedExpertIds: ['li-senior'],
+  desc: '暂无推荐结果，请完善资料或稍后重试',
+  loadingText: '推荐数据加载中',
+  emptyText: '暂无匹配行家',
+  summaryTemplate: '已选择 {count} 位行家',
+  summaryDesc: '还可以选择多位行家组成顾问团，或搭配玩家共同组局',
+  cancelText: '取消',
+  confirmText: '确认组局',
+  minSelectToast: '请选择至少一位行家',
+  confirmingText: '正在进入组局',
+  defaultSelectedExpertIds: [],
+  defaultCategory: 'all',
   categories: [
     { key: 'all', name: '全部' },
     { key: 'product', name: '产品架构' },
     { key: 'tech', name: '技术咨询' },
     { key: 'operation', name: '运营策略' }
   ],
-  experts: [
-    {
-      id: 'li-senior',
-      name: '李资深',
-      role: '前阿里P8 · 产品架构专家',
-      avatarText: 'LI',
-      avatarClass: 'purple',
-      rating: '5.0',
-      stars: '★★★★★',
-      reviewCount: 128,
-      match: 98,
-      price: 800,
-      category: 'product',
-      tags: ['产品架构', '技术方案', '团队管理', '响应及时'],
-      selected: true
+  experts: []
+}
+
+const mockDeliveryPageConfig = {
+  paid: {
+    pageTitle: '确认服务完成',
+    status: {
+      theme: 'paid',
+      title: '服务已完成!',
+      desc: '双方确认后，资金将全额结算'
     },
-    {
-      id: 'chen-consultant',
-      name: '陈顾问',
-      role: '腾讯T3 · 技术架构师',
-      avatarText: 'CH',
-      avatarClass: 'teal',
-      rating: '4.8',
-      stars: '★★★★☆',
-      reviewCount: 86,
-      match: 95,
-      price: 600,
-      category: 'tech',
-      tags: ['系统架构', '微服务', '云原生', '专业深度']
+    statePill: {
+      theme: 'green',
+      text: '待确认完成'
     },
-    {
-      id: 'zhao-growth',
-      name: '赵顾问',
-      role: '字节跳动 · 增长专家',
-      avatarText: 'ZH',
-      avatarClass: 'indigo',
-      rating: '4.9',
-      stars: '★★★★★',
-      reviewCount: 64,
-      match: 88,
-      price: 700,
-      category: 'operation',
-      tags: ['用户增长', '数据分析', 'A/B测试']
+    notice: {},
+    confirmItems: [
+      { id: 'completed', title: '服务已全部完成', desc: '约定的2小时咨询服务已完整交付', checked: false },
+      { id: 'qualified', title: '服务质量达标', desc: '需求方对服务内容和质量无异议', checked: false },
+      { id: 'communicated', title: '双方已沟通确认', desc: '已与需求方确认服务完成，对方同意结算', checked: false }
+    ],
+    confirmNote: '正常交付无需扣减任何费用，只需双方确认服务已完成，资金将按全额结算。如服务未完全达标，请与玩家沟通后再确认。',
+    security: {
+      title: '',
+      desc: ''
     },
-    {
-      id: 'meng-designer',
-      name: '孟设计师',
-      role: '独立设计顾问 · UI/UX',
-      avatarText: 'ME',
-      avatarClass: 'cyan',
-      rating: '4.7',
-      stars: '★★★★☆',
-      reviewCount: 52,
-      match: 85,
-      price: 500,
-      category: 'product',
-      tags: ['UI设计', '交互设计', '设计系统']
+    submitHints: {
+      ready: '确认后将通知玩家进行最终确认',
+      pending: '需勾选上方确认项后方可提交'
     },
-    {
-      id: 'sun-operation',
-      name: '孙运营',
-      role: '美团 · 运营策略专家',
-      avatarText: 'SU',
-      avatarClass: 'orange',
-      rating: '5.0',
-      stars: '★★★★★',
-      reviewCount: 93,
-      match: 72,
-      price: 550,
-      category: 'operation',
-      tags: ['运营策略', '社群运营', '活动策划']
+    submitToast: '服务完成确认已提交',
+    submitLoadingText: '提交中',
+    amountRowLabel: '合同金额'
+  },
+  free: {
+    pageTitle: '确认服务完成',
+    status: {
+      theme: 'free',
+      title: '服务已完成!',
+      desc: '双方确认后，服务正式结束'
+    },
+    statePill: {
+      theme: 'blue',
+      text: '待确认完成'
+    },
+    notice: {
+      iconText: '🎁',
+      title: '免费局说明',
+      parts: [
+        { text: '本局为' },
+        { text: '免费体验局', strong: true },
+        { text: '不涉及资金结算。双方确认完成后，行家将获得' },
+        { text: '信用积分+5和免费局贡献徽章', strong: true },
+        { text: '，玩家' },
+        { text: '优先推荐权益', strong: true }
+      ]
+    },
+    confirmItems: [
+      { id: 'completed', title: '服务已全部完成', desc: '约定的2小时咨询服务已完整交付', checked: true, locked: true },
+      { id: 'qualified', title: '服务质量达标', desc: '需求方对服务内容和质量无异议', checked: true, locked: true },
+      { id: 'communicated', title: '双方已沟通确认', desc: '已与需求方确认服务完成，对方同意归档', checked: false }
+    ],
+    confirmNote: '免费局无需扣除任何费用，只需双方确认服务已完成，系统将自动归档。如服务未完全达标，请与玩家沟通后再次确认。',
+    security: {
+      title: '服务保障',
+      desc: '免费局同样享受平台服务保障，评价真实有效'
+    },
+    submitHints: {
+      ready: '确认后将通知玩家进行最终确认',
+      pending: '需勾选上方确认项后方可提交'
+    },
+    submitToast: '免费局服务完成确认已提交',
+    submitLoadingText: '提交中',
+    amountRowLabel: '服务类型'
+  },
+  quickActions: [
+    { key: 'upload', title: '上传凭证', theme: 'blue', iconText: '📎' },
+    { key: 'contact_player', title: '联系玩家', theme: 'blue', iconSrc: '/pages/game/delivery/assets/i18@3x.png' },
+    { key: 'contact_guide', title: '联系领路人', theme: 'orange', iconText: '👬' }
+  ],
+  version: '2026-07-01'
+}
+
+const mockMemberRadarConfig = {
+  pages: {
+    radar: {
+      key: 'radar',
+      title: '组局雷达',
+      skin: 'dark',
+      estimate: '预计可匹配7461位商界决策者',
+      primaryAction: '开启适配人脉',
+      tip: '信息填写越完整，人脉匹配越精准',
+      linkText: '填写适配信息 >'
+    },
+    matching: {
+      key: 'matching',
+      title: '组局雷达',
+      skin: 'dark',
+      statusText: '人脉雷达正在寻找与您适配的企业家…'
+    },
+    info: {
+      key: 'info',
+      title: '适配信息',
+      skin: 'light'
+    },
+    query: {
+      key: 'query',
+      title: '组局雷达',
+      skin: 'dark result',
+      foundPrefix: '为您找到',
+      foundSuffix: '位适配您的优质行家信息'
+    },
+    result: {
+      key: 'result',
+      title: '组局雷达',
+      skin: 'dark result',
+      loadingText: '正在寻找与您适配的优质业务主.....',
+      resultTitle: '本轮匹配组局已完成推荐',
+      resultDescPrefix: '共推荐了',
+      resultDescSuffix: '位优质行家',
+      resultLink: '重新查看 >',
+      actionText: '再次重新匹配'
     }
-  ]
+  },
+  formRows: [
+    { key: 'location', label: '地址定位', value: '', placeholder: '选择' },
+    { key: 'industry', label: '所在行业', value: '', placeholder: '选择' },
+    { key: 'revenueScale', label: '营收规模', value: '', placeholder: '选填' },
+    { key: 'interestedGames', label: '感兴趣组局', value: '', placeholder: '选择' },
+    { key: 'resources', label: '我的资源', value: '', placeholder: '前往个人主页填写' },
+    { key: 'needs', label: '我的需求', value: '', placeholder: '前往个人主页填写' },
+    { key: 'recentDemand', label: '近期诉求', value: '', placeholder: '自定义填写' }
+  ],
+  profile: {
+    id: 'lu-yi',
+    userId: 201,
+    name: '陆毅',
+    title: '总经理｜上海创世界科技有限公司',
+    tag: '第一标签：上海TMT投资领军者，数字化内容服务',
+    need: '我的需求：AI赋能与市场运营助力企业IP打造',
+    resource: '我的资源：10年TMT投资经验',
+    address: '上海市浦东新区沙新镇黄赵路310号',
+    distance: '231 km',
+    avatar: '/pages/profile/member/assets/radar-avatar.png'
+  },
+  radarNodes: [
+    { id: 'hu-fang', userId: 200, className: 'node-leader', name: '胡芳', title: '董事长、创始人｜千浪化研新材料（上海…', avatar: '/pages/profile/member/assets/radar-avatar.png' },
+    { id: 'lu-yi', userId: 201, className: 'node-maker', name: '陆毅', title: '总经理｜上海创世界科技有限公司', avatar: '/pages/profile/member/assets/radar-avatar.png' },
+    { id: 'chen-zong', userId: 202, className: 'node-owner', name: '陈总', title: '企业服务资源方', avatar: '', shortName: '陈' },
+    { id: 'wang-zong', userId: 203, className: 'node-investor', name: '王总', title: '产业投资合伙人', avatar: '', shortName: '王' },
+    { id: 'li-zong', userId: 204, className: 'node-expert', name: '李总', title: '品牌增长顾问', avatar: '', shortName: '李' },
+    { id: 'zhao-zong', userId: 205, className: 'node-partner', name: '赵总', title: '渠道合作伙伴', avatar: '', shortName: '赵' },
+    { id: 'sun-zong', userId: 206, className: 'node-small', name: '孙总', title: '本地服务主理人', avatar: '', shortName: '孙' }
+  ],
+  result: {
+    total: 10
+  },
+  texts: {
+    criteriaMatchLabel: '符合条件的企业家',
+    allMatchLabel: '适配企业家',
+    criteriaScanningText: '人脉雷达正在按您的适配信息寻找企业家…',
+    allScanningText: '人脉雷达正在为您匹配全部适配企业家…',
+    scanDoneTemplate: '已扫描到 {count} 位{label}',
+    scanProgressTemplate: '正在扫描，已发现 {count} 位{label}',
+    actionFailedText: '人脉雷达操作失败',
+    entryMissingText: '请选择可用入口'
+  },
+  actionMessages: {
+    save: '已保存匹配偏好',
+    next: '已为你刷新下一位',
+    follow: '已关注该成员',
+    profile: '暂无成员主页',
+    share: '请使用右上角分享'
+  }
 }
 
 const mockReplayConfirmContext = {
@@ -889,7 +1462,7 @@ const mockReplayConfirmContext = {
   serviceOrderId: 'SO-20260613-001',
   inviter: {
     id: 'guide-wang',
-    name: '王引荐',
+    name: '领路人',
     roleType: 'guide',
     roleLabel: '领路人'
   },
@@ -898,22 +1471,133 @@ const mockReplayConfirmContext = {
     completedAtText: '2026-06-13 14:30',
     participantText: '3人（行家+玩家+领路人）'
   },
+  quickActions: [
+    {
+      id: 'same-friends',
+      theme: 'green',
+      iconText: '👫',
+      title: '同局好友再玩一局',
+      desc: '立即邀请上一局成员',
+      route: 'confirm',
+      order: 10,
+      visible: true
+    },
+    {
+      id: 'smart-match',
+      theme: 'blue',
+      iconText: '🤖',
+      title: '系统推荐适配组局',
+      desc: '基于资料和关系数据返回适配候选',
+      route: 'system_recommend',
+      order: 20,
+      visible: true
+    },
+    {
+      id: 'create-new',
+      theme: 'pink',
+      iconType: 'plus',
+      title: '玩家创建新局',
+      desc: '自定义需求，开启全新组局',
+      route: 'create',
+      order: 30,
+      visible: true
+    }
+  ],
+  quickMessages: [
+    '再来一局？',
+    '上次合作很愉快，继续！',
+    '有个新需求想聊聊',
+    '有空再约一局'
+  ],
   invitees: [
     {
-      id: 'expert-zhang',
-      name: '张专家',
+      id: 'expert-demo',
+      name: '行家',
       roleType: 'expert',
       roleLabel: '行家',
       desc: '产品架构咨询'
     },
     {
-      id: 'player-wang',
-      name: '王总',
+      id: 'player-demo',
+      name: '玩家',
       roleType: 'player',
       roleLabel: '玩家',
       desc: '需求方'
     }
   ]
+}
+
+const mockReviewPageConfig = {
+  navTitle: '服务评价',
+  skipText: '跳过',
+  statusTitle: '服务已完成！',
+  statusDesc: '请对本次服务进行评价',
+  satisfactionQuestion: '这一局好玩吗？',
+  satisfactionOptions: [
+    { id: 'great', emoji: '😀', title: '很好玩', desc: '五星体验' },
+    { id: 'ok', emoji: '🙂', title: '还行', desc: '基本合格' },
+    { id: 'bad', emoji: '😕', title: '不好玩', desc: '有待改进' }
+  ],
+  storyTitle: '发生了什么有趣的事？',
+  aiTip: 'AI小助手提示：可以从收获、惊喜、合作感受等方面描述哦',
+  storyPlaceholder: '我们碰撞出了新的思路，对方的经验帮了大忙！',
+  storyMaxLength: 100,
+  aiSummaryText: 'AI帮我总结',
+  ratingHint: '点击星星评分',
+  npsHeadTitle: '发起人专属',
+  npsQuestion: '你会推荐“真好玩”给朋友吗？ (NPS)',
+  npsLowLabel: '不可能',
+  npsHighLabel: '极有可能',
+  submitText: '提交评价',
+  submitNote: '评价内容仅双方可见，请客观公正',
+  skipToast: '已跳过评价',
+  submitSuccessText: '评价已提交',
+  noReviewTargetText: '暂无可评价对象',
+  missingTargetText: '缺少评价对象，无法提交',
+  missingScoreText: '请先为每个评价对象打分',
+  submitFailedText: '提交评价失败',
+  defaultSummary: '本次合作沟通顺畅，交付清晰，整体体验不错。',
+  againIntentBySatisfaction: {
+    great: 'yes',
+    ok: 'maybe',
+    bad: 'no'
+  },
+  roleConfigs: {
+    expert: {
+      id: 'expert',
+      avatarText: 'ZH',
+      avatarTheme: 'blue',
+      title: '评价行家',
+      desc: '本次服务已完成',
+      ratingTitle: '服务质量',
+      tagTitle: '行家标签（多选）',
+      tags: ['专业能力强', '交付及时', '沟通顺畅', '超出预期', '性价比高', '推荐再合作'],
+      placeholder: '分享你对本次服务的评价...'
+    },
+    player: {
+      id: 'player',
+      avatarText: 'WA',
+      avatarTheme: 'pink',
+      title: '评价玩家',
+      desc: '需求已确认，开始反馈',
+      ratingTitle: '合作满意度',
+      tagTitle: '玩家标签（多选）',
+      tags: ['需求明确', '配合度高', '付款及时', '沟通友好', '长期合作潜力'],
+      placeholder: '写下你对需求方的评价...'
+    },
+    guide: {
+      id: 'guide',
+      avatarText: 'WA',
+      avatarTheme: 'orange',
+      title: '评价领路人',
+      desc: '撮合已完成，协助交付',
+      ratingTitle: '引荐满意度',
+      tagTitle: '邀约标签（多选）',
+      tags: ['匹配精准', '响应及时', '协助积极', '沟通高效', '值得信赖'],
+      placeholder: '写下你对引荐人的服务评价...'
+    }
+  },
+  version: '2026-07-01'
 }
 
 const mockGuideProgress = {
@@ -1054,156 +1738,85 @@ const mockGuideCancelDetail = {
   ]
 }
 
+const mockGameCancelConfig = {
+  player: {
+    reasonOptions: [
+      { key: 'need_changed', text: '需求变更，不再需要服务' },
+      { key: 'other_solution', text: '找到其他解决方案' },
+      { key: 'service_unexpected', text: '业务主服务不符合预期' },
+      { key: 'budget', text: '预算问题/资金紧张' }
+    ],
+    defaultReason: 'other_solution',
+    agreementText: '我已阅读并同意上述赔付协议，理解主动取消需承担行家的时间成本损失，并同意按设置比例从托管资金中赔付行家。',
+    agreementItems: [
+      '我理解主动取消需承担行家的时间成本损失',
+      '我同意按设置比例赔付行家，金额从托管资金扣除',
+      '剩余金额将在3个工作日内原路退回',
+      '此取消记录将影响信用分（-3分）'
+    ]
+  },
+  expert: {
+    reasonOptions: [
+      { key: 'schedule_conflict', text: '个人时间冲突，无法交付' },
+      { key: 'requirement_mismatch', text: '需求与描述不符，无法完成' },
+      { key: 'emergency', text: '身体原因/突发状况' },
+      { key: 'other', text: '其他原因' }
+    ],
+    defaultReason: 'schedule_conflict',
+    agreementText: '我已阅读并同意《服务取消协议》，理解主动取消将对我的信用分产生影响（-5分），并同意按设置比例赔付玩家损失。'
+  },
+  version: '2026-07-01'
+}
+
+const mockMyGamesPageConfig = {
+  pageTitle: '我的局',
+  emptyText: '暂无相关局',
+  detailMissing: '暂无组局详情',
+  actionMissing: '暂无可执行操作',
+  categoryTabs: [
+    { key: 'joined', text: '我参与的' },
+    { key: 'invited', text: '我受邀的' },
+    { key: 'favorite', text: '我收藏的' }
+  ],
+  statusTabs: [
+    { key: 'all', text: '全部' },
+    { key: 'active', text: '进行中' },
+    { key: 'complete', text: '已完成' },
+    { key: 'overdue', text: '超时' },
+    { key: 'canceled', text: '已取消' }
+  ],
+  version: '2026-07-01'
+}
+
 const mockGameManage = {
+  pageConfig: mockMyGamesPageConfig,
   summary: {
     label: '本月服务收入',
-    amount: 5280,
-    amountText: '¥5,280',
-    activeCount: 2,
-    pendingSettlementCount: 1,
-    completedCount: 8,
+    amount: 0,
+    amountText: '¥0',
+    activeCount: 0,
+    pendingSettlementCount: 0,
+    completedCount: 0,
     disputeCount: 0
   },
-  orders: [
-    {
-      id: 'business-active-001',
-      statusType: 'active',
-      statusText: '服务进行中',
-      ref: 'REF-20260320-001',
-      avatarText: 'LI',
-      avatarClass: 'pink',
-      name: '李明',
-      roleTag: '玩家',
-      serviceText: '产品架构咨询 · ¥800',
-      guideName: '王引荐',
-      timeline: [
-        { id: 'group-success', title: '组局成功', time: '03-20 14:30', state: 'done' },
-        { id: 'service-active', title: '服务进行中', time: '预计交付：03-25', state: 'current' },
-        { id: 'waiting-confirm', title: '等待确认完成', state: 'future' }
-      ],
-      primaryActionText: '提前结束交付',
-      secondaryActionText: '取消并赔付',
-      playerActionText: '联系玩家',
-      guideActionText: '联系领路人'
-    },
-    {
-      id: 'business-early-001',
-      statusType: 'early',
-      statusText: '已提前交付',
-      ref: 'REF-20260318-004',
-      avatarText: 'ZH',
-      avatarClass: 'purple',
-      name: '赵经理',
-      serviceText: '技术咨询 · ¥600',
-      guideText: '提前2天完成',
-      guideTone: 'success',
-      settlementRows: [
-        { label: '实际服务时长', value: '1.5小时 (原定2小时)' },
-        { label: '实际收入', value: '¥450 (按比例结算)', highlight: true }
-      ],
-      reviewStatus: 'pending',
-      reviewActionText: '评价双方'
-    },
-    {
-      id: 'business-complete-001',
-      statusType: 'complete',
-      statusText: '已完成',
-      ref: 'REF-20260312-006',
-      avatarText: 'WA',
-      avatarClass: 'green',
-      name: '王同学',
-      serviceText: '品牌定位咨询 · ¥1,200',
-      guideName: '陈引荐',
-      completeSummary: '服务已完成',
-      amountText: '¥1,200',
-      completedAtText: '完成时间：03-15 18:30',
-      actualDurationText: '2小时',
-      actualIncomeText: '¥1,200',
-      resultText: '双方已确认，收入已进入结算',
-      reviewStatus: 'reviewed',
-      reviewedActionText: '已评价'
-    }
-  ]
+  orders: []
 }
 
 const mockPlayerGameManage = {
-  currentTime: '2026-03-19T14:00:00+08:00',
+  pageConfig: mockMyGamesPageConfig,
+  currentTime: '',
   summary: {
     label: '本月服务支出',
-    amount: 3200,
-    amountText: '¥3,200',
-    activeCount: 1,
-    completedCount: 4,
-    canceledCount: 1
+    amount: 0,
+    amountText: '¥0',
+    activeCount: 0,
+    completedCount: 0,
+    canceledCount: 0
   },
-  orders: [
-    {
-      id: 'player-manage-active-001',
-      statusType: 'active',
-      statusText: '服务进行中',
-      ref: 'REF-20260320-001',
-      serviceOrderId: 'SO-20260320-001',
-      fundAmount: 800,
-      expert: {
-        id: 'expert-zhang',
-        name: '张专家',
-        avatarText: 'ZH'
-      },
-      guide: {
-        id: 'guide-wang',
-        name: '王引荐'
-      },
-      serviceTitle: '产品架构咨询',
-      startedAt: '2026-03-10T14:00:00+08:00',
-      expectedDeliveryAt: '2026-03-25T14:00:00+08:00',
-      noticeText: '取消需赔付一定比例金额给行家',
-      canContactExpert: true,
-      canCancel: true
-    },
-    {
-      id: 'player-manage-complete-001',
-      statusType: 'complete',
-      statusText: '已完成',
-      ref: 'REF-20260318-002',
-      fundAmount: 1200,
-      expert: {
-        id: 'expert-wang',
-        name: '王导师',
-        avatarText: 'WM'
-      },
-      guide: {
-        id: 'guide-chen',
-        name: '陈引荐'
-      },
-      serviceTitle: '品牌定位咨询',
-      completeSummary: '服务已完成',
-      completedAtText: '完成时间：2026-03-19 18:30',
-      resultText: '已完成验收，可查看服务记录',
-      reviewStatus: 'pending',
-      canReview: true,
-      reviewActionText: '评价双方'
-    },
-    {
-      id: 'player-manage-canceled-001',
-      statusType: 'canceled',
-      statusText: '已取消（已赔付）',
-      ref: 'REF-20260310-003',
-      compensationAmountText: '¥120',
-      expert: {
-        id: 'expert-liu',
-        name: '刘设计师',
-        avatarText: 'LI'
-      },
-      serviceTitle: 'UI设计服务',
-      reasonSummary: '我主动取消 · 赔付15%',
-      reasonText: '取消原因：需求变更，不再需要服务'
-    }
-  ]
+  orders: []
 }
-
 const mockGameProfitTemplates = {
   currentAccountType: 'player',
-  currentTime: '2026-03-19T14:00:00+08:00',
   depositRuleText: '连续打卡 7 天即完成。完成者拿回押金池金额，未完成者押金由完成者平分。',
   depositNoticeText: '支付金额：100元 = 服务费10元 + 押金池90元。服务费不退，押金池按完成情况结算。',
   templates: [
@@ -1247,7 +1860,7 @@ const mockGameProfitTemplates = {
 }
 
 const mockRelationNetworkHome = {
-  onlineText: '3999人在线',
+  onlineText: '在线',
   header: {
     titleIcon: '📍',
     title: '星巴克(镇海万科店)',
@@ -1261,51 +1874,580 @@ const mockRelationNetworkHome = {
   activeTab: 'network'
 }
 
+const mockMyCityConfig = {
+  onlineText: '在线',
+  pageTitle: '我的城市故事',
+  profileName: '我的信息',
+  routeTip: '收集8条更早行程，航线图更完整',
+  switchMapText: '切换为火车',
+  journeyTitle: '我的局迹',
+  journeyDesc: '通过 12 个局，认识了 28 位朋友',
+  participantLabel: '参与者：',
+  endingTitle: '我是有底线的',
+  endingDesc: '继续探索，创造更多故事',
+  summaryStats: [
+    { value: '28', label: '故事总数', tone: 'blue' },
+    { value: '6', label: '覆盖城市', tone: 'violet' },
+    { value: '52', label: '参与组局数', tone: 'pink' }
+  ],
+  mapLegends: [
+    { label: '第一次', tone: 'pink' },
+    { label: '夜游', tone: 'violet' },
+    { label: '社交局', tone: 'blue' },
+    { label: '最难忘', tone: 'gold' }
+  ],
+  mapStats: [
+    { label: '里程', value: '40244', unit: '公里' },
+    { label: '次数', value: '33', unit: '次' },
+    { label: '国家/地区', value: '1', unit: '个' },
+    { label: '城市', value: '10', unit: '个' }
+  ],
+  tagEmojis: {
+    最难忘: '👑',
+    桌游局: '🎲',
+    微醺局: '🍷',
+    脑暴局: '💡',
+    篮球局: '🏀',
+    第一次: '🌱',
+    起点: '🌱',
+    摄影局: '📷'
+  },
+  badgeEmojis: {
+    创业伙伴: '🤝',
+    深度密友: '💬',
+    合伙人: '🤝',
+    室友: '🏠',
+    固定局友: '📌'
+  },
+  storyGroups: [
+    {
+      year: 2024,
+      stories: [
+        {
+          id: 'countdown-night',
+          tag: '最难忘',
+          tagTone: 'gold',
+          title: '跨年夜的倒计时',
+          date: '12.31',
+          sortDate: '2024-12-31',
+          location: '',
+          cover: '/pages/map/my-city/assets/story-river-cover.png',
+          coverLocation: '上海 · 外滩',
+          desc: '和刚认识的摄影局朋友们一起在外滩等待新年钟声。江风吹得发抖，但倒数的那一刻，所有的陌生人都变成了朋友。',
+          participants: ['a', 'b', 'c'],
+          badgeTitle: '',
+          badgeDesc: '',
+          actionText: '',
+          actionTone: ''
+        },
+        {
+          id: 'script-rain',
+          tag: '桌游局',
+          subTag: '新手场',
+          tagTone: 'violet',
+          title: '暴雨中的剧本杀',
+          date: '2024.09.20',
+          sortDate: '2024-09-20',
+          location: '杭州 · 西湖区 · 14:00-22:00',
+          desc: '原定5人的局因为暴雨只来了3人，却因此有了最深入的交谈。认识了做AI的@阿杰，现在我们是创业合伙人。',
+          participants: ['a', 'b', 'c', 'd'],
+          badgeTitle: '创业伙伴',
+          badgeDesc: '已共同发起 3 个项目',
+          actionText: '查看项目',
+          actionTone: 'violet'
+        },
+        {
+          id: 'truth-night',
+          tag: '微醺局',
+          subTag: '深夜场',
+          tagTone: 'orange',
+          title: '周五晚上的坦白局',
+          date: '2024.11.03',
+          sortDate: '2024-11-03',
+          location: '北京 · 三里屯 · 21:00',
+          desc: '"你最后悔的事是什么？"那个问题让陌生人变成了知己。和@Lucy约定每月一次深度对话。',
+          participants: ['a', 'b'],
+          badgeTitle: '深度密友',
+          badgeDesc: '',
+          actionText: '约下次',
+          actionTone: 'orange'
+        },
+        {
+          id: 'business-canvas',
+          tag: '脑暴局',
+          subTag: '创始人专场',
+          tagTone: 'gold',
+          title: '凌晨的商业模式画布',
+          date: '2024.12.15',
+          sortDate: '2024-12-15',
+          location: '深圳 · 科技园 · 通宵',
+          desc: '从晚上8点到早上6点，8个人在黑板上画满了想法。这个局让我找到了技术合伙人@老K。',
+          participants: ['a', 'b', 'c', 'd'],
+          badgeTitle: '合伙人',
+          badgeDesc: '公司估值 500w',
+          actionText: '查看公司',
+          actionTone: 'gold'
+        },
+        {
+          id: 'court-weekly',
+          tag: '篮球局',
+          subTag: '每周固定',
+          tagTone: 'cyan',
+          title: '东华球场的汗水',
+          date: '每周六',
+          sortDate: '2024-06-15',
+          location: '上海 · 东华大学 · 16:00',
+          desc: '最纯粹的快乐。这里没有身份，只有队友。通过球局认识了现在的室友@阿强。',
+          participants: ['a', 'b', 'c'],
+          badgeTitle: '室友',
+          badgeDesc: '合租 6 个月',
+          actionText: '加入球局',
+          actionTone: 'cyan'
+        },
+        {
+          id: 'first-use',
+          type: 'first',
+          tag: '起点',
+          subTag: '',
+          tagTone: 'green',
+          highlightTag: '第一次',
+          title: '第一次使用真好玩',
+          date: '03.12',
+          sortDate: '2024-03-12',
+          location: '广州 · 天河公园',
+          desc: '抱着试试看的心态参加了第一次飞盘局，从此打开了城市探索的新世界。',
+          participants: [],
+          badgeTitle: '',
+          badgeDesc: '',
+          actionText: '',
+          actionTone: ''
+        }
+      ]
+    },
+    {
+      year: 2023,
+      stories: [
+        {
+          id: 'sunrise-photo',
+          tag: '摄影局',
+          subTag: '第1次参与',
+          tagTone: 'pink',
+          title: '外滩 sunrise 拍摄',
+          date: '2023.03.12',
+          sortDate: '2023-03-12',
+          location: '上海 · 外滩观景台 · 06:00',
+          desc: '为了拍日出早上5点起床，认识了同样疯狂的@小林和@大为。后来我们组成了固定摄影小队，每周六早扫街。',
+          participants: ['a', 'b', 'c'],
+          badgeTitle: '固定局友',
+          badgeDesc: '已持续组队 8 个月',
+          actionText: '再组一局',
+          actionTone: 'blue'
+        }
+      ]
+    }
+  ],
+  version: '2026-06-30'
+}
+
 const mockMessageCenter = {
   pageTitle: '消息中心',
-  onlineText: '',
+  onlineText: '在线',
   activeTab: 'all',
-  quickActions: [],
-  tabs: [],
-  sections: []
+  quickActions: [
+    { key: 'join', label: '组局加入', iconSrc: '/pages/message/assets/i53@3x.png', tone: 'blue', unreadCount: 1 },
+    { key: 'system', label: '系统通知', iconSrc: '/pages/message/assets/i54@3x.png', tone: 'green', unreadCount: 0 },
+    { key: 'achievement', label: '成就解锁', iconSrc: '/pages/message/assets/i55@3x.png', tone: 'yellow', unreadCount: 0 },
+    { key: 'warning', label: '预警通知', iconSrc: '/pages/message/assets/i56@3x.png', tone: 'red', unreadCount: 0 },
+    { key: 'friend', label: '好友', iconSrc: '/pages/message/assets/i57@3x.png', tone: 'cyan', unreadCount: 3 }
+  ],
+  tabs: [
+    { key: 'all', label: '全部消息' },
+    { key: 'unread', label: '未读 (3)', unreadCount: 3 },
+    { key: 'trade', label: '交易通知' }
+  ],
+  actionTexts: {
+    accept: '确认参加',
+    reject: '婉拒',
+    process: '立即处理',
+    review: '立即评价',
+    detail: '查看详情',
+    game: '查看组局',
+    contact: '联系发起人'
+  },
+  texts: {
+    loadFailedText: '消息中心加载失败',
+    entryMissingText: '暂无可打开的消息入口',
+    openFailedText: '消息打开失败',
+    actionMissingText: '操作信息不完整',
+    actionSuccessText: '操作成功',
+    actionHandledText: '已标记处理',
+    actionFailedText: '消息操作失败',
+    serviceMissingText: '缺少消息操作信息',
+    serviceFailedText: '消息操作失败'
+  },
+  sections: [
+    {
+      key: 'system',
+      title: '系统通知',
+      items: [
+        {
+          id: 'platform-notice',
+          routeKey: 'system',
+          iconSrc: '/pages/message/assets/i58@3x.png',
+          tone: 'blue',
+          title: '平台公告',
+          timeText: '2小时前',
+          desc: '关于组局功能升级的通知：新增“智能匹配”功能，可自动推荐合适的组局对象...'
+        },
+        {
+          id: 'audit-result',
+          iconSrc: '/pages/message/assets/i59@3x.png',
+          tone: 'purple',
+          title: '活动审核结果',
+          timeText: '昨天',
+          desc: '你发布的活动“AI技术分享会”已通过审核，将于明天10:00开始展示或者前往组局中心手动发布',
+          tagText: '审核通过',
+          tagTone: 'success'
+        }
+      ]
+    },
+    {
+      key: 'group',
+      title: '组局动态',
+      moreText: '查看全部',
+      items: [
+        {
+          id: 'group-confirm',
+          iconSrc: '/pages/message/assets/i60@3x.png',
+          tone: 'orange',
+          unread: true,
+          title: '组局确认通知',
+          timeText: '10:23',
+          desc: '张伟 发起组局邀请你参与“周末篮球局”，需要你确认是否参加',
+          highlightText: '张伟',
+          actions: [
+            { key: 'accept', text: '确认参加', primary: true },
+            { key: 'reject', text: '婉拒' }
+          ]
+        },
+        {
+          id: 'group-success',
+          iconSrc: '/pages/message/assets/i54@3x.png',
+          tone: 'green',
+          title: '组局已成局',
+          timeText: '昨天',
+          desc: '你引荐的 李娜 与 王强 已成功组局“产品经理交流会”',
+          summaryText: '✓ 引荐成功',
+          subText: '获得积分 +50'
+        },
+        {
+          id: 'pay-success',
+          iconSrc: '/pages/message/assets/i61@3x.png',
+          tone: 'orangeLight',
+          title: '支付成功通知',
+          timeText: '昨天',
+          desc: '你成功支付了“早起星人挑战”押金 ¥100.00，资金已进入押金池托管。'
+        },
+        {
+          id: 'join-apply',
+          avatarText: '小',
+          title: '小红 申请加入你的局',
+          timeText: '10:30',
+          desc: '局：【武康路】复古胶片摄影局...',
+          actions: [
+            { key: 'decline', text: '拒绝' },
+            { key: 'chat', text: '通过并私聊', primary: true, orange: true }
+          ]
+        }
+      ]
+    },
+    {
+      key: 'achievement',
+      title: '新增成就',
+      items: [
+        {
+          id: 'achievement-unlock',
+          iconSrc: '/pages/message/assets/i62@3x.png',
+          tone: 'yellow',
+          title: '解锁新成就！',
+          timeText: '3月30日',
+          desc: '恭喜你解锁了“魔都探险家”成就，获得 200 积分奖励！'
+        }
+      ]
+    },
+    {
+      key: 'warning',
+      title: '预警提醒',
+      items: [
+        {
+          id: 'delivery-warning',
+          routeKey: 'warning',
+          iconSrc: '/pages/message/assets/i65@3x.png',
+          tone: 'red',
+          alert: true,
+          title: '待交付订单提醒',
+          timeText: '2小时前',
+          descParts: [
+            { text: '你有1个组局服务订单将于 ' },
+            { text: '2小时后', danger: true },
+            { text: ' 到期交付，请及时处理' }
+          ],
+          metaText: '订单号：GD2024032201',
+          linkText: '立即处理'
+        },
+        {
+          id: 'activity-soon',
+          iconSrc: '/pages/message/assets/i64@3x.png',
+          tone: 'yellow',
+          title: '活动即将开始',
+          timeText: '30分钟后',
+          desc: '你参与的组局“周末徒步”将于今天14:00开始，地点：奥林匹克森林公园南门',
+          actions: [
+            { key: 'route', text: '查看路线', primary: true },
+            { key: 'contact', text: '联系发起人' }
+          ]
+        }
+      ]
+    },
+    {
+      key: 'friends',
+      title: '好友消息',
+      items: [
+        {
+          id: 'friend-user-a',
+          routeKey: 'friend',
+          avatarText: 'UA',
+          online: true,
+          title: '用户A',
+          timeText: '12:30',
+          desc: '好的，那我们就周六下午2点在咖啡店见，我带上项目资料...',
+          unreadCount: 3
+        }
+      ]
+    }
+  ]
+}
+
+const mockMessageMyConfig = {
+  pageTitle: '好友消息',
+  onlineText: '在线',
+  friend: {
+    defaultInitials: 'IM',
+    defaultName: '局内会话',
+    defaultStatus: '在线',
+    nameTemplate: '成员 {userId}'
+  },
+  quickActions: [
+    { key: 'friend', label: '加好友' },
+    { key: 'greet', label: '打招呼', messageText: '你好，我看到你的消息了。' },
+    { key: 'card', label: '发名片', messageText: '这是我的名片，后续可以在局内继续沟通。' },
+    { key: 'location', label: '发定位' }
+  ],
+  texts: {
+    loadFailedText: '加载会话失败',
+    actionMissingText: '操作信息不完整',
+    sendFailedText: '发送失败',
+    recordStartText: '开始录音',
+    recordStopText: '当前支持文字、图片和文件消息',
+    recordErrorText: '录音失败',
+    fileEntryMissingText: '请从局内消息入口发送文件',
+    justNowText: '刚刚'
+  }
 }
 
 const mockTradeWarningDetail = {
-  id: '',
-  warningId: '',
+  id: 'trade-warning-001',
+  warningId: 'trade-warning-001',
   pageTitle: '交易预警',
-  onlineText: '',
-  warning: {},
-  countdown: [],
-  order: {},
-  deliveryMethods: [],
-  actions: {}
+  onlineText: '在线',
+  warning: {
+    title: '即将超时',
+    prefixText: '该订单将于',
+    highlightText: '1小时30分钟',
+    suffixText: '后自动标记为逾期，请立即处理'
+  },
+  countdown: [
+    { value: '01', label: '小时' },
+    { value: '30', label: '分钟' },
+    { value: '45', label: '秒' }
+  ],
+  order: {
+    orderNo: 'GD2024032201',
+    statusText: '待交付',
+    customerAvatarText: 'CL',
+    customerTitle: '客户需求',
+    customerDesc: '寻找资深产品经理进行业务咨询',
+    detailRows: [
+      { label: '约定交付时间', value: '今天 16:00' },
+      { label: '服务费用', value: '¥500', strong: true }
+    ]
+  },
+  deliveryMethods: [
+    {
+      id: 'online',
+      title: '线上确认',
+      desc: '双方在线确认服务完成',
+      active: true
+    },
+    {
+      id: 'upload',
+      title: '上传凭证',
+      desc: '上传服务完成截图或文件',
+      active: false
+    }
+  ],
+  actions: {
+    delayText: '申请延期',
+    deliverText: '立即交付'
+  },
+  texts: {
+    loadingText: '加载中...',
+    loadFailedText: '获取交易预警失败',
+    invalidActionText: '交易预警操作无效',
+    actionFailedText: '交易预警处理失败',
+    delaySuccessText: '延期申请已提交',
+    delayStatusText: '已申请延期',
+    deliverSuccessText: '已进入交付确认',
+    countdownTitle: '剩余交付时间',
+    orderNoLabel: '订单编号',
+    deliveryTitle: '交付方式'
+  }
 }
 
 const mockSystemNotificationDetail = {
-  id: '',
-  messageId: '',
-  notificationId: '',
+  id: 'system-notification-001',
+  messageId: 'system-notification-001',
+  notificationId: 'system-notification-001',
   pageTitle: '系统通知',
-  onlineText: '',
+  onlineText: '在线',
   article: {
-    blocks: []
+    tagText: '重要更新',
+    title: '组局功能全新升级：智能匹配系统上线',
+    author: '官方运营团队',
+    publishedAtText: '2026-03-20',
+    readText: '阅读 1.2k',
+    blocks: [
+      {
+        id: 'lead',
+        type: 'paragraph',
+        text: '亲爱的用户：',
+        lead: true
+      },
+      {
+        id: 'intro',
+        type: 'paragraph',
+        text: '为了提升组局效率和匹配精准度，我们于今日正式上新智能匹配功能，根据你的行业标签、兴趣爱好、地理位置等多维度信息，自动推荐最合适的组局对象。'
+      },
+      {
+        id: 'update-content',
+        type: 'updateBox',
+        icon: '★',
+        title: '主要更新内容',
+        points: [
+          'AI智能推荐：基于行为分析的个性化推荐',
+          '匹配度评分：直观展示双方契合程度',
+          '一键邀约：简化组局发起流程'
+        ]
+      },
+      {
+        id: 'message-center',
+        type: 'paragraph',
+        text: '同时，我们对消息触达中心进行了优化，新增消息分类和优先级标记，确保你不会错过任何重要组局信息。'
+      },
+      {
+        id: 'cover',
+        type: 'cover',
+        imageUrl: '/pages/message/system-detail/assets/system-update-cover.png',
+        caption: '智能匹配界面示意图'
+      },
+      {
+        id: 'closing',
+        type: 'paragraph',
+        text: '如有任何问题，欢迎联系客服团队。感谢你的支持与信任！'
+      },
+      {
+        id: 'signature',
+        type: 'signature',
+        teamText: '产品团队',
+        dateText: '2026年3月20日'
+      }
+    ]
   },
   feedback: {
-    useful: {},
-    useless: {}
+    question: '这篇文章对你有帮助吗？',
+    useful: {
+      icon: '👍',
+      label: '有用',
+      count: 128,
+      countText: '128'
+    },
+    useless: {
+      icon: '👎',
+      label: '没用',
+      count: 10,
+      countText: '10'
+    }
+  },
+  texts: {
+    loadFailedText: '获取系统通知失败',
+    feedbackFailedText: '反馈提交失败',
+    feedbackSuccessText: '已记录{label}反馈'
   }
+}
+
+const mockReportCenterConfig = {
+  types: [
+    { key: 'private-guide', label: '诱导私下交易', reportType: 'revenue_dispute', order: 10, visible: true },
+    { key: 'private-done', label: '私下交易已完成', reportType: 'revenue_dispute', order: 20, visible: true },
+    { key: 'harassment', label: '言语骚扰', reportType: 'user_complaint', order: 30, visible: true },
+    { key: 'fake', label: '虚假信息', reportType: 'user_complaint', order: 40, visible: true },
+    { key: 'cancel', label: '恶意取消', reportType: 'service_dispute', order: 50, visible: true },
+    { key: 'other', label: '其他违规', reportType: 'other', order: 60, visible: true }
+  ],
+  defaultType: 'private-guide',
+  maxEvidenceCount: 9,
+  allowedUploadTypes: ['jpg', 'png', 'pdf'],
+  tips: [
+    '举报属实且能核实金额：罚款20% (50%奖励举报人)',
+    '属实但无法核实：按后台处理规则发放奖励并记录信用变化',
+    '不属实扣除举报人信用分2分，多次恶意举报封号'
+  ],
+  appealReasons: [
+    { key: 'misjudge', label: '误判扣分', order: 10, visible: true },
+    { key: 'system', label: '系统错误', order: 20, visible: true },
+    { key: 'special', label: '特殊情况', order: 30, visible: true },
+    { key: 'other', label: '其他', order: 40, visible: true }
+  ],
+  appealPlaceholder: '请详细说明申诉原因，包括但不限于事件经过、时间、涉及人员等信息...',
+  appealUploadNote: '支持 JPG、PNG 格式，单张不超过 5MB，最多 4 张证明材料',
+  appealFileMaxCount: 4,
+  appealUploadFullText: '最多上传 4 张证明材料',
+  appealUploadSelectedTemplate: '已选择 {selected}/{max} 张证明材料',
+  appealReviewTitle: '处理时效',
+  appealReviewRules: [
+    '提交后24小时内初审',
+    '复杂情况48小时内复核',
+    '结果将通过站内消息通知'
+  ],
+  version: '2026-07-01'
 }
 
 module.exports = {
   validInvites,
+  mockRoleStatusPageConfig,
+  mockRoleApplicationPageConfig,
+  mockGuideApplyConfig,
+  mockRoleBenefitConfig,
+  mockReferralRecordsConfig,
   mockUser,
   mockCurrentUser,
   mockHome,
   mockRoleHomes,
   mockProfileHome,
+  mockProfileAssets,
   mockSystemSkillConfig,
   mockPointsMall,
+  mockPointsPageConfig,
   mockPointsOrders,
   mockPointsOrderLogistics,
   mockNewbieTasks,
@@ -1313,14 +2455,22 @@ module.exports = {
   mockInvitePlayerConfig,
   mockInvitePlayers,
   mockSystemRecommendations,
+  mockDeliveryPageConfig,
+  mockMemberRadarConfig,
+  mockReportCenterConfig,
+  mockReviewPageConfig,
   mockReplayConfirmContext,
   mockGuideProgress,
   mockGuideCancelDetail,
+  mockGameCancelConfig,
+  mockMyGamesPageConfig,
   mockGameManage,
   mockPlayerGameManage,
   mockGameProfitTemplates,
   mockRelationNetworkHome,
+  mockMyCityConfig,
   mockMessageCenter,
+  mockMessageMyConfig,
   mockTradeWarningDetail,
   mockSystemNotificationDetail
 }

@@ -1,7 +1,26 @@
-<view class="page-shell">
-  <view class="module-card">
-    <text class="module-kicker">P0</text>
-    <text class="module-title">{{title}}</text>
-    <text class="module-desc">{{desc}}</text>
+<view class="page-shell im-room">
+  <view class="im-head">
+    <view class="im-head-main">
+      <view>
+        <text class="im-title">{{title}}</text>
+        <text class="im-desc">{{desc}}</text>
+      </view>
+      <button class="im-report" bindtap="onReportTap">举报</button>
+    </view>
+  </view>
+
+  <scroll-view class="im-list" scroll-y="true">
+    <block wx:for="{{messages}}" wx:key="id">
+      <view class="im-item {{item.messageType}}">
+        <text class="im-meta">{{item.createdAtText}}</text>
+        <text class="im-content">{{item.content}}</text>
+      </view>
+    </block>
+    <view wx:if="{{!messages.length && !loading}}" class="im-empty">暂无消息</view>
+  </scroll-view>
+
+  <view class="im-compose">
+    <input class="im-input" value="{{inputText}}" bindinput="onInput" placeholder="输入消息" />
+    <button class="im-send" bindtap="onSendTap" loading="{{sending}}">发送</button>
   </view>
 </view>

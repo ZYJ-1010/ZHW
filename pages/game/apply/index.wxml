@@ -19,7 +19,7 @@
   >
     <view class="game-apply-page">
       <view class="apply-heading">
-        <text class="apply-subtitle">你的信息将展示给发起人</text>
+        <text class="apply-subtitle">{{applicationConfig.texts.subtitle}}</text>
       </view>
 
       <view class="wechat-card">
@@ -31,41 +31,46 @@
         />
         <view wx:else class="wechat-avatar">{{wechatInfo.avatarFallback}}</view>
         <view class="wechat-copy">
-          <text class="wechat-title">微信信息</text>
-          <text class="wechat-desc">昵称：{{wechatInfo.nickname}} · {{wechatInfo.syncText}}</text>
+          <text class="wechat-title">{{applicationConfig.texts.wechatTitle}}</text>
+          <text class="wechat-desc">{{applicationConfig.texts.nicknameLabel}}：{{wechatInfo.nickname}} · {{wechatInfo.syncText}}</text>
         </view>
+      </view>
+
+      <view wx:if="{{applicationConfig.agreementText || applicationConfig.recommendationHint}}" class="apply-rule-card">
+        <text wx:if="{{applicationConfig.agreementText}}" class="apply-rule-text">{{applicationConfig.agreementText}}</text>
+        <text wx:if="{{applicationConfig.recommendationHint}}" class="apply-rule-hint">{{applicationConfig.recommendationHint}}</text>
       </view>
 
       <view class="apply-section">
         <view class="apply-section-label required">
-          <text>自我介绍</text>
+          <text>{{applicationConfig.texts.introLabel}}</text>
           <text class="required-mark">*</text>
         </view>
         <textarea
           class="apply-textarea intro"
           value="{{form.intro}}"
-          maxlength="300"
+          maxlength="{{applicationConfig.maxIntroLength}}"
           auto-height="{{false}}"
           bindinput="onIntroInput"
-          placeholder="介绍你的背景、能力和参与动机"
+          placeholder="{{applicationConfig.texts.introPlaceholder}}"
           placeholder-class="apply-placeholder"
         />
       </view>
 
       <view class="apply-section">
-        <text class="apply-section-label">相关经历/作品</text>
+        <text class="apply-section-label">{{applicationConfig.texts.portfolioLabel}}{{applicationConfig.uploadRequired ? ' *' : ''}}</text>
         <work-upload-panel panel-class="framed" bind:imageupload="onUploadImage" bind:fileupload="onUploadFile" />
       </view>
 
       <view class="apply-section">
-        <text class="apply-section-label">申请留言</text>
+        <text class="apply-section-label">{{applicationConfig.texts.messageLabel}}</text>
         <textarea
           class="apply-textarea message"
           value="{{form.message}}"
-          maxlength="120"
+          maxlength="{{applicationConfig.maxMessageLength || -1}}"
           auto-height="{{false}}"
           bindinput="onMessageInput"
-          placeholder="给发起人留一句话"
+          placeholder="{{applicationConfig.texts.messagePlaceholder}}"
           placeholder-class="apply-placeholder"
         />
       </view>
@@ -77,15 +82,15 @@
             <view wx:if="{{form.agreed}}" class="agreement-check-mark"></view>
           </view>
           <view class="agreement-copy">
-            <text>我已阅读并同意</text>
-            <text class="agreement-link" catchtap="onAgreementTap">《真好玩平台协议》</text>
+            <text>{{applicationConfig.texts.agreementPrefix}}</text>
+            <text class="agreement-link" catchtap="onAgreementTap">《{{applicationConfig.agreementTitle}}》</text>
           </view>
         </label>
       </checkbox-group>
 
       <view class="action-row">
-        <button class="action-button secondary" hover-class="none" bindtap="onCancel">取消</button>
-        <button class="action-button primary" hover-class="none" bindtap="onSubmit">提交申请</button>
+        <button class="action-button secondary" hover-class="none" bindtap="onCancel">{{applicationConfig.texts.cancelText}}</button>
+        <button class="action-button primary" hover-class="none" bindtap="onSubmit">{{applicationConfig.texts.submitText}}</button>
       </view>
     </view>
   </scroll-view>

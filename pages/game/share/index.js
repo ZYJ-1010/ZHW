@@ -1,4 +1,5 @@
 const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const gameService = require('../../../services/game')
 
 const SHARE_SCROLL_TAP_STEP_RPX = 360
@@ -6,57 +7,63 @@ const SHARE_SCROLL_HOLD_STEP_RPX = 72
 const SHARE_SCROLL_HOLD_INTERVAL_MS = 80
 const SHARE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-function formatDateTimeText(value) {
-  if (!value) {
-    return ''
+function emptyGameInfo() {
+  return {
+    id: '',
+    bannerImage: '',
+    title: '',
+    startTime: '',
+    location: '',
+    joinedCount: 0,
+    maxPlayers: 8,
+    introText: '',
+    organizerName: '',
+    organizerTitle: '',
+    organizerAvatarText: '',
+    groupCreatedCount: 0,
+    recommendCount: 0,
+    hasData: false
   }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value)
-  }
-
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-
-  return `${date.getFullYear()}年${month}月${day}日 ${hour}:${minute}`
 }
 
-function normalizeGameInfo(data = {}) {
-  const creator = data.creator || data.organizer || {}
-  const organizerName = creator.name || creator.nickname || ''
+function normalizeShareGameInfo(data = {}, fallback = emptyGameInfo()) {
+  const game = data.game || data
+  const creatorId = game.creatorUserId || ''
+  const title = String(game.title || '').trim()
+  const location = String(game.address || game.cityName || '').trim()
+  const maxPlayers = Number(game.maxPlayers || fallback.maxPlayers || 8)
+  const joinedCount = Number(game.currentPlayers || (Array.isArray(data.memberIds) ? data.memberIds.length : 0))
 
   return {
-    onlineText: data.onlineText || '3999人在线',
-    id: data.id || data.gameId || '',
-    bannerImage: data.bannerImage || data.coverSrc || data.coverUrl || data.coverFileUrl || '',
-    title: data.title || '',
-    startTime: data.timeText || data.startTimeText || formatDateTimeText(data.startAt || data.startTime),
-    location: data.addressName || data.address || data.locationName || '',
-    joinedCount: Number(data.approvedMemberCount || data.memberCount || data.joinedCount || 0),
-    maxPlayers: Number(data.maxParticipants || data.maxPlayers || 0),
-    introText: data.introText || data.introduction || data.description || '',
-    organizerName,
-    organizerTitle: creator.title || creator.role || creator.company || '',
-    organizerAvatarText: creator.avatarText || organizerName.slice(0, 1),
-    groupCreatedCount: Number(creator.groupCreatedCount || creator.createdGameCount || 0),
-    recommendCount: Number(creator.recommendCount || creator.referralCount || 0)
+    id: game.id || fallback.id,
+    bannerImage: game.coverUrl || game.bannerImage || fallback.bannerImage,
+    title,
+    startTime: game.status ? `状态：${game.status}` : fallback.startTime,
+    location,
+    joinedCount,
+    maxPlayers,
+    introText: game.introText || game.description || (title ? `${title}。${location ? `地点：${location}。` : ''}` : ''),
+    organizerName: game.organizerName || game.creatorName || game.creatorNickname || (creatorId ? `发起人 ${creatorId}` : ''),
+    organizerTitle: game.organizerTitle || game.creatorTitle || (game.mainGuideUserId ? `主行家 ${game.mainGuideUserId}` : ''),
+    organizerAvatarText: game.organizerAvatarText || game.creatorAvatarText || (creatorId ? String(creatorId).slice(-2) : ''),
+    groupCreatedCount: Number(game.groupCreatedCount || game.createdGameCount || 0),
+    recommendCount: Number(game.recommendCount || game.referralCount || 0),
+    hasData: Boolean(game.id || title)
   }
 }
+
+const DEFAULT_GAME_INFO = emptyGameInfo()
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    gameId: '',
+    onlineText: '在线',
     shareScrollTop: 0,
     isInterested: false,
-    currentJoinedCount: 0,
+    currentJoinedCount: DEFAULT_GAME_INFO.joinedCount,
     showShareWindow: false,
-    loading: false,
-    loadErrorText: '',
-    gameInfo: normalizeGameInfo(),
+    gameInfo: DEFAULT_GAME_INFO,
+    shareEntry: null,
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -69,9 +76,12 @@ Page({
   onLoad(options = {}) {
     const gameId = options.gameId || options.id || ''
 
-    if (gameId) {
-      this.loadGameInfo(gameId)
-    }
+    this.setData({
+      gameId,
+      gameInfo: Object.assign({}, DEFAULT_GAME_INFO, { id: gameId }),
+      currentJoinedCount: 0
+    })
+    this.loadShareGame(gameId)
 
     if (wx.showShareMenu) {
       wx.showShareMenu({
@@ -81,32 +91,55 @@ Page({
     }
   },
 
-  async loadGameInfo(gameId) {
-    this.setData({
-      loading: true,
-      loadErrorText: ''
-    })
+  async loadShareGame(gameId) {
+    if (!gameId) {
+      return
+    }
 
     try {
-      const gameInfo = normalizeGameInfo(await gameService.getGameDetail(gameId))
+      const detail = await gameService.getGameDetail(gameId)
+      const gameInfo = normalizeShareGameInfo(detail, this.data.gameInfo)
 
       this.setData({
-        loading: false,
-        onlineText: gameInfo.onlineText,
         gameInfo,
         currentJoinedCount: gameInfo.joinedCount
       })
+      this.ensureShareEntry(gameInfo)
     } catch (error) {
-      this.setData({
-        loading: false,
-        loadErrorText: error.message || '活动信息加载失败'
+      this.showToast(error.message || '组局信息加载失败')
+    }
+  },
+
+  async ensureShareEntry(gameInfo = this.data.gameInfo) {
+    const gameId = gameInfo.id || this.data.gameId
+
+    if (!gameId || this.data.shareEntry) {
+      return this.data.shareEntry
+    }
+
+    try {
+      const shareEntry = await gameService.createInviteEntry({
+        entryType: 'link',
+        gameId: Number(gameId),
+        title: gameInfo.title || '真好玩组局邀请'
       })
-      this.showToast(error.message || '活动信息加载失败')
+
+      this.setData({ shareEntry })
+      return shareEntry
+    } catch (error) {
+      this.showToast(error.message || '邀请链接生成失败')
+      return null
     }
   },
 
   onToggleInterest() {
     const isInterested = !this.data.isInterested
+
+    if (!this.data.gameInfo.hasData) {
+      this.showToast('组局信息加载后才可以操作')
+      return
+    }
+
     const joinedCount = this.data.gameInfo.joinedCount + (isInterested ? 1 : 0)
 
     this.setData({
@@ -119,6 +152,11 @@ Page({
 
   onCopyLocation() {
     const address = this.data.gameInfo.location
+
+    if (!address) {
+      this.showToast('暂无可复制地址')
+      return
+    }
 
     if (!wx.setClipboardData) {
       this.showToast(address)
@@ -134,6 +172,11 @@ Page({
   },
 
   onOpenShare() {
+    if (!this.data.gameInfo.hasData) {
+      this.showToast('组局信息加载后才可以分享')
+      return
+    }
+
     this.setData({
       showShareWindow: true
     })
@@ -151,19 +194,11 @@ Page({
 
   onShareDirect() {
     this.onCloseShare()
-    this.showToast('私信分享待接入')
+    navigateShellRoute(`/${ROUTES.message}?from=gameShare${this.data.gameId ? `&gameId=${encodeURIComponent(this.data.gameId)}` : ''}`)
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -172,8 +207,9 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      this.showToast('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameShare
+    })) {
       return
     }
 
@@ -182,14 +218,6 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -215,7 +243,7 @@ Page({
     }
 
     if (key === 'search') {
-      this.showToast('搜索功能开发中')
+      this.navigateToRoute(ROUTES.gameHall)
       return
     }
 
@@ -231,7 +259,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -242,9 +270,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleShareScroll(event) {
@@ -323,18 +349,51 @@ Page({
   },
 
   onShareAppMessage() {
+    if (!this.data.gameInfo.hasData) {
+      return {
+        title: '真好玩',
+        path: `/${ROUTES.gameHall}`
+      }
+    }
+
+    const entry = this.data.shareEntry || {}
+    const inviteCode = entry.inviteCode || ''
+    const entryType = entry.entryType || 'link'
+    const gameId = this.data.gameInfo.id || this.data.gameId || ''
+    const fallbackPath = `/${ROUTES.gameShare}?id=${encodeURIComponent(gameId)}`
+    const path = entry.path
+      ? entry.path.replace(/^\/+/, '/')
+      : `${fallbackPath}${inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&entryType=${encodeURIComponent(entryType)}` : ''}`
+
     return {
-      title: this.data.gameInfo.title,
-      path: `/${ROUTES.gameShare}?id=${this.data.gameInfo.id}`,
-      imageUrl: this.data.gameInfo.bannerImage
+      title: entry.title || this.data.gameInfo.title || '真好玩组局邀请',
+      path,
+      imageUrl: this.data.gameInfo.bannerImage || undefined
     }
   },
 
   onShareTimeline() {
+    if (!this.data.gameInfo.hasData) {
+      return {
+        title: '真好玩',
+        query: ''
+      }
+    }
+
+    const entry = this.data.shareEntry || {}
+    const inviteCode = entry.inviteCode || ''
+    const entryType = entry.entryType || 'link'
+    const gameId = this.data.gameInfo.id || this.data.gameId || ''
+    const query = [
+      gameId ? `id=${encodeURIComponent(gameId)}` : '',
+      inviteCode ? `inviteCode=${encodeURIComponent(inviteCode)}` : '',
+      entryType ? `entryType=${encodeURIComponent(entryType)}` : ''
+    ].filter(Boolean).join('&')
+
     return {
-      title: this.data.gameInfo.title,
-      query: `id=${this.data.gameInfo.id}`,
-      imageUrl: this.data.gameInfo.bannerImage
+      title: entry.title || this.data.gameInfo.title || '真好玩组局邀请',
+      query,
+      imageUrl: this.data.gameInfo.bannerImage || undefined
     }
   },
 

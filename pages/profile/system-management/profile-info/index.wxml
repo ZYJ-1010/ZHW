@@ -13,6 +13,10 @@
   bind:righttap="handleSaveTap"
 >
   <view class="profile-info-page">
+    <view wx:if="{{loadError}}" class="profile-info-empty">
+      <text>{{loadError}}</text>
+    </view>
+
     <view class="section-title-row">
       <image class="section-title-icon" src="{{icons.user}}" mode="aspectFit"></image>
       <text class="section-title">个人信息</text>
@@ -23,6 +27,8 @@
         wx:for="{{personalRows}}"
         wx:key="key"
         class="info-row {{item.type === 'contact' ? 'contact-row' : ''}}"
+        data-key="{{item.key}}"
+        data-section="personal"
         bindtap="handleEditableRowTap"
       >
         <view wx:if="{{item.type === 'contact'}}" class="contact-block">
@@ -51,7 +57,7 @@
         <block wx:elif="{{item.type === 'avatar'}}">
           <text class="row-label">{{item.label}}</text>
           <view class="row-right">
-            <view class="avatar-circle">{{profile.avatarText}}</view>
+            <view class="avatar-circle {{profile.avatarText ? '' : 'empty'}}">{{profile.avatarText || '未'}}</view>
             <image class="chevron-icon" src="{{icons.chevron}}" mode="aspectFit"></image>
           </view>
         </block>
@@ -76,6 +82,8 @@
         wx:for="{{enterpriseRows}}"
         wx:key="key"
         class="info-row"
+        data-key="{{item.key}}"
+        data-section="enterprise"
         bindtap="handleEditableRowTap"
       >
         <text class="row-label">{{item.label}}</text>
@@ -108,6 +116,7 @@
         wx:for="{{certifications}}"
         wx:key="key"
         class="cert-row"
+        data-key="{{item.key}}"
         bindtap="handleCertificationTap"
       >
         <view class="cert-left">

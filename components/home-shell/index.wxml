@@ -1,4 +1,11 @@
-<scroll-view class="home-shell-scroll {{shellClass}}" scroll-y="{{!contentScrollY}}" enhanced show-scrollbar="false">
+<scroll-view
+  class="home-shell-scroll {{shellClass}}"
+  scroll-y="{{!contentScrollY}}"
+  enhanced
+  show-scrollbar="false"
+  scroll-top="{{shellOuterScrollTop}}"
+  bindscroll="handleOuterScroll"
+>
   <view class="home-shell-canvas" style="{{shellCanvasStyle}}">
     <scroll-view
       wx:if="{{contentScrollY}}"
@@ -7,6 +14,8 @@
       scroll-y
       enhanced
       show-scrollbar="false"
+      scroll-top="{{shellContentScrollTop}}"
+      bindscroll="handleContentScroll"
     >
       <slot></slot>
     </scroll-view>

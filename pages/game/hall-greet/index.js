@@ -1,5 +1,3 @@
-const gameService = require('../../../services/game')
-
 const WHITE_CONTENT_LEFT_RPX = 2
 const WHITE_CONTENT_TOP_RPX = 160
 const WHITE_CONTENT_WIDTH_RPX = 750
@@ -9,12 +7,9 @@ const WHITE_BACK_BUTTON_SIZE_RPX = 40
 const WHITE_DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const WHITE_DEFAULT_FRAME_HEIGHT_RPX = WHITE_DESIGN_FRAME_HEIGHT_PT * 2
 
-const QUICK_ACTION_ICON_MAP = {
-  addFriend: '/pages/game/hall-greet/assets/action-add-friend.png',
-  sayHi: '/pages/game/hall-greet/assets/action-say-hi.png',
-  card: '/pages/game/hall-greet/assets/action-card.png',
-  location: '/pages/game/hall-greet/assets/action-location.png'
-}
+const { ROUTES } = require('../../../config/routes')
+const imService = require('../../../services/im')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -71,66 +66,28 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
-function normalizeQuickAction(action = {}) {
-  const key = action.key || action.actionKey || action.type || ''
-
-  return {
-    key,
-    label: action.label || action.title || '',
-    iconSrc: action.iconSrc || action.icon || QUICK_ACTION_ICON_MAP[key] || ''
-  }
-}
-
-function normalizeSentMessage(message = {}, fallbackText = '', fallbackId = '') {
-  const text = message.text || message.content || message.message || fallbackText
-
-  if (!text) {
-    return null
-  }
-
-  return {
-    id: String(message.id || message.messageId || fallbackId),
-    text
-  }
-}
-
-function normalizeHallGreetContext(data = {}) {
-  const messages = Array.isArray(data.sentMessages || data.messages)
-    ? (data.sentMessages || data.messages).map((message, index) => normalizeSentMessage(message, '', `message-${index}`)).filter(Boolean)
-    : []
-
-  return {
-    greetingId: data.greetingId || '',
-    gameId: data.gameId || '',
-    targetUserId: data.targetUserId || '',
-    shareTitle: data.shareTitle || '',
-    quickActions: Array.isArray(data.quickActions) ? data.quickActions.map(normalizeQuickAction).filter((item) => item.key) : [],
-    sentMessages: messages
-  }
-}
-
 Page({
   data: {
     whiteShellLayout: getWhiteShellLayoutStyles(),
-    greetingId: '',
-    gameId: '',
-    targetUserId: '',
-    shareTitle: '',
     messageValue: '',
+    gameId: 0,
     sentMessages: [],
     scrollIntoView: '',
-    quickActions: [],
-    loading: false,
-    sending: false,
-    actionSubmitting: false
+    quickActions: [
+      { key: 'addFriend', label: '加好友', iconSrc: '/pages/game/hall-greet/assets/action-add-friend.png' },
+      { key: 'sayHi', label: '打招呼', iconSrc: '/pages/game/hall-greet/assets/action-say-hi.png' },
+      { key: 'card', label: '发名片', iconSrc: '/pages/game/hall-greet/assets/action-card.png' },
+      { key: 'location', label: '发定位', iconSrc: '/pages/game/hall-greet/assets/action-location.png' }
+    ]
   },
 
   onLoad(options = {}) {
-    this.localMessageSeq = 0
+    const gameId = Number(options.gameId || options.sourceGameId || 0)
+
     this.setData({
-      whiteShellLayout: getWhiteShellLayoutStyles()
+      whiteShellLayout: getWhiteShellLayoutStyles(),
+      gameId: Number.isInteger(gameId) && gameId > 0 ? gameId : 0
     })
-    this.loadHallGreetContext(options)
   },
 
   onResize() {
@@ -141,40 +98,8 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: this.data.shareTitle || '组局大厅-打招呼',
+      title: '组局大厅-打招呼',
       path: '/pages/game/hall-greet/index'
-    }
-  },
-
-  async loadHallGreetContext(options = {}) {
-    this.setData({
-      greetingId: options.greetingId || options.id || '',
-      gameId: options.gameId || '',
-      targetUserId: options.targetUserId || options.userId || '',
-      loading: true
-    })
-
-    try {
-      const data = await gameService.getHallGreetingContext({
-        ...options,
-        greetingId: options.greetingId || options.id || '',
-        gameId: options.gameId || '',
-        targetUserId: options.targetUserId || options.userId || ''
-      })
-
-      this.setData({
-        ...normalizeHallGreetContext(data),
-        loading: false
-      })
-    } catch (error) {
-      this.setData({
-        ...normalizeHallGreetContext({}),
-        loading: false
-      })
-      wx.showToast({
-        title: error.message || '打招呼配置加载失败',
-        icon: 'none'
-      })
     }
   },
 
@@ -186,9 +111,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: '/pages/game/hall/index'
-    })
+    navigateShellRoute('/pages/game/hall/index')
   },
 
   handleInput(event) {
@@ -200,39 +123,13 @@ Page({
   async handleSend() {
     const value = String(this.data.messageValue || '').trim()
 
-    if (!value || this.data.sending) {
+    if (!value) {
       return
     }
 
-    this.setData({
-      sending: true
-    })
-
-    try {
-      const result = await gameService.sendHallGreetingMessage({
-        greetingId: this.data.greetingId,
-        gameId: this.data.gameId,
-        targetUserId: this.data.targetUserId,
-        message: value
-      })
-      const nextMessage = normalizeSentMessage(result && (result.message || result), value, `local-message-${++this.localMessageSeq}`)
-
-      if (nextMessage) {
-        this.setData({
-          messageValue: '',
-          sentMessages: this.data.sentMessages.concat(nextMessage),
-          scrollIntoView: nextMessage.id
-        })
-      }
-    } catch (error) {
-      wx.showToast({
-        title: error.message || '消息发送失败',
-        icon: 'none'
-      })
-    } finally {
-      this.setData({
-        sending: false
-      })
+    if (await this.sendIMText(value)) {
+      this.setData({ messageValue: '' })
+      this.appendMessage(value)
     }
   },
 
@@ -242,44 +139,78 @@ Page({
       return
     }
 
-    this.showInfo('更多功能待接入')
+    this.showInfo('可使用上方快捷动作')
   },
 
   handleVoiceTap() {
-    this.showInfo('语音功能待接入')
+    this.showInfo('当前支持文字消息')
   },
 
   handleEmojiTap() {
-    this.showInfo('表情功能待接入')
+    this.showInfo('当前支持文字消息')
   },
 
-  async handleQuickAction(event) {
+  handleQuickAction(event) {
     const key = event.currentTarget.dataset.key
 
-    if (!key || this.data.actionSubmitting) {
+    if (key === 'addFriend') {
+      navigateShellRoute(ROUTES.profile)
       return
     }
 
-    this.setData({
-      actionSubmitting: true
-    })
+    if (key === 'location') {
+      const suffix = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}&mode=route` : ''
+      navigateShellRoute(`/${ROUTES.map}${suffix}`)
+      return
+    }
+
+    if (key === 'sayHi') {
+      this.sendQuickText('你好，我想和你打个招呼。')
+      return
+    }
+
+    if (key === 'card') {
+      this.sendQuickText('这是我的名片，可以先了解一下。')
+      return
+    }
+
+    this.showInfo('操作信息不完整')
+  },
+
+  async sendQuickText(text) {
+    if (await this.sendIMText(text)) {
+      this.appendMessage(text)
+      this.showInfo('已发送')
+    }
+  },
+
+  async sendIMText(text) {
+    if (!this.data.gameId) {
+      return true
+    }
 
     try {
-      const result = await gameService.triggerHallGreetingAction({
-        greetingId: this.data.greetingId,
-        gameId: this.data.gameId,
-        targetUserId: this.data.targetUserId,
-        actionKey: key
+      await imService.sendMessage(this.data.gameId, {
+        messageType: 'text',
+        content: text
       })
-
-      this.showInfo(result && (result.message || result.toastText) || '操作已提交')
+      return true
     } catch (error) {
-      this.showInfo(error.message || '操作提交失败')
-    } finally {
-      this.setData({
-        actionSubmitting: false
-      })
+      this.showInfo(error && error.message ? error.message : '发送失败')
+      return false
     }
+  },
+
+  appendMessage(text) {
+    const nextMessage = {
+      id: `message-${Date.now()}`,
+      text
+    }
+
+    this.setData({
+      sentMessages: this.data.sentMessages.concat(nextMessage),
+      scrollIntoView: nextMessage.id
+    })
   },
 
   showInfo(title) {

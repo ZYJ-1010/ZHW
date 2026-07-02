@@ -459,6 +459,14 @@ page {
   padding-left: 4rpx;
 }
 
+.points-empty {
+  padding: 54rpx 0 46rpx;
+  color: #9ca3af;
+  font-size: 25rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
 .record-row {
   justify-content: space-between;
   gap: 18rpx;

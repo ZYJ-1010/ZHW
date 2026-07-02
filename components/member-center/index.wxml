@@ -16,7 +16,7 @@
     <view class="member-section">
       <view class="member-section-title">
         <view class="member-title-line"></view>
-        <text>{{benefitSectionTitle}}</text>
+        <text>会员权益</text>
         <view class="member-title-line"></view>
       </view>
 
@@ -37,7 +37,7 @@
         <view class="benefit-card">
           <view class="benefit-head gold">
             <image class="benefit-icon profit" src="{{assets.profit}}" mode="aspectFit"></image>
-            <text class="benefit-title">{{profitBenefitTitle}}</text>
+            <text class="benefit-title">利润分成</text>
           </view>
           <view class="benefit-percent">{{profitRate}}</view>
         </view>
@@ -47,10 +47,10 @@
     <view class="member-section radar-section">
       <view class="member-section-title">
         <view class="member-title-line"></view>
-        <text>{{radarTitle}}</text>
+        <text>组局雷达</text>
         <view class="member-title-line"></view>
       </view>
-      <text class="section-subtitle">{{radarSubtitle}}</text>
+      <text class="section-subtitle">精准匹配附近组局，可平级参与组局</text>
 
       <view class="radar-wrap">
         <view class="radar-face">
@@ -74,13 +74,13 @@
         </view>
       </view>
 
-      <button class="match-button" bindtap="handleMatch">{{radarButtonText}}</button>
+      <button class="match-button" bindtap="handleMatch">开始适配</button>
     </view>
 
     <view class="member-section audience-section">
       <view class="member-section-title">
         <view class="member-title-line"></view>
-        <text>{{audienceTitle}}</text>
+        <text>适配人群</text>
         <view class="member-title-line"></view>
       </view>
       <view class="audience-list">
@@ -91,7 +91,7 @@
     <view class="member-section rules-section">
       <view class="member-section-title">
         <view class="member-title-line"></view>
-        <text>{{openRulesTitle}}</text>
+        <text>开通权益说明</text>
         <view class="member-title-line"></view>
       </view>
       <view class="rules-list">
@@ -104,25 +104,25 @@
     </view>
 
     <view class="role-link" bindtap="handleUnlockRole">
-      <text>{{roleLinkText}}</text>
+      <text>已是平台会员，前去解锁角色</text>
       <text class="role-arrow">></text>
     </view>
 
-    <view wx:if="{{latestNotice}}" class="member-notice">
-      <view class="notice-avatar">{{latestNotice.avatarText}}</view>
-      <text><text class="notice-name">{{latestNotice.name}}</text> {{latestNotice.text}}</text>
+    <view wx:if="{{noticeName || noticeLevel}}" class="member-notice">
+      <view class="notice-avatar">{{noticeAvatar}}</view>
+      <text><text class="notice-name">{{noticeName}}</text> 刚开通了{{noticeLevel}}</text>
     </view>
 
     <view class="member-footer">
       <view class="open-button" bindtap="handleOpenMember">
-        <text>{{purchase.buttonText}}</text>
-        <text class="open-price">{{purchase.priceText}}</text>
+        <text>立即开通</text>
+        <text class="open-price">¥ {{price}} /年</text>
       </view>
       <view class="agreement-text">
-        <text>{{purchase.agreementPrefix}}</text>
-        <text class="agreement-link" bindtap="handleAgreement">{{purchase.agreementName}}</text>
-        <text>{{purchase.agreementSuffix}}</text>
-        <text class="agreement-highlight">{{purchase.highlightText}}</text>
+        <text>请阅读</text>
+        <text class="agreement-link" bindtap="handleAgreement">《服务协议》</text>
+        <text>，购买视为确认协议。</text>
+        <text class="agreement-highlight">开通后需完成身份认证、解锁角色权益</text>
       </view>
     </view>
 

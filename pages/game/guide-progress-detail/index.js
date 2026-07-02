@@ -1,5 +1,6 @@
 const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 2
 const CONTENT_TOP_RPX = 160
@@ -28,31 +29,31 @@ const DEFAULT_DETAIL = {
   playerConfirmedAt: '',
   playerConfirmedText: '',
   expertConfirmedText: '',
-  primaryActionText: '',
+  primaryActionText: '提醒行家',
   player: {
-    name: '',
+    name: '玩家',
     roleLabel: '玩家',
     roleClass: 'player',
     desc: '',
-    state: '',
-    stateClass: '',
-    cardClass: '',
-    badgeClass: '',
-    badgeIcon: '',
-    avatarText: '',
+    state: '待确认',
+    stateClass: 'waiting',
+    cardClass: 'waiting',
+    badgeClass: 'waiting',
+    badgeIcon: PARTICIPANT_WAITING_ICON,
+    avatarText: getSurnameInitials('玩家', 'PL'),
     avatarClass: 'pink'
   },
   expert: {
-    name: '',
+    name: '行家',
     roleLabel: '行家',
     roleClass: 'expert',
     desc: '',
-    state: '',
-    stateClass: '',
-    cardClass: '',
-    badgeClass: '',
-    badgeIcon: '',
-    avatarText: '',
+    state: '待确认',
+    stateClass: 'waiting',
+    cardClass: 'waiting',
+    badgeClass: 'waiting',
+    badgeIcon: PARTICIPANT_WAITING_ICON,
+    avatarText: getSurnameInitials('行家', 'EX'),
     avatarClass: 'blue'
   },
   game: {
@@ -60,21 +61,6 @@ const DEFAULT_DETAIL = {
     time: '',
     location: ''
   }
-}
-
-function createEmptyDetail() {
-  return Object.assign({}, DEFAULT_DETAIL, {
-    player: Object.assign({}, DEFAULT_DETAIL.player),
-    expert: Object.assign({}, DEFAULT_DETAIL.expert),
-    game: Object.assign({}, DEFAULT_DETAIL.game),
-    statusCard: {
-      title: '',
-      countdown: '',
-      progressStyle: DEFAULT_DETAIL.countdownProgressStyle
-    },
-    infoRows: [],
-    steps: []
-  })
 }
 
 function roundRpx(value) {
@@ -213,7 +199,7 @@ function normalizeMember(member = {}, roleType, fallbackMember) {
     badgeClass: visualState,
     badgeIcon,
     avatarUrl: member.avatarUrl || fallback.avatarUrl || '',
-    avatarText: getInitials(name, member.avatarText || member.initials || fallback.avatarText || ''),
+    avatarText: getInitials(name, member.avatarText || member.initials || fallback.avatarText || (roleType === 'expert' ? 'EX' : 'PL')),
     avatarClass: member.avatarClass || fallback.avatarClass || (roleType === 'expert' ? 'pink' : 'blue'),
     statusText: normalizeText(ownStateText || fallbackStateText)
   }
@@ -335,7 +321,7 @@ function getStepState(index, progressPercent, status) {
 
 function normalizeSteps(item, detail) {
   const percent = Number(item.progressPercent)
-  const progressPercent = Number.isFinite(percent) ? percent : 0
+  const progressPercent = Number.isFinite(percent) ? percent : 49
   const status = item.status || item.progressStatus || item.state || detail.status
   const isExpertWaiting = /expert/.test(normalizeText(status).toLowerCase())
 
@@ -352,7 +338,7 @@ function normalizeSteps(item, detail) {
     {
       key: 'player',
       title: '玩家已确认',
-      desc: normalizeText(item.playerConfirmedText || detail.player.statusText || detail.playerConfirmedText),
+      desc: normalizeText(item.playerConfirmedText || detail.player.statusText || detail.playerConfirmedText, '等待中...'),
       timeText: normalizeText(item.playerConfirmedAt || detail.playerConfirmedAt),
       state: 'confirmed',
       emphasis: true,
@@ -362,7 +348,7 @@ function normalizeSteps(item, detail) {
     {
       key: 'expert',
       title: '等待行家确认',
-      desc: normalizeText(item.expertWaitingText || item.expertConfirmedText || detail.expert.statusText || detail.expertConfirmedText, '已发送提醒'),
+    desc: normalizeText(item.expertWaitingText || item.expertConfirmedText || detail.expert.statusText || detail.expertConfirmedText, '已发送提醒'),
       timeText: isExpertWaiting ? '待处理' : normalizeText(item.expertConfirmedAt),
       state: isExpertWaiting ? 'active' : getStepState(2, progressPercent, status),
       actionText: isExpertWaiting ? '再次提醒' : '',
@@ -384,11 +370,7 @@ function normalizeSteps(item, detail) {
 }
 
 function normalizeDetail(item = {}) {
-  if (!item || Object.keys(item).length === 0) {
-    return createEmptyDetail()
-  }
-
-  const source = Object.assign({}, DEFAULT_DETAIL, item || {})
+  const source = Object.assign({}, DEFAULT_DETAIL, item)
   const player = normalizeMember(getFirstMember(source, 'player') || {}, 'player', DEFAULT_DETAIL.player)
   const expert = normalizeMember(getFirstMember(source, 'expert') || {}, 'expert', DEFAULT_DETAIL.expert)
   const game = Object.assign({}, DEFAULT_DETAIL.game, source.game || source.gameInfo || {
@@ -413,10 +395,10 @@ function normalizeDetail(item = {}) {
     player,
     expert,
     game,
-    playerConfirmedText: normalizeText(source.playerConfirmedText),
-    playerConfirmedAt: normalizeText(source.playerConfirmedAt),
-    expertConfirmedText: normalizeText(source.expertConfirmedText),
-    startedAt: normalizeText(source.startedAt),
+    playerConfirmedText: source.playerConfirmedText || DEFAULT_DETAIL.playerConfirmedText,
+    playerConfirmedAt: source.playerConfirmedAt || DEFAULT_DETAIL.playerConfirmedAt,
+    expertConfirmedText: source.expertConfirmedText || DEFAULT_DETAIL.expertConfirmedText,
+    startedAt: source.startedAt || source.createdAt || DEFAULT_DETAIL.startedAt,
     infoRows: [
       { label: '主题', value: normalizeText(game.topic, DEFAULT_DETAIL.game.topic) },
       { label: '时间', value: normalizeText(game.time, DEFAULT_DETAIL.game.time) },
@@ -449,7 +431,7 @@ Page({
     detailScrollTop: 0,
     loading: false,
     errorText: '',
-    detail: createEmptyDetail()
+    detail: normalizeDetail(DEFAULT_DETAIL)
   },
 
   onLoad(options = {}) {
@@ -484,10 +466,19 @@ Page({
       const data = await gameService.getGuideProgress(params)
       const item = findProgressItem(data, params.id || params.invitationId)
 
+      if (!item) {
+        this.setData({
+          loading: false,
+          errorText: '暂无组局进度详情',
+          detail: normalizeDetail({})
+        })
+        return
+      }
+
       this.setData({
         loading: false,
         errorText: '',
-        detail: item ? normalizeDetail(item) : createEmptyDetail()
+        detail: normalizeDetail(item)
       })
     } catch (error) {
       this.setData({
@@ -502,22 +493,48 @@ Page({
   },
 
   onMapTap() {
-    this.showToast('地图位置待接入')
+    const detail = this.data.detail || {}
+    const game = detail.game || {}
+    const route = `/pages/map/index?gameId=${encodeURIComponent(this.data.queryParams.sourceGameId || detail.id || '')}&mode=route&title=${encodeURIComponent(game.topic || '')}`
+
+    navigateShellRoute(route)
   },
 
   onCancelTap() {
-    this.showToast('取消组局页待接入')
+    navigateShellRoute(`/pages/game/guide-cancel/index?gameId=${encodeURIComponent(this.data.queryParams.sourceGameId || this.data.detail.id || '')}`)
   },
 
-  onRemindTap() {
-    this.showToast('提醒行家待接入')
+  async onRemindTap() {
+    await this.sendReminder()
+    navigateShellRoute(`/pages/game/guide-chat/index?playerName=${encodeURIComponent(this.data.detail.player.name)}&playerDesc=${encodeURIComponent(this.data.detail.player.desc)}&playerRole=${encodeURIComponent(this.data.detail.player.roleLabel)}&demandTargetRole=${encodeURIComponent(this.data.detail.expert.roleLabel)}&demandAction=${encodeURIComponent('确认组局')}&referrerName=${encodeURIComponent(this.data.detail.expert.name)}`)
+  },
+
+  async sendReminder() {
+    const detail = this.data.detail || {}
+    const query = this.data.queryParams || {}
+    const invitationId = query.invitationId || query.id || detail.invitationId || detail.id
+    const gameId = query.sourceGameId || query.gameId || detail.gameId || ''
+
+    try {
+      await gameService.sendGuideReminder({
+        invitationId,
+        gameId,
+        remindTarget: 'expert',
+        message: `${detail.primaryActionText || '提醒确认'}：${(detail.game && detail.game.topic) || ''}`
+      })
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '提醒记录失败，将进入聊天',
+        icon: 'none'
+      })
+    }
   },
 
   onTimelineActionTap(event) {
     const key = event.currentTarget.dataset.key
 
     if (key === 'remindExpert') {
-      this.showToast('提醒行家待接入')
+      this.onRemindTap()
       return
     }
 
@@ -600,9 +617,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: '/pages/game/guide-progress/index'
-    })
+    navigateShellRoute('/pages/game/guide-progress/index')
   },
 
   onUnload() {

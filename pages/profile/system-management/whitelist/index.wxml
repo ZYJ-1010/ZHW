@@ -18,6 +18,7 @@
         <text class="whitelist-name">{{item.name}}</text>
         <view class="danger-outline" data-index="{{index}}" catchtap="handleRemoveTap">移除</view>
       </view>
+      <view wx:if="{{!whitelist.length}}" class="empty-row">暂无白名单行家</view>
     </view>
 
     <view class="add-dashed" bindtap="handleOpenAddSheet">+ 添加白名单行家</view>
@@ -53,6 +54,7 @@
         </view>
         <view class="add-outline" data-index="{{index}}" bindtap="handleAddCandidateTap">添加</view>
       </view>
+      <view wx:if="{{!candidates.length}}" class="empty-row">暂无可添加候选人，请从用户主页或后台配置添加</view>
     </view>
     <view class="secondary-btn sheet-cancel" bindtap="handleCloseSheet">取消</view>
   </view>

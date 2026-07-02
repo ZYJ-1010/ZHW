@@ -1,5 +1,7 @@
 const homeService = require('../../services/home')
+const roleService = require('../../services/role')
 const { ROUTES } = require('../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
 
 const HOME_SCROLL_TAP_STEP_RPX = 360
 const HOME_SCROLL_HOLD_STEP_RPX = 72
@@ -21,38 +23,28 @@ const ROLE_NAMES = {
 const PLAYER_ROLE_HOME = {
   roleName: '玩家',
   roleEmoji: '🎮',
-  deviceBadge: '⚡',
-  profileName: 'Alex Chen',
-  identity: '活跃达人',
-  levelText: '玩家 Lv.5',
-  scoreText: '580/1000 XP',
-  progress: 58,
-  nextLevelText: '距离下一等级还需 420 经验值',
-  sectionTitle: '附近正在发生',
+  deviceBadge: '',
+  profileName: '',
+  identity: '',
+  levelText: '',
+  scoreText: '',
+  progress: 0,
+  nextLevelText: '',
+  sectionTitle: '',
   sectionMore: '',
-  stats: [
-    { value: '12', label: '参与局数' },
-    { value: '3', label: '本月MVP' },
-    { value: '98%', label: '参与率' }
-  ],
-  entries: [
-    { title: '发起组局', desc: '创建你的带局房间', icon: '📍', theme: 'pink', route: ROUTES.gameCreate },
-    { title: '局前大厅', desc: '准备就绪加入一局', routeIcon: true, theme: 'cyan', route: ROUTES.gameHall }
-  ],
+  stats: [],
+  entries: [],
   onlineCard: {
-    title: '地球online',
-    desc: '探索城市副本 · 解锁地图成就',
-    tags: ['附近 12 个组局', '已打卡 8 处']
+    title: '',
+    desc: '',
+    tags: []
   },
   mainSection: {
-    title: '附近正在发生',
+    title: '',
     moreText: '',
     desc: ''
   },
-  mainTabs: [
-    { key: 'all', name: '全部', active: true },
-    { key: 'nearby', name: '附近', active: false }
-  ],
+  mainTabs: [],
   mainGames: [],
   skills: [],
   review: null,
@@ -75,32 +67,25 @@ const ROLE_PERMISSION_PROMPTS = {
   }
 }
 
-const DEFAULT_ROLE_HOME = {
+const EMPTY_ROLE_HOME = {
   roleName: '行家',
   roleEmoji: '🎯',
-  profileName: '摄影咖 小李',
-  identity: '认证DM',
-  levelText: '行家 ⭐️',
-  scoreText: '650/1000 XP',
-  progress: 65,
-  nextLevelText: '距离下一等级还需 350 经验值',
-  stats: [
-    { value: '12', label: '参与局数' },
-    { value: '3', label: '本月MVP' },
-    { value: '98%', label: '被选率' }
-  ],
-  entries: [
-    { title: '发起组局', desc: '创建新的一局', icon: '📍', theme: 'pink', route: ROUTES.gameCreate },
-    { title: '局前大厅', desc: '准备就绪，等待开局', routeIcon: true, theme: 'cyan', route: ROUTES.gameHall }
-  ],
+  profileName: '',
+  identity: '',
+  levelText: '',
+  scoreText: '',
+  progress: 0,
+  nextLevelText: '',
+  stats: [],
+  entries: [],
   onlineCard: {
-    title: '地球online',
-    desc: '探索城市副本 · 解锁地图成就',
-    tags: ['附近 12 个组局', '已打卡 8 处']
+    title: '',
+    desc: '',
+    tags: []
   },
   mainSection: {
-    title: '即将带局',
-    moreText: '查看全部 →',
+    title: '',
+    moreText: '',
     desc: ''
   },
   mainTabs: [],
@@ -111,36 +96,26 @@ const DEFAULT_ROLE_HOME = {
   network: null
 }
 
-const GUIDE_ACTION_ENTRIES = [
-  { id: 'lobby', title: '局前大厅', desc: '准备加入一局', routeIcon: true, theme: 'pink', route: 'pages/game/hall/index' },
-  { id: 'invite', title: '我的邀约', desc: '管理连接的玩家', routeIcon: true, theme: 'cyan', route: 'pages/game/applications/index' }
-]
+const GUIDE_ACTION_ENTRIES = []
 
 const GUIDE_ROLE_HOME = {
-  ...DEFAULT_ROLE_HOME,
+  ...EMPTY_ROLE_HOME,
   roleName: '领路人',
   roleEmoji: '🌐',
-  profileName: '摄影咖 萧飒',
-  identity: '百场辅助',
-  levelText: '领路人 🐑',
-  scoreText: '580/1000 XP',
-  progress: 58,
-  nextLevelText: '距离下一等级还需 420 经验值',
-  stats: [
-    { value: '99', label: '连接玩家' },
-    { value: '99%', label: '玩家再玩率' },
-    { value: '98%', label: '玩家完局率' }
-  ],
+  profileName: '',
+  identity: '',
+  levelText: '',
+  scoreText: '',
+  progress: 0,
+  nextLevelText: '',
+  stats: [],
   entries: GUIDE_ACTION_ENTRIES,
   mainSection: {
-    title: '附近正在发生',
-    moreText: '查看全部',
+    title: '',
+    moreText: '',
     desc: ''
   },
-  mainTabs: [
-    { key: 'all', name: '全部', active: true },
-    { key: 'nearby', name: '附近', active: false }
-  ],
+  mainTabs: [],
   mainGames: [],
   recommendation: null,
   network: null
@@ -161,7 +136,7 @@ Component({
 
   data: {
     homeReady: false,
-    onlineText: '3999人在线',
+    onlineText: '在线',
     homeScrollTop: 0,
     navItems: [
       { name: '我的', active: false },
@@ -172,19 +147,19 @@ Component({
     ],
     currentRoleType: 'expert',
     hero: {
-      title: 'HELLO, 行家!',
-      date: '2026.05.15 | 开启你的今日副本'
+      title: '',
+      date: ''
     },
     playerCard: {
-      role: '行家 ⭐️',
-      title: '认证DM',
-      name: '摄影咖 小李',
-      xp: '650/1000 XP',
-      progress: 65,
-      next: '距离下一等级还需 350 经验值',
-      deviceIcon: '🎯',
-      deviceBadge: '⚡',
-      stats: DEFAULT_ROLE_HOME.stats
+      role: '',
+      title: '',
+      name: '',
+      xp: '',
+      progress: 0,
+      next: '',
+      deviceIcon: '',
+      deviceBadge: '',
+      stats: []
     },
     roleTags: ROLE_TAGS.map((item) => ({
       ...item,
@@ -198,9 +173,12 @@ Component({
       primary: '',
       secondary: ''
     },
-    entries: DEFAULT_ROLE_HOME.entries,
-    onlineCard: DEFAULT_ROLE_HOME.onlineCard,
-    mainSection: DEFAULT_ROLE_HOME.mainSection,
+    roleBenefitConfig: {
+      permissionPrompts: ROLE_PERMISSION_PROMPTS
+    },
+    entries: EMPTY_ROLE_HOME.entries,
+    onlineCard: EMPTY_ROLE_HOME.onlineCard,
+    mainSection: EMPTY_ROLE_HOME.mainSection,
     mainTabs: [],
     mainFilter: 'all',
     mainGames: [],
@@ -209,51 +187,35 @@ Component({
     recommendation: null,
     network: null,
     rankingSection: {
-      icon: '🏆',
-      title: '本周玩霸榜',
-      moreText: '查看全部榜单'
+      icon: '',
+      title: '',
+      moreText: '',
+      route: ROUTES.profileFootprintAchievements
     },
     rankingActiveRole: 'expert',
-    rankingTabs: [
-      { key: 'player', name: '玩家', active: false },
-      { key: 'expert', name: '行家', active: true },
-      { key: 'guide', name: '领路人', active: false }
-    ],
+    rankingTabs: [],
     rankingBoards: {},
-    rankingList: [
-      { rank: '01', avatarFallback: '👨🏾‍🎓', name: '领域专家 PRO', desc: '本周服务玩家 90 位', xp: '2,450', xpUnit: 'XP' },
-      { rank: '02', avatarFallback: '👩🏻‍🎤', name: '社交达人', desc: '本周服务玩家 10 位', xp: '1,890', xpUnit: 'XP' },
-      { rank: '03', avatarFallback: '👨🏿‍🚀', name: '探险家', desc: '本周服务玩家 1 位', xp: '1,560', xpUnit: 'XP' }
-    ],
+    rankingList: [],
     myRank: {
-      rank: '52',
-      avatarFallback: '👩🏻‍💻',
-      name: '我（Alex）',
-      desc: '上周排名 65 ↑',
-      xp: '520',
-      xpUnit: 'XP'
+      rank: '',
+      avatarFallback: '',
+      name: '',
+      desc: '',
+      xp: '',
+      xpUnit: ''
     },
-    showMyRank: true,
+    showMyRank: false,
     achievementSection: {
-      icon: '💎',
-      title: '我的成就'
+      icon: '',
+      title: ''
     },
-    achievements: [
-      { id: 'hundred', icon: '🏆', title: '百场王者', status: '▲ 等级', tone: 'gold', unlocked: true },
-      { id: 'pilot', icon: '🏆', title: '引航王者', status: '▲ 等级', tone: 'gold', unlocked: true },
-      { id: 'earth', icon: '🌍', title: '地球漫游者', status: '▲ 进度20%', tone: 'blue', unlocked: true, progressPercent: 20, showProgress: true },
-      { id: 'hidden', icon: '🔒', title: '隐藏徽章', status: '▲ 未解锁', tone: 'locked', unlocked: false }
-    ],
+    achievements: [],
     metaverse: {
-      title: '进入元宇宙',
-      desc: '共创数字街区｜全球联机互动',
-      tags: ['3D空间', 'NFT徽章'],
-      avatars: [
-        { text: '👨🏾‍🎓' },
-        { text: '👩🏻‍🎤' },
-        { text: '👨🏿‍🚀' }
-      ],
-      badge: '+99'
+      title: '',
+      desc: '',
+      tags: [],
+      avatars: [],
+      badge: ''
     }
   },
 
@@ -262,6 +224,7 @@ Component({
       const roleType = this.normalizeRoleType(this.properties.roleType)
 
       this.applyRoleFallback(roleType)
+      this.loadRoleBenefitConfig()
       this.loadRoleHome(roleType)
     },
 
@@ -320,7 +283,10 @@ Component({
 
       try {
         const home = await homeService.getHome({ roleType })
-        const dashboard = this.formatRoleDashboard(home.roleDashboard || {}, roleType)
+        const dashboard = this.formatRoleDashboard(
+          home.roleDashboard || this.homePayloadToRoleDashboard(home, roleType),
+          roleType
+        )
         const hero = home.hero || {}
         const rankingState = this.formatRankingState(home || {}, roleType)
         const achievementState = this.formatAchievementState(home || {})
@@ -375,6 +341,63 @@ Component({
       }
     },
 
+    homePayloadToRoleDashboard(home = {}, roleType = 'expert') {
+      const summary = home.playerSummary || {}
+      const nearbySummary = home.nearbySummary || {}
+      const nearbySection = home.nearbySection || {}
+      const roleName = summary.roleName || summary.roleLabel || ROLE_NAMES[roleType] || ''
+      const expToNext = summary.expToNextLevel
+      const nearbyGameCount = nearbySummary.nearbyGameCount
+      const checkedInCount = nearbySummary.checkedInCount
+      const mainTabs = Array.isArray(nearbySection.tabs) ? nearbySection.tabs : []
+      const mainGames = Array.isArray(home.nearbyGames) && home.nearbyGames.length
+        ? home.nearbyGames
+        : Array.isArray(home.recommendedGames) ? home.recommendedGames : []
+
+      return {
+        roleName,
+        roleEmoji: summary.roleEmoji || this.roleEmoji(roleType),
+        deviceBadge: summary.deviceBadge || '',
+        profileName: summary.displayName || summary.profileName || '',
+        identity: summary.identity || summary.profileTitle || '',
+        levelText: summary.roleLabel || summary.levelText || '',
+        scoreText: this.formatXpText(summary),
+        progress: summary.progressPercent || summary.progress || 0,
+        nextLevelText: expToNext == null ? '' : `距离下一等级还需 ${expToNext} 经验值`,
+        stats: Array.isArray(summary.stats) ? summary.stats : [],
+        entries: Array.isArray(home.quickActions) ? home.quickActions : [],
+        onlineCard: {
+          title: home.onlineCardTitle || '',
+          desc: home.onlineCardDesc || '',
+          tags: [
+            nearbyGameCount == null ? '' : `附近 ${nearbyGameCount} 个组局`,
+            checkedInCount == null ? '' : `已打卡 ${checkedInCount} 处`
+          ].filter(Boolean)
+        },
+        mainSection: {
+          title: nearbySection.title || '',
+          moreText: nearbySection.moreText || '',
+          desc: nearbySection.desc || ''
+        },
+        mainTabs,
+        mainGames,
+        skills: Array.isArray(home.skills) ? home.skills : [],
+        review: home.review || null,
+        recommendation: home.recommendation || null,
+        network: home.network || null
+      }
+    },
+
+    roleEmoji(roleType) {
+      if (roleType === 'player') {
+        return '🎮'
+      }
+      if (roleType === 'guide') {
+        return '🌐'
+      }
+      return '🎯'
+    },
+
     formatRoleDashboard(dashboard = {}, roleType = 'expert') {
       const roleName = ROLE_NAMES[roleType] || '行家'
       const defaultHome = this.getDefaultRoleHome(roleType)
@@ -410,7 +433,21 @@ Component({
         return GUIDE_ROLE_HOME
       }
 
-      return DEFAULT_ROLE_HOME
+      return EMPTY_ROLE_HOME
+    },
+
+    homeRoute() {
+      const roleType = this.normalizeRoleType(this.data.currentRoleType || this.properties.roleType)
+
+      if (roleType === 'guide') {
+        return ROUTES.guideHome || ROUTES.playerHome || ROUTES.home
+      }
+
+      if (roleType === 'expert') {
+        return ROUTES.expertHome || ROUTES.playerHome || ROUTES.home
+      }
+
+      return ROUTES.playerHome || ROUTES.home
     },
 
     formatNetwork(network) {
@@ -426,9 +463,9 @@ Component({
       const items = Array.isArray(network.items) && network.items.length
         ? network.items
         : [
-          { id: 'connected', icon: '●', name: '已连接', desc: summary || '156 位玩家' },
-          { id: 'income', icon: '¥', name: '本周收益', desc: network.income || '¥1,240' },
-          { id: 'location', icon: '📍', name: '核心区域', desc: network.location || '镇海区' }
+          { id: 'connected', icon: '●', name: '已连接', desc: summary || '' },
+          { id: 'income', icon: '¥', name: '本周收益', desc: network.income || '' },
+          { id: 'location', icon: '📍', name: '核心区域', desc: network.location || '' }
         ]
       const buttons = Array.isArray(network.buttons) && network.buttons.length
         ? network.buttons
@@ -439,14 +476,14 @@ Component({
 
       return {
         ...network,
-        title: network.title || '我的关系网络',
-        status: network.status || '实时连接中',
-        hubTitle: network.hubTitle || network.centerTitle || '我',
-        hubDesc: network.hubDesc || network.centerDesc || '领路人',
+        title: network.title || '',
+        status: network.status || '',
+        hubTitle: network.hubTitle || network.centerTitle || '',
+        hubDesc: network.hubDesc || network.centerDesc || '',
         summary,
-        income: network.income || '本周收益 ¥1,240',
-        location: network.location || '📍 镇海区',
-        locationText: network.locationText || String(network.location || '镇海区').replace(/^📍\s*/, ''),
+        income: network.income || '',
+        location: network.location || '',
+        locationText: network.locationText || String(network.location || '').replace(/^📍\s*/, ''),
         items: items.slice(0, 5),
         buttons: buttons.slice(0, 2)
       }
@@ -460,7 +497,7 @@ Component({
       return `● 已连接 ${count} 位玩家`
     },
 
-    formatReview(dashboard = {}, source = DEFAULT_ROLE_HOME) {
+    formatReview(dashboard = {}, source = EMPTY_ROLE_HOME) {
       const sourceReview = source.review || null
       const review = dashboard.review || sourceReview
 
@@ -511,7 +548,7 @@ Component({
           review.author,
           review.playerName,
           review.nickname,
-          '萌新玩家'
+          ''
         ),
         timeText: this.pickFirstValue(
           latestReview.timeText,
@@ -591,9 +628,9 @@ Component({
       return '★'.repeat(Math.max(0, Math.min(5, Math.round(count))))
     },
 
-    formatMainSection(dashboard = {}, source = DEFAULT_ROLE_HOME) {
+    formatMainSection(dashboard = {}, source = EMPTY_ROLE_HOME) {
       const section = dashboard.mainSection || {}
-      const fallback = source.mainSection || DEFAULT_ROLE_HOME.mainSection
+      const fallback = source.mainSection || EMPTY_ROLE_HOME.mainSection
       const count = this.formatStatValue(this.pickFirstValue(
         section.count,
         dashboard.sectionCount,
@@ -611,6 +648,7 @@ Component({
         ...section,
         title: section.title || dashboard.sectionTitle || fallback.title,
         moreText: moreEnabled ? `${normalizedMoreText} →` : normalizedMoreText,
+        route: section.route || dashboard.sectionRoute || fallback.route || ROUTES.gameHall,
         count,
         desc: section.desc || dashboard.sectionDesc || fallback.desc,
         moreEnabled
@@ -618,14 +656,14 @@ Component({
     },
 
     formatHero(hero = {}, dashboard = {}, roleType = 'expert') {
-      const roleName = dashboard.roleName || hero.roleName || ROLE_NAMES[roleType] || '行家'
+      const roleName = dashboard.roleName || hero.roleName || ROLE_NAMES[roleType] || ''
       const date = [hero.dateLabel, hero.subtitle]
         .filter((item) => typeof item === 'string' && item.trim())
         .join(' | ')
 
       return {
-        title: hero.title || `HELLO, ${roleName}!`,
-        date: date || '2026.05.15 | 开启你的今日副本'
+        title: hero.title || (roleName ? `HELLO, ${roleName}!` : ''),
+        date
       }
     },
 
@@ -633,16 +671,16 @@ Component({
       return {
         role: dashboard.levelText || dashboard.roleName,
         title: dashboard.identity || dashboard.profileTitle || '',
-        name: dashboard.profileName || 'Alex Chen',
-        xp: dashboard.xpText || this.formatXpText(dashboard) || dashboard.scoreText || '650/1000 XP',
+        name: dashboard.profileName || '',
+        xp: dashboard.xpText || this.formatXpText(dashboard) || dashboard.scoreText || '',
         progress: this.normalizeProgress(
           this.pickFirstValue(dashboard.progressPercent, dashboard.progress),
-          65
+          0
         ),
         next: this.formatRoleNextLevelText(dashboard),
-        deviceIcon: dashboard.roleEmoji || '🎯',
-        deviceBadge: dashboard.deviceBadge || '⚡',
-        stats: Array.isArray(dashboard.stats) && dashboard.stats.length ? dashboard.stats.slice(0, 3) : DEFAULT_ROLE_HOME.stats
+        deviceIcon: dashboard.roleEmoji || '',
+        deviceBadge: dashboard.deviceBadge || '',
+        stats: Array.isArray(dashboard.stats) && dashboard.stats.length ? dashboard.stats.slice(0, 3) : []
       }
     },
 
@@ -664,7 +702,7 @@ Component({
         }
       }
 
-      return dashboard.nextLevelText || '距离下一等级还需 350 经验值'
+      return dashboard.nextLevelText || ''
     },
 
     formatXpText(dashboard = {}) {
@@ -679,7 +717,7 @@ Component({
     },
 
     formatEntries(entries, roleType) {
-      const source = Array.isArray(entries) && entries.length ? entries : DEFAULT_ROLE_HOME.entries
+      const source = Array.isArray(entries) && entries.length ? entries : []
       const normalizedSource = roleType === 'guide'
         ? this.normalizeGuideEntries(source)
         : source
@@ -715,13 +753,14 @@ Component({
       const tags = Array.isArray(onlineCard.tags) && onlineCard.tags.length
         ? onlineCard.tags
         : [
-          `我的组局 ${ownedGameCount || '0'} 个`,
-          `已打卡 ${checkinCount || '0'} 处`
+          ownedGameCount ? `我的组局 ${ownedGameCount} 个` : '',
+          checkinCount ? `已打卡 ${checkinCount} 处` : ''
         ]
+          .filter(Boolean)
 
       return {
-        title: onlineCard.title || '地球online',
-        desc: onlineCard.desc || '管理我的组局足迹与城市打卡',
+        title: onlineCard.title || '',
+        desc: onlineCard.desc || '',
         tags
       }
     },
@@ -744,7 +783,7 @@ Component({
       }
 
       return games.map((item, index) => ({
-        id: item.id,
+        id: this.resolveGameCardId(item),
         scope: item.scope || item.distanceScope || (index === 0 ? 'nearby' : 'city'),
         title: item.title,
         startTime: item.time || item.startTime || '',
@@ -762,8 +801,30 @@ Component({
         time: item.timeText || item.dateText || item.time || '',
         joinedText: item.joinedText || item.peopleText || this.formatJoinedText(item.joinedCount) || '+3位玩家已入局',
         playerAvatars: this.formatSessionAvatars(item),
-        actions: this.formatGameActions(item.actions)
+        actions: this.formatGameActions(item.actions),
+        route: this.resolveGameCardRoute(item)
       }))
+    },
+
+    resolveGameCardId(item = {}) {
+      return this.pickFirstValue(item.gameId, item.id, item.gameID, item.game_id)
+    },
+
+    resolveGameCardRoute(item = {}) {
+      const configuredRoute = item.detailRoute || item.detailUrl || item.route || item.url || item.path
+      const gameId = this.resolveGameCardId(item)
+
+      if (configuredRoute) {
+        const route = String(configuredRoute).replace(/^\/+/, '')
+
+        return route === ROUTES.gameDetail && gameId != null && gameId !== ''
+          ? `${ROUTES.gameDetail}?id=${encodeURIComponent(gameId)}`
+          : route
+      }
+
+      return gameId != null && gameId !== ''
+        ? `${ROUTES.gameDetail}?id=${encodeURIComponent(gameId)}`
+        : ROUTES.gameHall
     },
 
     formatSessionTags(item = {}) {
@@ -919,7 +980,8 @@ Component({
           ...this.data.rankingSection,
           icon: section.icon || this.data.rankingSection.icon,
           title: section.title || section.name || this.data.rankingSection.title,
-          moreText: section.moreText || section.moreLabel || section.actionText || this.data.rankingSection.moreText
+          moreText: section.moreText || section.moreLabel || section.actionText || this.data.rankingSection.moreText,
+          route: section.route || section.moreRoute || section.actionRoute || this.data.rankingSection.route || ROUTES.profileFootprintAchievements
         },
         activeKey,
         tabs: tabs.map((item) => ({
@@ -1198,7 +1260,23 @@ Component({
         }
       }
 
-      const prompt = ROLE_PERMISSION_PROMPTS[roleType]
+      const config = this.data.roleBenefitConfig || {}
+      const prompts = config.permissionPrompts || ROLE_PERMISSION_PROMPTS
+      return this.formatRolePermissionPromptWithPrompts(roleType, currentRoleType, prompts)
+    },
+
+    formatRolePermissionPromptWithPrompts(roleType, currentRoleType = this.data.currentRoleType, prompts = ROLE_PERMISSION_PROMPTS) {
+      if (!roleType || roleType === currentRoleType || roleType === 'player') {
+        return {
+          visible: false,
+          roleType: '',
+          title: '',
+          primary: '',
+          secondary: ''
+        }
+      }
+
+      const prompt = prompts[roleType] || ROLE_PERMISSION_PROMPTS[roleType]
 
       if (!prompt) {
         return {
@@ -1213,6 +1291,28 @@ Component({
       return {
         ...prompt,
         visible: true
+      }
+    },
+
+    async loadRoleBenefitConfig() {
+      try {
+        const config = await roleService.getRoleBenefitConfig()
+        const prompts = (config && config.permissionPrompts) || ROLE_PERMISSION_PROMPTS
+        const selectedRole = this.data.selectedRoleTag || this.data.currentRoleType
+
+        this.setData({
+          roleBenefitConfig: {
+            ...config,
+            permissionPrompts: prompts
+          },
+          rolePermissionPrompt: this.formatRolePermissionPromptWithPrompts(selectedRole, this.data.currentRoleType, prompts)
+        })
+      } catch (error) {
+        this.setData({
+          roleBenefitConfig: {
+            permissionPrompts: ROLE_PERMISSION_PROMPTS
+          }
+        })
       }
     },
 
@@ -1260,13 +1360,22 @@ Component({
         return
       }
 
-      if (key === 'home') {
-        this.scrollRoleHomeToTop()
+      if (key === 'left' || key === 'right') {
+        navigateShellKey(key, {
+          currentRoute: this.homeRoute()
+        })
+        return
+      }
+
+      if (navigateShellKey(key, {
+        currentRoute: this.homeRoute(),
+        onSameRoute: () => this.scrollRoleHomeToTop()
+      })) {
         return
       }
 
       wx.showToast({
-        title: '功能正在开发中',
+        title: '请选择可用入口',
         icon: 'none'
       })
     },
@@ -1413,35 +1522,16 @@ Component({
         url = `/${ROUTES.homeOther}?page=guideApply&single=1&roleType=guide`
       }
 
-      if (normalizedRoleType === 'expert' && typeof wx.redirectTo === 'function') {
-        wx.redirectTo({ url })
-        return
-      }
-
-      if (typeof wx.navigateTo === 'function') {
-        wx.navigateTo({ url })
-        return
-      }
-
-      wx.showToast({
-        title: '功能正在开发中',
-        icon: 'none'
+      navigateShellRoute(url, {
+        currentRoute: this.homeRoute()
       })
     },
 
     handleRoleCompareTap() {
-      if (typeof wx.navigateTo === 'function') {
-        const returnRoute = this.data.currentRoleType === 'guide' ? ROUTES.guideHome : ROUTES.expertHome
+      const returnRoute = this.data.currentRoleType === 'guide' ? ROUTES.guideHome : ROUTES.expertHome
 
-        wx.navigateTo({
-          url: `/${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(returnRoute)}`
-        })
-        return
-      }
-
-      wx.showToast({
-        title: '权益对比正在开发中',
-        icon: 'none'
+      navigateShellRoute(`${ROUTES.home}?ui=1&mode=roleComparison&single=1&returnTo=${encodeURIComponent(returnRoute)}`, {
+        currentRoute: this.homeRoute()
       })
     },
 
@@ -1470,15 +1560,15 @@ Component({
     handleReviewMoreTap() {
       const route = this.data.review && this.data.review.route
 
-      if (route && typeof wx.navigateTo === 'function') {
-        wx.navigateTo({
-          url: route.startsWith('/') ? route : `/${route}`
+      if (route) {
+        navigateShellRoute(route, {
+          currentRoute: this.homeRoute()
         })
         return
       }
 
       wx.showToast({
-        title: '功能正在开发中',
+        title: '暂无更多评价',
         icon: 'none'
       })
     },
@@ -1486,15 +1576,15 @@ Component({
     handleActionTap(event) {
       const route = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.route
 
-      if (route && typeof wx.navigateTo === 'function') {
-        wx.navigateTo({
-          url: route.startsWith('/') ? route : `/${route}`
+      if (route) {
+        navigateShellRoute(route, {
+          currentRoute: this.homeRoute()
         })
         return
       }
 
       wx.showToast({
-        title: '功能正在开发中',
+        title: '请选择可用入口',
         icon: 'none'
       })
     }

@@ -1,5 +1,6 @@
 const toast = require('../../../../../utils/toast')
 const profileService = require('../../../../../services/profile')
+const { navigateShellRoute } = require('../../../../../utils/shell-nav')
 
 Page({
   data: {
@@ -19,35 +20,57 @@ Page({
     history: [],
     replyText: '',
     reviewId: '',
-    submitting: false
+    submitting: false,
+    hasReview: false,
+    loadError: false
   },
 
   onLoad(options = {}) {
+    const reviewId = options.id || options.reviewId || ''
+
     this.setData({
-      reviewId: options.id || options.reviewId || '',
+      reviewId,
       templateRows: this.buildTemplateRows(this.data.templates)
     })
-    this.loadReviewDetail()
-  },
 
-  async loadReviewDetail() {
-    if (!this.data.reviewId) {
+    if (!reviewId) {
+      this.setData({
+        loadError: true
+      })
+      toast.info('缺少评价信息')
       return
     }
 
+    this.loadReviewDetail(reviewId)
+  },
+
+  async loadReviewDetail(reviewId) {
     try {
-      const data = await profileService.getServiceReviewDetail({
-        reviewId: this.data.reviewId
-      })
-      const templates = Array.isArray(data.templates) ? data.templates : []
+      const data = await profileService.getServiceReviewDetail(reviewId)
+      const templates = Array.isArray(data.templates) ? data.templates : this.data.templates
+      const review = {
+        ...this.data.review,
+        ...(data.review || {}),
+        tags: Array.isArray(data.review && data.review.tags) ? data.review.tags : []
+      }
 
       this.setData({
-        review: data.review || data.detail || this.data.review,
+        review,
         templates,
-        templateRows: this.buildTemplateRows(templates),
-        history: Array.isArray(data.history || data.messages) ? (data.history || data.messages) : []
+        templateRows: Array.isArray(data.templateRows) ? data.templateRows : this.buildTemplateRows(templates),
+        history: Array.isArray(data.history) ? data.history : this.data.history,
+        replyText: review.reply || '',
+        hasReview: Boolean(data.review),
+        loadError: false
       })
     } catch (error) {
+      this.setData({
+        hasReview: false,
+        loadError: true,
+        history: [],
+        templates: [],
+        templateRows: []
+      })
       toast.info(error.message || '评价详情加载失败')
     }
   },
@@ -75,9 +98,7 @@ Page({
       return
     }
 
-    wx.redirectTo({
-      url: '/pages/profile/service-center/manage/review-manage/index'
-    })
+    navigateShellRoute('/pages/profile/service-center/manage/review-manage/index')
   },
 
   onReplyInput(event) {
@@ -101,6 +122,11 @@ Page({
 
     const content = this.data.replyText.trim()
 
+    if (!this.data.hasReview) {
+      toast.info('评价详情未加载，暂不能回复')
+      return
+    }
+
     if (!content) {
       toast.info('请输入回复内容')
       return
@@ -111,12 +137,16 @@ Page({
     })
 
     try {
-      await profileService.replyServiceReview({
+      const result = await profileService.replyServiceReview({
         reviewId: this.data.reviewId,
         content
       })
 
-      this.updateManagePageReply(this.data.reviewId, content)
+      this.updateManagePageReply(
+        this.data.reviewId,
+        result && result.reply && result.reply.content || content,
+        result && result.statusType || 'replied'
+      )
       toast.info('回复已提交')
       wx.navigateBack()
     } catch (error) {
@@ -128,7 +158,7 @@ Page({
     }
   },
 
-  updateManagePageReply(reviewId, content) {
+  updateManagePageReply(reviewId, content, statusType) {
     const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
     const previousPage = pages.length > 1 ? pages[pages.length - 2] : null
 
@@ -145,7 +175,7 @@ Page({
       return {
         ...item,
         reply: content,
-        statusType: 'replied'
+        statusType: statusType || 'replied'
       }
     })
 

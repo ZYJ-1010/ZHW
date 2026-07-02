@@ -16,6 +16,8 @@
       </view>
     </view>
 
+    <view wx:if="{{!records.length}}" class="profile-empty-note">{{emptyText}}</view>
+
     <view wx:for="{{records}}" wx:key="title" class="profile-card invite-card">
       <view class="profile-card-body">
         <view class="profile-card-header">

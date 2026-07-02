@@ -52,16 +52,72 @@
               wx:for="{{item.actions}}"
               wx:for-item="action"
               wx:key="key"
-              class="order-action {{action.type}}"
+              class="order-action {{action.type}} {{cancelingOrderId === item.id && action.key === 'cancel' ? 'disabled' : ''}}"
+              disabled="{{cancelingOrderId === item.id && action.key === 'cancel'}}"
               data-action="{{action.key}}"
               data-action-key="{{action.key}}"
               data-action-label="{{action.label}}"
               data-order-id="{{item.id}}"
               catchtap="handleActionTap"
-            >{{action.label}}</button>
+            >{{cancelingOrderId === item.id && action.key === 'cancel' ? '取消中...' : action.label}}</button>
           </view>
         </view>
       </block>
+    </view>
+
+    <view
+      wx:if="{{showDetailModal}}"
+      class="detail-modal-overlay"
+      bindtap="handleCloseDetailModal"
+    >
+      <view class="detail-modal" catchtap="handleDetailModalContentTap">
+        <view class="detail-modal-head">
+          <view class="detail-modal-title-wrap">
+            <text class="detail-modal-title">订单详情</text>
+            <text wx:if="{{detailOrder.status}}" class="detail-modal-status {{detailOrder.statusTone}}">{{detailOrder.status}}</text>
+          </view>
+          <button class="detail-modal-close" catchtap="handleCloseDetailModal">关闭</button>
+        </view>
+
+        <view class="detail-modal-body">
+          <view wx:if="{{isLoadingDetail}}" class="detail-state">详情加载中...</view>
+          <view wx:elif="{{!detailRows.length}}" class="detail-state">{{detailEmptyText}}</view>
+          <block wx:else>
+            <view class="detail-goods-card">
+              <view class="order-goods-visual detail-goods-visual">
+                <image wx:if="{{detailOrder.imageUrl}}" class="order-goods-image" src="{{detailOrder.imageUrl}}" mode="aspectFill" />
+                <text wx:else class="order-goods-icon">{{detailOrder.iconText}}</text>
+              </view>
+              <view class="detail-goods-copy">
+                <text class="detail-goods-title">{{detailOrder.title}}</text>
+                <text class="detail-goods-points">{{detailOrder.points}}</text>
+              </view>
+            </view>
+
+            <view class="detail-row-list">
+              <view wx:for="{{detailRows}}" wx:key="label" class="detail-row">
+                <text class="detail-row-label">{{item.label}}</text>
+                <text class="detail-row-value">{{item.value}}</text>
+              </view>
+            </view>
+
+            <view wx:if="{{detailActions.length}}" class="detail-actions">
+              <button
+                wx:for="{{detailActions}}"
+                wx:for-item="action"
+                wx:key="key"
+                class="order-action {{action.type}} {{cancelingOrderId === detailOrder.id && action.key === 'cancel' ? 'disabled' : ''}}"
+                disabled="{{cancelingOrderId === detailOrder.id && action.key === 'cancel'}}"
+                data-action="{{action.key}}"
+                data-action-key="{{action.key}}"
+                data-action-label="{{action.label}}"
+                data-order-id="{{detailOrder.id}}"
+                catchtap="handleActionTap"
+              >{{cancelingOrderId === detailOrder.id && action.key === 'cancel' ? '取消中...' : action.label}}</button>
+            </view>
+          </block>
+        </view>
+      </view>
     </view>
 
     <view

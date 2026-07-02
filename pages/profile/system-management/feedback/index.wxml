@@ -48,12 +48,12 @@
       <view class="textarea-wrap">
         <textarea
           value="{{feedbackContent}}"
-          maxlength="500"
+          maxlength="{{feedbackLimits.contentMaxLength}}"
           placeholder="请详细描述您的建议或遇到的问题，我们会认真阅读每一条反馈..."
           placeholder-class="placeholder"
           bindinput="handleContentInput"
         />
-        <text class="counter">{{feedbackContent.length}}/500</text>
+        <text class="counter">{{feedbackContent.length}}/{{feedbackLimits.contentMaxLength}}</text>
       </view>
     </view>
 
@@ -62,7 +62,7 @@
       <view class="upload-tile" bindtap="handleUploadTap">
         <image class="upload-plus" src="{{icons.plus}}" mode="aspectFit"></image>
       </view>
-      <text class="upload-note">支持 JPG/PNG，单张不超过 5MB，最多 4 张</text>
+      <text class="upload-note">{{feedbackLimits.uploadNote}}</text>
     </view>
 
     <view class="feedback-card form-section contact-section">
@@ -141,7 +141,7 @@
 
     <view class="voice-button" bindtap="handleVoiceTap">
       <image src="{{icons.voice}}" mode="aspectFit"></image>
-      <text>按住说话</text>
+      <text>{{voiceFiles.length ? '已添加语音' + voiceFiles.length + '条' : '按住说话'}}</text>
     </view>
 
     <view class="primary-gradient-button quick-submit" bindtap="handleSubmitTap">提交反馈</view>

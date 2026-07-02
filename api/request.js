@@ -76,6 +76,7 @@ function executeRequest(options) {
   const data = options.data || {}
   const header = options.header || {}
   const query = method === 'GET' ? buildQuery(data) : ''
+  const baseUrlError = getBaseUrlError()
 
   if (env.isMock) {
     return mockApi.handleRequest({
@@ -89,6 +90,10 @@ function executeRequest(options) {
     }))
   }
 
+  if (baseUrlError) {
+    return Promise.reject(new Error(baseUrlError))
+  }
+
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${env.baseUrl}${url}${query}`,
@@ -99,6 +104,16 @@ function executeRequest(options) {
       fail: reject
     })
   })
+}
+
+function getBaseUrlError() {
+  if (!env.baseUrl) {
+    return '接口地址未配置'
+  }
+  if (env.currentEnv === env.ENV.PROD && !env.isProdBaseUrlReady) {
+    return '生产接口地址未配置，请在 miniprogram-client/config/env.js 配置 HTTPS API 域名'
+  }
+  return ''
 }
 
 function buildQuery(data) {
@@ -151,14 +166,6 @@ function put(url, data) {
   })
 }
 
-function del(url, data) {
-  return request({
-    url,
-    method: 'DELETE',
-    data
-  })
-}
-
 function loginWithWechat(payload) {
   return request({
     url: '/api/app/auth/wechat-login',
@@ -169,7 +176,7 @@ function loginWithWechat(payload) {
 
 function sendPhoneCode(payload) {
   return request({
-    url: '/api/app/auth/phone-code',
+    url: '/api/app/sms/send-code',
     method: 'POST',
     data: payload
   })
@@ -177,41 +184,49 @@ function sendPhoneCode(payload) {
 
 function verifyPhoneCode(payload) {
   return request({
-    url: '/api/app/auth/phone-code/verify',
+    url: '/api/app/sms/verify-code',
     method: 'POST',
     data: payload
   })
 }
 
 function loginWithPhone(payload) {
-  return request({
-    url: '/api/app/auth/phone-login',
-    method: 'POST',
-    data: payload
+  return Promise.resolve({
+    code: 410,
+    message: '\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55',
+    data: null
   })
 }
 
 function loginWithPassword(payload) {
-  return request({
-    url: '/api/app/auth/password-login',
-    method: 'POST',
-    data: payload
+  return Promise.resolve({
+    code: 410,
+    message: '\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55',
+    data: null
   })
 }
 
 function resetPassword(payload) {
+  return Promise.resolve({
+    code: 410,
+    message: '\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55\uff0c\u65e0\u9700\u627e\u56de\u5bc6\u7801',
+    data: null
+  })
+}
+
+function issueTokenAfterIdentity(payload) {
   return request({
-    url: '/api/app/auth/password/reset',
+    url: '/api/app/auth/issue-token-after-identity',
     method: 'POST',
-    data: payload
+    data: payload || {}
   })
 }
 
 function verifyInvite(code) {
   return request({
-    url: '/api/app/invites/verify',
+    url: '/api/app/invites/precheck',
     method: 'POST',
-    data: { code }
+    data: { inviteCode: code }
   })
 }
 
@@ -219,12 +234,12 @@ module.exports = {
   get,
   post,
   put,
-  delete: del,
   loginWithWechat,
   sendPhoneCode,
   verifyPhoneCode,
   loginWithPhone,
   loginWithPassword,
   resetPassword,
+  issueTokenAfterIdentity,
   verifyInvite
 }

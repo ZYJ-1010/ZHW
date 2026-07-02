@@ -19,7 +19,8 @@
           wx:for-index="rowIndex"
           wx:key="id"
           class="settings-row"
-          data-label="{{row.label}}"
+          data-section-index="{{sectionIndex}}"
+          data-row-index="{{rowIndex}}"
           bindtap="handleRowTap"
         >
           <image class="settings-icon" src="{{row.icon}}" mode="aspectFit"></image>
@@ -42,6 +43,10 @@
           </view>
         </view>
       </view>
+    </view>
+
+    <view wx:if="{{loadError || !sections.length}}" class="settings-empty">
+      <text>{{loadError || '暂无系统设置'}}</text>
     </view>
 
     <view class="settings-logout" bindtap="handleLogout">

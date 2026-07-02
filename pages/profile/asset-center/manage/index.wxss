@@ -362,6 +362,22 @@ page {
   border-bottom: 0;
 }
 
+.asset-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120rpx;
+  color: #9ca3af;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
+.asset-empty.load-error {
+  margin-bottom: 28rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+}
+
 .order-top {
   justify-content: space-between;
   gap: 20rpx;

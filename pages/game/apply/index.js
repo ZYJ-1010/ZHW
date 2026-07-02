@@ -1,7 +1,8 @@
 const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 const gameService = require('../../../services/game')
-const userService = require('../../../services/user')
-const { getSurnameInitials } = require('../../../utils/avatar')
+const fileService = require('../../../services/file')
+const profileService = require('../../../services/profile')
 
 const APPLY_SCROLL_TAP_STEP_RPX = 360
 const APPLY_SCROLL_HOLD_STEP_RPX = 72
@@ -9,6 +10,20 @@ const APPLY_SCROLL_HOLD_INTERVAL_MS = 80
 const APPLY_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 const PDF_EXTENSIONS = ['pdf']
+const EMPTY_APPLICATION_CONFIG = {
+  agreementTitle: '',
+  agreementText: '',
+  requireIntro: false,
+  requireAgreement: false,
+  uploadRequired: false,
+  maxUploadCount: 0,
+  allowedUploadTypes: [],
+  minIntroLength: 0,
+  maxIntroLength: 0,
+  maxMessageLength: 0,
+  searchEnabled: false,
+  texts: {}
+}
 
 function getFileSource(file = {}) {
   return file.name || file.fileName || file.tempFilePath || file.path || ''
@@ -37,77 +52,12 @@ function normalizeUploadFile(file = {}) {
   }
 }
 
-function isAllowedImageFile(file = {}) {
-  const extension = getFileExtension(file)
-
-  if (extension) {
-    return IMAGE_EXTENSIONS.includes(extension)
-  }
-
-  return file.fileType === 'image' || file.type === 'image'
-}
-
-function isAllowedPdfFile(file = {}) {
-  return PDF_EXTENSIONS.includes(getFileExtension(file))
-}
-
-function pickFirstValue() {
-  const values = Array.prototype.slice.call(arguments)
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
-      return values[index]
-    }
-  }
-
-  return ''
-}
-
-function normalizeBoolean(value) {
-  if (typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    return value === 'true' || value === '1'
-  }
-
-  return Boolean(value)
-}
-
-function normalizeWechatInfo(user = {}) {
-  const wechatProfile = user.wechatProfile || {}
-  const nickname = pickFirstValue(wechatProfile.nickname)
-
-  return {
-    avatarFallback: nickname ? getSurnameInitials(nickname, '') : '',
-    avatarUrl: pickFirstValue(wechatProfile.avatarUrl),
-    nickname,
-    syncText: pickFirstValue(wechatProfile.syncText, wechatProfile.synced ? '头像已同步' : '')
-  }
-}
-
-function normalizeApplyConfig(data = {}) {
-  const form = data.form || {}
-
-  return {
-    onlineText: pickFirstValue(data.onlineText, '3999人在线'),
-    form: {
-      intro: pickFirstValue(form.intro, data.defaultIntro),
-      message: pickFirstValue(form.message, data.defaultMessage),
-      agreed: normalizeBoolean(pickFirstValue(form.agreed, data.defaultAgreed)),
-      imageFiles: [],
-      attachmentFiles: []
-    }
-  }
-}
-
 Page({
   data: {
     gameId: '',
-    fromGuideId: '',
-    onlineText: '3999人在线',
+    onlineText: '在线',
     applyScrollTop: 0,
+    submitting: false,
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -116,11 +66,12 @@ Page({
       { name: '首页', active: true }
     ],
     wechatInfo: {
-      avatarFallback: '',
+      avatarFallback: '我',
       avatarUrl: '',
       nickname: '',
       syncText: ''
     },
+    applicationConfig: EMPTY_APPLICATION_CONFIG,
     form: {
       intro: '',
       message: '',
@@ -131,50 +82,49 @@ Page({
   },
 
   onLoad(options = {}) {
-    const gameId = options.gameId || options.id || ''
-
     this.setData({
-      gameId,
-      fromGuideId: options.fromGuideId || ''
+      gameId: options.gameId || options.id || ''
     })
-    this.loadApplyContext({
-      gameId,
-      fromGuideId: options.fromGuideId || ''
-    })
+    this.loadApplicationConfig()
+    this.loadWechatInfo()
   },
 
-  async loadApplyContext(params = {}) {
-    this.loadWechatInfo()
-
-    if (!params.gameId) {
-      return
-    }
-
+  async loadApplicationConfig() {
     try {
-      const config = await gameService.getGameApplyConfig(params)
-      const normalized = normalizeApplyConfig(config)
-
+      const config = await gameService.getApplicationConfig()
       this.setData({
-        onlineText: normalized.onlineText,
-        form: Object.assign({}, this.data.form, normalized.form)
+        applicationConfig: Object.assign({}, EMPTY_APPLICATION_CONFIG, config || {}, {
+          texts: Object.assign({}, EMPTY_APPLICATION_CONFIG.texts, config && config.texts || {})
+        })
       })
     } catch (error) {
-      this.setData({
-        onlineText: '3999人在线'
-      })
+      this.showInfo(error.message || this.textOf('loadFailedText'))
     }
   },
 
   async loadWechatInfo() {
     try {
-      const user = await userService.getCurrentUser()
-
+      const data = await profileService.getSystemProfileInfo()
+      const profile = data && data.profile || {}
+      const personalInfo = data && data.personalInfo || {}
+      const nickname = personalInfo.name || profile.name || ''
+      const avatarFallback = personalInfo.avatarText || profile.avatarText || (nickname ? nickname.slice(0, 1) : '我')
       this.setData({
-        wechatInfo: normalizeWechatInfo(user)
+        wechatInfo: {
+          avatarFallback,
+          avatarUrl: personalInfo.avatarUrl || profile.avatarUrl || '',
+          nickname: nickname || this.textOf('profileNameFallback'),
+          syncText: nickname ? this.textOf('profileSyncedText') : this.textOf('profilePendingText')
+        }
       })
     } catch (error) {
       this.setData({
-        wechatInfo: normalizeWechatInfo({})
+        wechatInfo: {
+          avatarFallback: '我',
+          avatarUrl: '',
+          nickname: this.textOf('profileNameFallback'),
+          syncText: this.textOf('profilePendingText')
+        }
       })
     }
   },
@@ -197,6 +147,17 @@ Page({
     this.setData({
       'form.agreed': Array.isArray(values) && values.includes('agreed')
     })
+  },
+
+  textOf(key, values = {}) {
+    const texts = this.data.applicationConfig && this.data.applicationConfig.texts || {}
+    let text = String(texts[key] || '')
+
+    Object.keys(values).forEach((name) => {
+      text = text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(values[name]))
+    })
+
+    return text
   },
 
   onUploadImage() {
@@ -234,12 +195,12 @@ Page({
       return
     }
 
-    this.showInfo('当前微信版本不支持选择图片')
+    this.showInfo(this.textOf('mediaUnsupportedText'))
   },
 
   onUploadFile() {
     if (!wx.chooseMessageFile) {
-      this.showInfo('当前微信版本不支持选择文件')
+      this.showInfo(this.textOf('fileUnsupportedText'))
       return
     }
 
@@ -262,15 +223,19 @@ Page({
       return
     }
 
-    if (!isAllowedImageFile(file)) {
-      this.showInfo('仅支持 JPG、PNG、GIF、WEBP 图片')
+    if (!this.isAllowedApplicationFile(file, IMAGE_EXTENSIONS)) {
+      this.showInfo(this.textOf('imageTypeErrorText'))
+      return
+    }
+
+    if (!this.canAppendUploadFile(1)) {
       return
     }
 
     this.setData({
       'form.imageFiles': [normalizeUploadFile(file)]
     })
-    this.showInfo('图片已选择')
+    this.showInfo(this.textOf('imageSelectedText'))
   },
 
   handlePdfFileSelected(file) {
@@ -278,15 +243,19 @@ Page({
       return
     }
 
-    if (!isAllowedPdfFile(file)) {
-      this.showInfo('仅支持 PDF 文件')
+    if (!this.isAllowedApplicationFile(file, PDF_EXTENSIONS)) {
+      this.showInfo(this.textOf('fileTypeErrorText'))
+      return
+    }
+
+    if (!this.canAppendUploadFile(1)) {
       return
     }
 
     this.setData({
       'form.attachmentFiles': [normalizeUploadFile(file)]
     })
-    this.showInfo('文件已选择')
+    this.showInfo(this.textOf('fileSelectedText'))
   },
 
   handleChooseFileFail(error = {}) {
@@ -294,11 +263,15 @@ Page({
       return
     }
 
-    this.showInfo('选择失败，请重试')
+    this.showInfo(this.textOf('chooseFailedText'))
   },
 
   onAgreementTap() {
-    this.showInfo('平台协议页面待接入')
+    const agreementTitle = this.data.applicationConfig.agreementTitle || ''
+
+    navigateShellRoute(`/pages/profile/system-management/agreement-detail/index?agreement=user-service&title=${encodeURIComponent(agreementTitle)}&signed=0`, {
+      currentRoute: ROUTES.gameApply
+    })
   },
 
   onCancel() {
@@ -310,48 +283,122 @@ Page({
       return
     }
 
-    wx.redirectTo({
-      url: `/${ROUTES.gameHall}`
+    navigateShellRoute(ROUTES.gameHall, {
+      currentRoute: ROUTES.gameApply
     })
   },
 
   async onSubmit() {
-    if (!String(this.data.form.intro || '').trim()) {
-      this.showInfo('请先填写自我介绍')
+    const intro = String(this.data.form.intro || '').trim()
+    const config = this.data.applicationConfig || EMPTY_APPLICATION_CONFIG
+
+    if (config.requireIntro && !intro) {
+      this.showInfo(this.textOf('introRequiredText'))
       return
     }
 
-    if (!this.data.form.agreed) {
-      this.showInfo('请先勾选平台协议')
+    if (config.minIntroLength > 0 && intro && intro.length < config.minIntroLength) {
+      this.showInfo(this.textOf('introMinTemplate', { min: config.minIntroLength }))
       return
     }
+
+    if (config.requireAgreement && !this.data.form.agreed) {
+      this.showInfo(this.textOf('agreementRequiredText'))
+      return
+    }
+
+    if (config.uploadRequired && !this.selectedUploadFileCount()) {
+      this.showInfo(this.textOf('uploadRequiredText'))
+      return
+    }
+
+    if (!this.data.gameId) {
+      this.showInfo(this.textOf('gameMissingText'))
+      return
+    }
+
+    if (this.data.submitting) {
+      return
+    }
+
+    this.setData({ submitting: true })
+    wx.showLoading({
+      title: this.textOf('submittingText'),
+      mask: true
+    })
 
     try {
-      await gameService.applyGame({
-        gameId: this.data.gameId,
-        fromGuideId: this.data.fromGuideId,
-        intro: this.data.form.intro,
-        message: this.data.form.message,
-        imageFiles: this.data.form.imageFiles,
-        attachmentFiles: this.data.form.attachmentFiles
+      const fileIds = await this.uploadApplicationFiles()
+      await gameService.applyGame(this.data.gameId, {
+        reason: this.buildApplyReason(),
+        fileIds
       })
-      this.showInfo('申请已提交')
-      this.onCancel()
+      this.showInfo(this.textOf('submitSuccessText'))
+      setTimeout(() => {
+        navigateShellRoute(`${ROUTES.gameDetail}?gameId=${encodeURIComponent(this.data.gameId)}`, {
+          currentRoute: ROUTES.gameApply
+        })
+      }, 500)
     } catch (error) {
-      this.showInfo(error.message || '提交入局申请失败')
+      this.showInfo(error.message || this.textOf('submitFailedText'))
+    } finally {
+      wx.hideLoading()
+      this.setData({ submitting: false })
     }
+  },
+
+  buildApplyReason() {
+    const intro = String(this.data.form.intro || '').trim()
+    const message = String(this.data.form.message || '').trim()
+
+    return [intro, message].filter(Boolean).join('\n')
+  },
+
+  async uploadApplicationFiles() {
+    const files = []
+      .concat(this.data.form.imageFiles || [])
+      .concat(this.data.form.attachmentFiles || [])
+      .filter((file) => file && file.path)
+
+    if (!files.length) {
+      return []
+    }
+
+    return fileService.uploadEvidenceImages(files.map((file) => file.path), {
+      bizType: 'game_application',
+      objectId: Number(this.data.gameId || 0) || 0
+    })
+  },
+
+  selectedUploadFileCount() {
+    return (this.data.form.imageFiles || []).length + (this.data.form.attachmentFiles || []).length
+  },
+
+  canAppendUploadFile(count) {
+    const maxUploadCount = Number(this.data.applicationConfig.maxUploadCount || 0)
+
+    if (maxUploadCount > 0 && this.selectedUploadFileCount() + count > maxUploadCount) {
+      this.showInfo(this.textOf('maxUploadTemplate', { max: maxUploadCount }))
+      return false
+    }
+
+    return true
+  },
+
+  isAllowedApplicationFile(file, fallbackExtensions) {
+    const extension = getFileExtension(file)
+    const allowed = (this.data.applicationConfig.allowedUploadTypes || fallbackExtensions || [])
+      .map((item) => String(item || '').toLowerCase())
+
+    if (!extension) {
+      return fallbackExtensions.some((item) => item === 'jpg' || item === 'png') && (file.fileType === 'image' || file.type === 'image')
+    }
+
+    return allowed.includes(extension) || fallbackExtensions.includes(extension)
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -360,8 +407,9 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      this.showInfo('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameApply
+    })) {
       return
     }
 
@@ -370,14 +418,6 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -403,7 +443,9 @@ Page({
     }
 
     if (key === 'search') {
-      this.showInfo('搜索功能开发中')
+      navigateShellRoute(ROUTES.gameHall, {
+        currentRoute: ROUTES.gameApply
+      })
       return
     }
 
@@ -419,7 +461,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -430,9 +472,7 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
-    })
+    navigateShellRoute(route)
   },
 
   handleApplyScroll(event) {

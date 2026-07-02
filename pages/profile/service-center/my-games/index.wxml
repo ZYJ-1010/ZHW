@@ -4,7 +4,7 @@
       <button class="nav-back" style="{{shellLayout.backStyle}}" hover-class="none" bindtap="onBackTap" aria-label="返回">
         <view class="nav-back-icon"></view>
       </button>
-      <text class="nav-title" style="{{shellLayout.titleStyle}}">我的局</text>
+      <text class="nav-title" style="{{shellLayout.titleStyle}}">{{pageConfig.pageTitle}}</text>
       <button class="filter-button" style="{{shellLayout.filterStyle}}" hover-class="none" bindtap="onFilterTap" aria-label="筛选">
         <view class="filter-icon"></view>
       </button>
@@ -45,7 +45,13 @@
         </scroll-view>
 
         <view class="game-list">
-          <view wx:for="{{displayCards}}" wx:key="id" class="game-card {{item.statusType}}">
+          <view
+            wx:for="{{displayCards}}"
+            wx:key="id"
+            class="game-card {{item.statusType}}"
+            data-id="{{item.id}}"
+            bindtap="onCardTap"
+          >
             <view class="card-header">
               <view class="status-pill {{item.statusType}}">{{item.statusText}}</view>
               <text class="card-ref">{{item.ref}}</text>
@@ -80,8 +86,10 @@
                 class="card-action {{action.type}}"
                 data-id="{{item.id}}"
                 data-action="{{action.text}}"
+                data-type="{{action.type}}"
+                data-route="{{action.route}}"
                 hover-class="none"
-                bindtap="onActionTap"
+                catchtap="onActionTap"
               >
                 <text wx:if="{{action.icon}}" class="action-icon">{{action.icon}}</text>
                 <text>{{action.text}}</text>
@@ -90,7 +98,7 @@
           </view>
 
           <view wx:if="{{!displayCards.length}}" class="empty-state">
-            <text>暂无相关局</text>
+            <text>{{pageConfig.emptyText}}</text>
           </view>
         </view>
       </view>

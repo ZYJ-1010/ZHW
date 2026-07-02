@@ -153,6 +153,19 @@ page {
   line-height: 34rpx;
 }
 
+.settings-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220rpx;
+  margin-top: 40rpx;
+  border-radius: 24rpx;
+  color: #888888;
+  background: #141414;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
 .settings-page.is-dynamic {
   padding-bottom: 160rpx;
 }

@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "地图-足迹热力图",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}

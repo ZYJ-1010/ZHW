@@ -89,20 +89,26 @@
                     <view wx:elif="{{field.type === 'textarea'}}" class="home-other-guide-textarea">
                       <textarea
                         class="home-other-guide-textarea-control"
+                        value="{{field.value}}"
                         placeholder="{{field.placeholder}}"
                         placeholder-class="home-other-guide-placeholder"
                         maxlength="{{field.maxlength}}"
-                        disabled
+                        data-field-index="{{fieldIndex}}"
+                        data-field="{{field.key}}"
+                        bindinput="onGuideApplyFieldInput"
                       />
                     </view>
 
                     <view wx:else class="home-other-guide-input">
                       <input
                         class="home-other-guide-input-control"
+                        value="{{field.value}}"
                         placeholder="{{field.placeholder}}"
                         placeholder-class="home-other-guide-placeholder"
                         maxlength="{{field.maxlength}}"
-                        disabled
+                        data-field-index="{{fieldIndex}}"
+                        data-field="{{field.key}}"
+                        bindinput="onGuideApplyFieldInput"
                       />
                     </view>
 

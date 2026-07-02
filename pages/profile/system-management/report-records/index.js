@@ -1,39 +1,107 @@
-const toast = require('../../../../utils/toast')
-const profileService = require('../../../../services/profile')
+const reportService = require('../../../../services/report')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
+
+function statusMeta(report) {
+  if (report.handleOutcome === 'confirmed') {
+    return { filter: 'success', status: '举报成功', statusClass: 'success' }
+  }
+  if (report.handleOutcome === 'malicious' || report.status === 'closed') {
+    return { filter: 'failed', status: report.handleOutcome === 'malicious' ? '恶意举报' : '已关闭', statusClass: 'danger' }
+  }
+  if (report.status === 'handled') {
+    return { filter: 'partial', status: '无法核实', statusClass: 'warning' }
+  }
+  if (report.status === 'assigned' || report.status === 'appealed') {
+    return { filter: 'partial', status: '处理中', statusClass: 'warning' }
+  }
+  return { filter: 'partial', status: '待处理', statusClass: 'warning' }
+}
+
+function formatReportTime(value) {
+  return value ? String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/, '') : ''
+}
+
+function normalizeReportRecord(report) {
+  const meta = statusMeta(report)
+  const parts = [
+    { text: '处理状态：' },
+    { text: meta.status, className: meta.statusClass === 'danger' ? 'text-danger' : meta.statusClass === 'success' ? 'text-success' : 'text-warning' }
+  ]
+
+  if (report.creditChange) {
+    parts.push({ text: `，信用变更 ${report.creditChange}`, className: report.creditChange < 0 ? 'text-danger' : 'text-success' })
+  }
+
+  if (report.rewardPoints) {
+    parts.push({ text: `，平台奖励 +${report.rewardPoints}积分`, className: 'text-success' })
+  }
+
+  return Object.assign({
+    id: report.id,
+    title: `举报「局 ${report.gameId}」${report.reportType || 'other'}`,
+    parts,
+    time: formatReportTime(report.createdAt),
+    raw: report
+  }, meta)
+}
 
 Page({
   data: {
     activeFilter: 'all',
-    stats: [],
-    filters: [],
+    stats: [
+      { label: '总举报', value: '0' },
+      { label: '举报成功', value: '0' },
+      { label: '举报失败', value: '0', className: 'danger' },
+      { label: '累计奖励', value: '0积分' }
+    ],
+    filters: [
+      { key: 'all', label: '全部' },
+      { key: 'success', label: '举报成功' },
+      { key: 'failed', label: '举报失败' },
+      { key: 'partial', label: '处理中' }
+    ],
     records: [],
-    visibleRecords: []
+    visibleRecords: [],
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    hasMore: false
   },
 
   onLoad() {
-    this.loadRecords()
+    this.loadReports()
   },
 
-  async loadRecords() {
+  onShow() {
+    this.loadReports()
+  },
+
+  async loadReports() {
     try {
-      const data = await profileService.getSystemReportRecords({
-        status: this.data.activeFilter
+      const data = await reportService.getMyReports({
+        page: this.data.page,
+        pageSize: this.data.pageSize
       })
-      const records = this.normalizeList(data.records || data.list || data.items)
+      const items = Array.isArray(data.items) ? data.items.map(normalizeReportRecord) : []
+      const totalReward = items.reduce((sum, item) => sum + Number(item.raw.rewardPoints || 0), 0)
 
       this.setData({
-        stats: this.normalizeList(data.stats),
-        filters: this.normalizeList(data.filters || data.tabs),
-        records
-      }, () => this.applyFilter(this.data.activeFilter))
-    } catch (error) {
-      this.setData({
-        stats: [],
-        filters: [],
-        records: [],
-        visibleRecords: []
+        records: items,
+        total: Number(data.total || items.length),
+        hasMore: Boolean(data.hasMore),
+        stats: [
+          { label: '总举报', value: String(data.total || items.length) },
+          { label: '举报成功', value: String(items.filter((item) => item.filter === 'success').length) },
+          { label: '举报失败', value: String(items.filter((item) => item.filter === 'failed').length), className: 'danger' },
+          { label: '累计奖励', value: `${totalReward}积分` }
+        ]
       })
-      toast.info(error.message || '举报记录加载失败')
+      this.applyFilter(this.data.activeFilter)
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '获取举报记录失败',
+        icon: 'none'
+      })
     }
   },
 
@@ -45,7 +113,7 @@ Page({
     }
 
     if (routeMap[target]) {
-      wx.redirectTo({ url: routeMap[target] })
+      navigateShellRoute(routeMap[target])
     }
   },
 
@@ -53,16 +121,14 @@ Page({
     const { key } = event.currentTarget.dataset
 
     if (key) {
-      this.setData({
-        activeFilter: key
-      }, () => this.loadRecords())
+      this.applyFilter(key)
     }
   },
 
   applyFilter(key) {
     const visibleRecords = key === 'all'
       ? this.data.records
-      : this.data.records.filter((item) => this.getStatusKey(item) === key)
+      : this.data.records.filter((item) => item.filter === key)
 
     this.setData({
       activeFilter: key,
@@ -72,22 +138,8 @@ Page({
 
   handleDetailTap(event) {
     const { id } = event.currentTarget.dataset
-    const query = id ? `?recordId=${id}` : ''
+    const query = id ? `?reportId=${id}` : ''
 
-    wx.redirectTo({
-      url: `/pages/profile/system-management/report-record-detail/index${query}`
-    })
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
-  },
-
-  getStatusKey(item) {
-    if (!item || typeof item !== 'object') {
-      return ''
-    }
-
-    return item.filter || item.statusKey || item.statusType || item.status || ''
+    navigateShellRoute(`/pages/profile/system-management/report-detail/index${query}`)
   }
 })

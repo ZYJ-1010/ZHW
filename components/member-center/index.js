@@ -1,89 +1,148 @@
-const profileService = require('../../services/profile')
+const profileApi = require('../../api/modules/profile')
+const { navigateShellRoute } = require('../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/member/assets'
 
-const LEVEL_KEYS = ['basic', 'advanced', 'premium']
-
-function normalizeList(value) {
-  return Array.isArray(value) ? value : []
+const COMMON_RULES = {
+  step: '',
+  notes: []
 }
 
-function buildLevels(levelKey, levelConfig = {}) {
-  if (Array.isArray(levelConfig.levels) && levelConfig.levels.length) {
-    return levelConfig.levels
+const COMMON_RADAR_PEOPLE = [
+  { id: 'me', className: 'me', avatarUrl: '/pages/home/player/assets/ranking-avatar-me.png', text: '我' },
+  { id: 'expert', className: 'expert', avatarUrl: '/pages/home/player/assets/ranking-avatar-01.png', text: '行' },
+  { id: 'guide', className: 'guide', avatarUrl: '/pages/home/player/assets/ranking-avatar-02.png', text: '领' },
+  { id: 'player', className: 'player', avatarUrl: '/pages/home/player/assets/ranking-avatar-03.png', text: '玩' },
+  { id: 'nearby', className: 'nearby', avatarUrl: '', text: '局' },
+  { id: 'friend', className: 'friend', avatarUrl: '', text: '友' },
+  { id: 'resource', className: 'resource', avatarUrl: '', text: '资' }
+]
+
+const MEMBER_CONFIGS = {
+  basic: {
+    key: 'basic',
+    memberLevel: '',
+    cardClass: 'basic',
+    benefitClass: 'purple',
+    primaryBenefitTitle: '',
+    price: '',
+    profitRate: '',
+    noticeLevel: '',
+    noticeAvatar: '',
+    noticeName: '',
+    agreementKey: '',
+    agreementTitle: '',
+    levels: [
+      { key: 'basic', active: true },
+      { key: 'advanced', active: false },
+      { key: 'premium', active: false }
+    ],
+    referralBenefits: [],
+    audience: []
+  },
+  advanced: {
+    key: 'advanced',
+    memberLevel: '',
+    cardClass: 'advanced',
+    benefitClass: 'advanced',
+    primaryBenefitTitle: '',
+    price: '',
+    profitRate: '',
+    noticeLevel: '',
+    noticeAvatar: '',
+    noticeName: '',
+    agreementKey: '',
+    agreementTitle: '',
+    levels: [
+      { key: 'basic', active: false },
+      { key: 'advanced', active: true },
+      { key: 'premium', active: false }
+    ],
+    referralBenefits: [],
+    audience: []
+  },
+  premium: {
+    key: 'premium',
+    memberLevel: '',
+    cardClass: 'premium',
+    benefitClass: 'premium',
+    primaryBenefitTitle: '',
+    price: '',
+    profitRate: '',
+    noticeLevel: '',
+    noticeAvatar: '',
+    noticeName: '',
+    agreementKey: '',
+    agreementTitle: '',
+    levels: [
+      { key: 'basic', active: false },
+      { key: 'advanced', active: false },
+      { key: 'premium', active: true }
+    ],
+    referralBenefits: [],
+    audience: []
   }
+}
 
-  const activeIndex = Number(levelConfig.activeIndex)
-  const activeKey = levelConfig.key || levelKey
+function normalizePlan(plan = {}, fallback = {}) {
+  const key = plan.key || plan.code || fallback.key || 'basic'
 
-  return LEVEL_KEYS.map((key, index) => ({
+  return {
+    ...fallback,
+    ...plan,
     key,
-    active: Number.isInteger(activeIndex) ? index === activeIndex : key === activeKey
+    memberLevel: plan.memberLevel || plan.name || fallback.memberLevel || '',
+    price: String(plan.price || fallback.price || ''),
+    profitRate: plan.profitRate || fallback.profitRate || '',
+    noticeLevel: plan.noticeLevel || fallback.noticeLevel || '',
+    noticeAvatar: plan.noticeAvatar || fallback.noticeAvatar || '',
+    noticeName: plan.noticeName || fallback.noticeName || '',
+    agreementKey: plan.agreementKey || fallback.agreementKey || 'user-service',
+    agreementTitle: plan.agreementTitle || fallback.agreementTitle || '服务协议',
+    referralBenefits: Array.isArray(plan.referralBenefits) ? plan.referralBenefits : (fallback.referralBenefits || []),
+    audience: Array.isArray(plan.audience) ? plan.audience : (fallback.audience || []),
+    levels: buildLevels(key),
+    openRules: normalizeRules(plan.openRules || fallback.openRules)
+  }
+}
+
+function normalizeRules(rules = {}) {
+  return {
+    step: rules.step || COMMON_RULES.step,
+    notes: Array.isArray(rules.notes) ? rules.notes : COMMON_RULES.notes
+  }
+}
+
+function buildLevels(activeKey) {
+  return ['basic', 'advanced', 'premium'].map((key) => ({
+    key,
+    active: key === activeKey
   }))
 }
 
-function getBenefitItem(items, key, fallbackIndex) {
-  return items.find((item) => item && item.key === key) || items[fallbackIndex] || {}
+function plansToConfigMap(plans = []) {
+  return plans.reduce((result, plan) => {
+    const key = plan.key || plan.code
+    if (key) {
+      result[key] = normalizePlan(plan, MEMBER_CONFIGS[key] || {})
+    }
+    return result
+  }, {})
 }
 
-function normalizeMemberCenterConfig(data = {}, levelKey = 'basic') {
-  const level = data.level || {}
-  const benefits = data.benefitsSection || {}
-  const benefitItems = normalizeList(benefits.items)
-  const referral = getBenefitItem(benefitItems, 'referral', 0)
-  const profit = getBenefitItem(benefitItems, 'profit', 1)
-  const radar = data.radarSection || {}
-  const audience = data.audienceSection || {}
-  const openRules = data.openRulesSection || {}
-  const purchase = data.purchase || {}
-  const latestNotice = data.latestNotice || null
-  const roleLink = data.roleLink || {}
-  const normalizedLevelKey = level.key || data.levelKey || data.key || levelKey
+function buildDisplayData(levelKey, configs) {
+  const map = configs || MEMBER_CONFIGS
+  const config = map[levelKey] || map.basic || MEMBER_CONFIGS.basic
 
   return {
-    key: normalizedLevelKey,
-    memberLevel: level.name || data.memberLevel || '',
-    cardClass: data.cardClass || normalizedLevelKey || '',
-    benefitSectionTitle: benefits.title || '',
-    benefitClass: referral.theme || referral.className || '',
-    primaryBenefitTitle: referral.title || '',
-    profitBenefitTitle: profit.title || '',
-    profitRate: profit.value || profit.rate || data.profitRate || '',
-    levels: buildLevels(levelKey, level),
-    referralBenefits: normalizeList(referral.points || referral.items || data.referralBenefits),
-    radarTitle: radar.title || '',
-    radarSubtitle: radar.subtitle || '',
-    radarButtonText: radar.buttonText || '',
-    radarPeople: normalizeList(radar.people || radar.nodes),
-    audienceTitle: audience.title || '',
-    audience: normalizeList(audience.items || data.audience),
-    openRulesTitle: openRules.title || '',
-    openRules: {
-      step: openRules.stepText || openRules.step || '',
-      notes: normalizeList(openRules.notes)
-    },
-    roleLinkText: roleLink.text || '',
-    roleLinkRoute: roleLink.route || '',
-    latestNotice,
-    purchase: {
-      buttonText: purchase.buttonText || '',
-      priceText: purchase.priceText || '',
-      route: purchase.route || '',
-      agreementPrefix: purchase.agreementPrefix || '',
-      agreementName: purchase.agreementName || '',
-      agreementRoute: purchase.agreementRoute || '',
-      agreementSuffix: purchase.agreementSuffix || '',
-      highlightText: purchase.highlightText || ''
-    },
+    ...config,
     assets: {
       referral: `${ASSET_BASE}/i86@3x.png`,
       profit: `${ASSET_BASE}/i87@3x.png`
-    }
+    },
+    radarPeople: COMMON_RADAR_PEOPLE,
+    openRules: normalizeRules(config.openRules)
   }
-}
-
-function buildDisplayData(levelKey) {
-  return normalizeMemberCenterConfig({}, levelKey)
 }
 
 Component({
@@ -96,90 +155,58 @@ Component({
 
   data: {
     ...buildDisplayData('basic'),
-    loading: false
+    planConfigs: MEMBER_CONFIGS
   },
 
   observers: {
     levelKey(levelKey) {
-      this.loadMemberConfig(levelKey)
+      this.setData(buildDisplayData(levelKey, this.data.planConfigs))
     }
   },
 
   lifetimes: {
     attached() {
-      this.loadMemberConfig(this.properties.levelKey)
+      this.loadPlans()
     }
   },
 
   methods: {
-    async loadMemberConfig(levelKey = 'basic') {
-      this.setData({
-        ...buildDisplayData(levelKey),
-        loading: true
-      })
-
+    async loadPlans() {
       try {
-        const data = await profileService.getMemberCenterConfig({
-          level: levelKey
-        })
-
+        const data = await profileApi.getMemberPlans()
+        const planConfigs = plansToConfigMap(data.items || data.plans || [])
+        const nextConfigs = Object.keys(planConfigs).length ? planConfigs : MEMBER_CONFIGS
         this.setData({
-          ...normalizeMemberCenterConfig(data, levelKey),
-          loading: false
+          planConfigs: nextConfigs,
+          ...buildDisplayData(this.properties.levelKey, nextConfigs)
         })
       } catch (error) {
-        this.setData({
-          loading: false
-        })
-        wx.showToast({
-          title: error.message || '会员中心配置加载失败',
-          icon: 'none'
-        })
+        console.warn('get membership plans failed', error)
+        this.setData(buildDisplayData(this.properties.levelKey, this.data.planConfigs))
       }
     },
 
     handleMatch() {
-      wx.navigateTo({
-        url: '/pages/profile/member/radar/index'
-      })
+      navigateShellRoute('/pages/profile/member/radar/index')
     },
 
     handleUnlockRole() {
-      wx.navigateTo({
-        url: this.data.roleLinkRoute ? `/${this.data.roleLinkRoute}` : '/pages/role/apply/index'
-      })
+      navigateShellRoute('/pages/role/apply/index')
     },
 
     handleOpenMember() {
-      if (this.data.purchase && this.data.purchase.route) {
-        wx.navigateTo({
-          url: this.data.purchase.route.startsWith('/')
-            ? this.data.purchase.route
-            : `/${this.data.purchase.route}`
-        })
-        return
-      }
+      const target = this.properties.levelKey === 'premium'
+        ? '/pages/profile/member/premium/index'
+        : '/pages/profile/member/advanced/index'
 
-      wx.showToast({
-        title: '会员支付待接入',
-        icon: 'none'
-      })
+      navigateShellRoute(target)
     },
 
     handleAgreement() {
-      const route = this.data.purchase && this.data.purchase.agreementRoute
+      const agreementKey = this.data.agreementKey || 'user-service'
+      const title = this.data.agreementTitle || '服务协议'
 
-      if (route) {
-        wx.navigateTo({
-          url: route.startsWith('/') ? route : `/${route}`
-        })
-        return
-      }
-
-      wx.showToast({
-        title: '服务协议待补充',
-        icon: 'none'
-      })
+      navigateShellRoute(`/pages/profile/system-management/agreement-detail/index?agreement=${encodeURIComponent(agreementKey)}&title=${encodeURIComponent(title)}&signed=0`)
     }
   }
 })

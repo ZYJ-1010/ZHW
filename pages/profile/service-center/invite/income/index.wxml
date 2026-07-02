@@ -47,6 +47,7 @@
         </view>
         <text class="flow-amount">{{item.amount}}</text>
       </view>
+      <view wx:if="{{!flows.length}}" class="empty-state">暂无分润流水</view>
     </view>
   </view>
 </profile-white-shell>

@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "审核组局",
+  "navigationBarTitleText": "审核",
   "usingComponents": {
     "home-shell": "/components/home-shell/index",
     "game-detail-status-card": "/components/game-detail/status-card/index",

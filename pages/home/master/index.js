@@ -13,6 +13,7 @@ const WHITE_NAV_TITLE_HEIGHT_RPX = 50
 const WHITE_BACK_BUTTON_SIZE_RPX = 40
 const WHITE_DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const WHITE_DEFAULT_FRAME_HEIGHT_RPX = WHITE_DESIGN_FRAME_HEIGHT_PT * 2
+const { navigateShellKey } = require('../../../utils/shell-nav')
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -112,7 +113,7 @@ Page({
   data: {
     masterMode: 'default',
     brand: '真好玩',
-    onlineText: '3999人在线',
+    onlineText: '在线',
     dockVisible: true,
     contentScrollY: false,
     shellClass: '',
@@ -203,5 +204,9 @@ Page({
     if (!key) {
       return
     }
+
+    navigateShellKey(key, {
+      currentRoute: 'pages/home/master/index'
+    })
   }
 })

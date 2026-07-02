@@ -4,12 +4,13 @@ const newbieService = require('../../services/newbie')
 const userService = require('../../services/user')
 const toast = require('../../utils/toast')
 const env = require('../../config/env')
+const { ROUTES } = require('../../config/routes')
+const { navigateShellRoute } = require('../../utils/shell-nav')
 
 const TEST_PHONE = '13888888888'
 const TEST_REGISTER_PHONE = '13700000000'
 const TEST_CODE = '123456'
 const TEST_PASSWORD = 'Test123456'
-const TEST_INVITE_CODE = 'ENJOY2026'
 const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account', 'wechatAuth']
 
 function getTestLoginDefaults() {
@@ -23,36 +24,11 @@ function getTestLoginDefaults() {
     codeDigits: TEST_CODE.split(''),
     isCodeComplete: true,
     password: TEST_PASSWORD,
-    inviteCode: TEST_INVITE_CODE
+    inviteCode: ''
   }
 }
 
-const DEFAULT_NEWBIE_TASKS = [
-  {
-    id: 'newbie-realname',
-    type: 'realname',
-    title: '完成实名认证',
-    rewardText: '+50 经验值',
-    completed: true,
-    actionText: '去完成'
-  },
-  {
-    id: 'newbie-profile',
-    type: 'profile',
-    title: '完善个人资料',
-    rewardText: '+30 经验值',
-    completed: false,
-    actionText: '去完成'
-  },
-  {
-    id: 'newbie-first-game',
-    type: 'first_game',
-    title: '发布第一个局',
-    rewardText: '+100 经验值',
-    completed: false,
-    actionText: '去完成'
-  }
-]
+const DEFAULT_NEWBIE_TASKS = []
 
 function toNewbieTaskView(task, index) {
   const completed = Boolean(task.completed || task.status === 'completed')
@@ -140,8 +116,27 @@ Page({
       return
     }
 
+    const inviteCode = this.normalizeInviteCode(options.inviteCode || options.code)
+    const inviteContext = inviteCode
+      ? { code: inviteCode }
+      : inviteService.getInviteContext()
+
+    if (inviteContext && inviteContext.code) {
+      inviteService.saveInviteContext(inviteContext)
+      this.setData({
+        inviteCode: inviteContext.code,
+        inviteContext
+      })
+    } else {
+      navigateShellRoute(ROUTES.loginInvite)
+      return
+    }
+
     if (env.isMock) {
-      this.setData(getTestLoginDefaults())
+      this.setData(Object.assign({}, getTestLoginDefaults(), {
+        inviteCode: inviteContext.code,
+        inviteContext
+      }))
     }
   },
 
@@ -218,8 +213,8 @@ Page({
       return
     }
 
-    const phone = this.data.phone || TEST_PHONE
-    const verifyCode = this.data.verifyCode || TEST_CODE
+    const phone = this.data.phone || (env.isMock ? TEST_PHONE : '')
+    const verifyCode = this.data.verifyCode || (env.isMock ? TEST_CODE : '')
 
     this.setData({
       loginMode: mode,
@@ -231,7 +226,7 @@ Page({
       codeDigits: this.getCodeDigits(verifyCode),
       isCodeComplete: verifyCode.length === 6,
       codeInputFocus: false,
-      password: this.data.password || TEST_PASSWORD
+      password: this.data.password || (env.isMock ? TEST_PASSWORD : '')
     })
   },
 
@@ -260,7 +255,7 @@ Page({
     const uiPreviewStep = stepMap[mode] || 'invite'
     const loginMode = 'home'
     const newbieTaskData = getNewbieTaskData()
-    const optionInviteCode = String(options.inviteCode || options.code || '').trim().toUpperCase()
+    const optionInviteCode = this.normalizeInviteCode(options.inviteCode || options.code)
 
     this.clearCodeTimer()
     this.setData({
@@ -279,7 +274,7 @@ Page({
       resendSeconds: 60,
       canResend: true,
       password: env.isMock ? TEST_PASSWORD : '',
-      inviteCode: optionInviteCode || (env.isMock ? TEST_INVITE_CODE : ''),
+      inviteCode: optionInviteCode,
       hasWechatLogin: false,
       isLoggingIn: false,
       isSendingCode: false,
@@ -385,7 +380,7 @@ Page({
         phone: this.data.phone,
         scene: 'invite_register'
       })
-      toast.success('验证码已发送：123456')
+      toast.success('验证码已发送')
       this.startCodeTimer()
     } catch (error) {
       toast.info(error.message || '验证码发送失败')
@@ -447,9 +442,7 @@ Page({
         return
       }
 
-      wx.navigateTo({
-        url: '/pages/login/realname/index'
-      })
+      navigateShellRoute('/pages/login/realname/index')
       return
     }
 
@@ -466,13 +459,11 @@ Page({
       const url = result && result.url
 
       if (url) {
-        wx.navigateTo({
-          url
-        })
+        navigateShellRoute(url)
         return
       }
 
-      toast.info('实名认证页面暂未配置')
+      navigateShellRoute('/pages/login/realname/index')
     } catch (error) {
       toast.info(error.message || '实名认证页面打开失败')
     } finally {
@@ -489,7 +480,7 @@ Page({
     }
 
     wx.reLaunch({
-      url: '/pages/home/index'
+      url: `/${ROUTES.playerHome}`
     })
   },
 
@@ -516,14 +507,12 @@ Page({
 
   goHomeFromNewbieTasks() {
     if (this.data.isUiPreview) {
-      wx.redirectTo({
-        url: '/pages/home/index?ui=1&mode=homeAll&single=0'
-      })
+      navigateShellRoute('/pages/home/index?ui=1&mode=homeAll&single=0')
       return
     }
 
     wx.reLaunch({
-      url: '/pages/home/index'
+      url: `/${ROUTES.playerHome}`
     })
   },
 
@@ -540,7 +529,22 @@ Page({
       return
     }
 
-    toast.developing()
+    if (task.type === 'realname') {
+      navigateShellRoute(ROUTES.roleApply)
+      return
+    }
+
+    if (task.type === 'profile') {
+      navigateShellRoute(ROUTES.profileSystemProfileInfo)
+      return
+    }
+
+    if (task.type === 'first_game') {
+      navigateShellRoute(ROUTES.gameCreate)
+      return
+    }
+
+    toast.info('请按任务指引继续')
   },
 
   async startPhoneLogin() {
@@ -554,7 +558,12 @@ Page({
       return
     }
 
-    const phone = this.data.phone || TEST_PHONE
+    const phone = this.data.phone
+
+    if (!phone) {
+      toast.info('请先输入手机号')
+      return
+    }
 
     this.setData({
       loginMode: 'codeVerify',
@@ -623,7 +632,7 @@ Page({
 
     try {
       await authService.sendPhoneCode(this.data.phone)
-      toast.success('验证码已发送：123456')
+      toast.success('验证码已发送')
     } catch (error) {
       toast.info(error.message || '验证码发送失败')
     } finally {
@@ -642,7 +651,12 @@ Page({
       return
     }
 
-    await this.sendCodeForPhone(this.data.phone || TEST_PHONE)
+    if (!this.data.phone) {
+      toast.info('请先输入手机号')
+      return
+    }
+
+    await this.sendCodeForPhone(this.data.phone)
   },
 
   async sendCodeForPhone(phone) {
@@ -659,7 +673,7 @@ Page({
 
     try {
       await authService.sendPhoneCode(phone)
-      toast.success('验证码已发送：123456')
+      toast.success('验证码已发送')
       this.startCodeTimer()
     } catch (error) {
       toast.info(error.message || '验证码发送失败')
@@ -720,6 +734,10 @@ Page({
   getCodeDigits(code) {
     const chars = String(code || '').split('')
     return Array.from({ length: 6 }, (_, index) => chars[index] || '')
+  },
+
+  normalizeInviteCode(value) {
+    return String(value || '').trim().toUpperCase()
   },
 
   async handlePhoneLogin() {
@@ -834,7 +852,7 @@ Page({
 
   async handleWechatLogin() {
     if (this.data.isUiPreview) {
-      toast.developing()
+      this.showUiPreviewMode('newbieTasks')
       return
     }
 
@@ -875,11 +893,13 @@ Page({
   },
 
   goHome() {
-    toast.developing()
+    wx.reLaunch({
+      url: `/${ROUTES.gameHall}`
+    })
   },
 
   goEntryForLogin() {
-    toast.developing()
+    navigateShellRoute(ROUTES.loginInvite)
   },
 
   goForgot() {
@@ -887,7 +907,7 @@ Page({
       return
     }
 
-    toast.developing()
+    navigateShellRoute(ROUTES.loginForgot)
   },
 
   clearInvite() {
@@ -900,7 +920,7 @@ Page({
 
   declineAuth() {
     if (this.data.isUiPreview) {
-      toast.developing()
+      this.showUiPreviewMode('invite')
       return
     }
 

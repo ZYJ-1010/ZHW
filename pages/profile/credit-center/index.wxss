@@ -121,3 +121,23 @@
   font-size: 24rpx;
   line-height: 36rpx;
 }
+
+.profile-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-section-action {
+  color: #16a34a;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.credit-empty {
+  padding: 42rpx 28rpx;
+  color: #9ca3af;
+  font-size: 25rpx;
+  line-height: 36rpx;
+  text-align: center;
+}

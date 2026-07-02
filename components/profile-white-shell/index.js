@@ -5,6 +5,8 @@ const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_CAPSULE_LEFT_RPX = 584
 const DEFAULT_FRAME_HEIGHT_RPX = 1620
 
+const { navigateShellRoute } = require('../../utils/shell-nav')
+
 let cachedLayout = null
 
 function roundRpx(value) {
@@ -169,9 +171,7 @@ Component({
   methods: {
     handleBack() {
       if (this.properties.backUrl) {
-        wx.redirectTo({
-          url: this.properties.backUrl
-        })
+        navigateShellRoute(this.properties.backUrl)
         return
       }
 
@@ -182,9 +182,7 @@ Component({
         return
       }
 
-      wx.redirectTo({
-        url: '/pages/profile/index'
-      })
+      navigateShellRoute('/pages/profile/index')
     },
 
     handleRightTap() {

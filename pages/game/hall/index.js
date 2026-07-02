@@ -1,35 +1,22 @@
 const toast = require('../../../utils/toast')
 const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
 const HALL_SCROLL_TAP_STEP_RPX = 360
 const HALL_SCROLL_HOLD_STEP_RPX = 72
 const HALL_SCROLL_HOLD_INTERVAL_MS = 80
 const HALL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 const TYPE_FILTERS = [
-  { key: 'all', label: '类型' },
-  { key: 'deposit', label: '押金局' },
-  { key: 'task', label: '任务局' },
-  { key: 'social', label: '社交局' }
+  { key: 'all', label: '类型' }
 ]
 const ADVANCED_LOCATION_OPTIONS = [
-  { key: 'all', name: '全国' },
-  { key: 'nearby', name: '附近(50km)' }
+  { key: 'all', name: '全国' }
 ]
 const ADVANCED_CATEGORY_OPTIONS = [
-  { key: 'all', name: '全部' },
-  { key: 'social', name: '社交局' },
-  { key: 'explore', name: '探索局' },
-  { key: 'task', name: '任务局' },
-  { key: 'growth', name: '成长局' }
+  { key: 'all', name: '全部' }
 ]
-const ADVANCED_SORT_OPTIONS = [
-  { key: 'comprehensive', name: '综合排序', sortKey: '', sortOrder: 'asc' },
-  { key: 'latest', name: '最新发布', sortKey: 'time', sortOrder: 'desc' },
-  { key: 'hot', name: '热度最高', sortKey: 'hot', sortOrder: 'desc' },
-  { key: 'distance', name: '距离最近', sortKey: 'distance', sortOrder: 'asc' },
-  { key: 'credit', name: '信用优先', sortKey: 'credit', sortOrder: 'desc' }
-]
+const ADVANCED_SORT_OPTIONS = []
 const CALENDAR_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_ADVANCED_DRAFT = {
   locationScope: 'all',
@@ -38,139 +25,218 @@ const DEFAULT_ADVANCED_DRAFT = {
   sortMode: 'comprehensive',
   selectedDate: ''
 }
-const DEFAULT_COVER_SRC = '/components/game-card/assets/game-cover-default.png'
-
-function getTypeFilterLabel(key) {
-  const matched = TYPE_FILTERS.find((item) => item.key === key)
-
-  return matched ? matched.label : TYPE_FILTERS[0].label
+const CATEGORY_ICON_MAP = {
+  social: '/pages/game/hall/assets/category-social.png',
+  task: '/pages/game/hall/assets/category-task.png',
+  growth: '/pages/game/hall/assets/category-growth.png',
+  income: '/pages/game/hall/assets/category-income.png',
+  explore: '/pages/game/hall/assets/category-income.png',
+  more: '/pages/game/hall/assets/category-more.png'
+}
+const CATEGORY_CLASS_MAP = {
+  social: 'social',
+  task: 'task',
+  growth: 'growth',
+  income: 'income',
+  explore: 'income',
+  more: 'more'
 }
 
-function getNextTypeFilterKey(currentKey) {
-  const currentIndex = TYPE_FILTERS.findIndex((item) => item.key === currentKey)
+const eventsList = []
+
+function getTypeFilterLabel(key, filters = TYPE_FILTERS) {
+  const matched = filters.find((item) => item.key === key)
+
+  return matched ? matched.label : filters[0].label
+}
+
+function getNextTypeFilterKey(currentKey, filters = TYPE_FILTERS) {
+  const currentIndex = filters.findIndex((item) => item.key === currentKey)
   const nextIndex = currentIndex > -1 ? currentIndex + 1 : 1
 
-  return TYPE_FILTERS[nextIndex % TYPE_FILTERS.length].key
+  return filters[nextIndex % filters.length].key
 }
 
 function getAdvancedDraft(defaults = {}) {
   return Object.assign({}, DEFAULT_ADVANCED_DRAFT, defaults)
 }
 
-function getAdvancedSortByState(sortKey, sortOrder) {
-  const matched = ADVANCED_SORT_OPTIONS.find((item) => {
-    return item.sortKey === sortKey && item.sortOrder === sortOrder
-  })
+function normalizeCategoryList(data = {}) {
+  const source = Array.isArray(data.primaryCategories) ? data.primaryCategories : []
+  const list = source
+    .filter((item) => item && item.visible !== false && item.key)
+    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+    .map((item) => {
+      const key = String(item.key || '').trim()
+      const iconKey = String(item.icon || key).replace(/^category-/, '')
 
-  return matched ? matched.key : 'comprehensive'
+      return {
+        key,
+        name: String(item.name || key).trim(),
+        iconSrc: CATEGORY_ICON_MAP[key] || CATEGORY_ICON_MAP[iconKey] || CATEGORY_ICON_MAP.more,
+        className: CATEGORY_CLASS_MAP[key] || CATEGORY_CLASS_MAP[iconKey] || 'more'
+      }
+    })
+
+  return list.length ? list : null
 }
 
-function getAdvancedSortByKey(key) {
-  return ADVANCED_SORT_OPTIONS.find((item) => item.key === key) || ADVANCED_SORT_OPTIONS[0]
+function normalizeAdvancedCategoryOptions(data = {}) {
+  const source = Array.isArray(data.primaryCategories) ? data.primaryCategories : []
+  const list = source
+    .filter((item) => item && item.visible !== false && item.key)
+    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+    .map((item) => ({
+      key: String(item.key || '').trim(),
+      name: String(item.name || item.key || '').trim()
+    }))
+    .filter((item) => item.key && item.name)
+
+  return list.length ? [{ key: 'all', name: '全部' }].concat(list) : null
 }
 
-function pickFirstValue(...values) {
-  return values.find((value) => value !== undefined && value !== null && value !== '')
+function normalizeTypeFilters(data = {}) {
+  const source = Array.isArray(data.typeFilters) ? data.typeFilters : []
+  const list = source
+    .filter((item) => item && item.visible !== false && item.key)
+    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+    .map((item) => ({
+      key: String(item.key || '').trim(),
+      label: String(item.label || item.name || item.key || '').trim()
+    }))
+    .filter((item) => item.key && item.label)
+
+  return list.length ? list : null
 }
 
-function getGameTypeText(type) {
-  const matched = TYPE_FILTERS.find((item) => item.key === type)
+function normalizeLocationOptions(data = {}) {
+  const source = Array.isArray(data.locationFilters) ? data.locationFilters : []
+  const list = source
+    .filter((item) => item && item.visible !== false && item.key)
+    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+    .map((item) => ({
+      key: String(item.key || '').trim(),
+      name: String(item.name || item.label || item.key || '').trim()
+    }))
+    .filter((item) => item.key && item.name)
 
-  return matched && matched.key !== 'all' ? matched.label : '组局'
+  return list.length ? list : null
 }
 
-function formatDistanceText(distanceMeters) {
-  const distance = Number(distanceMeters)
-
-  if (!Number.isFinite(distance) || distance <= 0) {
-    return ''
+function gameTypeLabel(type = '') {
+  const map = {
+    free: '免费局',
+    standard: '普通局',
+    public_welfare: '公益局',
+    aa: 'AA局',
+    crowdfund: '众筹局',
+    deposit: '押金局',
+    condition: '条件局'
   }
 
-  return distance >= 1000 ? `${Math.round(distance / 100) / 10}km` : `${Math.round(distance)}m`
+  return map[type] || type || '组局'
 }
 
-function formatDateTimeText(value) {
+function formatHallDate(value) {
   if (!value) {
     return ''
   }
 
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value)
-  }
-
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-
-  return `${date.getFullYear()}年${month}月${day}日 ${hour}:${minute}`
+  return String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/, '')
 }
 
-function formatPriceText(item = {}) {
-  const text = pickFirstValue(item.priceText, item.feeText, item.costText)
-
-  if (text) {
-    return text
+function formatHallDistance(game = {}) {
+  if (game.distanceLabel) {
+    return game.distanceLabel
   }
 
-  const amount = Number(pickFirstValue(item.priceAmount, item.feeAmount, item.costAmount))
+  const meter = Number(game.distanceMeter || 0)
+  if (meter > 0) {
+    return meter >= 1000 ? `${(meter / 1000).toFixed(1)}km` : `${Math.round(meter)}m`
+  }
 
-  return Number.isFinite(amount) ? `￥${amount}/人` : ''
+  return ''
 }
 
-function getGameListItems(data) {
-  if (Array.isArray(data)) {
-    return data
-  }
+function normalizeAvatarFallbacks(title = '') {
+  const chars = Array.from(String(title || '').replace(/\s/g, '')).slice(0, 3)
 
-  if (!data || typeof data !== 'object') {
-    return []
-  }
-
-  return data.list || data.records || data.items || data.games || []
+  return chars.length ? chars : ['局']
 }
 
-function normalizeGameCard(item = {}) {
-  const type = pickFirstValue(item.type, item.gameType, item.primaryCategory, item.categoryKey, '')
-  const typeText = pickFirstValue(item.typeText, item.gameTypeText, item.categoryText, type ? getGameTypeText(type) : '')
-  const distanceText = pickFirstValue(item.distanceText, formatDistanceText(item.distanceMeters))
-  const memberText = pickFirstValue(
-    item.memberText,
-    item.joinedCountText,
-    item.approvedMemberCount != null && item.maxParticipants
-      ? `${item.approvedMemberCount}/${item.maxParticipants}人`
-      : ''
-  )
+function normalizeEventActions(data = {}) {
+  return Array.isArray(data.eventActions) ? data.eventActions.filter(Boolean) : []
+}
+
+function normalizeSortOptions(data = {}) {
+  const source = Array.isArray(data.sortOptions) ? data.sortOptions : []
+
+  return source.map((item) => ({
+    key: String(item.key || '').trim(),
+    name: String(item.name || item.label || item.key || '').trim(),
+    sortKey: String(item.sortKey || '').trim(),
+    sortOrder: String(item.sortOrder || 'asc').trim() || 'asc'
+  })).filter((item) => item.key && item.name)
+}
+
+function normalizeHallGame(game = {}, eventActions = []) {
+  const currentPlayers = Number(game.currentPlayers || 0)
+  const maxPlayers = Number(game.maxPlayers || 8)
+  const gameType = String(game.gameType || game.type || 'free')
+  const typeText = gameTypeLabel(gameType)
+  const categoryKey = String(game.primaryCategory || game.categoryKey || gameType || 'all')
   const locationParts = [
-    pickFirstValue(item.addressName, item.locationName, item.cityName),
-    distanceText,
-    memberText
+    game.address || game.cityName || '地点待定',
+    formatHallDistance(game),
+    `${currentPlayers}/${maxPlayers}人`
   ].filter(Boolean)
-  const timeText = pickFirstValue(item.time, item.timeText, formatDateTimeText(item.startAt || item.startTime))
+
   return {
-    id: item.id || item.gameId,
-    type,
+    id: game.id,
+    type: gameType,
     typeText,
-    categoryKey: item.primaryCategory || item.categoryKey || type,
-    startAt: item.startAt || item.startTime,
-    distanceKm: Number(item.distanceKm) || Number(item.distanceMeters) / 1000 || undefined,
-    cityName: item.cityName || '',
-    heatScore: item.heatScore || item.hotScore || item.approvedMemberCount || 0,
-    creditScore: item.creditScore || 0,
-    coverSrc: pickFirstValue(item.coverSrc, item.coverUrl, item.coverFileUrl, DEFAULT_COVER_SRC),
-    tag: item.tag || typeText,
-    price: formatPriceText(item),
-    title: item.title || item.name || '',
-    location: locationParts.length ? `📍${locationParts.join(' · ')}` : '',
-    time: timeText ? `⏰${timeText}` : '',
-    action: item.actionText || item.action || '',
-    joinedText: item.joinedText || item.participantText || '',
-    avatarUrls: item.avatarUrls || item.memberAvatarUrls || [],
-    avatarFallbacks: item.avatarFallbacks || item.memberAvatarFallbacks || [],
-    actions: item.actions || []
+    categoryKey,
+    startAt: game.createdAt || '',
+    distanceKm: Number(game.distanceMeter || 0) / 1000,
+    cityName: game.cityName || '',
+    heatScore: currentPlayers,
+    creditScore: 0,
+    coverSrc: game.coverSrc || '/components/game-card/assets/game-cover-default.png',
+    tag: game.primaryCategoryText || game.secondaryCategoryText || typeText,
+    price: gameType === 'free' ? '0元/人' : '',
+    title: game.title || '未命名组局',
+    official: Boolean(game.official || game.isOfficial || game.featured || game.isFeatured),
+    location: locationParts.join(' · '),
+    time: game.createdAt ? `发布 ${formatHallDate(game.createdAt)}` : '',
+    action: currentPlayers >= maxPlayers ? '已满员' : '加入',
+    joinedText: `${currentPlayers}位玩家已入局`,
+    avatarFallbacks: normalizeAvatarFallbacks(game.title),
+    actions: eventActions
   }
+}
+
+function normalizeHallGames(data = {}, eventActions = []) {
+  const source = Array.isArray(data.items)
+    ? data.items
+    : Array.isArray(data.games)
+      ? data.games
+      : Array.isArray(data)
+        ? data
+        : []
+
+  return source.map((item) => normalizeHallGame(item, eventActions)).filter((item) => item.id)
+}
+
+function getAdvancedSortByState(sortKey, sortOrder, sortOptions = ADVANCED_SORT_OPTIONS) {
+  const matched = sortOptions.find((item) => {
+    return item.sortKey === sortKey && item.sortOrder === sortOrder
+  })
+
+  return matched ? matched.key : ''
+}
+
+function getAdvancedSortByKey(key, sortOptions = ADVANCED_SORT_OPTIONS) {
+  return sortOptions.find((item) => item.key === key) || sortOptions[0] || { sortKey: '', sortOrder: 'asc' }
 }
 
 function getCurrentDateInfo() {
@@ -321,13 +387,14 @@ function getSortedEvents(list, sortKey, sortOrder) {
   })
 }
 
-function getDisplayEvents(options = {}, sourceList = []) {
+function getDisplayEvents(options = {}) {
   const activeFilter = options.activeFilter || 'all'
   const activeTypeFilter = options.activeTypeFilter || 'all'
   const activeLocationScope = options.activeLocationScope || 'all'
   const activeCityName = options.activeCityName || ''
   const selectedDate = options.selectedDate || ''
-  let list = sourceList.slice()
+  const keyword = String(options.keyword || '').trim().toLowerCase()
+  let list = (Array.isArray(options.eventsList) ? options.eventsList : eventsList).slice()
 
   if (activeFilter !== 'all') {
     list = list.filter((item) => item.categoryKey === activeFilter || item.type === activeFilter)
@@ -349,20 +416,20 @@ function getDisplayEvents(options = {}, sourceList = []) {
     list = list.filter((item) => isSameEventDate(item, selectedDate))
   }
 
+  if (keyword) {
+    list = list.filter((item) => {
+      return [item.title, item.location, item.tag, item.typeText, item.cityName].some((value) => {
+        return String(value || '').toLowerCase().indexOf(keyword) > -1
+      })
+    })
+  }
+
   return getSortedEvents(list, options.sortKey, options.sortOrder)
-}
-
-function getFirstAvailableCityName(list = []) {
-  const city = list
-    .map((item) => item && item.cityName)
-    .find((value) => value)
-
-  return city || ''
 }
 
 Page({
   data: {
-    onlineText: '',
+    onlineText: '在线',
     keyword: '',
     hallScrollTop: 0,
     featuredCover: '/pages/game/hall/assets/hall-featured-city.jpg',
@@ -373,19 +440,15 @@ Page({
       { name: '消息', active: false },
       { name: '首页', active: true }
     ],
-    categories: [
-      { key: 'social', name: '社交局', iconSrc: '/pages/game/hall/assets/category-social.png', className: 'social' },
-      { key: 'task', name: '任务局', iconSrc: '/pages/game/hall/assets/category-task.png', className: 'task' },
-      { key: 'growth', name: '成长局', iconSrc: '/pages/game/hall/assets/category-growth.png', className: 'growth' },
-      { key: 'income', name: '变现局', iconSrc: '/pages/game/hall/assets/category-income.png', className: 'income' },
-      { key: 'more', name: '更多', iconSrc: '/pages/game/hall/assets/category-more.png', className: 'more' }
-    ],
+    categories: [],
     activeFilter: 'all',
     activeTypeFilter: 'all',
+    eventActions: [],
     activeLocationScope: 'all',
     activeCityName: '',
     selectedDate: '',
     typeFilterText: getTypeFilterLabel('all'),
+    typeFilters: TYPE_FILTERS,
     sortKey: '',
     sortOrder: 'asc',
     sortArrow: '▶',
@@ -399,43 +462,82 @@ Page({
     calendarMonth: getCurrentDateInfo().month,
     calendarTitle: formatCalendarTitle(getCurrentDateInfo().year, getCurrentDateInfo().month),
     calendarDays: buildCalendarDays(getCurrentDateInfo().year, getCurrentDateInfo().month),
-    loading: false,
-    loadErrorText: '',
-    eventsList: [],
-    displayEventsList: []
+    eventsList,
+    displayEventsList: eventsList,
+    loading: false
   },
 
   onLoad() {
-    this.loadGameList()
+    this.loadCategoryConfig()
+    this.loadGames()
   },
 
-  async loadGameList(extraParams = {}) {
-    this.setData({
-      loading: true,
-      loadErrorText: ''
-    })
+  loadCategoryConfig() {
+    gameService.getCategoryConfig().then((data) => {
+      const categories = normalizeCategoryList(data)
+      const advancedCategoryOptions = normalizeAdvancedCategoryOptions(data)
+      const typeFilters = normalizeTypeFilters(data)
+      const locationOptions = normalizeLocationOptions(data)
+      const sortOptions = normalizeSortOptions(data)
+      const eventActions = normalizeEventActions(data)
+      const nextData = {}
+
+      if (categories) {
+        nextData.categories = categories
+      }
+
+      if (advancedCategoryOptions) {
+        nextData.advancedCategoryOptions = advancedCategoryOptions
+      }
+
+      if (typeFilters) {
+        nextData.typeFilters = typeFilters
+        nextData.typeFilterText = getTypeFilterLabel(this.data.activeTypeFilter, typeFilters)
+      }
+
+      if (locationOptions) {
+        nextData.advancedLocationOptions = locationOptions
+      }
+
+      if (sortOptions.length) {
+        nextData.advancedSortOptions = sortOptions
+      }
+
+      if (eventActions.length) {
+        nextData.eventActions = eventActions
+      }
+
+      if (Object.keys(nextData).length) {
+        this.setData(nextData)
+        this.setData({
+          eventsList: (this.data.eventsList || []).map((item) => Object.assign({}, item, {
+            actions: eventActions.length ? eventActions : item.actions
+          }))
+        })
+        this.updateDisplayEvents({})
+      }
+    }).catch(() => {})
+  },
+
+  async loadGames() {
+    this.setData({ loading: true })
 
     try {
-      const data = await gameService.getGameList(Object.assign({
-        page: 1,
-        pageSize: 20,
-        keyword: this.data.keyword || ''
-      }, extraParams))
-      const events = getGameListItems(data).map(normalizeGameCard).filter((item) => item.id)
+      const data = await gameService.getGameList()
+      const events = normalizeHallGames(data, this.data.eventActions)
 
       this.setData({
         loading: false,
         eventsList: events
       })
-      this.updateDisplayEvents()
+      this.updateDisplayEvents({})
     } catch (error) {
       this.setData({
         loading: false,
-        loadErrorText: error.message || '局列表加载失败',
         eventsList: [],
         displayEventsList: []
       })
-      toast.info(error.message || '局列表加载失败')
+      toast.info(error.message || '组局列表加载失败')
     }
   },
 
@@ -446,20 +548,29 @@ Page({
   },
 
   onSearch() {
-    this.loadGameList()
+    this.updateDisplayEvents({})
   },
 
   onBannerTap() {
-    toast.info('官方局详情开发中')
+    const featured = this.data.eventsList.find((item) => (
+      item.official ||
+      item.tag === '官方局' ||
+      String(item.title || '').indexOf('官方') > -1 ||
+      String(item.title || '').indexOf('首发') > -1
+    )) || this.data.eventsList[0]
+
+    if (featured && featured.id) {
+      navigateShellRoute(`${ROUTES.gameDetail}?id=${featured.id}`, {
+        currentRoute: ROUTES.gameHall
+      })
+      return
+    }
+
+    this.scrollHallToTop()
   },
 
   onCategoryTap(event) {
     const key = event.currentTarget.dataset.type || 'all'
-
-    if (key === 'more') {
-      toast.info('更多分类开发中')
-      return
-    }
 
     this.updateDisplayEvents({
       activeFilter: key
@@ -482,7 +593,7 @@ Page({
 
   toggleTypeFilter() {
     this.updateDisplayEvents({
-      activeTypeFilter: getNextTypeFilterKey(this.data.activeTypeFilter)
+      activeTypeFilter: getNextTypeFilterKey(this.data.activeTypeFilter, this.data.typeFilters || TYPE_FILTERS)
     })
   },
 
@@ -497,14 +608,15 @@ Page({
   },
 
   openAdvancedFilter() {
-    const categoryKey = ADVANCED_CATEGORY_OPTIONS.some((item) => item.key === this.data.activeFilter)
+    const categoryOptions = this.data.advancedCategoryOptions || ADVANCED_CATEGORY_OPTIONS
+    const categoryKey = categoryOptions.some((item) => item.key === this.data.activeFilter)
       ? this.data.activeFilter
       : 'all'
     const draft = getAdvancedDraft({
       locationScope: this.data.activeLocationScope,
       cityName: this.data.activeCityName,
       categoryKey,
-      sortMode: getAdvancedSortByState(this.data.sortKey, this.data.sortOrder),
+      sortMode: getAdvancedSortByState(this.data.sortKey, this.data.sortOrder, this.data.advancedSortOptions),
       selectedDate: this.data.selectedDate
     })
 
@@ -544,12 +656,10 @@ Page({
   },
 
   selectAdvancedCity() {
-    const cityName = this.data.advancedDraft.cityName || getFirstAvailableCityName(this.data.eventsList)
-
     this.setData({
       advancedDraft: Object.assign({}, this.data.advancedDraft, {
         locationScope: 'city',
-        cityName
+        cityName: this.data.advancedDraft.cityName || this.data.activeCityName || ''
       })
     })
   },
@@ -591,7 +701,7 @@ Page({
 
   confirmAdvancedFilter() {
     const draft = this.data.advancedDraft
-    const sortOption = getAdvancedSortByKey(draft.sortMode)
+    const sortOption = getAdvancedSortByKey(draft.sortMode, this.data.advancedSortOptions)
 
     this.updateDisplayEvents({
       activeFilter: draft.categoryKey || 'all',
@@ -622,11 +732,13 @@ Page({
       activeLocationScope,
       activeCityName,
       selectedDate,
-      typeFilterText: getTypeFilterLabel(activeTypeFilter),
+      typeFilterText: getTypeFilterLabel(activeTypeFilter, this.data.typeFilters || TYPE_FILTERS),
       sortKey,
       sortOrder,
       sortArrow: sortKey ? (sortOrder === 'desc' ? '▼' : '▲') : '▶',
       displayEventsList: getDisplayEvents({
+        eventsList: this.data.eventsList,
+        keyword: this.data.keyword,
         activeFilter,
         activeTypeFilter,
         activeLocationScope,
@@ -634,7 +746,7 @@ Page({
         selectedDate,
         sortKey,
         sortOrder
-      }, this.data.eventsList)
+      })
     })
   },
 
@@ -642,21 +754,13 @@ Page({
     const item = event.detail && event.detail.item
     const id = (item && item.id) || event.currentTarget.dataset.id || ''
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameDetail}?id=${id}`
+    navigateShellRoute(`${ROUTES.gameDetail}?id=${id}`, {
+      currentRoute: ROUTES.gameHall
     })
   },
 
   handleShellNavTap(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key === 'up' || key === 'down') {
       if (!this.suppressNextNavTap) {
@@ -665,8 +769,10 @@ Page({
       return
     }
 
-    if (key === 'left' || key === 'right') {
-      toast.info('功能正在开发中')
+    if (navigateShellKey(key, {
+      currentRoute: ROUTES.gameHall,
+      onSameRoute: () => this.scrollHallToTop()
+    })) {
       return
     }
 
@@ -675,14 +781,6 @@ Page({
 
   handleShellNavLongPress(event) {
     const key = event.detail && event.detail.key
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
 
     if (key !== 'up' && key !== 'down') {
       return
@@ -724,7 +822,7 @@ Page({
 
     const routeMap = {
       metaverse: ROUTES.metaverse,
-      map: ''
+      map: ROUTES.map
     }
 
     this.navigateToRoute(routeMap[key])
@@ -735,8 +833,8 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${route}`
+    navigateShellRoute(route, {
+      currentRoute: ROUTES.gameHall
     })
   },
 

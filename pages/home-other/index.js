@@ -1,6 +1,7 @@
 const roleService = require('../../services/role')
 const { ROUTES } = require('../../config/routes')
 const UI_ICONS = require('../../config/ui-icons')
+const { navigateShellRoute } = require('../../utils/shell-nav')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_CONTENT_TOP_RPX = 181
@@ -16,7 +17,7 @@ const HOME_ROUTE_MAP = {
 const GUIDE_SERVICE_COUNT = 3
 const GUIDE_SERVICE_NAME_MAX_LENGTH = 20
 const GUIDE_UPLOAD_ACCEPT_TYPES = ['JPG', 'PNG', 'PDF']
-const DEFAULT_GUIDE_AUDIENCE = ['朋友', '同事', '同城玩家']
+const DEFAULT_GUIDE_AUDIENCE = []
 const GUIDE_MONEY_RULE = {
   integerMaxLength: 8,
   decimalMaxLength: 2
@@ -25,9 +26,9 @@ const PENDING_TIMELINE_STEPS = [
   {
     title: '提交申请',
     time: {
-      done: '2024.06.08 10:30',
-      active: '进行中...',
-      todo: '待开始'
+      done: '',
+      active: '',
+      todo: ''
     },
     text(meta) {
       return {
@@ -40,9 +41,9 @@ const PENDING_TIMELINE_STEPS = [
   {
     title: '资料初审',
     time: {
-      done: '2024.06.08 11:15',
-      active: '进行中...',
-      todo: '待完成'
+      done: '',
+      active: '',
+      todo: ''
     },
     text() {
       return {
@@ -55,9 +56,9 @@ const PENDING_TIMELINE_STEPS = [
   {
     title: '深度审核',
     time: {
-      done: '已完成',
-      active: '进行中...',
-      todo: '待完成'
+      done: '',
+      active: '',
+      todo: ''
     },
     text(meta) {
       return {
@@ -70,9 +71,9 @@ const PENDING_TIMELINE_STEPS = [
   {
     title: '结果通知',
     time: {
-      done: '已通知',
-      active: '进行中...',
-      todo: '待完成'
+      done: '',
+      active: '',
+      todo: ''
     },
     text() {
       return {
@@ -90,7 +91,7 @@ const PROGRESS_ROLE_META = {
     applyTitle: '行家申请',
     submittedText: '已成功提交行家申请资料',
     reviewingText: '正在评估你的专业能力、资质材料及服务说明',
-    applicationNo: 'HJ20240608001'
+    applicationNo: ''
   },
   guide: {
     roleName: '领路人',
@@ -98,7 +99,7 @@ const PROGRESS_ROLE_META = {
     applyTitle: '领路人申请',
     submittedText: '已成功提交领路人申请资料',
     reviewingText: '正在评估你的组局记录、信用分及领路计划书',
-    applicationNo: 'LR20240608001'
+    applicationNo: ''
   }
 }
 
@@ -106,29 +107,223 @@ const REJECTED_PAGE_META = {
   expert: {
     roleName: '行家',
     roleClass: 'role-expert',
-    applicationNo: 'HJ20240608001',
-    reasons: ['服务案例材料不足（需 ≥ 3 个，当前 1 个）', '专业能力说明不完整，需补充资质证明'],
-    suggestions: [
-      '补充更多可验证的服务案例和项目经历',
-      '完善个人资料，突出专业能力与服务边界',
-      '重新撰写行家申请说明，详细描述服务内容',
-      '上传资质证明或过往成果可提升审核通过率'
-    ],
-    suggestionNote: '行家申请说明与资质证明不够完整，需补充具体服务案例和证明材料'
+    applicationNo: '',
+    reasons: [],
+    suggestions: [],
+    suggestionNote: ''
   },
   guide: {
     roleName: '领路人',
     roleClass: 'role-guide',
-    applicationNo: 'LR20240608001',
-    reasons: ['组局参与次数不足（需 ≥ 3 次，当前 2 次）', '信用分未达到要求（需 ≥ 80 分，当前 75 分）'],
-    suggestions: [
-      '多参与平台组局活动，积累带队经验',
-      '完善个人资料，提升信用评分',
-      '重新撰写领路计划书，详细描述你的服务优势',
-      '获得其他领路人的推荐背书可加速审核'
-    ],
-    suggestionNote: '领路计划书描述过于简单，需补充具体战绩和规划说明'
+    applicationNo: '',
+    reasons: [],
+    suggestions: [],
+    suggestionNote: ''
   }
+}
+
+const ROLE_STATUS_ROUTE_KEY_MAP = {
+  relationNetwork: ROUTES.relationNetwork,
+  gameInvite: ROUTES.gameInvite,
+  profileSystemProfileInfo: ROUTES.profileSystemProfileInfo
+}
+
+function formatTemplate(template = '', values = {}) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => (
+    values[key] == null ? '' : String(values[key])
+  ))
+}
+
+function formatRuntimeTime(value, fallback = '') {
+  if (!value) {
+    return fallback
+  }
+
+  return String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?(?:Z|\+08:00)?$/, '')
+}
+
+function normalizeConfigRoleType(roleType, config = {}) {
+  const text = String(roleType || '').trim()
+  const aliases = config.roleAliases || {}
+
+  return aliases[text] || normalizeProgressRoleType(text)
+}
+
+function getStatusTexts(config = {}) {
+  return config.texts || {}
+}
+
+function getStatusRoleMeta(config = {}, roleType = 'guide') {
+  const normalizedRoleType = normalizeConfigRoleType(roleType, config)
+  const metaMap = config.roleMeta || {}
+  const fallback = getProgressRoleMeta(normalizedRoleType)
+
+  return Object.assign({}, fallback, metaMap[normalizedRoleType] || {}, {
+    roleClass: fallback.roleClass,
+    roleName: (metaMap[normalizedRoleType] && metaMap[normalizedRoleType].roleName) || fallback.roleName,
+    applyTitle: (metaMap[normalizedRoleType] && metaMap[normalizedRoleType].applyTitle) || fallback.applyTitle
+  })
+}
+
+function findRoleApplication(applications = [], roleType = 'guide', config = {}) {
+  const normalizedRoleType = normalizeConfigRoleType(roleType, config)
+
+  return applications.find((item) => {
+    return normalizeConfigRoleType(item.roleType || item.roleCode || item.role_code || item.role, config) === normalizedRoleType
+  }) || {}
+}
+
+function getApplicationNo(application = {}, texts = {}) {
+  return application.applicationNo ||
+    application.application_no ||
+    application.applicationId ||
+    application.id ||
+    texts.applicationNoFallback ||
+    ''
+}
+
+function buildRuntimeTimeline(config = {}, roleType = 'guide', application = {}) {
+  const meta = getStatusRoleMeta(config, roleType)
+  const texts = getStatusTexts(config)
+  const source = Array.isArray(config.pendingTimeline) && config.pendingTimeline.length
+    ? config.pendingTimeline
+    : []
+
+  return source.map((item) => {
+    const desc = item.descTemplate
+      ? formatTemplate(item.descTemplate, { roleName: meta.roleName })
+      : item.descByRole && item.descByRole[normalizeConfigRoleType(roleType, config)]
+        ? item.descByRole[normalizeConfigRoleType(roleType, config)]
+        : item.desc || ''
+    const timeValue = item.timeField ? application[item.timeField] : ''
+    const state = item.state === 'pending' ? 'todo' : (item.state || 'todo')
+
+    return {
+      title: item.title || '',
+      text: desc,
+      time: formatRuntimeTime(timeValue, item.time || item.fallbackTime || texts.backendRecordFallback || ''),
+      state
+    }
+  }).filter((item) => item.title)
+}
+
+function buildPendingDetailsFromApplication(config = {}, roleType = 'guide', application = {}, withStatus = false) {
+  const meta = getStatusRoleMeta(config, roleType)
+  const texts = getStatusTexts(config)
+  const details = [
+    { label: texts.fieldRoleLabel || '申请角色', value: meta.roleName, cyan: true },
+    {
+      label: texts.fieldApplyTimeLabel || '申请时间',
+      value: formatRuntimeTime(application.submittedAt || application.createdAt || application.created_at, texts.submittedFallback || '')
+    },
+    { label: texts.fieldApplicationNoLabel || '申请编号', value: getApplicationNo(application, texts) }
+  ]
+
+  if (withStatus) {
+    details.push(
+      { label: texts.fieldCurrentStatusLabel || '当前状态', value: application.statusText || texts.pendingStatusText || '', cyan: true },
+      {
+        label: texts.fieldExpectedLabel || '预计完成',
+        value: formatRuntimeTime(application.expectedReviewAt || application.expectedReviewedAt, texts.expectedDoneFallback || '')
+      }
+    )
+  }
+
+  return details
+}
+
+function applyRoleStatusConfigToPage(page, config = {}, applications = []) {
+  if (!page || !config) {
+    return page
+  }
+
+  const roleType = normalizeConfigRoleType(page.roleType || page.targetRole || page.applyRoleType || 'guide', config)
+  const meta = getStatusRoleMeta(config, roleType)
+  const texts = getStatusTexts(config)
+  const application = findRoleApplication(applications, roleType, config)
+
+  if (page.id === 'pendingSimple' || page.id === 'pendingCards') {
+    const timeline = buildRuntimeTimeline(config, roleType, application)
+    const expectedReviewAt = application.expectedReviewAt || application.expectedReviewedAt || application.estimatedReviewAt || ''
+    const expectedText = expectedReviewAt
+      ? formatTemplate(texts.expectedTemplate || '', { expectedReviewAt: formatRuntimeTime(expectedReviewAt) })
+      : texts.expectedFallback
+
+    return Object.assign({}, page, {
+      title: texts.pendingPageTitle || page.title,
+      roleType,
+      statusTitle: texts.pendingTitle || page.statusTitle,
+      statusSubtitle: formatTemplate(texts.pendingSubtitleTemplate || page.statusSubtitle, { roleName: meta.roleName }),
+      description: [texts.pendingDesc || (page.description && page.description[0])].filter(Boolean),
+      estimateTitle: texts.expectedLabel || page.estimateTitle,
+      estimateText: expectedText || page.estimateText,
+      progressTextLeft: texts.submittedFallback || page.progressTextLeft,
+      progressTextRight: expectedReviewAt
+        ? formatRuntimeTime(expectedReviewAt, page.progressTextRight)
+        : (texts.expectedDoneFallback || page.progressTextRight),
+      timeline: timeline.length ? timeline : page.timeline,
+      detailsTitle: texts.detailTitle || page.detailsTitle,
+      details: buildPendingDetailsFromApplication(config, roleType, application, page.id === 'pendingCards'),
+      helperText: texts.pendingHelper || page.helperText,
+      footerButtons: page.footerButtons ? [
+        { text: texts.pendingFooterHomeText || page.footerButtons[0].text },
+        { text: formatTemplate(texts.pendingFooterBenefitsText || page.footerButtons[1].text, { roleName: meta.roleName }), green: true }
+      ] : page.footerButtons
+    })
+  }
+
+  if (page.rejected) {
+    const rejectReasons = application.rejectReasons || application.rejectReason || application.reject_reason
+    const reasons = Array.isArray(rejectReasons)
+      ? rejectReasons
+      : String(rejectReasons || '').split(/[；;，,]/).map((item) => item.trim()).filter(Boolean)
+    const suggestionTemplates = Array.isArray(config.suggestionTemplates) ? config.suggestionTemplates : []
+    const improveText = (config.improvePlanTextByRole || {})[roleType] || meta.applyTitle || ''
+    const suggestions = suggestionTemplates.map((item) => formatTemplate(item, { improvePlanText: improveText })).filter(Boolean)
+    const reviewedAt = application.reviewedAt || application.reviewed_at || application.updatedAt
+    const submittedAt = application.submittedAt || application.createdAt || application.created_at
+
+    return Object.assign({}, page, {
+      title: texts.resultPageTitle || page.title,
+      roleType,
+      statusTitle: texts.rejectedTitle || page.statusTitle,
+      description: [texts.rejectedDesc, texts.rejectedSubtitle].filter(Boolean),
+      reasons: reasons.length ? reasons : (config.defaultRejectReasons || page.reasons),
+      suggestions: suggestions.length ? suggestions : page.suggestions,
+      retryText: texts.reapplyDesc || page.retryText,
+      detailsTitle: texts.recordTitle || page.detailsTitle,
+      details: [
+        { label: texts.fieldRoleLabel || '申请角色', value: meta.roleName, accent: true },
+        { label: texts.fieldApplyTimeLabel || '申请时间', value: formatRuntimeTime(submittedAt, texts.submittedFallback || '') },
+        { label: texts.fieldRejectTimeLabel || '驳回时间', value: formatRuntimeTime(reviewedAt, texts.backendRecordFallback || '') },
+        { label: texts.fieldReapplyLabel || '可重新申请', value: texts.reapplyNotifyFallback || '', cyan: true }
+      ],
+      footerButtons: [
+        { text: texts.rejectedHelpText || '查看帮助', ghost: true },
+        { text: texts.rejectedImproveText || '完善资料' }
+      ]
+    })
+  }
+
+  if (page.targetRole) {
+    const approvedActions = Array.isArray(config.approvedActions) ? config.approvedActions : []
+
+    return Object.assign({}, page, {
+      title: texts.resultPageTitle || page.title,
+      statusTitle: texts.approvedTitle || page.statusTitle,
+      statusSubtitle: formatTemplate(texts.approvedSubtitleTemplate || page.statusSubtitle, { roleName: meta.roleName }),
+      description: [texts.approvedAuditDesc || (page.description && page.description[0]), meta.approvedCopy].filter(Boolean),
+      giftTitle: texts.giftTitle || page.giftTitle,
+      actions: approvedActions.length ? approvedActions.map((item) => ({
+        iconText: UI_ICONS.action[item.iconKey] || item.iconText || '',
+        text: item.text || '',
+        route: ROLE_STATUS_ROUTE_KEY_MAP[item.routeKey] || item.route || ''
+      })) : page.actions,
+      primaryText: meta.primaryText || page.primaryText
+    })
+  }
+
+  return page
 }
 
 function getPositiveInteger(value, fallback) {
@@ -164,6 +359,110 @@ function createGuideApplyForm() {
   }
 }
 
+function trimText(value) {
+  return String(value || '').trim()
+}
+
+function hasGuideServiceContent(service = {}) {
+  return Boolean(trimText(service.name) || trimText(service.price) || trimText(service.cost))
+}
+
+function ensureGuideApplyServices(services = [], count = GUIDE_SERVICE_COUNT) {
+  const serviceCount = getPositiveInteger(count, GUIDE_SERVICE_COUNT)
+  const existingServices = Array.isArray(services) ? services : []
+  const nextServices = createGuideApplyServices(serviceCount)
+
+  return nextServices.map((service, index) => Object.assign({}, service, existingServices[index] || {}))
+}
+
+function getGuideAudienceFromFields(fields = []) {
+  const audienceField = fields.find((field) => field && field.key === 'audience' && Array.isArray(field.options))
+
+  return audienceField
+    ? audienceField.options.filter((option) => option.active).map((option) => option.name).filter(Boolean)
+    : DEFAULT_GUIDE_AUDIENCE.slice()
+}
+
+function normalizeGuideApplyConfig(config = {}) {
+  const serviceCount = getPositiveInteger(config.serviceCount, GUIDE_SERVICE_COUNT)
+  const fields = Array.isArray(config.fields) && config.fields.length
+    ? config.fields
+    : []
+  const uploadField = Object.assign({}, {
+    label: '资质证明',
+    required: true,
+    icon: UI_ICONS.panel.upload,
+    title: '点击上传作品集及凭证',
+    helper: '支持 JPG、PNG、PDF，最多 5 张',
+    acceptTypes: GUIDE_UPLOAD_ACCEPT_TYPES,
+    maxCount: 5
+  }, config.uploadField || {})
+
+  return {
+    applyRoleType: config.applyRoleType || 'guide',
+    applyRoleName: config.applyRoleName || '领路人',
+    requirements: Array.isArray(config.requirements) ? config.requirements : [],
+    planTask: config.planTask || {},
+    perks: Array.isArray(config.perks) ? config.perks : [],
+    fields,
+    uploadField,
+    serviceBlocks: Array.isArray(config.serviceBlocks) && config.serviceBlocks.length
+      ? config.serviceBlocks
+      : createGuideServiceBlocks(serviceCount),
+    serviceCount,
+    priceHint: config.priceHint || '平台将收取 10% 服务费',
+    primaryText: config.primaryText || '提交领路人申请',
+    helperText: config.helperText || '审核预计 1-3 个工作日'
+  }
+}
+
+function applyGuideApplyConfigToPage(page, config = null) {
+  if (!page || !config) {
+    return page
+  }
+
+  const normalizedConfig = normalizeGuideApplyConfig(config)
+
+  if (page.id === 'guideApply') {
+    return Object.assign({}, page, {
+      toolbarSave: false,
+      requirements: normalizedConfig.requirements.length ? normalizedConfig.requirements : page.requirements,
+      planTask: Object.keys(normalizedConfig.planTask).length ? normalizedConfig.planTask : page.planTask,
+      perks: normalizedConfig.perks.length ? normalizedConfig.perks : page.perks,
+      primaryText: normalizedConfig.primaryText || page.primaryText,
+      helperText: normalizedConfig.helperText || page.helperText
+    })
+  }
+
+  if (page.id === 'guideApplyForm') {
+    return Object.assign({}, page, {
+      toolbarSave: true,
+      applyRoleType: normalizedConfig.applyRoleType,
+      applyRoleName: normalizedConfig.applyRoleName,
+      formFields: normalizedConfig.fields.length ? normalizedConfig.fields : page.formFields,
+      uploadField: normalizedConfig.uploadField,
+      serviceBlocks: normalizedConfig.serviceBlocks,
+      priceHint: normalizedConfig.priceHint,
+      primaryText: normalizedConfig.primaryText,
+      helperText: normalizedConfig.helperText
+    })
+  }
+
+  return page
+}
+
+function fillGuideApplyFieldValues(page, form = {}) {
+  if (!page || !Array.isArray(page.formFields)) {
+    return page
+  }
+
+  return Object.assign({}, page, {
+    formFields: page.formFields.map((field) => Object.assign({}, field, {
+      value: form[field.key] || ''
+    }))
+  })
+}
+
 function normalizeUploadFile(file, index) {
   const path = file.path || file.tempFilePath || ''
   const name = file.name || path.split('/').pop() || `file-${index + 1}`
@@ -193,6 +492,13 @@ function normalizeMoneyInput(value) {
     new RegExp(`^(\\d{0,${GUIDE_MONEY_RULE.integerMaxLength}})(\\.\\d{0,${GUIDE_MONEY_RULE.decimalMaxLength}})?.*$`),
     '$1$2'
   )
+}
+
+function getGuidePlanMinLength(config = {}) {
+  const rules = config.validationRules || {}
+  const guidePlanRule = rules.guidePlan || {}
+
+  return getPositiveInteger(guidePlanRule.minLength, 50)
 }
 
 function normalizeProgressRoleType(roleType) {
@@ -235,14 +541,14 @@ function createPendingTimeline(meta, activeStep = 'deepReview') {
 function createPendingDetails(meta, withStatus = false) {
   const details = [
     { label: '申请角色', value: meta.roleName, cyan: true },
-    { label: '申请时间', value: '2024.06.08 10:30' },
+    { label: '申请时间', value: '' },
     { label: '申请编号', value: meta.applicationNo }
   ]
 
   if (withStatus) {
     details.push(
-      { label: '当前状态', value: '深度审核中', cyan: true },
-      { label: '预计完成', value: '2024.06.12 18:00' }
+      { label: '当前状态', value: '', cyan: true },
+      { label: '预计完成', value: '' }
     )
   }
 
@@ -264,7 +570,7 @@ function createPendingSimplePage(roleType = 'guide') {
     statusSubtitle: `${meta.applyTitle}正在审核`,
     description: ['平台正在评估你的申请资料，请耐心等待'],
     estimateTitle: '预计完成时间',
-    estimateText: '预计 2024.06.12 18:00 前完成审核，届时将通过站内消息和短信通知你审核结果。',
+    estimateText: '',
     timeline: createPendingTimeline(meta),
     detailsTitle: '申请详情',
     detailsIconText: UI_ICONS.panel.record,
@@ -287,8 +593,8 @@ function createPendingCardsPage(roleType = 'guide') {
     statusTitle: '审核中',
     statusSubtitle: `${meta.applyTitle}正在审核`,
     description: ['平台正在评估你的申请资料'],
-    progressTextLeft: '已提交',
-    progressTextRight: '预计 2024.06.12 完成',
+    progressTextLeft: '',
+    progressTextRight: '',
     timeline: createPendingTimeline(meta),
     detailsTitle: '申请详情',
     detailsIconText: UI_ICONS.panel.record,
@@ -321,9 +627,9 @@ function createRejectedPage(roleType = 'guide') {
     detailsTitle: '申请记录',
     details: [
       { label: '申请角色', value: meta.roleName, accent: true },
-      { label: '申请时间', value: '2024.06.08 10:30' },
-      { label: '驳回时间', value: '2024.06.10 16:45' },
-      { label: '可重新申请', value: '2024.06.17 后', cyan: true }
+      { label: '申请时间', value: '' },
+      { label: '驳回时间', value: '' },
+      { label: '可重新申请', value: '', cyan: true }
     ],
     footerButtons: [
       { text: '查看帮助', ghost: true },
@@ -397,25 +703,13 @@ const HOME_OTHER_PAGES = [
     title: '申请领路人',
     variant: 'apply',
     toolbar: true,
-    toolbarSave: true,
+    toolbarSave: false,
     statusIconText: UI_ICONS.status.apply,
     statusTitle: '申请成为领路人',
     statusSubtitle: '我愿意带领更多人一起玩！我申请成为领路人',
-    requirements: [
-      { title: '玩家等级达到 Lv.5', text: '当前等级: Lv.6 ✓ 已满足', done: true },
-      { title: '完成实名认证', text: '认证状态: 已通过 ✓ 已满足', done: true },
-      { title: '完成企业认证', text: '认证状态: 已通过 ✓ 已满足', done: true },
-      { title: '参与过 3 次以上组局', text: '当前: 5 次 ✓ 已满足', done: true },
-      { title: '已成功邀请≥ 1人完成组局', text: '当前: 2 次 ✓ 已满足', done: true },
-      { title: '信用分 ≥ 80 分', text: '当前: 82 分 ✓ 已满足', done: true },
-      { title: '会员等级 ≥ 基础会员', text: '当前: 基础会员 ✓ 已满足', done: true }
-    ],
-    planTask: { title: '提交领路计划书', text: '描述你的带队风格、战绩、资源和规划', done: false, action: '去填写 ›' },
-    perks: [
-      { icon: UI_ICONS.panel.revenue, text: '有权益的领路人引荐玩家组局可获得相应收入' },
-      { icon: UI_ICONS.panel.featured, text: '专属领路人标识与优先推荐位' },
-      { icon: UI_ICONS.panel.data, text: '数据看板：查看邀约数据与关系网络' }
-    ],
+    requirements: [],
+    planTask: {},
+    perks: [],
     primaryText: '提交申请',
     helperText: '审核预计 1-3 个工作日'
   },
@@ -430,47 +724,7 @@ const HOME_OTHER_PAGES = [
     statusIconText: UI_ICONS.status.apply,
     statusTitle: '申请成为领路人',
     statusSubtitle: '我愿意带领更多人一起玩！我申请成为领路人',
-    formFields: [
-      {
-        key: 'city',
-        label: '所在城市',
-        type: 'input',
-        required: true,
-        placeholder: '请输入常驻城市',
-        maxlength: 20,
-        helper: '用于匹配同城玩家与组局推荐'
-      },
-      {
-        key: 'audience',
-        label: '可推荐人群',
-        type: 'chips',
-        required: true,
-        options: [
-          { name: '朋友', active: true },
-          { name: '同事', active: true },
-          { name: '同城玩家', active: true },
-          { name: '社群成员', active: false }
-        ],
-        helper: '可多选，后续将用于关系网推荐'
-      },
-      {
-        key: 'contact',
-        label: '常用联系方式',
-        type: 'input',
-        required: true,
-        placeholder: '请输入微信号或手机号',
-        maxlength: 30
-      },
-      {
-        key: 'guidePlan',
-        label: '领路计划书',
-        type: 'textarea',
-        required: true,
-        placeholder: '请描述你的带队风格、战绩、资源和规划',
-        maxlength: 300,
-        helper: '不少于 50 字，说明你能帮助玩家完成组局的方式'
-      }
-    ],
+    formFields: [],
     uploadField: {
       label: '资质证明',
       required: true,
@@ -553,6 +807,9 @@ Page({
     guideApplyForm: createGuideApplyForm(),
     guideServiceNameMaxLength: GUIDE_SERVICE_NAME_MAX_LENGTH,
     applyShellLayout: getApplyShellLayoutStyles(),
+    guideApplyConfig: null,
+    roleStatusConfig: null,
+    roleApplications: [],
     uiIcons: UI_ICONS
   },
 
@@ -581,6 +838,7 @@ Page({
       pageTotal: previewSingle ? 1 : HOME_OTHER_PAGES.length,
       applyShellLayout: getApplyShellLayoutStyles()
     })
+    this.loadRuntimeRoleStatus()
   },
 
   handlePreviewTap(event) {
@@ -600,14 +858,14 @@ Page({
 
     this.setData({
       currentIndex: nextIndex,
-      currentPage: applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType),
+      currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType)),
       pageNo: nextIndex + 1
     })
   },
 
   handleUnavailableTap() {
     wx.showToast({
-      title: '功能开发中',
+      title: '请选择可用入口',
       icon: 'none'
     })
   },
@@ -620,8 +878,8 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: route.indexOf('/') === 0 ? route : `/${route}`
+    navigateShellRoute(route, {
+      currentRoute: ROUTES.homeOther
     })
   },
 
@@ -635,8 +893,8 @@ Page({
           return
         }
 
-        wx.redirectTo({
-          url: `/${ROUTES.homeOther}?page=guideApply`
+        navigateShellRoute(`${ROUTES.homeOther}?page=guideApply`, {
+          currentRoute: ROUTES.homeOther
         })
         return
       }
@@ -646,7 +904,7 @@ Page({
       if (previousIndex >= 0) {
         this.setData({
           currentIndex: previousIndex,
-          currentPage: applyProgressRoleToPage(HOME_OTHER_PAGES[previousIndex], this.data.progressRoleType),
+          currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[previousIndex], this.data.progressRoleType)),
           pageNo: this.data.previewSingle ? 1 : previousIndex + 1
         })
         return
@@ -673,13 +931,32 @@ Page({
   },
 
   handleGuideApplySaveTap() {
-    this.handleUnavailableTap()
+    const currentPage = this.data.currentPage || {}
+
+    if (currentPage.id !== 'guideApplyForm') {
+      return
+    }
+
+    wx.showToast({
+      title: '已暂存申请信息',
+      icon: 'none'
+    })
   },
 
   handleGuidePlanTap() {
     if (this.data.previewSingle) {
-      wx.navigateTo({
-        url: `/${ROUTES.homeOther}?page=guideApplyForm`
+      const nextIndex = HOME_OTHER_PAGES.findIndex((page) => page.id === 'guideApplyForm')
+
+      if (nextIndex < 0) {
+        this.handleUnavailableTap()
+        return
+      }
+
+      this.setData({
+        currentIndex: nextIndex,
+        currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType)),
+        pageNo: 1,
+        pageTotal: 1
       })
       return
     }
@@ -693,9 +970,56 @@ Page({
 
     this.setData({
       currentIndex: nextIndex,
-      currentPage: applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType),
+      currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType)),
       pageNo: this.data.previewSingle ? 1 : nextIndex + 1
     })
+  },
+
+  decorateRuntimePage(page) {
+    return applyRoleStatusConfigToPage(
+      applyGuideApplyConfigToPage(page, this.data.guideApplyConfig),
+      this.data.roleStatusConfig,
+      this.data.roleApplications
+    )
+  },
+
+  async loadRuntimeRoleStatus() {
+    try {
+      const [statusConfig, applicationsData, guideApplyConfig] = await Promise.all([
+        roleService.getRoleStatusPageConfig(),
+        roleService.getMyRoleApplications(),
+        roleService.getGuideApplyConfig()
+      ])
+      const applications = Array.isArray(applicationsData)
+        ? applicationsData
+        : Array.isArray(applicationsData.items)
+          ? applicationsData.items
+          : []
+      const currentPage = applyGuideApplyConfigToPage(this.data.currentPage, guideApplyConfig)
+      const currentFields = (currentPage && currentPage.formFields) || []
+      const selectedAudience = getGuideAudienceFromFields(currentFields)
+      const nextGuideApplyForm = Object.assign({}, this.data.guideApplyForm, {
+        audience: (this.data.guideApplyForm.audience || []).length ? this.data.guideApplyForm.audience : selectedAudience,
+        services: ensureGuideApplyServices(
+          this.data.guideApplyForm.services,
+          getPositiveInteger((guideApplyConfig || {}).serviceCount, GUIDE_SERVICE_COUNT)
+        )
+      })
+
+      this.setData({
+        guideApplyConfig: guideApplyConfig || null,
+        roleStatusConfig: statusConfig || null,
+        roleApplications: applications,
+        currentPage: fillGuideApplyFieldValues(applyRoleStatusConfigToPage(currentPage, statusConfig, applications), nextGuideApplyForm),
+        guideApplyForm: nextGuideApplyForm
+      })
+    } catch (error) {
+      this.setData({
+        guideApplyConfig: null,
+        roleStatusConfig: null,
+        roleApplications: []
+      })
+    }
   },
 
   onGuideApplyServiceNameInput(event) {
@@ -721,6 +1045,26 @@ Page({
     this.setData({
       [`guideApplyForm.services[${index}].${field}`]: normalizeMoneyInput(event.detail.value)
     })
+  },
+
+  onGuideApplyFieldInput(event) {
+    const field = event.currentTarget.dataset.field
+    const fieldIndex = Number(event.currentTarget.dataset.fieldIndex)
+    const value = event.detail.value || ''
+
+    if (!field) {
+      return
+    }
+
+    const patch = {
+      [`guideApplyForm.${field}`]: value
+    }
+
+    if (Number.isInteger(fieldIndex) && fieldIndex >= 0) {
+      patch[`currentPage.formFields[${fieldIndex}].value`] = value
+    }
+
+    this.setData(patch)
   },
 
   onGuideApplyChipTap(event) {
@@ -835,6 +1179,69 @@ Page({
     setTimeout(goPlayerHome, 1200)
   },
 
+  validateGuideApplyForm() {
+    const form = this.data.guideApplyForm || {}
+    const currentPage = this.data.currentPage || {}
+    const fields = currentPage.formFields || []
+    const missingField = fields.find((field) => {
+      if (!field || !field.required) {
+        return false
+      }
+
+      const value = form[field.key]
+
+      return Array.isArray(value) ? value.length === 0 : !trimText(value)
+    })
+
+    if (missingField) {
+      wx.showToast({
+        title: `请填写${missingField.label}`,
+        icon: 'none'
+      })
+      return false
+    }
+
+    const guidePlanMinLength = getGuidePlanMinLength(this.data.guideApplyConfig || {})
+    if (trimText(form.guidePlan).length < guidePlanMinLength) {
+      wx.showToast({
+        title: `领路计划书不少于${guidePlanMinLength}字`,
+        icon: 'none'
+      })
+      return false
+    }
+
+    const uploadField = currentPage.uploadField || {}
+    if (uploadField.required && !(form.uploadFiles || []).length) {
+      wx.showToast({
+        title: `请上传${uploadField.label || '资质证明'}`,
+        icon: 'none'
+      })
+      return false
+    }
+
+    const firstIncompleteServiceIndex = (form.services || []).findIndex((service) => (
+      hasGuideServiceContent(service) && (!trimText(service.name) || !trimText(service.price))
+    ))
+
+    if (firstIncompleteServiceIndex >= 0) {
+      wx.showToast({
+        title: `请完善业务${firstIncompleteServiceIndex + 1}`,
+        icon: 'none'
+      })
+      return false
+    }
+
+    if (!(form.services || []).some((service) => trimText(service.name) && trimText(service.price))) {
+      wx.showToast({
+        title: '请至少填写一个业务',
+        icon: 'none'
+      })
+      return false
+    }
+
+    return true
+  },
+
   async handleGuideApplySubmit() {
     if (this.data.primaryNavigating) {
       return
@@ -843,6 +1250,10 @@ Page({
     const currentPage = this.data.currentPage || {}
     const applyRoleType = currentPage.applyRoleType || 'guide'
     const applyRoleName = currentPage.applyRoleName || '领路人'
+
+    if (!this.validateGuideApplyForm()) {
+      return
+    }
 
     this.setData({
       primaryNavigating: true
@@ -974,6 +1385,11 @@ Page({
 
     if (currentPage.id === 'guideApplyForm') {
       this.handleGuideApplySubmit()
+      return
+    }
+
+    if (currentPage.id === 'guideApply') {
+      this.handleGuidePlanTap()
       return
     }
 

@@ -2,16 +2,13 @@
   <view class="profile-page is-white">
     <text class="credit-heading">信用中心</text>
 
-    <view class="credit-score-card" wx:if="{{scoreCard.label || scoreCard.score || scoreCard.badges.length}}">
-      <text class="credit-score-label">{{scoreCard.label}}</text>
+    <view class="credit-score-card">
+      <text class="credit-score-label">{{scoreLabel}}</text>
       <view class="credit-score-row">
-        <text class="credit-score-number">{{scoreCard.score}}</text>
+        <text class="credit-score-number">{{score}}</text>
         <view class="credit-score-badges">
-          <text
-            wx:for="{{scoreCard.badges}}"
-            wx:key="text"
-            class="profile-status {{item.tone}}"
-          >{{item.text}}</text>
+          <text class="profile-status green">{{level}}</text>
+          <text class="profile-status">{{monthlyDelta}} 本月</text>
         </view>
       </view>
     </view>
@@ -24,9 +21,21 @@
     </view>
 
     <view class="profile-section">
-      <text class="profile-section-title">信用明细</text>
+      <view class="profile-section-head">
+        <text class="profile-section-title">信用明细</text>
+        <text class="profile-section-action" bindtap="handleAppealTap">{{appealEntry.text}}</text>
+      </view>
       <view class="profile-list-card">
-        <view wx:for="{{records}}" wx:key="title" class="credit-record-row">
+        <view wx:if="{{!records.length}}" class="credit-empty">暂无信用变更记录</view>
+        <view
+          wx:for="{{records}}"
+          wx:key="id"
+          class="credit-record-row"
+          data-report-id="{{item.reportId}}"
+          data-credit-log-id="{{item.creditLogId}}"
+          data-appeal-route="{{item.appealRoute}}"
+          bindtap="handleRecordTap"
+        >
           <view>
             <text class="profile-row-title">{{item.title}}</text>
             <text class="profile-muted">{{item.desc}}</text>
@@ -36,6 +45,6 @@
       </view>
     </view>
 
-    <text wx:if="{{bottomNote}}" class="credit-bottom-note">{{bottomNote}}</text>
+    <text class="credit-bottom-note">{{bottomNote}}</text>
   </view>
 </profile-white-shell>

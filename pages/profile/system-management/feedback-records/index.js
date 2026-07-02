@@ -1,12 +1,15 @@
 const toast = require('../../../../utils/toast')
 const profileService = require('../../../../services/profile')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
+
+const ASSET_BASE = '/pages/profile/system-management/feedback/assets'
 
 Page({
   data: {
     activeTab: 'all',
     tabs: [
       { key: 'all', label: '全部' },
-      { key: 'processing', label: '处理中' },
+      { key: 'processing', label: '处理中', count: 0 },
       { key: 'resolved', label: '已解决' }
     ],
     records: [],
@@ -14,49 +17,44 @@ Page({
   },
 
   onLoad() {
-    this.loadRecords()
-  },
-
-  async loadRecords() {
-    try {
-      const data = await profileService.getSystemFeedbackRecords({
-        status: this.data.activeTab
-      })
-      const records = this.normalizeList(data.records || data.list || data.items)
-
-      this.setData({
-        tabs: this.normalizeList(data.tabs).length ? data.tabs : this.data.tabs,
-        allRecords: records
-      }, () => this.applyRecordFilter(this.data.activeTab))
-    } catch (error) {
-      this.setData({
-        records: [],
-        allRecords: []
-      })
-      toast.info(error.message || '反馈记录加载失败')
-    }
+    this.loadRecords(this.data.activeTab)
   },
 
   handleTabTap(event) {
     const { key } = event.currentTarget.dataset
 
     if (key) {
+      this.loadRecords(key)
+    }
+  },
+
+  async loadRecords(activeTab) {
+    try {
+      const data = await profileService.getSystemFeedbackRecords({ tab: activeTab })
       this.setData({
-        activeTab: key
-      }, () => this.loadRecords())
+        activeTab: data.activeTab || activeTab,
+        tabs: Array.isArray(data.tabs) && data.tabs.length ? data.tabs : this.data.tabs,
+        records: Array.isArray(data.records) ? data.records : [],
+        allRecords: Array.isArray(data.allRecords) ? data.allRecords : this.data.allRecords
+      })
+    } catch (error) {
+      toast.info(error.message || '反馈记录暂时不可用')
+      this.setData({
+        activeTab,
+        records: [],
+        allRecords: []
+      })
     }
   },
 
   applyRecordFilter(activeTab) {
     const records = this.data.allRecords.filter((record) => {
-      const statusKey = this.getStatusKey(record)
-
       if (activeTab === 'resolved') {
-        return statusKey === 'resolved'
+        return record.statusClass === 'resolved'
       }
 
       if (activeTab === 'processing') {
-        return statusKey !== 'resolved'
+        return record.statusClass !== 'resolved'
       }
 
       return true
@@ -68,21 +66,10 @@ Page({
     })
   },
 
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
-  },
+  handleRecordTap(event) {
+    const { id } = event.currentTarget.dataset
+    const query = id ? `?id=${encodeURIComponent(id)}` : ''
 
-  getStatusKey(record) {
-    if (!record || typeof record !== 'object') {
-      return ''
-    }
-
-    return record.statusClass || record.statusKey || record.statusType || record.status || ''
-  },
-
-  handleRecordTap() {
-    wx.navigateTo({
-      url: '/pages/profile/system-management/feedback-detail/index'
-    })
+    navigateShellRoute(`/pages/profile/system-management/feedback-detail/index${query}`)
   }
 })

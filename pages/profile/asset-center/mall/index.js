@@ -1,7 +1,5 @@
 const profileService = require('../../../../services/profile')
-
-const DEFAULT_GOODS = [
-]
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 function parseNumber(value, fallback) {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -64,24 +62,20 @@ function normalizeGood(item, pointsAvailable, fallback) {
 
 function normalizeMallData(data, fallbackGoods) {
   const mall = data || {}
-  const fallback = fallbackGoods && fallbackGoods.length ? fallbackGoods : DEFAULT_GOODS
+  const fallback = fallbackGoods && fallbackGoods.length ? fallbackGoods : []
   const pointsAvailable = parseNumber(
     pickFirstValue(mall.pointsAvailable, mall.availablePoints, mall.pointsBalance, mall.points, mall.pointsText),
     0
   )
   const goodsSource = Array.isArray(mall.goods)
     ? mall.goods
-    : (Array.isArray(mall.items) ? mall.items : [])
+    : (Array.isArray(mall.items) ? mall.items : fallback)
   const fallbackMap = buildFallbackMap(fallback)
-  const goods = goodsSource.map((item, index) => normalizeGood(item, pointsAvailable, fallbackMap[item && item.id] || fallback[index]))
 
   return {
     points: pickFirstValue(mall.pointsText, mall.points, formatNumber(pointsAvailable)),
-    expireTip: pickFirstValue(mall.expireTip),
-    goods,
-    hasGoods: goods.length > 0,
-    errorText: '',
-    isLoading: false
+    expireTip: pickFirstValue(mall.expireTip, ''),
+    goods: goodsSource.map((item, index) => normalizeGood(item, pointsAvailable, fallbackMap[item && item.id] || fallback[index]))
   }
 }
 
@@ -92,10 +86,7 @@ Page({
     showExchangeModal: false,
     selectedGood: null,
     isExchanging: false,
-    goods: [],
-    hasGoods: false,
-    isLoading: false,
-    errorText: ''
+    goods: []
   },
 
   onLoad() {
@@ -103,11 +94,6 @@ Page({
   },
 
   async refreshMallGoods(options = {}) {
-    this.setData({
-      isLoading: true,
-      errorText: ''
-    })
-
     try {
       const mall = await profileService.getPointsMall()
 
@@ -118,13 +104,6 @@ Page({
       if (!options.silent) {
         console.warn('get points mall failed', error)
       }
-
-      this.setData({
-        goods: [],
-        hasGoods: false,
-        isLoading: false,
-        errorText: error && error.message ? error.message : '积分商城加载失败'
-      })
 
       return null
     }
@@ -220,8 +199,6 @@ Page({
   },
 
   handlePointsTap() {
-    wx.navigateTo({
-      url: '/pages/profile/asset-center/points/index'
-    })
+    navigateShellRoute('/pages/profile/asset-center/points/index')
   }
 })

@@ -1,33 +1,49 @@
 const { ROUTES } = require('../../../config/routes')
 const messageService = require('../../../services/message')
+const { navigateShellKey } = require('../../../utils/shell-nav')
 
-const DEFAULT_SYSTEM_NOTIFICATION_DETAIL = {
-  pageTitle: '系统通知',
+const EMPTY_SYSTEM_NOTIFICATION_DETAIL = {
+  pageTitle: '',
   onlineText: '',
-  article: {},
+  article: {
+    tagText: '',
+    title: '',
+    author: '',
+    publishedAtText: '',
+    readText: '',
+    blocks: []
+  },
   feedback: {
     question: '',
-    useful: {},
-    useless: {}
-  }
+    useful: { icon: '', label: '', countText: '0' },
+    useless: { icon: '', label: '', countText: '0' }
+  },
+  texts: {}
+}
+
+function applyTemplate(template, values = {}) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => values[key] == null ? '' : values[key])
+}
+
+function textOf(config, key) {
+  const texts = config && config.texts ? config.texts : {}
+  return texts[key] || ''
 }
 
 function normalizeSystemNotificationDetail(data = {}) {
-  const source = Object.assign({}, DEFAULT_SYSTEM_NOTIFICATION_DETAIL, data)
-  const article = Object.assign({}, DEFAULT_SYSTEM_NOTIFICATION_DETAIL.article, data.article || {})
+  const source = Object.assign({}, EMPTY_SYSTEM_NOTIFICATION_DETAIL, data)
+  const article = Object.assign({}, EMPTY_SYSTEM_NOTIFICATION_DETAIL.article, data.article || {})
   const feedback = normalizeFeedback(data.feedback)
-  const blocks = normalizeArticleBlocks(article.blocks)
 
   return {
-    pageTitle: source.pageTitle || DEFAULT_SYSTEM_NOTIFICATION_DETAIL.pageTitle,
-    onlineText: source.onlineText || DEFAULT_SYSTEM_NOTIFICATION_DETAIL.onlineText,
+    pageTitle: source.pageTitle || '',
+    onlineText: source.onlineText || '',
     article: Object.assign({}, article, {
-      blocks
+      blocks: normalizeArticleBlocks(article.blocks)
     }),
     feedback,
+    texts: source.texts || {},
     messageId: source.messageId || source.notificationId || source.id || '',
-    hasArticle: Boolean(article.title || blocks.length),
-    hasFeedback: Boolean(feedback.question),
     loading: false,
     errorText: ''
   }
@@ -38,23 +54,23 @@ function normalizeArticleBlocks(blocks) {
 }
 
 function normalizeFeedback(feedback = {}) {
-  const useful = Object.assign({}, DEFAULT_SYSTEM_NOTIFICATION_DETAIL.feedback.useful, feedback.useful || {})
-  const useless = Object.assign({}, DEFAULT_SYSTEM_NOTIFICATION_DETAIL.feedback.useless, feedback.useless || {})
+  const useful = Object.assign({}, EMPTY_SYSTEM_NOTIFICATION_DETAIL.feedback.useful, feedback.useful || {})
+  const useless = Object.assign({}, EMPTY_SYSTEM_NOTIFICATION_DETAIL.feedback.useless, feedback.useless || {})
 
   return {
-    question: feedback.question || DEFAULT_SYSTEM_NOTIFICATION_DETAIL.feedback.question,
+    question: feedback.question || EMPTY_SYSTEM_NOTIFICATION_DETAIL.feedback.question,
     useful: Object.assign({}, useful, {
-      countText: useful.countText || (useful.count != null ? String(useful.count) : '')
+      countText: useful.countText || String(useful.count || 0)
     }),
     useless: Object.assign({}, useless, {
-      countText: useless.countText || (useless.count != null ? String(useless.count) : '')
+      countText: useless.countText || String(useless.count || 0)
     })
   }
 }
 
 Page({
   data: {
-    pageTitle: '系统通知',
+    pageTitle: '',
     onlineText: '',
     navItems: [
       { name: '我的', key: 'mine' },
@@ -63,12 +79,12 @@ Page({
       { name: '消息', key: 'message' },
       { name: '首页', key: 'home' }
     ],
-    article: DEFAULT_SYSTEM_NOTIFICATION_DETAIL.article,
-    feedback: DEFAULT_SYSTEM_NOTIFICATION_DETAIL.feedback,
+    article: EMPTY_SYSTEM_NOTIFICATION_DETAIL.article,
+    feedback: EMPTY_SYSTEM_NOTIFICATION_DETAIL.feedback,
+    texts: EMPTY_SYSTEM_NOTIFICATION_DETAIL.texts,
     messageId: '',
-    hasArticle: false,
-    hasFeedback: false,
     loading: false,
+    feedbackSubmitting: false,
     errorText: ''
   },
 
@@ -89,51 +105,50 @@ Page({
 
       this.setData(normalizeSystemNotificationDetail(detail))
     } catch (error) {
-      const errorText = error && error.message ? error.message : '获取系统通知失败'
-
-      this.setData(Object.assign({}, normalizeSystemNotificationDetail(), {
-        errorText
+      this.setData(Object.assign({}, normalizeSystemNotificationDetail(EMPTY_SYSTEM_NOTIFICATION_DETAIL), {
+        errorText: error.message || textOf(this.data, 'loadFailedText')
       }))
-      this.showInfo(errorText)
+      this.showInfo(error.message || textOf(this.data, 'loadFailedText'))
     }
   },
 
-  onFeedbackTap(event) {
-    if (!this.data.hasFeedback) {
+  async onFeedbackTap(event) {
+    if (this.data.feedbackSubmitting) {
       return
     }
 
     const { value } = event.currentTarget.dataset
     const feedback = value === 'useful' ? this.data.feedback.useful : this.data.feedback.useless
-    this.showInfo(`已记录${feedback.label}反馈`)
+
+    if (value !== 'useful' && value !== 'useless') {
+      return
+    }
+
+    this.setData({ feedbackSubmitting: true })
+
+    try {
+      const data = await messageService.submitSystemNotificationFeedback({
+        messageId: this.data.messageId,
+        value
+      })
+
+      if (data.feedback) {
+        this.setData({ feedback: normalizeFeedback(data.feedback) })
+      }
+
+      this.showInfo(applyTemplate(textOf(this.data, 'feedbackSuccessText'), { label: feedback.label }))
+    } catch (error) {
+      this.showInfo(error.message || textOf(this.data, 'feedbackFailedText'))
+    } finally {
+      this.setData({ feedbackSubmitting: false })
+    }
   },
 
   handleShellNavTap(event) {
     const { key } = event.detail || {}
 
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
-    const routeMap = {
-      home: ROUTES.playerHome || ROUTES.home,
-      map: '',
-      message: ROUTES.message,
-      mine: ROUTES.profile,
-      avatar: ROUTES.profile,
-      metaverse: ROUTES.metaverse
-    }
-    const route = routeMap[key]
-
-    if (!route || route === ROUTES.messageSystemDetail) {
-      return
-    }
-
-    wx.navigateTo({
-      url: `/${route}`
+    navigateShellKey(key, {
+      currentRoute: ROUTES.messageSystemDetail
     })
   },
 

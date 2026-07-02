@@ -16,39 +16,35 @@ Page({
     showAddSheet: false,
     selectedCount: 0,
     hasSelection: false,
+    blockSettings: null,
     users: [],
     candidates: [],
     rules: []
   },
 
   onLoad(options) {
-    this.loadBlockedUsers()
-
     if (options && options.sheet === 'add') {
       this.setData({
         showAddSheet: true
       })
     }
+    this.loadBlockedUsers()
   },
 
   async loadBlockedUsers() {
     try {
-      const data = await profileService.getSystemBlockedUsers()
+      const data = await profileService.getSystemBlockSettings()
+      const candidates = Array.isArray(data.blockCandidates) ? data.blockCandidates : []
 
       this.setData({
-        users: this.normalizeList(data.users || data.list || data.items),
-        candidates: this.normalizeList(data.candidates || data.recommendations)
-          .map((item) => ({ ...item, checked: false })),
-        rules: this.normalizeList(data.rules || data.ruleLines)
+        blockSettings: data || null,
+        users: Array.isArray(data.blockedUsers) ? data.blockedUsers : [],
+        candidates: candidates.map((item) => ({ ...item, checked: false })),
+        rules: Array.isArray(data.blockRules) ? data.blockRules : []
       })
-      this.updateSelectionState()
     } catch (error) {
-      this.setData({
-        users: [],
-        candidates: [],
-        rules: []
-      })
-      toast.info(error.message || '屏蔽用户加载失败')
+      this.setData({ users: [], candidates: [], rules: [] })
+      toast.info(error.message || '屏蔽用户暂时不可用')
     }
   },
 
@@ -64,27 +60,17 @@ Page({
     })
   },
 
-  async handleUnblockTap(event) {
+  handleUnblockTap(event) {
     const index = Number(event.currentTarget.dataset.index)
-    const user = this.data.users[index]
-    const userId = user && (user.userId || user.id)
 
-    if (!userId) {
-      toast.info('缺少屏蔽用户信息')
-      return
-    }
+    const users = this.data.users.filter((_, itemIndex) => itemIndex !== index)
 
-    try {
-      await profileService.removeSystemBlockedUser({
-        userId
-      })
-      this.setData({
-        users: this.data.users.filter((_, itemIndex) => itemIndex !== index)
-      })
+    this.setData({ users })
+    profileService.saveSystemBlockSettings({ ...(this.data.blockSettings || {}), blockedUsers: users }).then(() => {
       toast.info('已解除屏蔽')
-    } catch (error) {
-      toast.info(error.message || '解除屏蔽失败')
-    }
+    }).catch((error) => {
+      toast.info(error.message || '保存失败')
+    })
   },
 
   handleCandidateToggle(event) {
@@ -92,13 +78,16 @@ Page({
     const candidates = this.data.candidates.map((item, itemIndex) => (
       itemIndex === index ? { ...item, checked: !item.checked } : item
     ))
+    const selectedCount = candidates.filter((item) => item.checked).length
 
     this.setData({
-      candidates
-    }, () => this.updateSelectionState())
+      candidates,
+      selectedCount,
+      hasSelection: selectedCount > 0
+    })
   },
 
-  async handleConfirmBlock() {
+  handleConfirmBlock() {
     const selected = this.data.candidates.filter((item) => item.checked)
 
     if (!selected.length) {
@@ -106,42 +95,25 @@ Page({
       return
     }
 
-    const userIds = selected
-      .map((item) => item.userId || item.id)
-      .filter(Boolean)
-
-    if (!userIds.length) {
-      toast.info('缺少可屏蔽用户信息')
-      return
-    }
-
-    try {
-      await profileService.addSystemBlockedUsers({
-        userIds
-      })
-      this.setData({
-        showAddSheet: false,
-        selectedCount: 0,
-        hasSelection: false,
-        candidates: this.data.candidates.map((item) => ({ ...item, checked: false }))
-      })
-      toast.success('已添加屏蔽用户')
-      this.loadBlockedUsers()
-    } catch (error) {
-      toast.info(error.message || '添加屏蔽用户失败')
-    }
-  },
-
-  updateSelectionState() {
-    const selectedCount = this.data.candidates.filter((item) => item.checked).length
+    const users = this.data.users.concat(selected.map((item) => ({
+      id: item.id,
+      name: item.name,
+      role: item.role,
+      reason: item.reason,
+      date: item.date || ''
+    })))
 
     this.setData({
-      selectedCount,
-      hasSelection: selectedCount > 0
+      users,
+      showAddSheet: false,
+      selectedCount: 0,
+      hasSelection: false,
+      candidates: this.data.candidates.map((item) => ({ ...item, checked: false }))
     })
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
+    profileService.saveSystemBlockSettings({ ...(this.data.blockSettings || {}), blockedUsers: users }).then(() => {
+      toast.success('已添加屏蔽用户')
+    }).catch((error) => {
+      toast.info(error.message || '保存失败')
+    })
   }
 })

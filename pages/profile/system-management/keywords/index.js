@@ -10,9 +10,9 @@ Page({
       target: `${ASSET_BASE}/icon-target.svg`,
       warning: `${ASSET_BASE}/icon-warning.png`
     },
+    blockSettings: null,
     keywordInput: '',
     keywords: [],
-    keywordItems: [],
     suggestions: [],
     stats: [],
     rules: []
@@ -24,27 +24,17 @@ Page({
 
   async loadKeywords() {
     try {
-      const data = await profileService.getSystemBlockKeywords()
-      const keywordItems = this.normalizeList(data.keywords || data.list || data.items)
-
+      const data = await profileService.getSystemBlockSettings()
       this.setData({
-        keywordItems,
-        keywords: keywordItems.map((item) => item.keyword || item.text || item.name || '').filter(Boolean),
-        suggestions: this.normalizeList(data.suggestions || data.recommendations)
-          .map((item) => item.keyword || item.text || item.name || item)
-          .filter(Boolean),
-        stats: this.normalizeList(data.stats),
-        rules: this.normalizeList(data.rules || data.ruleLines)
+        blockSettings: data || null,
+        keywords: Array.isArray(data.keywords) ? data.keywords : [],
+        suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+        stats: Array.isArray(data.keywordStats) ? data.keywordStats : [],
+        rules: Array.isArray(data.keywordRules) ? data.keywordRules : []
       })
     } catch (error) {
-      this.setData({
-        keywords: [],
-        keywordItems: [],
-        suggestions: [],
-        stats: [],
-        rules: []
-      })
-      toast.info(error.message || '关键词屏蔽加载失败')
+      this.setData({ keywords: [], suggestions: [], stats: [], rules: [] })
+      toast.info(error.message || '关键词配置暂时不可用')
     }
   },
 
@@ -54,7 +44,7 @@ Page({
     })
   },
 
-  async addKeyword(keyword) {
+  addKeyword(keyword) {
     const value = (keyword || this.data.keywordInput || '').trim()
 
     if (!value) {
@@ -67,17 +57,15 @@ Page({
       return
     }
 
-    try {
-      await profileService.addSystemBlockKeyword({
-        keyword: value
-      })
-      this.setData({
-        keywordInput: ''
-      })
-      this.loadKeywords()
-    } catch (error) {
-      toast.info(error.message || '添加关键词失败')
+    if (this.data.keywords.length >= 20) {
+      toast.info('最多可设置20个关键词')
+      return
     }
+
+    this.setData({
+      keywords: this.data.keywords.concat(value),
+      keywordInput: ''
+    })
   },
 
   handleAddTap() {
@@ -88,50 +76,30 @@ Page({
     this.addKeyword(event.currentTarget.dataset.keyword)
   },
 
-  async handleRemoveTap(event) {
+  handleRemoveTap(event) {
     const index = Number(event.currentTarget.dataset.index)
-    const item = this.data.keywordItems[index]
-    const keywordId = item && (item.keywordId || item.id)
 
-    if (!keywordId) {
-      toast.info('缺少关键词信息')
-      return
-    }
+    this.setData({
+      keywords: this.data.keywords.filter((_, itemIndex) => itemIndex !== index)
+    })
+  },
 
+  handleResetTap() {
+    this.setData({
+      keywords: []
+    })
+    toast.info('关键词已重置')
+  },
+
+  async handleSaveTap() {
     try {
-      await profileService.removeSystemBlockKeyword({
-        keywordId
+      await profileService.saveSystemBlockSettings({
+        ...(this.data.blockSettings || {}),
+        keywords: this.data.keywords
       })
-      this.loadKeywords()
+      toast.success('关键词屏蔽已保存')
     } catch (error) {
-      toast.info(error.message || '删除关键词失败')
+      toast.info(error.message || '保存失败')
     }
-  },
-
-  async handleResetTap() {
-    const ids = this.data.keywordItems
-      .map((item) => item.keywordId || item.id)
-      .filter(Boolean)
-
-    if (!ids.length) {
-      toast.info('暂无关键词可重置')
-      return
-    }
-
-    try {
-      await Promise.all(ids.map((keywordId) => profileService.removeSystemBlockKeyword({ keywordId })))
-      this.loadKeywords()
-      toast.info('关键词已重置')
-    } catch (error) {
-      toast.info(error.message || '关键词重置失败')
-    }
-  },
-
-  handleSaveTap() {
-    toast.success('关键词屏蔽已同步')
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
   }
 })

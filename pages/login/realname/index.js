@@ -1,8 +1,6 @@
 const toast = require('../../../utils/toast')
 const userService = require('../../../services/user')
-
-const TEST_REALNAME = '测试用户'
-const TEST_ID_NUMBER = '110101199003070011'
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 function isValidRealname(realname) {
   return /^[\u4e00-\u9fa5A-Za-z·\s]{2,20}$/.test(String(realname || '').trim())
@@ -14,8 +12,8 @@ function isValidIdNumber(idNumber) {
 
 Page({
   data: {
-    realname: TEST_REALNAME,
-    idNumber: TEST_ID_NUMBER,
+    realname: '',
+    idNumber: '',
     isUiPreview: false,
     isCompleting: false
   },
@@ -47,7 +45,7 @@ Page({
       confirmText: '继续认证',
       success(result) {
         if (result.cancel) {
-          toast.developing()
+          navigateShellRoute('/pages/login/index')
         }
       }
     })
@@ -61,13 +59,11 @@ Page({
     if (this.data.isUiPreview) {
       wx.showModal({
         title: '注意事项',
-        content: '需要接入实名认证接口',
+        content: '请按真实身份信息完成认证',
         showCancel: false,
         confirmText: '我知道了',
         success() {
-          wx.redirectTo({
-            url: '/pages/login/index?ui=1&mode=newbieTasks&inviteCode=ENJOY2026'
-          })
+          navigateShellRoute('/pages/login/index?ui=1&mode=newbieTasks')
         }
       })
       return
@@ -84,13 +80,11 @@ Page({
 
     try {
       await userService.submitRealnameAuth({
-        realname: this.data.realname,
-        idNumber: this.data.idNumber
+        realName: this.data.realname,
+        idCard: this.data.idNumber
       })
 
-      wx.redirectTo({
-        url: '/pages/login/index?ui=1&mode=newbieTasks'
-      })
+      navigateShellRoute('/pages/login/index?ui=1&mode=newbieTasks')
     } catch (error) {
       this.showAuthFailModal()
     } finally {

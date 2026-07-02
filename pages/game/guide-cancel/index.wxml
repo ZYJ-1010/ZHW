@@ -17,12 +17,7 @@
       enable-back-to-top
     >
       <view class="guide-cancel-inner">
-        <view wx:if="{{loading}}" class="cancel-empty">加载中...</view>
-        <view wx:elif="{{errorText}}" class="cancel-empty error">{{errorText}}</view>
-        <view wx:elif="{{!hasCancelInfo}}" class="cancel-empty">暂无取消信息</view>
-
-        <block wx:else>
-        <view wx:if="{{cancelInfo.statusTitle || cancelInfo.statusDesc}}" class="cancel-status-card">
+        <view class="cancel-status-card">
           <view class="cancel-mark">
             <image class="cancel-mark-image" src="./assets/i34@3x.png" mode="aspectFit"></image>
           </view>
@@ -30,9 +25,9 @@
           <text class="cancel-status-desc">{{cancelInfo.statusDesc}}</text>
         </view>
 
-        <view wx:if="{{cancelInfo.reasonTitle || cancelInfo.reasonDesc || cancelInfo.message || cancelInfo.cancelUserName}}" class="cancel-section reason-section">
+        <view class="cancel-section reason-section">
           <text class="section-title">取消原因</text>
-          <view wx:if="{{cancelInfo.reasonTitle || cancelInfo.reasonDesc}}" class="reason-card">
+          <view class="reason-card">
             <view class="reason-icon">
               <image class="reason-icon-image" src="./assets/i35@3x.png" mode="aspectFit"></image>
             </view>
@@ -42,11 +37,11 @@
             </view>
           </view>
 
-          <view wx:if="{{cancelInfo.message}}" class="message-card">
+          <view class="message-card">
             <text class="quote-mark">“</text>
             <text class="message-text">{{cancelInfo.message}}</text>
           </view>
-          <view wx:if="{{cancelInfo.cancelUserName || cancelInfo.messageTimeText}}" class="message-meta">
+          <view class="message-meta">
             <view class="message-user">
               <view class="user-avatar {{cancelInfo.cancelAvatarClass}}">
                 <image wx:if="{{cancelInfo.cancelAvatarUrl}}" class="user-avatar-image" src="{{cancelInfo.cancelAvatarUrl}}" mode="aspectFill"></image>
@@ -61,10 +56,9 @@
           </view>
         </view>
 
-        <view wx:if="{{timeline.length}}" class="cancel-section timeline-section">
+        <view class="cancel-section timeline-section">
           <timeline-list title="取消历程" items="{{timeline}}" variant="cancel" />
         </view>
-        </block>
 
         <view class="cancel-section action-section">
           <text class="section-title">你可以</text>

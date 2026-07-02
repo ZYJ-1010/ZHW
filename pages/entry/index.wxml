@@ -14,9 +14,9 @@
             mode="aspectFit"
             src="./assets/entry-brand-wordmark.svg"
           />
-          <view class="entry-brand__online">
+          <view wx:if="{{onlineText}}" class="entry-brand__online">
             <view class="entry-brand__online-dot"></view>
-            <text class="entry-brand__online-text">{{onlineCount}}人在线</text>
+            <text class="entry-brand__online-text">{{onlineText}}</text>
           </view>
         </view>
       </view>

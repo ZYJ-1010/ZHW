@@ -1,5 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const inviteService = require('../../../services/invite')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const DEFAULT_CONTENT_TOP_RPX = 160
 const NAV_BOTTOM_GAP_RPX = 18
@@ -9,8 +11,6 @@ const BOTTOM_ACTION_RPX = 148
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_SHARE_RIGHT_RPX = 206
 const SHARE_CAPSULE_GAP_RPX = 18
-const DEFAULT_CATEGORY_ICON = '/pages/game/assets/icons/icon-social-handshake.svg'
-const PARTICIPANTS_ICON = '/pages/game/assets/icons/icon-participants.svg'
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -92,11 +92,8 @@ function parseChineseEventEndTime(text = '') {
     return null
   }
 
-  if (!matched[1]) {
-    return null
-  }
-
-  const year = Number(matched[1])
+  const now = new Date()
+  const year = Number(matched[1] || now.getFullYear())
   const startMonth = Number(matched[2])
   const startDay = Number(matched[3])
   const startHour = Number(matched[4] || 23)
@@ -132,39 +129,41 @@ function getEventEndTimestamp(event = {}) {
   return /\d{4}年/.test(String(timeText)) ? parseChineseEventEndTime(timeText) : null
 }
 
-function getBackendTimestamp(value) {
-  if (!value) {
-    return null
+function getGameEndedState(event = {}) {
+  const endTimestamp = getEventEndTimestamp(event)
+
+  return typeof endTimestamp === 'number' ? endTimestamp <= Date.now() : false
+}
+
+function gameStatusText(status = '') {
+  const map = {
+    pending_audit: '待后台审核',
+    recruiting: '招募中',
+    full: '已满员',
+    in_progress: '进行中',
+    pending_confirm: '待确认完成',
+    pending_review: '待评价',
+    completed: '已完成'
   }
 
-  const timestamp = Date.parse(value)
-
-  return Number.isNaN(timestamp) ? null : timestamp
+  return map[status] || status || '招募中'
 }
 
-function getGameEndedState(event = {}, backendTime) {
-  const endTimestamp = getEventEndTimestamp(event)
-  const backendTimestamp = getBackendTimestamp(pickFirstValue(
-    event.serverTime,
-    event.currentTime,
-    event.now,
-    backendTime
-  ))
+function gameTypeText(type = '') {
+  const map = {
+    free: '免费局',
+    standard: '标准局',
+    public_welfare: '公益局',
+    aa: 'AA局',
+    crowdfund: '众筹局',
+    deposit: '押金局',
+    condition: '条件局'
+  }
 
-  return typeof endTimestamp === 'number' && typeof backendTimestamp === 'number'
-    ? endTimestamp <= backendTimestamp
-    : false
+  return map[type] || type || '免费局'
 }
 
-function pickFirstValue(...values) {
-  return values.find((value) => value !== undefined && value !== null && value !== '')
-}
-
-function asArray(value) {
-  return Array.isArray(value) ? value : []
-}
-
-function formatDateTimeText(value) {
+function formatCreatedAt(value) {
   if (!value) {
     return ''
   }
@@ -172,7 +171,7 @@ function formatDateTimeText(value) {
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
-    return String(value)
+    return ''
   }
 
   const month = date.getMonth() + 1
@@ -180,177 +179,173 @@ function formatDateTimeText(value) {
   const hour = String(date.getHours()).padStart(2, '0')
   const minute = String(date.getMinutes()).padStart(2, '0')
 
-  return `${date.getFullYear()}年${month}月${day}日 ${hour}:${minute}`
+  return `${month}月${day}日 ${hour}:${minute}`
 }
 
-function formatTimeRange(item = {}) {
-  const text = pickFirstValue(item.time, item.timeText, item.startTimeText)
-
-  if (text) {
-    return text
-  }
-
-  const start = formatDateTimeText(item.startAt || item.startTime)
-  const end = formatDateTimeText(item.endAt || item.endTime)
-
-  return end ? `${start}-${end}` : start
-}
-
-function formatFeeText(item = {}) {
-  const text = pickFirstValue(item.fee, item.feeText, item.priceText, item.costText)
-
-  if (text) {
-    return text
-  }
-
-  const amount = Number(pickFirstValue(item.feeAmount, item.priceAmount, item.costAmount))
-
-  return Number.isFinite(amount) ? `场地费${amount}/位` : ''
-}
-
-function normalizeParticipant(member = {}) {
-  const user = member.user || member.profile || member
-  const name = user.name || user.nickname || member.name || member.nickname || ''
+function makeParticipant(userId, index, game = {}) {
+  const isCreator = Number(userId) === Number(game.creatorUserId)
+  const isMainGuide = Number(userId) === Number(game.mainGuideUserId)
+  const role = isCreator ? '发起人' : isMainGuide ? '主行家' : '成员'
+  const roleClass = isCreator || isMainGuide ? 'guide' : 'player'
 
   return {
-    id: member.id || member.userId || user.id || name,
-    name,
-    avatarSrc: user.avatarSrc || user.avatarUrl || member.avatarSrc || member.avatarUrl || '',
-    avatarText: user.avatarText || member.avatarText || name.slice(0, 1),
-    role: member.roleText || member.role || user.roleText || '',
-    roleClass: member.roleClass || member.role || '',
-    position: user.position || user.title || member.position || member.title || '',
-    topic: member.topic || member.summary || user.summary || '',
-    primaryTag: member.primaryTag || member.tagText || '',
-    tags: asArray(member.tags || user.tags),
-    location: member.location || member.address || user.location || '',
-    distance: member.distanceText || member.distance || ''
+    id: userId || `member-${index + 1}`,
+    userId,
+    name: userId ? `成员${userId}` : `成员${index + 1}`,
+    avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
+    avatarText: String(userId || index + 1).slice(-2),
+    role,
+    roleClass,
+    position: role,
+    topic: '参与本次组局',
+    primaryTag: isCreator ? '组局发起人' : isMainGuide ? '主行家' : '组局成员',
+    tags: [],
+    location: game.cityName || '同城组局',
+    distance: game.distanceLabel || ''
   }
 }
 
-function normalizeTag(tag, index) {
-  if (typeof tag === 'string') {
-    return {
-      name: tag.charAt(0) === '#' ? tag : `#${tag}`,
-      tone: ['blue', 'green', 'purple'][index % 3]
-    }
+function normalizeParticipants(data = {}, game = {}) {
+  const ids = Array.isArray(data.memberIds) ? data.memberIds : []
+
+  if (ids.length) {
+    return ids.slice(0, Number(game.maxPlayers || 8)).map((id, index) => makeParticipant(id, index, game))
   }
 
+  if (game.creatorUserId) {
+    return [makeParticipant(game.creatorUserId, 0, game)]
+  }
+
+  return []
+}
+
+function buildOrganizer(game = {}) {
+  const userId = game.creatorUserId || ''
+
   return {
-    name: tag.name || tag.label || '',
-    tone: tag.tone || ['blue', 'green', 'purple'][index % 3]
+    name: userId ? `发起人 ${userId}` : '组局发起人',
+    avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
+    avatarText: userId ? String(userId).slice(-2) : '发',
+    role: game.mainGuideUserId ? `主行家 ${game.mainGuideUserId}` : '组局发起人',
+    summary: `人数 ${Number(game.currentPlayers || 0)}/${Number(game.maxPlayers || 8)}`,
+    rating: '--'
   }
 }
 
-function normalizeOrganizer(source = {}) {
-  const creator = source.creator || source.organizer || source.owner || {}
-  const name = creator.name || creator.nickname || creator.realname || ''
-
-  return {
-    name,
-    avatarSrc: creator.avatarSrc || creator.avatarUrl || '',
-    avatarText: creator.avatarText || name.slice(0, 1),
-    role: creator.role || creator.title || creator.company || '',
-    summary: creator.summary || creator.statText || '',
-    rating: String(creator.rating || creator.score || '')
-  }
+function compactList(items) {
+  return items.map((item) => String(item || '').trim()).filter(Boolean)
 }
 
-function normalizeGameDetail(data = {}) {
-  const serverTime = pickFirstValue(data.serverTime, data.currentTime, data.now, data.responseTime)
-  const memberCount = pickFirstValue(data.approvedMemberCount, data.memberCount, data.joinedCount)
-  const maxParticipants = data.maxParticipants || data.maxMemberCount
-  const membersText = memberCount != null && maxParticipants ? `${memberCount}/${maxParticipants}人已报名` : ''
-  const commentsText = data.commentCount != null ? `${data.commentCount}条评价` : ''
-  const viewsText = data.viewCount != null ? `${data.viewCount}次浏览` : ''
-  const members = asArray(data.members || data.participants).map(normalizeParticipant)
+function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
+  const game = data.game || data
+  const memberIds = Array.isArray(data.memberIds) ? data.memberIds : []
+  const currentPlayers = Number(game.currentPlayers || memberIds.length || 0)
+  const minPlayers = Number(game.minPlayers || 5)
+  const maxPlayers = Number(game.maxPlayers || 8)
+  const cityName = String(game.cityName || '').trim()
+  const address = String(game.address || '').trim()
+  const title = String(game.title || fallbackEvent.title || '').trim()
+  const statusText = gameStatusText(game.status)
+  const gameType = gameTypeText(game.gameType)
+  const categoryText = String(game.primaryCategoryText || game.secondaryCategoryText || '').trim()
+  const createdAtText = formatCreatedAt(game.createdAt)
 
   return {
-    event: {
-      coverSrc: data.coverSrc || data.coverUrl || data.coverFileUrl || '',
-      title: data.title || '',
-      time: formatTimeRange(data),
-      location: data.addressName || data.address || data.locationName || '',
-      category: data.gameTypeText || data.categoryText || data.typeText || '',
-      categoryIcon: data.categoryIcon || DEFAULT_CATEGORY_ICON,
-      fee: formatFeeText(data),
-      endAt: data.endAt || data.endTime,
-      registrationEndAt: data.registrationEndAt || data.applyEndAt,
-      serverTime
-    },
-    serverTime,
+    event: Object.assign({}, fallbackEvent, {
+      title,
+      location: address || cityName || fallbackEvent.location,
+      category: categoryText || gameType,
+      fee: game.gameType === 'free' ? '免费局' : gameType,
+      time: statusText
+    }),
     stats: [
-      viewsText ? { iconText: '👁️', text: viewsText, action: 'views' } : null,
-      commentsText ? { iconText: '💬', text: commentsText, action: 'reviews' } : null,
-      membersText ? { iconSrc: PARTICIPANTS_ICON, text: membersText } : null
-    ].filter(Boolean),
-    tags: asArray(data.themeTags || data.tags).map(normalizeTag).filter((item) => item.name),
-    organizer: normalizeOrganizer(data),
-    introduction: data.introduction || data.description || data.summary || '',
-    highlights: asArray(data.highlights),
-    schedule: asArray(data.schedule || data.agenda),
-    detailImages: asArray(data.detailImages || data.images || data.imageUrls),
-    noticeLead: data.noticeLead || '',
-    noticeBullets: asArray(data.noticeBullets || data.notices),
-    audience: data.audience || data.targetAudience || '',
-    participants: members
+      { iconText: '状态', text: statusText, action: 'status' },
+      { iconText: '评价', text: data.review && data.review.complete ? '评价已完成' : '待评价', action: 'reviews' },
+      { iconSrc: '/pages/game/assets/icons/icon-participants.svg', text: `${currentPlayers}/${maxPlayers}人已报名` }
+    ],
+    tags: compactList([gameType, statusText, categoryText, cityName]).map((name, index) => ({
+      name: `#${name}`,
+      tone: ['blue', 'green', 'purple'][index % 3]
+    })),
+    organizer: buildOrganizer(game),
+    introduction: title ? `${title}。${cityName || address ? `地点：${address || cityName}。` : ''}` : '暂无组局介绍',
+    highlights: compactList([
+      categoryText ? `分类：${categoryText}` : '',
+      `人数规则：最少${minPlayers}人，最多${maxPlayers}人`,
+      game.mainGuideUserId ? `主行家：${game.mainGuideUserId}` : '',
+      statusText ? `当前状态：${statusText}` : ''
+    ]),
+    schedule: createdAtText ? [
+      { title: '组局发布', time: createdAtText, desc: '后台审核通过后进入报名和组局流程。' }
+    ] : [],
+    detailImages: [],
+    noticeLead: '请按平台规则参与组局。',
+    noticeBullets: [
+      `人数限制：${minPlayers}-${maxPlayers}人，未满${minPlayers}人不能开始，满${maxPlayers}人后不可继续报名。`,
+      '领路人和行家需要完成实名认证后参与对应身份流程。',
+      '请以平台内报名、审核、确认和评价流程为准。'
+    ],
+    audience: categoryText ? `适合关注${categoryText}的用户参与。` : '适合符合本局条件的用户参与。',
+    participants: normalizeParticipants(data, game),
+    isGameEnded: ['pending_review', 'completed'].indexOf(game.status) !== -1,
+    endedActionText: statusText,
+    endedNoticeText: game.status === 'pending_audit' ? '新建组局正在后台审核，审核通过后对外展示' : '服务状态已更新，请按流程继续处理'
   }
 }
 
 Page({
   data: {
     gameId: '',
+    entryIntent: '',
     interested: false,
     authPromptVisible: false,
     showShareWindow: false,
+    shareEntry: null,
     detailScrollTop: 0,
     navLayout: getWhiteDetailLayout(),
-    loading: false,
-    loadErrorText: '',
     event: {
-      coverSrc: '',
+      coverSrc: '/pages/game/hall/assets/hall-featured-city.jpg',
       title: '',
       time: '',
       location: '',
       category: '',
-      categoryIcon: DEFAULT_CATEGORY_ICON,
+      categoryIcon: '/pages/game/assets/icons/icon-social-handshake.svg',
       fee: ''
     },
     isGameEnded: false,
-    endedActionText: '报名结束',
-    endedNoticeText: '新建组局将经过平台审核，审核通过后才能正式发布',
+    endedActionText: '????',
+    endedNoticeText: '',
     stats: [],
     tags: [],
     organizer: {
       name: '',
-      avatarSrc: '',
+      avatarSrc: '/pages/home/player/assets/ranking-avatar-01.png',
       avatarText: '',
       role: '',
       summary: '',
-      rating: ''
+      rating: '--'
     },
-    introduction: '',
+    introduction: '??????',
     highlights: [],
     schedule: [],
     detailImages: [],
-    noticeLead: '',
+    noticeLead: '???????????',
     noticeBullets: [],
     audience: '',
     participants: []
   },
 
   onLoad(options = {}) {
-    const gameId = options.gameId || options.id || ''
+    this.saveInviteEntryContext(options)
 
     this.setData({
-      gameId,
-      isGameEnded: false,
+      gameId: options.gameId || options.id || '',
+      entryIntent: options.intent || '',
+      isGameEnded: getGameEndedState(this.data.event),
       navLayout: getWhiteDetailLayout()
     })
 
-    if (gameId) {
-      this.loadGameDetail(gameId)
-    }
+    this.loadGameDetail()
 
     if (wx.showShareMenu) {
       wx.showShareMenu({
@@ -360,28 +355,62 @@ Page({
     }
   },
 
-  async loadGameDetail(gameId) {
-    this.setData({
-      loading: true,
-      loadErrorText: ''
+  saveInviteEntryContext(options = {}) {
+    const inviteCode = String(options.inviteCode || options.code || '').trim().toUpperCase()
+
+    if (!inviteCode) {
+      return
+    }
+
+    inviteService.saveInviteContext({
+      code: inviteCode,
+      entryType: String(options.entryType || '').trim(),
+      gameId: options.gameId || options.id || '',
+      source: 'game_detail_share'
     })
+  },
+
+  async loadGameDetail() {
+    if (!this.data.gameId) {
+      return
+    }
 
     try {
-      const detail = normalizeGameDetail(await gameService.getGameDetail(gameId))
-
-      this.setData(Object.assign({
-        loading: false,
-        loadErrorText: ''
-      }, detail, {
-        isGameEnded: getGameEndedState(detail.event, detail.serverTime)
-      }))
+      const detail = await gameService.getGameDetail(this.data.gameId)
+      this.setData(normalizeGameDetailPayload(detail, this.data.event))
+      this.ensureShareEntry()
+      this.showEntryIntentHint()
     } catch (error) {
-      this.setData({
-        loading: false,
-        loadErrorText: error.message || '局详情加载失败'
-      })
       this.showInfo(error.message || '局详情加载失败')
     }
+  },
+
+  async ensureShareEntry() {
+    if (!this.data.gameId || this.data.shareEntry) {
+      return this.data.shareEntry
+    }
+
+    try {
+      const shareEntry = await gameService.createInviteEntry({
+        entryType: 'link',
+        gameId: Number(this.data.gameId),
+        title: this.data.event.title || '真好玩组局邀请'
+      })
+
+      this.setData({ shareEntry })
+      return shareEntry
+    } catch (error) {
+      return null
+    }
+  },
+
+  showEntryIntentHint() {
+    if (this.data.entryIntent !== 'join' || this.joinIntentHintShown) {
+      return
+    }
+
+    this.joinIntentHintShown = true
+    this.showInfo('已进入组队详情，可点击底部按钮提交报名')
   },
 
   onShow() {
@@ -406,25 +435,79 @@ Page({
       return
     }
 
-    wx.redirectTo({
-      url: `/${ROUTES.gameHall}`
+    navigateShellRoute(ROUTES.gameHall, {
+      currentRoute: ROUTES.gameDetail
     })
   },
 
-  toggleInterest() {
-    this.showPendingFeature()
+  async toggleInterest() {
+    if (!this.data.gameId) {
+      this.setData({ interested: true })
+      this.showInfo('已标记感兴趣')
+      return
+    }
+
+    try {
+      await gameService.favoriteGame(this.data.gameId)
+      this.setData({ interested: true })
+      this.showInfo('已加入感兴趣')
+    } catch (error) {
+      this.showInfo(error.message || '收藏失败')
+    }
   },
 
   onMapTap() {
-    this.showPendingFeature()
+    const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}&mode=route` : ''
+
+    navigateShellRoute(`${ROUTES.map}${query}`, {
+      currentRoute: ROUTES.gameDetail
+    })
   },
 
-  onStatTap() {
-    this.showPendingFeature()
+  onStatTap(event) {
+    const action = event.currentTarget.dataset.action
+
+    if (action === 'reviews') {
+      navigateShellRoute(`${ROUTES.gameReview}${this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    if (action === 'status') {
+      this.showInfo(this.data.endedActionText || this.data.event.time)
+      return
+    }
+
+    this.onViewAllParticipants()
   },
 
-  onToolTap() {
-    this.showPendingFeature()
+  onToolTap(event) {
+    const action = event.currentTarget.dataset.action
+    const gameIdQuery = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
+
+    if (action === '引荐') {
+      navigateShellRoute(`${ROUTES.gameInvite}${gameIdQuery}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    if (action === '签到') {
+      navigateShellRoute(`${ROUTES.mapRealCheckin || 'pages/map/real-checkin/index'}${gameIdQuery}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    if (action === '打招呼') {
+      navigateShellRoute(`${ROUTES.gameGreet}${gameIdQuery}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    this.showInfo('暂无可执行操作')
   },
 
   noop() {},
@@ -451,8 +534,8 @@ Page({
 
   onShareDirect() {
     this.onCloseShare()
-    wx.navigateTo({
-      url: `/${ROUTES.message}?from=gameShare${this.data.gameId ? `&gameId=${encodeURIComponent(this.data.gameId)}` : ''}`
+    navigateShellRoute(`${ROUTES.message}?from=gameShare${this.data.gameId ? `&gameId=${encodeURIComponent(this.data.gameId)}` : ''}`, {
+      currentRoute: ROUTES.gameDetail
     })
   },
 
@@ -489,8 +572,8 @@ Page({
   navigateToApply() {
     const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameApply}${query}`
+    navigateShellRoute(`${ROUTES.gameApply}${query}`, {
+      currentRoute: ROUTES.gameDetail
     })
   },
 
@@ -505,21 +588,21 @@ Page({
       authPromptVisible: false
     })
 
-    wx.navigateTo({
-      url: '/pages/login/realname/index'
+    navigateShellRoute('/pages/login/realname/index', {
+      currentRoute: ROUTES.gameDetail
     })
   },
 
   onViewAllParticipants() {
     const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameParticipants}${query}`
+    navigateShellRoute(`${ROUTES.gameParticipants}${query}`, {
+      currentRoute: ROUTES.gameDetail
     })
   },
 
   onParticipantTap() {
-    this.showPendingFeature()
+    this.onViewAllParticipants()
   },
 
   handleDetailScroll(event) {
@@ -538,21 +621,38 @@ Page({
   },
 
   showPendingFeature() {
-    this.showInfo('功能待开发')
+    this.showInfo('暂无可执行操作')
   },
 
   onShareAppMessage() {
+    const entry = this.data.shareEntry || {}
+    const inviteCode = entry.inviteCode || ''
+    const entryType = entry.entryType || 'link'
+    const fallbackPath = `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${encodeURIComponent(this.data.gameId)}` : ''}`
+    const path = entry.path
+      ? entry.path.replace(/^\/+/, '/')
+      : `${fallbackPath}${inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&entryType=${encodeURIComponent(entryType)}` : ''}`
+
     return {
-      title: this.data.event.title,
-      path: `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${this.data.gameId}` : ''}`,
+      title: entry.title || this.data.event.title,
+      path,
       imageUrl: this.data.event.coverSrc
     }
   },
 
   onShareTimeline() {
+    const entry = this.data.shareEntry || {}
+    const inviteCode = entry.inviteCode || ''
+    const entryType = entry.entryType || 'link'
+    const query = [
+      this.data.gameId ? `id=${encodeURIComponent(this.data.gameId)}` : '',
+      inviteCode ? `inviteCode=${encodeURIComponent(inviteCode)}` : '',
+      entryType ? `entryType=${encodeURIComponent(entryType)}` : ''
+    ].filter(Boolean).join('&')
+
     return {
-      title: this.data.event.title,
-      query: this.data.gameId ? `id=${this.data.gameId}` : '',
+      title: entry.title || this.data.event.title,
+      query,
       imageUrl: this.data.event.coverSrc
     }
   }

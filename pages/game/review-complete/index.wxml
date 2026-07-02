@@ -24,18 +24,19 @@
         <view class="success-check">
           <view class="success-check-mark"></view>
         </view>
-        <text wx:if="{{success.title}}" class="success-title">{{success.title}}</text>
-        <text wx:if="{{success.desc}}" class="success-desc">{{success.desc}}</text>
+        <text class="success-title">评价提交成功！</text>
+        <text class="success-desc">感谢你的反馈，让平台变得更好</text>
+        <text wx:if="{{reviewSummaryText}}" class="success-desc">{{reviewSummaryText}}</text>
       </view>
 
-      <view class="reward-card" wx:if="{{rewardCard.iconText || rewardCard.value || rewardCard.title || rewardCard.desc}}">
-        <view wx:if="{{rewardCard.iconText}}" class="reward-icon">{{rewardCard.iconText}}</view>
-        <text wx:if="{{rewardCard.value}}" class="reward-points">{{rewardCard.value}}</text>
-        <text wx:if="{{rewardCard.title}}" class="reward-title">{{rewardCard.title}}</text>
-        <text wx:if="{{rewardCard.desc}}" class="reward-desc">{{rewardCard.desc}}</text>
+      <view wx:if="{{reward.show}}" class="reward-card">
+        <view class="reward-icon">{{reward.iconText}}</view>
+        <text class="reward-points">{{reward.points}}</text>
+        <text class="reward-title">{{reward.title}}</text>
+        <text class="reward-desc">{{reward.desc}}</text>
       </view>
 
-      <view class="benefits-card">
+      <view wx:if="{{benefits.length}}" class="benefits-card">
         <text class="section-title">获得的权益</text>
         <view class="benefit-list">
           <view wx:for="{{benefits}}" wx:key="title" class="benefit-item">
@@ -48,7 +49,7 @@
         </view>
       </view>
 
-      <view class="play-again-card">
+      <view wx:if="{{playOptions.length}}" class="play-again-card">
         <text class="section-title play-title">愿意和这些小伙伴再玩一局吗？</text>
         <view class="intent-grid">
           <view

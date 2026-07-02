@@ -20,11 +20,7 @@
 
     <text class="mall-section-title">热门兑换</text>
 
-    <view wx:if="{{isLoading}}" class="mall-empty">加载中...</view>
-    <view wx:elif="{{errorText}}" class="mall-empty error">{{errorText}}</view>
-    <view wx:elif="{{!hasGoods}}" class="mall-empty">暂无可兑换商品</view>
-
-    <view wx:else class="goods-grid">
+    <view class="goods-grid">
       <view
         wx:for="{{goods}}"
         wx:key="id"
@@ -48,7 +44,7 @@
       </view>
     </view>
 
-    <text wx:if="{{expireTip}}" class="mall-expire-tip">{{expireTip}}</text>
+    <text class="mall-expire-tip">{{expireTip}}</text>
 
     <view
       wx:if="{{showExchangeModal && selectedGood}}"

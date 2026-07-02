@@ -1,11 +1,16 @@
 const profileService = require('../../../../../services/profile')
+const { navigateShellRoute } = require('../../../../../utils/shell-nav')
 
 Page({
   data: {
-    summary: [],
+    summary: [
+      { value: '0', label: '已服务\n位玩家' },
+      { value: '¥0', label: '本周收益' }
+    ],
     networkNodes: [],
     avatars: [],
-    members: []
+    members: [],
+    loadError: ''
   },
 
   onLoad() {
@@ -14,18 +19,13 @@ Page({
 
   async loadNetwork() {
     try {
-      const data = await profileService.getInviteNetwork()
+      const result = await profileService.getInviteNetwork()
 
-      this.setData({
-        summary: Array.isArray(data.summary || data.stats) ? (data.summary || data.stats) : [],
-        networkNodes: Array.isArray(data.networkNodes || data.nodes) ? (data.networkNodes || data.nodes) : [],
-        avatars: Array.isArray(data.avatars) ? data.avatars : [],
-        members: Array.isArray(data.members || data.list) ? (data.members || data.list) : []
-      })
+      this.setData(result || {})
     } catch (error) {
-      wx.showToast({
-        title: error.message || '邀请网络加载失败',
-        icon: 'none'
+      console.warn('get invite network failed', error)
+      this.setData({
+        loadError: error.message || '关系网络加载失败'
       })
     }
   },
@@ -33,8 +33,14 @@ Page({
   handleMemberTap(event) {
     const { id } = event.currentTarget.dataset
 
-    wx.navigateTo({
-      url: `/pages/profile/service-center/invite/member-detail/index?id=${id}`
-    })
+    navigateShellRoute(`/pages/profile/service-center/invite/member-detail/index?id=${id}`)
+  },
+
+  handleManageTap() {
+    navigateShellRoute('/pages/profile/service-center/invite/records/index')
+  },
+
+  handleIncomeTap() {
+    navigateShellRoute('/pages/profile/service-center/invite/income/index')
   }
 })

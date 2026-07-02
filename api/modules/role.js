@@ -12,12 +12,20 @@ function getMyRoles() {
   return request.get('/api/app/roles/my')
 }
 
-function getExpertApplyConfig(params) {
-  return request.get('/api/app/role-applications/expert/config', params || {})
+function getExpertApplyConfig() {
+  return request.get('/api/app/role-applications/expert/config')
 }
 
-function getExpertApplyPrecheck(params) {
-  return request.get('/api/app/role-applications/expert/precheck', params || {})
+function getGuideApplyConfig() {
+  return request.get('/api/app/role-applications/guide/config')
+}
+
+function getRoleStatusPageConfig() {
+  return request.get('/api/app/role-applications/status-config')
+}
+
+function getRoleBenefitConfig() {
+  return request.get('/api/app/role-applications/benefit-config')
 }
 
 module.exports = {
@@ -25,5 +33,7 @@ module.exports = {
   getMyRoleApplications,
   getMyRoles,
   getExpertApplyConfig,
-  getExpertApplyPrecheck
+  getGuideApplyConfig,
+  getRoleStatusPageConfig,
+  getRoleBenefitConfig
 }

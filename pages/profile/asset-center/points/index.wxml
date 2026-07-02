@@ -29,26 +29,24 @@
     <view class="points-content">
       <view class="rules-card">
         <view class="points-section-head">
-          <text class="head-icon">📜</text>
+          <text class="head-icon">规</text>
           <text>积分规则</text>
         </view>
         <view class="rule-list">
           <view wx:for="{{rules}}" wx:key="strong" class="rule-row">
-            <text class="rule-dot">•</text>
+            <text class="rule-dot"></text>
             <text class="rule-text">{{item.text}} <text class="rule-strong">{{item.strong}}</text>{{item.suffix}}</text>
           </view>
         </view>
-        <view class="rule-limit-row" wx:if="{{limitRules.length}}">
-          <view wx:for="{{limitRules}}" wx:key="key" class="rule-limit">
-            <text class="limit-mark">{{item.iconText}}</text>
-            <text>{{item.text || item.label}}</text>
-          </view>
+        <view class="rule-limit-row">
+          <view class="rule-limit"><text class="limit-mark">!</text><text>不可提现</text></view>
+          <view class="rule-limit"><text class="limit-mark">!</text><text>不可支付付费局</text></view>
         </view>
       </view>
 
       <view class="points-card">
         <view class="points-section-head dark">
-          <text class="head-icon star">⭐</text>
+          <text class="head-icon star">星</text>
           <text>赚积分</text>
         </view>
 
@@ -56,7 +54,7 @@
           <view class="earn-top">
             <view class="earn-title-row">
               <view class="earn-icon-wrap">
-                <text class="earn-icon">💰</text>
+                <text class="earn-icon">积</text>
               </view>
               <view class="earn-title-copy">
                 <text class="earn-title">{{earnExample.title}}</text>
@@ -74,8 +72,8 @@
           </view>
         </view>
 
-        <view class="role-example-card" wx:if="{{roleExampleTitle || roleExamples.length}}">
-          <text wx:if="{{roleExampleTitle}}" class="role-example-title">{{roleExampleTitle}}</text>
+        <view class="role-example-card">
+          <text class="role-example-title">积分来源示例</text>
           <view wx:for="{{roleExamples}}" wx:key="key" class="role-example-row">
             <view class="role-left">
               <text class="role-icon">{{item.iconText}}</text>
@@ -92,39 +90,43 @@
       <view class="points-card">
         <view class="history-head">
           <view class="points-section-head dark no-margin">
-            <text class="head-icon">📜</text>
+            <text class="head-icon">明</text>
             <text>积分明细</text>
           </view>
           <view class="filter-tabs">
             <text
               wx:for="{{filters}}"
-              wx:key="*this"
-              class="filter-tab {{activeFilter === item ? 'active' : ''}}"
-              data-filter="{{item}}"
+              wx:key="key"
+              class="filter-tab {{activeFilter === item.key ? 'active' : ''}}"
+              data-filter="{{item.key}}"
               bindtap="handleFilterTap"
-            >{{item}}</text>
+            >{{item.label}}</text>
           </view>
         </view>
 
         <view class="record-list">
-          <view wx:for="{{records}}" wx:key="id" class="record-row" bindtap="handleDeveloping">
-            <view class="record-left">
-              <view class="record-icon-wrap {{item.iconTone}}">
-                <text class="record-icon">{{item.iconText}}</text>
+          <view wx:if="{{loading}}" class="points-empty">积分明细加载中...</view>
+          <view wx:elif="{{!visibleRecords.length}}" class="points-empty">暂无积分明细</view>
+          <block wx:else>
+            <view wx:for="{{visibleRecords}}" wx:key="id" class="record-row" bindtap="handleDeveloping">
+              <view class="record-left">
+                <view class="record-icon-wrap {{item.iconTone}}">
+                  <text class="record-icon">{{item.iconText}}</text>
+                </view>
+                <view class="record-copy">
+                  <text class="record-title">{{item.title}}</text>
+                  <text class="record-desc">{{item.desc}}</text>
+                  <text class="record-time">{{item.time}}</text>
+                </view>
               </view>
-              <view class="record-copy">
-                <text class="record-title">{{item.title}}</text>
-                <text class="record-desc">{{item.desc}}</text>
-                <text class="record-time">{{item.time}}</text>
-              </view>
+              <text class="record-points {{item.tone}}">{{item.points}}</text>
             </view>
-            <text class="record-points {{item.tone}}">{{item.points}}</text>
-          </view>
+          </block>
         </view>
       </view>
 
-      <view class="points-note" wx:if="{{noteText}}">
-        <text class="note-icon">ⓘ</text>
+      <view class="points-note">
+        <text class="note-icon">!</text>
         <text class="note-text">{{noteText}}</text>
       </view>
     </view>

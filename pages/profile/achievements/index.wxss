@@ -1,1 +1,155 @@
-@import "../../shared/module.wxss";
+page {
+  background: #f6f7fb;
+}
+
+.achievement-page {
+  min-height: 100vh;
+  padding: 28rpx 28rpx 56rpx;
+  box-sizing: border-box;
+  color: #111827;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.summary-card,
+.section-card {
+  border: 1rpx solid #e5e7eb;
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.summary-card {
+  padding: 30rpx;
+}
+
+.summary-kicker,
+.summary-label,
+.achievement-desc,
+.footprint-desc,
+.footprint-time,
+.empty-block,
+.error-text {
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.summary-title-row,
+.section-head,
+.achievement-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.summary-title {
+  margin-top: 10rpx;
+  color: #111827;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 52rpx;
+}
+
+.summary-level,
+.section-count,
+.achievement-status {
+  flex: none;
+  color: #2563eb;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18rpx;
+  margin-top: 28rpx;
+}
+
+.summary-item {
+  padding: 20rpx 16rpx;
+  border-radius: 8rpx;
+  background: #f9fafb;
+}
+
+.summary-value {
+  display: block;
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+}
+
+.summary-label {
+  display: block;
+  margin-top: 6rpx;
+}
+
+.section-card {
+  margin-top: 24rpx;
+  padding: 28rpx;
+}
+
+.section-title,
+.achievement-title,
+.footprint-title {
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+}
+
+.achievement-list,
+.footprint-list {
+  margin-top: 22rpx;
+}
+
+.achievement-item,
+.footprint-item {
+  padding: 22rpx 0;
+  border-top: 1rpx solid #eef0f4;
+}
+
+.achievement-item:first-child,
+.footprint-item:first-child {
+  border-top: 0;
+}
+
+.achievement-desc,
+.footprint-desc,
+.footprint-time {
+  display: block;
+  margin-top: 8rpx;
+}
+
+.progress-track {
+  height: 10rpx;
+  margin-top: 16rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #e5e7eb;
+}
+
+.progress-bar {
+  height: 10rpx;
+  border-radius: 999rpx;
+  background: #2563eb;
+}
+
+.progress-text {
+  display: block;
+  margin-top: 8rpx;
+  color: #6b7280;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.empty-block {
+  padding: 28rpx 0 4rpx;
+}
+
+.error-text {
+  margin-top: 20rpx;
+  text-align: center;
+}

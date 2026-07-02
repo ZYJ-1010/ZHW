@@ -1,10 +1,25 @@
 const roleService = require('../../../services/role')
 const toast = require('../../../utils/toast')
 
+function normalizePageConfig(config = {}) {
+  return {
+    pageTitle: config.pageTitle || '',
+    pageDesc: config.pageDesc || '',
+    texts: config.texts || {}
+  }
+}
+
+function textOf(config, key) {
+  const texts = config && config.texts ? config.texts : {}
+  return texts[key] || ''
+}
+
 Page({
   data: {
     loading: true,
     submittingRole: '',
+    pageConfig: normalizePageConfig(),
+    texts: {},
     applications: []
   },
 
@@ -14,16 +29,19 @@ Page({
 
   async loadApplications() {
     try {
-      const applications = await roleService.getMyRoleApplications()
+      const data = await roleService.getMyRoleApplications()
+      const pageConfig = normalizePageConfig(data.pageConfig)
       this.setData({
         loading: false,
-        applications
+        pageConfig,
+        texts: pageConfig.texts,
+        applications: Array.isArray(data.items) ? data.items : []
       })
     } catch (error) {
       this.setData({
         loading: false
       })
-      toast.info(error.message || '角色申请加载失败')
+      toast.info(error.message || textOf(this.data.pageConfig, 'loadFailedText'))
     }
   },
 
@@ -54,9 +72,9 @@ Page({
       this.setData({
         applications
       })
-      toast.success(result.statusText)
+      toast.success(result.statusText || textOf(this.data.pageConfig, 'defaultSuccessText'))
     } catch (error) {
-      toast.info(error.message || '提交失败')
+      toast.info(error.message || textOf(this.data.pageConfig, 'submitFailedText'))
     } finally {
       this.setData({
         submittingRole: ''

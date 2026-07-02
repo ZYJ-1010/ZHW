@@ -29,6 +29,18 @@
   background: #f2f4f7;
 }
 
+.share-hero.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-hero-empty {
+  color: #9ca3af;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
 .share-hero-image,
 .share-hero-wash {
   position: absolute;
@@ -52,6 +64,36 @@
   border: 1rpx solid #e5e7eb;
   border-radius: 22rpx;
   background: #ffffff;
+}
+
+.share-empty-card {
+  width: 636rpx;
+  margin: 24rpx auto 0;
+  padding: 42rpx 34rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #e5e7eb;
+  border-radius: 22rpx;
+  background: #ffffff;
+}
+
+.share-empty-title,
+.share-empty-text {
+  display: block;
+  letter-spacing: 0;
+}
+
+.share-empty-title {
+  color: #1f2937;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+}
+
+.share-empty-text {
+  margin-top: 14rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 36rpx;
 }
 
 .event-title {

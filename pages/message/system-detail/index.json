@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "系统通知",
+  "navigationBarTitleText": "",
   "usingComponents": {
     "home-shell": "/components/home-shell/index"
   }

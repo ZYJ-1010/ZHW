@@ -1,6 +1,7 @@
 const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -11,12 +12,20 @@ const NAV_TITLE_HEIGHT_RPX = 50
 const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
-const DEFAULT_CANCEL_DETAIL = {
+const EMPTY_CANCEL_DETAIL = {
   statusTitle: '',
   statusDesc: '',
   cancelRole: '',
-  canceledBy: {},
-  reason: {},
+  canceledBy: {
+    name: '',
+    roleType: '',
+    roleLabel: '',
+    avatarText: ''
+  },
+  reason: {
+    title: '',
+    desc: ''
+  },
   message: '',
   messageTimeText: '',
   timeline: []
@@ -162,7 +171,7 @@ function normalizeCancelUser(source = {}) {
     source.rejectRoleType,
     source.canceledByRole,
     source.canceledByRoleType
-  ])
+  ], EMPTY_CANCEL_DETAIL.cancelRole)
   const user = source.canceledBy || source.cancelUser || source.rejectUser || source.actor || {}
   const roleLabel = firstText([
     user.roleLabel,
@@ -170,14 +179,14 @@ function normalizeCancelUser(source = {}) {
     source.cancelRoleLabel,
     source.rejectRoleText,
     getRoleLabel(user.roleType || user.role || cancelRole)
-  ])
+  ], '成员')
   const name = firstText([
     user.name,
     user.nickname,
     user.realname,
     source.cancelName,
     source.rejectName
-  ], DEFAULT_CANCEL_DETAIL.canceledBy.name)
+  ], EMPTY_CANCEL_DETAIL.canceledBy.name)
   const roleClass = getRoleClass(user.roleType || user.role || cancelRole || roleLabel)
 
   return {
@@ -187,10 +196,10 @@ function normalizeCancelUser(source = {}) {
     roleClass,
     avatarUrl: user.avatarUrl || user.avatar || source.cancelAvatarUrl || '',
     avatarText: getInitials(name, firstText([
-    user.avatarText,
-    user.initials,
-    source.cancelAvatarText
-    ], '')),
+      user.avatarText,
+      user.initials,
+      source.cancelAvatarText
+    ], roleLabel)),
     avatarClass: user.avatarClass || roleClass
   }
 }
@@ -205,7 +214,7 @@ function normalizeCancelInfo(data = {}) {
     source.reasonTitle,
     source.cancelReasonTitle,
     source.reasonCodeText
-  ], DEFAULT_CANCEL_DETAIL.reason.title)
+  ], EMPTY_CANCEL_DETAIL.reason.title)
   const reasonDesc = firstText([
     reason.desc,
     reason.description,
@@ -214,17 +223,17 @@ function normalizeCancelInfo(data = {}) {
     source.reasonDesc,
     source.cancelReasonText,
     source.reasonSummary
-  ], DEFAULT_CANCEL_DETAIL.reason.desc)
+  ], EMPTY_CANCEL_DETAIL.reason.desc)
   const statusDesc = firstText([
     source.statusDesc,
     source.cancelSummary,
     source.rejectText,
     source.cancelText
-  ])
+  ], `${cancelUser.roleLabel}取消了此次组局邀请`)
 
   return {
     id: source.id || source.invitationId || source.gameInviteId || '',
-    statusTitle: firstText([source.statusTitle, source.title], DEFAULT_CANCEL_DETAIL.statusTitle),
+    statusTitle: firstText([source.statusTitle, source.title], EMPTY_CANCEL_DETAIL.statusTitle),
     statusDesc,
     reasonTitle,
     reasonDesc,
@@ -236,14 +245,14 @@ function normalizeCancelInfo(data = {}) {
       source.rejectMessage,
       source.remark,
       source.comment
-    ], DEFAULT_CANCEL_DETAIL.message),
+    ], EMPTY_CANCEL_DETAIL.message),
     messageTimeText: firstText([
       source.messageTimeText,
       source.cancelTimeText,
       source.rejectedAtText,
       source.canceledAtText,
       source.timeText
-    ], DEFAULT_CANCEL_DETAIL.messageTimeText),
+    ], EMPTY_CANCEL_DETAIL.messageTimeText),
     cancelUserName: cancelUser.name,
     cancelRoleLabel: cancelUser.roleLabel,
     cancelRoleClass: cancelUser.roleClass,
@@ -268,25 +277,25 @@ function normalizeTimeline(data = {}, cancelInfo) {
     }))
   }
 
-  return []
+  return EMPTY_CANCEL_DETAIL.timeline.map((item) => {
+    if (item.key !== 'cancel') {
+      return item
+    }
+
+    return Object.assign({}, item, {
+      title: `${cancelInfo.cancelRoleLabel}取消`,
+      desc: `${cancelInfo.cancelUserName}${cancelInfo.reasonTitle ? `因${cancelInfo.reasonTitle}取消本次组局` : '取消了本次组局邀请'}`,
+      timeText: cancelInfo.messageTimeText
+    })
+  })
 }
 
 function normalizeCancelDetail(data = {}) {
   const cancelInfo = normalizeCancelInfo(data)
-  const timeline = normalizeTimeline(data, cancelInfo)
 
   return {
     cancelInfo,
-    timeline,
-    hasCancelInfo: Boolean(
-      cancelInfo.statusTitle ||
-      cancelInfo.statusDesc ||
-      cancelInfo.reasonTitle ||
-      cancelInfo.reasonDesc ||
-      cancelInfo.message ||
-      cancelInfo.cancelUserName ||
-      timeline.length
-    )
+    timeline: normalizeTimeline(data, cancelInfo)
   }
 }
 
@@ -297,9 +306,8 @@ Page({
     queryParams: {},
     loading: false,
     errorText: '',
-    hasCancelInfo: false,
-    cancelInfo: normalizeCancelInfo(DEFAULT_CANCEL_DETAIL),
-    timeline: []
+    cancelInfo: normalizeCancelInfo(EMPTY_CANCEL_DETAIL),
+    timeline: EMPTY_CANCEL_DETAIL.timeline
   },
 
   onLoad(options = {}) {
@@ -337,7 +345,6 @@ Page({
       this.setData({
         loading: false,
         errorText: '',
-        hasCancelInfo: detail.hasCancelInfo,
         cancelInfo: detail.cancelInfo,
         timeline: detail.timeline
       })
@@ -346,10 +353,7 @@ Page({
 
       this.setData({
         loading: false,
-        errorText,
-        hasCancelInfo: false,
-        cancelInfo: normalizeCancelInfo(),
-        timeline: []
+        errorText
       })
       wx.showToast({
         title: errorText,
@@ -363,16 +367,29 @@ Page({
   },
 
   onRestartTap() {
-    wx.navigateTo({
-      url: `/${ROUTES.gameCreate}`
-    })
+    navigateShellRoute(this.buildUrl(ROUTES.gameCreate, {
+        source: 'guideCancel',
+        gameId: this.data.queryParams.gameId || '',
+        sourceGameId: this.data.queryParams.gameId || '',
+        invitationId: this.data.queryParams.invitationId || this.data.queryParams.id || this.data.cancelInfo.id || ''
+      }))
   },
 
   onRecommendTap() {
-    wx.showToast({
-      title: '推荐他人待接入',
-      icon: 'none'
-    })
+    navigateShellRoute(this.buildUrl(ROUTES.gameInvite, {
+        source: 'guideCancel',
+        gameId: this.data.queryParams.gameId || '',
+        invitationId: this.data.queryParams.invitationId || this.data.queryParams.id || this.data.cancelInfo.id || ''
+      }))
+  },
+
+  buildUrl(route, params = {}) {
+    const query = Object.keys(params)
+      .filter((key) => params[key])
+      .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&')
+
+    return `/${route}${query ? `?${query}` : ''}`
   },
 
   onBackTap() {
@@ -383,8 +400,6 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: '/pages/game/guide-progress/index'
-    })
+    navigateShellRoute('/pages/game/guide-progress/index')
   }
 })

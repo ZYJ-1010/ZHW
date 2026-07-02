@@ -30,6 +30,7 @@
         </view>
         <text class="ranking-value">{{activeType === 'inviteCount' ? item.inviteCount : item.profitContribution}}</text>
       </view>
+      <view wx:if="{{!members.length}}" class="empty-state">暂无排行数据</view>
     </view>
   </view>
 </profile-white-shell>

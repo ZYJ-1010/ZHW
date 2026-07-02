@@ -15,7 +15,8 @@ Page({
       { key: 'inviteCount', label: '邀约数排行' },
       { key: 'profitContribution', label: '分润贡献排行' }
     ],
-    members: []
+    members: [],
+    loadError: ''
   },
 
   onLoad() {
@@ -25,18 +26,16 @@ Page({
   async loadRanking() {
     try {
       const period = this.data.periods[this.data.activePeriodIndex] || {}
-      const data = await profileService.getInviteRanking({
+      const result = await profileService.getInviteRanking({
         period: period.key,
         type: this.data.activeType
       })
 
-      this.setData({
-        members: Array.isArray(data.members || data.list || data.items) ? (data.members || data.list || data.items) : []
-      })
+      this.setData(result || {})
     } catch (error) {
-      wx.showToast({
-        title: error.message || '邀请排行加载失败',
-        icon: 'none'
+      console.warn('get invite ranking failed', error)
+      this.setData({
+        loadError: error.message || '贡献排行加载失败'
       })
     }
   },
@@ -50,8 +49,7 @@ Page({
 
     this.setData({
       activePeriodIndex: index
-    })
-    this.loadRanking()
+    }, () => this.loadRanking())
   },
 
   handleTypeTap(event) {
@@ -63,7 +61,6 @@ Page({
 
     this.setData({
       activeType: type
-    })
-    this.loadRanking()
+    }, () => this.loadRanking())
   }
 })

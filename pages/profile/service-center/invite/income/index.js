@@ -70,8 +70,14 @@ Page({
     trendPoints,
     trendSegments: buildTrendSegments(trendPoints),
     trendShadowPath: buildTrendShadow(trendPoints),
-    metrics: [],
-    flows: []
+    metrics: [
+      { label: '本月分润', value: '¥0', desc: '已结算收益' },
+      { label: '累计分润', value: '¥0', desc: '含待结算收益' },
+      { label: '活跃成员', value: '0', desc: '当前关系数' },
+      { label: '产生分润局数', value: '0', desc: '累计流水' }
+    ],
+    flows: [],
+    loadError: ''
   },
 
   onLoad() {
@@ -80,21 +86,21 @@ Page({
 
   async loadIncome() {
     try {
-      const data = await profileService.getInviteIncome()
-      const series = Array.isArray(data.trendSeries || data.trends) ? (data.trendSeries || data.trends) : []
+      const result = await profileService.getInviteIncome()
+      const series = Array.isArray(result.trendSeries) && result.trendSeries.length
+        ? result.trendSeries
+        : trendSeries
       const points = buildTrendPoints(series)
 
-      this.setData({
+      this.setData(Object.assign({}, result, {
         trendPoints: points,
         trendSegments: buildTrendSegments(points),
-        trendShadowPath: buildTrendShadow(points),
-        metrics: Array.isArray(data.metrics || data.stats) ? (data.metrics || data.stats) : [],
-        flows: Array.isArray(data.flows || data.records || data.list) ? (data.flows || data.records || data.list) : []
-      })
+        trendShadowPath: buildTrendShadow(points)
+      }))
     } catch (error) {
-      wx.showToast({
-        title: error.message || '邀请收益加载失败',
-        icon: 'none'
+      console.warn('get invite income failed', error)
+      this.setData({
+        loadError: error.message || '收益明细加载失败'
       })
     }
   }

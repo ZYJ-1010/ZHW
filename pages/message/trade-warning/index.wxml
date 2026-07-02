@@ -9,11 +9,10 @@
 >
   <view class="trade-warning-page">
     <view class="trade-inner">
-        <view wx:if="{{loading}}" class="page-state">加载中...</view>
+        <view wx:if="{{loading}}" class="page-state">{{texts.loadingText}}</view>
         <view wx:elif="{{errorText}}" class="page-state error">{{errorText}}</view>
-        <view wx:elif="{{!hasWarning && !hasCountdown && !hasOrder && !hasDeliveryMethods}}" class="page-state">暂无预警内容</view>
 
-        <view wx:if="{{hasWarning}}" class="warning-panel">
+        <view class="warning-panel">
           <view class="warning-icon">
             <view class="warning-mark">!</view>
           </view>
@@ -27,8 +26,8 @@
           </view>
         </view>
 
-        <view wx:if="{{hasCountdown}}" class="countdown-card message-card">
-          <text class="countdown-label">剩余交付时间</text>
+        <view class="countdown-card message-card">
+          <text class="countdown-label">{{texts.countdownTitle}}</text>
           <view class="countdown-values">
             <block wx:for="{{countdown}}" wx:key="label">
               <view class="countdown-unit">
@@ -40,10 +39,10 @@
           </view>
         </view>
 
-        <view wx:if="{{hasOrder}}" class="order-card message-card">
+        <view class="order-card message-card">
           <view class="order-head">
             <view>
-              <text class="order-label">订单编号</text>
+              <text class="order-label">{{texts.orderNoLabel}}</text>
               <text class="order-no">{{order.orderNo}}</text>
             </view>
             <text class="order-status">{{order.statusText}}</text>
@@ -57,7 +56,7 @@
             </view>
           </view>
 
-          <view wx:if="{{detailRows.length}}" class="detail-panel">
+          <view class="detail-panel">
             <view wx:for="{{detailRows}}" wx:key="label" class="detail-row">
               <text>{{item.label}}</text>
               <text class="{{item.strong ? 'strong' : ''}}">{{item.value}}</text>
@@ -65,8 +64,8 @@
           </view>
         </view>
 
-        <view wx:if="{{hasDeliveryMethods}}" class="delivery-card message-card">
-          <text class="delivery-title">交付方式</text>
+        <view class="delivery-card message-card">
+          <text class="delivery-title">{{texts.deliveryTitle}}</text>
           <view class="method-list">
             <view
               wx:for="{{deliveryMethods}}"
@@ -85,9 +84,9 @@
           </view>
         </view>
 
-        <view wx:if="{{hasActions}}" class="action-row">
-          <button wx:if="{{actions.delayText}}" class="trade-action plain" hover-class="none" data-action="delay" bindtap="onActionTap">{{actions.delayText}}</button>
-          <button wx:if="{{actions.deliverText}}" class="trade-action danger" hover-class="none" data-action="deliver" bindtap="onActionTap">{{actions.deliverText}}</button>
+        <view class="action-row">
+          <button class="trade-action plain" hover-class="none" data-action="delay" bindtap="onActionTap">{{actions.delayText}}</button>
+          <button class="trade-action danger" hover-class="none" data-action="deliver" bindtap="onActionTap">{{actions.deliverText}}</button>
         </view>
     </view>
   </view>

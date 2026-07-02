@@ -38,11 +38,7 @@
       </view>
     </scroll-view>
 
-    <view wx:if="{{loading}}" class="message-empty">加载中...</view>
-    <view wx:elif="{{errorText}}" class="message-empty error">{{errorText}}</view>
-    <view wx:elif="{{!hasMessages}}" class="message-empty">暂无消息</view>
-
-    <view wx:else class="message-list">
+    <view class="message-list">
       <view wx:for="{{sections}}" wx:key="key" class="message-section">
         <view class="section-head">
           <text class="section-title">{{item.title}}</text>
@@ -50,8 +46,8 @@
             wx:if="{{item.moreText}}"
             class="section-more"
             hover-class="none"
-            data-action="{{item.key}}"
-            catchtap="onActionTap"
+            data-key="{{item.key}}"
+            catchtap="onSectionMoreTap"
           >{{item.moreText}}</button>
         </view>
 
@@ -61,11 +57,8 @@
             wx:for-item="message"
             wx:key="id"
             class="message-card {{message.alert ? 'alert' : ''}}"
+            data-id="{{message.id}}"
             data-route-key="{{message.routeKey}}"
-            data-room-id="{{message.roomId}}"
-            data-conversation-id="{{message.conversationId}}"
-            data-name="{{message.title}}"
-            data-avatar-text="{{message.avatarText}}"
             bindtap="onMessageTap"
           >
             <view class="message-icon-wrap">
@@ -108,7 +101,8 @@
                   wx:if="{{message.linkText}}"
                   class="message-link"
                   hover-class="none"
-                  data-action="{{message.id}}"
+                  data-id="{{message.id}}"
+                  data-action="process"
                   catchtap="onActionTap"
                 >{{message.linkText}}</button>
               </view>
@@ -120,6 +114,7 @@
                   wx:key="key"
                   class="action-button {{action.primary ? 'primary' : ''}} {{action.orange ? 'orange' : ''}}"
                   hover-class="none"
+                  data-id="{{message.id}}"
                   data-action="{{action.key}}"
                   catchtap="onActionTap"
                 >{{action.text}}</button>

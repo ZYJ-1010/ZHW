@@ -8,24 +8,84 @@ function getGameDetail(gameId) {
   return request.get(`/api/app/games/${gameId}`)
 }
 
-function getGameMembers(gameId, params) {
-  return request.get(`/api/app/games/${gameId}/members`, params)
+function getGameMembers(gameId) {
+  return request.get(`/api/app/games/${gameId}/members`)
+}
+
+function getGameSuccessDetail(gameId, params) {
+  return request.get(`/api/app/games/${gameId}/success-detail`, params)
+}
+
+function getGameGuideSuccessDetail(gameId, params) {
+  return request.get(`/api/app/games/${gameId}/guide-success-detail`, params)
+}
+
+function getGameCollaboration(gameId, params) {
+  return request.get(`/api/app/games/${gameId}/collaboration`, params)
+}
+
+function createGuideFollowUp(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/guide-follow-ups`, data)
 }
 
 function createGame(data) {
   return request.post('/api/app/games', data)
 }
 
+function createInviteEntry(data) {
+  return request.post('/api/app/invites/entries', data)
+}
+
+function confirmService(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/service-confirm`, data)
+}
+
+function createRetrospective(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/retrospectives`, data)
+}
+
+function requestPlayerCancel(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/player-cancel`, data)
+}
+
+function requestExpertCancel(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/expert-cancel`, data)
+}
+
+function favoriteGame(gameId) {
+  return request.post(`/api/app/games/${gameId}/favorite`, {})
+}
+
 function getProfitTemplates(params) {
   return request.get('/api/app/games/profit-templates', params)
 }
 
-function applyGame(gameId, data) {
-  return request.post(`/api/app/games/${gameId}/apply`, data)
+function getCategoryConfig(params) {
+  return request.get('/api/app/games/category-config', params)
 }
 
-function getGameApplyConfig(gameId, params) {
-  return request.get(`/api/app/games/${gameId}/apply-config`, params)
+function getApplicationConfig(params) {
+  return request.get('/api/app/games/application-config', params)
+}
+
+function getConditionRuleConfig(params) {
+  return request.get('/api/app/games/condition-rule-config', params)
+}
+
+function getCancelConfig(params) {
+  return request.get('/api/app/games/cancel-config', params)
+}
+
+function applyGame(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/applications`, data)
+}
+
+function getReceivedApplications(params) {
+  return request.get('/api/app/game-applications/received', params)
+}
+
+function reviewGameApplication(applicationId, data) {
+  return request.post(`/api/app/game-applications/${applicationId}/audit`, data)
 }
 
 function respondGameInvitation(invitationId, data) {
@@ -34,10 +94,6 @@ function respondGameInvitation(invitationId, data) {
 
 function getInvitePlayerConfig(params) {
   return request.get('/api/app/game-invites/player-config', params)
-}
-
-function getGameInviteConfig(params) {
-  return request.get('/api/app/game-invites/config', params)
 }
 
 function getInviteRecentPlayers(params) {
@@ -60,20 +116,20 @@ function createReplayInvitation(data) {
   return request.post('/api/app/game-invites/replay', data)
 }
 
-function createGameInvite(data) {
-  return request.post('/api/app/game-invites', data)
+function sendGuideReminder(data) {
+  return request.post('/api/app/game-invites/reminders', data)
 }
 
 function getGuideProgress(params) {
   return request.get('/api/app/game-invites/guide-progress', params)
 }
 
-function getGuideSuccess(params) {
-  return request.get('/api/app/game-invites/guide-success', params)
-}
-
 function getGuideCancelDetail(params) {
   return request.get('/api/app/game-invites/guide-cancel-detail', params)
+}
+
+function getReferralRecords(params) {
+  return request.get('/api/app/game-invites/referral-records', params)
 }
 
 function getGameManage(params) {
@@ -84,180 +140,50 @@ function getPlayerGameManage(params) {
   return request.get('/api/app/games/player/manage', params)
 }
 
-function getGameCollaboration(gameId, params) {
-  return request.get(`/api/app/games/${gameId}/collaboration`, params)
-}
-
-function endGameCollaboration(gameId, data) {
-  return request.post(`/api/app/games/${gameId}/end`, data)
-}
-
-function getGameAudits(params) {
-  return request.get('/api/app/game-audits', params)
-}
-
-function getGameAuditDetail(auditId, params) {
-  return request.get(`/api/app/game-audits/${auditId}`, params)
-}
-
-function respondGameAudit(auditId, data) {
-  return request.post(`/api/app/game-audits/${auditId}/respond`, data)
-}
-
-function batchRespondGameAudits(data) {
-  return request.post('/api/app/game-audits/batch-respond', data)
-}
-
-function getPlayAgainOptions(params) {
-  return request.get('/api/app/game-replays/options', params)
-}
-
-function selectPlayAgainOption(data) {
-  return request.post('/api/app/game-replays/options/select', data)
-}
-
-function getExpertSuccess(params) {
-  return request.get('/api/app/game-invites/expert-success', params)
-}
-
-function getReferralRecords(params) {
-  return request.get('/api/app/game-referrals/records', params)
-}
-
-function triggerReferralRecordAction(data) {
-  return request.post('/api/app/game-referrals/actions', data)
-}
-
-function getGameReviewConfig(params) {
-  return request.get('/api/app/game-reviews/config', params)
-}
-
-function submitGameReview(data) {
-  return request.post('/api/app/game-reviews', data)
-}
-
-function getReviewCompleteConfig(params) {
-  return request.get('/api/app/game-reviews/complete-config', params)
-}
-
-function selectReviewCompleteIntent(data) {
-  return request.post('/api/app/game-reviews/complete-intent', data)
-}
-
-function getServiceDeliveryDetail(serviceOrderId, params) {
-  return request.get(`/api/app/game-services/${serviceOrderId}/delivery-detail`, params)
-}
-
-function remindPlayerConfirm(serviceOrderId, data) {
-  return request.post(`/api/app/game-services/${serviceOrderId}/remind-player-confirm`, data)
-}
-
-function confirmServiceDelivery(serviceOrderId, data) {
-  return request.post(`/api/app/game-services/${serviceOrderId}/confirm-delivery`, data)
-}
-
-function getExpertCancelPreview(serviceOrderId, params) {
-  return request.get(`/api/app/game-services/${serviceOrderId}/expert-cancel-preview`, params)
-}
-
-function cancelServiceWithCompensation(serviceOrderId, data) {
-  return request.post(`/api/app/game-services/${serviceOrderId}/cancel-with-compensation`, data)
-}
-
-function getGuideChatContext(params) {
-  return request.get('/api/app/game-invites/guide-chat-context', params)
-}
-
-function respondGuideChatInvitation(data) {
-  return request.post('/api/app/game-invites/guide-chat/respond', data)
-}
-
-function sendGuideChatMessage(data) {
-  return request.post('/api/app/game-invites/guide-chat/messages', data)
-}
-
-function getGameGreetingContext(params) {
-  return request.get('/api/app/game-greetings/context', params)
-}
-
-function sendGameGreetingMessage(data) {
-  return request.post('/api/app/game-greetings/messages', data)
-}
-
-function getHallGreetingContext(params) {
-  return request.get('/api/app/game-hall/greeting-context', params)
-}
-
-function sendHallGreetingMessage(data) {
-  return request.post('/api/app/game-hall/greetings/messages', data)
-}
-
-function triggerHallGreetingAction(data) {
-  return request.post('/api/app/game-hall/greetings/actions', data)
-}
-
-function getGamePaymentConfig(gameId, params) {
-  if (gameId) {
-    return request.get(`/api/app/games/${gameId}/payment-config`, params)
-  }
-
-  return request.get('/api/app/game-payments/config', params)
+function getMyFavoriteGames(params) {
+  return request.get('/api/app/games/favorites/my', params)
 }
 
 function createGamePayment(data) {
-  return request.post('/api/app/game-payments/wechat', data)
+  return request.post('/api/app/payment/precreate-placeholder', data)
 }
 
 module.exports = {
   getGames,
   getGameDetail,
   getGameMembers,
+  getGameSuccessDetail,
+  getGameGuideSuccessDetail,
+  getGameCollaboration,
+  createGuideFollowUp,
   createGame,
+  createInviteEntry,
+  confirmService,
+  createRetrospective,
+  requestPlayerCancel,
+  requestExpertCancel,
+  favoriteGame,
   getProfitTemplates,
+  getCategoryConfig,
+  getApplicationConfig,
+  getConditionRuleConfig,
+  getCancelConfig,
   applyGame,
-  getGameApplyConfig,
+  getReceivedApplications,
+  reviewGameApplication,
   respondGameInvitation,
   getInvitePlayerConfig,
-  getGameInviteConfig,
   getInviteRecentPlayers,
   getInvitePlayers,
   getReplayConfirmContext,
   getSystemRecommendations,
   createReplayInvitation,
-  createGameInvite,
+  sendGuideReminder,
   getGuideProgress,
-  getGuideSuccess,
   getGuideCancelDetail,
+  getReferralRecords,
   getGameManage,
   getPlayerGameManage,
-  getGameCollaboration,
-  endGameCollaboration,
-  getGameAudits,
-  getGameAuditDetail,
-  respondGameAudit,
-  batchRespondGameAudits,
-  getPlayAgainOptions,
-  selectPlayAgainOption,
-  getExpertSuccess,
-  getReferralRecords,
-  triggerReferralRecordAction,
-  getGameReviewConfig,
-  submitGameReview,
-  getReviewCompleteConfig,
-  selectReviewCompleteIntent,
-  getServiceDeliveryDetail,
-  remindPlayerConfirm,
-  confirmServiceDelivery,
-  getExpertCancelPreview,
-  cancelServiceWithCompensation,
-  getGuideChatContext,
-  respondGuideChatInvitation,
-  sendGuideChatMessage,
-  getGameGreetingContext,
-  sendGameGreetingMessage,
-  getHallGreetingContext,
-  sendHallGreetingMessage,
-  triggerHallGreetingAction,
-  getGamePaymentConfig,
+  getMyFavoriteGames,
   createGamePayment
 }

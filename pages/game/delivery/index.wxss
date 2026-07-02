@@ -672,6 +672,72 @@ page {
   background: rgba(219, 234, 254, 0.5);
 }
 
+.proof-upload-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 104rpx;
+  height: 50rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #3b82f6;
+  font-size: 24rpx;
+  line-height: 50rpx;
+}
+
+.proof-upload-button::after {
+  border: 0;
+}
+
+.proof-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.proof-item {
+  position: relative;
+  width: 136rpx;
+  height: 136rpx;
+  overflow: hidden;
+  border-radius: 18rpx;
+  background: #f3f4f6;
+}
+
+.proof-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.proof-remove {
+  position: absolute;
+  right: 8rpx;
+  top: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: rgba(17, 24, 39, 0.72);
+  font-size: 28rpx;
+  line-height: 34rpx;
+}
+
+.proof-empty {
+  display: block;
+  margin-top: 18rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
 .info-icon {
   flex: none;
   display: flex;

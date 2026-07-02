@@ -1,80 +1,81 @@
 const toast = require('../../../utils/toast')
 const profileService = require('../../../services/profile')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 Page({
   data: {
-    scoreCard: {
-      label: '',
-      score: '',
-      badges: []
+    loading: false,
+    scoreLabel: '信用分',
+    score: 100,
+    level: '优秀',
+    monthlyDelta: '+0',
+    bottomNote: '信用分低于80分将限制部分功能，低于60分将暂停服务资格。',
+    appealEntry: {
+      enabled: false,
+      text: '信用申诉',
+      route: '/pages/profile/system-management/credit-appeal/index'
     },
-    summary: [],
-    records: [],
-    bottomNote: ''
+    summary: [
+      { label: '信用等级', value: '优秀' },
+      { label: '奖励中心', value: '0条待查看' },
+      { label: '惩罚中心', value: '0条记录' }
+    ],
+    records: []
   },
 
   onLoad() {
-    this.loadCredit()
+    this.loadCreditCenter()
   },
 
-  async loadCredit() {
-    try {
-      const data = await profileService.getProfileCredit()
-      const credit = data || {}
-      const scoreSource = credit.scoreCard || credit.credit || credit.creditSummary || {}
+  async loadCreditCenter() {
+    this.setData({ loading: true })
 
+    try {
+      const data = await profileService.getCreditCenter()
       this.setData({
-        scoreCard: this.normalizeScoreCard(scoreSource, credit),
-        summary: this.normalizeList(credit.summary || credit.stats || credit.items),
-        records: this.normalizeList(credit.records || credit.list),
-        bottomNote: this.pickText(credit.bottomNote, credit.noteText, credit.noticeText, credit.rulesNote)
+        score: data.score || 100,
+        scoreLabel: data.scoreLabel || '信用分',
+        level: data.level || '优秀',
+        monthlyDelta: data.monthlyDelta || '+0',
+        summary: Array.isArray(data.summary) && data.summary.length ? data.summary : this.data.summary,
+        records: Array.isArray(data.records) ? data.records : [],
+        bottomNote: data.bottomNote || this.data.bottomNote,
+        appealEntry: data.appealEntry || this.data.appealEntry
       })
     } catch (error) {
-      this.setData({
-        scoreCard: {
-          label: '',
-          score: '',
-          badges: []
-        },
-        summary: [],
-        records: [],
-        bottomNote: ''
-      })
-      toast.info(error.message || '信用中心加载失败')
+      toast.info(error.message || '获取信用中心失败')
+    } finally {
+      this.setData({ loading: false })
     }
   },
 
-  normalizeScoreCard(card = {}, credit = {}) {
-    return {
-      label: this.pickText(card.label, card.title, card.scoreLabel, credit.scoreLabel),
-      score: this.pickText(card.score, card.creditScore, card.value, credit.score, credit.creditScore),
-      badges: this.normalizeBadges(card.badges || card.tags || credit.badges || credit.scoreBadges)
+  handleRecordTap(event) {
+    const { reportId, creditLogId, appealRoute } = event.currentTarget.dataset
+
+    if (appealRoute) {
+      navigateShellRoute(appealRoute)
+      return
     }
+
+    if (reportId) {
+      navigateShellRoute(`/pages/profile/system-management/credit-appeal/index?reportId=${reportId}`)
+      return
+    }
+
+    if (creditLogId) {
+      navigateShellRoute(`/pages/profile/system-management/credit-appeal/index?creditLogId=${creditLogId}`)
+      return
+    }
+
+    toast.info('该信用记录暂无可申诉入口')
   },
 
-  normalizeBadges(list) {
-    return this.normalizeList(list).map((item) => {
-      if (typeof item === 'string') {
-        return {
-          text: item,
-          tone: ''
-        }
-      }
+  handleAppealTap() {
+    if (!this.data.appealEntry.enabled) {
+      toast.info('暂无可申诉的信用记录')
+      return
+    }
 
-      return {
-        text: item.text || item.label || item.name || '',
-        tone: item.tone || item.type || ''
-      }
-    }).filter((item) => item.text)
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
-  },
-
-  pickText(...values) {
-    const value = values.find((item) => item || item === 0)
-
-    return value || value === 0 ? String(value) : ''
+    navigateShellRoute(this.data.appealEntry.route || '/pages/profile/system-management/credit-appeal/index')
   }
 })

@@ -1,17 +1,27 @@
 const profileService = require('../../../../services/profile')
 
+function markActive(items = [], activeKey) {
+  return items.map((item) => ({
+    ...item,
+    active: item.key === activeKey || item.label === activeKey
+  }))
+}
+
 Page({
   data: {
+    activeRole: 'referred',
+    activeStatus: 'all',
+    emptyText: '暂无邀约记录',
     roleTabs: [
-      { label: '我引荐的', active: true },
-      { label: '我发起的', active: false }
+      { key: 'referred', label: '我引荐的', active: true },
+      { key: 'created', label: '我发起的', active: false }
     ],
     filters: [
-      { label: '全部', active: true },
-      { label: '进行中', active: false },
-      { label: '已完成', active: false },
-      { label: '超时', active: false },
-      { label: '已取消', active: false }
+      { key: 'all', label: '全部', active: true },
+      { key: 'progress', label: '进行中', active: false },
+      { key: 'completed', label: '已完成', active: false },
+      { key: 'timeout', label: '超时', active: false },
+      { key: 'cancelled', label: '已取消', active: false }
     ],
     records: []
   },
@@ -22,15 +32,23 @@ Page({
 
   async loadRecords() {
     try {
-      const data = await profileService.getInviteRecords()
+      const result = await profileService.getInviteRecords({
+        role: this.data.activeRole,
+        status: this.data.activeStatus
+      })
 
       this.setData({
-        records: Array.isArray(data.records || data.list || data.items) ? (data.records || data.list || data.items) : []
+        activeRole: result.activeRole || this.data.activeRole,
+        activeStatus: result.activeStatus || this.data.activeStatus,
+        roleTabs: markActive(result.roleTabs || this.data.roleTabs, result.activeRole || this.data.activeRole),
+        filters: markActive(result.filters || this.data.filters, result.activeStatus || this.data.activeStatus),
+        records: Array.isArray(result.records) ? result.records : [],
+        emptyText: result.emptyText || this.data.emptyText
       })
     } catch (error) {
-      wx.showToast({
-        title: error.message || '邀请记录加载失败',
-        icon: 'none'
+      this.setData({
+        records: [],
+        emptyText: error.message || '邀约记录加载失败'
       })
     }
   }

@@ -50,12 +50,23 @@ page {
 
 .review-source-card,
 .reply-input-card,
-.history-card {
+.history-card,
+.empty-state {
   padding: 28rpx;
   border-radius: 24rpx;
   box-sizing: border-box;
   background: #ffffff;
   box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.05);
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220rpx;
+  color: #9ca3af;
+  font-size: 25rpx;
+  line-height: 36rpx;
 }
 
 .reply-user-row,

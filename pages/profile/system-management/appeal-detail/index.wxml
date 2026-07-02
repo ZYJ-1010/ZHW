@@ -10,6 +10,11 @@
   back-icon-color="#f8fbff"
 >
   <view class="report-page appeal-detail-page with-bottom">
+    <view wx:if="{{loadError}}" class="report-card">
+      <text class="paragraph">{{loadError}}</text>
+    </view>
+
+    <view wx:else class="report-content">
     <view class="report-card detail-status-card">
       <view class="status-icon warning">
         <text class="status-icon-symbol">⟳</text>
@@ -64,6 +69,7 @@
           <text class="timeline-desc">{{item.desc}}</text>
         </view>
       </view>
+    </view>
     </view>
   </view>
 

@@ -12,7 +12,7 @@
     enable-back-to-top
   >
     <view class="review-reply-page">
-      <view class="review-source-card">
+      <view wx:if="{{hasReview}}" class="review-source-card">
         <view class="reply-user-row">
           <view class="reply-avatar">{{review.avatar}}</view>
           <view class="reply-user-copy">
@@ -43,7 +43,11 @@
         </view>
       </view>
 
-      <view class="quick-section">
+      <view wx:else class="empty-state">
+        <text>{{loadError ? '评价详情加载失败，请稍后重试' : '暂无评价详情'}}</text>
+      </view>
+
+      <view wx:if="{{templateRows.length}}" class="quick-section">
         <text class="quick-title">快捷回复模板</text>
         <view class="quick-list">
           <view wx:for="{{templateRows}}" wx:key="*this" class="quick-row">
@@ -59,7 +63,7 @@
         </view>
       </view>
 
-      <view class="reply-input-card">
+      <view wx:if="{{hasReview}}" class="reply-input-card">
         <text class="input-title">输入回复</text>
         <textarea
           class="reply-textarea"
@@ -72,7 +76,7 @@
         <text class="reply-count">{{replyText.length}}/200 字 · 真诚回复有助于提升信誉</text>
       </view>
 
-      <view class="history-card">
+      <view wx:if="{{history.length}}" class="history-card">
         <text class="history-title">历史对话</text>
         <view wx:for="{{history}}" wx:key="time" class="history-item {{item.side}}">
           <view class="history-head">
@@ -90,7 +94,7 @@
     </view>
   </scroll-view>
 
-  <view class="reply-submit-bar">
+  <view wx:if="{{hasReview}}" class="reply-submit-bar">
     <button class="reply-submit" hover-class="none" loading="{{submitting}}" bindtap="onSubmitTap">提交回复</button>
   </view>
 </home-apply-shell>

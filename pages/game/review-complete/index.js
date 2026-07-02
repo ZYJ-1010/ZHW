@@ -1,51 +1,14 @@
+const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const reviewService = require('../../../services/review')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
-function normalizeBenefit(item = {}) {
-  return {
-    iconText: item.iconText || item.icon || '',
-    theme: item.theme || '',
-    title: item.title || item.name || '',
-    desc: item.desc || item.description || ''
-  }
-}
-
-function normalizePlayOption(item = {}) {
-  return {
-    id: item.id || item.key || '',
-    theme: item.theme || '',
-    title: item.title || item.name || '',
-    desc: item.desc || item.description || ''
-  }
-}
-
-function normalizeCompleteConfig(data = {}) {
-  const success = data.success || data.successSection || {}
-  const reward = data.rewardCard || data.reward || {}
-  const playOptions = Array.isArray(data.playOptions || data.options)
-    ? (data.playOptions || data.options).map(normalizePlayOption).filter((item) => item.id)
-    : []
-
-  return {
-    onlineText: data.onlineText || '3999人在线',
-    success: {
-      title: success.title || data.successTitle || '',
-      desc: success.desc || success.description || data.successDesc || ''
-    },
-    rewardCard: {
-      iconText: reward.iconText || reward.icon || '',
-      value: reward.value || reward.points || data.rewardValue || data.rewardText || '',
-      title: reward.title || reward.label || data.rewardTitle || '',
-      desc: reward.desc || reward.description || data.rewardDesc || ''
-    },
-    benefits: Array.isArray(data.benefits) ? data.benefits.map(normalizeBenefit).filter((item) => item.title || item.desc) : [],
-    playOptions,
-    selectedPlayIntent: data.selectedPlayIntent || data.defaultPlayIntent || playOptions[0] && playOptions[0].id || ''
-  }
-}
+const EMPTY_REWARD = { show: false, points: '', title: '', desc: '', iconText: '' }
+const DEFAULT_PLAY_OPTIONS = []
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线',
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -54,49 +17,54 @@ Page({
       { name: '首页', active: true }
     ],
     pageScrollTop: 0,
-    success: {
-      title: '',
-      desc: ''
-    },
-    rewardCard: {
-      iconText: '',
-      value: '',
-      title: '',
-      desc: ''
-    },
+    reviewCount: 0,
+    reviewGameId: 0,
+    reviewSummaryText: '',
+    reward: EMPTY_REWARD,
     benefits: [],
-    playOptions: [],
+    playOptions: DEFAULT_PLAY_OPTIONS,
     selectedPlayIntent: '',
-    queryParams: {},
-    loading: false,
-    submitting: false
+    loadingConfig: false
   },
 
   onLoad(options = {}) {
+    const reviewCount = Number(options.count || 0) || 0
+    const reviewGameId = Number(options.gameId || 0) || 0
+
     this.setData({
-      queryParams: options
+      reviewCount,
+      reviewGameId,
+      reviewSummaryText: reviewCount
+        ? `本次已提交 ${reviewCount} 条评价${reviewGameId ? ` · 局ID ${reviewGameId}` : ''}`
+        : ''
     })
-    this.loadCompleteConfig(options)
+    this.loadCompleteConfig()
   },
 
-  async loadCompleteConfig(options = {}) {
-    this.setData({
-      loading: true
-    })
+  async loadCompleteConfig() {
+    this.setData({ loadingConfig: true })
 
     try {
-      const data = await gameService.getReviewCompleteConfig(options)
+      const config = await reviewService.getCompleteConfig({})
+      const benefits = Array.isArray(config.benefits) ? config.benefits : []
+      const playOptions = Array.isArray(config.playOptions) ? config.playOptions : DEFAULT_PLAY_OPTIONS
+      const reward = config.reward && typeof config.reward === 'object' ? config.reward : EMPTY_REWARD
 
       this.setData({
-        ...normalizeCompleteConfig(data),
-        loading: false
+        reward,
+        benefits,
+        playOptions,
+        selectedPlayIntent: playOptions[0] ? playOptions[0].id : '',
+        loadingConfig: false
       })
     } catch (error) {
       this.setData({
-        ...normalizeCompleteConfig({}),
-        loading: false
+        reward: EMPTY_REWARD,
+        benefits: [],
+        playOptions: DEFAULT_PLAY_OPTIONS,
+        selectedPlayIntent: '',
+        loadingConfig: false
       })
-      this.showInfo(error.message || '评价完成信息加载失败')
     }
   },
 
@@ -117,7 +85,10 @@ Page({
       return
     }
 
-    this.showInfo('功能正在开发中')
+    navigateShellKey(key, {
+      currentRoute: ROUTES.gameReviewComplete,
+      routeMap: { comment: ROUTES.message }
+    })
   },
 
   handleShellNavLongPress(event) {
@@ -146,27 +117,52 @@ Page({
   async onPlayIntentTap(event) {
     const id = event.currentTarget.dataset.id
 
-    if (!id || this.data.submitting) {
+    if (!id) {
       return
     }
 
     this.setData({
-      selectedPlayIntent: id,
-      submitting: true
+      selectedPlayIntent: id
     })
 
+    await this.submitPlayIntent(id)
+    this.navigateByIntent(id)
+  },
+
+  async submitPlayIntent(id) {
+    if (!this.data.reviewGameId) {
+      return
+    }
+
     try {
-      await gameService.selectReviewCompleteIntent({
-        ...this.data.queryParams,
-        intentId: id
+      await gameService.createRetrospective(this.data.reviewGameId, {
+        content: `评价完成页选择：${this.intentTitle(id)}`,
+        againIntent: this.intentValue(id)
       })
     } catch (error) {
-      this.showInfo(error.message || '后续意向提交失败')
-    } finally {
-      this.setData({
-        submitting: false
-      })
+      this.showInfo(error && error.message ? error.message : '再玩意愿记录失败')
     }
+  },
+
+  navigateByIntent(id) {
+    const option = this.data.playOptions.find((item) => item.id === id) || {}
+
+    if (option.route === 'play_again' || id === 'again') {
+      navigateShellRoute(`/${ROUTES.gamePlayAgain}${this.data.reviewGameId ? `?gameId=${this.data.reviewGameId}` : ''}`)
+      return
+    }
+
+    navigateShellRoute(ROUTES.gameHall)
+  },
+
+  intentValue(id) {
+    const option = this.data.playOptions.find((item) => item.id === id)
+    return option && option.intent ? option.intent : 'yes'
+  },
+
+  intentTitle(id) {
+    const option = this.data.playOptions.find((item) => item.id === id)
+    return option ? option.title : '再玩一局'
   },
 
   showInfo(title) {

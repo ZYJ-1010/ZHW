@@ -49,6 +49,19 @@
         <view class="pending-button" bindtap="onPendingTap">立即回复</view>
       </view>
 
+      <view class="status-tabs">
+        <view
+          wx:for="{{statusTabs}}"
+          wx:key="key"
+          class="status-tab {{activeStatus === item.key ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onStatusTap"
+        >
+          <text>{{item.label}}</text>
+          <text class="status-count">{{item.count}}</text>
+        </view>
+      </view>
+
       <view class="review-list">
         <view wx:for="{{reviews}}" wx:key="id" class="review-card {{item.statusType}}">
           <view class="review-head">
@@ -76,20 +89,39 @@
             <text class="reply-content">{{item.reply}}</text>
           </view>
 
-          <view wx:elif="{{item.statusType === 'pending'}}" class="review-actions">
+          <view wx:if="{{item.statusType !== 'replied'}}" class="review-actions">
             <button class="reply-action" data-id="{{item.id}}" hover-class="none" bindtap="onReplyTap">
               <image class="reply-action-icon" src="/pages/profile/assets/icon-review-reply.svg" mode="aspectFit"></image>
               <text>回复评价</text>
             </button>
-            <button class="like-action" aria-label="点赞" hover-class="none" bindtap="onLikeTap">
+            <button class="like-action" aria-label="点赞" data-id="{{item.id}}" hover-class="none" bindtap="onLikeTap">
               <image class="like-action-icon" src="/pages/profile/assets/icon-review-like.svg" mode="aspectFit"></image>
             </button>
           </view>
 
+          <view class="review-secondary-actions">
+            <button
+              class="secondary-action"
+              data-game-id="{{item.gameId}}"
+              data-route="{{item.detailUrl}}"
+              hover-class="none"
+              bindtap="onDetailTap"
+            >查看局详情</button>
+            <button
+              class="secondary-action danger"
+              data-route="{{item.reportUrl}}"
+              hover-class="none"
+              bindtap="onInterventionTap"
+            >平台介入</button>
+          </view>
           <view wx:if="{{item.alert}}" class="alert-box">
             <view class="alert-icon"></view>
             <text>{{item.alert}}</text>
           </view>
+        </view>
+
+        <view wx:if="{{loaded && !reviews.length}}" class="empty-state">
+          <text>{{loadError ? '评价列表加载失败，请稍后重试' : '暂无评价数据'}}</text>
         </view>
       </view>
 

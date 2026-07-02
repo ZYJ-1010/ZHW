@@ -8,11 +8,11 @@
       <button wx:for="{{filters}}" wx:key="key" class="filter-chip {{activeStatus === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleFilterTap">{{item.label}}</button>
     </view>
 
-    <view class="warning-card" bindtap="handleWarningTap">
+    <view wx:if="{{warning}}" class="warning-card" bindtap="handleWarningTap">
       <image class="warning-icon" src="./assets/warning-red.svg" mode="aspectFit"></image>
       <view class="warning-copy">
-        <text class="warning-title">超时预警</text>
-        <text class="warning-desc">有1个组局超过15天无进展</text>
+        <text class="warning-title">{{warning.title}}</text>
+        <text class="warning-desc">{{warning.desc}}</text>
       </view>
       <text class="warning-arrow">›</text>
     </view>

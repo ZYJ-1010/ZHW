@@ -1,6 +1,6 @@
-const DEFAULT_SUMMARY = {
-  label: '本月服务收入',
-  amount: '¥0',
+const EMPTY_SUMMARY = {
+  label: '',
+  amount: '',
   activeCount: 0,
   pendingSettlementCount: 0,
   completedCount: 0,
@@ -78,14 +78,6 @@ function normalizeStats(stats) {
     .filter((item) => item.text)
 }
 
-function buildDefaultStats(card) {
-  return [
-    { key: 'active', text: `进行中 ${card.activeCount}单` },
-    { key: 'pending', text: `待结算 ${card.pendingSettlementCount}单` },
-    { key: 'completed', text: `已完成 ${card.completedCount}单` }
-  ]
-}
-
 Component({
   properties: {
     summary: {
@@ -127,7 +119,7 @@ Component({
   },
 
   data: {
-    resolvedCard: DEFAULT_SUMMARY
+    resolvedCard: EMPTY_SUMMARY
   },
 
   observers: {
@@ -152,11 +144,11 @@ Component({
       const iconTheme = ROLE_THEMES[iconType] || theme
       const background = props.background || summary.background || summary.bg || ''
       const resolvedCard = {
-        label: firstDefined(props.label, summary.label, summary.title, DEFAULT_SUMMARY.label),
-        amount: firstDefined(props.amount, summary.amountText, summary.serviceIncomeText, summary.monthlyIncomeText, summary.amount, DEFAULT_SUMMARY.amount),
-        activeCount: getCount(firstDefined(props.activeCount, summary.activeCount, summary.ongoingCount, summary.processingCount), DEFAULT_SUMMARY.activeCount),
-        pendingSettlementCount: getCount(firstDefined(props.pendingSettlementCount, summary.pendingSettlementCount, summary.settlementCount, summary.waitingSettlementCount), DEFAULT_SUMMARY.pendingSettlementCount),
-        completedCount: getCount(firstDefined(props.completedCount, summary.completedCount, summary.completeCount, summary.doneCount), DEFAULT_SUMMARY.completedCount),
+        label: firstDefined(props.label, summary.label, summary.title, EMPTY_SUMMARY.label),
+        amount: firstDefined(props.amount, summary.amountText, summary.serviceIncomeText, summary.monthlyIncomeText, summary.amount, EMPTY_SUMMARY.amount),
+        activeCount: getCount(firstDefined(props.activeCount, summary.activeCount, summary.ongoingCount, summary.processingCount), EMPTY_SUMMARY.activeCount),
+        pendingSettlementCount: getCount(firstDefined(props.pendingSettlementCount, summary.pendingSettlementCount, summary.settlementCount, summary.waitingSettlementCount), EMPTY_SUMMARY.pendingSettlementCount),
+        completedCount: getCount(firstDefined(props.completedCount, summary.completedCount, summary.completeCount, summary.doneCount), EMPTY_SUMMARY.completedCount),
         themeClass: theme.themeClass,
         iconClass: iconTheme.iconClass,
         iconSrc: firstDefined(summary.iconSrc, summary.iconUrl, iconTheme.iconSrc, ''),
@@ -164,7 +156,7 @@ Component({
       }
 
       const customStats = normalizeStats(summary.stats || summary.statList)
-      resolvedCard.stats = customStats.length ? customStats : buildDefaultStats(resolvedCard)
+      resolvedCard.stats = customStats
 
       this.setData({
         resolvedCard

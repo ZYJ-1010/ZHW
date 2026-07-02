@@ -1,50 +1,61 @@
 const { ROUTES } = require('../../../config/routes')
+const messageService = require('../../../services/message')
 const imService = require('../../../services/im')
+const chatMedia = require('../../../services/chat-media')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
-const QUICK_ACTIONS = [
-  { key: 'friend', label: '加好友' },
-  { key: 'greet', label: '打招呼' },
-  { key: 'card', label: '发名片' },
-  { key: 'location', label: '发定位' }
-]
-
-function normalizeFriend(source = {}) {
-  const name = source.name || source.nickname || source.displayName || ''
-
-  return {
-    initials: source.initials || source.avatarText || (name ? name.trim().slice(0, 2) : ''),
-    name,
-    status: source.status || source.statusText || ''
-  }
+function toPositiveInt(value) {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? number : 0
 }
 
-function getMessageList(source = {}) {
-  if (Array.isArray(source)) {
-    return source
+function formatTime(value) {
+  if (!value) {
+    return ''
   }
 
-  if (!source || typeof source !== 'object') {
-    return []
-  }
-
-  return source.list || source.records || source.items || source.messages || []
+  return String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/, '')
 }
 
-function normalizeMessage(item = {}) {
-  const senderType = item.type || item.senderType || item.role || ''
-  const text = item.text || item.content || item.message || ''
+function initialsFromName(name) {
+  const text = String(name || '').trim()
+  return text ? text.slice(0, 2).toUpperCase() : 'IM'
+}
+
+function normalizeChatMessages(items, currentUserId) {
+  return (Array.isArray(items) ? items : []).map((item) => ({
+    id: item.id || `m-${Date.now()}`,
+    type: Number(item.senderUserId) === Number(currentUserId) ? 'self' : 'friend',
+    text: item.content || '',
+    timeText: formatTime(item.createdAt)
+  })).filter((item) => item.text)
+}
+
+function formatTemplate(template, values = {}) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => values[key] == null ? '' : String(values[key]))
+}
+
+function normalizeMyMessageConfig(source = {}) {
+  const friend = source.friend || {}
+  const texts = source.texts || {}
 
   return {
-    id: item.id || item.messageId || item.clientMessageId || `${senderType}-${item.createdAt || item.timeText || text}`,
-    type: senderType === 'self' || senderType === 'me' || item.isMine ? 'self' : 'friend',
-    text,
-    timeText: item.timeText || item.sentAtText || item.createdAtText || item.createdAt || ''
+    pageTitle: source.pageTitle || '',
+    onlineText: source.onlineText || '',
+    friend: {
+      defaultInitials: friend.defaultInitials || '',
+      defaultName: friend.defaultName || '',
+      defaultStatus: friend.defaultStatus || '',
+      nameTemplate: friend.nameTemplate || ''
+    },
+    quickActions: Array.isArray(source.quickActions) ? source.quickActions : [],
+    texts
   }
 }
 
 Page({
   data: {
-    pageTitle: '好友消息',
+    pageTitle: '',
     onlineText: '',
     navItems: [
       { name: '我的', key: 'mine' },
@@ -53,75 +64,157 @@ Page({
       { name: '消息', key: 'message' },
       { name: '首页', key: 'home' }
     ],
-    roomId: '',
-    friend: normalizeFriend(),
-    quickActions: QUICK_ACTIONS,
+    friend: {
+      initials: '',
+      name: '',
+      status: ''
+    },
+    quickActions: [],
+    texts: {},
+    pageConfig: normalizeMyMessageConfig(),
     messages: [],
-    chatScrollTop: 0,
+    gameId: 0,
+    currentUserId: 0,
     loading: false,
-    errorText: ''
+    chatScrollTop: 0
   },
 
   onLoad(options = {}) {
-    const roomId = options.roomId || options.conversationId || options.id || ''
-
+    const gameId = toPositiveInt(options.gameId)
     this.setData({
-      roomId,
-      friend: normalizeFriend({
-        name: options.name || '',
-        initials: options.initials || options.avatarText || '',
-        status: options.status || ''
-      })
+      gameId
     })
-
-    this.loadMessages()
+    this.loadPageConfig()
+    this.loadConversation()
   },
 
-  async loadMessages() {
-    if (!this.data.roomId) {
+  async loadPageConfig() {
+    try {
+      const config = await this.resolvePageConfig(true)
       this.setData({
-        loading: false,
-        errorText: '',
-        messages: []
+        pageTitle: config.pageTitle,
+        onlineText: config.onlineText,
+        quickActions: config.quickActions,
+        texts: config.texts,
+        pageConfig: config,
+        friend: {
+          initials: config.friend.defaultInitials,
+          name: config.friend.defaultName,
+          status: config.friend.defaultStatus
+        }
       })
+    } catch (error) {
+      this.showInfo(error && error.message ? error.message : this.textOf('loadFailedText'))
+    }
+  },
+
+  async resolvePageConfig(force = false) {
+    const current = this.data.pageConfig || normalizeMyMessageConfig()
+    if (!force && current.pageTitle) {
+      return current
+    }
+
+    return normalizeMyMessageConfig(await messageService.getMessageMyConfig())
+  },
+
+  async loadConversation() {
+    if (!this.data.gameId) {
       return
     }
 
-    this.setData({
-      loading: true,
-      errorText: ''
-    })
+    this.setData({ loading: true })
 
     try {
-      const data = await imService.getMessages(this.data.roomId, {
-        page: 1,
-        pageSize: 50
-      })
-      const friend = normalizeFriend(data && (data.friend || data.targetUser || data.conversation || {}))
-      const messages = getMessageList(data).map(normalizeMessage).filter((item) => item.text)
+      const [config, room, messagesResp] = await Promise.all([
+        this.resolvePageConfig(),
+        imService.getChatRoom(this.data.gameId),
+        imService.getMessages(this.data.gameId)
+      ])
+      const memberIDs = Array.isArray(room.memberIds) ? room.memberIds : []
+      const currentUserId = toPositiveInt(room.currentUserId || room.userId)
+      const peerID = memberIDs.find((id) => Number(id) !== Number(currentUserId)) || memberIDs[0] || 0
+      const friendName = peerID
+        ? formatTemplate(config.friend.nameTemplate, { userId: peerID })
+        : config.friend.defaultName
+      const rawMessages = messagesResp.items || messagesResp.messages || messagesResp.list || []
 
       this.setData({
         loading: false,
-        errorText: '',
-        friend: friend.name ? friend : this.data.friend,
-        messages,
+        pageTitle: config.pageTitle,
+        onlineText: config.onlineText,
+        quickActions: config.quickActions,
+        texts: config.texts,
+        pageConfig: config,
+        currentUserId,
+        friend: {
+          initials: initialsFromName(friendName || config.friend.defaultInitials),
+          name: friendName,
+          status: room.status || config.friend.defaultStatus
+        },
+        messages: normalizeChatMessages(rawMessages, currentUserId),
         chatScrollTop: 999999
       })
     } catch (error) {
-      const errorText = error && error.message ? error.message : '好友消息加载失败'
-
-      this.setData({
-        loading: false,
-        errorText,
-        messages: []
-      })
-      this.showInfo(errorText)
+      this.setData({ loading: false })
+      this.showInfo(error && error.message ? error.message : this.textOf('loadFailedText'))
     }
   },
 
   onQuickActionTap(event) {
-    const action = QUICK_ACTIONS.find((item) => item.key === event.currentTarget.dataset.key)
-    this.showInfo(action ? `${action.label}待接入` : '操作待接入')
+    const key = event.currentTarget.dataset.key
+
+    if (key === 'friend') {
+      navigateShellRoute(ROUTES.profile, {
+        currentRoute: ROUTES.messageMy
+      })
+      return
+    }
+
+    if (key === 'location') {
+      const suffix = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}&mode=route` : ''
+      navigateShellRoute(`${ROUTES.map}${suffix}`, {
+        currentRoute: ROUTES.messageMy
+      })
+      return
+    }
+
+    if (key === 'greet') {
+      this.sendQuickText(this.quickActionMessage(key))
+      return
+    }
+
+    if (key === 'card') {
+      this.sendQuickText(this.quickActionMessage(key))
+      return
+    }
+
+    this.showInfo(this.textOf('actionMissingText'))
+  },
+
+  quickActionMessage(key) {
+    const action = this.data.quickActions.find((item) => item.key === key) || {}
+    return action.messageText || ''
+  },
+
+  async sendQuickText(text) {
+    if (!text) {
+      this.showInfo(this.textOf('actionMissingText'))
+      return
+    }
+
+    if (this.data.gameId) {
+      try {
+        await imService.sendMessage(this.data.gameId, {
+          messageType: 'text',
+          content: text
+        })
+      } catch (error) {
+        this.showInfo(error && error.message ? error.message : this.textOf('sendFailedText'))
+        return
+      }
+    }
+
+    this.appendSelfMessage(text)
   },
 
   async onSendMessage(event) {
@@ -131,67 +224,83 @@ Page({
       return
     }
 
-    try {
-      await imService.sendMessage(this.data.roomId, {
-        type: 'text',
-        content: value
-      })
-      await this.loadMessages()
-    } catch (error) {
-      this.showInfo(error && error.message ? error.message : '消息发送失败')
+    if (this.data.gameId) {
+      try {
+        await imService.sendMessage(this.data.gameId, {
+          messageType: 'text',
+          content: value
+        })
+      } catch (error) {
+        this.showInfo(error && error.message ? error.message : this.textOf('sendFailedText'))
+        return
+      }
     }
+
+    this.appendSelfMessage(value)
   },
 
   onRecordStart() {
-    this.showInfo('开始录音')
+    this.showInfo(this.textOf('recordStartText'))
   },
 
   onRecordStop() {
-    this.showInfo('录音发送功能待接入')
+    this.showInfo(this.textOf('recordStopText'))
   },
 
   onRecordError() {
-    this.showInfo('录音失败')
+    this.showInfo(this.textOf('recordErrorText'))
   },
 
-  onChooseImage() {
-    this.showInfo('图片发送功能待接入')
+  onChooseImage(event) {
+    this.sendMediaMessage('image', event)
   },
 
-  onChooseFile() {
-    this.showInfo('文件发送功能待接入')
+  onChooseFile(event) {
+    this.sendMediaMessage('file', event)
+  },
+
+  async sendMediaMessage(messageType, event) {
+    if (!this.data.gameId) {
+      this.showInfo(this.textOf('fileEntryMissingText'))
+      return
+    }
+
+    try {
+      const result = await chatMedia.sendChosenFile(this.data.gameId, event, messageType)
+
+      this.appendSelfMessage(result.text)
+    } catch (error) {
+      this.showInfo(error && error.message ? error.message : this.textOf('sendFailedText'))
+    }
+  },
+
+  appendSelfMessage(text) {
+    this.setData({
+      messages: this.data.messages.concat({
+        id: `m-${Date.now()}`,
+        type: 'self',
+        text,
+        timeText: this.textOf('justNowText')
+      }),
+      chatScrollTop: 999999
+    })
   },
 
   handleShellNavTap(event) {
     const { key } = event.detail || {}
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
-    const routeMap = {
-      home: ROUTES.playerHome || ROUTES.home,
-      map: '',
-      message: ROUTES.message,
-      mine: ROUTES.profile,
-      avatar: ROUTES.profile,
-      metaverse: ROUTES.metaverse
-    }
-    const route = routeMap[key]
-
-    if (!route || route === ROUTES.messageMy) {
-      return
-    }
-
-    wx.navigateTo({
-      url: `/${route}`
+    navigateShellKey(key, {
+      currentRoute: ROUTES.messageMy
     })
   },
 
+  textOf(key) {
+    return this.data.texts[key] || ''
+  },
+
   showInfo(title) {
+    if (!title) {
+      return
+    }
     wx.showToast({
       title,
       icon: 'none'

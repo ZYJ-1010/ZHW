@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
 const { getSurnameInitials } = require('../../../utils/avatar')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_LEFT_RPX = 0
 const CONTENT_TOP_RPX = 160
@@ -11,7 +12,7 @@ const NAV_TITLE_HEIGHT_RPX = 50
 const BACK_BUTTON_SIZE_RPX = 40
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = 1620
-const EMPTY_ACTIVITY = {
+const DEFAULT_ACTIVITY = {
   serviceOrderId: '',
   gameId: '',
   playerId: '',
@@ -19,8 +20,8 @@ const EMPTY_ACTIVITY = {
   avatarText: '',
   serviceTitle: '',
   amount: 0,
-  amountText: '',
-  platformFeeRate: 0,
+  amountText: '¥0',
+  platformFeeRate: 10,
   platformFee: null,
   platformFeeText: '',
   statusText: ''
@@ -86,39 +87,11 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
-function pickFirstValue() {
-  const values = Array.prototype.slice.call(arguments)
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
-      return values[index]
-    }
-  }
-
-  return ''
-}
-
-function normalizeBoolean(value) {
-  if (typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    return value === 'true' || value === '1'
-  }
-
-  return Boolean(value)
-}
-
-function normalizeList(list) {
-  return Array.isArray(list) ? list : []
-}
-
 function parseAmountText(value) {
   const text = String(value || '').replace(/[^\d.]/g, '')
   const amount = Number(text)
 
-  return Number.isFinite(amount) ? amount : 0
+  return Number.isFinite(amount) ? amount : DEFAULT_ACTIVITY.amount
 }
 
 function decodeOption(value) {
@@ -147,38 +120,63 @@ function formatCurrency(value) {
   const amount = Number(value)
 
   if (!Number.isFinite(amount)) {
-    return ''
+    return '¥0'
   }
 
   return `¥${Math.round(amount).toLocaleString('zh-CN')}`
 }
 
-function normalizeAvatarText(value, name) {
-  const text = decodeOption(value).trim()
-
-  return text || (name ? getSurnameInitials(name, '') : '')
+function getAvatarText(name, fallback = 'LI') {
+  return getSurnameInitials(name, fallback)
 }
 
-function normalizeActivity(source = {}) {
-  const player = source.player || {}
-  const service = source.service || {}
-  const playerName = decodeOption(pickFirstValue(player.name, source.playerName))
-  const amountText = decodeOption(pickFirstValue(service.amountText, service.contractAmountText, source.amountText, source.contractAmountText))
-  const amount = getNumber(pickFirstValue(service.amount, service.contractAmount, source.amount), parseAmountText(amountText))
+function normalizeAvatarText(value, name, fallback = 'LI') {
+  const text = decodeOption(value).trim()
+
+  return getAvatarText(name, text || fallback)
+}
+
+function normalizeActivity(options = {}) {
+  const playerName = decodeOption(options.playerName || DEFAULT_ACTIVITY.playerName)
+  const serviceTitle = decodeOption(options.serviceTitle || DEFAULT_ACTIVITY.serviceTitle)
+  const amount = options.amount
+    ? Number(options.amount)
+    : parseAmountText(options.amountText || DEFAULT_ACTIVITY.amountText)
+  const platformFeeRate = getNumber(options.platformFeeRate, DEFAULT_ACTIVITY.platformFeeRate)
+  const platformFeeText = decodeOption(options.platformFeeText || '')
+  const platformFee = platformFeeText
+    ? parseAmountText(platformFeeText)
+    : options.platformFee || options.serviceFee
+      ? getNumber(options.platformFee || options.serviceFee)
+      : null
 
   return {
-    serviceOrderId: pickFirstValue(source.serviceOrderId, source.orderId, source.id),
-    gameId: pickFirstValue(source.gameId),
-    playerId: pickFirstValue(player.id, player.userId, source.playerId),
+    serviceOrderId: options.serviceOrderId || options.orderId || DEFAULT_ACTIVITY.serviceOrderId,
+    gameId: options.gameId || DEFAULT_ACTIVITY.gameId,
+    playerId: options.playerId || DEFAULT_ACTIVITY.playerId,
     playerName,
-    avatarText: normalizeAvatarText(pickFirstValue(player.avatarText, source.avatarText), playerName),
-    serviceTitle: decodeOption(pickFirstValue(service.title, source.serviceTitle, source.title)),
+    avatarText: normalizeAvatarText(options.avatarText || '', playerName, DEFAULT_ACTIVITY.avatarText),
+    serviceTitle,
     amount,
-    amountText: amountText || (amount ? formatCurrency(amount) : ''),
-    platformFeeRate: getNumber(pickFirstValue(source.platformFeeRate, source.serviceFeeRate), 0),
-    platformFee: source.platformFee || source.serviceFee || null,
-    platformFeeText: decodeOption(pickFirstValue(source.platformFeeText, source.serviceFeeText)),
-    statusText: decodeOption(pickFirstValue(source.statusText, source.serviceStatusText))
+    amountText: decodeOption(options.amountText || '') || formatCurrency(amount),
+    platformFeeRate,
+    platformFee,
+    platformFeeText,
+    statusText: decodeOption(options.statusText || DEFAULT_ACTIVITY.statusText)
+  }
+}
+
+function buildPaymentState(activity, ratio) {
+  const compensationAmount = activity.amount * ratio / 100
+  const serviceFee = activity.platformFee !== null && activity.platformFee !== undefined
+    ? activity.platformFee
+    : compensationAmount * activity.platformFeeRate / 100
+  const totalDebit = compensationAmount + serviceFee
+
+  return {
+    compensationAmountText: formatCurrency(compensationAmount),
+    serviceFeeText: activity.platformFeeText || formatCurrency(serviceFee),
+    totalDebitText: formatCurrency(totalDebit)
   }
 }
 
@@ -194,39 +192,7 @@ function buildActivityCard(activity) {
     rows: [
       { label: '合同金额', value: activity.amountText, tone: 'strong', divider: true },
       { label: '服务状态', value: activity.statusText, tone: 'active' }
-    ].filter((item) => item.value)
-  }
-}
-
-function normalizeReasons(data) {
-  return normalizeList(data.reasonOptions || data.cancelReasons || data.reasons)
-    .map((item) => ({
-      key: pickFirstValue(item.key, item.code, item.id),
-      text: pickFirstValue(item.text, item.label, item.title)
-    }))
-    .filter((item) => item.key && item.text)
-}
-
-function normalizePreview(data = {}, query = {}) {
-  const activity = normalizeActivity(Object.assign({}, query, data))
-  const reasonOptions = normalizeReasons(data)
-  const selectedReasonKey = pickFirstValue(data.selectedReasonKey, data.defaultReasonKey, reasonOptions[0] && reasonOptions[0].key)
-  const compensationRatio = getNumber(
-    pickFirstValue(data.compensationRatio, data.compensationRate, data.defaultCompensationRate, data.suggestedRate),
-    0
-  )
-
-  return {
-    activity,
-    activityCard: buildActivityCard(activity),
-    compensationRatio,
-    compensationAmountText: pickFirstValue(data.compensationAmountText),
-    serviceFeeText: pickFirstValue(data.serviceFeeText, data.platformFeeText),
-    totalDebitText: pickFirstValue(data.totalDebitText, data.totalDebitAmountText),
-    reasonOptions,
-    selectedReasonKey,
-    agreementChecked: normalizeBoolean(data.agreementChecked),
-    agreementText: pickFirstValue(data.agreementText, data.cancelAgreementText)
+    ]
   }
 }
 
@@ -238,25 +204,50 @@ Page({
   data: {
     shellLayout: getWhiteShellLayoutStyles(),
     queryParams: {},
-    activity: EMPTY_ACTIVITY,
-    activityCard: buildActivityCard(EMPTY_ACTIVITY),
-    compensationRatio: 0,
-    compensationAmountText: '',
-    serviceFeeText: '',
-    totalDebitText: '',
+    activity: DEFAULT_ACTIVITY,
+    activityCard: buildActivityCard(DEFAULT_ACTIVITY),
+    compensationRatio: 20,
+    compensationAmountText: '¥0',
+    serviceFeeText: '¥0',
+    totalDebitText: '¥0',
     reasonOptions: [],
     selectedReasonKey: '',
     reasonDetail: '',
-    agreementChecked: false,
+    agreementChecked: true,
     agreementText: ''
   },
 
   onLoad(options = {}) {
+    const activity = normalizeActivity(options)
+    const paymentState = buildPaymentState(activity, this.data.compensationRatio)
+
     this.setData({
-      queryParams: options
+      queryParams: options,
+      activity,
+      activityCard: buildActivityCard(activity),
+      ...paymentState
     })
-    this.loadCancelPreview(options)
+    this.loadCancelConfig()
     this.updateShellLayout()
+  },
+
+  async loadCancelConfig() {
+    try {
+      const config = await gameService.getCancelConfig({ role: 'expert' })
+      const expert = config.expert || {}
+      const reasonOptions = Array.isArray(expert.reasonOptions) ? expert.reasonOptions : []
+
+      this.setData({
+        reasonOptions,
+        selectedReasonKey: expert.defaultReason || (reasonOptions[0] && reasonOptions[0].key) || '',
+        agreementText: expert.agreementText || ''
+      })
+    } catch (error) {
+      wx.showToast({
+        title: error && error.message ? error.message : '取消配置加载失败',
+        icon: 'none'
+      })
+    }
   },
 
   onShow() {
@@ -273,43 +264,19 @@ Page({
     })
   },
 
-  async loadCancelPreview(params = {}) {
-    const serviceOrderId = params.serviceOrderId || params.orderId || params.id || this.data.activity.serviceOrderId
-
-    if (!serviceOrderId) {
-      this.setData(normalizePreview({}, params))
-      this.showInfo('缺少服务订单信息')
-      return
-    }
-
-    try {
-      const preview = await gameService.getExpertCancelPreview(Object.assign({}, params, {
-        serviceOrderId
-      }))
-
-      this.setData(normalizePreview(preview, params))
-    } catch (error) {
-      this.setData(normalizePreview({}, params))
-      this.showInfo(error.message || '取消赔付预览加载失败')
-    }
+  updatePaymentState(ratio) {
+    this.setData({
+      compensationRatio: ratio,
+      ...buildPaymentState(this.data.activity, ratio)
+    })
   },
 
   onRatioChanging(event) {
-    this.setData({
-      compensationRatio: Number(event.detail.value)
-    })
+    this.updatePaymentState(Number(event.detail.value))
   },
 
   onRatioChange(event) {
-    const compensationRatio = Number(event.detail.value)
-
-    this.setData({
-      compensationRatio
-    })
-    this.loadCancelPreview(Object.assign({}, this.data.queryParams, {
-      serviceOrderId: this.data.activity.serviceOrderId,
-      compensationRate: compensationRatio
-    }))
+    this.updatePaymentState(Number(event.detail.value))
   },
 
   onReasonChange(event) {
@@ -329,43 +296,89 @@ Page({
   },
 
   onAgreementChange(event) {
-    const agreementChecked = normalizeBoolean(event.detail.checked)
+    const agreementChecked = Boolean(event.detail.checked)
 
     this.setData({
       agreementChecked
     })
   },
 
-  async onConfirmCancelTap() {
+  onConfirmCancelTap() {
     const reasonDetail = normalizeRequiredText(this.data.reasonDetail)
 
     if (!this.data.selectedReasonKey) {
-      this.showInfo('请选择取消原因')
+      wx.showToast({
+        title: '请选择取消原因',
+        icon: 'none'
+      })
       return
     }
 
     if (!reasonDetail) {
-      this.showInfo('请填写详细说明')
+      wx.showToast({
+        title: '请填写详细说明',
+        icon: 'none'
+      })
       return
     }
 
     if (!this.data.agreementChecked) {
-      this.showInfo('请先同意服务取消协议')
+      wx.showToast({
+        title: '请先同意服务取消协议',
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.showModal({
+      title: '确认取消服务',
+      content: `本次将扣款 ${this.data.totalDebitText}，确认后会提交取消赔付申请。`,
+      confirmText: '确认取消',
+      confirmColor: '#ef4444',
+      success: (res) => {
+        if (!res.confirm) {
+          return
+        }
+
+        this.submitExpertCancel(reasonDetail)
+      }
+    })
+  },
+
+  async submitExpertCancel(reasonDetail) {
+    const activity = this.data.activity
+
+    if (!activity || !activity.gameId) {
+      wx.showToast({
+        title: '缺少组局信息，无法提交取消',
+        icon: 'none'
+      })
       return
     }
 
     try {
-      await gameService.cancelServiceWithCompensation({
-        serviceOrderId: this.data.activity.serviceOrderId,
-        gameId: this.data.activity.gameId,
-        reasonCode: this.data.selectedReasonKey,
-        reasonRemark: reasonDetail,
-        compensationRate: this.data.compensationRatio
+      await gameService.requestExpertCancel(activity.gameId, {
+        serviceOrderId: activity.serviceOrderId,
+        playerId: activity.playerId,
+        reasonKey: this.data.selectedReasonKey,
+        reasonText: reasonDetail,
+        compensationRate: this.data.compensationRatio,
+        compensationAmountText: this.data.compensationAmountText,
+        platformFeeText: this.data.serviceFeeText,
+        payAmountText: this.data.totalDebitText,
+        contractAmount: activity.amount,
+        statusText: activity.statusText
       })
-      this.showInfo('取消赔付已提交')
-      this.goBack()
+      wx.showToast({
+        title: '取消赔付申请已提交',
+        icon: 'none'
+      })
+      navigateShellRoute(ROUTES.gameManage)
     } catch (error) {
-      this.showInfo(error.message || '取消赔付提交失败')
+      wx.showToast({
+        title: error && error.message ? error.message : '取消赔付提交失败',
+        icon: 'none'
+      })
     }
   },
 
@@ -385,15 +398,6 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.gameManage}`
-    })
-  },
-
-  showInfo(title) {
-    wx.showToast({
-      title,
-      icon: 'none'
-    })
+    navigateShellRoute(ROUTES.gameManage)
   }
 })

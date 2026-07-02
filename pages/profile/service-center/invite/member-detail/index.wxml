@@ -1,11 +1,12 @@
 <profile-white-shell title="成员详情查看页" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff" right-text="⋮" right-color="#7f8da3">
   <view class="invite-page member-detail-page dark-page">
     <view class="member-card">
-      <view class="member-hero">
+      <view wx:if="{{member.name}}" class="member-hero">
         <text class="member-avatar">{{member.avatar}}</text>
         <text class="member-name">{{member.name}}</text>
         <text class="pill member-level">{{member.level}}</text>
       </view>
+      <view wx:else class="empty-state">暂无成员详情</view>
 
       <view class="stat-row">
         <view wx:for="{{stats}}" wx:key="label" class="stat-card">
@@ -20,6 +21,7 @@
           <text class="income-label">{{item.label}}</text>
           <text class="income-value">{{item.value}}</text>
         </view>
+        <view wx:if="{{!income.length}}" class="empty-state">暂无收益贡献</view>
       </view>
 
       <view class="section-card activity-section">
@@ -32,6 +34,7 @@
           </view>
           <text class="activity-amount">{{item.amount}}</text>
         </view>
+        <view wx:if="{{!activities.length}}" class="empty-state">暂无最近动态</view>
       </view>
     </view>
   </view>

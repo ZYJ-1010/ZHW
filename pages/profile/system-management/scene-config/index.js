@@ -3,6 +3,21 @@ const profileService = require('../../../../services/profile')
 
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
 
+const MODE_MAP = {
+  hard: {
+    label: '硬保护',
+    desc: '完全过滤同类行家内容'
+  },
+  soft: {
+    label: '软保护',
+    desc: '降权排序，推至第5页后'
+  },
+  none: {
+    label: '不过滤',
+    desc: '正常展示同类行家内容'
+  }
+}
+
 Page({
   data: {
     icons: {
@@ -15,36 +30,32 @@ Page({
     selectedMode: '',
     selectedSceneTitle: '',
     showModeSheet: false,
+    blockSettings: null,
     scenes: [],
     modeOptions: [],
     rules: []
   },
 
   onLoad(options) {
-    this.loadSceneConfig(options && options.sheet)
+    if (options && options.sheet) {
+      this.openSheet(options.sheet)
+    }
+    this.loadScenes()
   },
 
-  async loadSceneConfig(sheet) {
+  async loadScenes() {
     try {
       const data = await profileService.getSystemBlockSettings()
-      const sceneConfig = data.sceneConfig || data.scenesConfig || {}
-
+      const modes = Array.isArray(data.protectionModes) ? data.protectionModes : []
       this.setData({
-        scenes: this.normalizeList(sceneConfig.scenes || data.scenes),
-        modeOptions: this.normalizeList(sceneConfig.modeOptions || data.modeOptions),
-        rules: this.normalizeList(sceneConfig.rules || data.rules)
-      }, () => {
-        if (sheet) {
-          this.openSheet(sheet)
-        }
+        blockSettings: data || null,
+        scenes: Array.isArray(data.scenes) ? data.scenes : [],
+        modeOptions: modes.map(toModeOption),
+        rules: Array.isArray(data.sceneRules) ? data.sceneRules : []
       })
     } catch (error) {
-      this.setData({
-        scenes: [],
-        modeOptions: [],
-        rules: []
-      })
-      toast.info(error.message || '分场景配置加载失败')
+      this.setData({ scenes: [], modeOptions: [], rules: [] })
+      toast.info(error.message || '分场景配置暂时不可用')
     }
   },
 
@@ -54,13 +65,10 @@ Page({
   },
 
   openSheet(sceneKey) {
-    const fallback = this.data.scenes[0] && this.data.scenes[0].key
-
-    if (!fallback) {
-      toast.info('暂无可配置场景')
+    if (!this.data.scenes.length) {
       return
     }
-
+    const fallback = this.data.scenes[0].key
     const selectedScene = this.data.scenes.some((item) => item.key === sceneKey) ? sceneKey : fallback
     const scene = this.data.scenes.find((item) => item.key === selectedScene)
 
@@ -97,16 +105,26 @@ Page({
 
   async handleSaveTap() {
     try {
-      await profileService.saveSystemBlockScenes({
+      await profileService.saveSystemBlockSettings({
+        ...(this.data.blockSettings || {}),
         scenes: this.data.scenes
       })
       toast.success('分场景配置已保存')
     } catch (error) {
-      toast.info(error.message || '分场景配置保存失败')
+      toast.info(error.message || '保存失败')
     }
   },
 
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
+  modeLabel(mode) {
+    return MODE_MAP[mode] ? MODE_MAP[mode].label : ''
   }
 })
+
+function toModeOption(item) {
+  return {
+    key: item.key,
+    title: item.title,
+    desc: item.desc,
+    iconText: item.key === 'none' ? '!' : '锁'
+  }
+}

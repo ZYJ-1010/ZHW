@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const WHITE_CONTENT_LEFT_RPX = 2
 const WHITE_CONTENT_TOP_RPX = 160
@@ -68,12 +69,38 @@ function getWhiteShellLayoutStyles() {
   }
 }
 
+function normalizeMember(item = {}, index = 0) {
+  const userId = item.userId || item.id || item.memberId || ''
+  const role = item.roleLabel || item.role || (item.isCreator ? '发起人' : '玩家')
+  const roleKey = String(item.role || '').toLowerCase()
+  const roleClass = roleKey.indexOf('expert') !== -1
+    ? 'expert'
+    : roleKey.indexOf('guide') !== -1 || item.isCreator
+      ? 'guide'
+      : 'player'
+  const avatarText = item.avatarText || item.avatar || String(userId || index + 1).slice(-2)
+
+  return {
+    id: userId || `member-${index + 1}`,
+    userId,
+    name: item.name || item.nickname || `成员${index + 1}`,
+    avatarSrc: item.avatarSrc || item.avatarUrl || '/pages/home/player/assets/ranking-avatar-01.png',
+    avatarText,
+    role,
+    roleClass,
+    position: item.position || item.roleText || (item.isCreator ? '组局发起人' : '局内成员'),
+    topic: item.topic || (item.confirmed ? '已确认服务完成' : '参与本次组局'),
+    primaryTag: item.primaryTag || (item.isCurrentUser ? '当前用户' : '组局成员'),
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    location: item.location || item.cityName || '同城组局',
+    distance: item.distance || item.distanceText || ''
+  }
+}
+
 Page({
   data: {
     gameId: '',
     whiteShellLayout: getWhiteShellLayoutStyles(),
-    loading: false,
-    loadErrorText: '',
     participants: []
   },
 
@@ -85,59 +112,26 @@ Page({
       whiteShellLayout: getWhiteShellLayoutStyles(),
       participants: []
     })
-
-    if (gameId) {
-      this.loadParticipants(gameId)
-    }
+    this.loadParticipants(gameId)
   },
 
   async loadParticipants(gameId) {
-    this.setData({
-      loading: true,
-      loadErrorText: ''
-    })
+    if (!gameId) {
+      return
+    }
 
     try {
-      const data = await gameService.getGameMembers(gameId, {
-        page: 1,
-        pageSize: 100
-      })
-      const source = Array.isArray(data) ? data : (data.list || data.records || data.items || data.members || [])
+      const data = await gameService.getGameMembers(gameId)
+      const items = Array.isArray(data.items) ? data.items : []
 
       this.setData({
-        loading: false,
-        participants: source.map(this.normalizeParticipant)
+        participants: items.map(normalizeMember)
       })
     } catch (error) {
-      this.setData({
-        loading: false,
-        loadErrorText: error.message || '参与者加载失败',
-        participants: []
-      })
       wx.showToast({
         title: error.message || '参与者加载失败',
         icon: 'none'
       })
-    }
-  },
-
-  normalizeParticipant(member = {}) {
-    const user = member.user || member.profile || member
-    const name = user.name || user.nickname || member.name || member.nickname || ''
-
-    return {
-      id: member.id || member.userId || user.id || name,
-      name,
-      avatarSrc: user.avatarSrc || user.avatarUrl || member.avatarSrc || member.avatarUrl || '',
-      avatarText: user.avatarText || member.avatarText || name.slice(0, 1),
-      role: member.roleText || member.role || user.roleText || '',
-      roleClass: member.roleClass || member.role || '',
-      position: user.position || user.title || member.position || member.title || '',
-      topic: member.topic || member.summary || user.summary || '',
-      primaryTag: member.primaryTag || member.tagText || '',
-      tags: Array.isArray(member.tags || user.tags) ? (member.tags || user.tags) : [],
-      location: member.location || member.address || user.location || '',
-      distance: member.distanceText || member.distance || ''
     }
   },
 
@@ -155,19 +149,19 @@ Page({
       return
     }
 
-    wx.redirectTo({
-      url: `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${encodeURIComponent(this.data.gameId)}` : ''}`
-    })
+    navigateShellRoute(`/${ROUTES.gameDetail}${this.data.gameId ? `?id=${encodeURIComponent(this.data.gameId)}` : ''}`)
   },
 
   onParticipantTap(event) {
     const participant = event.detail && event.detail.participant
-    const name = (participant && participant.name) || '参与者'
+    const memberId = participant && (participant.userId || participant.id)
 
-    wx.showToast({
-      title: `${name}资料待接入`,
-      icon: 'none'
-    })
+    if (memberId) {
+      navigateShellRoute(`/pages/profile/service-center/invite/member-detail/index?id=${encodeURIComponent(memberId)}`)
+      return
+    }
+
+    navigateShellRoute(ROUTES.profile)
   },
 
   onShareAppMessage() {

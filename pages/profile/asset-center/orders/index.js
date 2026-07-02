@@ -1,55 +1,14 @@
 const profileService = require('../../../../services/profile')
 const toast = require('../../../../utils/toast')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
-const DEFAULT_TABS = [
-  { key: 'all', label: '全部' },
-  { key: 'pending_ship', label: '待发货' },
-  { key: 'shipping', label: '配送中' },
-  { key: 'completed', label: '已完成' }
-]
-
-const STATUS_LABEL_MAP = {
-  all: '全部',
-  pending_ship: '待发货',
-  pendingShip: '待发货',
-  shipping: '配送中',
-  delivering: '配送中',
-  completed: '已完成',
-  complete: '已完成'
+const DEFAULT_CONFIRM = {
+  title: '',
+  content: '',
+  confirmText: '',
+  cancelText: '',
+  reason: ''
 }
-
-const STATUS_KEY_MAP = {
-  '全部': 'all',
-  '待发货': 'pending_ship',
-  '配送中': 'shipping',
-  '已完成': 'completed'
-}
-
-const STATUS_TONE_MAP = {
-  pending_ship: 'orange',
-  pendingShip: 'orange',
-  shipping: 'blue',
-  delivering: 'blue',
-  completed: 'success',
-  complete: 'success'
-}
-
-const ACTION_LABEL_KEY_MAP = {
-  '查看物流': 'logistics',
-  '再次兑换': 'again',
-  '取消订单': 'cancel',
-  '查看详情': 'detail'
-}
-
-const BUTTON_STYLE_TYPES = {
-  ghost: true,
-  primary: true,
-  plain: true,
-  default: true
-}
-
-const AGAIN_ACTION_KEYS = ['again', 'exchange', 'reexchange', 'redeemagain']
-const LOGISTICS_ACTION_KEYS = ['logistics', 'viewlogistics', 'tracking', 'track', 'express', 'viewexpress', 'deliverytrace', 'shippingtrace']
 
 function pickFirstValue() {
   const values = Array.prototype.slice.call(arguments)
@@ -63,55 +22,38 @@ function pickFirstValue() {
   return ''
 }
 
-function normalizeStatusKey(value) {
-  const text = String(value || '').trim()
-
-  return STATUS_KEY_MAP[text] || text
+function normalizeKey(value) {
+  return String(value || '').trim()
 }
 
 function normalizeTabs(tabs) {
-  const source = Array.isArray(tabs) && tabs.length ? tabs : DEFAULT_TABS
-
-  return source.map((item) => {
-    if (typeof item === 'string') {
-      return {
-        key: normalizeStatusKey(item),
-        label: item
-      }
-    }
-
-    const key = normalizeStatusKey(pickFirstValue(item.key, item.status, item.value, item.type))
-    const label = pickFirstValue(item.label, item.name, item.title, STATUS_LABEL_MAP[key], key)
-
-    return {
-      key,
-      label,
-      count: item.count
-    }
-  })
-}
-
-function normalizeActionLookupKey(value) {
-  return String(value || '').trim().replace(/[-_\s]/g, '').toLowerCase()
-}
-
-function normalizeActionKey(value, label) {
-  const key = String(value || '').trim()
-  const labelText = String(label || '').trim()
-
-  if (key && !BUTTON_STYLE_TYPES[key]) {
-    return key
+  if (!Array.isArray(tabs)) {
+    return []
   }
 
-  return ACTION_LABEL_KEY_MAP[labelText] || labelText
-}
+  return tabs
+    .map((item) => {
+      if (!item) {
+        return null
+      }
 
-function isAgainAction(actionKey, actionLabel) {
-  return actionLabel === '再次兑换' || AGAIN_ACTION_KEYS.indexOf(normalizeActionLookupKey(actionKey)) !== -1
-}
+      if (typeof item === 'string') {
+        return {
+          key: normalizeKey(item),
+          label: item
+        }
+      }
 
-function isLogisticsAction(actionKey, actionLabel) {
-  return actionLabel === '查看物流' || LOGISTICS_ACTION_KEYS.indexOf(normalizeActionLookupKey(actionKey)) !== -1
+      const key = normalizeKey(pickFirstValue(item.key, item.status, item.value, item.type))
+      const label = pickFirstValue(item.label, item.name, item.title)
+
+      return {
+        key,
+        label,
+        count: item.count
+      }
+    })
+    .filter((item) => item && item.key && item.label)
 }
 
 function normalizeActions(actions) {
@@ -126,29 +68,16 @@ function normalizeActions(actions) {
       }
 
       if (typeof item === 'string') {
-        const label = item.trim()
-
-        return {
-          key: normalizeActionKey('', label),
-          label,
-          type: 'ghost'
-        }
+        return null
       }
 
-      const rawType = String(item.type || '').trim()
+      const key = normalizeKey(pickFirstValue(item.key, item.actionKey, item.action, item.value, item.code, item.event))
       const label = pickFirstValue(item.label, item.text, item.name, item.title)
-      const buttonType = pickFirstValue(
-        item.buttonType,
-        item.style,
-        item.variant,
-        rawType === 'primary' || rawType === 'ghost' ? rawType : ''
-      )
-      const rawKey = pickFirstValue(item.key, item.actionKey, item.action, item.value, item.code, item.event, item.type)
 
       return {
-        key: normalizeActionKey(rawKey, label),
+        key,
         label,
-        type: buttonType || 'ghost'
+        type: pickFirstValue(item.buttonType, item.style, item.variant, item.type, 'ghost')
       }
     })
     .filter((item) => item && item.key && item.label)
@@ -156,39 +85,18 @@ function normalizeActions(actions) {
 
 function normalizeOrder(item) {
   const source = item || {}
-  const statusKey = normalizeStatusKey(pickFirstValue(
-    source.statusKey,
-    source.orderStatus,
-    source.status,
-    source.state
-  ))
-  const statusLabel = pickFirstValue(
-    source.statusText,
-    source.statusLabel,
-    source.statusName,
-    STATUS_LABEL_MAP[statusKey],
-    source.status
-  )
 
-  const actions = normalizeActions(source.actions || source.actionList)
   return {
     id: pickFirstValue(source.id, source.orderId, source.orderNo, source.orderSn),
-    statusKey,
-    status: statusLabel,
-    statusTone: pickFirstValue(source.statusTone, STATUS_TONE_MAP[statusKey], 'blue'),
-    iconText: pickFirstValue(source.iconText, source.goodsIcon, source.icon, '🎁'),
+    statusKey: pickFirstValue(source.statusKey, source.orderStatus, source.status, source.state),
+    status: pickFirstValue(source.statusText, source.statusLabel, source.statusName, source.status),
+    statusTone: pickFirstValue(source.statusTone, 'blue'),
+    iconText: pickFirstValue(source.iconText, source.goodsIcon, source.icon),
     imageUrl: pickFirstValue(source.imageUrl, source.goodsImageUrl, source.productImageUrl, source.coverUrl),
-    title: pickFirstValue(source.title, source.goodsName, source.productName, source.name, '兑换商品'),
+    title: pickFirstValue(source.title, source.goodsName, source.productName, source.name, source.itemName),
     points: pickFirstValue(source.points, source.pointsText, source.costText, source.amountText),
-    time: pickFirstValue(
-      source.time,
-      source.timeText,
-      source.exchangedAtText,
-      source.createdAtText,
-      source.exchangedAt ? `兑换时间: ${source.exchangedAt}` : '',
-      source.createdAt ? `兑换时间: ${source.createdAt}` : ''
-    ),
-    actions
+    time: pickFirstValue(source.time, source.timeText, source.exchangedAtText, source.createdAtText, source.createdAt),
+    actions: normalizeActions(source.actions || source.actionList)
   }
 }
 
@@ -205,7 +113,7 @@ function normalizeTimeline(list) {
   })).filter((item) => item.desc)
 }
 
-function normalizeLogisticsData(data) {
+function normalizeLogisticsData(data, pageConfig) {
   const source = data || {}
   const courier = source.courier || source.express || {}
   const trackingNo = pickFirstValue(
@@ -220,16 +128,44 @@ function normalizeLogisticsData(data) {
   return {
     orderId: pickFirstValue(source.orderId, source.orderNo),
     courier: {
-      name: pickFirstValue(source.courierName, source.expressName, courier.name, courier.companyName, '物流公司'),
+      name: pickFirstValue(source.courierName, source.expressName, courier.name, courier.companyName),
       trackingNo
     },
     timeline: normalizeTimeline(source.timeline || source.traces || source.events),
-    emptyText: pickFirstValue(source.emptyText, '暂无物流信息')
+    emptyText: pickFirstValue(source.emptyText, pageConfig.logisticsEmptyText)
+  }
+}
+
+function normalizeOrderDetailData(data, pageConfig) {
+  const source = data || {}
+  const order = normalizeOrder(source.order || source)
+  const rows = Array.isArray(source.detailRows) ? source.detailRows : []
+
+  return {
+    order,
+    rows: rows.map((item) => ({
+      label: pickFirstValue(item.label, item.name, item.title),
+      value: pickFirstValue(item.value, item.text, item.content)
+    })).filter((item) => item.label && item.value),
+    actions: normalizeActions(order.actions || []).filter((item) => item.key !== 'detail'),
+    emptyText: pickFirstValue(source.emptyText, pageConfig.detailEmptyText)
+  }
+}
+
+function normalizePageConfig(source) {
+  const config = source || {}
+
+  return {
+    emptyText: pickFirstValue(config.emptyText),
+    logisticsEmptyText: pickFirstValue(config.logisticsEmptyText),
+    detailEmptyText: pickFirstValue(config.detailEmptyText),
+    cancelConfirm: Object.assign({}, DEFAULT_CONFIRM, config.cancelConfirm || {})
   }
 }
 
 function normalizeOrdersData(data) {
   const source = data || {}
+  const pageConfig = normalizePageConfig(source.pageConfig || source)
   const ordersSource = Array.isArray(source.orders)
     ? source.orders
     : (Array.isArray(source.list) ? source.list : (Array.isArray(data) ? data : []))
@@ -237,14 +173,9 @@ function normalizeOrdersData(data) {
   return {
     tabs: normalizeTabs(source.tabs),
     orders: ordersSource.map(normalizeOrder),
-    emptyText: pickFirstValue(source.emptyText, '暂无订单')
+    emptyText: pickFirstValue(source.emptyText, pageConfig.emptyText),
+    pageConfig
   }
-}
-
-function getEmptyText(activeTab) {
-  const label = STATUS_LABEL_MAP[activeTab] || ''
-
-  return label && label !== '全部' ? `暂无${label}订单` : '暂无订单'
 }
 
 function normalizeEventValue() {
@@ -263,11 +194,12 @@ function normalizeEventValue() {
 
 Page({
   data: {
-    tabs: DEFAULT_TABS,
+    tabs: [],
     activeTab: 'all',
     orders: [],
     isLoading: false,
-    emptyText: '暂无订单',
+    emptyText: '',
+    pageConfig: normalizePageConfig(),
     showLogisticsModal: false,
     isLoadingLogistics: false,
     logisticsOrderId: '',
@@ -276,11 +208,31 @@ Page({
       trackingNo: ''
     },
     logisticsTimeline: [],
-    logisticsEmptyText: '暂无物流信息'
+    logisticsEmptyText: '',
+    showDetailModal: false,
+    isLoadingDetail: false,
+    detailOrderId: '',
+    detailOrder: {},
+    detailRows: [],
+    detailEmptyText: '',
+    detailActions: [],
+    cancelingOrderId: ''
   },
 
-  onLoad() {
-    this.refreshOrders()
+  onLoad(options = {}) {
+    const status = normalizeEventValue(options.status)
+    const orderId = normalizeEventValue(options.orderId, options.id)
+
+    if (status) {
+      this.setData({
+        activeTab: status
+      })
+    }
+
+    this.refreshOrders({
+      statusKey: status || this.data.activeTab,
+      openOrderId: orderId
+    })
   },
 
   onPullDownRefresh() {
@@ -317,8 +269,7 @@ Page({
 
     this.setData({
       isLoading: true,
-      orders: [],
-      emptyText: getEmptyText(activeTab)
+      orders: []
     })
 
     try {
@@ -335,9 +286,15 @@ Page({
       this.setData({
         tabs: normalized.tabs,
         orders: normalized.orders,
-        emptyText: normalized.emptyText || getEmptyText(activeTab),
+        emptyText: normalized.emptyText,
+        pageConfig: normalized.pageConfig,
+        logisticsEmptyText: normalized.pageConfig.logisticsEmptyText,
         isLoading: false
       })
+
+      if (options.openOrderId) {
+        this.openOrderDetail(options.openOrderId)
+      }
     } catch (error) {
       if (requestSeq !== this._ordersRequestSeq) {
         return
@@ -347,7 +304,7 @@ Page({
 
       this.setData({
         orders: [],
-        emptyText: error.message || '订单加载失败，请稍后再试',
+        emptyText: error.message || this.data.emptyText,
         isLoading: false
       })
     } finally {
@@ -358,20 +315,14 @@ Page({
   },
 
   openPointsMall() {
-    wx.navigateTo({
-      url: '/pages/profile/asset-center/mall/index',
-      fail(error) {
-        console.warn('navigate to points mall failed', error)
-        toast.info('商城页面打开失败，请稍后再试')
-      }
-    })
+    navigateShellRoute('/pages/profile/asset-center/mall/index')
   },
 
   async openLogistics(orderId) {
     const id = normalizeEventValue(orderId)
 
     if (!id) {
-      toast.info('缺少订单号，暂不能查看物流')
+      toast.info('缺少订单信息，无法查看物流')
       return
     }
 
@@ -386,8 +337,7 @@ Page({
         name: '',
         trackingNo: ''
       },
-      logisticsTimeline: [],
-      logisticsEmptyText: '暂无物流信息'
+      logisticsTimeline: []
     })
 
     try {
@@ -399,7 +349,7 @@ Page({
         return
       }
 
-      const normalized = normalizeLogisticsData(result)
+      const normalized = normalizeLogisticsData(result, this.data.pageConfig)
 
       this.setData({
         logisticsOrderId: normalized.orderId || id,
@@ -417,7 +367,7 @@ Page({
 
       this.setData({
         logisticsTimeline: [],
-        logisticsEmptyText: error.message || '物流加载失败，请稍后再试',
+        logisticsEmptyText: error.message || this.data.pageConfig.logisticsEmptyText,
         isLoadingLogistics: false
       })
     }
@@ -435,14 +385,145 @@ Page({
     const trackingNo = this.data.logisticsCourier.trackingNo
 
     if (!trackingNo) {
-      toast.info('暂无可复制的运单号')
+      toast.info(this.data.pageConfig.logisticsEmptyText || '暂无物流单号')
       return
     }
 
     wx.setClipboardData({
-      data: trackingNo,
-      success: () => {
-        toast.info('运单号已复制')
+      data: trackingNo
+    })
+  },
+
+  async openOrderDetail(orderId) {
+    const id = normalizeEventValue(orderId)
+
+    if (!id) {
+      toast.info('缺少订单信息，无法查看详情')
+      return
+    }
+
+    const requestSeq = (this._detailRequestSeq || 0) + 1
+
+    this._detailRequestSeq = requestSeq
+    this.setData({
+      showDetailModal: true,
+      isLoadingDetail: true,
+      detailOrderId: id,
+      detailOrder: {},
+      detailRows: [],
+      detailActions: [],
+      detailEmptyText: this.data.pageConfig.detailEmptyText
+    })
+
+    try {
+      const result = await profileService.getPointsOrderDetail({
+        orderId: id
+      })
+
+      if (requestSeq !== this._detailRequestSeq) {
+        return
+      }
+
+      const normalized = normalizeOrderDetailData(result, this.data.pageConfig)
+
+      this.setData({
+        detailOrder: normalized.order,
+        detailRows: normalized.rows,
+        detailActions: normalized.actions,
+        detailEmptyText: normalized.emptyText,
+        isLoadingDetail: false
+      })
+    } catch (error) {
+      if (requestSeq !== this._detailRequestSeq) {
+        return
+      }
+
+      console.warn('get points order detail failed', error)
+      this.setData({
+        detailRows: [],
+        detailActions: [],
+        detailEmptyText: error.message || this.data.pageConfig.detailEmptyText || '',
+        isLoadingDetail: false
+      })
+    }
+  },
+
+  handleCloseDetailModal() {
+    this.setData({
+      showDetailModal: false
+    })
+  },
+
+  handleDetailModalContentTap() {},
+
+  cancelOrder(orderId) {
+    const id = normalizeEventValue(orderId)
+
+    if (!id) {
+      toast.info('缺少订单信息，无法取消订单')
+      return
+    }
+
+    if (this.data.cancelingOrderId === id) {
+      return
+    }
+
+    const confirmConfig = Object.assign({}, DEFAULT_CONFIRM, this.data.pageConfig.cancelConfirm || {})
+
+    wx.showModal({
+      title: confirmConfig.title,
+      content: confirmConfig.content,
+      confirmText: confirmConfig.confirmText,
+      cancelText: confirmConfig.cancelText,
+      success: async (res) => {
+        if (!res.confirm) {
+          return
+        }
+
+        try {
+          this.setData({
+            cancelingOrderId: id
+          })
+
+          const result = await profileService.cancelPointsOrder({
+            orderId: id,
+            reason: confirmConfig.reason
+          })
+          const updatedOrder = normalizeOrder(result && result.order || {})
+          const orders = this.data.orders.map((item) => {
+            if (String(item.id) !== id || !updatedOrder.id) {
+              return item
+            }
+
+            return updatedOrder
+          })
+          const detailOrder = String(this.data.detailOrderId) === id && updatedOrder.id
+            ? updatedOrder
+            : this.data.detailOrder
+          const detailActions = String(this.data.detailOrderId) === id && updatedOrder.id
+            ? normalizeActions(updatedOrder.actions || []).filter((item) => item.key !== 'detail')
+            : this.data.detailActions
+
+          toast.info(result && result.message || '订单已取消')
+          this.setData({
+            orders,
+            detailOrder,
+            detailActions
+          })
+          if (this.data.showDetailModal && String(this.data.detailOrderId) === id) {
+            this.openOrderDetail(id)
+          }
+          this.refreshOrders({
+            statusKey: this.data.activeTab
+          })
+        } catch (error) {
+          console.warn('cancel points order failed', error)
+          toast.info(error.message || '取消订单失败')
+        } finally {
+          this.setData({
+            cancelingOrderId: ''
+          })
+        }
       }
     })
   },
@@ -453,16 +534,28 @@ Page({
     const actionLabel = normalizeEventValue(dataset.actionLabel, dataset.actionlabel, dataset.label)
     const orderId = normalizeEventValue(dataset.orderId, dataset.orderid)
 
-    if (isAgainAction(actionKey, actionLabel)) {
+    if (actionKey === 'again') {
+      this.handleCloseDetailModal()
       this.openPointsMall()
       return
     }
 
-    if (isLogisticsAction(actionKey, actionLabel)) {
+    if (actionKey === 'logistics') {
+      this.handleCloseDetailModal()
       this.openLogistics(orderId)
       return
     }
 
-    toast.developing()
+    if (actionKey === 'detail') {
+      this.openOrderDetail(orderId)
+      return
+    }
+
+    if (actionKey === 'cancel') {
+      this.cancelOrder(orderId)
+      return
+    }
+
+    toast.info(actionLabel || '暂无可用操作')
   }
 })

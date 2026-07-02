@@ -1,145 +1,9 @@
 const profileService = require('../../../../services/profile')
+const fileService = require('../../../../services/file')
 const toast = require('../../../../utils/toast')
+const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/system-management/profile-info/assets'
-
-const EMPTY_PROFILE = {
-  avatarText: '',
-  name: '',
-  phone: '',
-  contactVisibility: '',
-  hobby: '',
-  company: '',
-  jobTitle: '',
-  businessCountText: '',
-  resources: '',
-  publicBusinessInfo: false
-}
-
-const PERSONAL_ROW_META = [
-  { key: 'avatar', label: '头像', type: 'avatar' },
-  { key: 'name', label: '姓名', field: 'name' },
-  { key: 'contact', label: '联系方式', type: 'contact' },
-  { key: 'hobby', label: '兴趣爱好', field: 'hobby', muted: true }
-]
-
-const ENTERPRISE_ROW_META = [
-  { key: 'company', label: '公司名称', field: 'company' },
-  { key: 'jobTitle', label: '职务', field: 'jobTitle' },
-  { key: 'business', label: '主营业务', field: 'businessCountText', muted: true },
-  { key: 'resources', label: '可提供资源', field: 'resources', muted: true }
-]
-
-const CERT_META = {
-  personal: {
-    iconSrc: `${ASSET_BASE}/icon-id-card.svg`,
-    tone: 'green'
-  },
-  enterprise: {
-    iconSrc: `${ASSET_BASE}/icon-enterprise.svg`,
-    tone: 'blue'
-  }
-}
-
-function pickFirstValue() {
-  const values = Array.prototype.slice.call(arguments)
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
-      return values[index]
-    }
-  }
-
-  return ''
-}
-
-function normalizeList(list) {
-  return Array.isArray(list) ? list : []
-}
-
-function normalizeBoolean(value) {
-  if (typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'number') {
-    return value === 1
-  }
-
-  return String(value || '').toLowerCase() === 'true'
-}
-
-function normalizeProfile(data) {
-  const source = data || {}
-  const personal = source.personalInfo || source.personal || source.profile || {}
-  const enterprise = source.enterpriseInfo || source.enterprise || {}
-
-  return Object.assign({}, EMPTY_PROFILE, {
-    avatarText: pickFirstValue(personal.avatarText, source.avatarText),
-    name: pickFirstValue(personal.name, source.name),
-    phone: pickFirstValue(personal.phoneMasked, personal.phone, source.phoneMasked, source.phone),
-    contactVisibility: pickFirstValue(personal.contactVisibility, source.contactVisibility),
-    hobby: pickFirstValue(personal.hobby, source.hobby),
-    company: pickFirstValue(enterprise.company, source.company),
-    jobTitle: pickFirstValue(enterprise.jobTitle, source.jobTitle),
-    businessCountText: pickFirstValue(enterprise.businessCountText, enterprise.businessText, source.businessCountText),
-    resources: pickFirstValue(enterprise.resources, source.resources),
-    publicBusinessInfo: normalizeBoolean(
-      enterprise.publicBusinessInfo !== undefined ? enterprise.publicBusinessInfo : source.publicBusinessInfo
-    )
-  })
-}
-
-function normalizeRows(rows, metaRows, profile) {
-  const remoteRows = normalizeList(rows)
-  const sourceRows = remoteRows.length ? remoteRows : metaRows
-
-  return sourceRows.map((item) => {
-    const row = item || {}
-    const key = pickFirstValue(row.key, row.id)
-    const meta = metaRows.find((metaItem) => metaItem.key === key) || {}
-    const field = pickFirstValue(row.field, meta.field)
-
-    return {
-      key,
-      label: pickFirstValue(row.label, row.title, meta.label),
-      type: pickFirstValue(row.type, meta.type),
-      value: pickFirstValue(row.value, row.valueText, field ? profile[field] : ''),
-      muted: Boolean(row.muted !== undefined ? row.muted : meta.muted)
-    }
-  }).filter((item) => item.key)
-}
-
-function normalizeVisibilityOptions(data) {
-  const source = data || {}
-
-  return normalizeList(source.visibilityOptions || source.contactVisibilityOptions)
-    .map((item) => ({
-      key: pickFirstValue(item.key, item.value, item.id),
-      label: pickFirstValue(item.label, item.title, item.name)
-    }))
-    .filter((item) => item.key && item.label)
-}
-
-function normalizeCertifications(data) {
-  const certifications = normalizeList(data && data.certifications)
-
-  return certifications.map((item) => {
-    const cert = item || {}
-    const key = pickFirstValue(cert.key, cert.id, cert.type)
-    const meta = CERT_META[key] || {}
-
-    return {
-      key,
-      title: pickFirstValue(cert.title, cert.name),
-      desc: pickFirstValue(cert.desc, cert.description),
-      status: pickFirstValue(cert.statusText, cert.status),
-      statusClass: pickFirstValue(cert.statusClass),
-      iconSrc: pickFirstValue(cert.localIcon, meta.iconSrc),
-      tone: pickFirstValue(cert.tone, meta.tone)
-    }
-  }).filter((item) => item.key)
-}
 
 Page({
   data: {
@@ -152,40 +16,141 @@ Page({
       lock: `${ASSET_BASE}/icon-lock.svg`,
       chevron: `${ASSET_BASE}/icon-chevron-right.svg`
     },
-    profile: Object.assign({}, EMPTY_PROFILE),
+    profile: {
+      avatarText: '',
+      name: '',
+      phone: '',
+      contactVisibility: 'all',
+      hobby: '',
+      company: '',
+      jobTitle: '',
+      businessCountText: '',
+      resources: '',
+      publicBusinessInfo: false
+    },
+    avatarFileId: 0,
     isSaving: false,
+    loadError: '',
     visibilityOptions: [],
-    personalRows: normalizeRows([], PERSONAL_ROW_META, EMPTY_PROFILE),
-    enterpriseRows: normalizeRows([], ENTERPRISE_ROW_META, EMPTY_PROFILE),
-    certifications: []
+    personalRows: [
+      { key: 'avatar', label: '头像', type: 'avatar' },
+      { key: 'name', label: '姓名', value: '' },
+      { key: 'contact', label: '联系方式', type: 'contact' },
+      { key: 'hobby', label: '兴趣爱好', value: '', muted: true }
+    ],
+    enterpriseRows: [
+      { key: 'company', label: '公司名称', value: '' },
+      { key: 'jobTitle', label: '职务', value: '' },
+      { key: 'business', label: '主营业务', value: '', muted: true },
+      { key: 'resources', label: '可提供资源', value: '', muted: true }
+    ],
+    certifications: [
+      {
+        key: 'personal',
+        title: '个人身份认证',
+        desc: '身份证+人脸识别',
+        status: '已认证',
+        statusClass: 'verified',
+        iconSrc: `${ASSET_BASE}/icon-id-card.svg`,
+        tone: 'green'
+      },
+      {
+        key: 'enterprise',
+        title: '企业认证',
+        desc: '营业执照+对公账户',
+        status: '未认证',
+        statusClass: '',
+        iconSrc: `${ASSET_BASE}/icon-enterprise.svg`,
+        tone: 'blue'
+      }
+    ]
   },
 
   onLoad() {
-    this.loadProfileInfo()
+    this.loadSystemProfileInfo()
   },
 
-  async loadProfileInfo() {
+  async loadSystemProfileInfo() {
     try {
-      const data = await profileService.getSystemProfileInfo()
-      const profile = normalizeProfile(data)
-
-      this.setData({
-        profile,
-        visibilityOptions: normalizeVisibilityOptions(data),
-        personalRows: normalizeRows(data && data.personalRows, PERSONAL_ROW_META, profile),
-        enterpriseRows: normalizeRows(data && data.enterpriseRows, ENTERPRISE_ROW_META, profile),
-        certifications: normalizeCertifications(data)
-      })
+      const remoteProfile = await profileService.getSystemProfileInfo()
+      this.applySystemProfileInfo(remoteProfile || {})
     } catch (error) {
       this.setData({
-        profile: Object.assign({}, EMPTY_PROFILE),
-        visibilityOptions: [],
-        personalRows: normalizeRows([], PERSONAL_ROW_META, EMPTY_PROFILE),
-        enterpriseRows: normalizeRows([], ENTERPRISE_ROW_META, EMPTY_PROFILE),
-        certifications: []
+        loadError: error.message || '资料加载失败'
       })
-      toast.info(error.message || '资料设置加载失败')
     }
+  },
+
+  applySystemProfileInfo(remote = {}) {
+    const current = this.data.profile || {}
+    const profile = remote.profile || {}
+    const personalInfo = remote.personalInfo || {}
+    const enterpriseInfo = remote.enterpriseInfo || {}
+    const nextProfile = {
+      ...current,
+      ...profile,
+      avatarText: personalInfo.avatarText || profile.avatarText || current.avatarText,
+      name: personalInfo.name || profile.name || current.name,
+      phone: personalInfo.phoneMasked || profile.phone || current.phone,
+      contactVisibility: personalInfo.contactVisibility || profile.contactVisibility || current.contactVisibility,
+      hobby: personalInfo.hobby || profile.hobby || current.hobby,
+      company: enterpriseInfo.company || profile.company || current.company,
+      jobTitle: enterpriseInfo.jobTitle || profile.jobTitle || current.jobTitle,
+      businessCountText: enterpriseInfo.businessCountText || profile.businessCountText || current.businessCountText,
+      resources: enterpriseInfo.resources || profile.resources || current.resources,
+      publicBusinessInfo: typeof enterpriseInfo.publicBusinessInfo === 'boolean'
+        ? enterpriseInfo.publicBusinessInfo
+        : (typeof profile.publicBusinessInfo === 'boolean' ? profile.publicBusinessInfo : current.publicBusinessInfo)
+    }
+    const nextData = {
+      profile: nextProfile,
+      personalRows: this.patchPersonalRows(nextProfile),
+      enterpriseRows: this.patchEnterpriseRows(nextProfile),
+      loadError: ''
+    }
+
+    if (Array.isArray(remote.certifications) && remote.certifications.length) {
+      nextData.certifications = this.mergeCertifications(remote.certifications)
+    }
+
+    if (Array.isArray(remote.visibilityOptions)) {
+      nextData.visibilityOptions = remote.visibilityOptions.filter((item) => item && item.key && item.label)
+    }
+
+    this.setData(nextData)
+  },
+
+  patchPersonalRows(profile) {
+    const valueMap = {
+      name: profile.name,
+      hobby: profile.hobby
+    }
+
+    return this.data.personalRows.map((row) => ({
+      ...row,
+      value: Object.prototype.hasOwnProperty.call(valueMap, row.key) ? valueMap[row.key] : row.value
+    }))
+  },
+
+  patchEnterpriseRows(profile) {
+    const valueMap = {
+      company: profile.company,
+      jobTitle: profile.jobTitle,
+      business: profile.businessCountText,
+      resources: profile.resources
+    }
+
+    return this.data.enterpriseRows.map((row) => ({
+      ...row,
+      value: Object.prototype.hasOwnProperty.call(valueMap, row.key) ? valueMap[row.key] : row.value
+    }))
+  },
+
+  mergeCertifications(remoteItems = []) {
+    return this.data.certifications.map((item) => ({
+      ...item,
+      ...(remoteItems.find((remoteItem) => remoteItem.key === item.key) || {})
+    }))
   },
 
   handleVisibilityTap(event) {
@@ -206,12 +171,130 @@ Page({
     })
   },
 
-  handleEditableRowTap() {
-    toast.developing('资料编辑功能待接入后台后完善')
+  handleEditableRowTap(event = {}) {
+    return this.editProfileRow(event)
   },
 
-  handleCertificationTap() {
-    toast.developing('认证流程待接入正式认证接口后完善')
+  handleCertificationTap(event = {}) {
+    return this.openCertification(event)
+  },
+
+  editProfileRow(event = {}) {
+    const { key, section } = (event.currentTarget && event.currentTarget.dataset) || {}
+    const fieldMap = {
+      name: { path: 'profile.name', prop: 'name', title: '姓名', current: this.data.profile.name },
+      hobby: { path: 'profile.hobby', prop: 'hobby', title: '兴趣爱好', current: this.data.profile.hobby },
+      company: { path: 'profile.company', prop: 'company', title: '公司名称', current: this.data.profile.company },
+      jobTitle: { path: 'profile.jobTitle', prop: 'jobTitle', title: '职务', current: this.data.profile.jobTitle },
+      business: { path: 'profile.businessCountText', prop: 'businessCountText', title: '主营业务', current: this.data.profile.businessCountText },
+      resources: { path: 'profile.resources', prop: 'resources', title: '可提供资源', current: this.data.profile.resources }
+    }
+    const field = fieldMap[key]
+
+    if (key === 'contact') {
+      toast.info('联系方式来自实名认证/手机号绑定，请在认证流程中更新')
+      return
+    }
+
+    if (key === 'avatar') {
+      this.chooseAvatar()
+      return
+    }
+
+    if (!field || !wx.showModal) {
+      return
+    }
+
+    wx.showModal({
+      title: `编辑${field.title}`,
+      editable: true,
+      placeholderText: `请输入${field.title}`,
+      content: field.current || '',
+      success: (res) => {
+        if (!res.confirm) {
+          return
+        }
+
+        const value = String(res.content || '').trim()
+
+        if (!value) {
+          toast.info(`${field.title}不能为空`)
+          return
+        }
+
+        const nextProfile = {
+          ...this.data.profile,
+          [field.prop]: value
+        }
+        const nextData = {
+          [field.path]: value
+        }
+
+        if (section === 'personal') {
+          nextData.personalRows = this.patchPersonalRows(nextProfile)
+        }
+
+        if (section === 'enterprise') {
+          nextData.enterpriseRows = this.patchEnterpriseRows(nextProfile)
+        }
+
+        this.setData(nextData)
+      }
+    })
+  },
+
+  chooseAvatar() {
+    const onSuccess = async (result = {}) => {
+      const file = Array.isArray(result.tempFiles) ? result.tempFiles[0] : null
+      const path = (file && (file.tempFilePath || file.path)) || (result.tempFilePaths || [])[0]
+
+      if (!path) {
+        return
+      }
+
+      try {
+        const fileId = await fileService.uploadSingleFile(path, {
+          bizType: 'avatar',
+          objectId: 0
+        })
+        const avatarText = this.data.profile.name ? this.data.profile.name.slice(0, 1) : '我'
+        this.setData({
+          avatarFileId: fileId,
+          'profile.avatarText': avatarText
+        })
+      } catch (error) {
+        toast.info(error.message || '头像上传失败')
+      }
+    }
+
+    if (wx.chooseMedia) {
+      wx.chooseMedia({
+        count: 1,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera'],
+        sizeType: ['compressed'],
+        success: onSuccess
+      })
+      return
+    }
+
+    wx.chooseImage({
+      count: 1,
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: onSuccess
+    })
+  },
+
+  openCertification(event = {}) {
+    const { key } = (event.currentTarget && event.currentTarget.dataset) || {}
+
+    if (key === 'personal') {
+      navigateShellRoute('/pages/login/realname/index')
+      return
+    }
+
+    toast.info('企业认证需后台审核企业材料，请联系平台管理员')
   },
 
   buildSavePayload() {
@@ -220,6 +303,7 @@ Page({
     return {
       personalInfo: {
         avatarText: profile.avatarText,
+        avatarFileId: this.data.avatarFileId,
         name: profile.name,
         phoneMasked: profile.phone,
         contactVisibility: profile.contactVisibility,

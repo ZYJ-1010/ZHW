@@ -1,5 +1,6 @@
-const { ROUTES } = require('../../../config/routes')
 const gameService = require('../../../services/game')
+const { ROUTES } = require('../../../config/routes')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
 
 const CONTENT_TOP_RPX = 160
 const CONTENT_WIDTH_RPX = 750
@@ -71,10 +72,25 @@ function getShellLayoutStyles() {
   }
 }
 
-function firstDefined() {
-  const values = Array.prototype.slice.call(arguments)
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '')
+}
 
-  return values.find((value) => value !== undefined && value !== null && value !== '') || ''
+function applyTemplate(template, values = {}) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => values[key] == null ? '' : values[key])
+}
+
+function normalizePageConfig(config = {}) {
+  return {
+    pageTitle: config.pageTitle || '',
+    summary: config.summary || {},
+    texts: config.texts || {}
+  }
+}
+
+function textOf(config, key) {
+  const texts = config && config.texts ? config.texts : {}
+  return texts[key] || ''
 }
 
 function normalizeBooleanFlag(value) {
@@ -113,7 +129,23 @@ function getRewardClass(record = {}) {
   return 'orange'
 }
 
-function getReviewState(record = {}) {
+function getStateIcon(state) {
+  const icons = {
+    processing: `${ASSET_BASE}/status-processing.png`,
+    completed: `${ASSET_BASE}/status-completed.png`,
+    canceled: `${ASSET_BASE}/status-canceled.png`
+  }
+
+  return icons[state] || icons.processing
+}
+
+function getMatchIcon(state) {
+  return state === 'canceled'
+    ? `${ASSET_BASE}/status-canceled.png`
+    : `${ASSET_BASE}/handshake.png`
+}
+
+function getReviewState(record = {}, pageConfig = {}) {
   const actionConfig = Array.isArray(record.actions) ? (record.actionConfig || {}) : (record.actions || {})
   const reviewStatus = firstDefined(record.reviewStatus, record.evaluateStatus, record.commentStatus)
   const reviewedByFlag = firstDefined(
@@ -133,124 +165,91 @@ function getReviewState(record = {}) {
   return {
     reviewed,
     tagText: reviewed
-      ? firstDefined(record.reviewedTagText, record.extraTag)
-      : firstDefined(record.extraTag, record.reviewTagText),
+      ? firstDefined(record.reviewedTagText, textOf(pageConfig, 'reviewedTagText'))
+      : firstDefined(record.extraTag, record.reviewTagText, textOf(pageConfig, 'pendingReviewTagText')),
     actionText: reviewed
-      ? firstDefined(record.reviewedActionText, record.reviewActionText)
-      : firstDefined(record.reviewActionText)
+      ? firstDefined(record.reviewedActionText, record.reviewActionText, textOf(pageConfig, 'reviewedActionText'))
+      : firstDefined(record.reviewActionText, textOf(pageConfig, 'reviewActionText'))
   }
 }
 
-function normalizePerson(person = {}) {
-  return {
-    name: person.name || person.nickname || '',
-    avatarText: person.avatarText || person.initials || '',
-    avatarClass: person.avatarClass || ''
-  }
-}
-
-function normalizeAction(action = {}) {
-  return {
-    key: action.key || action.actionKey || action.type || '',
-    text: action.text || action.label || action.name || '',
-    icon: action.icon || action.iconSrc || '',
-    theme: action.theme || '',
-    disabled: Boolean(action.disabled),
-    route: action.route || action.path || '',
-    message: action.message || action.toastText || ''
-  }
-}
-
-function normalizeReward(value) {
-  return String(value || '').replace(/^¥/, '')
-}
-
-function normalizeRecord(record = {}) {
-  const actionList = Array.isArray(record.actions) ? record.actions.map(normalizeAction) : []
-  const reviewState = getReviewState(record)
-
-  return {
+function normalizeRecord(record = {}, pageConfig = {}) {
+  const recordId = firstDefined(record.id, record.recordId, record.referralId)
+  const gameId = firstDefined(record.gameId, record.serviceOrderId, record.orderId, recordId)
+  const expertUserId = firstDefined(record.expertUserId, record.expert && record.expert.userId)
+  const playerUserId = firstDefined(record.playerUserId, record.player && record.player.userId)
+  const state = firstDefined(record.state, record.statusType, 'processing')
+  const normalized = {
     ...record,
-    id: record.id || record.recordId || '',
-    state: record.state || record.status || '',
-    stateText: record.stateText || record.statusText || '',
-    stateIcon: record.stateIcon || record.statusIcon || `${ASSET_BASE}/status-processing.png`,
-    stateClass: record.stateClass || '',
-    timeText: record.timeText || record.createdAtText || '',
-    expert: normalizePerson(record.expert || {}),
-    player: normalizePerson(record.player || {}),
-    matchIcon: record.matchIcon || `${ASSET_BASE}/handshake.png`,
-    serviceTitle: record.serviceTitle || record.title || '',
-    reward: normalizeReward(firstDefined(record.reward, record.rewardAmount, record.rewardText)),
-    rewardClass: getRewardClass(record),
+    id: recordId,
+    gameId,
+    state,
+    stateIcon: firstDefined(record.stateIcon, getStateIcon(state)),
+    matchIcon: firstDefined(record.matchIcon, getMatchIcon(state)),
+    expertUserId,
+    playerUserId,
+    rewardClass: getRewardClass(record)
+  }
+  const actionList = Array.isArray(record.actions) ? record.actions : (record.actionList || [])
+
+  if (record.state !== 'completed') {
+    return {
+      ...normalized,
+      actions: actionList
+    }
+  }
+
+  const reviewState = getReviewState(record, pageConfig)
+
+  return {
+    ...normalized,
     reviewed: reviewState.reviewed,
-    extraTag: firstDefined(record.extraTag, reviewState.tagText),
-    noticeText: record.noticeText || '',
-    actions: actionList.map((action) => action.key === 'review'
-      ? {
+    extraTag: reviewState.tagText,
+    actions: actionList.map((action) => {
+      if (action.key !== 'review') {
+        return action
+      }
+
+      return {
         ...action,
-        text: reviewState.actionText || action.text,
+        text: reviewState.actionText,
         disabled: reviewState.reviewed
       }
-      : action)
+    })
   }
 }
 
-function normalizeSummary(summary = {}) {
-  return {
-    label: summary.label || summary.title || '',
-    amount: summary.amount || summary.amountText || '',
-    background: summary.background || '',
-    iconSrc: summary.iconSrc || summary.icon || `${ASSET_BASE}/wallet.png`,
-    stats: Array.isArray(summary.stats) ? summary.stats : []
+function formatMoney(value, fallback, prefix = '') {
+  if (typeof value === 'number') {
+    return `${prefix}${value.toLocaleString()}`
   }
-}
 
-function normalizeTab(tab = {}) {
-  return {
-    key: tab.key || tab.status || '',
-    label: tab.label || tab.name || '',
-    count: Number(tab.count || 0)
-  }
-}
-
-function normalizeReferralData(data = {}, activeTab = '') {
-  const records = Array.isArray(data.records || data.list || data.items)
-    ? (data.records || data.list || data.items).map(normalizeRecord).filter((item) => item.id)
-    : []
-  const tabs = Array.isArray(data.tabs)
-    ? data.tabs.map(normalizeTab).filter((item) => item.key)
-    : []
-  const nextActiveTab = activeTab || data.activeTab || tabs[0] && tabs[0].key || ''
-
-  return {
-    pageTitle: data.pageTitle || data.title || '',
-    summary: normalizeSummary(data.summary || {}),
-    tabs,
-    activeTab: nextActiveTab,
-    records,
-    visibleRecords: nextActiveTab ? records.filter((item) => item.state === nextActiveTab) : records
-  }
+  return firstDefined(value, fallback)
 }
 
 Page({
   data: {
     pageTitle: '',
+    pageConfig: normalizePageConfig(),
+    texts: {},
     shellLayout: getShellLayoutStyles(),
-    summary: normalizeSummary({}),
-    tabs: [],
-    activeTab: '',
-    visibleRecords: [],
-    records: [],
     loading: false,
-    queryParams: {}
+    errorText: '',
+    summary: {
+      label: '',
+      amount: '',
+      background: '',
+      iconSrc: '',
+      stats: []
+    },
+    tabs: [],
+    activeTab: 'processing',
+    visibleRecords: [],
+    records: []
   },
 
-  onLoad(options = {}) {
-    this.setData({
-      queryParams: options
-    })
-    this.loadReferralRecords(options)
+  onLoad() {
+    this.loadReferralRecords()
   },
 
   onShow() {
@@ -267,31 +266,6 @@ Page({
     })
   },
 
-  async loadReferralRecords(params = {}) {
-    this.setData({
-      loading: true
-    })
-
-    try {
-      const data = await gameService.getReferralRecords({
-        ...this.data.queryParams,
-        ...params,
-        status: this.data.activeTab
-      })
-
-      this.setData({
-        ...normalizeReferralData(data, this.data.activeTab),
-        loading: false
-      })
-    } catch (error) {
-      this.setData({
-        ...normalizeReferralData({}, this.data.activeTab),
-        loading: false
-      })
-      this.showToast(error.message || '引荐记录加载失败')
-    }
-  },
-
   onTabTap(event) {
     const key = event.currentTarget.dataset.key
 
@@ -302,54 +276,119 @@ Page({
     this.setData({
       activeTab: key
     })
-    this.loadReferralRecords({
-      status: key
+    this.updateVisibleRecords(key)
+  },
+
+  updateVisibleRecords(activeTab) {
+    this.applyRecords(this.data.records, activeTab)
+  },
+
+  async loadReferralRecords() {
+    this.setData({
+      loading: true,
+      errorText: ''
+    })
+
+    try {
+      const data = await gameService.getReferralRecords()
+      const pageConfig = normalizePageConfig(data.pageConfig)
+      const records = Array.isArray(data.records) ? data.records : []
+      const tabs = Array.isArray(data.tabs) && data.tabs.length ? data.tabs : this.data.tabs
+      const summary = data.summary ? {
+        ...this.data.summary,
+        ...data.summary,
+        amount: formatMoney(
+          data.summary.amount,
+          data.summary.amountText || this.data.summary.amount,
+          textOf(pageConfig, 'rewardPrefix')
+        )
+      } : this.data.summary
+
+      this.setData({
+        pageTitle: pageConfig.pageTitle || '',
+        pageConfig,
+        texts: pageConfig.texts,
+        loading: false,
+        errorText: '',
+        summary,
+        tabs,
+        records
+      })
+      this.applyRecords(records, this.data.activeTab)
+    } catch (error) {
+      this.setData({
+        loading: false,
+        errorText: error.message || textOf(this.data.pageConfig, 'loadFailedText')
+      })
+    }
+  },
+
+  applyRecords(records, activeTab) {
+    this.setData({
+      visibleRecords: (records || [])
+        .filter((item) => item.state === activeTab)
+        .map((item) => normalizeRecord(item, this.data.pageConfig))
     })
   },
 
   onActionTap(event) {
     const action = event.currentTarget.dataset.action
+    const recordId = event.currentTarget.dataset.recordId
     const disabled = event.currentTarget.dataset.disabled === true || event.currentTarget.dataset.disabled === 'true'
 
     if (disabled) {
       return
     }
 
-    const matchedRecord = this.data.visibleRecords.find((record) => (
-      record.actions || []
-    ).some((item) => item.key === action))
-    const matchedAction = matchedRecord && (matchedRecord.actions || []).find((item) => item.key === action)
+    const record = this.data.visibleRecords.find((item) => String(item.id) === String(recordId)) || {}
+    const gameId = firstDefined(record.gameId, record.id)
 
-    if (matchedAction && matchedAction.route) {
-      wx.navigateTo({
-        url: matchedAction.route
-      })
+    if (action === 'chat') {
+      navigateShellRoute(`/${ROUTES.imRoom}?gameId=${encodeURIComponent(gameId || '')}&prefill=${encodeURIComponent(textOf(this.data.pageConfig, 'chatPrefill'))}`)
       return
     }
 
-    if (matchedRecord && matchedAction) {
-      this.submitRecordAction(matchedRecord.id, matchedAction)
+    if (action === 'review') {
+      const targetUserId = firstDefined(record.expertUserId, record.playerUserId)
+      const params = [
+        gameId ? `gameId=${encodeURIComponent(gameId)}` : '',
+        targetUserId ? `targetUserId=${encodeURIComponent(targetUserId)}` : '',
+        'role=guide'
+      ].filter(Boolean).join('&')
+
+      navigateShellRoute(`/${ROUTES.gameReview}${params ? `?${params}` : ''}`)
       return
     }
 
-    this.showToast('操作待接入')
+    if (action === 'remind') {
+      this.remindDelivery(record)
+      return
+    }
+
+    this.showToast(textOf(this.data.pageConfig, 'unavailableText'))
   },
 
-  async submitRecordAction(recordId, action) {
+  async remindDelivery(record = {}) {
     try {
-      const result = await gameService.triggerReferralRecordAction({
-        recordId,
-        actionKey: action.key
+      await gameService.sendGuideReminder({
+        invitationId: firstDefined(record.invitationId, record.referralId, record.id),
+        gameId: firstDefined(record.gameId, record.id),
+        remindTarget: 'delivery',
+        message: applyTemplate(textOf(this.data.pageConfig, 'remindMessageTemplate'), {
+          serviceTitle: record.serviceTitle || textOf(this.data.pageConfig, 'remindServiceFallback')
+        })
       })
-
-      this.showToast(result && (result.message || result.toastText) || action.message || '操作已提交')
-      this.loadReferralRecords()
+      this.showToast(textOf(this.data.pageConfig, 'remindSuccessText'))
     } catch (error) {
-      this.showToast(error.message || '操作提交失败')
+      this.showToast(error.message || textOf(this.data.pageConfig, 'remindFailedText'))
     }
   },
 
   showToast(title) {
+    if (!title) {
+      return
+    }
+
     wx.showToast({
       title,
       icon: 'none'
@@ -364,8 +403,6 @@ Page({
       return
     }
 
-    wx.navigateTo({
-      url: `/${ROUTES.guideHome}`
-    })
+    navigateShellRoute(ROUTES.guideHome)
   }
 })

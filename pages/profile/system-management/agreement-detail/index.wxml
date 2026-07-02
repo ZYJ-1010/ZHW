@@ -18,7 +18,7 @@
   </view>
 
   <view wx:if="{{canSign}}" class="agreement-bottom-bar">
-    <view class="agreement-sign-button" bindtap="handleSignTap">同意并签署</view>
+    <view class="agreement-sign-button" bindtap="handleSignTap">{{signActionText}}</view>
   </view>
 
   <view wx:if="{{confirmVisible}}" class="agreement-modal-mask" catchtouchmove="noop"></view>
@@ -26,11 +26,11 @@
     <view class="dialog-icon-wrap">
       <image class="dialog-icon" src="{{dialogIcon}}" mode="aspectFit"></image>
     </view>
-    <text class="dialog-title">确认签署协议？</text>
-    <text class="dialog-desc">签署后将视为同意协议全部条款，协议立即生效</text>
+    <text class="dialog-title">{{signConfirm.title}}</text>
+    <text class="dialog-desc">{{signConfirm.desc}}</text>
     <view class="dialog-actions">
-      <view class="dialog-button cancel" bindtap="handleCancelTap">取消</view>
-      <view class="dialog-button confirm" bindtap="handleConfirmTap">确认签署</view>
+      <view class="dialog-button cancel" bindtap="handleCancelTap">{{signConfirm.cancelText}}</view>
+      <view class="dialog-button confirm" bindtap="handleConfirmTap">{{signConfirm.confirmText}}</view>
     </view>
   </view>
 </profile-white-shell>

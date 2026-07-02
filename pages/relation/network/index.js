@@ -1,5 +1,6 @@
 const { ROUTES } = require('../../../config/routes')
 const relationService = require('../../../services/relation')
+const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
 const NAV_ITEMS = [
   { name: '我的', key: 'mine' },
@@ -15,8 +16,13 @@ const RELATION_TABS = [
 ]
 
 const FALLBACK_NETWORK_HOME = {
-  onlineText: '',
-  header: {},
+  onlineText: '在线',
+  header: {
+    title: '星巴克(镇海万科店)',
+    titleIcon: '📍',
+    statusText: '营业中',
+    address: '宁波市镇海区庄市大道1088号万科广场1F'
+  },
   tabs: RELATION_TABS,
   activeTab: 'network'
 }
@@ -41,22 +47,18 @@ function normalizeNetworkHome(data) {
       key: item.key || item.id || 'network',
       text: item.text || item.name || item.title || ''
     })).filter((item) => item.key && item.text),
-    activeTab: source.activeTab || source.defaultTab || FALLBACK_NETWORK_HOME.activeTab,
-    hasHeader: Boolean(header.title || header.name || header.address || header.addressText),
-    errorText: ''
+    activeTab: source.activeTab || source.defaultTab || FALLBACK_NETWORK_HOME.activeTab
   }
 }
 
 Page({
   data: {
-    onlineText: '',
+    onlineText: '在线',
     navItems: NAV_ITEMS,
     relationTabs: RELATION_TABS,
     activeTab: 'network',
     header: FALLBACK_NETWORK_HOME.header,
-    hasHeader: false,
-    loading: false,
-    errorText: ''
+    loading: false
   },
 
   onLoad(options) {
@@ -65,8 +67,7 @@ Page({
 
   async loadNetworkHome(params = {}) {
     this.setData({
-      loading: true,
-      errorText: ''
+      loading: true
     })
 
     try {
@@ -78,20 +79,16 @@ Page({
         header: normalized.header,
         relationTabs: normalized.relationTabs,
         activeTab: normalized.activeTab,
-        hasHeader: normalized.hasHeader,
-        errorText: '',
         loading: false
       })
     } catch (error) {
-      const normalized = normalizeNetworkHome()
+      const normalized = normalizeNetworkHome(FALLBACK_NETWORK_HOME)
 
       this.setData({
         onlineText: normalized.onlineText,
         header: normalized.header,
         relationTabs: normalized.relationTabs,
         activeTab: normalized.activeTab,
-        hasHeader: false,
-        errorText: error && error.message ? error.message : '关系网络加载失败',
         loading: false
       })
     }
@@ -101,9 +98,7 @@ Page({
     wx.navigateBack({
       delta: 1,
       fail: () => {
-        wx.navigateTo({
-          url: `/${ROUTES.home}`
-        })
+        navigateShellRoute(ROUTES.home)
       }
     })
   },
@@ -128,29 +123,8 @@ Page({
 
   handleShellNavTap(event) {
     const { key } = event.detail || {}
-
-    if (key === 'map') {
-      wx.showToast({
-        title: '地图功能开发中',
-        icon: 'none'
-      })
-      return
-    }
-    const routeMap = {
-      home: ROUTES.playerHome,
-      map: '',
-      message: ROUTES.message,
-      mine: ROUTES.profile,
-      metaverse: ROUTES.metaverse
-    }
-    const route = routeMap[key]
-
-    if (!route) {
-      return
-    }
-
-    wx.navigateTo({
-      url: `/${route}`
+    navigateShellKey(key, {
+      currentRoute: ROUTES.relationNetwork
     })
   }
 })

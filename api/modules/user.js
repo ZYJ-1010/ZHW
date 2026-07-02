@@ -9,16 +9,26 @@ function updateProfile(data) {
 }
 
 function startRealnameAuth() {
-  return request.post('/api/app/users/me/realname-auth', {})
+  return request.post('/api/app/identity/faceid/detect-auth', {})
 }
 
 function submitRealnameAuth(data) {
-  return request.post('/api/app/users/me/realname-auth/submit', data)
+  return request.post('/api/app/identity/phone/verify', data)
+}
+
+function bindPhone(data) {
+  return request.post('/api/app/identity/phone/bind', data)
+}
+
+function getIdentityStatus() {
+  return request.get('/api/app/identity/status')
 }
 
 module.exports = {
   getCurrentUser,
   updateProfile,
   startRealnameAuth,
-  submitRealnameAuth
+  submitRealnameAuth,
+  bindPhone,
+  getIdentityStatus
 }

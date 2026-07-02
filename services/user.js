@@ -30,8 +30,30 @@ async function submitRealnameAuth(data) {
   return result.data
 }
 
+async function bindPhone(data) {
+  const result = await userApi.bindPhone(data)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '手机号绑定失败')
+  }
+
+  return result.data
+}
+
+async function getIdentityStatus() {
+  const result = await userApi.getIdentityStatus()
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取实名状态失败')
+  }
+
+  return result.data
+}
+
 module.exports = {
   getCurrentUser,
   startRealnameAuth,
-  submitRealnameAuth
+  submitRealnameAuth,
+  bindPhone,
+  getIdentityStatus
 }

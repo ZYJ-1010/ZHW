@@ -1,4 +1,5 @@
 const profileService = require('../../../../../services/profile')
+const { navigateShellRoute } = require('../../../../../utils/shell-nav')
 
 Page({
   data: {
@@ -16,30 +17,12 @@ Page({
       { key: 'cancelled', label: '已取消' }
     ],
     records: [],
-    allRecords: []
+    allRecords: [],
+    warning: null
   },
 
   onLoad() {
     this.loadRecords()
-  },
-
-  async loadRecords() {
-    try {
-      const data = await profileService.getInviteRecords({
-        role: this.data.activeRole,
-        status: this.data.activeStatus
-      })
-
-      this.setData({
-        filters: Array.isArray(data.filters) && data.filters.length ? data.filters : this.data.filters,
-        allRecords: Array.isArray(data.records || data.list || data.items) ? (data.records || data.list || data.items) : []
-      }, () => this.applyFilters())
-    } catch (error) {
-      wx.showToast({
-        title: error.message || '邀请记录加载失败',
-        icon: 'none'
-      })
-    }
   },
 
   handleRoleTap(event) {
@@ -62,16 +45,40 @@ Page({
     this.setData({
       activeRole: 'referred',
       activeStatus: 'timeout'
-    }, () => this.applyFilters())
+    }, () => this.loadRecords())
   },
 
   handleRecordTap(event) {
     const { id } = event.currentTarget.dataset
+    const record = (this.data.records || []).find((item) => String(item.id) === String(id))
+    const route = record && (record.detailRoute || record.gameRoute || record.route)
+
+    if (route) {
+      navigateShellRoute(route.indexOf('/') === 0 ? route : `/${route}`)
+      return
+    }
 
     wx.showToast({
-      title: id ? '查看组局' : '暂无组局',
+      title: id ? '暂无详情入口' : '暂无组局',
       icon: 'none'
     })
+  },
+
+  async loadRecords() {
+    try {
+      const result = await profileService.getInviteRecords({
+        role: this.data.activeRole,
+        status: this.data.activeStatus
+      })
+
+      this.setData({
+        ...(result || {}),
+        warning: result && result.warning ? result.warning : null
+      })
+    } catch (error) {
+      console.warn('get invite records failed', error)
+      this.setData({ records: [] })
+    }
   },
 
   applyFilters() {

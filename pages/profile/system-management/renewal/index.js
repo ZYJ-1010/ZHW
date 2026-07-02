@@ -8,33 +8,33 @@ Page({
     icons: {
       clock: `${ASSET_BASE}/icon-clock.svg`
     },
-    selectedDays: '',
+    blockSettings: null,
+    selectedDays: 0,
+    remainingDaysText: '',
     options: [],
     rules: []
   },
 
   onLoad() {
-    this.loadRenewalOptions()
+    this.loadRenewalConfig()
   },
 
-  async loadRenewalOptions() {
+  async loadRenewalConfig() {
     try {
-      const data = await profileService.getSystemBlockRenewalOptions()
-      const options = this.normalizeList(data.options || data.list || data.items)
-      const selected = data.selectedDays || data.defaultDays || options[0] && options[0].days || ''
+      const data = await profileService.getSystemBlockSettings()
+      const options = Array.isArray(data.renewalOptions) ? data.renewalOptions : []
+      const renewalDays = Number(data.renewalDays || (options[0] && options[0].days) || 0)
 
       this.setData({
-        selectedDays: selected,
+        blockSettings: data || null,
+        selectedDays: renewalDays,
+        remainingDaysText: renewalDays ? `当前剩余 ${renewalDays} 天` : '',
         options,
-        rules: this.normalizeList(data.rules || data.ruleLines)
+        rules: Array.isArray(data.renewalRules) ? data.renewalRules : []
       })
     } catch (error) {
-      this.setData({
-        selectedDays: '',
-        options: [],
-        rules: []
-      })
-      toast.info(error.message || '续期选项加载失败')
+      this.setData({ options: [], rules: [], remainingDaysText: '' })
+      toast.info(error.message || '续期配置暂时不可用')
     }
   },
 
@@ -46,21 +46,17 @@ Page({
 
   async handleConfirmTap() {
     if (!this.data.selectedDays) {
-      toast.info('请选择续期天数')
+      toast.info('请选择续期时长')
       return
     }
-
     try {
-      await profileService.renewSystemBlockSettings({
-        days: this.data.selectedDays
+      await profileService.saveSystemBlockSettings({
+        ...(this.data.blockSettings || {}),
+        renewalDays: this.data.selectedDays
       })
-      toast.success('续期已提交')
+      toast.success(`已确认续期 ${this.data.selectedDays} 天`)
     } catch (error) {
-      toast.info(error.message || '续期保护期失败')
+      toast.info(error.message || '保存失败')
     }
-  },
-
-  normalizeList(list) {
-    return Array.isArray(list) ? list : []
   }
 })

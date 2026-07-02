@@ -10,18 +10,18 @@
   back-icon-color="#f8fbff"
 >
   <view class="report-page record-detail-page with-bottom">
-    <view class="report-card detail-status-card record-status-card" wx:if="{{statusCard.main || statusCard.sub}}">
-      <view class="status-icon {{statusCard.tone}}">
+    <view class="report-card detail-status-card record-status-card">
+      <view class="status-icon success">
         <image src="{{icons.check}}" mode="aspectFit"></image>
       </view>
-      <text wx:if="{{statusCard.main}}" class="status-main">{{statusCard.main}}</text>
-      <text wx:if="{{statusCard.sub}}" class="status-sub">{{statusCard.sub}}</text>
+      <text class="status-main">{{statusMain}}</text>
+      <text class="status-sub">{{statusSub}}</text>
     </view>
 
-    <view class="report-card reward-card record-reward-card" wx:if="{{rewardCard.label || rewardCard.value || rewardCard.desc}}">
-      <text wx:if="{{rewardCard.label}}" class="reward-label">{{rewardCard.label}}</text>
-      <text wx:if="{{rewardCard.value}}" class="reward-value">{{rewardCard.value}}</text>
-      <text wx:if="{{rewardCard.desc}}" class="reward-desc">{{rewardCard.desc}}</text>
+    <view class="report-card reward-card record-reward-card">
+      <text class="reward-label">平台奖励</text>
+      <text class="reward-value">{{rewardValue}}</text>
+      <text class="reward-desc">{{rewardDesc}}</text>
     </view>
 
     <view class="report-card record-info-card">
@@ -38,7 +38,7 @@
       <text class="paragraph">{{reportReason}}</text>
     </view>
 
-    <view class="report-card record-evidence-card" wx:if="{{evidence.length}}">
+    <view class="report-card record-evidence-card">
       <text class="section-title">{{evidenceTitle}}</text>
       <view class="evidence-row">
         <view wx:for="{{evidence}}" wx:key="label" class="evidence-card {{item.tone}}">
@@ -48,16 +48,16 @@
       </view>
     </view>
 
-    <view class="report-card record-result-card" wx:if="{{resultRows.length || resultNote}}">
+    <view class="report-card record-result-card">
       <text class="section-title">处理结果</text>
-      <view wx:for="{{resultRows}}" wx:key="label" class="result-row {{item.extraClass}}">
+      <view wx:for="{{resultRows}}" wx:key="label" class="result-row {{item.reward ? 'reward-result-row' : ''}}">
         <text class="result-label">{{item.label}}</text>
-        <text class="result-value {{item.tone}}">{{item.value}}</text>
+        <text class="result-value {{item.className}}">{{item.value}}</text>
       </view>
-      <view wx:if="{{resultNote}}" class="result-explain">
+      <view class="result-explain">
         <text class="result-label">处理说明</text>
       </view>
-      <text wx:if="{{resultNote}}" class="result-note">{{resultNote}}</text>
+      <text class="result-note">{{resultNote}}</text>
     </view>
 
     <view class="report-card">
