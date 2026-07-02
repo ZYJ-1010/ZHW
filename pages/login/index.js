@@ -177,9 +177,43 @@ Page({
   },
 
   onInviteCodeInput(event) {
+    const inviteCode = this.normalizeInviteCode(event.detail.value)
+    const inviteContext = inviteCode
+      ? inviteService.normalizeInviteContext(Object.assign({}, this.data.inviteContext || {}, {
+        code: inviteCode
+      }))
+      : null
+
+    if (inviteContext && inviteContext.code) {
+      inviteService.saveInviteContext(inviteContext)
+    }
+
     this.setData({
-      inviteCode: this.normalizeInviteCode(event.detail.value)
+      inviteCode,
+      inviteContext
     })
+  },
+
+  resolveInviteContext() {
+    const currentContext = this.data.inviteContext || {}
+    const inviteCode = this.normalizeInviteCode(this.data.inviteCode || currentContext.code)
+    const inviteContext = inviteCode
+      ? inviteService.normalizeInviteContext(Object.assign({}, currentContext, {
+        code: inviteCode
+      }))
+      : null
+
+    if (!inviteContext || !inviteContext.code) {
+      return null
+    }
+
+    inviteService.saveInviteContext(inviteContext)
+    this.setData({
+      inviteCode: inviteContext.code,
+      inviteContext
+    })
+
+    return inviteContext
   },
 
   enterLoginAuthPreview(mode = 'home') {
@@ -849,6 +883,12 @@ Page({
       return
     }
 
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info('请先输入邀请码')
+      return
+    }
+
     this.setData({
       loginMode: 'wechatAuth'
     })
@@ -865,6 +905,12 @@ Page({
       return
     }
 
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info('请先输入邀请码')
+      return
+    }
+
     if (this.data.isLoggingIn || this.data.hasWechatLogin) {
       return
     }
@@ -875,7 +921,7 @@ Page({
 
     try {
       const loginData = await authService.loginByWechat({
-        inviteCode: this.data.inviteContext ? this.data.inviteContext.code : ''
+        inviteCode: inviteContext.code
       })
 
       this.setData({
