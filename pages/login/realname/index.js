@@ -1,6 +1,7 @@
 const toast = require('../../../utils/toast')
 const userService = require('../../../services/user')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
+const ROUTES = require('../../../config/routes')
 
 function isValidRealname(realname) {
   return /^[\u4e00-\u9fa5A-Za-z·\s]{2,20}$/.test(String(realname || '').trim())
@@ -84,7 +85,9 @@ Page({
         idCard: this.data.idNumber
       })
 
-      navigateShellRoute('/pages/login/index?ui=1&mode=newbieTasks')
+      wx.reLaunch({
+        url: `/${ROUTES.playerHome}`
+      })
     } catch (error) {
       this.showAuthFailModal()
     } finally {

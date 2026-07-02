@@ -361,9 +361,39 @@ Page({
       return false
     }
 
-    const status = user.realnameStatus || user.authStatus
+    const identity = user.identity || {}
+    const nestedUser = user.user || {}
+    const status = user.realnameStatus || nestedUser.realnameStatus || identity.status || user.authStatus
 
-    return status === 'verified' || status === 'approved' || status === 'passed' || user.needRealname === false
+    return status === 'verified' || status === 'approved' || status === 'passed' || user.needRealname === false || user.requiresIdentityBinding === false
+  },
+
+  async continueAfterLogin(loginData = {}) {
+    if (loginData.requiresIdentityBinding === true) {
+      navigateShellRoute('/pages/login/realname/index')
+      return
+    }
+
+    if (loginData.requiresIdentityBinding === false || this.isRealnameVerified(loginData.user)) {
+      wx.reLaunch({
+        url: `/${ROUTES.playerHome}`
+      })
+      return
+    }
+
+    try {
+      const user = await userService.getCurrentUser()
+      if (this.isRealnameVerified(user)) {
+        wx.reLaunch({
+          url: `/${ROUTES.playerHome}`
+        })
+        return
+      }
+    } catch (error) {
+      // Fall through to real-name auth when current-user status cannot be confirmed.
+    }
+
+    navigateShellRoute('/pages/login/realname/index')
   },
 
   async checkRealnameAfterRegister() {
@@ -930,6 +960,7 @@ Page({
       })
       inviteService.clearInviteContext()
       toast.success('登录成功')
+      await this.continueAfterLogin(loginData)
     } catch (error) {
       this.setData({
         loginMode: 'wechatAuth'
