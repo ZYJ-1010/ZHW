@@ -153,6 +153,6 @@ Page({
 
   goNormalLogin() {
     inviteService.clearInviteContext()
-    navigateShellRoute(ROUTES.login)
+    navigateShellRoute(`/${ROUTES.login}?normalLogin=1`)
   }
 })

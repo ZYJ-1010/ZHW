@@ -117,6 +117,11 @@ Page({
       return
     }
 
+    if (options.normalLogin === '1') {
+      this.enterNormalLogin(options.mode || 'home')
+      return
+    }
+
     const inviteCode = this.normalizeInviteCode(options.inviteCode || options.code)
     const entryType = String(options.entryType || '').trim()
     const inviteContext = inviteCode
@@ -215,6 +220,46 @@ Page({
     })
 
     return inviteContext
+  },
+
+  enterNormalLogin(mode = 'home') {
+    const loginMode = LOGIN_WALKTHROUGH_MODES.includes(mode) ? mode : 'home'
+    const defaults = getTestLoginDefaults()
+
+    inviteService.clearInviteContext()
+    this.clearCodeTimer()
+    this.setData(Object.assign({
+      isUiPreview: false,
+      isLoginAuthPreview: false,
+      uiPreviewStep: 'invite',
+      realnameGuideUrl: '/pages/login/realname/index?ui=1',
+      loginMode,
+      accountMode: 'password',
+      agreed: false,
+      hasWechatLogin: false,
+      isLoggingIn: false,
+      isSendingCode: false,
+      isPhoneLoggingIn: false,
+      isPasswordLoggingIn: false,
+      isCheckingRealname: false,
+      isStartingRealname: false,
+      isLoadingNewbieTasks: false,
+      phone: '',
+      maskedPhone: '',
+      verifyCode: '',
+      codeDigits: this.getCodeDigits(''),
+      isCodeComplete: false,
+      codeInputFocus: false,
+      resendSeconds: 59,
+      canResend: false,
+      password: '',
+      inviteCode: '',
+      inviteContext: null
+    }, defaults, {
+      loginMode,
+      inviteCode: '',
+      inviteContext: null
+    }))
   },
 
   enterLoginAuthPreview(mode = 'home') {
