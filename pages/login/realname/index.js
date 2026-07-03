@@ -8,7 +8,7 @@ function isValidRealname(realname) {
 }
 
 function isValidIdNumber(idNumber) {
-  return /(^\d{15}$)|(^\d{17}[\dX]$)/.test(String(idNumber || '').trim().toUpperCase())
+  return /^\d{17}[\dX]$/.test(String(idNumber || '').trim().toUpperCase())
 }
 
 Page({
