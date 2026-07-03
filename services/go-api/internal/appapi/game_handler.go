@@ -1575,29 +1575,19 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	record := s.identity.Status(userID)
-	snapshot := s.profiles.RoleSnapshot(userID)
-	stats := s.games.StatsForUser(userID)
-	_, err := s.reviews.Todos(userID)
-	if err != nil {
-		writeReviewError(w, err)
-		return
-	}
-	reviewIntents := s.reviews.MyIntents(userID)
-	applications := s.profiles.RoleApplicationsByUser(userID)
-	hasRoleApplication := len(applications) > 0
-	hasApprovedRole := false
-	for _, status := range snapshot.RoleStatusMap {
-		if status == "active" || status == "approved" {
-			hasApprovedRole = true
+	user, _ := s.auth.CurrentUser(bearerToken(r.Header.Get("Authorization")))
+	hasProfile := strings.TrimSpace(user.Nickname) != "" || strings.TrimSpace(user.AvatarURL) != ""
+	hasCreatedGame := false
+	for _, game := range s.games.List() {
+		if game.CreatorUserID == userID {
+			hasCreatedGame = true
 			break
 		}
 	}
 	items := []map[string]interface{}{
-		{"code": "complete_identity", "title": "完成实名认证", "completed": record.Status == "verified"},
-		{"code": "apply_role", "title": "申请行家或领路人", "completed": hasRoleApplication || hasApprovedRole},
-		{"code": "join_or_create_game", "title": "创建或参与第一局", "completed": stats.Participated > 0},
-		{"code": "complete_game", "title": "完成一局服务", "completed": stats.Completed > 0},
-		{"code": "submit_review", "title": "完成评价", "completed": len(reviewIntents) > 0},
+		newbieTaskItem("newbie-realname", "complete_identity", "realname", "完成实名认证", "+50 经验值", 50, record.Status == "verified", "pages/login/realname/index"),
+		newbieTaskItem("newbie-profile", "profile", "profile", "完善个人资料", "+30 经验值", 30, hasProfile, "pages/profile/index"),
+		newbieTaskItem("newbie-first-game", "first_game", "first_game", "发布第一个局", "+100 经验值", 100, hasCreatedGame, "pages/game/create/index"),
 	}
 	completed := 0
 	for _, item := range items {
@@ -1606,10 +1596,44 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.OK(w, map[string]interface{}{
-		"items":     items,
-		"completed": completed,
-		"total":     len(items),
+		"items":           items,
+		"tasks":           items,
+		"completed":       completed,
+		"completedCount":  completed,
+		"total":           len(items),
+		"totalCount":      len(items),
+		"progressPercent": progressPercent(completed, len(items)),
 	})
+}
+
+func newbieTaskItem(id string, code string, taskType string, title string, rewardText string, rewardValue int, completed bool, route string) map[string]interface{} {
+	status := "pending"
+	statusText := "去完成"
+	if completed {
+		status = "completed"
+		statusText = "已完成"
+	}
+	return map[string]interface{}{
+		"id":          id,
+		"code":        code,
+		"type":        taskType,
+		"title":       title,
+		"rewardText":  rewardText,
+		"rewardValue": rewardValue,
+		"rewardType":  "experience",
+		"completed":   completed,
+		"status":      status,
+		"statusText":  statusText,
+		"actionText":  "去完成",
+		"route":       route,
+	}
+}
+
+func progressPercent(completed int, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	return completed * 100 / total
 }
 
 func (s *Server) myManagedGames(w http.ResponseWriter, r *http.Request) {

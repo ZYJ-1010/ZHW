@@ -1291,7 +1291,7 @@
   top: 166rpx;
   left: 62rpx;
   width: 626rpx;
-  min-height: 800rpx;
+  height: 800rpx;
   padding: 30rpx 38rpx 36rpx;
   border-radius: 30rpx;
   box-sizing: border-box;
@@ -1338,7 +1338,6 @@
 
 .newbie-task-list {
   width: 100%;
-  min-height: 296rpx;
   margin-top: 36rpx;
 }
 

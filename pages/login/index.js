@@ -141,6 +141,17 @@ function pickRewardText(source, meta) {
   return ''
 }
 
+function pickActionText(source, meta) {
+  return source.actionText ||
+    source.operationText ||
+    source.buttonText ||
+    source.ctaText ||
+    source.nextActionText ||
+    source.statusText ||
+    meta.actionText ||
+    '去完成'
+}
+
 function normalizeNewbieTask(task, index) {
   const source = task && typeof task === 'object' ? task : {}
   const code = String(source.code || source.taskCode || source.type || source.id || '').trim()
@@ -152,7 +163,7 @@ function normalizeNewbieTask(task, index) {
     code,
     type,
     rewardText: pickRewardText(source, meta),
-    actionText: source.actionText || meta.actionText || '去完成'
+    actionText: pickActionText(source, meta)
   })
 }
 
