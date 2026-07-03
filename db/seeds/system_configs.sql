@@ -291,6 +291,22 @@ values
         "acceptTypes": ["JPG", "PNG", "PDF"],
         "maxCount": 5
       },
+      "requirementsTitle": "申请条件",
+      "requirements": [
+        { "title": "玩家等级达到 Lv.20", "text": "以后台资格规则为准", "done": false },
+        { "title": "完成实名认证", "text": "行家必须实名", "done": false },
+        { "title": "完成企业认证", "text": "以认证记录为准", "done": false },
+        { "title": "发起过 5 次以上组局", "text": "以后台组局记录为准", "done": false },
+        { "title": "信用分 ≥ 90 分", "text": "以信用记录为准", "done": false },
+        { "title": "会员等级 ≥ 高级会员", "text": "以会员状态为准", "done": false }
+      ],
+      "planTask": { "title": "提交行家计划书", "text": "需描述你的资源、能力和项目说明书", "done": false, "action": "去填写 ›" },
+      "perksTitle": "行家特权",
+      "perks": [
+        { "icon": "¥", "text": "有权益的行家可发起有偿局并可获得相应收入" },
+        { "icon": "★", "text": "专属行家标识与优先推荐位" },
+        { "icon": "D", "text": "数据看板：查看服务数据与收益分析" }
+      ],
       "validationRules": {
         "skillTags": { "minLength": 2, "maxLength": 30 },
         "intro": { "minLength": 50, "maxLength": 300 },
@@ -305,7 +321,9 @@ values
         "30年以上"
       ],
       "serviceCount": 3,
-      "priceHint": "平台将收取 10% 服务费"
+      "priceHint": "平台将收取 10% 服务费",
+      "primaryText": "下一步",
+      "helperText": "审核预计 1-3 个工作日"
     }'::jsonb,
     'active',
     now()

@@ -1,0 +1,53 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  dock-visible="{{false}}"
+  content-scroll-y="{{true}}"
+  nav-toast-enabled="{{false}}"
+  topbar-title-visible="{{false}}"
+  shell-class="home-shell--blue-topbar"
+>
+  <view class="home-role-compare theme-{{themeRole}}">
+    <view class="home-game-appbar">
+      <text class="home-game-back" bindtap="handleBackTap">‹</text>
+      <text class="home-game-app-title">{{displayComparison.title}}</text>
+    </view>
+
+    <view class="home-role-compare-content">
+      <view class="home-role-hero">
+        <view class="home-role-title-row">
+          <text class="home-role-title-icon">🎯</text>
+          <text class="home-role-title">{{displayComparison.title}}</text>
+        </view>
+        <text class="home-role-subtitle">{{displayComparison.subtitle}}</text>
+      </view>
+
+      <view class="home-role-cards">
+        <view wx:for="{{displayComparison.roles}}" wx:key="name" class="home-role-card {{item.key}} {{item.active ? 'active' : ''}}">
+          <text class="home-role-icon">{{item.icon}}</text>
+          <text class="home-role-name">{{item.name}}</text>
+          <text class="home-role-level">{{item.level}}</text>
+        </view>
+      </view>
+
+      <view class="home-role-table">
+        <view class="home-role-row head">
+          <text>权益功能</text>
+          <text class="player">玩家</text>
+          <text class="guide">领路人</text>
+          <text class="expert">行家</text>
+        </view>
+        <view wx:for="{{displayComparison.benefits}}" wx:for-index="benefitIndex" wx:key="name" class="home-role-row {{benefitIndex === 4 ? 'spaced' : ''}}">
+          <text>{{item.name}}</text>
+          <text class="player {{item.player === '✓' ? 'ok' : 'muted'}}">{{item.player}}</text>
+          <text class="guide {{item.leader === '✓' ? 'ok' : item.leader === '—' ? 'muted' : 'rate'}}">{{item.leader}}</text>
+          <text class="expert {{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
+        </view>
+      </view>
+
+      <view class="home-game-bottom-action" catchtap="handleApplyTap">
+        <text>{{displayComparison.primary}}</text>
+      </view>
+    </view>
+  </view>
+</home-shell>

@@ -509,11 +509,11 @@ func (s *Server) adminGameCategoryConfig(w http.ResponseWriter, r *http.Request)
 			"typeFilterCount":      len(config.TypeFilters),
 			"locationFilterCount":  len(config.LocationFilters),
 			"version":              config.Version,
-	})
-	httpx.OK(w, map[string]interface{}{"config": s.currentGameCategoryConfig()})
-default:
-	httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
-}
+		})
+		httpx.OK(w, map[string]interface{}{"config": s.currentGameCategoryConfig()})
+	default:
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+	}
 }
 
 func (s *Server) adminGameApplicationConfig(w http.ResponseWriter, r *http.Request) {
@@ -1564,9 +1564,14 @@ func (s *Server) appHome(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	roleType, allowed := s.resolveHomeRoleType(userID, r.URL.Query().Get("roleType"))
+	if !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "role not available")
+		return
+	}
 	visibleGames := publicGames(s.games.List())
-	s.recordBehavior(userID, "view_home", "home", 0, map[string]interface{}{"gameCount": len(visibleGames)})
-	httpx.OK(w, s.buildAppHomePayload(userID, visibleGames))
+	s.recordBehavior(userID, "view_home", "home", 0, map[string]interface{}{"gameCount": len(visibleGames), "roleType": roleType})
+	httpx.OK(w, s.buildAppHomePayload(userID, visibleGames, roleType))
 }
 
 func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {

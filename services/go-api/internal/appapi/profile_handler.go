@@ -154,19 +154,21 @@ func (s *Server) adminRoleBenefitConfig(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) currentExpertApplyConfig() map[string]interface{} {
+	defaultConfig := defaultExpertApplyConfig()
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(expertApplyConfigKey, &config) && len(config) > 0 {
-		return config
+		return mergeDefaultConfig(defaultConfig, config)
 	}
-	return defaultExpertApplyConfig()
+	return defaultConfig
 }
 
 func (s *Server) currentGuideApplyConfig() map[string]interface{} {
+	defaultConfig := defaultGuideApplyConfig()
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(guideApplyConfigKey, &config) && len(config) > 0 {
-		return config
+		return mergeDefaultConfig(defaultConfig, config)
 	}
-	return defaultGuideApplyConfig()
+	return defaultConfig
 }
 
 func (s *Server) currentRoleStatusPageConfig() map[string]interface{} {
@@ -191,6 +193,17 @@ func (s *Server) currentRoleBenefitConfig() map[string]interface{} {
 		return config
 	}
 	return defaultRoleBenefitConfig()
+}
+
+func mergeDefaultConfig(defaultConfig, config map[string]interface{}) map[string]interface{} {
+	next := make(map[string]interface{}, len(defaultConfig)+len(config))
+	for key, value := range defaultConfig {
+		next[key] = value
+	}
+	for key, value := range config {
+		next[key] = value
+	}
+	return next
 }
 
 func normalizeRoleBenefitConfig(req map[string]interface{}) (map[string]interface{}, error) {
@@ -296,6 +309,27 @@ func defaultExpertApplyConfig() map[string]interface{} {
 			"acceptTypes": []string{"JPG", "PNG", "PDF"},
 			"maxCount":    5,
 		},
+		"requirementsTitle": "申请条件",
+		"requirements": []map[string]interface{}{
+			{"title": "玩家等级达到 Lv.20", "text": "以后台资格规则为准", "done": false},
+			{"title": "完成实名认证", "text": "行家必须实名", "done": false},
+			{"title": "完成企业认证", "text": "以认证记录为准", "done": false},
+			{"title": "发起过 5 次以上组局", "text": "以后台组局记录为准", "done": false},
+			{"title": "信用分 ≥ 90 分", "text": "以信用记录为准", "done": false},
+			{"title": "会员等级 ≥ 高级会员", "text": "以会员状态为准", "done": false},
+		},
+		"planTask": map[string]interface{}{
+			"title":  "提交行家计划书",
+			"text":   "需描述你的资源、能力和项目说明书",
+			"done":   false,
+			"action": "去填写 ›",
+		},
+		"perksTitle": "行家特权",
+		"perks": []map[string]interface{}{
+			{"icon": "¥", "text": "有权益的行家可发起有偿局并可获得相应收入"},
+			{"icon": "★", "text": "专属行家标识与优先推荐位"},
+			{"icon": "D", "text": "数据看板：查看服务数据与收益分析"},
+		},
 		"validationRules": map[string]interface{}{
 			"skillTags":   map[string]interface{}{"minLength": 2, "maxLength": 30},
 			"intro":       map[string]interface{}{"minLength": 50, "maxLength": 300},
@@ -306,6 +340,8 @@ func defaultExpertApplyConfig() map[string]interface{} {
 		"yearOptions":  yearOptions,
 		"serviceCount": 3,
 		"priceHint":    "平台将收取 10% 服务费",
+		"primaryText":  "下一步",
+		"helperText":   "审核预计 1-3 个工作日",
 	}
 }
 

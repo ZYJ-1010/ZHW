@@ -25,9 +25,13 @@ type homeDisplayConfigDTO struct {
 	OnlineSuffix    string `json:"onlineSuffix"`
 }
 
-func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game) map[string]interface{} {
+func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, roleType string) map[string]interface{} {
 	if len(visibleGames) > 10 {
 		visibleGames = visibleGames[:10]
+	}
+	roleType = normalizeHomeRoleType(roleType)
+	if roleType == "" {
+		roleType = s.defaultHomeRoleType(userID)
 	}
 	user, _ := s.auth.UserByID(userID)
 	growth := s.reviews.Profile(userID)
@@ -37,9 +41,9 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game) ma
 	friendGames := s.homeFriendGames(userID, visibleGames, conns, 4)
 
 	return map[string]interface{}{
-		"hero":               s.homeHero(userID, user, growth, len(visibleGames), len(conns)),
+		"hero":               s.homeHero(userID, user, growth, len(visibleGames), len(conns), roleType),
 		"user":               s.buildCurrentUserDTO(user, s.identity.Status(userID)),
-		"playerSummary":      s.homePlayerSummary(userID, user, stats, growth),
+		"playerSummary":      s.homePlayerSummary(userID, user, stats, growth, roleType),
 		"nearbySummary":      s.homeNearbySummary(userID, nearbyGames, conns),
 		"nearbySection":      s.homeNearbySection(),
 		"nearbyGames":        nearbyGames,
@@ -61,8 +65,7 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game) ma
 	}
 }
 
-func (s *Server) homeHero(userID int64, user users.User, growth reviews.GrowthProfile, gameCount int, connectionCount int) map[string]interface{} {
-	roleType := s.homeRoleType(userID)
+func (s *Server) homeHero(userID int64, user users.User, growth reviews.GrowthProfile, gameCount int, connectionCount int, roleType string) map[string]interface{} {
 	return map[string]interface{}{
 		"onlineText":  s.homeOnlineText(gameCount, connectionCount),
 		"roleType":    roleType,
@@ -151,7 +154,36 @@ func defaultHomeDisplayConfig() homeDisplayConfigDTO {
 	}
 }
 
-func (s *Server) homeRoleType(userID int64) string {
+func normalizeHomeRoleType(roleType string) string {
+	switch strings.TrimSpace(roleType) {
+	case "player", "\u73a9\u5bb6":
+		return "player"
+	case "expert", "master", "\u884c\u5bb6":
+		return "expert"
+	case "guide", "leader", "\u9886\u8def\u4eba":
+		return "guide"
+	default:
+		return ""
+	}
+}
+
+func (s *Server) resolveHomeRoleType(userID int64, requestedRoleType string) (string, bool) {
+	trimmed := strings.TrimSpace(requestedRoleType)
+	roleType := normalizeHomeRoleType(trimmed)
+	if trimmed != "" && roleType == "" {
+		return "", false
+	}
+	if roleType == "" {
+		return s.defaultHomeRoleType(userID), true
+	}
+	if roleType == "player" {
+		return roleType, true
+	}
+	snapshot := s.profiles.RoleSnapshot(userID)
+	return roleType, snapshot.RoleStatusMap[roleType] == "approved"
+}
+
+func (s *Server) defaultHomeRoleType(userID int64) string {
 	snapshot := s.profiles.RoleSnapshot(userID)
 	if snapshot.RoleStatusMap["guide"] == "approved" {
 		return "guide"
@@ -173,7 +205,7 @@ func homeRoleName(roleType string) string {
 	}
 }
 
-func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.UserStats, growth reviews.GrowthProfile) map[string]interface{} {
+func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.UserStats, growth reviews.GrowthProfile, roleType string) map[string]interface{} {
 	nextLevelExperience := maxInt(growth.Level*100, 100)
 	expToNext := nextLevelExperience - growth.Experience
 	if expToNext < 0 {
@@ -183,7 +215,6 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 	if nextLevelExperience > 0 {
 		progress = int(math.Round(float64(growth.Experience%100) / 100 * 100))
 	}
-	roleType := s.homeRoleType(userID)
 	joinCount := stats.Participated
 	participationRate := "0%"
 	if joinCount > 0 {

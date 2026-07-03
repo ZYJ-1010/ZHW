@@ -548,6 +548,7 @@
 
 .home-expert-apply-back,
 .home-expert-apply-save,
+.home-expert-apply-toolbar-title,
 .home-expert-apply-heading,
 .home-expert-apply-tagline,
 .home-expert-field-label text,
@@ -582,6 +583,20 @@
   font-weight: 400;
   line-height: 36rpx;
   text-align: right;
+}
+
+.home-expert-apply-toolbar-title {
+  grid-column: 2;
+  justify-self: center;
+  max-width: 100%;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 44rpx;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-expert-apply-main {
@@ -1098,6 +1113,13 @@
   background: rgba(0, 230, 118, 0.16);
 }
 
+.home-expert-status-dot.failed {
+  border-color: rgba(255, 82, 82, 0.3);
+  color: #ff6b6b;
+  background: rgba(255, 82, 82, 0.12);
+  font-size: 20rpx;
+}
+
 .home-expert-status-dot text {
   display: block;
   line-height: 28rpx;
@@ -1503,248 +1525,6 @@
 .home-launch-dots .cyan {
   background: #00d2ff;
   box-shadow: 0 0 26rpx rgba(0, 210, 255, 0.6);
-}
-
-.home-role-compare {
-  min-height: 100%;
-  box-sizing: border-box;
-  background: #000000;
-}
-
-.home-role-compare .home-game-appbar {
-  height: 96rpx;
-  padding: 0 24rpx;
-  background: #000000;
-}
-
-.home-role-compare .home-game-app-title {
-  font-size: 34rpx;
-  font-weight: 400;
-  line-height: 38rpx;
-}
-
-.home-role-compare .home-game-back {
-  width: 44rpx;
-  height: 44rpx;
-  margin-top: -22rpx;
-  font-size: 44rpx;
-  line-height: 44rpx;
-}
-
-.home-role-compare-content {
-  padding: 20rpx 28rpx 32rpx;
-  box-sizing: border-box;
-}
-
-.home-role-hero {
-  padding: 16rpx 0 28rpx;
-  text-align: center;
-}
-
-.home-role-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14rpx;
-}
-
-.home-role-title-icon {
-  display: block;
-  font-size: 50rpx;
-  line-height: 50rpx;
-}
-
-.home-role-title,
-.home-role-subtitle,
-.home-role-icon,
-.home-role-name,
-.home-role-level {
-  display: block;
-}
-
-.home-role-title {
-  color: #ffffff;
-  font-size: 44rpx;
-  font-weight: 700;
-  line-height: 52rpx;
-}
-
-.home-role-subtitle {
-  margin-top: 16rpx;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 28rpx;
-  line-height: 34rpx;
-}
-
-.home-role-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14rpx;
-}
-
-.home-role-card {
-  min-height: 180rpx;
-  padding: 24rpx 8rpx 20rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.1);
-  border-radius: 32rpx;
-  box-sizing: border-box;
-  background: rgba(20, 25, 50, 0.6);
-  opacity: 1;
-  text-align: center;
-}
-
-.home-role-card.active {
-  border-width: 2rpx;
-  box-shadow: 0 0 24rpx rgba(0, 206, 209, 0.24);
-  opacity: 1;
-}
-
-.home-role-card.player {
-  border-color: rgba(0, 212, 255, 0.5);
-  background: rgba(0, 212, 255, 0.1);
-}
-
-.home-role-card.guide {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(20, 25, 50, 0.6);
-}
-
-.home-role-card.expert {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(20, 25, 50, 0.6);
-}
-
-.home-role-card.player.active {
-  border-color: rgba(0, 212, 255, 0.5);
-  box-shadow: none;
-}
-
-.home-role-card.guide.active {
-  border-color: #ff8a2c;
-  box-shadow: 0 0 24rpx rgba(255, 138, 44, 0.28);
-}
-
-.home-role-card.expert.active {
-  border-color: #4ddbff;
-  box-shadow: 0 0 24rpx rgba(77, 219, 255, 0.28);
-}
-
-.home-role-icon {
-  font-size: 56rpx;
-  line-height: 62rpx;
-}
-
-.home-role-name {
-  margin-top: 8rpx;
-  color: #ffffff;
-  font-size: 28rpx;
-  font-weight: 400;
-  line-height: 34rpx;
-}
-
-.home-role-level {
-  margin-top: 0;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 24rpx;
-  font-weight: 400;
-  line-height: 28rpx;
-}
-
-.home-role-row.head .player {
-  color: #ffffff;
-}
-
-.home-role-row .guide.ok,
-.home-role-row .guide.rate {
-  color: #00e676;
-}
-
-.home-role-row.head .guide {
-  color: #fd780f;
-}
-
-.home-role-row .expert.ok,
-.home-role-row .expert.rate {
-  color: #00e676;
-}
-
-.home-role-row.head .expert {
-  color: #16c0f6;
-}
-
-.home-role-table {
-  margin-top: 42rpx;
-  padding: 0;
-  border: 2rpx solid rgba(255, 255, 255, 0.1);
-  border-radius: 32rpx;
-  background: rgba(0, 0, 0, 0);
-  overflow: hidden;
-}
-
-.home-role-row {
-  display: grid;
-  grid-template-columns: 1.18fr 0.84fr 1.1fr 1.1fr;
-  align-items: center;
-  min-height: 54rpx;
-  padding: 0 30rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.05);
-  box-sizing: border-box;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 28rpx;
-  font-weight: 400;
-  line-height: 34rpx;
-}
-
-.home-role-row.head {
-  min-height: 54rpx;
-  border-top: 0;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.03);
-  font-size: 28rpx;
-  font-weight: 400;
-  text-transform: uppercase;
-}
-
-.home-role-row.spaced {
-  margin-top: 52rpx;
-}
-
-.home-role-row text:not(:first-child) {
-  text-align: center;
-}
-
-.home-role-row .ok {
-  color: #00e676;
-  font-size: 28rpx;
-  font-weight: 400;
-}
-
-.home-role-row .muted {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.home-role-row .rate {
-  color: #00e676;
-  font-size: 24rpx;
-  font-weight: 400;
-}
-
-.home-role-compare .home-game-bottom-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 620rpx;
-  height: 92rpx;
-  margin-top: 26rpx;
-  margin-right: auto;
-  margin-left: auto;
-  border-radius: 50rpx;
-  color: #ffffff;
-  background: linear-gradient(180deg, #33d9ff 0%, #15bfe8 100%);
-  box-shadow: 0 0 32rpx rgba(0, 206, 209, 0.34);
-  font-size: 32rpx;
-  font-weight: 400;
-  line-height: 38rpx;
 }
 
 .home-player-scroll {

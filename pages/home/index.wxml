@@ -38,66 +38,25 @@
     </view>
   </view>
 
-  <home-shell
+  <role-comparison-home
     wx:elif="{{currentHomePreview.mode === 'roleComparison'}}"
-    online-text="{{roleComparisonShell.onlineText}}"
-    nav-items="{{roleComparisonShell.navItems}}"
-    dock-visible="{{false}}"
-    content-scroll-y="{{true}}"
-    nav-toast-enabled="{{false}}"
-    shell-class="home-shell--content-only"
-  >
-    <view class="home-role-compare">
-      <view class="home-game-appbar">
-        <text class="home-game-back" bindtap="handleRoleCompareBackTap">‹</text>
-        <text class="home-game-app-title">{{currentHomePreview.title}}</text>
-      </view>
-      <view class="home-role-compare-content">
-        <view class="home-role-hero">
-          <view class="home-role-title-row">
-            <text class="home-role-title-icon">🎯</text>
-            <text class="home-role-title">{{currentHomePreview.title}}</text>
-          </view>
-          <text class="home-role-subtitle">{{currentHomePreview.subtitle}}</text>
-        </view>
-        <view class="home-role-cards">
-          <view wx:for="{{currentHomePreview.roles}}" wx:key="name" class="home-role-card {{item.key}} {{item.active ? 'active' : ''}}">
-            <text class="home-role-icon">{{item.icon}}</text>
-            <text class="home-role-name">{{item.name}}</text>
-            <text class="home-role-level">{{item.level}}</text>
-          </view>
-        </view>
-        <view class="home-role-table">
-          <view class="home-role-row head">
-            <text>权益功能</text>
-            <text class="player">玩家</text>
-            <text class="guide">领路人</text>
-            <text class="expert">行家</text>
-          </view>
-          <view wx:for="{{currentHomePreview.benefits}}" wx:for-index="benefitIndex" wx:key="name" class="home-role-row {{benefitIndex === 4 ? 'spaced' : ''}}">
-            <text>{{item.name}}</text>
-            <text class="player {{item.player === '✓' ? 'ok' : 'muted'}}">{{item.player}}</text>
-            <text class="guide {{item.leader === '✓' ? 'ok' : item.leader === '—' ? 'muted' : 'rate'}}">{{item.leader}}</text>
-            <text class="expert {{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
-          </view>
-        </view>
-        <view class="home-game-bottom-action" catchtap="handleRoleCompareApplyTap">
-          <text>{{currentHomePreview.primary}}</text>
-        </view>
-      </view>
-    </view>
-  </home-shell>
+    comparison="{{currentHomePreview}}"
+    target-role="{{roleComparisonRoleType}}"
+    return-to="{{roleComparisonReturnTo}}"
+    bindapply="handleRoleCompareApplyTap"
+  ></role-comparison-home>
 
   <home-apply-shell
     wx:elif="{{currentHomePreview.mode === 'expertApplyForm' || currentHomePreview.mode === 'expertApplyOverview'}}"
-    nav-title="{{currentHomePreview.navTitle}}"
+    nav-title=""
     shell-class="home-expert-apply"
     preview-switch-enabled="{{!homePreviewSingle}}"
     bindpreviewswitch="handleHomePreviewTap"
   >
           <view class="home-expert-apply-toolbar">
             <text class="home-expert-apply-back" catchtap="handleExpertApplyBackTap">‹</text>
-            <text wx:if="{{currentHomePreview.saveText && currentHomePreview.mode === 'expertApplyForm'}}" class="home-expert-apply-save" catchtap="handleExpertApplySaveTap">{{currentHomePreview.saveText}}</text>
+            <text class="home-expert-apply-toolbar-title">{{currentHomePreview.navTitle}}</text>
+            <text wx:if="{{currentHomePreview.saveText}}" class="home-expert-apply-save" catchtap="handleExpertApplySaveTap">{{currentHomePreview.saveText}}</text>
           </view>
           <scroll-view class="home-master-apply-main home-expert-apply-main" scroll-y enhanced show-scrollbar="false">
             <view class="home-expert-apply-hero">
@@ -288,8 +247,8 @@
                     <text>{{currentHomePreview.requirementsTitle}}</text>
                   </view>
                   <view wx:for="{{currentHomePreview.requirements}}" wx:for-item="requirement" wx:key="title" class="home-expert-requirement">
-                    <view class="home-expert-status-dot {{requirement.checked ? 'checked' : ''}}">
-                      <text wx:if="{{requirement.checked}}">✓</text>
+                    <view class="home-expert-status-dot {{requirement.checked ? 'checked' : 'failed'}}">
+                      <text>{{requirement.checked ? '✓' : '❌'}}</text>
                     </view>
                     <view>
                       <text class="home-expert-requirement-title">{{requirement.title}}</text>

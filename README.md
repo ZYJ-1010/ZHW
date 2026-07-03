@@ -27,12 +27,11 @@ docs/progress         每小时项目记录
 
 Go API：
 
-```bash
-cd services/go-api
-$env:GOCACHE='C:\Users\61492\Desktop\真好玩-mini\.cache\go-build'
-$env:GOTMPDIR='C:\Users\61492\Desktop\真好玩-mini\.cache\go-tmp'
-& 'C:\Program Files\Go\bin\go.exe' run ./cmd/server
+```powershell
+.\scripts\restart-local-backend.ps1
 ```
+
+默认使用 `E:\zhw-local-runtime` 里的本地 Go、模块缓存、构建缓存、临时目录和日志目录，避免本地重启时访问公网下载 Go 依赖。
 
 访问：
 

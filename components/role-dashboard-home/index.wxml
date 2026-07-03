@@ -22,8 +22,26 @@
         <text class="player-hero-date">{{hero.date}}</text>
       </view>
 
-      <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{rolePermissionPrompt.roleType}}">
-        <block wx:if="{{!rolePermissionPrompt.visible}}">
+      <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{roleAuditPrompt.visible ? 'audit' : ''}} {{rolePermissionPrompt.roleType}} {{roleAuditPrompt.roleType}}">
+        <block wx:if="{{roleAuditPrompt.visible}}">
+          <view class="player-role-audit-card">
+            <text class="player-role-audit-title">{{roleAuditPrompt.icon}}{{roleAuditPrompt.title}}</text>
+            <text class="player-role-audit-subtitle">{{roleAuditPrompt.submittedText}}</text>
+            <view class="player-role-audit-steps {{roleAuditPrompt.done ? 'done' : ''}}">
+              <view
+                wx:for="{{roleAuditPrompt.steps}}"
+                wx:key="key"
+                class="player-role-audit-step {{item.state}}"
+              >
+                <view class="player-role-audit-dot"></view>
+                <text>{{item.name}}</text>
+              </view>
+            </view>
+            <view class="player-role-audit-detail" bindtap="handleRoleAuditDetailTap">{{roleAuditPrompt.detailText}}</view>
+            <text class="player-role-audit-helper">{{roleAuditPrompt.helperText}}</text>
+          </view>
+        </block>
+        <block wx:elif="{{!rolePermissionPrompt.visible}}">
           <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
           <view class="player-summary-copy">
             <text class="player-summary-title">{{playerCard.title}}</text>
@@ -64,7 +82,7 @@
             wx:key="key"
             data-key="{{item.key}}"
             catchtap="handleRoleTagTap"
-            class="player-role-tag {{item.active ? 'active' : ''}}"
+            class="player-role-tag {{item.active ? 'active' : ''}} {{item.status === 'pending' ? 'pending' : ''}}"
           >
             <text>{{item.icon}} {{item.name}}</text>
           </view>

@@ -2,6 +2,11 @@ const roleService = require('../../services/role')
 const { ROUTES } = require('../../config/routes')
 const UI_ICONS = require('../../config/ui-icons')
 const { navigateShellRoute } = require('../../utils/shell-nav')
+const {
+  readRoleApplyDraft,
+  saveRoleApplyDraft,
+  clearRoleApplyDraft
+} = require('../../utils/role-apply-draft')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_CONTENT_TOP_RPX = 181
@@ -357,6 +362,28 @@ function createGuideApplyForm() {
     uploadFiles: [],
     services: createGuideApplyServices()
   }
+}
+
+function normalizeGuideApplyDraftForm(draft, serviceCount, defaultAudience = []) {
+  const sourceForm = draft && draft.form && typeof draft.form === 'object' ? draft.form : {}
+  const baseForm = createGuideApplyForm()
+
+  return Object.assign({}, baseForm, sourceForm, {
+    audience: Array.isArray(sourceForm.audience) ? sourceForm.audience : defaultAudience.slice(),
+    uploadFiles: Array.isArray(sourceForm.uploadFiles) ? sourceForm.uploadFiles : [],
+    services: ensureGuideApplyServices(sourceForm.services, serviceCount)
+  })
+}
+
+function isGuideApplyFormEmpty(form = {}) {
+  const services = form.services || []
+
+  return !trimText(form.city)
+    && !trimText(form.contact)
+    && !trimText(form.guidePlan)
+    && (!Array.isArray(form.audience) || form.audience.length === 0)
+    && (!Array.isArray(form.uploadFiles) || form.uploadFiles.length === 0)
+    && services.every((service) => !hasGuideServiceContent(service))
 }
 
 function trimText(value) {
@@ -937,8 +964,12 @@ Page({
       return
     }
 
+    const savedDraft = saveRoleApplyDraft('guide', {
+      form: this.data.guideApplyForm
+    })
+
     wx.showToast({
-      title: '已暂存申请信息',
+      title: savedDraft ? '已保存到本机草稿' : '草稿保存失败',
       icon: 'none'
     })
   },
@@ -998,13 +1029,18 @@ Page({
       const currentPage = applyGuideApplyConfigToPage(this.data.currentPage, guideApplyConfig)
       const currentFields = (currentPage && currentPage.formFields) || []
       const selectedAudience = getGuideAudienceFromFields(currentFields)
-      const nextGuideApplyForm = Object.assign({}, this.data.guideApplyForm, {
-        audience: (this.data.guideApplyForm.audience || []).length ? this.data.guideApplyForm.audience : selectedAudience,
-        services: ensureGuideApplyServices(
-          this.data.guideApplyForm.services,
-          getPositiveInteger((guideApplyConfig || {}).serviceCount, GUIDE_SERVICE_COUNT)
-        )
-      })
+      const serviceCount = getPositiveInteger((guideApplyConfig || {}).serviceCount, GUIDE_SERVICE_COUNT)
+      const savedDraft = readRoleApplyDraft('guide')
+      const shouldUseDraft = Boolean(savedDraft && isGuideApplyFormEmpty(this.data.guideApplyForm))
+      const nextGuideApplyForm = shouldUseDraft
+        ? normalizeGuideApplyDraftForm(savedDraft, serviceCount, selectedAudience)
+        : Object.assign({}, this.data.guideApplyForm, {
+          audience: (this.data.guideApplyForm.audience || []).length ? this.data.guideApplyForm.audience : selectedAudience,
+          services: ensureGuideApplyServices(
+            this.data.guideApplyForm.services,
+            serviceCount
+          )
+        })
 
       this.setData({
         guideApplyConfig: guideApplyConfig || null,
@@ -1265,6 +1301,7 @@ Page({
         source: 'home-other',
         form: this.data.guideApplyForm
       })
+      clearRoleApplyDraft('guide')
       this.showGuideApplySubmitSuccess(applyRoleName)
     } catch (error) {
       this.setData({

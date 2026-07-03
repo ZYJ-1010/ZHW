@@ -4,6 +4,11 @@ const toast = require('../../utils/toast')
 const { ROUTES } = require('../../config/routes')
 const UI_ICONS = require('../../config/ui-icons')
 const { navigateShellRoute } = require('../../utils/shell-nav')
+const {
+  readRoleApplyDraft,
+  saveRoleApplyDraft,
+  clearRoleApplyDraft
+} = require('../../utils/role-apply-draft')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_NAV_TOP_RPX = 108
@@ -75,6 +80,27 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
     acceptTypes: ['JPG', 'PNG', 'PDF'],
     maxCount: 5
   },
+  requirementsTitle: '申请条件',
+  requirements: [
+    { title: '玩家等级达到 Lv.20', text: '以后台资格规则为准', done: false },
+    { title: '完成实名认证', text: '行家必须实名', done: false },
+    { title: '完成企业认证', text: '以认证记录为准', done: false },
+    { title: '发起过 5 次以上组局', text: '以后台组局记录为准', done: false },
+    { title: '信用分 ≥ 90 分', text: '以信用记录为准', done: false },
+    { title: '会员等级 ≥ 高级会员', text: '以会员状态为准', done: false }
+  ],
+  planTask: {
+    title: '提交行家计划书',
+    text: '需描述你的资源、能力和项目说明书',
+    done: false,
+    action: '去填写 ›'
+  },
+  perksTitle: '行家特权',
+  perks: [
+    { icon: UI_ICONS.panel.revenue, text: '有权益的行家可发起有偿局并可获得相应收入' },
+    { icon: UI_ICONS.panel.featured, text: '专属行家标识与优先推荐位' },
+    { icon: UI_ICONS.panel.data, text: '数据看板：查看服务数据与收益分析' }
+  ],
   validationRules: {
     skillTags: {
       minLength: 2,
@@ -99,7 +125,9 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   },
   yearOptions: EXPERT_APPLY_YEAR_OPTIONS,
   serviceCount: EXPERT_SERVICE_COUNT,
-  priceHint: '平台将收取 10% 服务费'
+  priceHint: '平台将收取 10% 服务费',
+  primaryText: '下一步',
+  helperText: '审核预计 1-3 个工作日'
 }
 
 function getPositiveInteger(value, fallback) {
@@ -261,6 +289,84 @@ function normalizeUploadField(uploadField) {
   })
 }
 
+function normalizeExpertRequirements(requirements) {
+  const sourceRequirements = Array.isArray(requirements) && requirements.length
+    ? requirements
+    : DEFAULT_EXPERT_APPLY_CONFIG.requirements
+
+  return sourceRequirements
+    .map((item) => {
+      const title = trimText(item.title || item.name || item.label)
+      const status = trimText(item.status || item.text || item.desc || item.description)
+
+      if (!title && !status) {
+        return null
+      }
+
+      return {
+        title: title || status,
+        status,
+        checked: isExpertRequirementChecked(item, status)
+      }
+    })
+    .filter(Boolean)
+}
+
+function isExpertRequirementChecked(item = {}, statusText = '') {
+  const boolKeys = ['checked', 'done', 'completed', 'passed', 'met', 'satisfied']
+  const matchedBoolKey = boolKeys.find((key) => typeof item[key] === 'boolean')
+
+  if (matchedBoolKey) {
+    return item[matchedBoolKey]
+  }
+
+  const stateText = trimText(item.state || item.result || item.statusText || statusText)
+
+  if (/不满足|未满足|未通过|未完成|待|失败|failed|blocked|false/i.test(stateText)) {
+    return false
+  }
+
+  if (/已满足|满足|已通过|通过|已完成|完成|达标|met|passed|done|completed|true/i.test(stateText)) {
+    return true
+  }
+
+  return false
+}
+
+function normalizeExpertPlanTask(planTask) {
+  const rawTask = planTask && typeof planTask === 'object'
+    ? planTask
+    : DEFAULT_EXPERT_APPLY_CONFIG.planTask
+
+  return {
+    title: rawTask.title || DEFAULT_EXPERT_APPLY_CONFIG.planTask.title,
+    desc: rawTask.desc || rawTask.text || DEFAULT_EXPERT_APPLY_CONFIG.planTask.text,
+    action: rawTask.action || DEFAULT_EXPERT_APPLY_CONFIG.planTask.action,
+    checked: Boolean(rawTask.checked || rawTask.done || rawTask.completed)
+  }
+}
+
+function normalizeExpertPerks(perks) {
+  const sourcePerks = Array.isArray(perks) && perks.length
+    ? perks
+    : DEFAULT_EXPERT_APPLY_CONFIG.perks
+
+  return sourcePerks
+    .map((item) => {
+      const text = trimText(item.text || item.title || item.desc || item.description)
+
+      if (!text) {
+        return null
+      }
+
+      return {
+        icon: item.icon || item.iconText || UI_ICONS.panel.featured,
+        text
+      }
+    })
+    .filter(Boolean)
+}
+
 function createExpertServiceBlocks(count = EXPERT_SERVICE_COUNT) {
   const serviceCount = getPositiveInteger(count, EXPERT_SERVICE_COUNT)
 
@@ -300,16 +406,35 @@ function normalizeExpertApplyConfig(config) {
     serviceBlocks: Array.isArray(rawConfig.serviceBlocks) && rawConfig.serviceBlocks.length
       ? rawConfig.serviceBlocks
       : createExpertServiceBlocks(serviceCount),
-    priceHint: rawConfig.priceHint || '平台将收取 10% 服务费'
+    priceHint: rawConfig.priceHint || DEFAULT_EXPERT_APPLY_CONFIG.priceHint,
+    requirementsTitle: rawConfig.requirementsTitle || DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
+    requirements: normalizeExpertRequirements(rawConfig.requirements),
+    planTask: normalizeExpertPlanTask(rawConfig.planTask),
+    benefitsTitle: rawConfig.benefitsTitle || rawConfig.perksTitle || DEFAULT_EXPERT_APPLY_CONFIG.perksTitle,
+    benefits: normalizeExpertPerks(rawConfig.benefits || rawConfig.perks),
+    primaryText: rawConfig.primaryText || DEFAULT_EXPERT_APPLY_CONFIG.primaryText,
+    helperText: rawConfig.helperText || DEFAULT_EXPERT_APPLY_CONFIG.helperText
   }
 }
 
 function applyExpertApplyConfigToPage(page, config) {
-  if (!page || page.mode !== 'expertApplyForm') {
+  if (!page || (page.mode !== 'expertApplyForm' && page.mode !== 'expertApplyOverview')) {
     return page
   }
 
   const normalizedConfig = normalizeExpertApplyConfig(config)
+
+  if (page.mode === 'expertApplyOverview') {
+    return Object.assign({}, page, {
+      requirementsTitle: normalizedConfig.requirementsTitle,
+      requirements: normalizedConfig.requirements,
+      planTask: normalizedConfig.planTask,
+      benefitsTitle: normalizedConfig.benefitsTitle,
+      benefits: normalizedConfig.benefits,
+      primary: normalizedConfig.primaryText,
+      reviewHint: normalizedConfig.helperText
+    })
+  }
 
   return Object.assign({}, page, {
     skillOptions: normalizedConfig.skillOptions,
@@ -332,6 +457,78 @@ function isExpertApplyFormEmpty(form) {
     && !trimText(form.intro)
     && (!form.uploadFiles || form.uploadFiles.length === 0)
     && services.every((service) => !trimText(service.name) && !trimText(service.price) && !trimText(service.cost))
+}
+
+function normalizeExpertApplyDraftForm(draft, serviceCount) {
+  const sourceForm = draft && draft.form && typeof draft.form === 'object' ? draft.form : {}
+  const baseForm = createExpertApplyForm(serviceCount)
+
+  return Object.assign({}, baseForm, sourceForm, {
+    uploadFiles: Array.isArray(sourceForm.uploadFiles) ? sourceForm.uploadFiles : [],
+    services: createExpertApplyServices(serviceCount).map((service, index) => (
+      Object.assign({}, service, (sourceForm.services || [])[index] || {})
+    ))
+  })
+}
+
+function mergeExpertDraftSkillOptions(baseOptions, draftOptions) {
+  if (!Array.isArray(draftOptions) || !draftOptions.length) {
+    return baseOptions
+  }
+
+  const selectedDraftSkill = draftOptions.find((skill) => skill && skill.active && !skill.custom)
+
+  if (!selectedDraftSkill || !selectedDraftSkill.name) {
+    return baseOptions
+  }
+
+  let matched = false
+  const nextOptions = (baseOptions || []).map((skill) => {
+    const isSelected = !skill.custom && skill.name === selectedDraftSkill.name
+
+    if (isSelected) {
+      matched = true
+    }
+
+    return Object.assign({}, skill, {
+      active: isSelected
+    })
+  })
+
+  if (matched) {
+    return nextOptions
+  }
+
+  const generatedSkill = {
+    name: selectedDraftSkill.name,
+    active: true,
+    custom: false,
+    generatedCustom: true
+  }
+  const customIndex = nextOptions.findIndex((skill) => skill.custom)
+
+  if (customIndex >= 0) {
+    nextOptions.splice(customIndex, 0, generatedSkill)
+    return nextOptions
+  }
+
+  return nextOptions.concat(generatedSkill)
+}
+
+function applyExpertDraftToPage(page, draft) {
+  if (!page || page.mode !== 'expertApplyForm' || !draft) {
+    return page
+  }
+
+  return Object.assign({}, page, {
+    skillOptions: mergeExpertDraftSkillOptions(page.skillOptions, draft.skillOptions)
+  })
+}
+
+function getUnmetExpertRequirements(page = {}) {
+  const requirements = Array.isArray(page.requirements) ? page.requirements : []
+
+  return requirements.filter((requirement) => requirement && !requirement.checked)
 }
 
 function buildExpertApplyPayload(page, form) {
@@ -456,6 +653,20 @@ function applyRoleBenefitConfigToPage(page, config = {}) {
   }
 }
 
+function normalizeComparisonRoleType(value) {
+  const roleType = String(value || '').trim()
+
+  if (roleType === 'guide' || roleType === 'leader' || roleType === '领路人') {
+    return 'guide'
+  }
+
+  if (roleType === 'player' || roleType === '玩家') {
+    return 'player'
+  }
+
+  return 'expert'
+}
+
 const HOME_CONVERTED_PAGES = [
   {
     name: '启动动画',
@@ -492,33 +703,17 @@ const EXPERT_APPLY_PREVIEW_PAGES = [
     mode: 'expertApplyOverview',
     roleBadge: '申请',
     navTitle: '申请行家',
-    saveText: '',
+    saveText: '保存',
     title: '申请成为行家',
     icon: UI_ICONS.role.expert,
     tagline: '我懂玩家需要什么！我申请成为行家',
-    reviewHint: '审核预计 1-3 个工作日',
-    primary: '下一步',
-    requirementsTitle: '申请条件',
-    requirements: [
-      { title: '玩家等级达到 Lv.20', status: '当前等级: Lv.21 / 已满足', checked: true },
-      { title: '完成实名认证', status: '认证状态: 已通过 / 已满足', checked: true },
-      { title: '完成企业认证', status: '认证状态: 已通过 / 已满足', checked: true },
-      { title: '发起过 5次以上组局', status: '当前: 5 次 / 已满足', checked: true },
-      { title: '信用分 ≥ 90 分', status: '当前: 92 分 / 已满足', checked: true },
-      { title: '会员等级≥ 高级会员', status: '当前: 高级会员 / 已满足', checked: true }
-    ],
-    planTask: {
-      title: '提交行家计划书',
-      desc: '需描述你的资源、能力和项目说明书',
-      action: '去填写 ›',
-      checked: false
-    },
-    benefitsTitle: '行家特权',
-    benefits: [
-      { icon: UI_ICONS.panel.revenue, text: '有权益的行家可发起有偿局并可获得相应收入' },
-      { icon: UI_ICONS.panel.featured, text: '专属行家标识与优先推荐位' },
-      { icon: UI_ICONS.panel.data, text: '数据看板：查看服务数据与收益分析' }
-    ]
+    reviewHint: DEFAULT_EXPERT_APPLY_CONFIG.helperText,
+    primary: DEFAULT_EXPERT_APPLY_CONFIG.primaryText,
+    requirementsTitle: DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
+    requirements: normalizeExpertRequirements(DEFAULT_EXPERT_APPLY_CONFIG.requirements),
+    planTask: normalizeExpertPlanTask(DEFAULT_EXPERT_APPLY_CONFIG.planTask),
+    benefitsTitle: DEFAULT_EXPERT_APPLY_CONFIG.perksTitle,
+    benefits: normalizeExpertPerks(DEFAULT_EXPERT_APPLY_CONFIG.perks)
   }
 ]
 
@@ -575,17 +770,8 @@ Page({
     expertApplyNoticeVisible: false,
     expertApplyNoticeLines: [],
     roleComparisonReturnTo: '',
+    roleComparisonRoleType: 'expert',
     roleBenefitConfig: {},
-    roleComparisonShell: {
-      onlineText: '在线',
-      navItems: [
-        { name: '我的', active: false },
-        { name: '元宇宙', active: false },
-        { name: '地图', active: false },
-        { name: '消息', active: false },
-        { name: '首页', active: true }
-      ]
-    },
     loading: true,
     user: {
       nickname: '',
@@ -646,7 +832,8 @@ Page({
       }
 
       this.setData({
-        roleComparisonReturnTo: decodeURIComponent(options.returnTo || '')
+        roleComparisonReturnTo: decodeURIComponent(options.returnTo || ''),
+        roleComparisonRoleType: normalizeComparisonRoleType(options.role || options.roleType)
       })
       this.enterHomePreview(options.mode || '', options.single === '1', options.role || options.roleType)
       return
@@ -713,7 +900,7 @@ Page({
       currentHomePreview
     })
 
-    if (currentHomePreview && currentHomePreview.mode === 'expertApplyForm') {
+    if (currentHomePreview && (currentHomePreview.mode === 'expertApplyForm' || currentHomePreview.mode === 'expertApplyOverview')) {
       this.loadExpertApplyConfig()
     }
     if (currentHomePreview && currentHomePreview.mode === 'roleComparison') {
@@ -755,18 +942,38 @@ Page({
 
   applyExpertApplyConfig(config) {
     const normalizedConfig = normalizeExpertApplyConfig(config)
-    const currentHomePreview = applyExpertApplyConfigToPage(this.data.currentHomePreview, normalizedConfig)
-    const homePreviewPages = (this.data.homePreviewPages || []).map((page) => applyExpertApplyConfigToPage(page, normalizedConfig))
+    const savedDraft = readRoleApplyDraft('expert')
     const shouldResetForm = isExpertApplyFormEmpty(this.data.expertApplyForm)
+    const draftEnabled = Boolean(savedDraft && shouldResetForm)
+    const currentFormPreview = this.data.currentHomePreview && this.data.currentHomePreview.mode === 'expertApplyForm'
+      ? this.data.currentHomePreview
+      : (this.data.homePreviewPages || []).find((page) => page && page.mode === 'expertApplyForm')
+    const preservedDraft = !draftEnabled && !shouldResetForm && currentFormPreview
+      ? { skillOptions: currentFormPreview.skillOptions || [] }
+      : null
+    const previewDraft = draftEnabled ? savedDraft : preservedDraft
+    const currentHomePreview = applyExpertDraftToPage(
+      applyExpertApplyConfigToPage(this.data.currentHomePreview, normalizedConfig),
+      previewDraft
+    )
+    const homePreviewPages = (this.data.homePreviewPages || []).map((page) => applyExpertDraftToPage(
+      applyExpertApplyConfigToPage(page, normalizedConfig),
+      previewDraft
+    ))
+    const nextExpertApplyForm = draftEnabled
+      ? normalizeExpertApplyDraftForm(savedDraft, normalizedConfig.serviceCount)
+      : shouldResetForm
+        ? createExpertApplyForm(normalizedConfig.serviceCount)
+        : this.data.expertApplyForm
 
     this.setData({
       currentHomePreview,
       homePreviewPages,
       expertApplyYearOptions: normalizedConfig.yearOptions,
-      expertApplyForm: shouldResetForm ? createExpertApplyForm(normalizedConfig.serviceCount) : this.data.expertApplyForm,
+      expertApplyForm: nextExpertApplyForm,
       expertApplyErrors: createExpertApplyErrors(),
       expertApplyServiceErrors: createExpertApplyServiceErrors(
-        shouldResetForm ? normalizedConfig.serviceCount : (this.data.expertApplyForm.services || []).length
+        (nextExpertApplyForm.services || []).length
       ),
       expertApplyValidationRules: normalizedConfig.validationRules,
       expertApplyCustomMaxLength: getPositiveInteger(normalizedConfig.validationRules.customSkill.maxLength, 8),
@@ -812,7 +1019,24 @@ Page({
 
   stopExpertApplyTap() {},
 
+  canEnterExpertApplyForm(page = this.data.currentHomePreview || {}) {
+    const unmetRequirements = getUnmetExpertRequirements(page)
+
+    if (!unmetRequirements.length) {
+      return true
+    }
+
+    const firstTitle = unmetRequirements[0].title || '申请条件'
+    toast.info(`请先满足：${firstTitle}`)
+
+    return false
+  },
+
   showExpertApplyForm() {
+    if (!this.canEnterExpertApplyForm()) {
+      return
+    }
+
     const previewPages = this.data.homePreviewPages || []
     const formIndex = previewPages.findIndex((page) => page && page.mode === 'expertApplyForm')
 
@@ -850,12 +1074,16 @@ Page({
 
   handleExpertApplySaveTap() {
     const currentHomePreview = this.data.currentHomePreview || {}
+    const formPreview = currentHomePreview.mode === 'expertApplyForm'
+      ? currentHomePreview
+      : (this.data.homePreviewPages || []).find((page) => page && page.mode === 'expertApplyForm') || {}
 
-    if (currentHomePreview.mode !== 'expertApplyForm') {
-      return
-    }
+    const savedDraft = saveRoleApplyDraft('expert', {
+      form: this.data.expertApplyForm,
+      skillOptions: formPreview.skillOptions || []
+    })
 
-    toast.info('已暂存申请信息')
+    toast.info(savedDraft ? '已保存到本机草稿' : '草稿保存失败')
   },
 
   onExpertApplySkillTap(event) {
@@ -1158,6 +1386,7 @@ Page({
     try {
       const payload = buildExpertApplyPayload(this.data.currentHomePreview, this.data.expertApplyForm)
       await roleService.submitRoleApplication(payload)
+      clearRoleApplyDraft('expert')
 
       toast.info('申请已提交，\r\n请耐心等待审核')
       setTimeout(() => {
@@ -1216,27 +1445,20 @@ Page({
     }
   },
 
-  handleRoleCompareBackTap() {
-    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  handleRoleCompareApplyTap(event) {
+    const roleType = normalizeComparisonRoleType(
+      event && event.detail && event.detail.roleType
+        ? event.detail.roleType
+        : this.data.roleComparisonRoleType
+    )
 
-    if (pages.length > 1 && typeof wx.navigateBack === 'function') {
-      wx.navigateBack()
-      return
-    }
-
-    if (this.data.roleComparisonReturnTo) {
-      navigateShellRoute(this.data.roleComparisonReturnTo)
-      return
-    }
-
-    if (typeof wx.reLaunch === 'function') {
-      wx.reLaunch({
-        url: `/${ROUTES.playerHome}`
+    if (roleType === 'guide') {
+      navigateShellRoute(`${ROUTES.homeOther}?page=guideApply&single=1&roleType=guide`, {
+        currentRoute: ROUTES.home
       })
+      return
     }
-  },
 
-  handleRoleCompareApplyTap() {
     this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, 'expert')
   },
 

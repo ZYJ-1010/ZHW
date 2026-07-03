@@ -34,7 +34,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 	membership := s.membership.My(userID)
 	notifications := unreadNotificationCount(s.notices.List(userID))
 	growthLevel := "V" + strconv.Itoa(maxInt(1, current.Growth.Level)) + " 探险家"
-	role := homeRoleName(s.homeRoleType(userID))
+	role := homeRoleName(s.defaultHomeRoleType(userID))
 	memberLevel := membership.PlanName
 	if memberLevel == "" {
 		memberLevel = "基础会员"
