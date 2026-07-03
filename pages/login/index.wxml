@@ -102,7 +102,7 @@
       </view>
     </view>
 
-    <navigator class="realname-guide-button enjoy-button enjoy-button--primary" url="/pages/login/realname/index?ui=1" open-type="redirect" hover-class="none">
+    <navigator class="realname-guide-button enjoy-button enjoy-button--primary" url="{{realnameGuideUrl}}" open-type="redirect" hover-class="none">
       确定
     </navigator>
   </view>

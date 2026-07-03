@@ -99,6 +99,7 @@ Page({
     isUiPreview: false,
     isLoginAuthPreview: false,
     uiPreviewStep: 'invite',
+    realnameGuideUrl: '/pages/login/realname/index?ui=1',
     newbieTasks: initialNewbieTaskData.newbieTasks,
     newbieCompletedCount: initialNewbieTaskData.newbieCompletedCount,
     newbieTotalCount: initialNewbieTaskData.newbieTotalCount,
@@ -300,6 +301,7 @@ Page({
       isUiPreview: true,
       isLoginAuthPreview: false,
       uiPreviewStep,
+      realnameGuideUrl: '/pages/login/realname/index?ui=1',
       loginMode,
       accountMode: 'password',
       agreed: false,
@@ -368,9 +370,23 @@ Page({
     return status === 'verified' || status === 'approved' || status === 'passed' || user.needRealname === false || user.requiresIdentityBinding === false
   },
 
+  showRealnameGuideAfterLogin() {
+    this.clearCodeTimer()
+    this.setData({
+      isUiPreview: true,
+      isLoginAuthPreview: false,
+      uiPreviewStep: 'realnameGuide',
+      realnameGuideUrl: '/pages/login/realname/index',
+      loginMode: 'home',
+      isCheckingRealname: false,
+      isStartingRealname: false,
+      isLoadingNewbieTasks: false
+    })
+  },
+
   async continueAfterLogin(loginData = {}) {
     if (loginData.requiresIdentityBinding === true) {
-      navigateShellRoute('/pages/login/realname/index')
+      this.showRealnameGuideAfterLogin()
       return
     }
 
@@ -393,7 +409,7 @@ Page({
       // Fall through to real-name auth when current-user status cannot be confirmed.
     }
 
-    navigateShellRoute('/pages/login/realname/index')
+    this.showRealnameGuideAfterLogin()
   },
 
   async checkRealnameAfterRegister() {

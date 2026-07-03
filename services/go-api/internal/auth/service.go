@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -243,7 +244,10 @@ func mockOpenID(code string) string {
 	if code == "" {
 		return ""
 	}
-	return "mock_openid_" + code
+	if openID := strings.TrimSpace(os.Getenv("MOCK_WECHAT_OPENID")); openID != "" {
+		return openID
+	}
+	return "mock_openid_local"
 }
 
 type WechatSession struct {

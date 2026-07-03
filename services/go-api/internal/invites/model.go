@@ -318,6 +318,9 @@ func (s *Store) Bind(invite InviteCode, inviteeUserID int64, source string) (Rel
 		return relation, nil
 	}
 	key := relationKey(invite.ID, inviteeUserID)
+	if relation, ok := s.relations[inviteeUserID]; ok {
+		return relation, nil
+	}
 	if relation, ok := s.entryRelations[key]; ok {
 		return relation, nil
 	}

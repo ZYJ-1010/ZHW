@@ -112,12 +112,15 @@ func (r *SQLRepository) Bind(ctx context.Context, invite InviteCode, inviteeUser
 		return Relation{}, err
 	}
 
-	bound, ok, err := r.findBoundCodeTx(ctx, tx, invite.ID)
+	relation, ok, err := r.relationForUserTx(ctx, tx, inviteeUserID)
 	if err != nil {
 		return Relation{}, err
 	}
-	if ok && bound.BoundWechatUserID != inviteeUserID {
-		return Relation{}, ErrInviteAlreadyBound
+	if ok {
+		if err := tx.Commit(); err != nil {
+			return Relation{}, err
+		}
+		return relation, nil
 	}
 
 	if invite.MaxUses == 1 {
@@ -141,19 +144,8 @@ limit 1
 			}
 			return relation, nil
 		}
-	} else {
-		relation, ok, err := r.relationForUserTx(ctx, tx, inviteeUserID)
-		if err != nil {
-			return Relation{}, err
-		}
-		if ok {
-			if err := tx.Commit(); err != nil {
-				return Relation{}, err
-			}
-			return relation, nil
-		}
 	}
-	relation, err := scanRelation(tx.QueryRowContext(ctx, `
+	relation, err = scanRelation(tx.QueryRowContext(ctx, `
 insert into invite_relations (invite_code_id, inviter_user_id, invitee_user_id, bind_source, created_at)
 values ($1,$2,$3,$4,now())
 returning invite_code_id, inviter_user_id, invitee_user_id, bind_source

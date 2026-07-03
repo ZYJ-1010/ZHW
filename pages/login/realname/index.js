@@ -1,7 +1,7 @@
 const toast = require('../../../utils/toast')
 const userService = require('../../../services/user')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
-const ROUTES = require('../../../config/routes')
+const { ROUTES } = require('../../../config/routes')
 
 function isValidRealname(realname) {
   return /^[\u4e00-\u9fa5A-Za-z·\s]{2,20}$/.test(String(realname || '').trim())
