@@ -13,7 +13,31 @@ const TEST_CODE = '123456'
 const TEST_PASSWORD = 'Test123456'
 const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account', 'wechatAuth']
 const INVITE_REQUIRED_MESSAGE = '小程序需要邀请才可以进入'
+const INVITE_INVALID_MESSAGE = '邀请码无效，请检查邀请链接或联系邀请人'
 const INITIAL_RESEND_SECONDS = 60
+
+function getInviteErrorMessage(error) {
+  const message = String(error && error.message ? error.message : error || '').trim()
+  const lowerMessage = message.toLowerCase()
+
+  if (lowerMessage === 'invite code required' || /邀请码.*(必填|缺失|为空)|需要邀请/.test(message)) {
+    return INVITE_REQUIRED_MESSAGE
+  }
+
+  if (lowerMessage === 'invalid invite code' || /邀请码.*(无效|不存在|错误)/.test(message)) {
+    return INVITE_INVALID_MESSAGE
+  }
+
+  if (lowerMessage === 'invite code already bound' || /邀请码.*(已绑定|已使用)/.test(message)) {
+    return '邀请码已被使用，请联系邀请人重新发送'
+  }
+
+  return ''
+}
+
+function isInviteError(error) {
+  return Boolean(getInviteErrorMessage(error))
+}
 
 function getTestLoginDefaults() {
   if (!env.isMock) {
@@ -364,6 +388,62 @@ Page({
     })
 
     return inviteContext
+  },
+
+  async ensureValidInviteContext(inviteContext) {
+    if (!inviteContext || !inviteContext.code) {
+      return {
+        ok: false,
+        message: INVITE_REQUIRED_MESSAGE
+      }
+    }
+
+    try {
+      const result = await inviteService.verifyInviteCode(inviteContext.code)
+
+      if (!result || result.status !== 'valid' || !result.invite) {
+        return {
+          ok: false,
+          message: getInviteErrorMessage(result && result.message) || INVITE_INVALID_MESSAGE
+        }
+      }
+
+      const normalizedInvite = inviteService.saveInviteContext(Object.assign({}, result.invite, {
+        entryType: result.invite.entryType || inviteContext.entryType || ''
+      }))
+
+      if (!normalizedInvite) {
+        return {
+          ok: false,
+          message: INVITE_INVALID_MESSAGE
+        }
+      }
+
+      this.setData({
+        inviteCode: normalizedInvite.code,
+        inviteContext: normalizedInvite
+      })
+
+      return {
+        ok: true,
+        inviteContext: normalizedInvite
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        message: getInviteErrorMessage(error) || INVITE_INVALID_MESSAGE
+      }
+    }
+  },
+
+  showInviteError(message) {
+    inviteService.clearInviteContext()
+    this.setData({
+      loginMode: 'home',
+      inviteContext: null,
+      hasWechatLogin: false
+    })
+    toast.info(message || INVITE_REQUIRED_MESSAGE)
   },
 
   enterNormalLogin(mode = 'home') {
@@ -1205,7 +1285,7 @@ Page({
     }
   },
 
-  startWechatAuth() {
+  async startWechatAuth() {
     if (this.data.isUiPreview) {
       this.setData({
         isUiPreview: false,
@@ -1223,6 +1303,12 @@ Page({
 
     if (!this.data.agreed) {
       toast.info('请先同意用户协议和隐私协议')
+      return
+    }
+
+    const inviteResult = await this.ensureValidInviteContext(inviteContext)
+    if (!inviteResult.ok) {
+      this.showInviteError(inviteResult.message)
       return
     }
 
@@ -1271,6 +1357,11 @@ Page({
       toast.success(isRegisteredWechat ? '登录成功' : '注册成功')
       await this.continueAfterLogin(loginData)
     } catch (error) {
+      if (isInviteError(error)) {
+        this.showInviteError(getInviteErrorMessage(error))
+        return
+      }
+
       this.setData({
         loginMode: 'wechatAuth'
       })
