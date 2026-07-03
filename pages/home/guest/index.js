@@ -43,6 +43,6 @@ Page({
   },
 
   goInvite() {
-    navigateShellRoute(ROUTES.loginInvite)
+    navigateShellRoute(ROUTES.login)
   }
 })

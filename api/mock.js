@@ -217,6 +217,8 @@ function loginWithWechat(payload) {
     user: buildLoginUser(!inviteCode),
     isNewUser: Boolean(inviteCode),
     inviteRelation: buildInviteRelation(invite),
+    authPageMode: inviteCode ? 'register' : 'login',
+    boundWechat: !inviteCode,
     code: payload.code || 'mock-wx-login-code'
   }))
 }

@@ -12,6 +12,8 @@ const TEST_REGISTER_PHONE = '13700000000'
 const TEST_CODE = '123456'
 const TEST_PASSWORD = 'Test123456'
 const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account', 'wechatAuth']
+const INVITE_REQUIRED_MESSAGE = '小程序需要邀请才可以进入'
+const INITIAL_RESEND_SECONDS = 60
 
 function getTestLoginDefaults() {
   if (!env.isMock) {
@@ -30,8 +32,132 @@ function getTestLoginDefaults() {
 
 const DEFAULT_NEWBIE_TASKS = []
 
+const NEWBIE_TASK_META = {
+  complete_identity: {
+    type: 'realname',
+    rewardText: '+50 经验值',
+    actionText: '去完成'
+  },
+  realname: {
+    type: 'realname',
+    rewardText: '+50 经验值',
+    actionText: '去完成'
+  },
+  apply_role: {
+    type: 'role_apply',
+    rewardText: '+50 经验值',
+    actionText: '去完成'
+  },
+  join_or_create_game: {
+    type: 'first_game',
+    rewardText: '+100 经验值',
+    actionText: '去完成'
+  },
+  first_game: {
+    type: 'first_game',
+    rewardText: '+100 经验值',
+    actionText: '去完成'
+  },
+  complete_game: {
+    type: 'complete_game',
+    rewardText: '+100 经验值',
+    actionText: '去完成'
+  },
+  submit_review: {
+    type: 'review',
+    rewardText: '+30 经验值',
+    actionText: '去完成'
+  },
+  profile: {
+    type: 'profile',
+    rewardText: '+30 经验值',
+    actionText: '去完成'
+  }
+}
+
+function pickNumber() {
+  for (let index = 0; index < arguments.length; index++) {
+    const value = arguments[index]
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+
+    if (typeof value === 'string' && value.trim() !== '') {
+      const numberValue = Number(value)
+
+      if (Number.isFinite(numberValue)) {
+        return numberValue
+      }
+    }
+  }
+
+  return null
+}
+
+function normalizeRewardText(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `${value > 0 ? '+' : ''}${value} 经验值`
+  }
+
+  const text = String(value || '').trim()
+
+  if (!text) {
+    return ''
+  }
+
+  if (/经验值|积分|XP/i.test(text)) {
+    return text
+  }
+
+  if (/^[+-]?\d+(\.\d+)?$/.test(text)) {
+    return `${text[0] === '-' || text[0] === '+' ? text : `+${text}`} 经验值`
+  }
+
+  return text
+}
+
+function pickRewardText(source, meta) {
+  const values = [
+    source.rewardText,
+    source.reward_text,
+    source.reward,
+    source.pointsText,
+    source.points,
+    source.experienceText,
+    source.experience,
+    source.xp,
+    meta.rewardText
+  ]
+
+  for (let index = 0; index < values.length; index++) {
+    const rewardText = normalizeRewardText(values[index])
+
+    if (rewardText) {
+      return rewardText
+    }
+  }
+
+  return ''
+}
+
+function normalizeNewbieTask(task, index) {
+  const source = task && typeof task === 'object' ? task : {}
+  const code = String(source.code || source.taskCode || source.type || source.id || '').trim()
+  const meta = NEWBIE_TASK_META[code] || NEWBIE_TASK_META[source.type] || {}
+  const type = source.type || meta.type || code || 'task'
+
+  return Object.assign({}, meta, source, {
+    id: source.id || code || `${type}-${index}`,
+    code,
+    type,
+    rewardText: pickRewardText(source, meta),
+    actionText: source.actionText || meta.actionText || '去完成'
+  })
+}
+
 function toNewbieTaskView(task, index) {
-  const completed = Boolean(task.completed || task.status === 'completed')
+  const completed = Boolean(task.completed || task.done || task.finished || task.status === 'completed' || task.status === 'done')
   const actionText = task.actionText || '去完成'
 
   return Object.assign({}, task, {
@@ -47,25 +173,29 @@ function toNewbieTaskView(task, index) {
 }
 
 function getNewbieTaskData(summary) {
-  const responseTasks = Array.isArray(summary && summary.tasks) ? summary.tasks : []
-  const hasResponseTasks = responseTasks.length > 0
-  const tasks = (hasResponseTasks ? responseTasks : DEFAULT_NEWBIE_TASKS).map(toNewbieTaskView)
-  const computedCompletedCount = tasks.filter((task) => task.completed).length
-  const completedCount = hasResponseTasks && typeof summary.completedCount === 'number'
-    ? summary.completedCount
-    : computedCompletedCount
-  const totalCount = hasResponseTasks && typeof summary.totalCount === 'number'
-    ? summary.totalCount
-    : tasks.length
-  const progressPercent = hasResponseTasks && typeof summary.progressPercent === 'number'
-    ? summary.progressPercent
-    : totalCount ? Math.round((completedCount / totalCount) * 100) : 0
+  const responseTasks = Array.isArray(summary && summary.tasks)
+    ? summary.tasks
+    : Array.isArray(summary && summary.items)
+      ? summary.items
+      : Array.isArray(summary && summary.list)
+        ? summary.list
+        : DEFAULT_NEWBIE_TASKS
+  const allTasks = responseTasks.map(normalizeNewbieTask).map(toNewbieTaskView)
+  const computedCompletedCount = allTasks.filter((task) => task.completed).length
+  const completedCount = pickNumber(summary && summary.completedCount, summary && summary.completed, summary && summary.doneCount)
+  const totalCount = pickNumber(summary && summary.totalCount, summary && summary.total)
+  const resolvedCompletedCount = completedCount === null ? computedCompletedCount : completedCount
+  const resolvedTotalCount = totalCount === null ? allTasks.length : totalCount
+  const progressPercent = pickNumber(summary && summary.progressPercent, summary && summary.percent)
+  const resolvedProgressPercent = progressPercent === null
+    ? resolvedTotalCount ? Math.round((resolvedCompletedCount / resolvedTotalCount) * 100) : 0
+    : progressPercent
 
   return {
-    newbieTasks: tasks,
-    newbieCompletedCount: completedCount,
-    newbieTotalCount: totalCount,
-    newbieProgressPercent: Math.max(0, Math.min(100, progressPercent))
+    newbieTasks: allTasks,
+    newbieCompletedCount: resolvedCompletedCount,
+    newbieTotalCount: resolvedTotalCount,
+    newbieProgressPercent: Math.max(0, Math.min(100, resolvedProgressPercent))
   }
 }
 
@@ -84,14 +214,16 @@ Page({
     isCheckingRealname: false,
     isStartingRealname: false,
     isLoadingNewbieTasks: false,
+    newbieTasksLoaded: false,
+    newbieTaskLoadFailed: false,
     phone: '',
     maskedPhone: '',
     verifyCode: '',
     codeDigits: ['', '', '', '', '', ''],
     isCodeComplete: false,
     codeInputFocus: false,
-    resendSeconds: 59,
-    canResend: false,
+    resendSeconds: INITIAL_RESEND_SECONDS,
+    canResend: true,
     password: '',
     inviteCode: '',
     inviteContext: null,
@@ -139,7 +271,7 @@ Page({
         inviteContext
       })
     } else {
-      navigateShellRoute(ROUTES.loginInvite)
+      this.enterNormalLogin('home')
       return
     }
 
@@ -246,14 +378,16 @@ Page({
       isCheckingRealname: false,
       isStartingRealname: false,
       isLoadingNewbieTasks: false,
+      newbieTasksLoaded: false,
+      newbieTaskLoadFailed: false,
       phone: '',
       maskedPhone: '',
       verifyCode: '',
       codeDigits: this.getCodeDigits(''),
       isCodeComplete: false,
       codeInputFocus: false,
-      resendSeconds: 59,
-      canResend: false,
+      resendSeconds: INITIAL_RESEND_SECONDS,
+      canResend: true,
       password: '',
       inviteCode: '',
       inviteContext: null
@@ -371,6 +505,8 @@ Page({
       isCheckingRealname: false,
       isStartingRealname: false,
       isLoadingNewbieTasks: false,
+      newbieTasksLoaded: false,
+      newbieTaskLoadFailed: false,
       newbieTasks: newbieTaskData.newbieTasks,
       newbieCompletedCount: newbieTaskData.newbieCompletedCount,
       newbieTotalCount: newbieTaskData.newbieTotalCount,
@@ -429,8 +565,31 @@ Page({
       loginMode: 'home',
       isCheckingRealname: false,
       isStartingRealname: false,
-      isLoadingNewbieTasks: false
+      isLoadingNewbieTasks: false,
+      newbieTasksLoaded: false,
+      newbieTaskLoadFailed: false
     })
+  },
+
+  showNewbieTasksAfterLogin() {
+    const newbieTaskData = getNewbieTaskData()
+
+    this.clearCodeTimer()
+    this.setData(Object.assign({
+      isUiPreview: true,
+      isLoginAuthPreview: false,
+      isPostLoginRealnameFlow: true,
+      uiPreviewStep: 'newbieTasks',
+      realnameGuideUrl: '/pages/login/realname/index',
+      loginMode: 'home',
+      isCheckingRealname: false,
+      isStartingRealname: false,
+      isLoadingNewbieTasks: false,
+      newbieTasksLoaded: false,
+      newbieTaskLoadFailed: false
+    }, newbieTaskData))
+
+    this.loadNewbieTasks()
   },
 
   async continueAfterLogin(loginData = {}) {
@@ -440,18 +599,14 @@ Page({
     }
 
     if (loginData.requiresIdentityBinding === false || this.isRealnameVerified(loginData.user)) {
-      wx.reLaunch({
-        url: `/${ROUTES.playerHome}`
-      })
+      this.showNewbieTasksAfterLogin()
       return
     }
 
     try {
       const user = await userService.getCurrentUser()
       if (this.isRealnameVerified(user)) {
-        wx.reLaunch({
-          url: `/${ROUTES.playerHome}`
-        })
+        this.showNewbieTasksAfterLogin()
         return
       }
     } catch (error) {
@@ -474,7 +629,7 @@ Page({
       const user = await userService.getCurrentUser()
 
       if (this.isRealnameVerified(user)) {
-        this.showUiPreviewMode('newbieTasks')
+        this.showNewbieTasksAfterLogin()
         return
       }
 
@@ -615,7 +770,11 @@ Page({
 
   skipRealnameAuth() {
     if (this.data.isUiPreview) {
-      this.showUiPreviewMode('newbieTasks')
+      if (this.data.isPostLoginRealnameFlow) {
+        this.showNewbieTasksAfterLogin()
+      } else {
+        this.showUiPreviewMode('newbieTasks')
+      }
       return
     }
 
@@ -630,13 +789,21 @@ Page({
     }
 
     this.setData({
-      isLoadingNewbieTasks: true
+      isLoadingNewbieTasks: true,
+      newbieTaskLoadFailed: false
     })
 
     try {
       const summary = await newbieService.getNewbieTasks()
-      this.setData(getNewbieTaskData(summary))
+      this.setData(Object.assign(getNewbieTaskData(summary), {
+        newbieTasksLoaded: true,
+        newbieTaskLoadFailed: false
+      }))
     } catch (error) {
+      this.setData({
+        newbieTasksLoaded: true,
+        newbieTaskLoadFailed: true
+      })
       toast.info(error.message || '获取新手任务失败')
     } finally {
       this.setData({
@@ -646,7 +813,7 @@ Page({
   },
 
   goHomeFromNewbieTasks() {
-    if (this.data.isUiPreview) {
+    if (this.data.isUiPreview && !this.data.isPostLoginRealnameFlow) {
       navigateShellRoute('/pages/home/index?ui=1&mode=homeAll&single=0')
       return
     }
@@ -664,13 +831,18 @@ Page({
       return
     }
 
-    if (task.type === 'realname' && this.data.isUiPreview) {
+    if (task.type === 'realname' && this.data.isUiPreview && !this.data.isPostLoginRealnameFlow) {
       this.showUiPreviewMode('realnameGuide')
       return
     }
 
     if (task.type === 'realname') {
-      navigateShellRoute(ROUTES.roleApply)
+      this.startRealnameAuth()
+      return
+    }
+
+    if (task.route) {
+      navigateShellRoute(task.route)
       return
     }
 
@@ -679,8 +851,23 @@ Page({
       return
     }
 
+    if (task.type === 'role_apply') {
+      navigateShellRoute(ROUTES.roleApply)
+      return
+    }
+
     if (task.type === 'first_game') {
       navigateShellRoute(ROUTES.gameCreate)
+      return
+    }
+
+    if (task.type === 'complete_game') {
+      navigateShellRoute(ROUTES.gamePlayerManage)
+      return
+    }
+
+    if (task.type === 'review') {
+      navigateShellRoute(ROUTES.gameReview)
       return
     }
 
@@ -690,6 +877,12 @@ Page({
   async startPhoneLogin() {
     if (this.data.isUiPreview) {
       this.showUiPreviewMode('invite')
+      return
+    }
+
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
@@ -729,6 +922,12 @@ Page({
       return
     }
 
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
+      return
+    }
+
     if (!this.data.agreed) {
       toast.info('请先同意用户协议和隐私协议')
       return
@@ -757,7 +956,13 @@ Page({
       return
     }
 
-    if (this.data.isSendingCode) {
+    if (this.data.isSendingCode || !this.data.canResend) {
+      return
+    }
+
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
@@ -766,15 +971,22 @@ Page({
       return
     }
 
+    this.clearCodeTimer()
     this.setData({
-      isSendingCode: true
+      isSendingCode: true,
+      canResend: false,
+      resendSeconds: INITIAL_RESEND_SECONDS
     })
 
     try {
       await authService.sendPhoneCode(this.data.phone)
       toast.success('验证码已发送')
+      this.startCodeTimer()
     } catch (error) {
       toast.info(error.message || '验证码发送失败')
+      this.setData({
+        canResend: true
+      })
     } finally {
       this.setData({
         isSendingCode: false
@@ -805,7 +1017,7 @@ Page({
     this.setData({
       isSendingCode: true,
       canResend: false,
-      resendSeconds: 59,
+      resendSeconds: INITIAL_RESEND_SECONDS,
       verifyCode: env.isMock ? TEST_CODE : '',
       codeDigits: this.getCodeDigits(env.isMock ? TEST_CODE : ''),
       isCodeComplete: env.isMock
@@ -836,7 +1048,7 @@ Page({
       if (nextSeconds <= 0) {
         this.clearCodeTimer()
         this.setData({
-          resendSeconds: 60,
+          resendSeconds: INITIAL_RESEND_SECONDS,
           canResend: true
         })
         return
@@ -886,6 +1098,12 @@ Page({
       return
     }
 
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
+      return
+    }
+
     if (!this.data.agreed) {
       toast.info('请先同意用户协议和隐私协议')
       return
@@ -908,7 +1126,7 @@ Page({
       const loginData = await authService.loginByPhone({
         phone: this.data.phone,
         code: this.data.verifyCode,
-        inviteCode: this.data.inviteContext ? this.data.inviteContext.code : ''
+        inviteCode: inviteContext.code
       })
 
       this.setData({
@@ -929,6 +1147,12 @@ Page({
   async handlePasswordLogin() {
     if (this.data.isUiPreview) {
       this.showUiPreviewMode('wechatAuth')
+      return
+    }
+
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
@@ -980,14 +1204,14 @@ Page({
       return
     }
 
-    if (!this.data.agreed) {
-      toast.info('请先同意用户协议和隐私协议')
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info('请先输入邀请码')
+    if (!this.data.agreed) {
+      toast.info('请先同意用户协议和隐私协议')
       return
     }
 
@@ -1002,14 +1226,14 @@ Page({
       return
     }
 
-    if (!this.data.agreed) {
-      toast.info('请先同意用户协议和隐私协议')
+    const inviteContext = this.resolveInviteContext()
+    if (!inviteContext) {
+      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info('请先输入邀请码')
+    if (!this.data.agreed) {
+      toast.info('请先同意用户协议和隐私协议')
       return
     }
 
@@ -1023,15 +1247,17 @@ Page({
 
     try {
       const loginData = await authService.loginByWechat({
-        inviteCode: inviteContext.code
+        inviteCode: inviteContext.code,
+        entryType: inviteContext.entryType || ''
       })
+      const isRegisteredWechat = loginData.boundWechat || loginData.authPageMode === 'login'
 
       this.setData({
         hasWechatLogin: true,
         userInfo: loginData.user
       })
       inviteService.clearInviteContext()
-      toast.success('登录成功')
+      toast.success(isRegisteredWechat ? '登录成功' : '注册成功')
       await this.continueAfterLogin(loginData)
     } catch (error) {
       this.setData({
@@ -1052,7 +1278,7 @@ Page({
   },
 
   goEntryForLogin() {
-    navigateShellRoute(ROUTES.loginInvite)
+    navigateShellRoute(ROUTES.login)
   },
 
   goForgot() {
@@ -1061,14 +1287,6 @@ Page({
     }
 
     navigateShellRoute(ROUTES.loginForgot)
-  },
-
-  clearInvite() {
-    inviteService.clearInviteContext()
-    this.setData({
-      inviteContext: null
-    })
-    toast.info('已切换为普通登录')
   },
 
   declineAuth() {

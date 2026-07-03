@@ -34,6 +34,7 @@ async function loginByWechat(options = {}) {
   const result = await api.loginWithWechat({
     code,
     inviteCode: options.inviteCode || '',
+    entryType: options.entryType || '',
     encryptedData: options.encryptedData || '',
     iv: options.iv || ''
   })

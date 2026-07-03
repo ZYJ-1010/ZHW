@@ -6,7 +6,7 @@
       "list": [
         {
           "name": "邀请注册",
-          "pathName": "pages/login/invite/index",
+          "pathName": "pages/login/index",
           "query": "inviteCode=PLAYER_LINK&entryType=link",
           "scene": null,
           "launchMode": "default"

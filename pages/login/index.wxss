@@ -1291,7 +1291,7 @@
   top: 166rpx;
   left: 62rpx;
   width: 626rpx;
-  height: 800rpx;
+  min-height: 800rpx;
   padding: 30rpx 38rpx 36rpx;
   border-radius: 30rpx;
   box-sizing: border-box;
@@ -1338,7 +1338,23 @@
 
 .newbie-task-list {
   width: 100%;
+  min-height: 296rpx;
   margin-top: 36rpx;
+}
+
+.newbie-task-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 296rpx;
+  border-radius: 18rpx;
+  color: #777783;
+  background: #f4f4f6;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-align: center;
 }
 
 .newbie-task-item {

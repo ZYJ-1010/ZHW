@@ -2,7 +2,6 @@ const ROUTES = {
   entry: 'pages/entry/index',
   guestHome: 'pages/home/guest/index',
   login: 'pages/login/index',
-  loginInvite: 'pages/login/invite/index',
   loginForgot: 'pages/login/forgot/index',
   home: 'pages/home/index',
   homeOther: 'pages/home-other/index',

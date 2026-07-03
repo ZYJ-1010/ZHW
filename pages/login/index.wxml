@@ -32,7 +32,7 @@
           bindinput="onCodeInput"
         />
         <text class="invite-flow-field-action enjoy-code-action {{canResend ? 'active' : 'disabled'}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" catchtap="sendUiPreviewInviteCode">
-          {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's 后可 获取验证码'}}
+          {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's后可获取验证码'}}
         </text>
       </view>
       <view class="invite-flow-field enjoy-field">
@@ -114,66 +114,101 @@
       <text class="newbie-task-desc">解锁更多平台权益</text>
 
       <view class="newbie-task-list">
-        <view
-          wx:for="{{newbieTasks}}"
-          wx:key="id"
-          class="newbie-task-item {{item.itemClass}}"
-          catchtap="goNewbieTask"
-          data-id="{{item.id}}"
-          data-type="{{item.type}}"
-        >
-          <view class="newbie-task-check enjoy-check {{item.completed ? 'enjoy-check--active' : ''}} {{item.checkClass}}">{{item.checkText}}</view>
-          <view class="newbie-task-copy">
-            <text class="newbie-task-name">{{item.title}}</text>
-            <text class="newbie-task-reward">{{item.rewardText}}</text>
+        <view wx:if="{{isLoadingNewbieTasks && !newbieTasksLoaded}}" class="newbie-task-empty">任务加载中...</view>
+        <view wx:elif="{{newbieTaskLoadFailed}}" class="newbie-task-empty">任务获取失败，请稍后再试</view>
+        <block wx:elif="{{newbieTasks.length > 0}}">
+          <view
+            wx:for="{{newbieTasks}}"
+            wx:key="id"
+            class="newbie-task-item {{item.itemClass}}"
+            catchtap="goNewbieTask"
+            data-id="{{item.id}}"
+            data-type="{{item.type}}"
+          >
+            <view class="newbie-task-check enjoy-check {{item.completed ? 'enjoy-check--active' : ''}} {{item.checkClass}}">{{item.checkText}}</view>
+            <view class="newbie-task-copy">
+              <text class="newbie-task-name">{{item.title}}</text>
+              <text class="newbie-task-reward">{{item.rewardText}}</text>
+            </view>
+            <text class="{{item.statusClass}}">{{item.statusText}}</text>
           </view>
-          <text class="{{item.statusClass}}">{{item.statusText}}</text>
-        </view>
+        </block>
+        <view wx:else class="newbie-task-empty">暂无新手任务</view>
       </view>
 
       <view class="newbie-task-progress-bar">
         <view class="newbie-task-progress-fill" style="width: {{newbieProgressPercent}}%;"></view>
       </view>
-      <text class="newbie-task-progress">已完成 {{newbieCompletedCount}}/{{newbieTotalCount}} 个任务</text>
+      <text wx:if="{{isLoadingNewbieTasks && !newbieTasksLoaded}}" class="newbie-task-progress">正在同步任务...</text>
+      <text wx:else class="newbie-task-progress">已完成 {{newbieCompletedCount}}/{{newbieTotalCount}} 个任务</text>
       <view class="newbie-task-button enjoy-button enjoy-button--primary" catchtap="goHomeFromNewbieTasks">进入首页</view>
     </view>
   </view>
 </view>
 
 <view wx:else class="page">
-  <view class="login-wrap landing-wrap" wx:if="{{loginMode === 'home'}}">
-    <view class="hero">
-      <view class="hi-row">
-        <text class="hi-text">HI</text>
-        <text class="hi-mark">✦</text>
+  <view class="login-wrap invite-flow-screen" wx:if="{{loginMode === 'home'}}">
+    <view class="invite-flow-hero">
+      <view class="invite-flow-hi-wrap">
+        <text class="invite-flow-hi">HI</text>
+        <text class="invite-flow-star">✦</text>
       </view>
-      <text class="welcome">欢迎进入真好玩~</text>
+      <text class="invite-flow-welcome">欢迎进入真好玩~</text>
     </view>
 
-    <view wx:if="{{inviteContext}}" class="invite-banner landing-invite">
-      <view class="invite-copy">
-        <text class="invite-title">已识别邀请</text>
-        <text class="invite-desc">
-          {{inviteContext.inviterName ? inviteContext.inviterName + ' 邀请你加入' : '邀请码 ' + inviteContext.code + ' 已记录'}}
+    <view class="invite-flow-form">
+      <view class="invite-flow-field enjoy-field">
+        <text class="invite-flow-value">+86 ›</text>
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{phone}}"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPhoneInput"
+        />
+      </view>
+      <view class="invite-flow-field invite-flow-code-field enjoy-field">
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{verifyCode}}"
+          type="number"
+          maxlength="6"
+          placeholder="获取验证码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onCodeInput"
+        />
+        <text class="invite-flow-field-action enjoy-code-action {{canResend ? 'active' : 'disabled'}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" catchtap="getVerifyCode">
+          {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's后可获取验证码'}}
         </text>
       </view>
-      <button class="invite-clear enjoy-button enjoy-button--secondary" bindtap="clearInvite">普通登录</button>
-    </view>
-
-    <view class="landing-actions">
-      <view class="primary-login landing-primary enjoy-button enjoy-button--primary enjoy-button--large" bindtap="startPhoneLogin">手机号登录</view>
-      <view class="password-link enjoy-link--muted" bindtap="startPasswordLogin">账号密码登录</view>
-    </view>
-
-    <view class="agreement landing-agreement" bindtap="toggleAgreement">
-      <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
-        <text wx:if="{{agreed}}">✓</text>
+      <view class="invite-flow-field enjoy-field">
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{inviteCode}}"
+          maxlength="20"
+          placeholder="请输入邀请码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onInviteCodeInput"
+        />
       </view>
-      <view class="agreement-copy">
-        <text class="agreement-normal">我已阅读并同意</text>
-        <text class="agreement-link">《隐私协议》</text>
-        <text class="agreement-normal">和</text>
-        <text class="agreement-link">《用户协议》</text>
+
+      <view class="invite-flow-primary enjoy-button enjoy-button--primary" bindtap="handlePhoneLogin">
+        {{isPhoneLoggingIn ? '登录/注册中...' : '登录/注册'}}
+      </view>
+      <view class="invite-flow-login-options">
+        <view class="invite-flow-login-option" bindtap="startPasswordLogin">密码登录</view>
+        <view class="invite-flow-login-option" bindtap="startWechatAuth">微信登录</view>
+      </view>
+      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
+      <view class="invite-flow-agreement" bindtap="toggleAgreement">
+        <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
+          <text wx:if="{{agreed}}">✓</text>
+        </view>
+        <text class="invite-flow-agree-muted">登录即表明同意</text>
+        <text class="invite-flow-agree-link">用户协议</text>
+        <text class="invite-flow-agree-link">及隐私协议</text>
       </view>
     </view>
   </view>
@@ -229,16 +264,6 @@
     </view>
 
     <view class="form account-form">
-      <view wx:if="{{inviteContext}}" class="invite-banner">
-        <view class="invite-copy">
-          <text class="invite-title">已识别邀请</text>
-          <text class="invite-desc">
-            {{inviteContext.inviterName ? inviteContext.inviterName + ' 邀请你加入' : '邀请码 ' + inviteContext.code + ' 已记录'}}
-          </text>
-        </view>
-        <button class="invite-clear enjoy-button enjoy-button--secondary" bindtap="clearInvite">普通登录</button>
-      </view>
-
       <view class="field account-field enjoy-field enjoy-field--comfortable">
         <input
           class="field-input enjoy-input enjoy-input--comfortable"
