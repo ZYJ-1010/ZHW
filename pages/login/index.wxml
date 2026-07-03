@@ -103,7 +103,7 @@
     </view>
 
     <navigator class="realname-guide-button enjoy-button enjoy-button--primary" url="{{realnameGuideUrl}}" open-type="redirect" hover-class="none">
-      确定
+      开始认证
     </navigator>
   </view>
 

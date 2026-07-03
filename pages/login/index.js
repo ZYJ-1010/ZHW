@@ -98,6 +98,7 @@ Page({
     userInfo: null,
     isUiPreview: false,
     isLoginAuthPreview: false,
+    isPostLoginRealnameFlow: false,
     uiPreviewStep: 'invite',
     realnameGuideUrl: '/pages/login/realname/index?ui=1',
     newbieTasks: initialNewbieTaskData.newbieTasks,
@@ -231,6 +232,7 @@ Page({
     this.setData(Object.assign({
       isUiPreview: false,
       isLoginAuthPreview: false,
+      isPostLoginRealnameFlow: false,
       uiPreviewStep: 'invite',
       realnameGuideUrl: '/pages/login/realname/index?ui=1',
       loginMode,
@@ -345,6 +347,7 @@ Page({
     this.setData({
       isUiPreview: true,
       isLoginAuthPreview: false,
+      isPostLoginRealnameFlow: false,
       uiPreviewStep,
       realnameGuideUrl: '/pages/login/realname/index?ui=1',
       loginMode,
@@ -415,12 +418,13 @@ Page({
     return status === 'verified' || status === 'approved' || status === 'passed' || user.needRealname === false || user.requiresIdentityBinding === false
   },
 
-  showRealnameGuideAfterLogin() {
+  showRealnameModalAfterLogin() {
     this.clearCodeTimer()
     this.setData({
       isUiPreview: true,
       isLoginAuthPreview: false,
-      uiPreviewStep: 'realnameGuide',
+      isPostLoginRealnameFlow: true,
+      uiPreviewStep: 'realnameModal',
       realnameGuideUrl: '/pages/login/realname/index',
       loginMode: 'home',
       isCheckingRealname: false,
@@ -431,7 +435,7 @@ Page({
 
   async continueAfterLogin(loginData = {}) {
     if (loginData.requiresIdentityBinding === true) {
-      this.showRealnameGuideAfterLogin()
+      this.showRealnameModalAfterLogin()
       return
     }
 
@@ -454,7 +458,7 @@ Page({
       // Fall through to real-name auth when current-user status cannot be confirmed.
     }
 
-    this.showRealnameGuideAfterLogin()
+    this.showRealnameModalAfterLogin()
   },
 
   async checkRealnameAfterRegister() {
@@ -567,7 +571,14 @@ Page({
   async startRealnameAuth() {
     if (this.data.isUiPreview) {
       if (this.data.uiPreviewStep === 'realnameModal') {
-        this.showUiPreviewMode('realnameGuide')
+        if (this.data.isPostLoginRealnameFlow) {
+          this.setData({
+            uiPreviewStep: 'realnameGuide',
+            realnameGuideUrl: '/pages/login/realname/index'
+          })
+        } else {
+          this.showUiPreviewMode('realnameGuide')
+        }
         return
       }
 
