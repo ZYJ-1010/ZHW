@@ -7,6 +7,10 @@ const {
   saveRoleApplyDraft,
   clearRoleApplyDraft
 } = require('../../utils/role-apply-draft')
+const {
+  isRoleApplyResultViewed,
+  markRoleApplyResultViewed
+} = require('../../utils/role-apply-result-view')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_CONTENT_TOP_RPX = 181
@@ -178,6 +182,118 @@ function findRoleApplication(applications = [], roleType = 'guide', config = {})
   }) || {}
 }
 
+function findRoleApplicationByStatus(applications = [], roleType = 'guide', status = '', config = {}) {
+  const normalizedRoleType = normalizeConfigRoleType(roleType, config)
+  const normalizedStatus = normalizeApplicationStatus(status)
+
+  return applications.find((item) => (
+    normalizeConfigRoleType(item.roleType || item.roleCode || item.role_code || item.role, config) === normalizedRoleType
+    && normalizeApplicationStatus(item.status || item.roleStatus || item.role_status) === normalizedStatus
+  )) || null
+}
+
+function normalizeApplicationStatus(status) {
+  const text = String(status || '').trim()
+
+  if (text === 'pending' || text === 'reviewing' || text === 'auditing' || text === 'pending_audit' || text === '待处理' || text === '审核中') {
+    return 'pending'
+  }
+
+  if (text === 'approved' || text === 'active' || text === 'enabled' || text === 'passed' || text === 'success' || text === '已通过') {
+    return 'approved'
+  }
+
+  if (text === 'rejected' || text === 'reject' || text === 'failed' || text === 'rejected_audit' || text === '已驳回' || text === '未通过') {
+    return 'rejected'
+  }
+
+  return text
+}
+
+function getRoleApplicationStatus(applications = [], roleType = 'guide', config = {}) {
+  const normalizedRoleType = normalizeConfigRoleType(roleType, config)
+  const matches = applications.filter((item) => (
+    normalizeConfigRoleType(item && (item.roleType || item.roleCode || item.role_code || item.role), config) === normalizedRoleType
+  ))
+  const pending = matches.find((item) => normalizeApplicationStatus(item && (item.status || item.roleStatus || item.role_status)) === 'pending')
+
+  if (pending) {
+    return 'pending'
+  }
+
+  const approved = matches.find((item) => normalizeApplicationStatus(item && (item.status || item.roleStatus || item.role_status)) === 'approved')
+
+  if (approved) {
+    return 'approved'
+  }
+
+  return matches.length ? normalizeApplicationStatus(matches[0].status || matches[0].roleStatus || matches[0].role_status) : ''
+}
+
+function getRoleApplicationState(applications = [], roleType = 'guide', config = {}) {
+  const normalizedRoleType = normalizeConfigRoleType(roleType, config)
+  const pending = findRoleApplicationByStatus(applications, normalizedRoleType, 'pending', config)
+
+  if (pending) {
+    return {
+      status: 'pending',
+      viewed: false,
+      application: pending
+    }
+  }
+
+  const approved = findRoleApplicationByStatus(applications, normalizedRoleType, 'approved', config)
+
+  if (approved) {
+    return {
+      status: 'approved',
+      viewed: isRoleApplyResultViewed({
+        roleType: normalizedRoleType,
+        status: 'approved',
+        application: approved
+      }),
+      application: approved
+    }
+  }
+
+  const rejected = findRoleApplicationByStatus(applications, normalizedRoleType, 'rejected', config)
+
+  if (rejected) {
+    return {
+      status: 'rejected',
+      viewed: isRoleApplyResultViewed({
+        roleType: normalizedRoleType,
+        status: 'rejected',
+        application: rejected
+      }),
+      application: rejected
+    }
+  }
+
+  const application = findRoleApplication(applications, normalizedRoleType, config)
+
+  return {
+    status: normalizeApplicationStatus(application.status || application.roleStatus || application.role_status),
+    viewed: false,
+    application
+  }
+}
+
+function getRoleResultPageId(roleType = 'guide', status = 'approved') {
+  const normalizedRoleType = normalizeProgressRoleType(roleType)
+  const normalizedStatus = normalizeApplicationStatus(status)
+
+  if (normalizedStatus === 'rejected') {
+    return `${normalizedRoleType}Rejected`
+  }
+
+  if (normalizedStatus === 'approved') {
+    return `${normalizedRoleType}Passed`
+  }
+
+  return ''
+}
+
 function getApplicationNo(application = {}, texts = {}) {
   return application.applicationNo ||
     application.application_no ||
@@ -256,6 +372,7 @@ function applyRoleStatusConfigToPage(page, config = {}, applications = []) {
 
     return Object.assign({}, page, {
       title: texts.pendingPageTitle || page.title,
+      toolbarTitle: texts.pendingPageTitle || page.toolbarTitle || page.title,
       roleType,
       statusTitle: texts.pendingTitle || page.statusTitle,
       statusSubtitle: formatTemplate(texts.pendingSubtitleTemplate || page.statusSubtitle, { roleName: meta.roleName }),
@@ -271,8 +388,8 @@ function applyRoleStatusConfigToPage(page, config = {}, applications = []) {
       details: buildPendingDetailsFromApplication(config, roleType, application, page.id === 'pendingCards'),
       helperText: texts.pendingHelper || page.helperText,
       footerButtons: page.footerButtons ? [
-        { text: texts.pendingFooterHomeText || page.footerButtons[0].text },
-        { text: formatTemplate(texts.pendingFooterBenefitsText || page.footerButtons[1].text, { roleName: meta.roleName }), green: true }
+        Object.assign({}, page.footerButtons[0], { text: texts.pendingFooterHomeText || page.footerButtons[0].text }),
+        Object.assign({}, page.footerButtons[1], { text: formatTemplate(texts.pendingFooterBenefitsText || page.footerButtons[1].text, { roleName: meta.roleName }), green: true })
       ] : page.footerButtons
     })
   }
@@ -305,7 +422,7 @@ function applyRoleStatusConfigToPage(page, config = {}, applications = []) {
       ],
       footerButtons: [
         { text: texts.rejectedHelpText || '查看帮助', ghost: true },
-        { text: texts.rejectedImproveText || '完善资料' }
+        { text: texts.rejectedImproveText || '完善资料', action: 'reapply' }
       ]
     })
   }
@@ -428,8 +545,10 @@ function normalizeGuideApplyConfig(config = {}) {
   return {
     applyRoleType: config.applyRoleType || 'guide',
     applyRoleName: config.applyRoleName || '领路人',
+    requirementsTitle: config.requirementsTitle || '申请条件',
     requirements: Array.isArray(config.requirements) ? config.requirements : [],
     planTask: config.planTask || {},
+    perksTitle: config.perksTitle || '领路人特权',
     perks: Array.isArray(config.perks) ? config.perks : [],
     fields,
     uploadField,
@@ -450,26 +569,16 @@ function applyGuideApplyConfigToPage(page, config = null) {
 
   const normalizedConfig = normalizeGuideApplyConfig(config)
 
-  if (page.id === 'guideApply') {
-    return Object.assign({}, page, {
-      toolbarSave: false,
-      requirements: normalizedConfig.requirements.length ? normalizedConfig.requirements : page.requirements,
-      planTask: Object.keys(normalizedConfig.planTask).length ? normalizedConfig.planTask : page.planTask,
-      perks: normalizedConfig.perks.length ? normalizedConfig.perks : page.perks,
-      primaryText: normalizedConfig.primaryText || page.primaryText,
-      helperText: normalizedConfig.helperText || page.helperText
-    })
-  }
-
   if (page.id === 'guideApplyForm') {
     return Object.assign({}, page, {
       toolbarSave: true,
       applyRoleType: normalizedConfig.applyRoleType,
       applyRoleName: normalizedConfig.applyRoleName,
-      formFields: normalizedConfig.fields.length ? normalizedConfig.fields : page.formFields,
-      uploadField: normalizedConfig.uploadField,
-      serviceBlocks: normalizedConfig.serviceBlocks,
-      priceHint: normalizedConfig.priceHint,
+      requirementsTitle: normalizedConfig.requirementsTitle,
+      requirements: normalizedConfig.requirements,
+      planTask: normalizedConfig.planTask,
+      perksTitle: normalizedConfig.perksTitle,
+      perks: normalizedConfig.perks,
       primaryText: normalizedConfig.primaryText,
       helperText: normalizedConfig.helperText
     })
@@ -588,6 +697,7 @@ function createPendingSimplePage(roleType = 'guide') {
   return {
     id: 'pendingSimple',
     title: '审核状态',
+    toolbarTitle: '审核状态',
     variant: `pending simple ${meta.roleClass}`,
     roleType: normalizeProgressRoleType(roleType),
     toolbar: true,
@@ -612,6 +722,7 @@ function createPendingCardsPage(roleType = 'guide') {
   return {
     id: 'pendingCards',
     title: '审核状态',
+    toolbarTitle: '审核状态',
     variant: `pending cards ${meta.roleClass}`,
     roleType: normalizeProgressRoleType(roleType),
     toolbar: true,
@@ -628,8 +739,8 @@ function createPendingCardsPage(roleType = 'guide') {
     details: createPendingDetails(meta, true),
     helperText: '审核期间你可以继续使用玩家身份',
     footerButtons: [
-      { text: '返回玩家首页' },
-      { text: `查看${meta.roleName}权益对比`, green: true }
+      { text: '返回玩家首页', action: 'backHome' },
+      { text: `查看${meta.roleName}权益对比`, action: 'benefits', green: true }
     ]
   }
 }
@@ -644,6 +755,8 @@ function createRejectedPage(roleType = 'guide') {
     variant: `rejected ${meta.roleClass}`,
     rejected: true,
     roleType: normalizedRoleType,
+    toolbar: true,
+    toolbarTitle: '审核结果',
     statusIconText: UI_ICONS.status.rejected,
     statusTitle: '审核未通过',
     description: ['感谢你的申请，但本次审核未通过', '查看原因并完善后可再次申请'],
@@ -660,7 +773,7 @@ function createRejectedPage(roleType = 'guide') {
     ],
     footerButtons: [
       { text: '查看帮助', ghost: true },
-      { text: '完善资料' }
+      { text: '完善资料', action: 'reapply' }
     ]
   }
 }
@@ -726,27 +839,13 @@ const HOME_OTHER_PAGES = [
   createRejectedPage('expert'),
   createPendingCardsPage('expert'),
   {
-    id: 'guideApply',
-    title: '申请领路人',
-    variant: 'apply',
-    toolbar: true,
-    toolbarSave: false,
-    statusIconText: UI_ICONS.status.apply,
-    statusTitle: '申请成为领路人',
-    statusSubtitle: '我愿意带领更多人一起玩！我申请成为领路人',
-    requirements: [],
-    planTask: {},
-    perks: [],
-    primaryText: '提交申请',
-    helperText: '审核预计 1-3 个工作日'
-  },
-  {
     id: 'guideApplyForm',
-    title: '申请领路人',
+    title: '',
     variant: 'apply',
     applyRoleType: 'guide',
     applyRoleName: '领路人',
     toolbar: true,
+    toolbarTitle: '申请领路人',
     toolbarSave: true,
     statusIconText: UI_ICONS.status.apply,
     statusTitle: '申请成为领路人',
@@ -771,6 +870,8 @@ const HOME_OTHER_PAGES = [
     title: '审核结果',
     variant: 'passed role-expert',
     roleTheme: 'expert',
+    toolbar: true,
+    toolbarTitle: '审核结果',
     statusIconText: UI_ICONS.status.approved,
     statusTitle: '恭喜审核通过！',
     statusSubtitle: '你已成为「行家」',
@@ -796,6 +897,8 @@ const HOME_OTHER_PAGES = [
     title: '审核结果',
     variant: 'passed role-guide',
     roleTheme: 'guide',
+    toolbar: true,
+    toolbarTitle: '审核结果',
     statusIconText: UI_ICONS.status.approved,
     statusTitle: '恭喜审核通过！',
     statusSubtitle: '你已成为「领路人」',
@@ -820,6 +923,17 @@ const HOME_OTHER_PAGES = [
   createPendingSimplePage('guide'),
 ]
 
+function findRoleResultPage(roleType = 'guide', status = 'approved') {
+  const pageId = getRoleResultPageId(roleType, status)
+
+  if (!pageId) {
+    return null
+  }
+
+  return HOME_OTHER_PAGES.find((page) => page && page.id === pageId) ||
+    (normalizeApplicationStatus(status) === 'rejected' ? createRejectedPage(roleType) : null)
+}
+
 Page({
   data: {
     pages: HOME_OTHER_PAGES,
@@ -829,6 +943,7 @@ Page({
     pageTotal: HOME_OTHER_PAGES.length,
     previewSingle: false,
     progressRoleType: '',
+    guideApplyReturnTo: '',
     previewWindowWidth: 375,
     primaryNavigating: false,
     guideApplyForm: createGuideApplyForm(),
@@ -844,7 +959,10 @@ Page({
     const previewWindowWidth = wx.getSystemInfoSync ? wx.getSystemInfoSync().windowWidth : 375
     const optionRoleType = options.roleType || options.applyRoleType || ''
     const progressRoleType = optionRoleType ? normalizeProgressRoleType(optionRoleType) : ''
-    const requestedPageId = options.page || options.id || ''
+    const rawRequestedPageId = options.page || options.id || ''
+    const requestedPageId = rawRequestedPageId === 'guideApply' ? 'guideApplyForm' : rawRequestedPageId
+    const guideApplyReturnTo = decodeURIComponent(options.returnTo || '')
+
     const previewSingle = requestedPageId ? options.single !== '0' : options.single === '1'
     const requestedPageIndex = requestedPageId
       ? HOME_OTHER_PAGES.findIndex((page) => page.id === requestedPageId)
@@ -858,6 +976,7 @@ Page({
     this.setData({
       previewWindowWidth,
       progressRoleType,
+      guideApplyReturnTo,
       previewSingle,
       currentIndex,
       currentPage,
@@ -910,6 +1029,100 @@ Page({
     })
   },
 
+  getCurrentRoleResultViewPayload(status = '') {
+    const currentPage = this.data.currentPage || {}
+    const resultStatus = normalizeApplicationStatus(status || (currentPage.rejected ? 'rejected' : (currentPage.targetRole ? 'approved' : '')))
+    const roleType = normalizeProgressRoleType(
+      currentPage.roleType || currentPage.targetRole || currentPage.applyRoleType || this.data.progressRoleType || 'guide'
+    )
+
+    if (resultStatus !== 'approved' && resultStatus !== 'rejected') {
+      return null
+    }
+
+    return {
+      roleType,
+      status: resultStatus,
+      application: findRoleApplicationByStatus(
+        this.data.roleApplications,
+        roleType,
+        resultStatus,
+        this.data.roleStatusConfig
+      ) || { id: `${roleType}-${resultStatus}` }
+    }
+  },
+
+  markCurrentRoleResultViewed(status = '') {
+    const payload = this.getCurrentRoleResultViewPayload(status)
+
+    if (!payload) {
+      return false
+    }
+
+    return markRoleApplyResultViewed(payload)
+  },
+
+  navigateRoleReapply(roleType = 'guide') {
+    const normalizedRoleType = normalizeProgressRoleType(roleType)
+
+    if (normalizedRoleType === 'expert') {
+      navigateShellRoute(`${ROUTES.home}?ui=1&mode=expertApplyOverview&single=1&roleType=expert`, {
+        currentRoute: ROUTES.homeOther
+      })
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.homeOther}?page=guideApplyForm&single=1&roleType=guide`, {
+      currentRoute: ROUTES.homeOther
+    })
+  },
+
+  handleFooterButtonTap(event) {
+    const currentPage = this.data.currentPage || {}
+    const footerButtons = currentPage.footerButtons || []
+    const index = Number(event.currentTarget.dataset.index)
+    const button = footerButtons[index] || {}
+    const action = button.action || (
+      currentPage.id === 'pendingSimple' || currentPage.id === 'pendingCards'
+        ? (index === 0 ? 'backHome' : (index === 1 ? 'benefits' : ''))
+        : ''
+    )
+
+    if (button.route) {
+      navigateShellRoute(button.route, {
+        currentRoute: ROUTES.homeOther
+      })
+      return
+    }
+
+    if (action === 'backHome') {
+      wx.reLaunch({
+        url: `/${ROUTES.playerHome}`
+      })
+      return
+    }
+
+    if (action === 'benefits') {
+      const roleType = normalizeProgressRoleType(currentPage.roleType || this.data.progressRoleType || 'expert')
+      const returnRoute = ROUTES.playerHome
+
+      navigateShellRoute(`${ROUTES.home}?ui=1&mode=roleComparison&single=1&roleType=${roleType}&returnTo=${encodeURIComponent(returnRoute)}`, {
+        currentRoute: ROUTES.homeOther
+      })
+      return
+    }
+
+    if (action === 'reapply') {
+      const roleType = normalizeProgressRoleType(currentPage.roleType || this.data.progressRoleType || 'guide')
+
+      this.markCurrentRoleResultViewed('rejected')
+      this.navigateRoleReapply(roleType)
+      return
+    }
+
+    this.handleUnavailableTap()
+  },
+
   handleGuideApplyBackTap() {
     if (this.data.currentPage && this.data.currentPage.id === 'guideApplyForm') {
       if (this.data.previewSingle) {
@@ -920,19 +1133,8 @@ Page({
           return
         }
 
-        navigateShellRoute(`${ROUTES.homeOther}?page=guideApply`, {
+        navigateShellRoute(this.data.guideApplyReturnTo || ROUTES.playerHome, {
           currentRoute: ROUTES.homeOther
-        })
-        return
-      }
-
-      const previousIndex = HOME_OTHER_PAGES.findIndex((page) => page.id === 'guideApply')
-
-      if (previousIndex >= 0) {
-        this.setData({
-          currentIndex: previousIndex,
-          currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[previousIndex], this.data.progressRoleType)),
-          pageNo: this.data.previewSingle ? 1 : previousIndex + 1
         })
         return
       }
@@ -974,44 +1176,49 @@ Page({
     })
   },
 
-  handleGuidePlanTap() {
-    if (this.data.previewSingle) {
-      const nextIndex = HOME_OTHER_PAGES.findIndex((page) => page.id === 'guideApplyForm')
-
-      if (nextIndex < 0) {
-        this.handleUnavailableTap()
-        return
-      }
-
-      this.setData({
-        currentIndex: nextIndex,
-        currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType)),
-        pageNo: 1,
-        pageTotal: 1
-      })
-      return
-    }
-
-    const nextIndex = HOME_OTHER_PAGES.findIndex((page) => page.id === 'guideApplyForm')
-
-    if (nextIndex < 0) {
-      this.handleUnavailableTap()
-      return
-    }
-
-    this.setData({
-      currentIndex: nextIndex,
-      currentPage: this.decorateRuntimePage(applyProgressRoleToPage(HOME_OTHER_PAGES[nextIndex], this.data.progressRoleType)),
-      pageNo: this.data.previewSingle ? 1 : nextIndex + 1
-    })
-  },
-
   decorateRuntimePage(page) {
     return applyRoleStatusConfigToPage(
       applyGuideApplyConfigToPage(page, this.data.guideApplyConfig),
       this.data.roleStatusConfig,
       this.data.roleApplications
     )
+  },
+
+  showPendingRolePage(roleType = 'guide') {
+    const normalizedRoleType = normalizeProgressRoleType(roleType)
+    const pendingPage = applyRoleStatusConfigToPage(
+      createPendingCardsPage(normalizedRoleType),
+      this.data.roleStatusConfig,
+      this.data.roleApplications
+    )
+
+    this.setData({
+      currentPage: pendingPage,
+      previewSingle: true,
+      pageNo: 1,
+      pageTotal: 1,
+      primaryNavigating: false
+    })
+  },
+
+  showRoleResultPage(roleType = 'guide', status = 'approved') {
+    const normalizedRoleType = normalizeProgressRoleType(roleType)
+    const resultPage = findRoleResultPage(normalizedRoleType, status)
+
+    if (!resultPage) {
+      return false
+    }
+
+    this.setData({
+      currentPage: applyRoleStatusConfigToPage(resultPage, this.data.roleStatusConfig, this.data.roleApplications),
+      progressRoleType: normalizedRoleType,
+      previewSingle: true,
+      pageNo: 1,
+      pageTotal: 1,
+      primaryNavigating: false
+    })
+
+    return true
   },
 
   async loadRuntimeRoleStatus() {
@@ -1041,6 +1248,53 @@ Page({
             serviceCount
           )
         })
+      const currentRoleType = normalizeProgressRoleType(currentPage.applyRoleType || currentPage.roleType || this.data.progressRoleType || 'guide')
+      const currentRoleState = getRoleApplicationState(applications, currentRoleType, statusConfig)
+      const currentRoleStatus = currentRoleState.status
+
+      if (currentPage.id === 'guideApplyForm' && currentRoleStatus === 'pending') {
+        this.setData({
+          guideApplyConfig: guideApplyConfig || null,
+          roleStatusConfig: statusConfig || null,
+          roleApplications: applications,
+          currentPage: applyRoleStatusConfigToPage(createPendingCardsPage(currentRoleType), statusConfig, applications),
+          previewSingle: true,
+          pageNo: 1,
+          pageTotal: 1,
+          guideApplyForm: nextGuideApplyForm
+        })
+        return
+      }
+
+      if (
+        currentPage.id === 'guideApplyForm'
+        && (currentRoleStatus === 'approved' || currentRoleStatus === 'rejected')
+        && !currentRoleState.viewed
+      ) {
+        const resultPage = findRoleResultPage(currentRoleType, currentRoleStatus)
+
+        if (resultPage) {
+          this.setData({
+            guideApplyConfig: guideApplyConfig || null,
+            roleStatusConfig: statusConfig || null,
+            roleApplications: applications,
+            currentPage: applyRoleStatusConfigToPage(resultPage, statusConfig, applications),
+            progressRoleType: currentRoleType,
+            previewSingle: true,
+            pageNo: 1,
+            pageTotal: 1,
+            guideApplyForm: nextGuideApplyForm
+          })
+          return
+        }
+      }
+
+      if (currentPage.id === 'guideApplyForm' && currentRoleStatus === 'approved' && currentRoleState.viewed) {
+        wx.reLaunch({
+          url: `/${HOME_ROUTE_MAP[currentRoleType] || ROUTES.playerHome}`
+        })
+        return
+      }
 
       this.setData({
         guideApplyConfig: guideApplyConfig || null,
@@ -1216,60 +1470,14 @@ Page({
   },
 
   validateGuideApplyForm() {
-    const form = this.data.guideApplyForm || {}
     const currentPage = this.data.currentPage || {}
-    const fields = currentPage.formFields || []
-    const missingField = fields.find((field) => {
-      if (!field || !field.required) {
-        return false
-      }
-
-      const value = form[field.key]
-
-      return Array.isArray(value) ? value.length === 0 : !trimText(value)
-    })
-
-    if (missingField) {
-      wx.showToast({
-        title: `请填写${missingField.label}`,
-        icon: 'none'
-      })
-      return false
-    }
-
-    const guidePlanMinLength = getGuidePlanMinLength(this.data.guideApplyConfig || {})
-    if (trimText(form.guidePlan).length < guidePlanMinLength) {
-      wx.showToast({
-        title: `领路计划书不少于${guidePlanMinLength}字`,
-        icon: 'none'
-      })
-      return false
-    }
-
-    const uploadField = currentPage.uploadField || {}
-    if (uploadField.required && !(form.uploadFiles || []).length) {
-      wx.showToast({
-        title: `请上传${uploadField.label || '资质证明'}`,
-        icon: 'none'
-      })
-      return false
-    }
-
-    const firstIncompleteServiceIndex = (form.services || []).findIndex((service) => (
-      hasGuideServiceContent(service) && (!trimText(service.name) || !trimText(service.price))
+    const unmetRequirement = (currentPage.requirements || []).find((requirement) => (
+      requirement && !Boolean(requirement.done || requirement.checked || requirement.completed || requirement.met)
     ))
 
-    if (firstIncompleteServiceIndex >= 0) {
+    if (unmetRequirement) {
       wx.showToast({
-        title: `请完善业务${firstIncompleteServiceIndex + 1}`,
-        icon: 'none'
-      })
-      return false
-    }
-
-    if (!(form.services || []).some((service) => trimText(service.name) && trimText(service.price))) {
-      wx.showToast({
-        title: '请至少填写一个业务',
+        title: `请先满足：${unmetRequirement.title || '申请条件'}`,
         icon: 'none'
       })
       return false
@@ -1286,6 +1494,25 @@ Page({
     const currentPage = this.data.currentPage || {}
     const applyRoleType = currentPage.applyRoleType || 'guide'
     const applyRoleName = currentPage.applyRoleName || '领路人'
+    const applyRoleState = getRoleApplicationState(this.data.roleApplications, applyRoleType, this.data.roleStatusConfig)
+    const applyRoleStatus = applyRoleState.status
+
+    if (applyRoleStatus === 'pending') {
+      this.showPendingRolePage(applyRoleType)
+      return
+    }
+
+    if ((applyRoleStatus === 'approved' || applyRoleStatus === 'rejected') && !applyRoleState.viewed) {
+      this.showRoleResultPage(applyRoleType, applyRoleStatus)
+      return
+    }
+
+    if (applyRoleStatus === 'approved' && applyRoleState.viewed) {
+      wx.reLaunch({
+        url: `/${HOME_ROUTE_MAP[normalizeProgressRoleType(applyRoleType)] || ROUTES.playerHome}`
+      })
+      return
+    }
 
     if (!this.validateGuideApplyForm()) {
       return
@@ -1383,7 +1610,7 @@ Page({
     }
 
     if (matchedRole) {
-      const itemStatus = this.normalizeRoleStatus(item.status || item.roleStatus || item.role_status)
+      const itemStatus = this.normalizeRoleStatus(matchedRole.status || matchedRole.roleStatus || matchedRole.role_status)
 
       return itemStatus || 'approved'
     }
@@ -1425,11 +1652,6 @@ Page({
       return
     }
 
-    if (currentPage.id === 'guideApply') {
-      this.handleGuidePlanTap()
-      return
-    }
-
     if (!currentPage.targetRole) {
       this.handleUnavailableTap()
       return
@@ -1446,8 +1668,11 @@ Page({
     try {
       const roleInfo = await roleService.getMyRoles()
       const homeRole = this.resolveHomeRole(roleInfo, currentPage.targetRole)
+
+      this.markCurrentRoleResultViewed('approved')
       this.goRoleHome(homeRole)
     } catch (error) {
+      this.markCurrentRoleResultViewed('approved')
       this.goRoleHome(currentPage.targetRole)
     } finally {
       this.setData({

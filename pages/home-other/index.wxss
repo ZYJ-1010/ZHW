@@ -36,10 +36,12 @@ page {
 .home-other-back {
   grid-column: 1;
   justify-self: start;
+  min-width: 64rpx;
+  height: 64rpx;
   color: #ffffff;
   font-size: 42rpx;
   font-weight: 400;
-  line-height: 42rpx;
+  line-height: 64rpx;
 }
 
 .home-other-toolbar .home-other-save {
@@ -53,15 +55,42 @@ page {
 
 .home-other-toolbar-title {
   grid-column: 2;
+  justify-self: center;
+  max-width: 100%;
+  overflow: hidden;
   color: #ffffff;
   font-size: 34rpx;
   font-weight: 800;
   line-height: 44rpx;
   text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-other-toolbar.with-title {
   height: 94rpx;
+}
+
+.home-other-apply-page.passed .home-other-toolbar,
+.home-other-apply-page.rejected .home-other-toolbar {
+  grid-template-columns: 96rpx 1fr 96rpx;
+  height: 72rpx;
+  padding: 0 14rpx;
+}
+
+.home-other-apply-page.passed .home-other-back,
+.home-other-apply-page.rejected .home-other-back {
+  min-width: 48rpx;
+  height: 48rpx;
+  font-size: 34rpx;
+  line-height: 48rpx;
+}
+
+.home-other-apply-page.passed .home-other-toolbar-title,
+.home-other-apply-page.rejected .home-other-toolbar-title {
+  font-size: 28rpx;
+  font-weight: 800;
+  line-height: 38rpx;
 }
 
 .home-other-scroll {
@@ -177,6 +206,8 @@ page {
 }
 
 .home-other-panel {
+  width: 100%;
+  max-width: 100%;
   margin-top: 40rpx;
   padding: 42rpx 40rpx;
   border-radius: 26rpx;
@@ -385,19 +416,17 @@ page {
 }
 
 .reject-reasons {
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
   margin-top: 62rpx;
   margin-bottom: 32rpx;
   margin-left: 0;
   margin-right: 0;
   padding: 32rpx;
-  width: 686rpx;
-  max-width: calc(100vw - 64rpx);
+  width: 100%;
+  max-width: 100%;
   min-height: 262rpx;
   border: 2rpx solid var(--reject-border, rgba(255, 107, 53, 0.2));
   border-radius: 32rpx;
+  box-sizing: border-box;
   background: var(--reject-bg, rgba(255, 107, 53, 0.08));
 }
 
@@ -431,13 +460,12 @@ page {
 .home-other-apply-page.rejected .suggestions,
 .home-other-apply-page.rejected .retry,
 .home-other-apply-page.rejected .details {
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
   margin-left: 0;
   margin-right: 0;
-  width: 686rpx;
-  max-width: calc(100vw - 64rpx);
+  width: 100%;
+  max-width: 100%;
+  border-radius: 26rpx;
+  box-sizing: border-box;
 }
 
 .home-other-apply-page.rejected .retry {
@@ -782,155 +810,6 @@ page {
   text-align: center;
 }
 
-.home-other-panel.requirements {
-  margin-top: 54rpx;
-  padding: 28rpx 0 0;
-  border: 2rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 16rpx;
-  box-sizing: border-box;
-  background: #111827;
-  overflow: hidden;
-}
-
-.home-other-panel.requirements .home-other-panel-title {
-  padding: 0 36rpx;
-  margin-bottom: 22rpx;
-  box-sizing: border-box;
-}
-
-.home-other-requirement {
-  display: grid;
-  grid-template-columns: 44rpx 1fr auto;
-  gap: 16rpx;
-  align-items: center;
-  min-height: 88rpx;
-  padding: 18rpx 36rpx;
-  border-bottom: 2rpx solid rgba(255, 255, 255, 0.05);
-  box-sizing: border-box;
-}
-
-.home-other-requirement:last-child {
-  border-bottom: 2rpx solid rgba(255, 255, 255, 0.05);
-}
-
-.home-other-check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32rpx;
-  height: 32rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.28);
-  border-radius: 50%;
-  box-sizing: border-box;
-  color: rgba(255, 255, 255, 0.42);
-  background: transparent;
-  font-size: 24rpx;
-  line-height: 28rpx;
-}
-
-.home-other-requirement.done .home-other-check {
-  border-color: rgba(0, 230, 118, 0.28);
-  color: #00e676;
-  background: rgba(0, 230, 118, 0.16);
-}
-
-.home-other-check.pending,
-.home-other-requirement.pending .home-other-check {
-  color: transparent;
-  background: transparent;
-}
-
-.home-other-requirement-body {
-  min-width: 0;
-}
-
-.home-other-requirement-title {
-  display: block;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 28rpx;
-  font-weight: 400;
-  line-height: 34rpx;
-}
-
-.home-other-requirement-text {
-  display: block;
-  margin-top: 8rpx;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 24rpx;
-  line-height: 32rpx;
-}
-
-.home-other-requirement-action {
-  position: relative;
-  z-index: 6;
-  justify-self: end;
-  color: #ff8a18;
-  font-size: 24rpx;
-  font-weight: 400;
-  line-height: 32rpx;
-  white-space: nowrap;
-}
-
-.home-other-plan-card {
-  display: grid;
-  grid-template-columns: 44rpx 1fr auto;
-  gap: 16rpx;
-  align-items: center;
-  min-height: 96rpx;
-  padding: 22rpx 36rpx 28rpx;
-  box-sizing: border-box;
-}
-
-.home-other-panel.perks {
-  margin-top: 34rpx;
-  padding: 24rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 16rpx;
-  box-sizing: border-box;
-  background: #111827;
-}
-
-.home-other-panel.perks .home-other-panel-title {
-  gap: 12rpx;
-  margin-bottom: 22rpx;
-  font-size: 32rpx;
-  font-weight: 400;
-  line-height: 40rpx;
-}
-
-.home-other-panel.perks .home-other-section-symbol {
-  font-size: 34rpx;
-  line-height: 40rpx;
-}
-
-.home-other-perk {
-  display: grid;
-  grid-template-columns: 44rpx 1fr;
-  gap: 16rpx;
-  align-items: center;
-  min-height: 74rpx;
-  margin-top: 0;
-}
-
-.home-other-perk-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 10rpx;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 30rpx;
-  line-height: 40rpx;
-}
-
-.home-other-perk-text {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 26rpx;
-  font-weight: 400;
-  line-height: 34rpx;
-}
-
 .home-other-guide-form-panel {
   width: 100%;
   margin: 46rpx auto 0;
@@ -943,6 +822,117 @@ page {
 
 .home-other-guide-form-panel.secondary {
   margin-top: 48rpx;
+}
+
+.home-other-guide-form-panel.requirements {
+  margin-top: 0;
+  padding: 30rpx 0 0;
+  overflow: hidden;
+}
+
+.home-other-guide-form-panel.perks {
+  margin-top: 48rpx;
+}
+
+.home-other-guide-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 0 28rpx;
+  margin-bottom: 22rpx;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 32rpx;
+  font-weight: 800;
+  line-height: 40rpx;
+}
+
+.home-other-guide-panel-title.crown {
+  padding: 0;
+}
+
+.home-other-guide-requirement {
+  display: grid;
+  grid-template-columns: 44rpx 1fr;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 18rpx 28rpx;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.home-other-guide-plan-row {
+  display: grid;
+  grid-template-columns: 44rpx 1fr auto;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 96rpx;
+  padding: 22rpx 28rpx 28rpx;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.home-other-guide-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.36);
+  background: transparent;
+  font-size: 22rpx;
+  line-height: 28rpx;
+}
+
+.home-other-guide-requirement.done .home-other-guide-check {
+  border-color: rgba(0, 230, 118, 0.28);
+  color: #00e676;
+  background: rgba(0, 230, 118, 0.16);
+}
+
+.home-other-guide-requirement.pending .home-other-guide-check {
+  border-color: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.home-other-guide-plan-row.pending .home-other-guide-check {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: transparent;
+  background: transparent;
+}
+
+.home-other-guide-requirement-body {
+  min-width: 0;
+}
+
+.home-other-guide-requirement-title {
+  display: block;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.home-other-guide-requirement-text {
+  display: block;
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.home-other-guide-plan-action {
+  justify-self: end;
+  color: #ff7f18;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .home-other-guide-field {
@@ -1189,6 +1179,49 @@ page {
 
 .home-other-guide-field-label.service {
   color: rgba(255, 255, 255, 0.74);
+  font-size: 26rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.home-other-guide-perk {
+  display: grid;
+  grid-template-columns: 44rpx 1fr;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 74rpx;
+}
+
+.home-other-guide-perk + .home-other-guide-perk {
+  margin-top: 14rpx;
+}
+
+.home-other-guide-perk-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 10rpx;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 30rpx;
+  line-height: 40rpx;
+}
+
+.home-other-guide-perk.tone-0 .home-other-guide-perk-icon {
+  background: rgba(255, 107, 53, 0.15);
+}
+
+.home-other-guide-perk.tone-1 .home-other-guide-perk-icon {
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.home-other-guide-perk.tone-2 .home-other-guide-perk-icon {
+  background: rgba(156, 39, 176, 0.15);
+}
+
+.home-other-guide-perk-text {
+  color: rgba(255, 255, 255, 0.8);
   font-size: 26rpx;
   font-weight: 400;
   line-height: 34rpx;

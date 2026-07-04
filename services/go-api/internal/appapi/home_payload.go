@@ -14,15 +14,67 @@ import (
 	"zhw-mini/services/go-api/internal/connections"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/lbs"
+	"zhw-mini/services/go-api/internal/profiles"
 	"zhw-mini/services/go-api/internal/reviews"
 	"zhw-mini/services/go-api/internal/users"
 )
 
 const homeDisplayConfigKey = "home.display_config"
+const homeRoleDashboardConfigKey = "home.role_dashboard_config"
+const homeNearbyDistanceLimitMeter = 10000
 
 type homeDisplayConfigDTO struct {
 	OnlineBaseCount int    `json:"onlineBaseCount"`
 	OnlineSuffix    string `json:"onlineSuffix"`
+}
+
+type homeRoleDashboardConfigDTO struct {
+	Version string                              `json:"version"`
+	Roles   map[string]homeRoleDashboardRoleDTO `json:"roles"`
+}
+
+type homeRoleDashboardRoleDTO struct {
+	QuickActions   []homeQuickActionDTO      `json:"quickActions,omitempty"`
+	Network        homeRoleNetworkDTO        `json:"network,omitempty"`
+	Recommendation homeRoleRecommendationDTO `json:"recommendation,omitempty"`
+}
+
+type homeQuickActionDTO struct {
+	ID        string `json:"id,omitempty"`
+	Title     string `json:"title"`
+	Desc      string `json:"desc,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	IconSrc   string `json:"iconSrc,omitempty"`
+	Theme     string `json:"theme,omitempty"`
+	Route     string `json:"route,omitempty"`
+	RouteIcon bool   `json:"routeIcon,omitempty"`
+}
+
+type homeRoleNetworkDTO struct {
+	Title        string                     `json:"title,omitempty"`
+	Status       string                     `json:"status,omitempty"`
+	LocationText string                     `json:"locationText,omitempty"`
+	Items        []homeRoleNetworkItemDTO   `json:"items,omitempty"`
+	Buttons      []homeRoleNetworkButtonDTO `json:"buttons,omitempty"`
+}
+
+type homeRoleNetworkItemDTO struct {
+	ID     string `json:"id,omitempty"`
+	Key    string `json:"key,omitempty"`
+	Icon   string `json:"icon,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Desc   string `json:"desc,omitempty"`
+	Dashed bool   `json:"dashed,omitempty"`
+}
+
+type homeRoleNetworkButtonDTO struct {
+	Text    string `json:"text,omitempty"`
+	Route   string `json:"route,omitempty"`
+	Primary bool   `json:"primary,omitempty"`
+}
+
+type homeRoleRecommendationDTO struct {
+	Title string `json:"title,omitempty"`
 }
 
 func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, roleType string) map[string]interface{} {
@@ -38,30 +90,79 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, ro
 	stats := s.games.StatsForUser(userID)
 	conns := s.connections.My(userID)
 	nearbyGames := s.homeNearbyGames(userID, visibleGames, 6)
+	cityGames := s.homeCityGames(userID, visibleGames, nearbyGames, 6)
 	friendGames := s.homeFriendGames(userID, visibleGames, conns, 4)
+	nearbySummary := s.homeNearbySummary(userID, nearbyGames, conns)
+	rankingBoards := s.homeRankingBoards(userID, user, stats, growth, conns)
+	visualization := s.homeVisualization(userID, visibleGames, nearbyGames, conns)
+	currentUser := s.buildCurrentUserDTO(user, s.identity.Status(userID))
+	roleHomeConfig := s.currentHomeRoleDashboardConfig().Roles[roleType]
 
-	return map[string]interface{}{
+	payload := map[string]interface{}{
 		"hero":               s.homeHero(userID, user, growth, len(visibleGames), len(conns), roleType),
-		"user":               s.buildCurrentUserDTO(user, s.identity.Status(userID)),
+		"user":               currentUser,
 		"playerSummary":      s.homePlayerSummary(userID, user, stats, growth, roleType),
-		"nearbySummary":      s.homeNearbySummary(userID, nearbyGames, conns),
+		"nearbySummary":      nearbySummary,
+		"onlineCard":         s.homeOnlineCard(nearbySummary),
 		"nearbySection":      s.homeNearbySection(),
 		"nearbyGames":        nearbyGames,
-		"recommendedGames":   s.homeGameCards(visibleGames, "city", 6),
+		"recommendedGames":   cityGames,
 		"friendSection":      s.homeFriendSection(len(friendGames)),
 		"friendGames":        friendGames,
 		"rankingSection":     s.homeRankingSection(),
-		"rankingBoards":      s.homeRankingBoards(userID, user, stats, growth, conns),
+		"rankingBoards":      rankingBoards,
 		"achievementSection": s.homeAchievementSection(),
 		"achievements":       s.homeAchievements(stats, growth, nearbyGames),
-		"metaverseEntry":     s.homeMetaverseEntry(len(conns), len(visibleGames)),
+		"metaverseEntry":     s.homeMetaverseEntry(len(conns), len(visibleGames), s.homeMetaverseAvatars(userID, visibleGames, conns)),
 		"earth":              s.homeEarth(userID, visibleGames, nearbyGames, conns),
-		"visualization":      s.homeVisualization(userID, visibleGames, nearbyGames, conns),
+		"visualization":      visualization,
 		"games":              visibleGames,
 		"userStats":          stats,
 		"pointsSummary":      s.points.Summary(userID),
 		"growth":             growth,
 		"notifications":      map[string]interface{}{"unreadCount": unreadNotificationCount(s.notices.List(userID))},
+	}
+
+	if len(roleHomeConfig.QuickActions) > 0 {
+		payload["quickActions"] = roleHomeConfig.QuickActions
+	}
+	if roleType == "expert" {
+		payload["skills"] = s.homeExpertSkills(userID)
+	}
+	if roleType == "guide" {
+		payload["network"] = s.homeRoleNetwork(roleHomeConfig.Network, conns, currentUser.IncomeSummary.PendingCent, currentUser.IncomeSummary.TotalCent)
+		if recommendation := s.homeRoleRecommendation(roleHomeConfig.Recommendation, rankingBoards); recommendation != nil {
+			payload["recommendation"] = recommendation
+		}
+	}
+
+	return payload
+}
+
+func (s *Server) homeOnlineCard(nearbySummary map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"title": "地球online",
+		"desc":  "探索城市副本 · 解锁地图成就",
+		"tags": []string{
+			"附近 " + strconv.Itoa(homeSummaryInt(nearbySummary, "nearbyGameCount")) + " 个组局",
+			"已打卡 " + strconv.Itoa(homeSummaryInt(nearbySummary, "checkedInCount")) + " 处",
+		},
+	}
+}
+
+func homeSummaryInt(summary map[string]interface{}, key string) int {
+	if summary == nil {
+		return 0
+	}
+	switch value := summary[key].(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return 0
 	}
 }
 
@@ -99,6 +200,65 @@ func (s *Server) currentHomeDisplayConfig() homeDisplayConfigDTO {
 		}
 	}
 	return config
+}
+
+func (s *Server) currentHomeRoleDashboardConfig() homeRoleDashboardConfigDTO {
+	config := defaultHomeRoleDashboardConfig()
+	var stored homeRoleDashboardConfigDTO
+	if s.systemConfig != nil && s.systemConfig.Get(homeRoleDashboardConfigKey, &stored) && len(stored.Roles) > 0 {
+		return mergeHomeRoleDashboardConfig(config, stored)
+	}
+	return config
+}
+
+func mergeHomeRoleDashboardConfig(defaultConfig, stored homeRoleDashboardConfigDTO) homeRoleDashboardConfigDTO {
+	if strings.TrimSpace(stored.Version) != "" {
+		defaultConfig.Version = strings.TrimSpace(stored.Version)
+	}
+	if defaultConfig.Roles == nil {
+		defaultConfig.Roles = map[string]homeRoleDashboardRoleDTO{}
+	}
+	for key, roleConfig := range stored.Roles {
+		roleType := normalizeHomeRoleType(key)
+		if roleType == "" {
+			roleType = strings.TrimSpace(key)
+		}
+		if roleType == "" {
+			continue
+		}
+		defaultConfig.Roles[roleType] = mergeHomeRoleConfig(defaultConfig.Roles[roleType], roleConfig)
+	}
+	return defaultConfig
+}
+
+func mergeHomeRoleConfig(defaultConfig, stored homeRoleDashboardRoleDTO) homeRoleDashboardRoleDTO {
+	if len(stored.QuickActions) > 0 {
+		defaultConfig.QuickActions = stored.QuickActions
+	}
+	defaultConfig.Network = mergeHomeRoleNetworkConfig(defaultConfig.Network, stored.Network)
+	if strings.TrimSpace(stored.Recommendation.Title) != "" {
+		defaultConfig.Recommendation = stored.Recommendation
+	}
+	return defaultConfig
+}
+
+func mergeHomeRoleNetworkConfig(defaultConfig, stored homeRoleNetworkDTO) homeRoleNetworkDTO {
+	if strings.TrimSpace(stored.Title) != "" {
+		defaultConfig.Title = stored.Title
+	}
+	if strings.TrimSpace(stored.Status) != "" {
+		defaultConfig.Status = stored.Status
+	}
+	if strings.TrimSpace(stored.LocationText) != "" {
+		defaultConfig.LocationText = stored.LocationText
+	}
+	if len(stored.Items) > 0 {
+		defaultConfig.Items = stored.Items
+	}
+	if len(stored.Buttons) > 0 {
+		defaultConfig.Buttons = stored.Buttons
+	}
+	return defaultConfig
 }
 
 func (s *Server) adminHomeDisplayConfig(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +312,261 @@ func defaultHomeDisplayConfig() homeDisplayConfigDTO {
 		OnlineBaseCount: 0,
 		OnlineSuffix:    "\u4eba\u5728\u7ebf",
 	}
+}
+
+func defaultHomeRoleDashboardConfig() homeRoleDashboardConfigDTO {
+	return homeRoleDashboardConfigDTO{
+		Version: "2026-07-04",
+		Roles: map[string]homeRoleDashboardRoleDTO{
+			"player": {
+				QuickActions: []homeQuickActionDTO{
+					{ID: "create", Title: "发起组局", Desc: "创建你的带局房间", Icon: "📍", Theme: "pink", Route: "pages/game/create/index"},
+					{ID: "lobby", Title: "局前大厅", Desc: "准备就绪加入一局", Theme: "cyan", Route: "pages/game/hall/index", RouteIcon: true},
+				},
+			},
+			"guide": {
+				QuickActions: []homeQuickActionDTO{
+					{ID: "lobby", Title: "局前大厅", Desc: "准备加入一局", Theme: "pink", Route: "pages/game/hall/index", RouteIcon: true},
+					{ID: "invite", Title: "我的邀约", Desc: "管理连接的玩家", Icon: "📍", Theme: "cyan", Route: "pages/profile/service-center/invite/overview/index", RouteIcon: true},
+				},
+				Network: homeRoleNetworkDTO{
+					Title:        "我的关系网络",
+					Status:       "实时连接中",
+					LocationText: "核心区",
+					Items: []homeRoleNetworkItemDTO{
+						{ID: "relations", Key: "relations", Icon: "👑", Name: "累计连接"},
+						{ID: "strong", Key: "strongRelations", Icon: "🎓", Name: "强关系"},
+						{ID: "nodes", Key: "onlineNodes", Icon: "👶", Name: "动态节点"},
+						{ID: "income", Key: "income", Icon: "🏛️", Name: "本周收益"},
+						{ID: "more", Key: "more", Icon: "+", Name: "更多", Desc: "待加入", Dashed: true},
+					},
+					Buttons: []homeRoleNetworkButtonDTO{
+						{Text: "管理我的连接", Route: "pages/relation/network/index", Primary: true},
+						{Text: "查看分润", Route: "pages/profile/service-center/invite/income/index"},
+					},
+				},
+				Recommendation: homeRoleRecommendationDTO{Title: "推荐行家"},
+			},
+		},
+	}
+}
+
+func (s *Server) homeRoleNetwork(config homeRoleNetworkDTO, conns []connections.Connection, pendingCent int64, totalCent int64) map[string]interface{} {
+	if strings.TrimSpace(config.Title) == "" && len(config.Items) == 0 && len(config.Buttons) == 0 {
+		return nil
+	}
+	relationCount := len(conns)
+	strongCount := countStrongConnections(conns)
+	nodeCount := maxInt(1, relationCount+1)
+	incomeCent := pendingCent
+	if incomeCent == 0 {
+		incomeCent = totalCent
+	}
+	items := make([]map[string]interface{}, 0, len(config.Items))
+	for _, item := range config.Items {
+		items = append(items, map[string]interface{}{
+			"id":     firstNonEmpty(item.ID, item.Key),
+			"key":    item.Key,
+			"icon":   item.Icon,
+			"name":   item.Name,
+			"desc":   homeRoleNetworkItemDesc(item, relationCount, strongCount, nodeCount, incomeCent),
+			"dashed": item.Dashed,
+		})
+	}
+	buttons := make([]map[string]interface{}, 0, len(config.Buttons))
+	for _, item := range config.Buttons {
+		if strings.TrimSpace(item.Text) == "" {
+			continue
+		}
+		buttons = append(buttons, map[string]interface{}{
+			"text":    item.Text,
+			"route":   item.Route,
+			"primary": item.Primary,
+		})
+	}
+	return map[string]interface{}{
+		"title":        config.Title,
+		"status":       config.Status,
+		"locationText": config.LocationText,
+		"summary":      "已连接 " + strconv.Itoa(relationCount) + " 位玩家",
+		"income":       "本周收益 " + moneyYuanText(incomeCent),
+		"items":        items,
+		"buttons":      buttons,
+	}
+}
+
+func homeRoleNetworkItemDesc(item homeRoleNetworkItemDTO, relationCount int, strongCount int, nodeCount int, incomeCent int64) string {
+	if strings.TrimSpace(item.Desc) != "" {
+		return item.Desc
+	}
+	switch item.Key {
+	case "relations":
+		return strconv.Itoa(relationCount) + "人"
+	case "strongRelations":
+		return strconv.Itoa(strongCount) + "人"
+	case "onlineNodes":
+		return strconv.Itoa(nodeCount) + "个"
+	case "income":
+		return moneyYuanText(incomeCent)
+	default:
+		return ""
+	}
+}
+
+func (s *Server) homeRoleRecommendation(config homeRoleRecommendationDTO, rankingBoards map[string]interface{}) map[string]interface{} {
+	if strings.TrimSpace(config.Title) == "" {
+		return nil
+	}
+	items := []map[string]interface{}{}
+	if board, ok := rankingBoards["expert"].(map[string]interface{}); ok {
+		if list, ok := board["list"].([]map[string]interface{}); ok {
+			for _, item := range list {
+				if len(items) >= 3 {
+					break
+				}
+				if isMe, _ := item["isMe"].(bool); isMe {
+					continue
+				}
+				items = append(items, map[string]interface{}{
+					"id":             item["userId"],
+					"name":           item["name"],
+					"avatarUrl":      item["avatarUrl"],
+					"avatarFallback": item["avatarFallback"],
+				})
+			}
+		}
+	}
+	return map[string]interface{}{"title": config.Title, "items": items}
+}
+
+func (s *Server) homeExpertSkills(userID int64) []map[string]interface{} {
+	tags := make([]string, 0, 3)
+	source := "expert_skill_profile"
+	if profile, err := s.profiles.ExpertSkill(userID); err == nil {
+		tags = appendHomeSkillTags(tags, profile.SkillTree...)
+		tags = appendHomeSkillTags(tags, profile.ServiceTags...)
+	}
+	if len(tags) == 0 {
+		source = "role_application"
+		tags = appendHomeSkillTags(tags, s.latestApprovedExpertApplicationSkills(userID)...)
+	}
+	return buildHomeExpertSkillNodes(tags, source)
+}
+
+func (s *Server) latestApprovedExpertApplicationSkills(userID int64) []string {
+	apps := s.profiles.RoleApplicationsByUser(userID)
+	sort.SliceStable(apps, func(i, j int) bool {
+		if apps[i].UpdatedAt.Equal(apps[j].UpdatedAt) {
+			return apps[i].ID > apps[j].ID
+		}
+		return apps[i].UpdatedAt.After(apps[j].UpdatedAt)
+	})
+	for _, app := range apps {
+		if app.RoleCode == "expert" && app.Status == "approved" {
+			return expertApplicationSkills(app)
+		}
+	}
+	return nil
+}
+
+func expertApplicationSkills(app profiles.RoleApplication) []string {
+	fields := parseRoleApplicationAbilityFields(app.AbilityDescription)
+	tags := make([]string, 0, 3)
+	tags = appendHomeSkillTags(tags, fields["技能领域"], app.Reason)
+	tags = appendHomeSkillTags(tags, splitHomeSkillTags(fields["技能标签"])...)
+	return tags
+}
+
+func parseRoleApplicationAbilityFields(text string) map[string]string {
+	fields := map[string]string{}
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "：", 2)
+		if len(parts) != 2 {
+			parts = strings.SplitN(line, ":", 2)
+		}
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key != "" && value != "" {
+			fields[key] = value
+		}
+	}
+	return fields
+}
+
+func splitHomeSkillTags(text string) []string {
+	return strings.FieldsFunc(text, func(r rune) bool {
+		switch r {
+		case ',', '，', '、', '/', '／', '|', '｜', ';', '；', ' ', '\t', '\r', '\n':
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+func appendHomeSkillTags(tags []string, values ...string) []string {
+	seen := map[string]bool{}
+	for _, item := range tags {
+		seen[item] = true
+	}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		tags = append(tags, value)
+		seen[value] = true
+		if len(tags) >= 3 {
+			break
+		}
+	}
+	return tags
+}
+
+func buildHomeExpertSkillNodes(tags []string, source string) []map[string]interface{} {
+	tones := []string{"green", "orange", "blue"}
+	icons := []string{"🎯", "★", "◆"}
+	nodes := make([]map[string]interface{}, 0, 3)
+	for index := 0; index < 3; index++ {
+		if index < len(tags) {
+			nodes = append(nodes, map[string]interface{}{
+				"id":       "expert-skill-" + strconv.Itoa(index+1),
+				"title":    tags[index],
+				"icon":     icons[index],
+				"tone":     tones[index],
+				"locked":   false,
+				"unlocked": true,
+				"source":   source,
+			})
+			continue
+		}
+		nodes = append(nodes, map[string]interface{}{
+			"id":       "expert-skill-locked-" + strconv.Itoa(index+1),
+			"title":    "待解锁",
+			"icon":     "🔒",
+			"tone":     "locked",
+			"locked":   true,
+			"unlocked": false,
+			"source":   source,
+		})
+	}
+	return nodes
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func normalizeHomeRoleType(roleType string) string {
@@ -213,7 +628,13 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 	}
 	progress := 0
 	if nextLevelExperience > 0 {
-		progress = int(math.Round(float64(growth.Experience%100) / 100 * 100))
+		progress = int(math.Round(float64(growth.Experience) / float64(nextLevelExperience) * 100))
+		if progress < 0 {
+			progress = 0
+		}
+		if progress > 100 {
+			progress = 100
+		}
 	}
 	joinCount := stats.Participated
 	participationRate := "0%"
@@ -228,6 +649,8 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 		"level":               growth.Level,
 		"experience":          growth.Experience,
 		"nextLevelExperience": nextLevelExperience,
+		"scoreText":           strconv.Itoa(growth.Experience) + "/" + strconv.Itoa(nextLevelExperience) + " XP",
+		"nextLevelText":       "\u8ddd\u79bb\u4e0b\u4e00\u7b49\u7ea7\u8fd8\u9700 " + strconv.Itoa(expToNext) + " \u7ecf\u9a8c\u503c",
 		"expToNextLevel":      expToNext,
 		"progressPercent":     progress,
 		"joinCount":           joinCount,
@@ -274,7 +697,7 @@ func (s *Server) homeFriendSection(count int) map[string]interface{} {
 func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit int) []map[string]interface{} {
 	location, ok := s.lbs.Current(userID)
 	if !ok {
-		return s.homeGameCards(visibleGames, "city", limit)
+		return []map[string]interface{}{}
 	}
 	items := make([]games.Game, 0, len(visibleGames))
 	for _, game := range visibleGames {
@@ -282,6 +705,9 @@ func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit 
 			continue
 		}
 		distance := lbs.DistanceMeter(location.Longitude, location.Latitude, game.Longitude, game.Latitude)
+		if distance > homeNearbyDistanceLimitMeter {
+			continue
+		}
 		game.DistanceMeter = math.Round(distance)
 		game.DistanceLabel = lbs.FormatDistanceLabel(game.DistanceMeter)
 		items = append(items, game)
@@ -290,6 +716,59 @@ func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit 
 		return items[i].DistanceMeter < items[j].DistanceMeter
 	})
 	return s.homeGameCards(items, "nearby", limit)
+}
+
+func (s *Server) homeCityGames(userID int64, visibleGames []games.Game, nearbyGames []map[string]interface{}, limit int) []map[string]interface{} {
+	nearbyIDs := make(map[int64]bool, len(nearbyGames))
+	for _, item := range nearbyGames {
+		id := mapInt64(item, "id")
+		if id > 0 {
+			nearbyIDs[id] = true
+		}
+	}
+
+	location, hasLocation := s.lbs.Current(userID)
+	items := make([]games.Game, 0, len(visibleGames))
+	for _, game := range visibleGames {
+		if nearbyIDs[game.ID] {
+			continue
+		}
+		if hasLocation && !sameHomeCity(game, location) {
+			continue
+		}
+		items = append(items, game)
+	}
+	return s.homeGameCards(items, "city", limit)
+}
+
+func sameHomeCity(game games.Game, location lbs.Location) bool {
+	if strings.TrimSpace(location.CityCode) != "" && strings.TrimSpace(game.CityCode) != "" {
+		return strings.TrimSpace(location.CityCode) == strings.TrimSpace(game.CityCode)
+	}
+	if strings.TrimSpace(location.CityName) != "" && strings.TrimSpace(game.CityName) != "" {
+		return strings.TrimSpace(location.CityName) == strings.TrimSpace(game.CityName)
+	}
+	return true
+}
+
+func mapInt64(item map[string]interface{}, key string) int64 {
+	value, ok := item[key]
+	if !ok || value == nil {
+		return 0
+	}
+	switch typed := value.(type) {
+	case int64:
+		return typed
+	case int:
+		return int64(typed)
+	case float64:
+		return int64(typed)
+	case string:
+		parsed, _ := strconv.ParseInt(strings.TrimSpace(typed), 10, 64)
+		return parsed
+	default:
+		return 0
+	}
 }
 
 func (s *Server) homeFriendGames(userID int64, visibleGames []games.Game, conns []connections.Connection, limit int) []map[string]interface{} {
@@ -344,6 +823,7 @@ func (s *Server) homeGameCards(items []games.Game, scope string, limit int) []ma
 			"timeText":      game.CreatedAt.Format("2006-01-02 15:04"),
 			"joinedCount":   game.CurrentPlayers,
 			"joinedText":    "+" + strconv.Itoa(game.CurrentPlayers) + "\u4f4d\u73a9\u5bb6\u5df2\u5165\u5c40",
+			"playerAvatars": s.homeGamePlayerAvatars(game),
 			"actions":       []string{"share", "follow", "refer", "greet"},
 			"longitude":     game.Longitude,
 			"latitude":      game.Latitude,
@@ -413,7 +893,7 @@ func homeGameCover(index int) string {
 
 func (s *Server) homeRankingSection() map[string]interface{} {
 	return map[string]interface{}{
-		"icon":     "\u2605",
+		"icon":     "\U0001F3C6",
 		"title":    "\u672c\u5468\u73a9\u9738\u699c",
 		"moreText": "\u67e5\u770b\u5168\u90e8\u699c\u5355",
 		"tabs": []map[string]string{
@@ -448,6 +928,7 @@ func (s *Server) homeRankingItem(rank int, userID int64, name string, stats game
 	return map[string]interface{}{
 		"userId":          userID,
 		"rank":            rank,
+		"avatarUrl":       s.userAvatarURL(userID),
 		"avatarFallback":  avatarTextForName(name, userID),
 		"name":            name,
 		"gameCount":       stats.Participated,
@@ -459,28 +940,118 @@ func (s *Server) homeRankingItem(rank int, userID int64, name string, stats game
 	}
 }
 
+func (s *Server) homeGamePlayerAvatars(game games.Game) []map[string]interface{} {
+	userIDs := make([]int64, 0, 3)
+	seen := map[int64]bool{}
+	addUserID := func(userID int64) {
+		if userID <= 0 || seen[userID] || len(userIDs) >= 3 {
+			return
+		}
+		seen[userID] = true
+		userIDs = append(userIDs, userID)
+	}
+
+	addUserID(game.CreatorUserID)
+	for _, userID := range s.games.Members(game.ID) {
+		addUserID(userID)
+	}
+
+	avatars := make([]map[string]interface{}, 0, len(userIDs))
+	for _, userID := range userIDs {
+		name := s.displayName(userID, "\u7528\u6237")
+		if user, ok := s.auth.UserByID(userID); ok {
+			name = homeDisplayName(user, name)
+			avatars = append(avatars, map[string]interface{}{
+				"userId":         userID,
+				"name":           name,
+				"avatarUrl":      strings.TrimSpace(user.AvatarURL),
+				"avatarFallback": avatarTextForName(name, userID),
+			})
+			continue
+		}
+		avatars = append(avatars, map[string]interface{}{
+			"userId":         userID,
+			"name":           name,
+			"avatarFallback": avatarTextForName(name, userID),
+		})
+	}
+	return avatars
+}
+
+func (s *Server) userAvatarURL(userID int64) string {
+	if user, ok := s.auth.UserByID(userID); ok {
+		return strings.TrimSpace(user.AvatarURL)
+	}
+	return ""
+}
+
 func (s *Server) homeAchievementSection() map[string]interface{} {
 	return map[string]interface{}{
-		"icon":  "\u25c6",
+		"icon":  "\U0001F48E",
 		"title": "\u6211\u7684\u6210\u5c31",
 	}
 }
 
 func (s *Server) homeAchievements(stats games.UserStats, growth reviews.GrowthProfile, nearbyGames []map[string]interface{}) []map[string]interface{} {
-	earthProgress := maxInt(0, minInt(100, len(nearbyGames)*12))
 	return []map[string]interface{}{
-		{"id": "first_game", "title": "\u9996\u5c40\u8fbe\u6210", "status": "\u8fdb\u5ea6" + strconv.Itoa(minInt(100, stats.Participated*100)) + "%", "unlocked": stats.Participated > 0, "progressPercent": minInt(100, stats.Participated*100)},
-		{"id": "credit_keeper", "title": "\u4fe1\u7528\u5b88\u62a4", "status": strconv.Itoa(growth.CreditScore) + "\u5206", "unlocked": growth.CreditScore >= 80},
-		{"id": "earth", "title": "\u5730\u7403\u6f2b\u6e38\u8005", "status": "\u8fdb\u5ea6" + strconv.Itoa(earthProgress) + "%", "unlocked": earthProgress > 0, "progressPercent": earthProgress},
+		{"id": "hundred_king", "title": "\u767e\u573a\u738b\u8005", "icon": "\U0001F3C6", "status": "\u7b49\u7ea7", "unlocked": true, "locked": false},
+		{"id": "pilot_king", "title": "\u5f15\u822a\u738b\u8005", "icon": "\U0001F3C6", "status": "\u7b49\u7ea7", "unlocked": true, "locked": false},
+		{"id": "earth_roamer", "title": "\u5730\u7403\u6f2b\u6e38\u8005", "icon": "\U0001F30D", "status": "\u8fdb\u5ea620%", "unlocked": true, "locked": false, "progressPercent": 20},
+		{"id": "hidden_badge", "title": "", "icon": "\U0001F512", "status": "\u672a\u89e3\u9501", "unlocked": false, "locked": true},
 	}
 }
 
-func (s *Server) homeMetaverseEntry(connectionCount int, gameCount int) map[string]interface{} {
+func (s *Server) homeMetaverseEntry(connectionCount int, gameCount int, avatars []map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"title":       "\u8fdb\u5165\u5143\u5b87\u5b99",
 		"description": "\u57fa\u4e8e\u7ec4\u5c40\u548c\u4eba\u8109\u7684\u52a8\u6001\u5173\u7cfb\u7f51",
 		"tags":        []string{"\u5173\u7cfb\u7f51", "\u5730\u56fe\u8282\u70b9"},
+		"avatars":     avatars,
 		"onlineCount": maxInt(1, connectionCount+gameCount),
+	}
+}
+
+func (s *Server) homeMetaverseAvatars(userID int64, visibleGames []games.Game, conns []connections.Connection) []map[string]interface{} {
+	userIDs := make([]int64, 0, 3)
+	seen := map[int64]bool{userID: true}
+	addUserID := func(id int64) {
+		if id <= 0 || seen[id] || len(userIDs) >= 3 {
+			return
+		}
+		seen[id] = true
+		userIDs = append(userIDs, id)
+	}
+
+	for _, conn := range conns {
+		addUserID(conn.ConnectedUserID)
+	}
+	for _, game := range visibleGames {
+		for _, id := range s.games.Members(game.ID) {
+			addUserID(id)
+		}
+		addUserID(game.CreatorUserID)
+	}
+
+	avatars := make([]map[string]interface{}, 0, len(userIDs))
+	for _, id := range userIDs {
+		avatars = append(avatars, s.homeUserAvatar(id))
+	}
+	return avatars
+}
+
+func (s *Server) homeUserAvatar(userID int64) map[string]interface{} {
+	name := s.displayName(userID, "\u7528\u6237")
+	avatarURL := ""
+	if user, ok := s.auth.UserByID(userID); ok {
+		name = homeDisplayName(user, name)
+		avatarURL = strings.TrimSpace(user.AvatarURL)
+	}
+	return map[string]interface{}{
+		"userId":         userID,
+		"name":           name,
+		"imageUrl":       avatarURL,
+		"avatarUrl":      avatarURL,
+		"avatarFallback": avatarTextForName(name, userID),
 	}
 }
 

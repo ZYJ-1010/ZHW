@@ -673,6 +673,10 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	if !s.systemConfig.Get(homeDisplayConfigKey, &homeStored) {
 		_ = s.systemConfig.Set(homeDisplayConfigKey, defaultHomeDisplayConfig())
 	}
+	var homeRoleDashboardStored homeRoleDashboardConfigDTO
+	if !s.systemConfig.Get(homeRoleDashboardConfigKey, &homeRoleDashboardStored) || len(homeRoleDashboardStored.Roles) == 0 {
+		_ = s.systemConfig.Set(homeRoleDashboardConfigKey, defaultHomeRoleDashboardConfig())
+	}
 	var applicationStored gameApplicationConfigDTO
 	if !s.systemConfig.Get(gameApplicationConfigKey, &applicationStored) {
 		_ = s.systemConfig.Set(gameApplicationConfigKey, defaultGameApplicationConfig())

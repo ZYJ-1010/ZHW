@@ -1173,6 +1173,10 @@
   white-space: nowrap;
 }
 
+.home-expert-apply.role-guide .home-expert-plan-action {
+  color: #ff7f18;
+}
+
 .home-expert-benefits-card {
   margin-top: 34rpx;
   padding: 24rpx;
@@ -1207,6 +1211,18 @@
   background: rgba(255, 255, 255, 0.08);
   font-size: 30rpx;
   line-height: 40rpx;
+}
+
+.home-expert-benefit.tone-0 .home-expert-benefit-icon {
+  background: rgba(255, 107, 53, 0.15);
+}
+
+.home-expert-benefit.tone-1 .home-expert-benefit-icon {
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.home-expert-benefit.tone-2 .home-expert-benefit-icon {
+  background: rgba(156, 39, 176, 0.15);
 }
 
 .home-expert-apply-hint {
@@ -1257,6 +1273,11 @@
   font-size: 32rpx;
   font-weight: 700;
   line-height: 38rpx;
+}
+
+.home-expert-apply.role-guide .home-expert-primary {
+  background: linear-gradient(180deg, #ff8b17 0%, #ff6817 100%);
+  box-shadow: 0 8rpx 30rpx rgba(255, 127, 24, 0.32);
 }
 
 .home-expert-primary.disabled {

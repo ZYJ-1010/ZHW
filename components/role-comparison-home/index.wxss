@@ -254,3 +254,13 @@
   background: linear-gradient(180deg, #2c5f7a 0%, #16435b 100%);
   box-shadow: none;
 }
+
+.home-game-bottom-action.disabled,
+.theme-guide .home-game-bottom-action.disabled,
+.theme-expert .home-game-bottom-action.disabled,
+.theme-player .home-game-bottom-action.disabled {
+  color: rgba(255, 255, 255, 0.68);
+  background: linear-gradient(180deg, #404650 0%, #2b3038 100%);
+  box-shadow: none;
+  opacity: 0.86;
+}

@@ -9,6 +9,7 @@ const {
   saveRoleApplyDraft,
   clearRoleApplyDraft
 } = require('../../utils/role-apply-draft')
+const { isRoleApplyResultViewed } = require('../../utils/role-apply-result-view')
 
 const APPLY_STAGE_TOP_RPX = 108
 const APPLY_DEFAULT_NAV_TOP_RPX = 108
@@ -128,6 +129,28 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   priceHint: '平台将收取 10% 服务费',
   primaryText: '下一步',
   helperText: '审核预计 1-3 个工作日'
+}
+const ROLE_APPLY_PREVIEW_META = {
+  expert: {
+    roleType: 'expert',
+    navTitle: '申请行家',
+    pageName: '申请行家',
+    title: '申请成为行家',
+    icon: UI_ICONS.role.expert,
+    tagline: '我懂玩家需要什么！我申请成为行家',
+    formPrimaryText: '提交行家申请',
+    fallbackPrimaryText: DEFAULT_EXPERT_APPLY_CONFIG.primaryText
+  },
+  guide: {
+    roleType: 'guide',
+    navTitle: '申请领路人',
+    pageName: '申请领路人',
+    title: '申请成为领路人',
+    icon: UI_ICONS.role.guide,
+    tagline: '我愿意带领更多人一起玩！我申请成为领路人',
+    formPrimaryText: '提交领路人申请',
+    fallbackPrimaryText: DEFAULT_EXPERT_APPLY_CONFIG.primaryText
+  }
 }
 
 function getPositiveInteger(value, fallback) {
@@ -386,6 +409,23 @@ function normalizeValidationRules(rules) {
     cloneObject(DEFAULT_EXPERT_APPLY_CONFIG.validationRules),
     rules || {}
   )
+}
+
+function extractResponseData(result) {
+  if (
+    result
+    && typeof result === 'object'
+    && Object.prototype.hasOwnProperty.call(result, 'data')
+    && (
+      Object.prototype.hasOwnProperty.call(result, 'code')
+      || Object.prototype.hasOwnProperty.call(result, 'message')
+      || Object.prototype.hasOwnProperty.call(result, 'requestId')
+    )
+  ) {
+    return result.data || {}
+  }
+
+  return result || {}
 }
 
 function normalizeExpertApplyConfig(config) {
@@ -667,6 +707,270 @@ function normalizeComparisonRoleType(value) {
   return 'expert'
 }
 
+function normalizeApplyRoleType(value) {
+  const roleType = normalizeComparisonRoleType(value)
+
+  return roleType === 'guide' ? 'guide' : 'expert'
+}
+
+function normalizeRoleApplyStatus(value) {
+  const status = String(value || '').trim()
+
+  if (status === 'pending' || status === 'reviewing' || status === 'auditing' || status === 'pending_audit' || status === '待处理' || status === '审核中') {
+    return 'pending'
+  }
+
+  if (status === 'approved' || status === 'active' || status === 'enabled' || status === 'passed' || status === 'success' || status === '已通过') {
+    return 'approved'
+  }
+
+  if (status === 'rejected' || status === 'reject' || status === 'failed' || status === 'rejected_audit' || status === '已驳回' || status === '未通过') {
+    return 'rejected'
+  }
+
+  return status
+}
+
+function extractRoleApplications(data = {}) {
+  if (Array.isArray(data)) {
+    return data
+  }
+
+  if (Array.isArray(data.applications)) {
+    return data.applications
+  }
+
+  if (Array.isArray(data.items)) {
+    return data.items
+  }
+
+  return []
+}
+
+function getExistingRoleApplication(roleInfo = {}, roleType = 'expert', status = '') {
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+  const applications = extractRoleApplications(roleInfo)
+  const normalizedStatus = normalizeRoleApplyStatus(status)
+
+  return applications.find((item) => {
+    if (normalizeApplyRoleType(item && (item.roleCode || item.roleType || item.role_code || item.role)) !== normalizedRoleType) {
+      return false
+    }
+
+    return normalizedStatus
+      ? normalizeRoleApplyStatus(item.status || item.roleStatus || item.role_status) === normalizedStatus
+      : true
+  }) || null
+}
+
+function getExistingRoleApplyState(roleInfo = {}, roleType = 'expert') {
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+  const pendingApplication = getExistingRoleApplication(roleInfo, normalizedRoleType, 'pending')
+
+  if (pendingApplication) {
+    return {
+      status: 'pending',
+      viewed: false,
+      application: pendingApplication
+    }
+  }
+
+  const approvedApplication = getExistingRoleApplication(roleInfo, normalizedRoleType, 'approved')
+  if (approvedApplication) {
+    return {
+      status: 'approved',
+      viewed: isRoleApplyResultViewed({
+        roleType: normalizedRoleType,
+        status: 'approved',
+        application: approvedApplication
+      }),
+      application: approvedApplication
+    }
+  }
+
+  const rejectedApplication = getExistingRoleApplication(roleInfo, normalizedRoleType, 'rejected')
+  if (rejectedApplication) {
+    return {
+      status: 'rejected',
+      viewed: isRoleApplyResultViewed({
+        roleType: normalizedRoleType,
+        status: 'rejected',
+        application: rejectedApplication
+      }),
+      application: rejectedApplication
+    }
+  }
+
+  const roleStatusMap = roleInfo.roleStatusMap || roleInfo.role_status_map || {}
+  const mappedStatus = normalizeRoleApplyStatus(roleStatusMap[normalizedRoleType])
+
+  if (mappedStatus === 'approved' || mappedStatus === 'rejected') {
+    const application = { id: `${normalizedRoleType}-${mappedStatus}` }
+
+    return {
+      status: mappedStatus,
+      viewed: isRoleApplyResultViewed({
+        roleType: normalizedRoleType,
+        status: mappedStatus,
+        application
+      }),
+      application
+    }
+  }
+
+  const matchedApplication = getExistingRoleApplication(roleInfo, normalizedRoleType)
+
+  return {
+    status: matchedApplication
+      ? normalizeRoleApplyStatus(matchedApplication.status || matchedApplication.roleStatus || matchedApplication.role_status)
+      : mappedStatus,
+    viewed: false,
+    application: matchedApplication
+  }
+}
+
+function getExistingRoleApplyStatus(roleInfo = {}, roleType = 'expert') {
+  return getExistingRoleApplyState(roleInfo, roleType).status
+}
+
+function getRoleHomeRoute(roleType = 'expert') {
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+
+  return normalizedRoleType === 'guide' ? ROUTES.guideHome : ROUTES.expertHome
+}
+
+function getRoleApplyResultPageId(roleType = 'expert', status = 'approved') {
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+  const normalizedStatus = normalizeRoleApplyStatus(status)
+
+  if (normalizedStatus === 'rejected') {
+    return `${normalizedRoleType}Rejected`
+  }
+
+  if (normalizedStatus === 'approved') {
+    return `${normalizedRoleType}Passed`
+  }
+
+  return ''
+}
+
+function getRoleApplyResultRoute(roleType = 'expert', status = 'approved') {
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+  const resultPageId = getRoleApplyResultPageId(normalizedRoleType, status)
+
+  return resultPageId
+    ? `${ROUTES.homeOther}?page=${resultPageId}&single=1&roleType=${normalizedRoleType}`
+    : ''
+}
+
+function getApplyRoleName(roleType = 'expert') {
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+  const meta = ROLE_APPLY_PREVIEW_META[normalizedRoleType] || ROLE_APPLY_PREVIEW_META.expert
+
+  return meta.roleName || (normalizedRoleType === 'guide' ? '领路人' : '行家')
+}
+
+function applyRoleComparisonApplyStatus(page, roleInfo, roleType = 'expert') {
+  if (!page || page.mode !== 'roleComparison') {
+    return page
+  }
+
+  const normalizedRoleType = normalizeApplyRoleType(roleType)
+  const state = getExistingRoleApplyState(roleInfo, normalizedRoleType)
+  const status = state.status
+  const roleName = getApplyRoleName(normalizedRoleType)
+
+  if (status === 'pending') {
+    return Object.assign({}, page, {
+      primaryDisabled: true,
+      primaryDisabledReason: 'pending',
+      primaryDisabledText: `申请${roleName}审核中`,
+      primaryOverrideText: '',
+      primaryResultStatus: ''
+    })
+  }
+
+  if ((status === 'approved' || status === 'rejected') && !state.viewed) {
+    return Object.assign({}, page, {
+      primaryDisabled: false,
+      primaryDisabledReason: '',
+      primaryDisabledText: '',
+      primaryOverrideText: `查看${roleName}审核结果`,
+      primaryResultStatus: status
+    })
+  }
+
+  if (status === 'approved' && state.viewed) {
+    return Object.assign({}, page, {
+      primaryDisabled: true,
+      primaryDisabledReason: 'approved',
+      primaryDisabledText: `已成为${roleName}`,
+      primaryOverrideText: '',
+      primaryResultStatus: ''
+    })
+  }
+
+  return Object.assign({}, page, {
+    primaryDisabled: false,
+    primaryDisabledReason: '',
+    primaryDisabledText: '',
+    primaryOverrideText: '',
+    primaryResultStatus: ''
+  })
+}
+
+function getRoleApplyPreviewMeta(roleType) {
+  return ROLE_APPLY_PREVIEW_META[normalizeApplyRoleType(roleType)] || ROLE_APPLY_PREVIEW_META.expert
+}
+
+function createRoleApplyPreviewPages(roleType = 'expert') {
+  const meta = getRoleApplyPreviewMeta(roleType)
+  const overviewPage = {
+    name: `${meta.pageName}操作页`,
+    mode: 'expertApplyOverview',
+    applyRoleType: meta.roleType,
+    roleBadge: '申请',
+    navTitle: meta.navTitle,
+    saveText: '保存',
+    title: meta.title,
+    icon: meta.icon,
+    tagline: meta.tagline,
+    reviewHint: DEFAULT_EXPERT_APPLY_CONFIG.helperText,
+    primary: meta.fallbackPrimaryText,
+    requirementsTitle: DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
+    requirements: normalizeExpertRequirements(DEFAULT_EXPERT_APPLY_CONFIG.requirements),
+    planTask: normalizeExpertPlanTask(DEFAULT_EXPERT_APPLY_CONFIG.planTask),
+    benefitsTitle: DEFAULT_EXPERT_APPLY_CONFIG.perksTitle,
+    benefits: normalizeExpertPerks(DEFAULT_EXPERT_APPLY_CONFIG.perks)
+  }
+
+  if (meta.roleType === 'guide') {
+    return [overviewPage]
+  }
+
+  return [
+    overviewPage,
+    {
+      name: `${meta.pageName}内页`,
+      mode: 'expertApplyForm',
+      applyRoleType: meta.roleType,
+      roleBadge: '申请',
+      navTitle: meta.navTitle,
+      saveText: '保存',
+      title: meta.title,
+      icon: meta.icon,
+      tagline: meta.tagline,
+      reviewHint: '审核预计 1-3 个工作日',
+      primary: meta.formPrimaryText,
+      skillOptions: DEFAULT_EXPERT_APPLY_CONFIG.skillOptions,
+      fields: DEFAULT_EXPERT_APPLY_CONFIG.fields,
+      uploadField: DEFAULT_EXPERT_APPLY_CONFIG.uploadField,
+      serviceBlocks: createExpertServiceBlocks(DEFAULT_EXPERT_APPLY_CONFIG.serviceCount),
+      priceHint: DEFAULT_EXPERT_APPLY_CONFIG.priceHint || '平台将收取 10% 服务费'
+    }
+  ]
+}
+
 const HOME_CONVERTED_PAGES = [
   {
     name: '启动动画',
@@ -680,46 +984,11 @@ const HOME_CONVERTED_PAGES = [
   }
 ]
 
-const EXPERT_APPLY_PREVIEW_PAGES = [
-  {
-    name: '申请行家内页',
-    mode: 'expertApplyForm',
-    roleBadge: '申请',
-    navTitle: '申请行家',
-    saveText: '保存',
-    title: '申请成为行家',
-    icon: UI_ICONS.role.expert,
-    tagline: '我懂玩家需要什么！我申请成为行家',
-    reviewHint: '审核预计 1-3 个工作日',
-    primary: '提交行家申请',
-    skillOptions: DEFAULT_EXPERT_APPLY_CONFIG.skillOptions,
-    fields: DEFAULT_EXPERT_APPLY_CONFIG.fields,
-    uploadField: DEFAULT_EXPERT_APPLY_CONFIG.uploadField,
-    serviceBlocks: createExpertServiceBlocks(DEFAULT_EXPERT_APPLY_CONFIG.serviceCount),
-    priceHint: DEFAULT_EXPERT_APPLY_CONFIG.priceHint || '平台将收取 10% 服务费'
-  },
-  {
-    name: '申请行家操作页',
-    mode: 'expertApplyOverview',
-    roleBadge: '申请',
-    navTitle: '申请行家',
-    saveText: '保存',
-    title: '申请成为行家',
-    icon: UI_ICONS.role.expert,
-    tagline: '我懂玩家需要什么！我申请成为行家',
-    reviewHint: DEFAULT_EXPERT_APPLY_CONFIG.helperText,
-    primary: DEFAULT_EXPERT_APPLY_CONFIG.primaryText,
-    requirementsTitle: DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
-    requirements: normalizeExpertRequirements(DEFAULT_EXPERT_APPLY_CONFIG.requirements),
-    planTask: normalizeExpertPlanTask(DEFAULT_EXPERT_APPLY_CONFIG.planTask),
-    benefitsTitle: DEFAULT_EXPERT_APPLY_CONFIG.perksTitle,
-    benefits: normalizeExpertPerks(DEFAULT_EXPERT_APPLY_CONFIG.perks)
-  }
-]
+const EXPERT_APPLY_PREVIEW_PAGES = createRoleApplyPreviewPages('expert')
 
 const EXPERT_APPLY_WALKTHROUGH_PAGES = [
-  EXPERT_APPLY_PREVIEW_PAGES[1],
-  EXPERT_APPLY_PREVIEW_PAGES[0]
+  EXPERT_APPLY_PREVIEW_PAGES[0],
+  EXPERT_APPLY_PREVIEW_PAGES[1]
 ]
 
 const HOME_PREVIEW_PAGES = [
@@ -727,8 +996,8 @@ const HOME_PREVIEW_PAGES = [
   { name: '行家首页', mode: 'roleHome', roleType: 'expert' },
   { name: '领路人首页', mode: 'roleHome', roleType: 'guide' },
   ROLE_COMPARISON_PREVIEW_PAGE,
-  EXPERT_APPLY_PREVIEW_PAGES[1],
-  EXPERT_APPLY_PREVIEW_PAGES[0]
+  EXPERT_APPLY_PREVIEW_PAGES[0],
+  EXPERT_APPLY_PREVIEW_PAGES[1]
 ]
 
 const HOME_PREVIEW_LOOKUP_PAGES = [
@@ -766,6 +1035,7 @@ Page({
     expertApplyCustomInput: '',
     expertApplyCustomError: '',
     expertApplyYearDropdownVisible: false,
+    roleApplyChecking: false,
     expertApplySubmitting: false,
     expertApplyNoticeVisible: false,
     expertApplyNoticeLines: [],
@@ -831,6 +1101,10 @@ Page({
         return
       }
 
+      if (this.redirectGuideSingleApply(options)) {
+        return
+      }
+
       this.setData({
         roleComparisonReturnTo: decodeURIComponent(options.returnTo || ''),
         roleComparisonRoleType: normalizeComparisonRoleType(options.role || options.roleType)
@@ -840,6 +1114,27 @@ Page({
     }
 
     this.loadHome()
+  },
+
+  redirectGuideSingleApply(options = {}) {
+    const mode = String(options.mode || '')
+    const roleType = normalizeApplyRoleType(options.role || options.roleType)
+    const isApplyMode = mode === 'expertApplyOverview'
+      || mode === 'expertApplyForm'
+      || mode === 'roleApplyOverview'
+      || mode === 'roleApplyForm'
+
+    if (!isApplyMode || roleType !== 'guide') {
+      return false
+    }
+
+    const returnTo = decodeURIComponent(options.returnTo || ROUTES.playerHome)
+
+    navigateShellRoute(`${ROUTES.homeOther}?page=guideApplyForm&single=1&roleType=guide&returnTo=${encodeURIComponent(returnTo)}`, {
+      currentRoute: ROUTES.home
+    })
+
+    return true
   },
 
   redirectRoleHomePreview(options = {}) {
@@ -866,25 +1161,38 @@ Page({
 
   enterHomePreview(mode, single = false, roleType = '') {
     const normalizedRoleType = String(roleType || '').trim()
+    const isRoleApplyMode = mode === 'expertApplyOverview'
+      || mode === 'expertApplyForm'
+      || mode === 'roleApplyOverview'
+      || mode === 'roleApplyForm'
+    const requestedMode = mode === 'roleApplyOverview'
+      ? 'expertApplyOverview'
+      : mode === 'roleApplyForm'
+        ? 'expertApplyForm'
+        : mode
     const findPreviewIndex = (pages) => pages.findIndex((page) => {
       if (!page) {
         return false
       }
 
-      if (mode === 'roleHome' && normalizedRoleType) {
+      if (requestedMode === 'roleHome' && normalizedRoleType) {
         return page.mode === 'roleHome' && page.roleType === normalizedRoleType
       }
 
-      return page.name === mode || page.mode === mode
+      return page.name === requestedMode || page.mode === requestedMode
     })
-    const previewPages = HOME_PREVIEW_GROUPS[mode] || HOME_PREVIEW_PAGES
+    const previewPages = isRoleApplyMode
+      ? createRoleApplyPreviewPages(normalizeApplyRoleType(normalizedRoleType))
+      : (HOME_PREVIEW_GROUPS[requestedMode] || HOME_PREVIEW_PAGES)
     const index = findPreviewIndex(previewPages)
     const lookupIndex = index >= 0
       ? index
-      : findPreviewIndex(HOME_PREVIEW_LOOKUP_PAGES)
-    const currentHomePreview = lookupIndex >= 0
-      ? HOME_PREVIEW_LOOKUP_PAGES[lookupIndex]
-      : previewPages[0]
+      : (isRoleApplyMode ? -1 : findPreviewIndex(HOME_PREVIEW_LOOKUP_PAGES))
+    const currentHomePreview = index >= 0
+      ? previewPages[index]
+      : lookupIndex >= 0
+        ? HOME_PREVIEW_LOOKUP_PAGES[lookupIndex]
+        : (previewPages[0] || HOME_PREVIEW_PAGES[0])
     const previewWindowWidth = wx.getSystemInfoSync ? wx.getSystemInfoSync().windowWidth : 375
 
     this.setData({
@@ -910,11 +1218,13 @@ Page({
 
   async loadRoleBenefitConfig() {
     try {
-      const config = await roleService.getRoleBenefitConfig()
+      const config = extractResponseData(await roleService.getRoleBenefitConfig())
       this.applyRoleBenefitConfig(config)
     } catch (error) {
       this.applyRoleBenefitConfig({})
     }
+
+    this.loadRoleComparisonApplyStatus()
   },
 
   applyRoleBenefitConfig(config = {}) {
@@ -928,21 +1238,68 @@ Page({
     })
   },
 
-  async loadExpertApplyConfig() {
-    const fallbackConfig = normalizeExpertApplyConfig(DEFAULT_EXPERT_APPLY_CONFIG)
+  async loadRoleComparisonApplyStatus() {
+    const currentHomePreview = this.data.currentHomePreview || {}
+
+    if (currentHomePreview.mode !== 'roleComparison') {
+      return
+    }
 
     try {
-      const remoteConfig = await roleService.getExpertApplyConfig()
-      const config = normalizeExpertApplyConfig(remoteConfig)
-      this.applyExpertApplyConfig(config)
+      const roleInfo = await roleService.getMyRoles()
+
+      this.applyRoleComparisonApplyStatus(roleInfo, this.data.roleComparisonRoleType)
     } catch (error) {
-      this.applyExpertApplyConfig(fallbackConfig)
+      this.applyRoleComparisonApplyStatus({}, this.data.roleComparisonRoleType)
     }
   },
 
-  applyExpertApplyConfig(config) {
+  applyRoleComparisonApplyStatus(roleInfo, roleType = 'expert') {
+    const currentHomePreview = applyRoleComparisonApplyStatus(
+      this.data.currentHomePreview,
+      roleInfo,
+      roleType
+    )
+    const homePreviewPages = (this.data.homePreviewPages || []).map((page) => (
+      applyRoleComparisonApplyStatus(page, roleInfo, roleType)
+    ))
+
+    this.setData({
+      currentHomePreview,
+      homePreviewPages
+    })
+  },
+
+  async loadExpertApplyConfig() {
+    const fallbackConfig = normalizeExpertApplyConfig(DEFAULT_EXPERT_APPLY_CONFIG)
+    const roleType = normalizeApplyRoleType((this.data.currentHomePreview || {}).applyRoleType)
+    const fetchApplyConfig = roleType === 'guide'
+      ? roleService.getGuideApplyConfig
+      : roleService.getExpertApplyConfig
+
+    try {
+      const [roleInfo, remoteConfigData] = await Promise.all([
+        roleService.getMyRoles(),
+        fetchApplyConfig()
+      ])
+
+      if (this.redirectExistingRoleApply(roleInfo, roleType)) {
+        return
+      }
+
+      const remoteConfig = extractResponseData(remoteConfigData)
+      const config = normalizeExpertApplyConfig(remoteConfig)
+      this.applyExpertApplyConfig(config, roleType)
+    } catch (error) {
+      this.applyExpertApplyConfig(fallbackConfig, roleType)
+      toast.info(error.message || '网络异常，请重试')
+    }
+  },
+
+  applyExpertApplyConfig(config, roleType = 'expert') {
+    const applyRoleType = normalizeApplyRoleType(roleType)
     const normalizedConfig = normalizeExpertApplyConfig(config)
-    const savedDraft = readRoleApplyDraft('expert')
+    const savedDraft = applyRoleType === 'expert' ? readRoleApplyDraft('expert') : null
     const shouldResetForm = isExpertApplyFormEmpty(this.data.expertApplyForm)
     const draftEnabled = Boolean(savedDraft && shouldResetForm)
     const currentFormPreview = this.data.currentHomePreview && this.data.currentHomePreview.mode === 'expertApplyForm'
@@ -1037,6 +1394,16 @@ Page({
       return
     }
 
+    const currentHomePreview = this.data.currentHomePreview || {}
+    const applyRoleType = normalizeApplyRoleType(currentHomePreview.applyRoleType)
+
+    if (applyRoleType === 'guide') {
+      navigateShellRoute(`${ROUTES.homeOther}?page=guideApplyForm&single=1&roleType=guide`, {
+        currentRoute: ROUTES.home
+      })
+      return
+    }
+
     const previewPages = this.data.homePreviewPages || []
     const formIndex = previewPages.findIndex((page) => page && page.mode === 'expertApplyForm')
 
@@ -1074,6 +1441,15 @@ Page({
 
   handleExpertApplySaveTap() {
     const currentHomePreview = this.data.currentHomePreview || {}
+    const applyRoleType = normalizeApplyRoleType(currentHomePreview.applyRoleType)
+
+    if (applyRoleType === 'guide') {
+      const savedDraft = saveRoleApplyDraft('guide', readRoleApplyDraft('guide') || { form: {} })
+
+      toast.info(savedDraft ? '已保存到本机草稿' : '草稿保存失败')
+      return
+    }
+
     const formPreview = currentHomePreview.mode === 'expertApplyForm'
       ? currentHomePreview
       : (this.data.homePreviewPages || []).find((page) => page && page.mode === 'expertApplyForm') || {}
@@ -1384,6 +1760,12 @@ Page({
     })
 
     try {
+      const roleInfo = await roleService.getMyRoles()
+
+      if (this.redirectExistingRoleApply(roleInfo, 'expert')) {
+        return
+      }
+
       const payload = buildExpertApplyPayload(this.data.currentHomePreview, this.data.expertApplyForm)
       await roleService.submitRoleApplication(payload)
       clearRoleApplyDraft('expert')
@@ -1445,21 +1827,104 @@ Page({
     }
   },
 
-  handleRoleCompareApplyTap(event) {
+  redirectExistingRoleApply(roleInfo, roleType) {
+    const normalizedRoleType = normalizeApplyRoleType(roleType)
+    const state = getExistingRoleApplyState(roleInfo, normalizedRoleType)
+    const status = state.status
+
+    if (status === 'pending') {
+      navigateShellRoute(`${ROUTES.homeOther}?page=pendingCards&single=1&roleType=${normalizedRoleType}`, {
+        currentRoute: ROUTES.home
+      })
+      return true
+    }
+
+    if (status === 'approved' && state.viewed) {
+      navigateShellRoute(getRoleHomeRoute(normalizedRoleType), {
+        currentRoute: ROUTES.home
+      })
+      return true
+    }
+
+    if (status === 'rejected' && state.viewed) {
+      return false
+    }
+
+    return this.navigateRoleApplyResult(normalizedRoleType, status)
+  },
+
+  navigateRoleApplyResult(roleType, status) {
+    const route = getRoleApplyResultRoute(roleType, status)
+
+    if (!route) {
+      return false
+    }
+
+    navigateShellRoute(route, {
+      currentRoute: ROUTES.home
+    })
+
+    return true
+  },
+
+  async handleRoleCompareApplyTap(event) {
     const roleType = normalizeComparisonRoleType(
       event && event.detail && event.detail.roleType
         ? event.detail.roleType
         : this.data.roleComparisonRoleType
     )
+    const currentHomePreview = this.data.currentHomePreview || {}
 
-    if (roleType === 'guide') {
-      navigateShellRoute(`${ROUTES.homeOther}?page=guideApply&single=1&roleType=guide`, {
-        currentRoute: ROUTES.home
-      })
+    if (currentHomePreview.primaryDisabled) {
       return
     }
 
-    this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, 'expert')
+    if (this.data.roleApplyChecking) {
+      return
+    }
+
+    this.setData({
+      roleApplyChecking: true
+    })
+
+    try {
+      const roleInfo = await roleService.getMyRoles()
+      const state = getExistingRoleApplyState(roleInfo, roleType)
+      const status = state.status
+
+      if (status === 'pending') {
+        this.applyRoleComparisonApplyStatus(roleInfo, roleType)
+        return
+      }
+
+      if ((status === 'approved' || status === 'rejected') && !state.viewed) {
+        this.applyRoleComparisonApplyStatus(roleInfo, roleType)
+        this.navigateRoleApplyResult(roleType, status)
+        return
+      }
+
+      if (status === 'approved' && state.viewed) {
+        this.applyRoleComparisonApplyStatus(roleInfo, roleType)
+        return
+      }
+
+      if (roleType === 'guide') {
+        const returnTo = this.data.roleComparisonReturnTo || ROUTES.playerHome
+
+        navigateShellRoute(`${ROUTES.homeOther}?page=guideApplyForm&single=1&roleType=guide&returnTo=${encodeURIComponent(returnTo)}`, {
+          currentRoute: ROUTES.home
+        })
+        return
+      }
+
+      this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, roleType)
+    } catch (error) {
+      toast.info(error.message || '角色申请状态加载失败，请重试')
+    } finally {
+      this.setData({
+        roleApplyChecking: false
+      })
+    }
   },
 
   async loadHome() {

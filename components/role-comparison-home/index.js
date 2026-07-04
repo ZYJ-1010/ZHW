@@ -52,10 +52,14 @@ function resolveHomeHero(home = {}) {
 function formatComparison(comparison = {}, targetRole = 'expert') {
   const roleType = normalizeRoleType(targetRole)
   const roles = Array.isArray(comparison.roles) ? comparison.roles : []
+  const primaryText = comparison.primaryOverrideText ||
+    (comparison.primaryDisabled && comparison.primaryDisabledText
+      ? comparison.primaryDisabledText
+      : (ROLE_PRIMARY_TEXT[roleType] || comparison.primary || '立即申请角色'))
 
   return {
     ...comparison,
-    primary: ROLE_PRIMARY_TEXT[roleType] || comparison.primary || '立即申请角色',
+    primary: primaryText,
     roles: roles.map((role) => {
       const key = normalizeRoleType(role.key || role.roleType || role.name)
 
@@ -163,6 +167,10 @@ Component({
     },
 
     handleApplyTap() {
+      if (this.data.displayComparison && this.data.displayComparison.primaryDisabled) {
+        return
+      }
+
       this.triggerEvent('apply', {
         roleType: normalizeRoleType(this.properties.targetRole)
       })

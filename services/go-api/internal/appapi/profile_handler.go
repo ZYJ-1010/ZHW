@@ -326,9 +326,9 @@ func defaultExpertApplyConfig() map[string]interface{} {
 		},
 		"perksTitle": "行家特权",
 		"perks": []map[string]interface{}{
-			{"icon": "¥", "text": "有权益的行家可发起有偿局并可获得相应收入"},
-			{"icon": "★", "text": "专属行家标识与优先推荐位"},
-			{"icon": "D", "text": "数据看板：查看服务数据与收益分析"},
+			{"icon": "💰", "text": "有权益的行家可发起有偿局并可获得相应收入"},
+			{"icon": "⭐", "text": "专属行家标识与优先推荐位"},
+			{"icon": "📊", "text": "数据看板：查看服务数据与收益分析"},
 		},
 		"validationRules": map[string]interface{}{
 			"skillTags":   map[string]interface{}{"minLength": 2, "maxLength": 30},
@@ -347,12 +347,17 @@ func defaultExpertApplyConfig() map[string]interface{} {
 
 func defaultGuideApplyConfig() map[string]interface{} {
 	return map[string]interface{}{
-		"applyRoleType": "guide",
-		"applyRoleName": "\u9886\u8def\u4eba",
+		"applyRoleType":     "guide",
+		"applyRoleName":     "\u9886\u8def\u4eba",
+		"requirementsTitle": "申请条件",
 		"requirements": []map[string]interface{}{
-			{"title": "\u73a9\u5bb6\u7b49\u7ea7\u8fbe\u5230 Lv.5", "text": "\u4ee5\u540e\u53f0\u8d44\u683c\u89c4\u5219\u4e3a\u51c6", "done": false},
-			{"title": "\u5b8c\u6210\u5b9e\u540d\u8ba4\u8bc1", "text": "\u9886\u8def\u4eba\u5fc5\u987b\u5b9e\u540d", "done": false},
-			{"title": "\u4fe1\u7528\u5206 \u2265 80 \u5206", "text": "\u4ee5\u4fe1\u7528\u8bb0\u5f55\u4e3a\u51c6", "done": false},
+			{"title": "玩家等级达到 Lv.5", "text": "以后台资格规则为准", "done": false},
+			{"title": "完成实名认证", "text": "领路人必须实名", "done": false},
+			{"title": "完成企业认证", "text": "以认证记录为准", "done": false},
+			{"title": "参与过 3 次以上组局", "text": "以后台组局记录为准", "done": false},
+			{"title": "已成功邀请 ≥ 1 人完成组局", "text": "以后台邀请记录为准", "done": false},
+			{"title": "信用分 ≥ 80 分", "text": "以信用记录为准", "done": false},
+			{"title": "会员等级 ≥ 基础会", "text": "以会员状态为准", "done": false},
 		},
 		"planTask": map[string]interface{}{
 			"title":  "\u63d0\u4ea4\u9886\u8def\u8ba1\u5212\u4e66",
@@ -361,9 +366,9 @@ func defaultGuideApplyConfig() map[string]interface{} {
 			"action": "\u53bb\u586b\u5199 \u203a",
 		},
 		"perks": []map[string]interface{}{
-			{"icon": "Y", "text": "\u6709\u6743\u76ca\u7684\u9886\u8def\u4eba\u5f15\u8350\u73a9\u5bb6\u7ec4\u5c40\u53ef\u83b7\u5f97\u76f8\u5e94\u6536\u5165"},
-			{"icon": "*", "text": "\u4e13\u5c5e\u9886\u8def\u4eba\u6807\u8bc6\u4e0e\u4f18\u5148\u63a8\u8350\u4f4d"},
-			{"icon": "D", "text": "\u6570\u636e\u770b\u677f\uff1a\u67e5\u770b\u9080\u7ea6\u6570\u636e\u4e0e\u5173\u7cfb\u7f51\u7edc"},
+			{"icon": "💰", "text": "\u6709\u6743\u76ca\u7684\u9886\u8def\u4eba\u5f15\u8350\u73a9\u5bb6\u7ec4\u5c40\u53ef\u83b7\u5f97\u76f8\u5e94\u6536\u5165"},
+			{"icon": "⭐", "text": "\u4e13\u5c5e\u9886\u8def\u4eba\u6807\u8bc6\u4e0e\u4f18\u5148\u63a8\u8350\u4f4d"},
+			{"icon": "📊", "text": "\u6570\u636e\u770b\u677f\uff1a\u67e5\u770b\u9080\u7ea6\u6570\u636e\u4e0e\u5173\u7cfb\u7f51\u7edc"},
 		},
 		"fields": []map[string]interface{}{
 			{"key": "city", "label": "\u6240\u5728\u57ce\u5e02", "type": "input", "required": true, "placeholder": "\u8bf7\u8f93\u5165\u5e38\u9a7b\u57ce\u5e02", "maxlength": 20, "helper": "\u7528\u4e8e\u5339\u914d\u540c\u57ce\u73a9\u5bb6\u4e0e\u7ec4\u5c40\u63a8\u8350"},

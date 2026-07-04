@@ -49,7 +49,7 @@
   <home-apply-shell
     wx:elif="{{currentHomePreview.mode === 'expertApplyForm' || currentHomePreview.mode === 'expertApplyOverview'}}"
     nav-title=""
-    shell-class="home-expert-apply"
+    shell-class="home-expert-apply role-{{currentHomePreview.applyRoleType}}"
     preview-switch-enabled="{{!homePreviewSingle}}"
     bindpreviewswitch="handleHomePreviewTap"
   >
@@ -273,7 +273,7 @@
                     <text>👑</text>
                     <text>{{currentHomePreview.benefitsTitle}}</text>
                   </view>
-                  <view wx:for="{{currentHomePreview.benefits}}" wx:for-item="benefit" wx:key="text" class="home-expert-benefit">
+                  <view wx:for="{{currentHomePreview.benefits}}" wx:for-item="benefit" wx:key="text" class="home-expert-benefit tone-{{index}}">
                     <text class="home-expert-benefit-icon">{{benefit.icon}}</text>
                     <text class="home-expert-benefit-text">{{benefit.text}}</text>
                   </view>

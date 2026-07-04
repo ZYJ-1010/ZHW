@@ -45,7 +45,7 @@
         </view>
       </view>
 
-      <view class="home-game-bottom-action" catchtap="handleApplyTap">
+      <view class="home-game-bottom-action {{displayComparison.primaryDisabled ? 'disabled' : ''}}" catchtap="handleApplyTap">
         <text>{{displayComparison.primary}}</text>
       </view>
     </view>

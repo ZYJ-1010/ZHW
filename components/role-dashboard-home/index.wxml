@@ -17,17 +17,22 @@
     bindscroll="handleHomeScroll"
   >
     <view class="player-home-page role-home-page {{currentRoleType}}">
+      <view wx:if="{{loadError}}" class="role-home-error">
+        <text class="role-home-error-title">{{loadError}}</text>
+        <button class="role-home-error-button" bindtap="handleHomeRetryTap">重试</button>
+      </view>
+      <block wx:else>
       <view class="player-hero">
         <text class="player-hero-title role-hero-title">{{hero.title}}</text>
         <text class="player-hero-date">{{hero.date}}</text>
       </view>
 
-      <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{roleAuditPrompt.visible ? 'audit' : ''}} {{rolePermissionPrompt.roleType}} {{roleAuditPrompt.roleType}}">
+      <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{roleAuditPrompt.visible ? 'audit' : ''}} {{rolePermissionPrompt.roleType}} {{roleAuditPrompt.roleType}} {{roleAuditPrompt.resultStatus}}">
         <block wx:if="{{roleAuditPrompt.visible}}">
           <view class="player-role-audit-card">
             <text class="player-role-audit-title">{{roleAuditPrompt.icon}}{{roleAuditPrompt.title}}</text>
             <text class="player-role-audit-subtitle">{{roleAuditPrompt.submittedText}}</text>
-            <view class="player-role-audit-steps {{roleAuditPrompt.done ? 'done' : ''}}">
+            <view class="player-role-audit-steps {{roleAuditPrompt.done ? 'done' : ''}} {{roleAuditPrompt.resultStatus}}">
               <view
                 wx:for="{{roleAuditPrompt.steps}}"
                 wx:key="key"
@@ -45,7 +50,7 @@
           <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
           <view class="player-summary-copy">
             <text class="player-summary-title">{{playerCard.title}}</text>
-            <text class="player-summary-name">{{playerCard.name}}</text>
+            <text class="player-summary-name" catchtap="handlePlayerNameTap">{{playerCard.name}}</text>
           </view>
           <view class="player-level-progress">
             <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
@@ -82,14 +87,14 @@
             wx:key="key"
             data-key="{{item.key}}"
             catchtap="handleRoleTagTap"
-            class="player-role-tag {{item.active ? 'active' : ''}} {{item.status === 'pending' ? 'pending' : ''}}"
+            class="player-role-tag {{item.active ? 'active' : ''}} {{item.status === 'pending' ? 'pending' : ''}} {{item.resultStatus}}"
           >
             <text>{{item.icon}} {{item.name}}</text>
           </view>
         </view>
       </view>
 
-      <view class="player-action-grid role-action-grid">
+      <view wx:if="{{entries.length}}" class="player-action-grid role-action-grid">
         <view wx:for="{{entries}}" wx:key="title" data-route="{{item.route}}" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
           <view class="player-action-icon">
             <view wx:if="{{item.routeIcon}}" class="player-lobby-icon">
@@ -99,6 +104,7 @@
                 <image class="player-lobby-icon-piece player-lobby-icon-pin-end" src="/pages/home/player/assets/lobby-route-pin-end.png" mode="scaleToFill" />
               </view>
             </view>
+            <image wx:elif="{{item.iconSrc}}" class="player-action-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
             <text wx:else class="player-action-icon-text">{{item.icon}}</text>
           </view>
           <text class="player-action-title">{{item.title}}</text>
@@ -183,15 +189,15 @@
           <view class="role-skill-line top"></view>
           <view class="role-skill-line bottom"></view>
 
-          <view class="role-skill-node-wrap start">
-            <view class="role-skill-node unlocked green">
+          <view class="role-skill-node-wrap start {{skills[0].locked ? 'locked' : ''}}">
+            <view class="role-skill-node {{skills[0].locked ? 'locked' : 'unlocked'}} {{skills[0].tone}}">
               <text>{{skills[0].icon}}</text>
             </view>
             <text class="role-skill-node-label">{{skills[0].title}}</text>
           </view>
 
-          <view class="role-skill-node-wrap middle">
-            <view class="role-skill-node unlocked orange">
+          <view class="role-skill-node-wrap middle {{skills[1].locked ? 'locked' : ''}}">
+            <view class="role-skill-node {{skills[1].locked ? 'locked' : 'unlocked'}} {{skills[1].tone}}">
               <text>{{skills[1].icon}}</text>
             </view>
             <text class="role-skill-node-label">{{skills[1].title}}</text>
@@ -203,8 +209,8 @@
             </view>
           </view>
 
-          <view class="role-skill-node-wrap locked bottom">
-            <view class="role-skill-node locked">
+          <view class="role-skill-node-wrap bottom {{skills[2].locked ? 'locked' : ''}}">
+            <view class="role-skill-node {{skills[2].locked ? 'locked' : 'unlocked'}} {{skills[2].tone}}">
               <text>{{skills[2].icon}}</text>
             </view>
             <text class="role-skill-node-label">{{skills[2].title}}</text>
@@ -254,44 +260,50 @@
       </view>
       <text wx:if="{{mainSection.desc}}" class="role-section-desc">{{mainSection.desc}}</text>
 
-      <block wx:for="{{mainGames}}" wx:key="title">
-        <view
-          wx:if="{{currentRoleType === 'expert' && (mainFilter === 'all' || item.scope === mainFilter)}}"
-          class="role-session-card"
-          data-route="{{item.route}}"
-          bindtap="handleActionTap"
-        >
-          <view class="role-session-time">
-            <text>{{item.startTime}}</text>
-            <text>{{item.day}}</text>
-          </view>
-          <view class="role-session-divider"></view>
-          <view class="role-session-main">
-            <text class="role-session-title">{{item.title}}</text>
-            <text class="role-session-date">⏰ {{item.date}}</text>
-            <text class="role-session-meta">📍 {{item.venue}} · 👥 {{item.members}}</text>
-            <view class="role-session-tags">
-              <text wx:for="{{item.sessionTags}}" wx:key="*this" class="{{index === 1 ? 'green' : ''}}">{{item}}</text>
+      <block wx:if="{{mainVisibleGames.length}}">
+        <block wx:for="{{mainVisibleGames}}" wx:key="title">
+          <view
+            wx:if="{{currentRoleType === 'expert'}}"
+            class="role-session-card"
+            data-route="{{item.route}}"
+            bindtap="handleActionTap"
+          >
+            <view class="role-session-time">
+              <text>{{item.startTime}}</text>
+              <text>{{item.day}}</text>
+            </view>
+            <view class="role-session-divider"></view>
+            <view class="role-session-main">
+              <text class="role-session-title">{{item.title}}</text>
+              <text class="role-session-date">⏰ {{item.date}}</text>
+              <text class="role-session-meta">📍 {{item.venue}} · 👥 {{item.members}}</text>
+              <view class="role-session-tags">
+                <text wx:for="{{item.sessionTags}}" wx:key="*this" class="{{index === 1 ? 'green' : ''}}">{{item}}</text>
+              </view>
+            </view>
+            <view class="role-session-income">
+              <text>{{item.income}}</text>
+              <text>预计收入</text>
+            </view>
+            <view class="role-session-players">
+              <view wx:for="{{item.playerAvatars}}" wx:key="index" class="role-session-avatar">
+                <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
+                <text wx:else>{{item.text}}</text>
+              </view>
+              <text wx:if="{{item.joinedText}}" class="role-session-joined">{{item.joinedText}}</text>
             </view>
           </view>
-          <view class="role-session-income">
-            <text>{{item.income}}</text>
-            <text>预计收入</text>
-          </view>
-          <view class="role-session-players">
-            <view wx:for="{{item.playerAvatars}}" wx:key="index" class="role-session-avatar">
-              <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
-              <text wx:else>{{item.text}}</text>
-            </view>
-            <text wx:if="{{item.joinedText}}" class="role-session-joined">{{item.joinedText}}</text>
-          </view>
-        </view>
-        <game-card
-          wx:elif="{{mainFilter === 'all' || item.scope === mainFilter}}"
-          item="{{item}}"
-          bind:cardtap="handleActionTap"
-        />
+          <game-card
+            wx:else
+            item="{{item}}"
+            bind:cardtap="handleActionTap"
+          />
+        </block>
       </block>
+      <view wx:else class="role-main-empty-card">
+        <text class="role-main-empty-title">{{mainEmptyText}}</text>
+        <text class="role-main-empty-desc">可以切换全部或同城看看</text>
+      </view>
 
       <view wx:if="{{currentRoleType === 'expert' && review}}" class="role-review-panel">
         <view class="player-panel-head player-achievement-head role-review-head">
@@ -329,13 +341,8 @@
         <view class="role-recommend-list">
           <view wx:for="{{recommendation.items}}" wx:key="id" class="role-recommend-item avatar-{{index}}">
             <view class="role-recommend-avatar">
-              <view class="role-recommend-avatar-hair"></view>
-              <view class="role-recommend-avatar-face">
-                <view class="role-recommend-avatar-eye left"></view>
-                <view class="role-recommend-avatar-eye right"></view>
-                <view class="role-recommend-avatar-mouth"></view>
-              </view>
-              <view class="role-recommend-avatar-shirt"></view>
+              <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" />
+              <text wx:elif="{{item.avatarFallback}}">{{item.avatarFallback}}</text>
             </view>
           </view>
         </view>
@@ -375,7 +382,7 @@
           </view>
         </view>
 
-        <view class="player-rank-row me">
+        <view wx:if="{{showMyRank}}" class="player-rank-row me">
           <text class="player-rank-no">{{myRank.rank}}</text>
           <view class="player-rank-avatar me">
             <image wx:if="{{myRank.avatarUrl}}" src="{{myRank.avatarUrl}}" mode="aspectFill" />
@@ -405,18 +412,17 @@
           <view
             wx:for="{{achievements}}"
             wx:key="id"
-            class="player-achievement {{item.tone}} {{item.unlocked ? '' : 'locked'}}"
+            class="player-achievement {{item.tone}} {{item.locked ? 'locked' : ''}}"
           >
             <view class="player-achievement-medal">
               <view class="player-achievement-face">
-                <view wx:if="{{item.unlocked}}" class="player-achievement-icon-wrap">
+                <view wx:if="{{!item.locked}}" class="player-achievement-icon-wrap">
                   <text class="player-achievement-icon">{{item.icon}}</text>
                 </view>
-                <view wx:else class="player-achievement-lock-icon">
-                  <view class="player-achievement-lock-shackle"></view>
-                  <view class="player-achievement-lock-body"></view>
+                <view wx:else class="player-achievement-icon-wrap locked">
+                  <text class="player-achievement-icon">{{item.icon}}</text>
                 </view>
-                <text class="player-achievement-title">{{item.title}}</text>
+                <text wx:if="{{!item.locked}}" class="player-achievement-title">{{item.title}}</text>
                 <view wx:if="{{item.showProgress}}" class="player-achievement-progress">
                   <view
                     class="player-achievement-progress-fill"
@@ -471,6 +477,7 @@
           <text class="player-metaverse-triangle">△</text>
         </view>
       </view>
+      </block>
     </view>
   </scroll-view>
 </home-shell>
