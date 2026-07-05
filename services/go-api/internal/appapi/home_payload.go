@@ -806,31 +806,121 @@ func (s *Server) homeGameCards(items []games.Game, scope string, limit int) []ma
 	cards := make([]map[string]interface{}, 0, limit)
 	for index := 0; index < limit; index++ {
 		game := items[index]
+		typeText := homeGameTypeText(game.GameType)
+		statusText := homeGameStatusText(game.Status)
+		memberText := strconv.Itoa(game.CurrentPlayers) + "/" + strconv.Itoa(game.MaxPlayers) + "\u4eba"
+		schedule := homeGameScheduleText(game)
+		coverSrc := strings.TrimSpace(game.CoverImage)
+		if coverSrc == "" {
+			coverSrc = homeGameCover(index)
+		}
 		cards = append(cards, map[string]interface{}{
-			"id":            game.ID,
-			"route":         "pages/game/detail/index?id=" + strconv.FormatInt(game.ID, 10),
-			"scope":         scope,
-			"title":         game.Title,
-			"typeText":      homeGameTypeText(game.GameType),
-			"statusText":    homeGameStatusText(game.Status),
-			"coverSrc":      homeGameCover(index),
-			"priceText":     homeGamePriceText(game.GameType),
-			"actionText":    homeGameActionText(game.Status),
-			"cityName":      game.CityName,
-			"address":       game.Address,
-			"distanceText":  game.DistanceLabel,
-			"memberText":    strconv.Itoa(game.CurrentPlayers) + "/" + strconv.Itoa(game.MaxPlayers) + "\u4eba",
-			"timeText":      game.CreatedAt.Format("2006-01-02 15:04"),
-			"joinedCount":   game.CurrentPlayers,
-			"joinedText":    "+" + strconv.Itoa(game.CurrentPlayers) + "\u4f4d\u73a9\u5bb6\u5df2\u5165\u5c40",
-			"playerAvatars": s.homeGamePlayerAvatars(game),
-			"actions":       []string{"share", "follow", "refer", "greet"},
-			"longitude":     game.Longitude,
-			"latitude":      game.Latitude,
-			"creatorUserId": game.CreatorUserID,
+			"id":                game.ID,
+			"route":             "pages/game/detail/index?id=" + strconv.FormatInt(game.ID, 10),
+			"scope":             scope,
+			"title":             game.Title,
+			"typeText":          typeText,
+			"statusText":        statusText,
+			"sessionTags":       []string{typeText, statusText},
+			"coverSrc":          coverSrc,
+			"priceText":         homeGamePlayerPriceText(game),
+			"playerPriceText":   homeGamePlayerPriceText(game),
+			"expertIncomeText":  homeGameExpertIncomeText(game),
+			"incomeText":        homeGameExpertIncomeText(game),
+			"actionText":        homeGameActionText(game.Status),
+			"cityName":          game.CityName,
+			"address":           game.Address,
+			"distanceText":      game.DistanceLabel,
+			"memberText":        memberText,
+			"locationText":      homeGamePlayerLocationText(game, memberText),
+			"expertVenueText":   homeGameExpertVenueText(game),
+			"expertMembersText": memberText,
+			"startTime":         schedule.startTime,
+			"dayText":           schedule.dayText,
+			"dateText":          schedule.dateText,
+			"scheduleText":      schedule.dateText,
+			"timeText":          schedule.dateText,
+			"playerTimeText":    schedule.dateText,
+			"joinedCount":       game.CurrentPlayers,
+			"joinedText":        "+" + strconv.Itoa(game.CurrentPlayers) + "\u4f4d\u73a9\u5bb6\u5df2\u5165\u5c40",
+			"playerAvatars":     s.homeGamePlayerAvatars(game),
+			"actions":           []string{"share", "follow", "refer", "greet"},
+			"longitude":         game.Longitude,
+			"latitude":          game.Latitude,
+			"creatorUserId":     game.CreatorUserID,
 		})
 	}
 	return cards
+}
+
+type homeGameScheduleTexts struct {
+	startTime string
+	dayText   string
+	dateText  string
+}
+
+func homeGameScheduleText(game games.Game) homeGameScheduleTexts {
+	startAt, hasStart := parseHomeGameTime(game.StartAt)
+	endAt, hasEnd := parseHomeGameTime(game.EndAt)
+	displayAt := game.CreatedAt
+	if hasStart {
+		displayAt = startAt
+	}
+
+	dateText := displayAt.Format("2006-01-02 15:04")
+	if hasStart && hasEnd {
+		if sameDate(startAt, endAt) {
+			dateText = startAt.Format("2006\u5e741\u67082\u65e5 15:04") + "-" + endAt.Format("15:04")
+		} else {
+			dateText = startAt.Format("2006\u5e741\u67082\u65e5 15:04") + "-" + endAt.Format("1\u67082\u65e5 15:04")
+		}
+	}
+
+	return homeGameScheduleTexts{
+		startTime: displayAt.Format("15:04"),
+		dayText:   homeGameDayText(displayAt),
+		dateText:  dateText,
+	}
+}
+
+func parseHomeGameTime(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
+		"2006/01/02 15:04",
+		"2006-01-02",
+	}
+	for _, format := range formats {
+		if parsed, err := time.ParseInLocation(format, value, time.Local); err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func sameDate(left time.Time, right time.Time) bool {
+	leftYear, leftMonth, leftDay := left.Date()
+	rightYear, rightMonth, rightDay := right.Date()
+	return leftYear == rightYear && leftMonth == rightMonth && leftDay == rightDay
+}
+
+func homeGameDayText(value time.Time) string {
+	now := time.Now()
+	if sameDate(value, now) {
+		return "\u4eca\u5929"
+	}
+	if sameDate(value, now.AddDate(0, 0, 1)) {
+		return "\u660e\u5929"
+	}
+	return value.Format("01/02")
 }
 
 func homeGameTypeText(gameType string) string {
@@ -869,11 +959,50 @@ func homeGameStatusText(status string) string {
 	}
 }
 
-func homeGamePriceText(gameType string) string {
-	if gameType == "" || gameType == "free" {
-		return "\u514d\u8d39"
+func homeGamePlayerPriceText(game games.Game) string {
+	if game.Price <= 0 {
+		return "\u00a50/\u4eba"
 	}
-	return "\u540e\u53f0\u5f00\u5c40"
+	return "\u00a5" + strconv.FormatFloat(game.Price, 'f', 0, 64) + "/\u4eba"
+}
+
+func homeGameExpertIncomeText(game games.Game) string {
+	if game.Price <= 0 {
+		return "\u00a50"
+	}
+	return "\u00a5" + strconv.FormatFloat(game.Price, 'f', 0, 64)
+}
+
+func homeGamePlayerLocationText(game games.Game, memberText string) string {
+	parts := []string{}
+	if strings.TrimSpace(game.CityName) != "" {
+		parts = append(parts, strings.TrimSpace(game.CityName))
+	} else if strings.TrimSpace(game.Address) != "" {
+		parts = append(parts, strings.TrimSpace(game.Address))
+	}
+	if strings.TrimSpace(game.DistanceLabel) != "" {
+		parts = append(parts, strings.TrimSpace(game.DistanceLabel))
+	}
+	if strings.TrimSpace(memberText) != "" {
+		parts = append(parts, strings.TrimSpace(memberText))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "\U0001f4cd" + strings.Join(parts, " \u00b7 ")
+}
+
+func homeGameExpertVenueText(game games.Game) string {
+	parts := []string{}
+	if strings.TrimSpace(game.Address) != "" {
+		parts = append(parts, strings.TrimSpace(game.Address))
+	} else if strings.TrimSpace(game.CityName) != "" {
+		parts = append(parts, strings.TrimSpace(game.CityName))
+	}
+	if strings.TrimSpace(game.DistanceLabel) != "" {
+		parts = append(parts, strings.TrimSpace(game.DistanceLabel))
+	}
+	return strings.Join(parts, " \u00b7 ")
 }
 
 func homeGameActionText(status string) string {
@@ -905,23 +1034,80 @@ func (s *Server) homeRankingSection() map[string]interface{} {
 }
 
 func (s *Server) homeRankingBoards(userID int64, user users.User, stats games.UserStats, growth reviews.GrowthProfile, conns []connections.Connection) map[string]interface{} {
-	me := s.homeRankingItem(1, userID, homeDisplayName(user, s.displayName(userID, "\u7528\u6237")), stats, growth, true)
-	networkItems := make([]map[string]interface{}, 0, len(conns))
-	for index, conn := range conns {
-		connUser, _ := s.auth.UserByID(conn.ConnectedUserID)
-		connStats := s.games.StatsForUser(conn.ConnectedUserID)
-		connGrowth := s.reviews.Profile(conn.ConnectedUserID)
-		networkItems = append(networkItems, s.homeRankingItem(index+1, conn.ConnectedUserID, homeDisplayName(connUser, s.displayName(conn.ConnectedUserID, "\u7528\u6237")), connStats, connGrowth, false))
+	type rankingCandidate struct {
+		userID   int64
+		name     string
+		stats    games.UserStats
+		growth   reviews.GrowthProfile
+		isMe     bool
+		strength int
+		score    int
 	}
-	if len(networkItems) == 0 {
-		networkItems = append(networkItems, me)
+
+	candidates := []rankingCandidate{{
+		userID: userID,
+		name:   homeDisplayName(user, s.displayName(userID, "\u7528\u6237")),
+		stats:  stats,
+		growth: growth,
+		isMe:   true,
+		score:  homeRankingScore(stats, growth),
+	}}
+	strengthByUser := make(map[int64]int, len(conns))
+	for _, conn := range conns {
+		if conn.ConnectedUserID <= 0 || conn.ConnectedUserID == userID {
+			continue
+		}
+		strengthByUser[conn.ConnectedUserID] += maxInt(0, conn.StrengthScore)
 	}
-	board := map[string]interface{}{"list": networkItems, "myRank": me}
+
+	for connectedUserID, strength := range strengthByUser {
+		connUser, _ := s.auth.UserByID(connectedUserID)
+		connStats := s.games.StatsForUser(connectedUserID)
+		connGrowth := s.reviews.Profile(connectedUserID)
+		candidates = append(candidates, rankingCandidate{
+			userID:   connectedUserID,
+			name:     homeDisplayName(connUser, s.displayName(connectedUserID, "\u7528\u6237")),
+			stats:    connStats,
+			growth:   connGrowth,
+			strength: strength,
+			score:    homeRankingScore(connStats, connGrowth),
+		})
+	}
+
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].score != candidates[j].score {
+			return candidates[i].score > candidates[j].score
+		}
+		if candidates[i].strength != candidates[j].strength {
+			return candidates[i].strength > candidates[j].strength
+		}
+		return candidates[i].userID < candidates[j].userID
+	})
+
+	networkItems := make([]map[string]interface{}, 0, len(candidates))
+	myRank := map[string]interface{}{}
+	for index, candidate := range candidates {
+		item := s.homeRankingItem(index+1, candidate.userID, candidate.name, candidate.stats, candidate.growth, candidate.isMe)
+		if candidate.isMe {
+			myRank = item
+			continue
+		}
+		networkItems = append(networkItems, item)
+	}
+
+	board := map[string]interface{}{"list": networkItems, "myRank": map[string]interface{}{}}
+	if len(myRank) > 0 {
+		board["myRank"] = myRank
+	}
 	return map[string]interface{}{
 		"player": board,
 		"expert": board,
 		"guide":  board,
 	}
+}
+
+func homeRankingScore(stats games.UserStats, growth reviews.GrowthProfile) int {
+	return growth.Experience + stats.Participated*100 + len(growth.Achievements)*200
 }
 
 func (s *Server) homeRankingItem(rank int, userID int64, name string, stats games.UserStats, growth reviews.GrowthProfile, isMe bool) map[string]interface{} {

@@ -9,7 +9,13 @@
   <text class="game-card-meta time">{{item.time}}</text>
   <text class="game-card-join">{{item.action}}</text>
   <view class="game-card-avatars">
-    <block wx:if="{{item.avatarUrls && item.avatarUrls.length}}">
+    <block wx:if="{{item.playerAvatars && item.playerAvatars.length}}">
+      <block wx:for="{{item.playerAvatars}}" wx:for-item="avatar" wx:for-index="avatarIndex" wx:key="index">
+        <image wx:if="{{avatar.imageUrl}}" src="{{avatar.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="game-card-avatar-fallback tone-{{avatarIndex}}">{{avatar.text}}</view>
+      </block>
+    </block>
+    <block wx:elif="{{item.avatarUrls && item.avatarUrls.length}}">
       <image wx:for="{{item.avatarUrls}}" wx:for-item="avatar" wx:key="*this" src="{{avatar}}" mode="aspectFill" />
     </block>
     <block wx:elif="{{item.avatarFallbacks && item.avatarFallbacks.length}}">

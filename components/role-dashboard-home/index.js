@@ -1095,31 +1095,40 @@ Component({
         return []
       }
 
-      return games.map((item, index) => ({
-        id: this.resolveGameCardId(item),
-        scope: item.scope || item.distanceScope || (index === 0 ? 'nearby' : 'city'),
-        scopes: Array.isArray(item.scopes) && item.scopes.length
-          ? item.scopes
-          : [item.scope || item.distanceScope || (index === 0 ? 'nearby' : 'city')],
-        title: item.title,
-        startTime: item.time || item.startTime || '',
-        day: item.day || item.dayText || '',
-        date: item.dateText || item.timeText || item.date || '',
-        venue: item.locationText || item.location || this.formatExpertVenue(item.meta),
-        members: item.memberText || item.members || this.formatExpertMembers(item.meta),
-        tag: this.formatGameTag(item),
-        sessionTags: this.formatSessionTags(item),
-        coverSrc: item.coverUrl || item.coverSrc || item.cover || (index % 2 ? '/components/game-card/assets/cover-sunset.png' : '/components/game-card/assets/cover-city.png'),
-        price: item.priceText || item.price || item.income || '',
-        income: item.income || item.priceText || item.price || '',
-        action: item.actionText || item.action || '查看',
-        location: item.locationText || this.formatGameLocation(item) || item.meta || item.location || '',
-        time: item.timeText || item.dateText || item.time || '',
-        joinedText: item.joinedText || item.peopleText || this.formatJoinedText(item.joinedCount) || '+3位玩家已入局',
-        playerAvatars: this.formatSessionAvatars(item),
-        actions: this.formatGameActions(item.actions),
-        route: this.resolveGameCardRoute(item)
-      }))
+      return games.map((item, index) => {
+        const playerAvatars = this.formatSessionAvatars(item)
+        const scope = item.scope || item.distanceScope || (index === 0 ? 'nearby' : 'city')
+
+        return {
+          id: this.resolveGameCardId(item),
+          scope,
+          scopes: Array.isArray(item.scopes) && item.scopes.length
+            ? item.scopes
+            : [scope],
+          title: item.title,
+          startTime: item.startTime || item.time || '',
+          day: item.dayText || item.day || '',
+          date: item.scheduleText || item.dateText || item.timeText || item.date || '',
+          venue: item.expertVenueText || item.venueText || item.venue || this.formatExpertVenue(item.meta),
+          members: item.expertMembersText || item.memberText || item.members || this.formatExpertMembers(item.meta),
+          tag: this.formatGameTag(item),
+          sessionTags: this.formatSessionTags(item),
+          coverSrc: item.coverUrl || item.coverSrc || item.cover || '',
+          price: item.playerPriceText || item.priceText || item.price || '',
+          income: item.expertIncomeText || item.incomeText || item.income || item.priceText || item.price || '',
+          action: item.actionText || item.action || '查看',
+          location: item.locationText || this.formatGameLocation(item) || item.meta || item.location || '',
+          time: item.playerTimeText || item.timeText || item.dateText || item.time || '',
+          joinedText: item.joinedText || item.peopleText || this.formatJoinedText(item.joinedCount) || '',
+          playerAvatars,
+          avatarUrls: playerAvatars.map((avatar) => avatar.imageUrl).filter(Boolean),
+          avatarFallbacks: playerAvatars
+            .filter((avatar) => !avatar.imageUrl && avatar.text)
+            .map((avatar) => avatar.text),
+          actions: this.formatGameActions(item.actions),
+          route: this.resolveGameCardRoute(item)
+        }
+      })
     },
 
     mergeMainGameGroups(groups = []) {
@@ -1210,7 +1219,8 @@ Component({
     },
 
     formatSessionTags(item = {}) {
-      const tags = Array.isArray(item.tags) ? item.tags : []
+      const sessionTags = Array.isArray(item.sessionTags) ? item.sessionTags : []
+      const tags = sessionTags.length ? sessionTags : (Array.isArray(item.tags) ? item.tags : [])
       const typeTag = item.typeText || item.gameTypeText || item.categoryText || tags[0] || ''
       const statusTag = item.statusText || item.status || item.tagText || tags[1] || ''
 
