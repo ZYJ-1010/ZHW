@@ -39,6 +39,16 @@ Go API：
 curl http://127.0.0.1:8080/health
 ```
 
+小程序本地联调 token：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\issue-local-app-token.ps1 -UserId 6 -Days 7
+```
+
+脚本会按本地认证链路写入 `app_auth_sessions`，输出可放进微信开发者工具编译模式的 `devToken=...`。小程序启动时 `app.js` 会读取 query 里的 `devToken` 并写入 `wx.setStorageSync('enjoy_token', token)`，之后所有 `api/request.js` 请求都会携带 `Authorization: Bearer <token>`。
+
+默认读取 `.env.local`、`.env` 或 `.env.example` 里的 `DATABASE_URL`，并优先使用 `E:\zhw-local-runtime\tools\pgsql\bin\psql.exe`。`project.private.config.json` 可以本地保存真实 `devToken`，但不要提交。
+
 Java 资金服务：
 
 ```bash

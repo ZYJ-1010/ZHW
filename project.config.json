@@ -1,7 +1,12 @@
 {
   "description": "Enjoy miniprogram frontend",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "/minitest"
+      }
+    ],
     "include": []
   },
   "setting": {

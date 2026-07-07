@@ -3,6 +3,27 @@ const env = require('./config/env')
 
 const appLogger = logger.createLogger('app')
 
+function formatGlobalError(error) {
+  if (error == null) {
+    return {
+      message: ''
+    }
+  }
+
+  if (typeof error === 'string') {
+    return {
+      message: error
+    }
+  }
+
+  return {
+    name: String(error.name || 'Error'),
+    message: String(error.message || error.errMsg || error),
+    stack: String(error.stack || ''),
+    errMsg: error.errMsg ? String(error.errMsg) : ''
+  }
+}
+
 function normalizeDevToken(value) {
   const token = String(value || '').trim()
 
@@ -40,16 +61,12 @@ App({
   },
 
   onError(error) {
-    appLogger.error('app error', {
-      error
-    })
+    appLogger.error('app error', formatGlobalError(error))
   },
 
   onUnhandledRejection(event) {
     const reason = event && (event.reason || event.errMsg || event.message || event)
 
-    appLogger.error('unhandled rejection', {
-      reason
-    })
+    appLogger.error('unhandled rejection', formatGlobalError(reason))
   }
 })
