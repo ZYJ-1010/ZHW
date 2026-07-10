@@ -1,0 +1,44 @@
+<view class="participants-shell-page">
+  <view class="participants-shell-stage">
+    <view class="participants-shell-frame" style="{{whiteShellLayout.frameStyle}}">
+      <view class="participants-white-top-bg"></view>
+
+      <view class="participants-white-nav">
+        <button class="participants-nav-button" style="{{whiteShellLayout.backStyle}}" hover-class="participants-nav-button--active" bindtap="handleBack">
+          <view class="participants-chevron-left"></view>
+        </button>
+        <text class="participants-nav-title" style="{{whiteShellLayout.titleStyle}}">参与者</text>
+      </view>
+
+      <scroll-view
+        class="participants-phone-panel"
+        style="{{whiteShellLayout.contentStyle}}"
+        scroll-y
+        enhanced
+        show-scrollbar="false"
+        enable-back-to-top
+      >
+        <view class="participants-content">
+          <view class="participants-count-row">
+            <text>参与者（{{participants.length}}人）</text>
+          </view>
+
+          <view wx:if="{{participants.length}}" class="participants-list">
+            <participant-card
+              wx:for="{{participants}}"
+              wx:key="id"
+              participant="{{item}}"
+              bind:tapcard="onParticipantTap"
+            />
+          </view>
+
+          <view wx:else class="participants-empty">
+            <text>暂无参与者</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="participants-white-bottom-bg" style="{{whiteShellLayout.bottomStyle}}"></view>
+    </view>
+  </view>
+</view>

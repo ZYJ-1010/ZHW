@@ -1,0 +1,67 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{pageTitle}}"
+  shell-variant="joinApply"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="friend-message-page">
+    <scroll-view
+      class="friend-message-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-top="{{chatScrollTop}}"
+      scroll-with-animation
+    >
+      <view class="friend-message-body">
+        <view class="friend-profile">
+          <view class="friend-avatar">
+            <text>{{friend.initials}}</text>
+            <view class="friend-online"></view>
+          </view>
+          <view class="friend-profile-copy">
+            <text class="friend-name">{{friend.name}}</text>
+            <text class="friend-status">{{friend.status}}</text>
+          </view>
+        </view>
+
+        <view class="message-list">
+          <view
+            wx:for="{{messages}}"
+            wx:key="id"
+            class="chat-row {{item.type === 'self' ? 'self' : 'friend'}}"
+          >
+            <text class="chat-time">{{item.timeText}}</text>
+            <view class="chat-bubble">{{item.text}}</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="friend-message-input-zone">
+      <view class="quick-action-row">
+        <button
+          wx:for="{{quickActions}}"
+          wx:key="key"
+          class="quick-action"
+          hover-class="none"
+          data-key="{{item.key}}"
+          bindtap="onQuickActionTap"
+        >
+          <text>{{item.label}}</text>
+        </button>
+      </view>
+      <chat-input-bar
+        bindsendtext="onSendMessage"
+        bindrecordstart="onRecordStart"
+        bindrecordstop="onRecordStop"
+        bindrecorderror="onRecordError"
+        bindchooseimage="onChooseImage"
+        bindchoosefile="onChooseFile"
+      />
+    </view>
+  </view>
+</home-shell>

@@ -1,0 +1,54 @@
+.cancel-agreement-row {
+  display: flex;
+  align-items: flex-start;
+  width: 686rpx;
+  margin: 28rpx 0 0;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.cancel-agreement-row.player {
+  width: 684rpx;
+  margin-top: 28rpx;
+}
+
+.cancel-agreement-check {
+  position: relative;
+  flex: none;
+  width: 30rpx;
+  height: 30rpx;
+  margin: 0 14rpx 0 2rpx;
+  border: 2rpx solid #d1d5db;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.cancel-agreement-check.checked {
+  border-color: #3b82f6;
+  background: #3b82f6;
+}
+
+.cancel-agreement-row.player .cancel-agreement-check.checked {
+  border-color: #1890ff;
+  background: #1890ff;
+}
+
+.cancel-agreement-check.checked::after {
+  position: absolute;
+  left: 8rpx;
+  top: 3rpx;
+  width: 8rpx;
+  height: 14rpx;
+  border-right: 4rpx solid #ffffff;
+  border-bottom: 4rpx solid #ffffff;
+  transform: rotate(42deg);
+  content: '';
+}
+
+.cancel-agreement-text {
+  flex: 1;
+  display: block;
+  color: #6b7280;
+  font-size: 23rpx;
+  line-height: 34rpx;
+}

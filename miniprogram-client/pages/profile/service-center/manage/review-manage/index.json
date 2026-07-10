@@ -1,0 +1,6 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "home-apply-shell": "/components/home-apply-shell/index"
+  }
+}

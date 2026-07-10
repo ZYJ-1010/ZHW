@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "组局大厅",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "game-card": "/components/game-card/index"
+  }
+}

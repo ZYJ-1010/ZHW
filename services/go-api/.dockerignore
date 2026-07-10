@@ -1,0 +1,10 @@
+.cache/
+.gocache/
+.gotmp/
+**/.cache/
+**/.gocache/
+**/.gotmp/
+*.test
+*.log
+coverage/
+tmp/

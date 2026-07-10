@@ -1,0 +1,74 @@
+<profile-white-shell title="邀约记录" title-weight="400" background="#050b14" nav-background="#050b14" title-color="#ffffff" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff" right-type="filter" right-color="#65748a">
+  <view class="invite-page records-page dark-page">
+    <view class="role-tabs">
+      <button wx:for="{{roleTabs}}" wx:key="key" class="role-tab {{activeRole === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleRoleTap">{{item.label}}</button>
+    </view>
+
+    <view class="filter-strip">
+      <button wx:for="{{filters}}" wx:key="key" class="filter-chip {{activeStatus === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleFilterTap">{{item.label}}</button>
+    </view>
+
+    <view wx:if="{{warning}}" class="warning-card" bindtap="handleWarningTap">
+      <image class="warning-icon" src="./assets/warning-red.svg" mode="aspectFit"></image>
+      <view class="warning-copy">
+        <text class="warning-title">{{warning.title}}</text>
+        <text class="warning-desc">{{warning.desc}}</text>
+      </view>
+      <text class="warning-arrow">›</text>
+    </view>
+
+    <view wx:for="{{records}}" wx:key="id" class="invite-card {{item.compact ? 'is-compact' : ''}}">
+      <view class="invite-card-head">
+        <view class="invite-card-meta">
+          <text class="invite-card-status {{item.statusClass}}">{{item.status}}</text>
+          <text class="invite-card-id">{{item.id}}</text>
+        </view>
+        <text class="invite-card-time">{{item.time}}</text>
+      </view>
+
+      <view wx:if="{{!item.compact}}" class="invite-card-relation">
+        <view class="invite-card-person">
+          <text class="invite-card-avatar expert">{{item.expertAvatar}}</text>
+          <view class="invite-card-person-copy">
+            <text class="invite-card-person-name">{{item.expert}}</text>
+            <text class="invite-card-role expert">行家</text>
+          </view>
+        </view>
+        <view class="invite-card-me">
+          <image wx:if="{{item.statusKey !== 'completed'}}" class="invite-card-handshake" src="https://static.haowan.net.cn/miniprogram/pages/game/referral-record/assets/handshake.png" mode="aspectFit"></image>
+          <text wx:else class="invite-card-check">✓</text>
+          <text class="invite-card-me-line {{item.statusKey === 'completed' ? 'completed' : ''}}"></text>
+          <text>我</text>
+        </view>
+        <view class="invite-card-person right">
+          <text class="invite-card-avatar player">{{item.playerAvatar}}</text>
+          <view class="invite-card-person-copy">
+            <text class="invite-card-person-name">{{item.player}}</text>
+            <text class="invite-card-role player">玩家</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:else class="invite-card-compact-person">
+        <text class="invite-card-avatar muted">{{item.expertAvatar}}</text>
+        <view class="invite-card-person-copy">
+          <text class="invite-card-person-name">{{item.expert}}</text>
+          <text class="invite-card-role muted">{{item.status}}</text>
+        </view>
+      </view>
+
+      <view class="invite-card-bottom">
+        <view class="invite-card-summary">
+          <text class="invite-card-title">{{item.title}}</text>
+          <text wx:if="{{item.budget}}" class="invite-card-budget">{{item.budget}}</text>
+        </view>
+        <text wx:if="{{item.income}}" class="invite-card-income">{{item.income}}</text>
+        <view wx:else class="invite-card-arrow" data-id="{{item.id}}" bindtap="handleRecordTap"></view>
+      </view>
+
+      <text wx:if="{{item.warning}}" class="timeout-note">{{item.warning}}</text>
+    </view>
+
+    <view wx:if="{{!records.length}}" class="empty-records">暂无邀约记录</view>
+  </view>
+</profile-white-shell>

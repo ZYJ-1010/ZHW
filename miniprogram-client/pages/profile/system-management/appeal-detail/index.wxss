@@ -1,0 +1,75 @@
+@import "../report-center/shared.wxss";
+
+.original-reason {
+  margin-top: 28rpx;
+}
+
+.report-page,
+.report-page view,
+.report-page text,
+.report-bottom-actions,
+.report-bottom-actions view,
+.report-bottom-actions text {
+  font-weight: 400 !important;
+}
+
+.report-page .section-title,
+.report-page .status-main,
+.report-page .info-value,
+.report-page .paragraph,
+.report-page .timeline-title,
+.report-bottom-actions .primary-report-button,
+.report-bottom-actions .secondary-report-button {
+  font-weight: 400 !important;
+}
+
+.appeal-detail-page .section-title {
+  font-size: 32rpx;
+  line-height: 44rpx;
+}
+
+.appeal-detail-page .info-label {
+  color: #6f7e96;
+  font-size: 27rpx;
+  font-weight: normal !important;
+  line-height: 40rpx;
+}
+
+.appeal-detail-page .info-value {
+  color: #d8e2f2;
+  font-size: 27rpx;
+  font-weight: normal !important;
+  line-height: 40rpx;
+}
+
+.appeal-detail-page .appeal-status-value {
+  color: #ffc928;
+  font-size: 27rpx;
+  font-weight: normal !important;
+  line-height: 40rpx;
+  text-align: right;
+}
+
+.appeal-detail-page .paragraph-label {
+  color: #6f7e96;
+  font-size: 27rpx;
+  font-weight: normal !important;
+}
+
+.appeal-detail-page .paragraph {
+  color: #c7d2e6;
+  font-size: 27rpx;
+  font-weight: normal !important;
+  line-height: 46rpx;
+}
+
+.appeal-detail-page .status-icon.warning {
+  background: #ffc928;
+}
+
+.appeal-detail-page .status-icon-symbol {
+  color: #112236;
+  font-size: 54rpx;
+  font-weight: 400 !important;
+  line-height: 1;
+}

@@ -1,0 +1,87 @@
+<home-shell
+  shell-class="achievement-master-shell"
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="achievement-page">
+    <text class="achievement-heading">成就墙</text>
+
+    <view class="achievement-hero">
+      <view class="achievement-hero-glow"></view>
+      <view class="achievement-crown-wrap">
+        <image class="achievement-crown" src="/pages/profile/footprint/achievements/assets/icon-crown.png" mode="aspectFit"></image>
+      </view>
+      <text class="achievement-level">{{levelTitle}}</text>
+      <text class="achievement-level-tip">{{levelTip}}</text>
+      <view class="achievement-progress">
+        <view class="achievement-progress-fill" style="width: {{progress}}%;"></view>
+      </view>
+    </view>
+
+    <scroll-view class="achievement-filter-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="achievement-filter-row">
+        <view
+          wx:for="{{filters}}"
+          wx:key="key"
+          class="achievement-filter {{activeFilter === item.key ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="handleFilterTap"
+        >
+          <text>{{item.label}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="achievement-section">
+      <text class="achievement-section-title">已获得 ({{achievedCount}})</text>
+      <view wx:if="{{achieved.length}}" class="achievement-grid">
+        <view wx:for="{{achieved}}" wx:key="id" class="achievement-card">
+          <view class="achievement-icon-bg tone-{{item.tone}}">
+            <image class="achievement-icon" src="{{item.icon}}" mode="aspectFit"></image>
+          </view>
+          <text class="achievement-card-title">{{item.title}}</text>
+          <text class="achievement-card-desc">{{item.desc}}</text>
+        </view>
+      </view>
+      <text wx:else class="achievement-empty">当前分类暂无已获得成就</text>
+    </view>
+
+    <view class="achievement-section">
+      <text class="achievement-section-title">未解锁 ({{lockedCount}})</text>
+      <view wx:if="{{locked.length}}" class="achievement-grid">
+        <view wx:for="{{locked}}" wx:key="id" class="achievement-card locked">
+          <view class="achievement-icon-bg tone-{{item.tone}}">
+            <image class="achievement-icon" src="{{item.icon}}" mode="aspectFit"></image>
+          </view>
+          <text class="achievement-card-title">{{item.title}}</text>
+          <text class="achievement-card-desc">{{item.desc}}</text>
+        </view>
+      </view>
+      <text wx:else class="achievement-empty">当前分类暂无未解锁成就</text>
+    </view>
+
+    <view class="season-card">
+      <view class="season-head">
+        <view class="season-title-row">
+          <image class="season-icon" src="/pages/profile/footprint/achievements/assets/icon-crown.png" mode="aspectFit"></image>
+          <text class="season-title">{{season.title}}</text>
+        </view>
+        <text class="season-status">{{season.status}}</text>
+      </view>
+      <text class="season-remain">{{season.remain}}</text>
+      <view class="season-stat-row">
+        <view class="season-stat">
+          <text class="season-stat-value gold">{{season.achieved}}</text>
+          <text class="season-stat-label">已获得</text>
+        </view>
+        <view class="season-stat">
+          <text class="season-stat-value gray">{{season.locked}}</text>
+          <text class="season-stat-label">未解锁</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</home-shell>

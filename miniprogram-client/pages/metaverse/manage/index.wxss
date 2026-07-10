@@ -1,0 +1,305 @@
+page {
+  width: 100%;
+  height: 100%;
+  background: #efefef;
+}
+
+.metaverse-manage {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  padding: 28rpx 32rpx 120rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(0, 210, 255, 0.24) 0, transparent 34%),
+    radial-gradient(circle at 16% 72%, rgba(131, 56, 236, 0.22) 0, transparent 38%),
+    radial-gradient(circle at 86% 56%, rgba(16, 185, 129, 0.18) 0, transparent 34%),
+    #000000;
+}
+
+.metaverse-manage__rings {
+  position: absolute;
+  left: 50%;
+  top: 156rpx;
+  width: 420rpx;
+  height: 420rpx;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.metaverse-manage__rings .ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2rpx solid rgba(0, 210, 255, 0.18);
+}
+
+.metaverse-manage__rings .ring-a {
+  inset: 0;
+}
+
+.metaverse-manage__rings .ring-b {
+  inset: 74rpx;
+  border-color: rgba(167, 139, 250, 0.22);
+}
+
+.metaverse-manage__rings .ring-c {
+  inset: 146rpx;
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+.metaverse-manage__profile {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  min-height: 134rpx;
+  padding: 18rpx 22rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(0, 210, 255, 0.3);
+  border-radius: 32rpx;
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.metaverse-manage__avatar {
+  position: relative;
+  flex: none;
+  width: 96rpx;
+  height: 96rpx;
+  margin-right: 20rpx;
+  border-radius: 50%;
+  background: conic-gradient(from 160deg, #00d2ff, #8b5cf6, #ec4899, #00d2ff);
+  box-shadow: 0 0 38rpx rgba(0, 210, 255, 0.32);
+}
+
+.metaverse-manage__avatar-face {
+  position: absolute;
+  inset: 10rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 34%, #c7d2fe 0 12rpx, transparent 13rpx), linear-gradient(180deg, #101827, #000000);
+}
+
+.metaverse-manage__avatar-face::after {
+  position: absolute;
+  left: 21rpx;
+  bottom: 16rpx;
+  width: 34rpx;
+  height: 16rpx;
+  border-radius: 18rpx 18rpx 4rpx 4rpx;
+  background: #c7d2fe;
+  content: '';
+}
+
+.metaverse-manage__profile-copy {
+  min-width: 0;
+}
+
+.metaverse-manage__id,
+.metaverse-manage__credit,
+.metaverse-manage__asset-name,
+.metaverse-manage__asset-value,
+.metaverse-manage__action-title,
+.metaverse-manage__action-desc {
+  display: block;
+}
+
+.metaverse-manage__id {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 42rpx;
+}
+
+.metaverse-manage__credit {
+  margin-top: 8rpx;
+  color: #10b981;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.metaverse-manage__roles {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14rpx;
+  margin-top: 22rpx;
+}
+
+.metaverse-manage__role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 58rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 999rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 24rpx;
+  line-height: 32rpx;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.metaverse-manage__role.active {
+  border-color: rgba(0, 210, 255, 0.58);
+  color: #00d2ff;
+  background: rgba(0, 210, 255, 0.12);
+}
+
+.metaverse-manage__asset-card {
+  position: relative;
+  z-index: 2;
+  margin-top: 24rpx;
+  padding: 24rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(139, 92, 246, 0.36);
+  border-radius: 34rpx;
+  background: rgba(10, 10, 28, 0.78);
+  box-shadow: 0 18rpx 48rpx rgba(0, 0, 0, 0.3);
+}
+
+.metaverse-manage__asset-head {
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 36rpx;
+}
+
+.metaverse-manage__asset-icon {
+  position: relative;
+  width: 42rpx;
+  height: 42rpx;
+  margin-right: 14rpx;
+  border-radius: 14rpx;
+  background: rgba(167, 139, 250, 0.16);
+}
+
+.metaverse-manage__asset-icon view {
+  position: absolute;
+  left: 10rpx;
+  top: 10rpx;
+  width: 22rpx;
+  height: 22rpx;
+  box-sizing: border-box;
+  border-left: 4rpx solid #a78bfa;
+  border-bottom: 4rpx solid #a78bfa;
+  transform: rotate(-45deg);
+}
+
+.metaverse-manage__asset-visual {
+  position: relative;
+  height: 190rpx;
+  margin-top: 24rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(0, 210, 255, 0.18), transparent),
+    linear-gradient(90deg, rgba(131, 56, 236, 0.22), rgba(0, 0, 0, 0.1));
+}
+
+.metaverse-manage__asset-visual::after {
+  position: absolute;
+  left: -36rpx;
+  right: -36rpx;
+  bottom: -72rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: rgba(0, 210, 255, 0.14);
+  content: '';
+}
+
+.metaverse-manage__apartment {
+  position: absolute;
+  left: 50%;
+  bottom: 34rpx;
+  display: grid;
+  grid-template-columns: repeat(3, 30rpx);
+  gap: 12rpx;
+  width: 150rpx;
+  height: 142rpx;
+  padding: 22rpx 24rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(0, 210, 255, 0.38);
+  border-radius: 24rpx 24rpx 10rpx 10rpx;
+  background: linear-gradient(180deg, rgba(58, 134, 255, 0.4), rgba(0, 0, 0, 0.8));
+  transform: translateX(-50%);
+}
+
+.metaverse-manage__apartment view {
+  width: 30rpx;
+  height: 22rpx;
+  border-radius: 4rpx;
+  background: rgba(254, 250, 131, 0.72);
+  box-shadow: 0 0 16rpx rgba(254, 250, 131, 0.32);
+}
+
+.metaverse-manage__asset-name {
+  margin-top: 18rpx;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 42rpx;
+}
+
+.metaverse-manage__asset-value {
+  margin-top: 8rpx;
+  color: #fefa83;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.metaverse-manage__actions {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.metaverse-manage__action {
+  min-height: 132rpx;
+  padding: 18rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(255, 255, 255, 0.14);
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.metaverse-manage__action-mark {
+  width: 34rpx;
+  height: 34rpx;
+  margin-bottom: 14rpx;
+  border-radius: 12rpx;
+}
+
+.metaverse-manage__action.blue .metaverse-manage__action-mark {
+  background: linear-gradient(180deg, #3a86ff, #00d2ff);
+}
+
+.metaverse-manage__action.pink .metaverse-manage__action-mark {
+  background: linear-gradient(180deg, #ec4899, #ff006e);
+}
+
+.metaverse-manage__action.green .metaverse-manage__action-mark {
+  background: linear-gradient(180deg, #10b981, #06ffa5);
+}
+
+.metaverse-manage__action.orange .metaverse-manage__action-mark {
+  background: linear-gradient(180deg, #ffbe0b, #fb5607);
+}
+
+.metaverse-manage__action-title {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.metaverse-manage__action-desc {
+  margin-top: 6rpx;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 20rpx;
+  line-height: 28rpx;
+}

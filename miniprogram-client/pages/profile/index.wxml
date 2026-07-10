@@ -1,0 +1,94 @@
+<home-shell
+  class="profile-master-host"
+  shell-class="profile-join-master"
+  shell-variant="joinApply"
+  topbar-title-visible="{{false}}"
+  toolbar-avatar-visible="{{false}}"
+  toolbar-actions-visible="{{false}}"
+  online-text="在线"
+  content-scroll-y="{{true}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="profile-home-shell">
+    <view class="profile-home-page">
+      <view class="profile-user-block">
+        <view class="profile-user">
+          <view class="profile-avatar">{{user.avatarText}}</view>
+          <view class="profile-user-copy">
+            <view class="profile-name-row">
+              <text class="profile-name">{{user.nickname}}</text>
+              <text class="profile-member">{{user.memberLevel}}</text>
+            </view>
+            <view class="profile-role-row">
+              <text>{{user.roleLevel}}</text>
+              <text>{{user.role}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="profile-stat-grid">
+          <view wx:for="{{stats}}" wx:key="label" class="profile-stat-card">
+            <text class="profile-stat-value">{{item.value}}</text>
+            <text class="profile-stat-label">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="profile-main">
+        <view class="asset-card">
+          <view class="asset-head">
+            <text class="asset-title">我的资产</text>
+            <view class="asset-more" bindtap="handleAssetAllTap">
+              <text>查看全部</text>
+              <text class="asset-more-arrow">›</text>
+            </view>
+          </view>
+          <view class="asset-grid">
+            <view wx:for="{{assets}}" wx:key="label" class="asset-item">
+              <text class="asset-value {{item.tone}}">{{item.value}}</text>
+              <text class="asset-label">{{item.label}}</text>
+            </view>
+          </view>
+          <view class="vip-banner" bindtap="handleUpgradeTap">
+            <view class="vip-left">
+              <text class="vip-chip">VIP</text>
+              <text class="vip-copy">{{vipBanner.text}}</text>
+            </view>
+            <text class="vip-link">{{vipBanner.actionText}}</text>
+          </view>
+        </view>
+
+        <view wx:for="{{serviceSections}}" wx:key="title" class="profile-section">
+          <text class="profile-section-title">{{item.title}}</text>
+          <view class="profile-menu-card">
+            <view
+              wx:for="{{item.items}}"
+              wx:for-item="entry"
+              wx:key="title"
+              class="profile-menu-item"
+              data-title="{{entry.title}}"
+              data-route="{{entry.route}}"
+              data-enabled="{{entry.enabled}}"
+              data-reason="{{entry.disabledReason}}"
+              bindtap="handleMenuTap"
+            >
+              <view class="profile-menu-left">
+                <view class="profile-menu-icon {{entry.iconClass}}">
+                  <image class="profile-menu-icon-img" src="{{entry.iconSrc}}" mode="aspectFit"></image>
+                </view>
+                <text class="profile-menu-title">{{entry.title}}</text>
+              </view>
+              <view class="profile-menu-right">
+                <text wx:if="{{entry.badge}}" class="profile-badge {{entry.badgeClass}}">{{entry.badge}}</text>
+                <text class="profile-arrow">›</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{loadError}}" class="profile-empty">{{loadError}}</view>
+      </view>
+    </view>
+  </view>
+</home-shell>

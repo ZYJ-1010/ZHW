@@ -1,0 +1,344 @@
+<view wx:if="{{isUiPreview}}" class="page ui-preview-page" bindtap="handleUiPreviewTap">
+  <view wx:if="{{uiPreviewStep === 'invite'}}" class="invite-flow-screen" catchtap="noop">
+    <view class="invite-flow-hero">
+      <view class="invite-flow-hi-wrap">
+        <text class="invite-flow-hi">HI</text>
+        <text class="invite-flow-star">✦</text>
+      </view>
+      <text class="invite-flow-welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view class="invite-flow-form">
+      <view class="invite-flow-field enjoy-field">
+        <text class="invite-flow-value">+86 ›</text>
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{phone}}"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPhoneInput"
+        />
+      </view>
+      <view class="invite-flow-field invite-flow-code-field enjoy-field">
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{verifyCode}}"
+          type="number"
+          maxlength="6"
+          placeholder="请输入验证码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onCodeInput"
+        />
+        <text class="invite-flow-field-action enjoy-code-action {{canResend ? 'active' : 'disabled'}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" catchtap="sendUiPreviewInviteCode">
+          {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's后可获取验证码'}}
+        </text>
+      </view>
+      <view class="invite-flow-field enjoy-field">
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{inviteCode}}"
+          maxlength="20"
+          placeholder="请输入邀请码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onInviteCodeInput"
+        />
+      </view>
+
+      <view class="invite-flow-primary enjoy-button enjoy-button--primary" catchtap="handleUiPreviewInviteLogin">
+        {{isPhoneLoggingIn ? '登录/注册中...' : '登录/注册'}}
+      </view>
+      <view class="invite-flow-login-options">
+        <view class="invite-flow-login-option" catchtap="startPasswordLogin">密码登录</view>
+        <view class="invite-flow-login-option" catchtap="startWechatAuth">微信登录</view>
+      </view>
+      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
+      <view class="invite-flow-agreement">
+        <image class="invite-flow-check" src="/pages/login/assets/icon-check.svg" mode="aspectFit"></image>
+        <text class="invite-flow-agree-muted">注册即表明同意</text>
+        <text class="invite-flow-agree-link">用户协议</text>
+        <text class="invite-flow-agree-link">及隐私协议</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{uiPreviewStep === 'realnameModal'}}" class="invite-flow-screen">
+    <view class="realname-modal-mask"></view>
+    <view class="realname-modal-card">
+      <view class="realname-modal-icon">
+        <text class="realname-modal-shield">🛡️</text>
+      </view>
+      <text class="realname-modal-title">需要实名认证</text>
+      <text class="realname-modal-desc">实名认证可提升平台安全与信任</text>
+      <text class="realname-modal-desc second">也可以稍后在个人中心完成</text>
+      <view class="realname-modal-primary enjoy-button enjoy-button--primary enjoy-button--comfortable" catchtap="startRealnameAuth">去实名认证</view>
+      <view class="realname-modal-secondary" catchtap="skipRealnameAuth">稍后再说</view>
+    </view>
+  </view>
+
+  <view wx:elif="{{uiPreviewStep === 'realnameGuide'}}" class="invite-flow-screen">
+    <view class="realname-guide-hero">
+      <view class="realname-guide-icon-card">
+        <text>✦</text>
+      </view>
+      <text class="realname-guide-title">实名认证</text>
+      <text class="realname-guide-copy">完成实名认证，解锁完整平台功能</text>
+      <text class="realname-guide-copy sub">让每一次连接都更值得信赖</text>
+    </view>
+
+    <view class="realname-guide-list">
+      <view class="realname-guide-item">
+        <view class="realname-guide-icon">🔒</view>
+        <text class="realname-guide-text">身份可信，交易更安心</text>
+      </view>
+      <view class="realname-guide-item">
+        <view class="realname-guide-icon">⚡</view>
+        <text class="realname-guide-text">快速匹配，优先推荐</text>
+      </view>
+      <view class="realname-guide-item">
+        <view class="realname-guide-icon">🎯</view>
+        <text class="realname-guide-text">解锁全部组局与引荐功能</text>
+      </view>
+    </view>
+
+    <navigator class="realname-guide-button enjoy-button enjoy-button--primary" url="{{realnameGuideUrl}}" open-type="redirect" hover-class="none">
+      开始认证
+    </navigator>
+  </view>
+
+  <view wx:else class="invite-flow-screen newbie-task-screen">
+    <view class="newbie-task-card">
+      <text class="newbie-task-kicker">新手福利</text>
+      <text class="newbie-task-title">完成新手任务</text>
+      <text class="newbie-task-desc">解锁更多平台权益</text>
+
+      <view class="newbie-task-list">
+        <view wx:if="{{isLoadingNewbieTasks && !newbieTasksLoaded}}" class="newbie-task-empty">任务加载中...</view>
+        <view wx:elif="{{newbieTaskLoadFailed}}" class="newbie-task-empty">任务获取失败，请稍后再试</view>
+        <block wx:elif="{{newbieTasks.length > 0}}">
+          <view
+            wx:for="{{newbieTasks}}"
+            wx:key="id"
+            class="newbie-task-item {{item.itemClass}}"
+            catchtap="goNewbieTask"
+            data-id="{{item.id}}"
+            data-type="{{item.type}}"
+          >
+            <view class="newbie-task-check enjoy-check {{item.completed ? 'enjoy-check--active' : ''}} {{item.checkClass}}">{{item.checkText}}</view>
+            <view class="newbie-task-copy">
+              <text class="newbie-task-name">{{item.title}}</text>
+              <text class="newbie-task-reward">{{item.rewardText}}</text>
+            </view>
+            <text class="{{item.statusClass}}">{{item.statusText}}</text>
+          </view>
+        </block>
+        <view wx:else class="newbie-task-empty">暂无新手任务</view>
+      </view>
+
+      <view class="newbie-task-progress-bar">
+        <view class="newbie-task-progress-fill" style="width: {{newbieProgressPercent}}%;"></view>
+      </view>
+      <text wx:if="{{isLoadingNewbieTasks && !newbieTasksLoaded}}" class="newbie-task-progress">正在同步任务...</text>
+      <text wx:else class="newbie-task-progress">已完成 {{newbieCompletedCount}}/{{newbieTotalCount}} 个任务</text>
+      <view class="newbie-task-button enjoy-button enjoy-button--primary" catchtap="goHomeFromNewbieTasks">进入首页</view>
+    </view>
+  </view>
+</view>
+
+<view wx:else class="page">
+  <view class="login-wrap invite-flow-screen" wx:if="{{loginMode === 'home'}}">
+    <view class="invite-flow-hero">
+      <view class="invite-flow-hi-wrap">
+        <text class="invite-flow-hi">HI</text>
+        <text class="invite-flow-star">✦</text>
+      </view>
+      <text class="invite-flow-welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view class="invite-flow-form">
+      <view class="invite-flow-field enjoy-field">
+        <text class="invite-flow-value">+86 ›</text>
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{phone}}"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPhoneInput"
+        />
+      </view>
+      <view class="invite-flow-field invite-flow-code-field enjoy-field">
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{verifyCode}}"
+          type="number"
+          maxlength="6"
+          placeholder="获取验证码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onCodeInput"
+        />
+        <text class="invite-flow-field-action enjoy-code-action {{canResend ? 'active' : 'disabled'}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" catchtap="getVerifyCode">
+          {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's后可获取验证码'}}
+        </text>
+      </view>
+      <view class="invite-flow-field enjoy-field">
+        <input
+          class="invite-flow-field-input enjoy-input"
+          value="{{inviteCode}}"
+          maxlength="20"
+          placeholder="请输入邀请码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onInviteCodeInput"
+        />
+      </view>
+
+      <view class="invite-flow-primary enjoy-button enjoy-button--primary" bindtap="handleInvitePrimaryLogin">
+        {{isPhoneLoggingIn ? '登录/注册中...' : '登录/注册'}}
+      </view>
+      <view class="invite-flow-login-options">
+        <view class="invite-flow-login-option" bindtap="startPasswordLogin">密码登录</view>
+        <view class="invite-flow-login-option" bindtap="startWechatAuth">微信登录</view>
+      </view>
+      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
+      <view class="invite-flow-agreement" bindtap="toggleAgreement">
+        <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
+          <text wx:if="{{agreed}}">✓</text>
+        </view>
+        <text class="invite-flow-agree-muted">登录即表明同意</text>
+        <text class="invite-flow-agree-link">用户协议</text>
+        <text class="invite-flow-agree-link">及隐私协议</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="login-wrap code-verify-wrap" wx:elif="{{loginMode === 'codeVerify'}}">
+    <view class="hero verify-hero">
+      <view class="hi-row">
+        <text class="hi-text">HI</text>
+        <text class="hi-mark">✦</text>
+      </view>
+      <text class="welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view class="verify-phone">{{maskedPhone}}</view>
+    <text class="verify-tip">验证码已发送至该手机号</text>
+
+    <view class="code-entry" bindtap="focusCodeInput">
+      <block wx:for="{{codeDigits}}" wx:key="index">
+        <view class="code-box enjoy-code-box {{item ? 'filled' : ''}} {{item ? 'enjoy-code-box--filled' : ''}}">{{item}}</view>
+      </block>
+      <input
+        class="code-hidden-input"
+        value="{{verifyCode}}"
+        type="number"
+        maxlength="6"
+        focus="{{codeInputFocus}}"
+        bindinput="onCodeInput"
+      />
+    </view>
+
+    <view class="resend-row">
+      <text wx:if="{{!canResend}}" class="resend-muted">{{resendSeconds}}s 后可 </text>
+      <text class="resend-link enjoy-code-action {{canResend ? 'active' : ''}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" bindtap="resendCode">获取验证码</text>
+    </view>
+
+    <view
+      class="verify-login-button enjoy-button enjoy-button--primary enjoy-button--large {{isCodeComplete ? 'ready' : ''}}"
+      bindtap="handlePhoneLogin"
+    >
+      {{isPhoneLoggingIn ? '登录中...' : '登录'}}
+    </view>
+
+    <view class="verify-back enjoy-link--muted" bindtap="backToLogin">← 返回登录方式</view>
+  </view>
+
+  <view class="login-wrap account-wrap" wx:elif="{{loginMode === 'account'}}">
+    <view class="hero account-hero">
+      <view class="hi-row">
+        <text class="hi-text">HI</text>
+        <text class="hi-mark">✦</text>
+      </view>
+      <text class="welcome">欢迎进入真好玩~</text>
+    </view>
+
+    <view class="form account-form">
+      <view class="field account-field enjoy-field enjoy-field--comfortable">
+        <input
+          class="field-input enjoy-input enjoy-input--comfortable"
+          value="{{phone}}"
+          maxlength="32"
+          placeholder="请输入账号"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPhoneInput"
+        />
+      </view>
+
+      <view class="field password-field enjoy-field enjoy-field--comfortable">
+        <input
+          class="field-input enjoy-input enjoy-input--comfortable"
+          value="{{password}}"
+          password
+          maxlength="24"
+          placeholder="请输入密码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPasswordInput"
+        />
+      </view>
+
+      <view class="form-helper account-form-helper">
+        <text class="forgot-link enjoy-link--muted" bindtap="goForgot">找回密码</text>
+      </view>
+    </view>
+
+    <view
+      class="primary-login account-submit enjoy-button enjoy-button--primary enjoy-button--comfortable"
+      bindtap="handlePasswordLogin"
+    >
+      {{isPasswordLoggingIn ? '登录中...' : '登录'}}
+    </view>
+
+    <view class="account-switches">
+      <view class="account-switch enjoy-button enjoy-button--secondary" bindtap="startPhoneLogin">验证码登录</view>
+      <view class="account-switch enjoy-button enjoy-button--secondary" bindtap="startWechatAuth">微信登录</view>
+    </view>
+
+    <view class="agreement" bindtap="toggleAgreement">
+      <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
+        <text wx:if="{{agreed}}">✓</text>
+      </view>
+      <view class="agreement-copy">
+        <text class="agreement-normal">登录即表明同意</text>
+        <text class="agreement-link">用户协议</text>
+        <text class="agreement-normal">及</text>
+        <text class="agreement-link">隐私协议</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="login-wrap auth-wrap" wx:elif="{{loginMode === 'wechatAuth'}}">
+    <view class="auth-content">
+      <view class="auth-wechat-icon">
+        <image class="auth-wechat-image" src="https://static.haowan.net.cn/miniprogram/pages/login/assets/icon-wechat.png" mode="aspectFit" />
+      </view>
+      <text class="auth-title">微信登录</text>
+      <text class="auth-desc">真好玩 申请获取你的微信头像、昵称</text>
+      <text class="auth-subdesc">用于完善个人资料</text>
+
+      <view class="auth-actions">
+        <view
+          class="allow-button enjoy-button enjoy-button--success enjoy-button--comfortable"
+          bindtap="handleWechatLogin"
+        >
+          {{hasWechatLogin ? '已允许' : isLoggingIn ? '授权中...' : '允许'}}
+        </view>
+
+        <view class="reject-button enjoy-button enjoy-button--secondary enjoy-button--comfortable" bindtap="declineAuth">拒绝</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{isLoginAuthPreview}}" class="walkthrough-tap-zone walkthrough-tap-zone--left" catchtap="showPreviousLoginWalkthrough"></view>
+  <view wx:if="{{isLoginAuthPreview}}" class="walkthrough-tap-zone walkthrough-tap-zone--right" catchtap="showNextLoginWalkthrough"></view>
+</view>

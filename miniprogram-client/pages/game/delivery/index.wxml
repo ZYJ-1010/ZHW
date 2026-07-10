@@ -1,0 +1,199 @@
+<view class="delivery-page mode-{{deliveryMode}}">
+  <view class="delivery-frame" style="{{shellLayout.frameStyle}}">
+    <view class="delivery-top-bg"></view>
+    <view class="delivery-nav">
+      <view class="delivery-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="delivery-back-icon"></view>
+      </view>
+      <text class="delivery-title" style="{{shellLayout.titleStyle}}">{{pageTitle}}</text>
+      <view class="delivery-more" style="{{shellLayout.moreStyle}}" bindtap="onMoreTap">
+        <view class="more-dot"></view>
+        <view class="more-dot"></view>
+        <view class="more-dot"></view>
+      </view>
+    </view>
+
+    <scroll-view
+      class="delivery-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="delivery-inner">
+        <view class="status-card {{status.theme}}">
+          <view class="status-mark">
+            <view class="check-icon"></view>
+          </view>
+          <text class="status-title">{{status.title}}</text>
+          <text class="status-desc">{{status.desc}}</text>
+        </view>
+
+        <view class="card activity-card">
+          <view class="section-head">
+            <text class="section-title">活动信息</text>
+            <view class="state-pill {{statePill.theme}}">
+              <view class="state-dot"></view>
+              <text>{{statePill.text}}</text>
+            </view>
+          </view>
+
+          <view class="expert-panel">
+            <view class="avatar">{{activity.avatar}}</view>
+            <view class="expert-copy">
+              <view class="expert-name-row">
+                <text class="expert-name">{{activity.expertName}}</text>
+                <text class="role-tag">行家</text>
+              </view>
+              <text class="expert-service">{{activity.serviceName}}</text>
+              <text class="order-no">订单号: {{activity.orderNo}}</text>
+            </view>
+          </view>
+
+          <view class="info-list">
+            <view wx:for="{{activityRows}}" wx:key="label" class="info-row">
+              <text class="info-label">{{item.label}}</text>
+              <text class="info-value {{item.strong ? 'strong' : ''}} {{item.type || ''}}">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{notice.title}}" class="notice-card">
+          <view class="notice-head">
+            <view class="notice-icon">{{notice.iconText}}</view>
+            <text class="notice-title">{{notice.title}}</text>
+          </view>
+          <view class="notice-copy">
+            <text
+              wx:for="{{notice.parts}}"
+              wx:key="text"
+              class="{{item.strong ? 'strong' : ''}}"
+            >{{item.text}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{hasSettlement}}" class="card settlement-card">
+          <view class="section-head left">
+            <view class="section-icon document-icon"></view>
+            <text class="section-title">结算明细</text>
+          </view>
+
+          <view class="settlement-list">
+            <view wx:for="{{settlementRows}}" wx:key="label" class="settlement-row {{item.type || ''}}">
+              <text>{{item.label}}</text>
+              <text>{{item.value}}</text>
+            </view>
+          </view>
+
+          <view class="settlement-total">
+            <text>实际到账</text>
+            <text class="settlement-amount">{{settlement.actualAmount}}</text>
+          </view>
+
+          <view class="success-note">
+            <view class="mini-check"></view>
+            <text>{{settlementNote}}</text>
+          </view>
+        </view>
+
+        <view class="card timeline-card">
+          <timeline-list
+            title="确认状态"
+            items="{{timeline}}"
+            variant="service-confirm"
+            bindactiontap="onTimelineActionTap"
+          />
+        </view>
+
+        <view class="card confirmation-card">
+          <text class="section-title standalone">服务内容确认</text>
+          <view class="check-list">
+            <view
+              wx:for="{{confirmItems}}"
+              wx:key="id"
+              class="check-item {{item.checked ? 'checked' : ''}} {{item.locked ? 'locked' : ''}}"
+              data-id="{{item.id}}"
+              bindtap="toggleConfirm"
+            >
+              <view class="checkbox">
+                <view wx:if="{{item.checked}}" class="checkbox-mark"></view>
+              </view>
+              <view class="check-copy">
+                <text class="check-title">{{item.title}}</text>
+                <text class="check-desc">{{item.desc}}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="info-note">
+            <view class="info-icon">i</view>
+            <text>{{confirmNote}}</text>
+          </view>
+        </view>
+
+        <view class="card proof-card">
+          <view class="section-head">
+            <text class="section-title">交付凭证</text>
+            <button class="proof-upload-button" hover-class="none" bindtap="chooseProofImages">上传</button>
+          </view>
+          <view wx:if="{{proofImages.length}}" class="proof-list">
+            <view wx:for="{{proofImages}}" wx:key="path" class="proof-item">
+              <image class="proof-image" src="{{item.path}}" mode="aspectFill"></image>
+              <view class="proof-remove" data-index="{{index}}" bindtap="removeProofImage">×</view>
+            </view>
+          </view>
+          <text wx:else class="proof-empty">{{deliveryProof.emptyText}}</text>
+        </view>
+
+        <view class="card quick-card">
+          <text class="section-title standalone">快捷操作</text>
+          <view class="quick-grid">
+            <button
+              wx:for="{{quickActions}}"
+              wx:key="key"
+              class="quick-button {{item.theme}}"
+              data-key="{{item.key}}"
+              data-title="{{item.title}}"
+              hover-class="none"
+              bindtap="onQuickActionTap"
+            >
+              <view class="quick-icon">
+                <image
+                  wx:if="{{item.iconSrc}}"
+                  class="quick-icon-image"
+                  src="{{item.iconSrc}}"
+                  mode="aspectFit"
+                ></image>
+                <text wx:else class="quick-icon-text">{{item.iconText}}</text>
+              </view>
+              <text>{{item.title}}</text>
+            </button>
+          </view>
+        </view>
+
+        <view wx:if="{{security.title || security.desc}}" class="security-row">
+          <image class="security-icon" src="https://static.haowan.net.cn/miniprogram/pages/game/detail/assets/icon-shield.png" mode="aspectFit"></image>
+          <view class="security-copy">
+            <text class="security-title">{{security.title}}</text>
+            <text class="security-desc">{{security.desc}}</text>
+          </view>
+        </view>
+
+        <view class="bottom-spacer"></view>
+      </view>
+    </scroll-view>
+
+    <view class="bottom-bar">
+      <button
+        class="submit-button {{allConfirmed ? 'ready' : 'disabled'}}"
+        hover-class="none"
+        bindtap="onSubmitTap"
+      >
+        确认服务完成
+      </button>
+      <text class="submit-hint">{{allConfirmed ? submitHints.ready : submitHints.pending}}</text>
+    </view>
+
+    <view class="delivery-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

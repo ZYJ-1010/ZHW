@@ -1,0 +1,51 @@
+<view class="entry-page">
+  <view class="entry-phone">
+    <view class="entry-topbar" style="{{entryTopbarStyle}}">
+      <view class="entry-status-fill" style="{{entryStatusFillStyle}}"></view>
+      <view class="entry-nav" style="{{entryNavStyle}}">
+        <view class="entry-brand" style="{{entryBrandStyle}}">
+          <image
+            class="entry-brand__icon"
+            mode="aspectFit"
+            src="./assets/entry-ticket-icon.svg"
+          />
+          <image
+            class="entry-brand__mark"
+            mode="aspectFit"
+            src="./assets/entry-brand-wordmark.svg"
+          />
+          <view wx:if="{{onlineText}}" class="entry-brand__online">
+            <view class="entry-brand__online-dot"></view>
+            <text class="entry-brand__online-text">{{onlineText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="entry-content" style="{{entryContentStyle}}">
+      <view class="entry-hero" style="{{entryHeroStyle}}">
+        <view class="entry-orb"></view>
+        <view class="entry-ticket-panel">
+          <view class="entry-ticket-panel__bar"></view>
+          <view class="entry-ticket-panel__bar entry-ticket-panel__bar--vertical"></view>
+          <view class="entry-ticket-panel__dot"></view>
+          <view class="entry-ticket-panel__dot entry-ticket-panel__dot--small"></view>
+        </view>
+        <view class="entry-go" hover-class="entry-go--active" bindtap="goGuestHome">
+          <text class="entry-go__label">GO</text>
+        </view>
+      </view>
+
+      <image
+        class="entry-title"
+        mode="aspectFit"
+        src="./assets/entry-title-mark.svg"
+      />
+
+      <text class="entry-subtitle">ZHEN HAO WAN</text>
+      <view class="entry-accent-dot" style="{{entryAccentStyle}}"></view>
+      <view class="entry-accent-dot entry-accent-dot--violet" style="{{entryAccentStyle}}"></view>
+      <view class="entry-accent-dot entry-accent-dot--cyan" style="{{entryAccentStyle}}"></view>
+    </view>
+  </view>
+</view>

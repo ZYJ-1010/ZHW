@@ -1,0 +1,54 @@
+@import "../../pages/home/master/index.wxss";
+
+.home-master-apply-nav-back,
+.home-master-apply-nav-action {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: 64rpx;
+  color: #ffffff;
+}
+
+.home-master-apply-nav-back {
+  grid-column: 1;
+  justify-content: flex-start;
+}
+
+.home-master-apply-nav-back-icon {
+  width: 17rpx;
+  height: 17rpx;
+  border-left: 4rpx solid currentColor;
+  border-bottom: 4rpx solid currentColor;
+  box-sizing: border-box;
+  transform: translateX(5rpx) rotate(45deg);
+}
+
+.home-master-apply-nav-action {
+  position: absolute;
+  top: 0;
+  right: 170rpx;
+  justify-content: center;
+  min-width: 64rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  line-height: 34rpx;
+}
+
+.home-apply-shell-switch-hit {
+  position: absolute;
+  top: 0;
+  z-index: 12;
+  width: 180rpx;
+  height: 73rpx;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.home-apply-shell-switch-hit.left {
+  left: 0;
+}
+
+.home-apply-shell-switch-hit.right {
+  right: 0;
+}

@@ -1,0 +1,133 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{detailConfig.pageTitle}}"
+  shell-variant="joinApply"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="audit-detail-shell">
+    <scroll-view
+      class="audit-detail-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{detailScrollTop}}"
+      bindscroll="handleDetailScroll"
+      enable-back-to-top
+    >
+      <view class="audit-detail-page">
+        <block wx:if="{{hasDetail}}">
+        <game-detail-status-card status="{{status}}" referral-text="{{detailConfig.referralText}}" />
+
+        <game-detail-relation-card relation="{{relation}}" />
+
+        <view class="detail-card player-card">
+          <view class="card-head player-head">
+            <text class="card-title">{{detailConfig.texts.playerTitle}}</text>
+            <view wx:if="{{game.player.requirementStatusText}}" class="confirm-pill {{game.player.requirementConfirmed ? 'confirmed' : 'pending'}}">
+              <view class="confirm-dot"></view>
+              <text>{{game.player.requirementStatusText}}</text>
+            </view>
+          </view>
+          <view class="player-profile">
+            <view class="player-avatar">{{game.player.avatarText}}</view>
+            <view class="player-copy">
+              <text class="player-name">{{game.player.name}}</text>
+              <text class="player-desc">{{game.player.desc}}</text>
+              <view class="tag-row">
+                <text wx:for="{{game.player.tags}}" wx:key="*this" class="gray-tag">{{item}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="need-panel">
+            <text>{{game.player.needText}}</text>
+            <view class="time-row">
+              <view class="clock-icon"></view>
+              <text>{{game.player.expectedTime}}</text>
+            </view>
+          </view>
+          <view wx:if="{{game.player.remark}}" class="remark-panel">
+            <view class="remark-icon"></view>
+            <text>{{game.player.remark}}</text>
+          </view>
+        </view>
+
+        <view class="detail-card upload-card">
+          <text class="card-title block">{{detailConfig.texts.portfolioTitle}}</text>
+          <work-upload-panel bind:imageupload="handleUploadImageTap" bind:fileupload="handleUploadFileTap" />
+        </view>
+
+        <game-detail-session-card
+          items="{{sessionInfo}}"
+          title-weight="regular"
+          card-class="audit-session-card"
+          bind:maptap="handleMapTap"
+        />
+
+        <view class="detail-card confirm-card">
+          <text class="card-title block">{{detailConfig.texts.confirmTitle}}</text>
+          <view class="confirm-list">
+            <view wx:for="{{confirmRows}}" wx:key="label" class="confirm-row {{item.divider ? 'divider' : ''}} {{item.total ? 'total' : ''}}">
+              <text class="confirm-label">{{item.label}}</text>
+              <text class="confirm-value {{item.highlight ? 'highlight' : ''}} {{item.success ? 'success' : ''}}">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="recommend-card">
+          <text class="quote-mark">“</text>
+          <view class="recommend-copy">
+            <text class="recommend-text">{{game.guide.recommendation}}</text>
+            <text class="recommend-author">{{game.guide.name}}</text>
+          </view>
+        </view>
+
+        <view class="detail-card option-card">
+          <text class="card-title block">{{detailConfig.texts.optionTitle}}</text>
+          <view class="option-list">
+            <view wx:for="{{optionalActions}}" wx:key="key" class="option-row" data-key="{{item.key}}" bindtap="handleOptionalActionTap">
+              <view class="option-main">
+                <image class="option-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+                <text>{{item.name}}</text>
+              </view>
+              <text class="option-chevron">›</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="notice-card">
+          <view class="notice-head">
+            <view class="notice-icon">i</view>
+            <text>{{detailConfig.texts.noticeTitle}}</text>
+          </view>
+          <view class="notice-list">
+            <view wx:for="{{noticeBullets}}" wx:key="*this" class="notice-item">
+              <view class="notice-dot"></view>
+              <text>{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        <game-detail-action-bar
+          tip="{{detailConfig.texts.actionTip}}"
+          loading="{{actionLoading}}"
+          loading-text="{{detailConfig.texts.actionLoadingText}}"
+          confirm-text="{{detailConfig.texts.confirmText}}"
+          bind:decline="handleDeclineTap"
+          bind:confirm="handleApproveTap"
+        />
+        </block>
+
+        <view wx:else class="audit-empty-card">
+          <text class="audit-empty-title">{{detailConfig.texts.emptyTitle}}</text>
+          <text class="audit-empty-text">{{detailConfig.texts.emptyText}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</home-shell>

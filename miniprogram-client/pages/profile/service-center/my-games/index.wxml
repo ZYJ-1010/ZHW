@@ -1,0 +1,107 @@
+<view class="my-games-page">
+  <view class="my-games-frame" style="{{shellLayout.frameStyle}}">
+    <view class="my-games-nav">
+      <button class="nav-back" style="{{shellLayout.backStyle}}" hover-class="none" bindtap="onBackTap" aria-label="返回">
+        <view class="nav-back-icon"></view>
+      </button>
+      <text class="nav-title" style="{{shellLayout.titleStyle}}">{{pageConfig.pageTitle}}</text>
+      <button class="filter-button" style="{{shellLayout.filterStyle}}" hover-class="none" bindtap="onFilterTap" aria-label="筛选">
+        <view class="filter-icon"></view>
+      </button>
+    </view>
+
+    <scroll-view
+      class="my-games-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="my-games-inner">
+        <view class="category-tabs">
+          <view
+            wx:for="{{categoryTabs}}"
+            wx:key="key"
+            class="category-tab {{item.active ? 'active' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="onCategoryTabTap"
+          >
+            <text>{{item.text}}</text>
+          </view>
+        </view>
+
+        <scroll-view class="status-scroll" scroll-x enhanced show-scrollbar="false">
+          <view class="status-tabs">
+            <view
+              wx:for="{{statusTabs}}"
+              wx:key="key"
+              class="status-tab {{item.active ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="onStatusTabTap"
+            >
+              <text>{{item.text}}</text>
+            </view>
+          </view>
+        </scroll-view>
+
+        <view class="game-list">
+          <view
+            wx:for="{{displayCards}}"
+            wx:key="id"
+            class="game-card {{item.statusType}}"
+            data-id="{{item.id}}"
+            bindtap="onCardTap"
+          >
+            <view class="card-header">
+              <view class="status-pill {{item.statusType}}">{{item.statusText}}</view>
+              <text class="card-ref">{{item.ref}}</text>
+              <text class="card-time">{{item.timeText}}</text>
+            </view>
+
+            <view class="service-row">
+              <view class="service-avatar {{item.statusType}}">{{item.avatar}}</view>
+              <view class="service-copy">
+                <text class="service-title {{item.statusType === 'canceled' ? 'muted' : ''}}">{{item.title}}</text>
+                <text class="service-line">行家：{{item.expertName}}</text>
+                <text wx:if="{{item.guideName}}" class="service-line">领路人：{{item.guideName}}</text>
+                <text wx:if="{{item.reason}}" class="service-line">取消原因：{{item.reason}}</text>
+              </view>
+              <view class="amount-block">
+                <text class="amount-text {{item.statusType}}">{{item.amount}}</text>
+                <text class="fund-status {{item.statusType}}">{{item.fundStatus}}</text>
+              </view>
+            </view>
+
+            <view wx:if="{{item.deliveryText}}" class="delivery-row">
+              <view class="clock-icon"></view>
+              <text class="delivery-text">{{item.deliveryText}}</text>
+              <view wx:if="{{item.canExpand}}" class="chevron-down"></view>
+            </view>
+
+            <view wx:if="{{item.actions.length}}" class="action-row">
+              <button
+                wx:for="{{item.actions}}"
+                wx:for-item="action"
+                wx:key="text"
+                class="card-action {{action.type}}"
+                data-id="{{item.id}}"
+                data-action="{{action.text}}"
+                data-type="{{action.type}}"
+                data-route="{{action.route}}"
+                hover-class="none"
+                catchtap="onActionTap"
+              >
+                <text wx:if="{{action.icon}}" class="action-icon">{{action.icon}}</text>
+                <text>{{action.text}}</text>
+              </button>
+            </view>
+          </view>
+
+          <view wx:if="{{!displayCards.length}}" class="empty-state">
+            <text>{{pageConfig.emptyText}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

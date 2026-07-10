@@ -1,0 +1,66 @@
+<profile-white-shell
+  title=""
+  background="#080d19"
+  nav-background="#080d19"
+  title-color="#f8fbff"
+  show-back="{{false}}"
+>
+  <view class="feedback-page success-page no-bottom-space">
+    <view class="success-hero">
+      <view class="success-icon">
+        <image src="{{icons.check}}" mode="aspectFit"></image>
+      </view>
+      <text class="success-title">{{successTitle}}</text>
+      <text class="success-desc">{{successDesc}}</text>
+      <text class="success-desc second">{{successDescSecond}}</text>
+    </view>
+
+    <view wx:if="{{source !== 'report' && reward.show}}" class="reward-card">
+      <view class="reward-icon">
+        <image src="{{icons.star}}" mode="aspectFit"></image>
+      </view>
+      <view class="reward-copy">
+        <text class="reward-title">{{reward.title}}</text>
+        <text class="reward-desc">{{reward.desc}}</text>
+      </view>
+      <text class="reward-value">{{reward.value}}</text>
+    </view>
+
+    <view wx:if="{{source !== 'report'}}" class="feedback-card score-card">
+      <text class="card-title">{{rating.title}}</text>
+      <text class="card-desc">{{rating.desc}}</text>
+      <view class="score-row">
+        <view
+          wx:for="{{scores}}"
+          wx:key="*this"
+          class="score-item {{score === item ? 'active' : ''}}"
+          data-score="{{item}}"
+          bindtap="handleScoreTap"
+        >{{item}}</view>
+      </view>
+      <view class="score-labels">
+        <text>{{rating.minLabel}}</text>
+        <text>{{rating.maxLabel}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{source !== 'report'}}" class="feedback-card reason-card">
+      <text class="card-title">{{reasonsTitle}}</text>
+      <view class="reason-grid">
+        <view
+          wx:for="{{reasons}}"
+          wx:key="value"
+          class="reason-pill {{item.selected ? 'active' : ''}}"
+          data-index="{{index}}"
+          bindtap="handleReasonTap"
+        >{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="success-actions">
+      <view wx:if="{{source !== 'report'}}" class="primary-gradient-button" bindtap="handleSubmitRating">{{submitRatingText}}</view>
+      <view class="ghost-button" bindtap="handleBackHome">{{backHomeText}}</view>
+      <view class="ghost-button" bindtap="handleViewRecords">{{viewRecordsText}}</view>
+    </view>
+  </view>
+</profile-white-shell>

@@ -1,0 +1,183 @@
+{
+  "pages": [
+    "pages/entry/index",
+    "pages/home/guest/index",
+    "pages/login/index",
+    "pages/login/invite/index",
+    "pages/login/forgot/index",
+    "pages/login/realname/index",
+    "pages/home/index",
+    "pages/home/master/index",
+    "pages/home/player/index",
+    "pages/home/expert/index",
+    "pages/home/guide/index",
+    "pages/role/apply/index",
+    "pages/role/status/index"
+  ],
+  "subPackages": [
+    {
+      "root": "pages/game",
+      "pages": [
+        "hall/index",
+        "hall-greet/index",
+        "create/index",
+        "detail/index",
+        "participants/index",
+        "manage/index",
+        "player-manage/index",
+        "player-cancel/index",
+        "apply/index",
+        "system-recommend/index",
+        "audit/index",
+        "audit-detail/index",
+        "player-confirm/index",
+        "greet/index",
+        "guide-chat/index",
+        "guide-progress/index",
+        "guide-progress-detail/index",
+        "guide-cancel/index",
+        "expert-cancel/index",
+        "share/index",
+        "invite/index",
+        "confirm/index",
+        "payment/index",
+        "collaboration/index",
+        "success-expert/index",
+        "success-guide/index",
+        "referral-record/index",
+        "applications/index",
+        "delivery/index",
+        "review/index",
+        "review-complete/index",
+        "play-again/index"
+      ]
+    },
+    {
+      "root": "pages/home-other",
+      "pages": [
+        "index"
+      ]
+    },
+    {
+      "root": "pages/profile",
+      "pages": [
+        "index",
+        "service-center/manage/review-manage/index",
+        "service-center/manage/review-reply/index",
+        "match-info/index",
+        "service-center/my-games/index",
+        "system-management/profile-info/index",
+        "settings/index",
+        "service-center/invite-records/index",
+        "service-center/invite/overview/index",
+        "service-center/invite/network/index",
+        "service-center/invite/records/index",
+        "service-center/invite/ranking/index",
+        "service-center/invite/income/index",
+        "service-center/invite/member-detail/index",
+        "member/index",
+        "member/advanced/index",
+        "member/premium/index",
+        "member/radar/index",
+        "member/match/index",
+        "member/match-info/index",
+        "member/match-query/index",
+        "member/match-result/index",
+        "asset-center/manage/index",
+        "asset-center/mall/index",
+        "asset-center/orders/index",
+        "asset-center/points/index",
+        "system-management/agreement-detail/index",
+        "system-management/agreement-sign/index",
+        "system-management/appeal-detail/index",
+        "system-management/block-settings/index",
+        "system-management/credit-appeal/index",
+        "system-management/feedback/index",
+        "system-management/feedback-detail/index",
+        "system-management/feedback-records/index",
+        "system-management/feedback-success/index",
+        "system-management/keywords/index",
+        "system-management/protection-mode/index",
+        "system-management/renewal/index",
+        "system-management/report-appeals/index",
+        "system-management/report-center/index",
+        "system-management/report-detail/index",
+        "system-management/report-record-detail/index",
+        "system-management/report-records/index",
+        "system-management/scene-config/index",
+        "system-management/service-case-detail/index",
+        "system-management/skill-config/index",
+        "system-management/users/index",
+        "system-management/whitelist/index",
+        "achievements/index",
+        "footprint/achievements/index",
+        "credit-center/index"
+      ]
+    },
+    {
+      "root": "pages/message",
+      "pages": [
+        "index",
+        "my/index",
+        "trade-warning/index",
+        "system-detail/index"
+      ]
+    },
+    {
+      "root": "pages/im",
+      "pages": [
+        "room/index"
+      ]
+    },
+    {
+      "root": "pages/map",
+      "pages": [
+        "index",
+        "blind-route/index",
+        "city-atlas/index",
+        "real-checkin/index",
+        "footprint-heatmap/index",
+        "friend-city/index",
+        "my-city/index"
+      ]
+    },
+    {
+      "root": "pages/relation",
+      "pages": [
+        "network/index"
+      ]
+    },
+    {
+      "root": "pages/metaverse",
+      "pages": [
+        "home/index",
+        "list/index",
+        "manage/index"
+      ]
+    },
+    {
+      "root": "pages/placeholder",
+      "pages": [
+        "metaverse/index"
+      ]
+    }
+  ],
+  "lazyCodeLoading": "requiredComponents",
+  "window": {
+    "navigationBarTitleText": "Enjoy",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFFFFF"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于选择组局地址"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

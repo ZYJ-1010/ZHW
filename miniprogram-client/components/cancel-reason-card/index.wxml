@@ -1,0 +1,29 @@
+<view class="cancel-reason-card {{cardClass}}">
+  <view class="cancel-reason-heading">
+    <text class="cancel-reason-title">{{title}}</text>
+    <text wx:if="{{requiredText}}" class="cancel-reason-required">{{requiredText}}</text>
+  </view>
+
+  <view class="cancel-reason-list {{variant}}">
+    <view
+      wx:for="{{displayOptions}}"
+      wx:key="key"
+      class="cancel-reason-option {{item.active ? 'active' : ''}} {{variant}}"
+      data-key="{{item.key}}"
+      bindtap="onOptionTap"
+    >
+      <text>{{item.text}}</text>
+      <view wx:if="{{item.showCheck}}" class="cancel-reason-check"></view>
+    </view>
+  </view>
+
+  <textarea
+    class="cancel-reason-textarea {{variant}}"
+    value="{{value}}"
+    placeholder="{{placeholder}}"
+    placeholder-class="cancel-reason-placeholder"
+    maxlength="{{maxlength}}"
+    auto-height="{{false}}"
+    bindinput="onInput"
+  ></textarea>
+</view>

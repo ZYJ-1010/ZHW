@@ -1,0 +1,17 @@
+.env
+*.log
+tmp/
+dist/
+node_modules/
+target/
+coverage/
+.gocache/
+.gotmp/
+**/.gocache/
+**/.gotmp/
+.DS_Store
+uploads/
+certs/
+*.pem
+*.key
+*.p12

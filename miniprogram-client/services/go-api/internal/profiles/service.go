@@ -1,0 +1,909 @@
+package profiles
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"sync"
+	"time"
+)
+
+var (
+	ErrExpertForbidden          = errors.New("expert role forbidden")
+	ErrGuideForbidden           = errors.New("guide role forbidden")
+	ErrInvalidProfile           = errors.New("invalid profile")
+	ErrInvalidRoleApplication   = errors.New("invalid role application")
+	ErrDuplicateRoleApplication = errors.New("duplicate role application")
+	ErrRoleApplicationNotFound  = errors.New("role application not found")
+	ErrRoleApplicationReviewed  = errors.New("role application already reviewed")
+	ErrWaitingGuideCondition    = errors.New("waiting guide condition")
+	ErrWaitingGuidePayment      = errors.New("waiting guide payment")
+)
+
+type ExpertSkillProfile struct {
+	UserID       int64     `json:"userId"`
+	SkillTree    []string  `json:"skillTree"`
+	ServiceTags  []string  `json:"serviceTags"`
+	CaseFileIDs  []int64   `json:"caseFileIds"`
+	Completeness int       `json:"completeness"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+type GuideResourceProfile struct {
+	UserID          int64     `json:"userId"`
+	ResourceTags    []string  `json:"resourceTags"`
+	IndustryTags    []string  `json:"industryTags"`
+	CityCodes       []string  `json:"cityCodes"`
+	ConnectionScale string    `json:"connectionScale"`
+	Completeness    int       `json:"completeness"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type RoleApplication struct {
+	ID                 int64     `json:"id"`
+	UserID             int64     `json:"userId"`
+	RoleCode           string    `json:"roleCode"`
+	Status             string    `json:"status"`
+	Reason             string    `json:"reason,omitempty"`
+	AbilityDescription string    `json:"abilityDescription,omitempty"`
+	ProofFileIDs       []int64   `json:"proofFileIds,omitempty"`
+	RejectReason       string    `json:"rejectReason,omitempty"`
+	ReviewAdminID      int64     `json:"reviewAdminId,omitempty"`
+	ReviewRemark       string    `json:"reviewRemark,omitempty"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
+type GuideQualification struct {
+	UserID          int64     `json:"userId"`
+	ConditionMet    bool      `json:"conditionMet"`
+	PaymentMet      bool      `json:"paymentMet"`
+	GuideOpenStatus string    `json:"guideOpenStatus"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type GuideQualificationRule struct {
+	ID                int64     `json:"id"`
+	RuleCode          string    `json:"ruleCode"`
+	MinInviteCount    int       `json:"minInviteCount"`
+	MinCreditScore    int       `json:"minCreditScore"`
+	MinCompletedGames int       `json:"minCompletedGames"`
+	PaymentRequired   bool      `json:"paymentRequired"`
+	Status            string    `json:"status"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+
+type RoleSnapshot struct {
+	Roles         []string          `json:"roles"`
+	RoleStatusMap map[string]string `json:"roleStatusMap"`
+}
+
+type ExpertSkillRequest struct {
+	SkillTree   []string `json:"skillTree"`
+	ServiceTags []string `json:"serviceTags"`
+	CaseFileIDs []int64  `json:"caseFileIds"`
+}
+
+type GuideResourceRequest struct {
+	ResourceTags    []string `json:"resourceTags"`
+	IndustryTags    []string `json:"industryTags"`
+	CityCodes       []string `json:"cityCodes"`
+	ConnectionScale string   `json:"connectionScale"`
+}
+
+type SubmitRoleApplicationRequest struct {
+	RoleCode           string  `json:"roleCode"`
+	Reason             string  `json:"reason"`
+	AbilityDescription string  `json:"abilityDescription"`
+	ProofFileIDs       []int64 `json:"proofFileIds"`
+}
+
+type ReviewRoleApplicationRequest struct {
+	Approve bool   `json:"approve"`
+	Remark  string `json:"remark"`
+}
+
+type UpdateGuideQualificationRequest struct {
+	ConditionMet *bool `json:"conditionMet"`
+	PaymentMet   *bool `json:"paymentMet"`
+}
+
+type UpdateGuideQualificationRuleRequest struct {
+	MinInviteCount    *int    `json:"minInviteCount"`
+	MinCreditScore    *int    `json:"minCreditScore"`
+	MinCompletedGames *int    `json:"minCompletedGames"`
+	PaymentRequired   *bool   `json:"paymentRequired"`
+	Status            *string `json:"status"`
+}
+
+type SystemManagementConfigItem struct {
+	UserID int64                  `json:"userId"`
+	Key    string                 `json:"key"`
+	Value  map[string]interface{} `json:"value"`
+}
+
+type Repository interface {
+	GrantRole(ctx context.Context, userID int64, roleCode string) error
+	HasRole(ctx context.Context, userID int64, roleCode string) (bool, error)
+	SaveRoleApplication(ctx context.Context, app RoleApplication) (RoleApplication, error)
+	ListRoleApplications(ctx context.Context) ([]RoleApplication, error)
+	ListRoleApplicationsByUser(ctx context.Context, userID int64) ([]RoleApplication, error)
+	FindRoleApplication(ctx context.Context, applicationID int64) (RoleApplication, bool, error)
+	UpdateRoleApplication(ctx context.Context, app RoleApplication) (RoleApplication, error)
+	GetGuideQualification(ctx context.Context, userID int64) (GuideQualification, bool, error)
+	SaveGuideQualification(ctx context.Context, qualification GuideQualification) (GuideQualification, error)
+	ListGuideQualificationRules(ctx context.Context) ([]GuideQualificationRule, error)
+	SaveGuideQualificationRule(ctx context.Context, rule GuideQualificationRule) (GuideQualificationRule, error)
+	GetExpertSkill(ctx context.Context, userID int64) (ExpertSkillProfile, bool, error)
+	SaveExpertSkill(ctx context.Context, profile ExpertSkillProfile) (ExpertSkillProfile, error)
+	ListExpertSkills(ctx context.Context) ([]ExpertSkillProfile, error)
+	GetGuideResource(ctx context.Context, userID int64) (GuideResourceProfile, bool, error)
+	SaveGuideResource(ctx context.Context, profile GuideResourceProfile) (GuideResourceProfile, error)
+	ListGuideResources(ctx context.Context) ([]GuideResourceProfile, error)
+	GetSystemManagementConfig(ctx context.Context, userID int64, key string) (map[string]interface{}, bool, error)
+	SaveSystemManagementConfig(ctx context.Context, userID int64, key string, payload map[string]interface{}) (map[string]interface{}, error)
+	ListSystemManagementConfigs(ctx context.Context, key string) ([]SystemManagementConfigItem, error)
+}
+
+type Service struct {
+	mu         sync.RWMutex
+	experts    map[int64]bool
+	guides     map[int64]bool
+	nextAppID  int64
+	nextRuleID int64
+	apps       map[int64]RoleApplication
+	guideQual  map[int64]GuideQualification
+	rules      map[int64]GuideQualificationRule
+	skills     map[int64]ExpertSkillProfile
+	resources  map[int64]GuideResourceProfile
+	system     map[int64]map[string]interface{}
+	repo       Repository
+}
+
+func NewService() *Service {
+	return NewServiceWithRepository(nil)
+}
+
+func NewServiceWithRepository(repo Repository) *Service {
+	return &Service{
+		experts:    make(map[int64]bool),
+		guides:     make(map[int64]bool),
+		nextAppID:  1,
+		nextRuleID: 1,
+		apps:       make(map[int64]RoleApplication),
+		guideQual:  make(map[int64]GuideQualification),
+		rules:      make(map[int64]GuideQualificationRule),
+		skills:     make(map[int64]ExpertSkillProfile),
+		resources:  make(map[int64]GuideResourceProfile),
+		system:     make(map[int64]map[string]interface{}),
+		repo:       repo,
+	}
+}
+
+func (s *Service) GrantRole(userID int64, roleCode string) {
+	if s.repo != nil {
+		_ = s.repo.GrantRole(context.Background(), userID, roleCode)
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch roleCode {
+	case "expert":
+		s.experts[userID] = true
+	case "guide":
+		s.guides[userID] = true
+	}
+}
+
+func (s *Service) IsGuide(userID int64) bool {
+	if s.repo != nil {
+		ok, err := s.repo.HasRole(context.Background(), userID, "guide")
+		return err == nil && ok
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.guides[userID]
+}
+
+func (s *Service) RoleSnapshot(userID int64) RoleSnapshot {
+	statusMap := map[string]string{
+		"player": "approved",
+		"expert": "none",
+		"guide":  "none",
+	}
+	roles := []string{"player"}
+	if s.hasRole(userID, "expert") {
+		statusMap["expert"] = "approved"
+		roles = append(roles, "expert")
+	}
+	if s.hasRole(userID, "guide") {
+		statusMap["guide"] = "approved"
+		roles = append(roles, "guide")
+	}
+	return RoleSnapshot{Roles: roles, RoleStatusMap: statusMap}
+}
+
+func (s *Service) hasRole(userID int64, roleCode string) bool {
+	if s.repo != nil {
+		ok, err := s.repo.HasRole(context.Background(), userID, roleCode)
+		return err == nil && ok
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	switch roleCode {
+	case "expert":
+		return s.experts[userID]
+	case "guide":
+		return s.guides[userID]
+	default:
+		return roleCode == "player"
+	}
+}
+
+func (s *Service) SubmitRoleApplication(userID int64, req SubmitRoleApplicationRequest) (RoleApplication, error) {
+	req.RoleCode = strings.TrimSpace(req.RoleCode)
+	req.Reason = strings.TrimSpace(req.Reason)
+	req.AbilityDescription = strings.TrimSpace(req.AbilityDescription)
+	if userID <= 0 || !validRoleCode(req.RoleCode) || req.Reason == "" || len(req.Reason) > 500 || len(req.AbilityDescription) > 1000 || !validFileIDs(req.ProofFileIDs, 12) {
+		return RoleApplication{}, ErrInvalidRoleApplication
+	}
+	if req.RoleCode == "guide" {
+		qualification, err := s.GuideQualification(userID)
+		if err != nil {
+			return RoleApplication{}, err
+		}
+		if !qualification.ConditionMet {
+			return RoleApplication{}, ErrWaitingGuideCondition
+		}
+		if !qualification.PaymentMet {
+			return RoleApplication{}, ErrWaitingGuidePayment
+		}
+	}
+	if s.repo != nil {
+		items, err := s.repo.ListRoleApplicationsByUser(context.Background(), userID)
+		if err != nil {
+			return RoleApplication{}, err
+		}
+		if hasPendingRoleApplication(items, req.RoleCode) {
+			return RoleApplication{}, ErrDuplicateRoleApplication
+		}
+		now := time.Now()
+		return s.repo.SaveRoleApplication(context.Background(), RoleApplication{
+			UserID:             userID,
+			RoleCode:           req.RoleCode,
+			Status:             "pending",
+			Reason:             req.Reason,
+			AbilityDescription: req.AbilityDescription,
+			ProofFileIDs:       append([]int64(nil), req.ProofFileIDs...),
+			CreatedAt:          now,
+			UpdatedAt:          now,
+		})
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if hasPendingRoleApplication(s.roleApplicationsByUserLocked(userID), req.RoleCode) {
+		return RoleApplication{}, ErrDuplicateRoleApplication
+	}
+	now := time.Now()
+	app := RoleApplication{
+		ID:                 s.nextAppID,
+		UserID:             userID,
+		RoleCode:           req.RoleCode,
+		Status:             "pending",
+		Reason:             req.Reason,
+		AbilityDescription: req.AbilityDescription,
+		ProofFileIDs:       append([]int64(nil), req.ProofFileIDs...),
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+	s.nextAppID++
+	s.apps[app.ID] = app
+	return app, nil
+}
+
+func (s *Service) RoleApplicationsByUser(userID int64) []RoleApplication {
+	if s.repo != nil {
+		if items, err := s.repo.ListRoleApplicationsByUser(context.Background(), userID); err == nil {
+			return items
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.roleApplicationsByUserLocked(userID)
+}
+
+func (s *Service) AllRoleApplications() []RoleApplication {
+	if s.repo != nil {
+		if items, err := s.repo.ListRoleApplications(context.Background()); err == nil {
+			return items
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]RoleApplication, 0, len(s.apps))
+	for _, app := range s.apps {
+		items = append(items, app)
+	}
+	return items
+}
+
+func (s *Service) ReviewRoleApplication(adminID int64, applicationID int64, req ReviewRoleApplicationRequest) (RoleApplication, error) {
+	req.Remark = strings.TrimSpace(req.Remark)
+	if applicationID <= 0 || req.Remark == "" || len(req.Remark) > 500 {
+		return RoleApplication{}, ErrInvalidRoleApplication
+	}
+	if s.repo != nil {
+		app, ok, err := s.repo.FindRoleApplication(context.Background(), applicationID)
+		if err != nil {
+			return RoleApplication{}, err
+		}
+		if !ok {
+			return RoleApplication{}, ErrRoleApplicationNotFound
+		}
+		updated, err := s.reviewRoleApplication(app, adminID, req)
+		if err != nil {
+			return RoleApplication{}, err
+		}
+		saved, err := s.repo.UpdateRoleApplication(context.Background(), updated)
+		if err != nil {
+			return RoleApplication{}, err
+		}
+		if saved.Status == "approved" {
+			if err := s.repo.GrantRole(context.Background(), saved.UserID, saved.RoleCode); err != nil {
+				return RoleApplication{}, err
+			}
+		}
+		return saved, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	app, ok := s.apps[applicationID]
+	if !ok {
+		return RoleApplication{}, ErrRoleApplicationNotFound
+	}
+	updated, err := s.reviewRoleApplication(app, adminID, req)
+	if err != nil {
+		return RoleApplication{}, err
+	}
+	s.apps[applicationID] = updated
+	if updated.Status == "approved" {
+		switch updated.RoleCode {
+		case "expert":
+			s.experts[updated.UserID] = true
+		case "guide":
+			s.guides[updated.UserID] = true
+			q := s.guideQual[updated.UserID]
+			q.UserID = updated.UserID
+			q.ConditionMet = true
+			q.PaymentMet = true
+			q.GuideOpenStatus = "opened"
+			q.UpdatedAt = time.Now()
+			s.guideQual[updated.UserID] = q
+		}
+	}
+	return updated, nil
+}
+
+func (s *Service) GuideQualification(userID int64) (GuideQualification, error) {
+	if userID <= 0 {
+		return GuideQualification{}, ErrInvalidRoleApplication
+	}
+	if s.repo != nil {
+		if q, ok, err := s.repo.GetGuideQualification(context.Background(), userID); err != nil {
+			return GuideQualification{}, err
+		} else if ok {
+			return q, nil
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if q, ok := s.guideQual[userID]; ok {
+		return q, nil
+	}
+	return GuideQualification{UserID: userID, GuideOpenStatus: "waiting_condition", UpdatedAt: time.Now()}, nil
+}
+
+func (s *Service) UpdateGuideQualification(userID int64, req UpdateGuideQualificationRequest) (GuideQualification, error) {
+	if userID <= 0 || (req.ConditionMet == nil && req.PaymentMet == nil) {
+		return GuideQualification{}, ErrInvalidRoleApplication
+	}
+	current, err := s.GuideQualification(userID)
+	if err != nil {
+		return GuideQualification{}, err
+	}
+	if req.ConditionMet != nil {
+		current.ConditionMet = *req.ConditionMet
+	}
+	if req.PaymentMet != nil {
+		current.PaymentMet = *req.PaymentMet
+	}
+	current.GuideOpenStatus = guideOpenStatus(current.ConditionMet, current.PaymentMet, s.IsGuide(userID))
+	current.UpdatedAt = time.Now()
+	if s.repo != nil {
+		return s.repo.SaveGuideQualification(context.Background(), current)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.guideQual[userID] = current
+	return current, nil
+}
+
+func (s *Service) GuideQualificationRules() []GuideQualificationRule {
+	if s.repo != nil {
+		if items, err := s.repo.ListGuideQualificationRules(context.Background()); err == nil {
+			return items
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensureDefaultGuideRuleLocked()
+	items := make([]GuideQualificationRule, 0, len(s.rules))
+	for _, rule := range s.rules {
+		items = append(items, rule)
+	}
+	return items
+}
+
+func (s *Service) UpdateGuideQualificationRule(ruleID int64, req UpdateGuideQualificationRuleRequest) (GuideQualificationRule, error) {
+	if ruleID <= 0 || (req.MinInviteCount == nil && req.MinCreditScore == nil && req.MinCompletedGames == nil && req.PaymentRequired == nil && req.Status == nil) {
+		return GuideQualificationRule{}, ErrInvalidRoleApplication
+	}
+	if req.MinInviteCount != nil && *req.MinInviteCount < 0 {
+		return GuideQualificationRule{}, ErrInvalidRoleApplication
+	}
+	if req.MinCreditScore != nil && (*req.MinCreditScore < 0 || *req.MinCreditScore > 100) {
+		return GuideQualificationRule{}, ErrInvalidRoleApplication
+	}
+	if req.MinCompletedGames != nil && *req.MinCompletedGames < 0 {
+		return GuideQualificationRule{}, ErrInvalidRoleApplication
+	}
+	status := ""
+	if req.Status != nil {
+		status = strings.TrimSpace(*req.Status)
+		if status != "active" && status != "disabled" {
+			return GuideQualificationRule{}, ErrInvalidRoleApplication
+		}
+	}
+	if s.repo != nil {
+		items, err := s.repo.ListGuideQualificationRules(context.Background())
+		if err != nil {
+			return GuideQualificationRule{}, err
+		}
+		var current GuideQualificationRule
+		found := false
+		for _, item := range items {
+			if item.ID == ruleID {
+				current = item
+				found = true
+				break
+			}
+		}
+		if !found {
+			return GuideQualificationRule{}, ErrRoleApplicationNotFound
+		}
+		return s.repo.SaveGuideQualificationRule(context.Background(), applyGuideRuleUpdate(current, req, status))
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensureDefaultGuideRuleLocked()
+	current, ok := s.rules[ruleID]
+	if !ok {
+		return GuideQualificationRule{}, ErrRoleApplicationNotFound
+	}
+	updated := applyGuideRuleUpdate(current, req, status)
+	s.rules[ruleID] = updated
+	return updated, nil
+}
+
+func (s *Service) ExpertSkill(userID int64) (ExpertSkillProfile, error) {
+	if s.repo != nil {
+		ok, err := s.repo.HasRole(context.Background(), userID, "expert")
+		if err != nil {
+			return ExpertSkillProfile{}, err
+		}
+		if !ok {
+			return ExpertSkillProfile{}, ErrExpertForbidden
+		}
+		if profile, found, err := s.repo.GetExpertSkill(context.Background(), userID); err == nil && found {
+			return profile, nil
+		} else if err != nil {
+			return ExpertSkillProfile{}, err
+		}
+		return ExpertSkillProfile{UserID: userID, SkillTree: []string{}, ServiceTags: []string{}, CaseFileIDs: []int64{}, UpdatedAt: time.Now()}, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if !s.experts[userID] {
+		return ExpertSkillProfile{}, ErrExpertForbidden
+	}
+	if profile, ok := s.skills[userID]; ok {
+		return profile, nil
+	}
+	return ExpertSkillProfile{UserID: userID, SkillTree: []string{}, ServiceTags: []string{}, CaseFileIDs: []int64{}, UpdatedAt: time.Now()}, nil
+}
+
+func (s *Service) AdminExpertSkill(userID int64) ExpertSkillProfile {
+	if s.repo != nil {
+		if profile, ok, err := s.repo.GetExpertSkill(context.Background(), userID); err == nil && ok {
+			return profile
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if profile, ok := s.skills[userID]; ok {
+		return profile
+	}
+	return ExpertSkillProfile{UserID: userID, SkillTree: []string{}, ServiceTags: []string{}, CaseFileIDs: []int64{}, UpdatedAt: time.Now()}
+}
+
+func (s *Service) AllExpertSkills() []ExpertSkillProfile {
+	if s.repo != nil {
+		if items, err := s.repo.ListExpertSkills(context.Background()); err == nil {
+			return items
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]ExpertSkillProfile, 0, len(s.skills))
+	for _, profile := range s.skills {
+		items = append(items, profile)
+	}
+	return items
+}
+
+func (s *Service) UpdateExpertSkill(userID int64, req ExpertSkillRequest) (ExpertSkillProfile, error) {
+	req.SkillTree = normalizeTags(req.SkillTree, 20, 40)
+	req.ServiceTags = normalizeTags(req.ServiceTags, 20, 40)
+	if (len(req.SkillTree) == 0 && len(req.ServiceTags) == 0) || !validFileIDs(req.CaseFileIDs, 12) {
+		return ExpertSkillProfile{}, ErrInvalidProfile
+	}
+	if s.repo != nil {
+		ok, err := s.repo.HasRole(context.Background(), userID, "expert")
+		if err != nil {
+			return ExpertSkillProfile{}, err
+		}
+		if !ok {
+			return ExpertSkillProfile{}, ErrExpertForbidden
+		}
+		return s.repo.SaveExpertSkill(context.Background(), expertProfileFromRequest(userID, req))
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.experts[userID] {
+		return ExpertSkillProfile{}, ErrExpertForbidden
+	}
+	profile := expertProfileFromRequest(userID, req)
+	s.skills[userID] = profile
+	return profile, nil
+}
+
+func (s *Service) GuideResource(userID int64) (GuideResourceProfile, error) {
+	if s.repo != nil {
+		ok, err := s.repo.HasRole(context.Background(), userID, "guide")
+		if err != nil {
+			return GuideResourceProfile{}, err
+		}
+		if !ok {
+			return GuideResourceProfile{}, ErrGuideForbidden
+		}
+		if profile, found, err := s.repo.GetGuideResource(context.Background(), userID); err == nil && found {
+			return profile, nil
+		} else if err != nil {
+			return GuideResourceProfile{}, err
+		}
+		return GuideResourceProfile{UserID: userID, ResourceTags: []string{}, IndustryTags: []string{}, CityCodes: []string{}, UpdatedAt: time.Now()}, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if !s.guides[userID] {
+		return GuideResourceProfile{}, ErrGuideForbidden
+	}
+	if profile, ok := s.resources[userID]; ok {
+		return profile, nil
+	}
+	return GuideResourceProfile{UserID: userID, ResourceTags: []string{}, IndustryTags: []string{}, CityCodes: []string{}, UpdatedAt: time.Now()}, nil
+}
+
+func (s *Service) AdminGuideResource(userID int64) GuideResourceProfile {
+	if s.repo != nil {
+		if profile, ok, err := s.repo.GetGuideResource(context.Background(), userID); err == nil && ok {
+			return profile
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if profile, ok := s.resources[userID]; ok {
+		return profile
+	}
+	return GuideResourceProfile{UserID: userID, ResourceTags: []string{}, IndustryTags: []string{}, CityCodes: []string{}, UpdatedAt: time.Now()}
+}
+
+func (s *Service) AllGuideResources() []GuideResourceProfile {
+	if s.repo != nil {
+		if items, err := s.repo.ListGuideResources(context.Background()); err == nil {
+			return items
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]GuideResourceProfile, 0, len(s.resources))
+	for _, profile := range s.resources {
+		items = append(items, profile)
+	}
+	return items
+}
+
+func (s *Service) SystemManagementConfig(userID int64, key string, fallback map[string]interface{}) map[string]interface{} {
+	if userID <= 0 || strings.TrimSpace(key) == "" {
+		return cloneObjectMap(fallback)
+	}
+	key = strings.TrimSpace(key)
+	if s.repo != nil {
+		if value, ok, err := s.repo.GetSystemManagementConfig(context.Background(), userID, key); err == nil && ok {
+			return cloneObjectMap(value)
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if byKey, ok := s.system[userID]; ok {
+		if value, ok := byKey[key].(map[string]interface{}); ok {
+			return cloneObjectMap(value)
+		}
+	}
+	return cloneObjectMap(fallback)
+}
+
+func (s *Service) SaveSystemManagementConfig(userID int64, key string, payload map[string]interface{}) map[string]interface{} {
+	key = strings.TrimSpace(key)
+	if userID <= 0 || key == "" {
+		return cloneObjectMap(payload)
+	}
+	if s.repo != nil {
+		if saved, err := s.repo.SaveSystemManagementConfig(context.Background(), userID, key, payload); err == nil {
+			return cloneObjectMap(saved)
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.system[userID] == nil {
+		s.system[userID] = make(map[string]interface{})
+	}
+	s.system[userID][key] = cloneObjectMap(payload)
+	return cloneObjectMap(s.system[userID][key].(map[string]interface{}))
+}
+
+func (s *Service) SystemManagementConfigs(key string) []SystemManagementConfigItem {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return []SystemManagementConfigItem{}
+	}
+	if s.repo != nil {
+		if items, err := s.repo.ListSystemManagementConfigs(context.Background(), key); err == nil {
+			return cloneSystemManagementConfigItems(items)
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]SystemManagementConfigItem, 0)
+	for userID, byKey := range s.system {
+		if value, ok := byKey[key].(map[string]interface{}); ok {
+			items = append(items, SystemManagementConfigItem{UserID: userID, Key: key, Value: cloneObjectMap(value)})
+		}
+	}
+	return items
+}
+
+func (s *Service) UpdateGuideResource(userID int64, req GuideResourceRequest) (GuideResourceProfile, error) {
+	req.ResourceTags = normalizeTags(req.ResourceTags, 20, 40)
+	req.IndustryTags = normalizeTags(req.IndustryTags, 20, 40)
+	req.CityCodes = normalizeTags(req.CityCodes, 20, 32)
+	req.ConnectionScale = strings.TrimSpace(req.ConnectionScale)
+	if (len(req.ResourceTags) == 0 && len(req.IndustryTags) == 0 && len(req.CityCodes) == 0) || len(req.ConnectionScale) > 32 {
+		return GuideResourceProfile{}, ErrInvalidProfile
+	}
+	if s.repo != nil {
+		ok, err := s.repo.HasRole(context.Background(), userID, "guide")
+		if err != nil {
+			return GuideResourceProfile{}, err
+		}
+		if !ok {
+			return GuideResourceProfile{}, ErrGuideForbidden
+		}
+		return s.repo.SaveGuideResource(context.Background(), guideProfileFromRequest(userID, req))
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.guides[userID] {
+		return GuideResourceProfile{}, ErrGuideForbidden
+	}
+	profile := guideProfileFromRequest(userID, req)
+	s.resources[userID] = profile
+	return profile, nil
+}
+
+func cloneObjectMap(value map[string]interface{}) map[string]interface{} {
+	if value == nil {
+		return map[string]interface{}{}
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+	var cloned map[string]interface{}
+	if err := json.Unmarshal(data, &cloned); err != nil {
+		return map[string]interface{}{}
+	}
+	return cloned
+}
+
+func cloneSystemManagementConfigItems(items []SystemManagementConfigItem) []SystemManagementConfigItem {
+	cloned := make([]SystemManagementConfigItem, 0, len(items))
+	for _, item := range items {
+		cloned = append(cloned, SystemManagementConfigItem{
+			UserID: item.UserID,
+			Key:    item.Key,
+			Value:  cloneObjectMap(item.Value),
+		})
+	}
+	return cloned
+}
+
+func normalizeTags(values []string, maxCount int, maxLen int) []string {
+	if len(values) > maxCount {
+		return nil
+	}
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{})
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || len(value) > maxLen {
+			return nil
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func validFileIDs(fileIDs []int64, maxCount int) bool {
+	if len(fileIDs) > maxCount {
+		return false
+	}
+	for _, fileID := range fileIDs {
+		if fileID <= 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func completeness(parts ...bool) int {
+	if len(parts) == 0 {
+		return 0
+	}
+	done := 0
+	for _, ok := range parts {
+		if ok {
+			done++
+		}
+	}
+	return done * 100 / len(parts)
+}
+
+func expertProfileFromRequest(userID int64, req ExpertSkillRequest) ExpertSkillProfile {
+	return ExpertSkillProfile{
+		UserID:       userID,
+		SkillTree:    append([]string(nil), req.SkillTree...),
+		ServiceTags:  append([]string(nil), req.ServiceTags...),
+		CaseFileIDs:  append([]int64(nil), req.CaseFileIDs...),
+		Completeness: completeness(len(req.SkillTree) > 0, len(req.ServiceTags) > 0, len(req.CaseFileIDs) > 0),
+		UpdatedAt:    time.Now(),
+	}
+}
+
+func guideProfileFromRequest(userID int64, req GuideResourceRequest) GuideResourceProfile {
+	return GuideResourceProfile{
+		UserID:          userID,
+		ResourceTags:    append([]string(nil), req.ResourceTags...),
+		IndustryTags:    append([]string(nil), req.IndustryTags...),
+		CityCodes:       append([]string(nil), req.CityCodes...),
+		ConnectionScale: req.ConnectionScale,
+		Completeness:    completeness(len(req.ResourceTags) > 0, len(req.IndustryTags) > 0, len(req.CityCodes) > 0, req.ConnectionScale != ""),
+		UpdatedAt:       time.Now(),
+	}
+}
+
+func validRoleCode(roleCode string) bool {
+	return roleCode == "expert" || roleCode == "guide"
+}
+
+func hasPendingRoleApplication(items []RoleApplication, roleCode string) bool {
+	for _, item := range items {
+		if item.RoleCode == roleCode && item.Status == "pending" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) roleApplicationsByUserLocked(userID int64) []RoleApplication {
+	items := make([]RoleApplication, 0)
+	for _, app := range s.apps {
+		if app.UserID == userID {
+			items = append(items, app)
+		}
+	}
+	return items
+}
+
+func (s *Service) reviewRoleApplication(app RoleApplication, adminID int64, req ReviewRoleApplicationRequest) (RoleApplication, error) {
+	if app.Status != "pending" {
+		return RoleApplication{}, ErrRoleApplicationReviewed
+	}
+	app.ReviewAdminID = adminID
+	app.ReviewRemark = req.Remark
+	app.UpdatedAt = time.Now()
+	if req.Approve {
+		app.Status = "approved"
+		return app, nil
+	}
+	app.Status = "rejected"
+	app.RejectReason = req.Remark
+	return app, nil
+}
+
+func guideOpenStatus(conditionMet bool, paymentMet bool, isGuide bool) string {
+	switch {
+	case !conditionMet:
+		return "waiting_condition"
+	case !paymentMet:
+		return "waiting_payment"
+	case isGuide:
+		return "opened"
+	default:
+		return "ready_for_review"
+	}
+}
+
+func (s *Service) ensureDefaultGuideRuleLocked() {
+	if len(s.rules) > 0 {
+		return
+	}
+	s.rules[1] = GuideQualificationRule{
+		ID:                1,
+		RuleCode:          "default",
+		MinInviteCount:    0,
+		MinCreditScore:    0,
+		MinCompletedGames: 0,
+		PaymentRequired:   true,
+		Status:            "active",
+		UpdatedAt:         time.Now(),
+	}
+	if s.nextRuleID <= 1 {
+		s.nextRuleID = 2
+	}
+}
+
+func applyGuideRuleUpdate(rule GuideQualificationRule, req UpdateGuideQualificationRuleRequest, status string) GuideQualificationRule {
+	if req.MinInviteCount != nil {
+		rule.MinInviteCount = *req.MinInviteCount
+	}
+	if req.MinCreditScore != nil {
+		rule.MinCreditScore = *req.MinCreditScore
+	}
+	if req.MinCompletedGames != nil {
+		rule.MinCompletedGames = *req.MinCompletedGames
+	}
+	if req.PaymentRequired != nil {
+		rule.PaymentRequired = *req.PaymentRequired
+	}
+	if status != "" {
+		rule.Status = status
+	}
+	rule.UpdatedAt = time.Now()
+	return rule
+}

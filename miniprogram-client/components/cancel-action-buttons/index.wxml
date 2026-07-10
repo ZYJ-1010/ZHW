@@ -1,0 +1,13 @@
+<view class="cancel-action-buttons {{barClass}}" style="{{barStyle}}">
+  <view class="cancel-action-row">
+    <button class="cancel-action-button secondary" hover-class="none" bindtap="onSecondaryTap">{{secondaryText}}</button>
+    <button
+      class="cancel-action-button primary {{primaryTone}}"
+      hover-class="none"
+      loading="{{primaryLoading}}"
+      disabled="{{primaryDisabled}}"
+      bindtap="onPrimaryTap"
+    >{{primaryText}}</button>
+  </view>
+  <text wx:if="{{tipText}}" class="cancel-action-tip">{{tipText}}</text>
+</view>

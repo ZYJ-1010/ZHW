@@ -1,0 +1,13 @@
+<view class="detail-action-bar">
+  <view class="action-buttons">
+    <view class="detail-action secondary" bindtap="handleDecline">
+      <image class="action-icon-image" src="https://static.haowan.net.cn/miniprogram/pages/game/detail/assets/icon-decline.png" mode="aspectFit"></image>
+      <text>婉拒</text>
+    </view>
+    <view class="detail-action primary {{loading ? 'loading' : ''}}" bindtap="handleConfirm">
+      <image class="action-icon-image" src="https://static.haowan.net.cn/miniprogram/pages/game/detail/assets/icon-confirm.png" mode="aspectFit"></image>
+      <text>{{loading ? loadingText : confirmText}}</text>
+    </view>
+  </view>
+  <text class="action-tip">{{tip}}</text>
+</view>

@@ -1,0 +1,130 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{pageTitle}}"
+  shell-variant="joinApply"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="message-center-page">
+    <view class="quick-grid">
+      <view
+        wx:for="{{quickActions}}"
+        wx:key="key"
+        class="quick-item"
+        data-key="{{item.key}}"
+        bindtap="onQuickTap"
+      >
+        <view class="quick-icon {{item.tone}}">
+          <image wx:if="{{item.iconSrc}}" class="quick-icon-image" src="{{item.iconSrc}}" mode="aspectFit"></image>
+          <text wx:else>{{item.icon}}</text>
+          <view wx:if="{{item.unread}}" class="quick-badge"></view>
+        </view>
+        <text class="quick-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <scroll-view class="tab-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="tab-row">
+        <button
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="tab-button {{activeTab === item.key ? 'active' : ''}}"
+          hover-class="none"
+          data-key="{{item.key}}"
+          bindtap="onTabTap"
+        >{{item.label}}</button>
+      </view>
+    </scroll-view>
+
+    <view class="message-list">
+      <view wx:for="{{sections}}" wx:key="key" class="message-section">
+        <view class="section-head">
+          <text class="section-title">{{item.title}}</text>
+          <button
+            wx:if="{{item.moreText}}"
+            class="section-more"
+            hover-class="none"
+            data-key="{{item.key}}"
+            catchtap="onSectionMoreTap"
+          >{{item.moreText}}</button>
+        </view>
+
+        <view class="section-cards">
+          <view
+            wx:for="{{item.items}}"
+            wx:for-item="message"
+            wx:key="id"
+            class="message-card {{message.alert ? 'alert' : ''}}"
+            data-id="{{message.id}}"
+            data-route-key="{{message.routeKey}}"
+            bindtap="onMessageTap"
+          >
+            <view class="message-icon-wrap">
+              <view wx:if="{{message.avatarText}}" class="avatar-icon {{message.online ? 'online' : ''}}">
+                <text>{{message.avatarText}}</text>
+              </view>
+              <view wx:else class="message-icon {{message.tone}}">
+                <image wx:if="{{message.iconSrc}}" class="message-icon-image" src="{{message.iconSrc}}" mode="aspectFit"></image>
+                <text wx:else>{{message.icon}}</text>
+              </view>
+              <view wx:if="{{message.unread}}" class="message-dot"></view>
+            </view>
+
+            <view class="message-content">
+              <view class="message-head">
+                <text class="message-title">{{message.title}}</text>
+                <text class="message-time">{{message.timeText}}</text>
+              </view>
+
+              <view wx:if="{{message.descParts}}" class="message-desc rich">
+                <text
+                  wx:for="{{message.descParts}}"
+                  wx:for-item="part"
+                  wx:key="*this"
+                  class="{{part.danger ? 'danger-text' : ''}}"
+                >{{part.text}}</text>
+              </view>
+              <text wx:else class="message-desc">{{message.desc}}</text>
+
+              <view wx:if="{{message.tagText}}" class="message-tag {{message.tagTone}}">{{message.tagText}}</view>
+
+              <view wx:if="{{message.summaryText || message.subText}}" class="message-summary">
+                <text wx:if="{{message.summaryText}}" class="summary-main">{{message.summaryText}}</text>
+                <text wx:if="{{message.subText}}" class="summary-sub">{{message.subText}}</text>
+              </view>
+
+              <view wx:if="{{message.metaText || message.linkText}}" class="message-meta-row">
+                <text class="message-meta">{{message.metaText}}</text>
+                <button
+                  wx:if="{{message.linkText}}"
+                  class="message-link"
+                  hover-class="none"
+                  data-id="{{message.id}}"
+                  data-action="process"
+                  catchtap="onActionTap"
+                >{{message.linkText}}</button>
+              </view>
+
+              <view wx:if="{{message.actions}}" class="message-actions">
+                <button
+                  wx:for="{{message.actions}}"
+                  wx:for-item="action"
+                  wx:key="key"
+                  class="action-button {{action.primary ? 'primary' : ''}} {{action.orange ? 'orange' : ''}}"
+                  hover-class="none"
+                  data-id="{{message.id}}"
+                  data-action="{{action.key}}"
+                  catchtap="onActionTap"
+                >{{action.text}}</button>
+              </view>
+            </view>
+
+            <view wx:if="{{message.unreadCount}}" class="unread-count">{{message.unreadCount}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</home-shell>

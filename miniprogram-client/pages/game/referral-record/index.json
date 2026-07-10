@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "business-summary-card": "/components/business-summary-card/index"
+  }
+}

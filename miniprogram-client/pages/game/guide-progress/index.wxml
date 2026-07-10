@@ -1,0 +1,60 @@
+<view class="guide-progress-page">
+  <view class="guide-progress-frame" style="{{shellLayout.frameStyle}}">
+    <view class="guide-progress-top-bg"></view>
+    <view class="guide-progress-nav">
+      <view class="guide-progress-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="guide-progress-back-icon"></view>
+      </view>
+      <text class="guide-progress-title" style="{{shellLayout.titleStyle}}">{{pageTitle}}</text>
+    </view>
+
+    <scroll-view
+      class="guide-progress-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="guide-progress-inner">
+        <view wx:if="{{loading}}" class="guide-progress-state">
+          <text>加载中...</text>
+        </view>
+
+        <view wx:elif="{{errorText}}" class="guide-progress-state error" bindtap="onRetryTap">
+          <text>{{errorText}}</text>
+          <text class="guide-progress-state-action">点击重试</text>
+        </view>
+
+        <block wx:else>
+          <view class="section-heading active">
+            <image class="section-heading-icon" src="./assets/section-active.png" mode="aspectFit"></image>
+            <text>进行中的组局 {{activeCount}}</text>
+          </view>
+
+          <view wx:if="{{!activeParties.length}}" class="guide-progress-empty">暂无进行中的组局</view>
+
+          <guide-progress-card
+            wx:for="{{activeParties}}"
+            wx:key="id"
+            item="{{item}}"
+            bind:cardtap="onProgressCardTap"
+          ></guide-progress-card>
+
+          <view class="section-heading recent">
+            <text>最近完成</text>
+          </view>
+
+          <view wx:if="{{!completedParties.length}}" class="guide-progress-empty">暂无完成记录</view>
+
+          <guide-complete-card
+            wx:for="{{completedParties}}"
+            wx:key="id"
+            item="{{item}}"
+          ></guide-complete-card>
+        </block>
+      </view>
+    </scroll-view>
+
+    <view class="guide-progress-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

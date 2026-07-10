@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "service-activity-card": "/components/service-activity-card/index",
+    "cancel-reason-card": "/components/cancel-reason-card/index",
+    "cancel-action-buttons": "/components/cancel-action-buttons/index"
+  }
+}

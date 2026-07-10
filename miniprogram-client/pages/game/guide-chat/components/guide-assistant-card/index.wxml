@@ -1,0 +1,49 @@
+<view class="guide-assistant-card">
+  <view class="card-header">
+    <text class="assistant-badge">GR</text>
+    <text class="assistant-name">组局助手</text>
+  </view>
+
+  <view class="card-body">
+    <view class="invite-title-row">
+      <view class="invite-icon">
+        <image src="/pages/game/guide-chat/assets/icon-invite.png" mode="aspectFit" />
+      </view>
+      <view class="invite-title-copy">
+        <text class="invite-title">{{card.title}}</text>
+        <text class="invite-subtitle">{{card.guideLabel}}：{{card.guideName}}</text>
+      </view>
+    </view>
+
+    <view class="player-info-box">
+      <text class="player-info-label">玩家信息</text>
+      <view class="player-info-row">
+        <view class="player-avatar">{{card.player.avatarText}}</view>
+        <view class="player-copy">
+          <text class="player-name">{{card.player.name}}</text>
+          <text class="player-desc">{{card.player.desc}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="event-detail-list">
+      <view class="event-detail-row">
+        <image class="detail-icon calendar" src="/pages/game/guide-chat/assets/icon-calendar.png" mode="aspectFit" />
+        <text>{{card.game.dateText}}</text>
+      </view>
+      <view class="event-detail-row">
+        <image class="detail-icon location" src="/pages/game/guide-chat/assets/icon-location.png" mode="aspectFit" />
+        <text>{{card.game.location}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card-actions">
+    <view class="card-button-wrap">
+      <button class="card-button primary" hover-class="none" bindtap="handleAcceptTap">确认参加</button>
+    </view>
+    <view class="card-button-wrap">
+      <button class="card-button secondary" hover-class="none" bindtap="handleDeclineTap">婉拒</button>
+    </view>
+  </view>
+</view>

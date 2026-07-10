@@ -1,0 +1,9 @@
+<view class="detail-card {{cardClass}}">
+  <text class="section-title block">{{title}}</text>
+  <view class="simple-list {{listClass}}">
+    <view wx:for="{{rows}}" wx:key="label" class="simple-row {{item.total ? 'total' : ''}} {{item.last ? 'last' : ''}}">
+      <text class="simple-label">{{item.label}}</text>
+      <text class="simple-value {{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+    </view>
+  </view>
+</view>

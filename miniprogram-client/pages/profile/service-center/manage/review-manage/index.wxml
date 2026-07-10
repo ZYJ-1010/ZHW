@@ -1,0 +1,142 @@
+<home-apply-shell
+  nav-title="评价管理"
+  shell-class="service-review-shell"
+  show-back="{{true}}"
+  right-text="⋮"
+  bindbacktap="onBackTap"
+  bindrighttap="onMenuTap"
+>
+  <scroll-view
+    class="service-review-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    enable-back-to-top
+  >
+    <view class="review-manage-page">
+      <view class="score-section">
+        <view class="score-card">
+          <view class="score-head">
+            <view class="score-main">
+              <text class="score-number">{{score.overall}}</text>
+              <text class="score-label">综合评分</text>
+              <text class="score-stars">{{score.stars}}</text>
+            </view>
+            <view class="score-side">
+              <text class="score-total">{{score.total}}</text>
+              <text class="score-total-label">总评价数</text>
+              <text class="score-good-rate">好评率 {{score.goodRate}}</text>
+            </view>
+          </view>
+
+          <view class="score-bars">
+            <view wx:for="{{score.breakdown}}" wx:key="label" class="score-bar-row">
+              <text class="bar-label">{{item.label}}</text>
+              <view class="bar-track">
+                <view class="bar-fill" style="{{item.style}}"></view>
+              </view>
+              <text class="bar-percent">{{item.percent}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="pending-card">
+        <view class="pending-left">
+          <image class="message-icon" src="https://static.haowan.net.cn/miniprogram/pages/game/referral-record/assets/chat.png" mode="aspectFit"></image>
+          <text class="pending-text">待回复评价 <text class="pending-count">{{pendingCount}}</text> 条</text>
+        </view>
+        <view class="pending-button" bindtap="onPendingTap">立即回复</view>
+      </view>
+
+      <view class="status-tabs">
+        <view
+          wx:for="{{statusTabs}}"
+          wx:key="key"
+          class="status-tab {{activeStatus === item.key ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onStatusTap"
+        >
+          <text>{{item.label}}</text>
+          <text class="status-count">{{item.count}}</text>
+        </view>
+      </view>
+
+      <view class="review-list">
+        <view wx:for="{{reviews}}" wx:key="id" class="review-card {{item.statusType}}">
+          <view class="review-head">
+            <view class="review-person">
+              <view class="review-avatar {{item.avatarClass}}">{{item.avatar}}</view>
+              <view class="review-person-copy">
+                <text class="review-name">{{item.user}}</text>
+                <view class="rating-line">
+                  <text class="review-stars">{{item.rating}}</text>
+                  <text class="review-service">{{item.title}}</text>
+                </view>
+              </view>
+            </view>
+            <text class="review-date">{{item.time}}</text>
+          </view>
+
+          <text class="review-content">{{item.content}}</text>
+
+          <view wx:if="{{item.tags.length}}" class="tag-list">
+            <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="tag-chip">{{tag}}</text>
+          </view>
+
+          <view wx:if="{{item.reply}}" class="reply-box">
+            <text class="reply-label">行家回复：</text>
+            <text class="reply-content">{{item.reply}}</text>
+          </view>
+
+          <view wx:if="{{item.statusType !== 'replied'}}" class="review-actions">
+            <button class="reply-action" data-id="{{item.id}}" hover-class="none" bindtap="onReplyTap">
+              <image class="reply-action-icon" src="/pages/profile/assets/icon-review-reply.svg" mode="aspectFit"></image>
+              <text>回复评价</text>
+            </button>
+            <button class="like-action" aria-label="点赞" data-id="{{item.id}}" hover-class="none" bindtap="onLikeTap">
+              <image class="like-action-icon" src="/pages/profile/assets/icon-review-like.svg" mode="aspectFit"></image>
+            </button>
+          </view>
+
+          <view class="review-secondary-actions">
+            <button
+              class="secondary-action"
+              data-game-id="{{item.gameId}}"
+              data-route="{{item.detailUrl}}"
+              hover-class="none"
+              bindtap="onDetailTap"
+            >查看局详情</button>
+            <button
+              class="secondary-action danger"
+              data-route="{{item.reportUrl}}"
+              hover-class="none"
+              bindtap="onInterventionTap"
+            >平台介入</button>
+          </view>
+          <view wx:if="{{item.alert}}" class="alert-box">
+            <view class="alert-icon"></view>
+            <text>{{item.alert}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{loaded && !reviews.length}}" class="empty-state">
+          <text>{{loadError ? '评价列表加载失败，请稍后重试' : '暂无评价数据'}}</text>
+        </view>
+      </view>
+
+      <view class="stats-card">
+        <view class="stats-title-row">
+          <text class="stats-icon">📈</text>
+          <text class="stats-title">评价统计</text>
+        </view>
+        <view class="stats-grid">
+          <view wx:for="{{stats}}" wx:key="label" class="stat-item">
+            <text class="stat-value">{{item.value}}</text>
+            <text class="stat-label">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</home-apply-shell>

@@ -1,0 +1,112 @@
+.profile-white-shell {
+  width: 100%;
+  min-height: 100vh;
+  color: #101010;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.profile-white-frame {
+  position: relative;
+  width: 750rpx;
+  min-height: 100vh;
+  margin: 0 auto;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.profile-white-nav {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  width: 750rpx;
+  height: 160rpx;
+  background: #ffffff;
+}
+
+.profile-white-title {
+  position: absolute;
+  left: 188rpx;
+  right: 188rpx;
+  display: block;
+  overflow: hidden;
+  color: #101010;
+  font-size: 36rpx;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-white-right {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 34rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.profile-white-filter-icon {
+  position: relative;
+  width: 34rpx;
+  height: 32rpx;
+}
+
+.profile-white-filter-icon::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34rpx;
+  height: 22rpx;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 62% 100%, 38% 100%);
+  content: "";
+}
+
+.profile-white-filter-icon::after {
+  position: absolute;
+  left: 13rpx;
+  top: 20rpx;
+  width: 8rpx;
+  height: 12rpx;
+  border-radius: 2rpx;
+  background: currentColor;
+  content: "";
+}
+
+.profile-white-back {
+  position: absolute;
+  left: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 2rpx rgba(51, 51, 51, 0.28);
+  line-height: 1;
+}
+
+.profile-white-back::after {
+  border: 0;
+}
+
+.profile-white-back-icon {
+  width: 13rpx;
+  height: 13rpx;
+  border-left: 4rpx solid rgba(51, 51, 51, 0.71);
+  border-bottom: 4rpx solid rgba(51, 51, 51, 0.71);
+  box-sizing: border-box;
+  transform: translateX(3rpx) rotate(45deg);
+}
+
+.profile-white-content {
+  position: absolute;
+  left: 0;
+  width: 750rpx;
+  box-sizing: border-box;
+}

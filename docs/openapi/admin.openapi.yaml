@@ -1,0 +1,1693 @@
+openapi: 3.0.3
+info:
+  title: 真好玩 PC 后台 API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /api/admin/invite-codes:
+    get:
+      summary: Admin invite code list
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: entryType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [poster, qrcode, link]
+        - name: ownerUserId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires invite_code:read, returns invite code list and binding summary.
+        "403":
+          description: Missing invite_code:read permission.
+    post:
+      summary: Admin create invite code or batch generate invite codes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: Leave empty for auto generated code. Must be empty when batchCount > 1.
+                ownerUserId:
+                  type: integer
+                maxUses:
+                  type: integer
+                  description: Use 1 for unique invite entry binding.
+                entryType:
+                  type: string
+                  enum: [poster, qrcode, link]
+                batchCount:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  description: When greater than 1, returns items and total.
+      responses:
+        "200":
+          description: Requires invite_code:manage. Single create returns invite code; batch create returns items and total.
+        "403":
+          description: Missing invite_code:manage permission.
+  /api/admin/invite-codes/{code}/disable:
+    post:
+      summary: Admin disable invite code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Requires invite_code:manage, disables the invite code and writes operation log.
+        "404":
+          description: Invite code not found.
+  /api/admin/invite-relations:
+    get:
+      summary: Admin invite relation list
+      parameters:
+        - name: inviterUserId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: inviteeUserId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: inviteCodeId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires invite_code:read, returns invite relation list.
+        "403":
+          description: Missing invite_code:read permission.
+  /api/admin/users:
+    get:
+      summary: Admin user list
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Match user id, openId or nickname.
+        - name: realnameStatus
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Requires user:view, returns users aligned with the app User DTO.
+        "403":
+          description: Missing user:view permission.
+  /api/admin/auth/login:
+    post:
+      summary: Admin login
+      responses:
+        "200":
+          description: Returns token, admin user, roles and permissions.
+        "401":
+          description: Invalid account or password.
+        "403":
+          description: Admin account is disabled.
+  /api/admin/auth/permissions:
+    get:
+      summary: Current admin permission snapshot
+      responses:
+        "200":
+          description: Returns menus, buttons, API permissions and current admin information.
+        "401":
+          description: Admin login is invalid.
+  /api/admin/permissions/tree:
+    get:
+      summary: Admin permission tree
+      responses:
+        "200":
+          description: Returns menu tree, button permissions and API permissions.
+        "401":
+          description: Admin login is invalid.
+  /api/admin/notifications/wechat-templates:
+    get:
+      summary: WeChat subscribe template list
+      responses:
+        "200":
+          description: Returns subscribe message scenes, template IDs and enabled status.
+  /api/admin/notifications/wechat-tasks:
+    get:
+      summary: WeChat subscribe task list
+      responses:
+        "200":
+          description: Returns pending and sent subscribe message tasks.
+  /api/internal/notifications/wechat-tasks/{taskId}/mark-sent:
+    post:
+      summary: Mark WeChat subscribe task as sent
+      responses:
+        "200":
+          description: Writes send result and syncs notification wechatState to sent.
+  /api/internal/jobs/review-remind:
+    post:
+      summary: Trigger review reminder job
+      responses:
+        "200":
+          description: Creates in-app notifications and WeChat subscribe tasks for users waiting to review.
+  /api/internal/jobs/progress-feedback-remind:
+    post:
+      summary: Trigger progress feedback reminder job
+      responses:
+        "200":
+          description: Creates in-app notifications and WeChat subscribe tasks for active or pending-confirmation games.
+  /api/admin/im/rooms:
+    get:
+      summary: Admin IM room list
+      parameters:
+        - name: gameId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Optional game filter.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional room status filter, for example active or archived.
+      responses:
+        "200":
+          description: Requires im:room:read, returns room summaries with memberIds, messageCount and fileMessageCount.
+        "403":
+          description: Missing im:room:read permission.
+  /api/admin/im/rooms/{roomId}:
+    get:
+      summary: Admin IM room detail
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires im:room:read, returns room, messages, fileMessages, messageCount and fileMessageCount.
+        "403":
+          description: Missing im:room:read permission.
+        "404":
+          description: IM room not found.
+  /api/admin/im/rooms/{roomId}/dispute-messages:
+    get:
+      summary: 后台查看争议 IM 消息
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 需要 im:message:view_dispute 权限，成功后写入 operation_logs
+        "403":
+          description: 缺少争议消息查看权限
+  /api/admin/operation-logs:
+    get:
+      summary: 后台操作日志
+      responses:
+        "200":
+          description: 需要 operation_log:view_self 或 operation_log:view_full 权限；full 可看全部，self 仅看本人操作日志
+        "403":
+          description: 缺少操作日志查看权限
+  /api/admin/im/rooms/{roomId}/retry-create:
+    post:
+      summary: Admin retry IM room creation
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires im:room:retry_create, retries OpenIM room sync when OpenIM is enabled; returns current room in local mode.
+        "403":
+          description: Missing im:room:retry_create permission.
+        "404":
+          description: IM room not found.
+        "502":
+          description: OpenIM operation failed.
+  /api/admin/im/rooms/{roomId}/archive:
+    post:
+      summary: Admin archive IM room
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires im:room:archive, archives the room and blocks further app messages.
+        "403":
+          description: Missing im:room:archive permission.
+        "404":
+          description: IM room not found.
+  /api/admin/im/messages/{messageId}/hide:
+    post:
+      summary: Admin hide IM message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires im:message:hide, marks the message hidden. App history filters hidden messages; admin room detail keeps them as evidence.
+        "403":
+          description: Missing im:message:hide permission.
+        "404":
+          description: IM message not found.
+  /api/admin/games:
+    get:
+      summary: Admin game list
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by game status, for example pending_audit or recruiting.
+      responses:
+        "200":
+          description: Requires game:read, returns items, total and status.
+        "403":
+          description: Missing game:read permission.
+    post:
+      summary: Admin create game
+      description: Phase one mini program users can only create free games, but admins can create free, standard, public_welfare, aa, crowdfund, deposit and condition games for online verification without real payment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, creatorUserId, gameType, minPlayers, maxPlayers]
+              properties:
+                title:
+                  type: string
+                  maxLength: 80
+                creatorUserId:
+                  type: integer
+                  description: User ID used as the game creator.
+                gameType:
+                  type: string
+                  enum: [free, standard, public_welfare, aa, crowdfund, deposit, condition]
+                minPlayers:
+                  type: integer
+                  minimum: 5
+                maxPlayers:
+                  type: integer
+                  maximum: 8
+                cityCode:
+                  type: string
+                cityName:
+                  type: string
+                address:
+                  type: string
+                  maxLength: 255
+                longitude:
+                  type: number
+                latitude:
+                  type: number
+      responses:
+        "200":
+          description: Requires game:create_admin. Creates an admin-source recruiting game.
+        "403":
+          description: Missing game:create_admin permission.
+        "422":
+          description: Invalid creator, type, player count, title or location.
+  /api/admin/games/{gameId}/audit:
+    post:
+      summary: Admin audit game
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Requires game:update_status, approves pending game to recruiting and writes operation log.
+        "403":
+          description: Missing game:update_status permission.
+        "422":
+          description: Only approve=true is supported in phase one.
+  /api/admin/map/search:
+    get:
+      summary: 后台创建局地点搜索
+      description: 复用后端腾讯地图 WebService 代理；后台前端不持有地图 Key。需要 game:create_admin 权限。
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 返回 provider=tencent、items、total
+        "403":
+          description: Missing game:create_admin permission.
+        "503":
+          description: TENCENT_MAP_KEY_SERVER 未配置
+  /api/admin/behavior-logs:
+    get:
+      summary: 用户行为日志
+      responses:
+        "200":
+          description: 返回 user_behavior_logs 列表，包含旧字段 eventType/targetType/targetId 和新字段 eventCode/businessType/businessId/source/device/ip/occurredAt
+  /api/admin/behavior/events:
+    get:
+      summary: 筛选用户行为事件
+      description: 支持按 userId、eventType 或 eventCode 过滤；需要 data:behavior:read 权限。
+      responses:
+        "200":
+          description: 返回筛选后的 BehaviorLogDTO 列表
+  /api/admin/system/readiness:
+    get:
+      summary: Production readiness checklist
+      description: Requires system_config:read. Returns redacted readiness status for database, WeChat, SMS, FaceID, storage, OpenIM and funds-service configuration.
+      responses:
+        "200":
+          description: Returns environment, production, ready and readiness items. Secret values are never returned.
+        "403":
+          description: Missing system_config:read permission.
+  /api/admin/home/display-config:
+    get:
+      summary: 首页展示配置
+      description: 需要 system_config:read 权限。返回小程序首页展示型配置，当前包含 onlineBaseCount 和 onlineSuffix。
+      responses:
+        "200":
+          description: 返回 { config }，config 对应 system_configs.home.display_config。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存首页展示配置
+      description: 需要 system_config:update 权限。用于后台维护小程序首页在线人数等展示型业务数据，避免前端写死测试数字。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                onlineBaseCount:
+                  type: integer
+                  minimum: 0
+                onlineSuffix:
+                  type: string
+                  maxLength: 12
+      responses:
+        "200":
+          description: 返回保存后的 { config }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+  /api/admin/games/application-config:
+    get:
+      summary: 入局申请配置
+      description: 需要 system_config:read 权限。返回小程序入局申请页使用的协议、上传、重复申请和搜索开关配置。
+      responses:
+        "200":
+          description: 返回 { config }，config 对应 system_configs.game.application_config。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存入局申请配置
+      description: 需要 system_config:update 权限。保存后小程序通过 /api/app/games/application-config 读取同一配置。
+      responses:
+        "200":
+          description: 返回保存后的 { config }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败，例如协议标题为空、上传数量非法或简介长度非法。
+  /api/admin/games/audit-config:
+    get:
+      summary: 组局审核配置
+      description: 需要 system_config:read 权限。返回审核局型、驳回原因、批量审核数量和入局审核模式。
+      responses:
+        "200":
+          description: 返回 { config }，config 对应 system_configs.game.audit_config。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存组局审核配置
+      description: 需要 system_config:update 权限。用于后台统一维护审核规则，避免审核规则散落在前端。
+      responses:
+        "200":
+          description: 返回保存后的 { config }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败，例如局型不支持或 applicationAuditMode 不支持。
+  /api/admin/games/condition-rule-config:
+    get:
+      summary: 条件局规则配置
+      description: 需要 system_config:read 权限。返回条件局门槛、可见性、是否后台专属创建等配置。
+      responses:
+        "200":
+          description: 返回 { config }，config 对应 system_configs.game.condition_rule_config。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存条件局规则配置
+      description: 需要 system_config:update 权限。用于后台维护条件局测试和上线规则。
+      responses:
+        "200":
+          description: 返回保存后的 { config }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败，例如 ruleItems 为空或 defaultVisibility 不支持。
+  /api/admin/roles/benefit-config:
+    get:
+      summary: 角色权益配置
+      description: 需要 system_config:read 权限。返回小程序角色入口提示和权益对比页配置。
+      responses:
+        "200":
+          description: 返回 { config }，config 对应 system_configs.role.benefit_config。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存角色权益配置
+      description: 需要 system_config:update 权限。用于后台维护角色权益展示和业务权益说明，避免写死在小程序端。
+      responses:
+        "200":
+          description: 返回保存后的 { config }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败，例如 roleComparison 缺失。
+  /api/admin/reviews/complete-config:
+    get:
+      summary: 评价完成页配置
+      description: 需要 system_config:read 权限。返回小程序评价完成页使用的权益展示和再玩意愿选项。
+      responses:
+        "200":
+          description: 返回 { config }，config 对应 system_configs.review.complete_config。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存评价完成页配置
+      description: 需要 system_config:update 权限。保存后小程序通过 /api/app/reviews/complete-config 读取同一配置。
+      responses:
+        "200":
+          description: 返回保存后的 { config }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败，例如 playOptions 的 intent 或 route 不支持。
+  /api/admin/credit-deduction-rules:
+    get:
+      summary: 信用扣分规则
+      description: 需要 system_config:read 权限。返回退出、低分评价、举报核实等扣分规则。
+      responses:
+        "200":
+          description: 返回 { items }，items 对应 credit_deduction_rules。
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存信用扣分规则
+      description: 需要 system_config:update 权限。changeValue 必须为 -100 到 -1，保存后信用扣分链路实时读取。
+      responses:
+        "200":
+          description: 返回保存后的 { items }，并记录管理员操作日志。
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败，例如 ruleCode 为空、重复或 changeValue 非负数。
+  /api/admin/dashboard:
+    get:
+      summary: 数据看板基础统计
+      description: 需要 analytics:funnel:view 权限。返回漏斗和留存基础统计，供 PC 后台首页看板使用。
+      responses:
+        "200":
+          description: 返回 DashboardSnapshotDTO，包含 funnel.steps、retention.buckets 和 updatedAt
+        "403":
+          description: 缺少 analytics:funnel:view 权限
+  /api/admin/analytics/funnel:
+    get:
+      summary: 漏斗基础统计
+      description: 需要 analytics:funnel:view 权限。默认按 login、browse_games、view_game_detail、apply_game、enter_im、send_message、service_confirm、submit_review、view_income_summary 统计；也可通过 eventCodes 传逗号分隔自定义步骤。
+      parameters:
+        - name: eventCodes
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 逗号分隔的 eventCode 列表，例如 login,browse_games,search
+      responses:
+        "200":
+          description: 返回 FunnelSnapshotDTO，steps 包含 eventCode、userCount、conversionRate、dropOffRate
+        "403":
+          description: 缺少 analytics:funnel:view 权限
+  /api/admin/analytics/retention:
+    get:
+      summary: 留存基础统计
+      description: 需要 analytics:retention:view 权限。按用户首次行为日期生成 cohort，并统计次日、7 日、30 日留存。
+      responses:
+        "200":
+          description: 返回 RetentionSnapshotDTO，buckets 包含 cohortDate、newUsers、day1/day7/day30 retained 和 rate
+        "403":
+          description: 缺少 analytics:retention:view 权限
+  /api/admin/reports:
+    get:
+      summary: 举报申诉列表
+      responses:
+        "200":
+          description: 返回举报申诉及关联证据、分润冻结状态
+  /api/admin/reports/config:
+    get:
+      summary: 举报中心配置
+      description: 需要 system_config:read 权限，返回小程序举报中心使用的类型、上传限制和提示规则。
+      responses:
+        "200":
+          description: 返回 system_configs.report.center_config
+        "403":
+          description: 缺少 system_config:read 权限
+    put:
+      summary: 保存举报中心配置
+      description: 需要 system_config:update 权限，保存后小程序通过 /api/app/reports/config 读取同一配置，并写入管理员操作日志。
+      responses:
+        "200":
+          description: 返回保存后的配置
+        "403":
+          description: 缺少 system_config:update 权限
+        "422":
+          description: 配置校验失败
+  /api/admin/feedback-records:
+    get:
+      summary: 客服反馈记录列表
+      description: 需要 feedback:view 权限，后台查看用户提交的系统反馈、处理状态和最近回复。
+      responses:
+        "200":
+          description: 返回反馈记录列表和分页信息。
+        "403":
+          description: 缺少 feedback:view 权限
+  /api/admin/reports/export-templates:
+    get:
+      summary: 报表导出模板
+      responses:
+        "200":
+          description: 需要 report_export:create 权限，返回固定格式导出模板
+        "403":
+          description: 缺少报表导出权限
+  /api/admin/reports/export:
+    post:
+      summary: 创建报表导出任务
+      responses:
+        "200":
+          description: 创建 export_tasks.pending，并写 export:create 操作日志
+        "403":
+          description: 缺少报表导出权限
+  /api/admin/export-tasks:
+    get:
+      summary: 导出任务列表
+      responses:
+        "200":
+          description: 需要 report_export:create 权限，返回导出任务状态和文件 ID
+  /api/admin/export-tasks/{taskId}/download-url:
+    get:
+      summary: 导出文件下载地址
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 导出完成后返回临时下载地址，并写 export:download_url 操作日志
+        "409":
+          description: 导出文件尚未生成
+        "503":
+          description: 生产环境未配置 HTTPS 下载地址
+  /api/internal/reports/export-runner:
+    post:
+      summary: 内部执行报表导出任务
+      responses:
+        "200":
+          description: 消费 pending 导出任务，生成 export_file 文件记录，并写 export:run 操作日志
+  /api/admin/reports/{reportId}:
+    get:
+      summary: 举报申诉详情和关联证据
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 返回举报本体、局信息、IM 证据、文件、评价和分润记录摘要，并写 operation_logs
+        "404":
+          description: 举报不存在
+  /api/admin/reports/{reportId}/handle:
+    post:
+      summary: 处理举报申诉
+      responses:
+        "200":
+          description: 写入处理人和处理结果
+  /api/admin/reports/{reportId}/close:
+    post:
+      summary: 关闭举报申诉
+      responses:
+        "200":
+          description: 举报申诉状态进入 closed
+  /api/admin/revenue/templates:
+    get:
+      summary: 分润模板列表
+      responses:
+        "200":
+          description: 返回模板列表
+    post:
+      summary: 创建分润模板
+      responses:
+        "200":
+          description: 比例 bps 合计必须为 10000
+  /api/admin/revenue/preview:
+    post:
+      summary: 后台分润试算
+      responses:
+        "200":
+          description: 只返回预览，不生成收益流水
+  /api/admin/revenue/records/generate:
+    post:
+      summary: 生成分润记录
+      responses:
+        "200":
+          description: 评价完成后生成分润记录和明细
+        "409":
+          description: 评价未完成时阻断生成
+  /api/admin/revenue/records:
+    get:
+      summary: 分润记录列表
+      responses:
+        "200":
+          description: 返回分润记录列表
+  /api/admin/revenue/records/{recordId}/freeze:
+    post:
+      summary: 冻结分润记录
+      responses:
+        "200":
+          description: 分润记录进入 frozen
+  /api/admin/revenue/records/{recordId}/settle:
+    post:
+      summary: 登记线下结算
+      responses:
+        "200":
+          description: 写入结算记录并将分润记录置为 settled
+        "409":
+          description: 已冻结记录不能结算
+  /api/internal/pay/callback-placeholder:
+    post:
+      summary: 支付回调占位
+      description: 一期用于记录二期微信支付回调所需的 `orderNo`、`eventId` 和原始 payload 摘要；同一 `orderNo + eventId` 幂等返回。
+      responses:
+        "200":
+          description: 返回 `received=true`、`verified=true` 和 `idempotentHit`
+        "404":
+          description: 订单不存在
+  /api/admin/users/{userId}/growth:
+    get:
+      summary: 按用户追溯成长、评价、信用、足迹和成就
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 返回用户成长档案、评价记录、信用流水、足迹和成就
+  /api/admin/games/{gameId}/review-trace:
+    get:
+      summary: 按局追溯评价、经验、信用和足迹来源
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 返回该局关联评价、信用流水、足迹和成就来源
+  /api/admin/ai-data/snapshot:
+    get:
+      summary: AI 数据准备快照
+      description: 需要 ai:data:read 权限。用于一期后台查看用户、局、行为、收藏、评价、足迹、人脉、画像和 IM 留存数量，IM 内容只计数不导出；同时返回 5 个用户、3 个局、20 条行为、5 条收藏、5 条评价的验收阈值进度。
+      responses:
+        "200":
+          description: 返回 AIDataSnapshotDTO
+        "403":
+          description: 缺少 ai:data:read 权限
+  /api/admin/ai-data/acceptance-fixture:
+    post:
+      summary: 生成 AI 数据验收夹具
+      description: 需要 ai:data:seed 权限。仅用于测试环境或验收环境补齐 E5 数据沉淀验收条件；接口具备幂等保护，达标后重复调用不会继续追加数据。
+      responses:
+        "200":
+          description: 返回 AIDataAcceptanceFixtureResultDTO，包含本次补齐数量和补齐后的 AIDataSnapshotDTO
+        "403":
+          description: 缺少 ai:data:seed 权限
+  /api/admin/ai-data/im-export:
+    post:
+      summary: 导出 IM 留存数据给 AI
+      description: 需要 ai:data:export 权限。当前一期默认关闭导出开关，禁止把聊天内容交给 AI；二期授权和规则确认后才能启用。
+      responses:
+        "200":
+          description: 导出开关开启后返回 IMExportItem 列表
+        "403":
+          description: 缺少权限或 IM 导出开关关闭，开关关闭时业务错误码为 40361
+  /api/admin/admin-users:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/admin-users/{adminUserId}:
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: adminUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/admin-roles:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/admin-permissions/catalog:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/users/{userId}:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/users/{userId}/favorites:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/users/{userId}/connections:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/games/{gameId}:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/games/{gameId}/milestones:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/games/batch-audit:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/games/category-config:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/audits/role-applications:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/audits/role-applications/{applicationId}/review:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/identity-verifications:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/identity-verifications/{userId}:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/guides/qualification-rules:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/guides/qualification-rules/{ruleId}:
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/guide-qualification-rules:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/connections:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/member-reports:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/teams:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/teams/{teamId}:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/points/logs:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/redemption/items:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/redemption/items/{itemId}:
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/redemption/orders:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/redemption/orders/{orderId}/review:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/revenue/profit-template-config:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/revenue/rules:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/revenue/settlements:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/reports/batch-handle:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/reports/{reportId}/assign:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/sensitive-words:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/sensitive-words/{wordId}:
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/sensitive-words/import:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/content-risk/logs:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/ai-data/im-export-config:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    put:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/delivery-documents:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/test-cases:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/test-runs:
+    get:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/game-checkins/{checkinId}/mark-invalid:
+    post:
+      summary: Admin frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: checkinId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+        "422":
+          description: Request validation failed
+  /api/admin/game-applications:
+    get:
+      summary: Admin game application list
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/admin/experts/{userId}:
+    get:
+      summary: Admin expert skill detail
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/admin/guides/{userId}:
+    get:
+      summary: Admin guide resource detail
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/admin/files/{fileId}/download-url:
+    get:
+      summary: Admin file download URL
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/admin/revenue/records/{recordId}/settle-offline:
+    post:
+      summary: Admin settle revenue record offline
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/internal/openim/webhooks:
+    post:
+      summary: OpenIM webhook callback
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/internal/im/archive-expired-rooms:
+    post:
+      summary: Archive expired IM rooms job
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/internal/ai/content-risk/check-placeholder:
+    post:
+      summary: AI content risk placeholder
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/internal/notifications/wechat-tasks/{taskId}/send:
+    post:
+      summary: Send WeChat subscribe task
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/internal/notifications/wechat-tasks/send-pending:
+    post:
+      summary: Send pending WeChat subscribe tasks
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+
+  /api/admin/revenue/calculate:
+    post:
+      summary: Admin revenue calculate alias
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+
+  /health:
+    get:
+      summary: 服务健康检查
+      responses:
+        "200":
+          description: OK

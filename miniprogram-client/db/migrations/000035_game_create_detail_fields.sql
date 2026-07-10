@@ -1,0 +1,15 @@
+alter table games
+  add column if not exists cover_image varchar(500),
+  add column if not exists description text,
+  add column if not exists highlights varchar(500),
+  add column if not exists notice varchar(500),
+  add column if not exists audience varchar(200),
+  add column if not exists participation varchar(64),
+  add column if not exists price decimal(10,2) not null default 0,
+  add column if not exists profit_template varchar(64),
+  add column if not exists start_at varchar(32),
+  add column if not exists end_at varchar(32),
+  add column if not exists signup_start_at varchar(32),
+  add column if not exists signup_end_at varchar(32),
+  add column if not exists tags jsonb not null default '[]'::jsonb,
+  add column if not exists completion_rules jsonb not null default '[]'::jsonb;

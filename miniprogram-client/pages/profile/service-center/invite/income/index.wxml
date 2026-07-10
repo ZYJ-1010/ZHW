@@ -1,0 +1,53 @@
+<profile-white-shell title="收益明细" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff" right-text="⋮" right-color="#7f8da3">
+  <view class="invite-page income-page dark-page">
+    <view class="income-panel trend-panel">
+      <view class="income-section-title">
+        <text class="section-icon trend-icon">📉</text>
+        <text>收益趋势</text>
+      </view>
+      <view class="trend-chart">
+        <view class="trend-grid"></view>
+        <view class="trend-plot">
+          <view class="trend-shadow" style="clip-path: {{trendShadowPath}};"></view>
+          <text
+            wx:for="{{trendSegments}}"
+            wx:key="key"
+            class="trend-segment"
+            style="left: {{item.left}}%; bottom: {{item.bottom}}%; width: {{item.width}}%; transform: rotate({{item.angle}}deg);"
+          ></text>
+          <view wx:for="{{trendPoints}}" wx:key="month" class="trend-point-wrap" style="left: {{item.left}}%;">
+            <text class="trend-point-halo" style="bottom: {{item.bottom}}%;"></text>
+            <text class="trend-point" style="bottom: {{item.bottom}}%;"></text>
+          </view>
+        </view>
+        <view class="trend-months">
+          <text wx:for="{{trendPoints}}" wx:key="month">{{item.month}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="income-grid">
+      <view wx:for="{{metrics}}" wx:key="label" class="income-metric">
+        <text class="income-label">{{item.label}}</text>
+        <text class="income-value">{{item.value}}</text>
+        <text class="income-desc">{{item.desc}}</text>
+      </view>
+    </view>
+
+    <view class="income-panel flow-panel">
+      <view class="income-section-title">
+        <text class="section-icon flow-section-icon">💰</text>
+        <text>分润流水</text>
+      </view>
+      <view wx:for="{{flows}}" wx:key="title" class="flow-row">
+        <text class="flow-icon">{{item.icon}}</text>
+        <view class="flow-info">
+          <text class="flow-title">{{item.title}}</text>
+          <text class="flow-time">{{item.time}}</text>
+        </view>
+        <text class="flow-amount">{{item.amount}}</text>
+      </view>
+      <view wx:if="{{!flows.length}}" class="empty-state">暂无分润流水</view>
+    </view>
+  </view>
+</profile-white-shell>

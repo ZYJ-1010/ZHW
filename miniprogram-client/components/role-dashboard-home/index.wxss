@@ -1,0 +1,3395 @@
+.player-home-scroll {
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+.player-home-page {
+  position: relative;
+  width: 704rpx;
+  min-height: 100%;
+  padding-bottom: 40rpx;
+  box-sizing: border-box;
+  background: #000000;
+  font-family: "Noto Sans SC", sans-serif;
+}
+
+page {
+  width: 100%;
+  min-height: 100%;
+  background: #007bd3;
+}
+
+.player-hero-title,
+.player-hero-date,
+.player-section-title,
+.player-panel-title,
+.player-rank-name,
+.player-rank-desc,
+.player-rank-more,
+.player-achievement-title,
+.player-achievement-status,
+.player-level-pill,
+.player-summary-title,
+.player-summary-name,
+.player-summary-xp,
+.player-next-level,
+.player-world-title,
+.player-world-desc,
+.player-action-title,
+.player-action-desc,
+.player-metaverse-title,
+.player-metaverse-desc {
+  display: block;
+}
+
+/* source: HTML 2_1143 */
+.player-hero {
+  width: 380rpx;
+  height: 96rpx;
+  margin-left: 44rpx;
+  margin-top: 14rpx;
+}
+
+.player-hero-title {
+  color: rgb(173, 255, 47);
+  font-size: 44rpx;
+  font-weight: 400;
+  line-height: 64rpx;
+}
+
+.player-hero-date {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+  white-space: nowrap;
+}
+
+.player-ranking-panel,
+.player-achievement-panel,
+.player-summary-card,
+.player-world-card,
+.player-metaverse-card {
+  width: 662rpx;
+  margin-right: auto;
+  margin-left: auto;
+  box-sizing: border-box;
+}
+
+.player-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 662rpx;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.player-section-head.nearby {
+  margin-top: 36rpx;
+  margin-bottom: 18rpx;
+}
+
+.player-section-head.nearby .player-section-title {
+  margin-left: 16rpx;
+}
+
+.player-section-head.nearby .player-tabs text,
+.player-section-head.nearby .player-tabs .player-tab {
+  width: 94rpx;
+  height: 32rpx;
+  padding: 0;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  color: rgb(34, 226, 238);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 28rpx;
+  text-align: center;
+}
+
+.player-section-head.nearby .player-tabs text.active,
+.player-section-head.nearby .player-tabs .player-tab.active {
+  border-color: rgba(236, 72, 153, 0.5);
+  color: rgb(255, 0, 110);
+  background: rgba(236, 72, 153, 0.2);
+}
+
+.player-section-head.friends {
+  margin-top: 36rpx;
+  margin-bottom: 18rpx;
+}
+
+.player-section-head.friends .player-section-title {
+  padding-left: 0;
+}
+
+.player-section-head.friends .player-section-title::before {
+  display: none;
+}
+
+.player-section-head.friends .player-panel-icon {
+  margin-right: 10rpx;
+  color: #ffffff;
+  font-size: 34rpx;
+  line-height: 40rpx;
+}
+
+.player-friend-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28rpx;
+  height: 28rpx;
+  margin-left: 10rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #ff006e;
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 28rpx;
+}
+
+.player-section-head > view,
+.player-panel-head > view:first-child {
+  display: flex;
+  align-items: center;
+}
+
+.player-section-title {
+  position: relative;
+  padding-left: 28rpx;
+  color: #6fffeb;
+  font-size: 38rpx;
+  font-weight: 900;
+  line-height: 52rpx;
+}
+
+.player-section-title::before {
+  position: absolute;
+  left: 0;
+  top: 16rpx;
+  width: 22rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  background: #a2ef4d;
+  content: "";
+}
+
+.player-tabs,
+.player-metaverse-tags,
+.player-tags {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.player-tabs text,
+.player-tabs .player-tab,
+.player-metaverse-tags text,
+.player-tags text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  color: #7ef8ff;
+  background: rgba(154, 154, 154, 0.18);
+  font-size: 18rpx;
+  font-weight: 900;
+  line-height: 32rpx;
+}
+
+.player-tabs text.active,
+.player-tabs .player-tab.active {
+  color: #ffffff;
+  background: #ff006e;
+}
+
+.player-ranking-panel {
+  min-height: 1038rpx;
+  margin-top: 42rpx;
+  padding: 44rpx 36rpx 38rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.25);
+  border-radius: 28rpx;
+  background:
+    linear-gradient(180deg, #000000 0%, #034373 100%);
+  box-shadow: 0 8rpx 22rpx rgba(0, 0, 0, 0.3);
+}
+
+.player-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.player-panel-icon {
+  margin-right: 14rpx;
+  font-size: 42rpx;
+  line-height: 48rpx;
+}
+
+.player-panel-title {
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 42rpx;
+}
+
+.player-ranking-head {
+  min-height: 48rpx;
+}
+
+.player-ranking-head .player-panel-icon {
+  margin-right: 0;
+  font-size: 34rpx;
+  line-height: 44rpx;
+}
+
+.player-ranking-head .player-panel-title {
+  color: #72ff27;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 44rpx;
+  white-space: nowrap;
+}
+
+.player-ranking-tabs {
+  display: grid;
+  grid-template-columns: 104rpx 104rpx 126rpx;
+  gap: 8rpx;
+  width: 356rpx;
+  height: 44rpx;
+  padding: 0;
+  border-radius: 40rpx;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.player-ranking-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 44rpx;
+  border-radius: 32rpx;
+  color: rgba(255, 255, 255, 0.68);
+  background: rgba(42, 49, 54, 0.88);
+  box-sizing: border-box;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.player-ranking-tab.active {
+  color: #ffffff;
+  background: #ff2b7a;
+  box-shadow: 0 14rpx 30rpx rgba(255, 43, 122, 0.5);
+}
+
+.player-rank-row {
+  display: flex;
+  align-items: center;
+  min-height: 160rpx;
+  margin-top: 24rpx;
+  padding: 0 30rpx;
+  border: 2rpx solid rgba(115, 166, 193, 0.5);
+  border-radius: 32rpx;
+  box-sizing: border-box;
+  background: rgba(30, 86, 119, 0.9);
+}
+
+.player-rank-row.rank-0 {
+  border-color: rgba(255, 218, 28, 0.44);
+  background: linear-gradient(135deg, rgba(30, 36, 16, 0.9), rgba(8, 28, 29, 0.94));
+}
+
+.player-rank-row.rank-1 {
+  border-color: rgba(126, 169, 195, 0.45);
+  background: linear-gradient(135deg, rgba(18, 45, 61, 0.94), rgba(12, 39, 56, 0.94));
+}
+
+.player-rank-row.rank-2 {
+  border-color: rgba(255, 145, 71, 0.36);
+  background: linear-gradient(135deg, rgba(26, 62, 75, 0.94), rgba(14, 54, 72, 0.94));
+}
+
+.player-rank-row.me {
+  margin-top: 28rpx;
+  border-color: rgba(115, 166, 193, 0.5);
+  background: rgba(30, 86, 119, 0.9);
+}
+
+.player-rank-no {
+  flex: 0 0 74rpx;
+  color: #d9e7ef;
+  font-size: 38rpx;
+  font-style: italic;
+  font-weight: 900;
+  line-height: 64rpx;
+}
+
+.player-rank-row.rank-0 .player-rank-no {
+  color: #ffe424;
+}
+
+.player-rank-row.rank-1 .player-rank-no {
+  color: #d9e7ef;
+}
+
+.player-rank-row.rank-2 .player-rank-no {
+  color: #ff934d;
+}
+
+.player-rank-row.me .player-rank-no {
+  color: #d9e7ef;
+}
+
+.player-rank-avatar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112rpx;
+  height: 112rpx;
+  margin: 0 24rpx 0 0;
+  padding: 6rpx;
+  border: 4rpx solid #d9e7ef;
+  border-radius: 50%;
+  background: #f4fbff;
+  box-shadow: 0 0 0 2rpx rgba(117, 249, 253, 0.35);
+  box-sizing: border-box;
+  color: #0f172a;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 80rpx;
+  overflow: hidden;
+}
+
+.player-rank-avatar image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.player-rank-avatar text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+  font-size: 58rpx;
+  line-height: 100rpx;
+}
+
+.player-rank-row.rank-0 .player-rank-avatar {
+  border-color: #f5d94b;
+  background: #fff5b8;
+  box-shadow: 0 0 0 2rpx rgba(255, 255, 255, 0.9);
+}
+
+.player-rank-row.rank-1 .player-rank-avatar {
+  border-color: #c9d2d9;
+  background: #f2f5f7;
+  box-shadow: 0 0 0 2rpx rgba(255, 255, 255, 0.92);
+}
+
+.player-rank-row.rank-2 .player-rank-avatar {
+  border-color: #c77736;
+  background: #ffd0a1;
+  box-shadow: 0 0 0 2rpx rgba(255, 255, 255, 0.86);
+}
+
+.player-rank-avatar.me {
+  border-color: #d9e7ef;
+  background: #f4fbff;
+  box-shadow: 0 0 0 2rpx rgba(117, 249, 253, 0.35);
+}
+
+.player-rank-avatar.me text {
+  color: #0f172a;
+  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+  font-size: 58rpx;
+  font-weight: 900;
+}
+
+.player-rank-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-rank-name {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 36rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-rank-desc {
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 16rpx;
+  font-weight: 700;
+  line-height: 24rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-rank-xp {
+  flex: 0 0 110rpx;
+  text-align: right;
+}
+
+.player-rank-xp text:first-child {
+  display: block;
+  color: #ffe424;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 42rpx;
+}
+
+.player-rank-xp text:last-child {
+  display: block;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 24rpx;
+}
+
+.player-rank-row.rank-1 .player-rank-xp text:first-child {
+  color: #f3f7fb;
+}
+
+.player-rank-row.rank-2 .player-rank-xp text:first-child {
+  color: #ff934d;
+}
+
+.player-rank-row.me .player-rank-xp text:first-child {
+  color: #f3f7fb;
+}
+
+.player-rank-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 92rpx;
+  margin-top: 32rpx;
+  border-radius: 18rpx;
+  color: #ffffff;
+  background: rgba(34, 96, 132, 0.96);
+  font-family: "Noto Sans SC", sans-serif;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 92rpx;
+  text-align: center;
+}
+
+.player-achievement-panel {
+  margin-top: 40rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.player-achievement-head {
+  min-height: 54rpx;
+  padding-left: 2rpx;
+}
+
+.player-achievement-head .player-panel-icon {
+  margin-right: 6rpx;
+  color: #00d2ff;
+  font-size: 40rpx;
+  line-height: 52rpx;
+}
+
+.player-achievement-head .player-panel-title {
+  color: #22e2ee;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+}
+
+.player-achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 136rpx);
+  column-gap: 34rpx;
+  width: 648rpx;
+  min-height: 172rpx;
+  margin-top: 32rpx;
+}
+
+.player-achievement {
+  position: relative;
+  width: 136rpx;
+  height: 172rpx;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.player-achievement-medal {
+  position: relative;
+  width: 136rpx;
+  height: 142rpx;
+  margin: 0 auto;
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 231, 151, 0.32) 0%, rgba(255, 231, 151, 0) 33%),
+    linear-gradient(136deg, #ffe38a 0%, #d28a16 37%, #5a2b0b 62%, #f4a225 100%);
+  box-shadow: 0 4rpx 12rpx rgba(235, 178, 68, 0.4);
+  overflow: visible;
+}
+
+.player-achievement-medal::before {
+  content: "";
+  position: absolute;
+  left: 4rpx;
+  top: 4rpx;
+  width: 128rpx;
+  height: 136rpx;
+  border-radius: 22rpx;
+  background: #000000;
+}
+
+.player-achievement-medal::after {
+  content: "";
+  position: absolute;
+  left: 8rpx;
+  top: 6rpx;
+  width: 120rpx;
+  height: 132rpx;
+  border-radius: 20rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 24%),
+    #000000;
+}
+
+.player-achievement-face {
+  position: absolute;
+  z-index: 1;
+  left: 2rpx;
+  top: 0;
+  width: 132rpx;
+  height: 142rpx;
+}
+
+.player-achievement.blue .player-achievement-medal {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(125, 231, 255, 0.32) 0%, rgba(125, 231, 255, 0) 34%),
+    linear-gradient(136deg, #78e8ff 0%, #1e91d0 38%, #0d3e67 62%, #45bdff 100%);
+  box-shadow: 0 4rpx 12rpx rgba(59, 182, 254, 0.35);
+}
+
+.player-achievement.locked .player-achievement-medal {
+  background: linear-gradient(135deg, #c48cf4 0%, #99d8f2 48%, #7ce4b9 100%);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.player-achievement.locked .player-achievement-medal::before {
+  display: none;
+}
+
+.player-achievement.locked .player-achievement-medal::after {
+  display: none;
+}
+
+.player-achievement-icon-wrap {
+  position: absolute;
+  left: 37rpx;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 78rpx;
+  overflow: hidden;
+}
+
+.player-achievement-icon {
+  font-size: 56rpx;
+  line-height: 86rpx;
+}
+
+.player-achievement-icon-wrap.locked {
+  left: 0;
+  right: 0;
+  top: 20rpx;
+  width: 136rpx;
+  height: 58rpx;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.player-achievement-icon-wrap.locked .player-achievement-icon {
+  display: block;
+  width: 100%;
+  font-size: 52rpx;
+  line-height: 58rpx;
+  text-align: center;
+}
+
+.player-achievement-title {
+  position: absolute;
+  left: 4rpx;
+  right: 4rpx;
+  top: 80rpx;
+  color: #f39e1e;
+  font-size: 16rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-achievement.blue .player-achievement-title {
+  color: #3bb6fe;
+}
+
+.player-achievement.locked .player-achievement-title {
+  display: none;
+}
+
+.player-achievement-progress {
+  position: absolute;
+  left: 30rpx;
+  top: 114rpx;
+  width: 73rpx;
+  height: 2rpx;
+  border-radius: 4rpx;
+  background: rgba(255, 255, 255, 0.19);
+  overflow: hidden;
+}
+
+.player-achievement-progress-fill {
+  height: 100%;
+  border-radius: 4rpx;
+  background: #3bb6fe;
+}
+
+.player-achievement-status {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: -28rpx;
+  display: block;
+  color: #bebebe;
+  font-size: 14rpx;
+  font-weight: 400;
+  line-height: 26rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.player-achievement.locked .player-achievement-status {
+  bottom: -28rpx;
+}
+
+/* source: HTML 2_1715 */
+.player-summary-card {
+  position: relative;
+  height: 420rpx;
+  margin-top: 30rpx;
+  border: 2rpx solid rgba(180, 253, 255, 0.23);
+  border-radius: 48rpx;
+  background: linear-gradient(180deg, #007bd3 0%, #034373 100%);
+  overflow: hidden;
+}
+
+.player-summary-card.permission .player-summary-divider {
+  top: 318rpx;
+}
+
+.player-summary-card.audit .player-summary-divider {
+  top: 334rpx;
+}
+
+.player-summary-card.permission .player-summary-divider-bottom,
+.player-summary-card.permission .player-summary-stat-divider,
+.player-summary-card.audit .player-summary-divider-bottom,
+.player-summary-card.audit .player-summary-stat-divider {
+  display: none;
+}
+
+.player-summary-card.permission .player-role-tag,
+.player-summary-card.audit .player-role-tag {
+  border-color: rgba(29, 162, 224, 0.62);
+  background: rgba(14, 126, 195, 0.66);
+}
+
+.player-summary-card.audit .player-role-tags {
+  top: 350rpx;
+}
+
+.player-summary-card.permission .player-role-tag.active,
+.player-summary-card.audit .player-role-tag.active {
+  border-color: rgba(231, 244, 255, 0.96);
+  background: linear-gradient(180deg, rgba(4, 19, 31, 0.96) 0%, rgba(2, 37, 58, 0.98) 100%);
+  opacity: 1;
+}
+
+.player-summary-card.permission .player-role-tag text,
+.player-summary-card.audit .player-role-tag text {
+  color: #eaf9ff;
+  font-weight: 700;
+}
+
+.player-permission-card {
+  position: absolute;
+  left: 40rpx;
+  right: 40rpx;
+  top: 96rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.player-permission-title,
+.player-permission-secondary {
+  display: block;
+  text-align: center;
+}
+
+.player-permission-title {
+  width: 100%;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 36rpx;
+}
+
+.player-permission-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 306rpx;
+  height: 70rpx;
+  margin: 28rpx 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #2fc2ef;
+  box-shadow: 0 8rpx 18rpx rgba(47, 194, 239, 0.22);
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 70rpx;
+}
+
+.player-permission-primary::after {
+  display: none;
+}
+
+.player-summary-card.guide .player-permission-primary {
+  background: #ff7a2f;
+  box-shadow: 0 8rpx 18rpx rgba(255, 122, 47, 0.24);
+}
+
+.player-permission-secondary {
+  margin-top: 5rpx;
+  color: rgba(164, 205, 222, 0.82);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.player-summary-card.guide .player-permission-secondary {
+  color: #ff8a2c;
+}
+
+.player-role-audit-card {
+  position: absolute;
+  left: 28rpx;
+  right: 28rpx;
+  top: 24rpx;
+}
+
+.player-role-audit-title {
+  display: inline-flex;
+  align-items: center;
+  max-width: 340rpx;
+  height: 56rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: linear-gradient(90deg, #5de9ff 0%, rgba(93, 233, 255, 0.42) 100%);
+  font-size: 26rpx;
+  font-weight: 900;
+  line-height: 56rpx;
+}
+
+.player-summary-card.audit.guide .player-role-audit-title {
+  background: linear-gradient(90deg, #ff8a1f 0%, rgba(255, 138, 31, 0.44) 100%);
+  box-shadow: 0 0 20rpx rgba(255, 138, 31, 0.22);
+}
+
+.player-role-audit-subtitle {
+  display: block;
+  width: 100%;
+  margin: 22rpx 0 0;
+  padding: 0 38rpx;
+  box-sizing: border-box;
+  color: rgba(196, 235, 255, 0.82);
+  font-size: 18rpx;
+  font-weight: 400;
+  line-height: 26rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.player-role-audit-steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 30rpx 42rpx 0;
+}
+
+.player-role-audit-steps::before,
+.player-role-audit-steps::after {
+  content: "";
+  position: absolute;
+  top: 15rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+}
+
+.player-role-audit-steps::before {
+  left: calc(50% + 15rpx);
+  width: calc(33.333% - 30rpx);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.player-role-audit-steps.done::before {
+  background: linear-gradient(90deg, rgba(0, 255, 136, 1) 0%, rgba(255, 149, 0, 1) 100%);
+  box-shadow: 0 0 8rpx rgba(255, 138, 31, 0.18);
+}
+
+.player-role-audit-steps.rejected::before {
+  background: linear-gradient(90deg, #ff9b30 0%, #ff6745 100%);
+  box-shadow: 0 0 8rpx rgba(255, 103, 69, 0.18);
+}
+
+.player-role-audit-steps::after {
+  left: calc(16.666% + 15rpx);
+  width: calc(33.333% - 30rpx);
+  background: linear-gradient(90deg, rgba(0, 255, 136, 1) 0%, rgba(255, 149, 0, 1) 100%);
+  box-shadow: 0 0 8rpx rgba(255, 138, 31, 0.18);
+}
+
+.player-role-audit-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.player-role-audit-dot {
+  position: relative;
+  z-index: 2;
+  width: 30rpx;
+  height: 30rpx;
+  border: 4rpx solid rgba(46, 153, 205, 0.65);
+  border-radius: 50%;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.player-role-audit-step.done .player-role-audit-dot {
+  border-color: #4cfa78;
+  background: #4cfa78;
+}
+
+.player-role-audit-steps.done .player-role-audit-step:last-child .player-role-audit-dot {
+  border-color: #4cfa78;
+  background: #4cfa78;
+}
+
+.player-role-audit-step.active .player-role-audit-dot {
+  border-color: rgba(255, 138, 31, 0.22);
+  background: #ff8a1f;
+  box-shadow: 0 0 0 17rpx rgba(255, 138, 31, 0.14);
+}
+
+.player-role-audit-step.rejected .player-role-audit-dot {
+  border-color: #ff6745;
+  background: #ff6745;
+  box-shadow: 0 0 0 17rpx rgba(255, 103, 69, 0.14);
+}
+
+.player-role-audit-steps.done .player-role-audit-step.active .player-role-audit-dot {
+  border-color: #4cfa78;
+  background: #4cfa78;
+  box-shadow: none;
+}
+
+.player-role-audit-step text {
+  display: block;
+  margin-top: 10rpx;
+  color: rgba(180, 220, 242, 0.66);
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 28rpx;
+}
+
+.player-role-audit-step.done text {
+  color: #4cfa78;
+}
+
+.player-role-audit-step.active text {
+  color: #ff8a1f;
+}
+
+.player-role-audit-step.rejected text {
+  color: #ff6745;
+}
+
+.player-role-audit-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52rpx;
+  margin: 22rpx 14rpx 0;
+  border: 2rpx solid rgba(112, 214, 255, 0.42);
+  border-radius: 14rpx;
+  color: #ff7a1f;
+  font-size: 18rpx;
+  font-weight: 900;
+  line-height: 52rpx;
+  text-align: center;
+}
+
+.player-summary-card.audit.approved .player-role-audit-detail {
+  border-color: rgba(76, 250, 120, 0.42);
+  color: #4cfa78;
+}
+
+.player-summary-card.audit.rejected .player-role-audit-detail {
+  border-color: rgba(255, 103, 69, 0.48);
+  color: #ff6745;
+}
+
+.player-role-audit-helper {
+  display: block;
+  margin-top: 2rpx;
+  color: rgba(154, 207, 232, 0.42);
+  font-size: 12rpx;
+  font-weight: 400;
+  line-height: 20rpx;
+  text-align: center;
+}
+
+.player-level-pill {
+  position: absolute;
+  left: 40rpx;
+  top: 38rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160rpx;
+  height: 38rpx;
+  border-radius: 999rpx;
+  color: rgb(0, 10, 123);
+  background: rgb(162, 239, 77);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+}
+
+.player-summary-copy {
+  position: absolute;
+  left: 44rpx;
+  top: 86rpx;
+  width: 276rpx;
+}
+
+.player-summary-title {
+  position: absolute;
+  left: 170rpx;
+  top: -50rpx;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 38rpx;
+  white-space: nowrap;
+}
+
+.player-summary-name {
+  width: 276rpx;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 64rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-level-progress {
+  position: absolute;
+  left: 42rpx;
+  top: 156rpx;
+  width: 322rpx;
+  height: 12rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.player-level-progress-fill {
+  height: 8rpx;
+  margin: 0;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #22d3ee 0%, #a2ef4d 100%);
+}
+
+.player-summary-xp {
+  position: absolute;
+  left: 374rpx;
+  top: 146rpx;
+  color: #9ca3af;
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.player-next-level {
+  position: absolute;
+  left: 44rpx;
+  top: 168rpx;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12rpx;
+  font-weight: 400;
+  line-height: 24rpx;
+}
+
+.player-summary-stats {
+  position: absolute;
+  left: 0;
+  top: 220rpx;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 662rpx;
+}
+
+.player-summary-stats view {
+  min-width: 0;
+  text-align: center;
+}
+
+.player-summary-stats text:first-child {
+  display: block;
+  color: #ffffff;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 56rpx;
+}
+
+.player-summary-stats text:last-child {
+  display: block;
+  color: #9ca3af;
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+  white-space: nowrap;
+}
+
+.player-summary-device {
+  position: absolute;
+  right: 22rpx;
+  top: 44rpx;
+  width: 130rpx;
+  height: 142rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 32rpx;
+  background: linear-gradient(180deg, #bfbaba 0%, #000000 100%);
+  text-align: center;
+}
+
+.player-summary-device text:first-child {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #ffffff;
+  font-size: 72rpx;
+  font-weight: 400;
+  line-height: 1;
+  transform: translateY(-8%);
+}
+
+.player-summary-device text:last-child {
+  position: absolute;
+  right: -6rpx;
+  bottom: -12rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border: 2rpx solid rgba(49, 46, 46, 0.83);
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(180deg, #33ff00 0%, #567722 100%);
+  font-size: 24rpx;
+  line-height: 44rpx;
+}
+
+.player-summary-divider {
+  position: absolute;
+  left: 28rpx;
+  top: 206rpx;
+  width: 608rpx;
+  height: 1rpx;
+  background: #ffffff;
+  box-shadow: 0 0 0 1rpx rgba(187, 187, 187, 0.25);
+  transform: scaleY(0.25);
+  transform-origin: left center;
+}
+
+.player-summary-divider-bottom {
+  left: 32rpx;
+  top: 318rpx;
+  width: 612rpx;
+}
+
+.player-summary-stat-divider {
+  position: absolute;
+  top: 236rpx;
+  width: 1rpx;
+  height: 52rpx;
+  background: #ffffff;
+  box-shadow: 0 0 0 1rpx rgba(187, 187, 187, 0.25);
+  transform: scaleX(0.25);
+  transform-origin: center top;
+}
+
+.player-summary-stat-divider-left {
+  left: 221rpx;
+}
+
+.player-summary-stat-divider-right {
+  left: 442rpx;
+}
+
+/* source: HTML 2_1870-2_1887 */
+.player-role-tags {
+  position: absolute;
+  left: 44rpx;
+  top: 332rpx;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 30rpx;
+  width: 574rpx;
+  height: 48rpx;
+}
+
+.player-role-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+}
+
+.player-role-tag.active {
+  border-color: rgba(229, 231, 235, 1);
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0.8;
+}
+
+.player-role-tag.pending {
+  border-color: rgba(255, 138, 31, 0.78);
+  background: rgba(255, 138, 31, 0.14);
+}
+
+.player-role-tag.approved {
+  border-color: rgba(76, 250, 120, 0.72);
+  background: rgba(76, 250, 120, 0.14);
+}
+
+.player-role-tag.rejected {
+  border-color: rgba(255, 103, 69, 0.78);
+  background: rgba(255, 103, 69, 0.14);
+}
+
+.player-role-tag text {
+  color: rgb(156, 163, 175);
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.player-role-tag.active text {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.player-role-tag.approved text {
+  color: #4cfa78;
+}
+
+.player-role-tag.rejected text {
+  color: #ff6745;
+}
+
+/* source: HTML 2_1835 */
+.player-action-grid {
+  position: relative;
+  width: 664rpx;
+  height: 198rpx;
+  margin: 38rpx auto 0;
+}
+
+.player-action-card {
+  position: absolute;
+  top: 0;
+  width: 320rpx;
+  height: 198rpx;
+  border-radius: 32rpx;
+  box-sizing: border-box;
+}
+
+.player-action-card.pink {
+  left: 0;
+  border: 2rpx solid rgba(255, 0, 110, 0.5);
+  background: linear-gradient(135deg, rgba(255, 0, 110, 0.2) 0%, rgba(131, 56, 236, 0.2) 100%);
+}
+
+.player-action-card.cyan {
+  right: 0;
+  border: 2rpx solid rgba(2, 123, 211, 0.5);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+}
+
+.player-action-icon {
+  position: absolute;
+  left: 40rpx;
+  top: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 400;
+  line-height: 58rpx;
+  text-align: center;
+}
+
+.player-action-card.cyan .player-action-icon {
+  background: rgba(6, 182, 212, 0.2);
+}
+
+.player-action-icon-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 48rpx;
+  font-weight: 400;
+  line-height: 58rpx;
+}
+
+.player-action-icon-image {
+  display: block;
+  width: 54rpx;
+  height: 54rpx;
+}
+
+.player-lobby-icon {
+  position: relative;
+  width: 62rpx;
+  height: 60rpx;
+  overflow: hidden;
+}
+
+.player-lobby-icon-group {
+  position: absolute;
+  left: 12.53%;
+  top: 18.78%;
+  width: 75%;
+  height: 62.47%;
+}
+
+.player-lobby-icon-piece {
+  position: absolute;
+  display: block;
+}
+
+.player-lobby-icon-pin-start {
+  left: 0;
+  top: 0;
+  width: 31.38%;
+  height: 55.86%;
+}
+
+.player-lobby-icon-line {
+  left: 18.42%;
+  top: 57.68%;
+  width: 62.71%;
+  height: 42.32%;
+}
+
+.player-lobby-icon-pin-end {
+  left: 68.62%;
+  top: 41.77%;
+  width: 31.38%;
+  height: 55.86%;
+}
+
+.player-action-title {
+  position: absolute;
+  left: 40rpx;
+  top: 100rpx;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 46rpx;
+}
+
+.player-action-card.cyan .player-action-title {
+  color: rgb(34, 226, 238);
+}
+
+.player-action-desc {
+  position: absolute;
+  left: 40rpx;
+  top: 150rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.player-action-card.cyan .player-action-desc {
+  color: rgba(34, 211, 238, 0.6);
+}
+
+/* source: HTML 2_1802 */
+.player-world-card {
+  position: relative;
+  height: 208rpx;
+  margin-top: 44rpx;
+  border: 2rpx solid rgba(51, 255, 0, 0.4);
+  border-radius: 32rpx;
+  background: rgba(2, 123, 211, 0.2);
+  overflow: hidden;
+}
+
+.player-world-title {
+  position: absolute;
+  left: 72rpx;
+  top: 22rpx;
+  color: rgb(52, 241, 241);
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 48rpx;
+}
+
+.player-world-title::before {
+  position: absolute;
+  left: -34rpx;
+  top: 10rpx;
+  width: 28rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  background: rgb(117, 249, 253);
+  content: "";
+}
+
+.player-world-desc {
+  position: absolute;
+  left: 36rpx;
+  top: 90rpx;
+  color: rgb(156, 163, 175);
+  font-size: 18rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.player-world-tags {
+  position: absolute;
+  left: 36rpx;
+  top: 134rpx;
+  display: flex;
+  gap: 12rpx;
+}
+
+.player-world-tags text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30rpx;
+  padding: 0 14rpx;
+  border: 2rpx solid rgba(6, 182, 212, 0.3);
+  border-radius: 16rpx;
+  color: rgb(34, 211, 238);
+  background: rgb(26, 39, 62);
+  font-size: 16rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+}
+
+.player-world-tags text:last-child {
+  border-color: rgba(255, 0, 110, 0.34);
+  color: rgba(255, 0, 110, 0.78);
+}
+
+.player-world-globe {
+  position: absolute;
+  right: 42rpx;
+  top: 30rpx;
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 50%;
+  background: rgb(11, 137, 216);
+  box-shadow: 0 0 0 8rpx #05050b;
+  overflow: hidden;
+}
+
+.player-world-map-track {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  gap: 0;
+  width: 600rpx;
+  height: 148rpx;
+  animation: player-world-map-slide 5.6s linear infinite;
+}
+
+.player-world-map-image {
+  flex: 0 0 300rpx;
+  min-width: 300rpx;
+  width: 300rpx;
+  height: 148rpx;
+  display: block;
+}
+
+.player-world-map-image + .player-world-map-image {
+  margin-left: 0;
+}
+
+@keyframes player-world-map-slide {
+  from {
+    transform: translateX(-300rpx);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.player-friend-more {
+  color: #16c0f6;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.player-metaverse-card {
+  position: relative;
+  width: 662rpx;
+  height: 204rpx;
+  margin-top: 50rpx;
+  margin-right: auto;
+  margin-left: auto;
+  overflow: hidden;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 32rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 82% 50%, rgba(52, 241, 241, 0.2) 0%, rgba(52, 241, 241, 0) 34%),
+    linear-gradient(135deg, #0161a6 0%, #034373 100%);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
+}
+
+.player-metaverse-copy {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  width: 458rpx;
+  height: 204rpx;
+}
+
+.player-metaverse-heading {
+  position: absolute;
+  left: 70rpx;
+  top: 34rpx;
+  height: 48rpx;
+}
+
+.player-metaverse-dot {
+  position: absolute;
+  left: -38rpx;
+  top: 10rpx;
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 50%;
+  background: #75f9fd;
+}
+
+.player-metaverse-title {
+  color: #34f1f1;
+  font-size: 32rpx;
+  font-weight: 900;
+  line-height: 48rpx;
+  white-space: nowrap;
+}
+
+.player-metaverse-desc {
+  position: absolute;
+  left: 36rpx;
+  top: 92rpx;
+  width: 264rpx;
+  color: #9ca3af;
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+  white-space: nowrap;
+}
+
+.player-metaverse-footer {
+  position: absolute;
+  left: 24rpx;
+  top: 150rpx;
+  display: flex;
+  align-items: center;
+}
+
+.player-metaverse-tags {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-right: 16rpx;
+}
+
+.player-metaverse-tags text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80rpx;
+  height: 40rpx;
+  padding: 0;
+  border: 2rpx solid rgba(6, 182, 212, 0.3);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  color: #22d3ee;
+  background: rgba(26, 58, 90, 0.88);
+  font-size: 16rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+}
+
+.player-metaverse-tags text.purple {
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c084fc;
+  background: rgba(49, 38, 94, 0.82);
+}
+
+.player-metaverse-avatars {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 110rpx;
+  height: 40rpx;
+}
+
+.player-metaverse-avatar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42rpx;
+  height: 40rpx;
+  margin-right: -8rpx;
+  border: 2rpx solid #111827;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #0f172a;
+  background: linear-gradient(135deg, #5eead4 0%, #22d3ee 100%);
+  font-size: 26rpx;
+  font-weight: 900;
+  line-height: 40rpx;
+  text-align: center;
+  overflow: hidden;
+}
+
+.player-metaverse-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.player-metaverse-avatar text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1;
+}
+
+.player-metaverse-avatar:nth-child(2) {
+  background: linear-gradient(135deg, #f0abfc 0%, #a855f7 100%);
+}
+
+.player-metaverse-avatar:nth-child(3) {
+  background: linear-gradient(135deg, #fda4af 0%, #fb7185 100%);
+}
+
+.player-metaverse-avatars .player-metaverse-badge {
+  z-index: 2;
+  width: auto;
+  height: 40rpx;
+  margin-left: 2rpx;
+  margin-right: 0;
+  border: 0;
+  color: #bebebe;
+  background: transparent;
+  font-size: 16rpx;
+  font-weight: 400;
+  line-height: 40rpx;
+}
+
+.player-metaverse-symbol {
+  position: absolute;
+  right: 36rpx;
+  top: 18rpx;
+  width: 160rpx;
+  height: 160rpx;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.player-metaverse-symbol::before {
+  display: none;
+}
+
+.player-metaverse-symbol::after {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  left: 48rpx;
+  top: 113rpx;
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: rgba(73, 244, 255, 0.92);
+  box-shadow: 0 0 8rpx rgba(73, 244, 255, 0.55);
+}
+
+.player-metaverse-planet {
+  position: absolute;
+  z-index: 1;
+  left: 39rpx;
+  top: 40rpx;
+  width: 82rpx;
+  height: 82rpx;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 30%, rgba(221, 255, 255, 0.5) 0%, rgba(148, 235, 255, 0.22) 42%, rgba(64, 196, 234, 0.1) 72%, rgba(48, 176, 226, 0.04) 100%);
+  box-shadow: inset 0 0 16rpx rgba(144, 244, 255, 0.18), 0 0 14rpx rgba(84, 232, 255, 0.12);
+}
+
+.player-metaverse-planet::before,
+.player-metaverse-planet::after {
+  display: none;
+}
+
+.player-metaverse-outer-ring {
+  position: absolute;
+  z-index: 4;
+  left: 9rpx;
+  top: 9rpx;
+  width: 142rpx;
+  height: 142rpx;
+  border: 1rpx solid rgba(180, 108, 255, 0.78);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: transparent;
+  box-shadow:
+    inset 22rpx 0 0 -21rpx rgba(255, 83, 223, 0.7),
+    inset -22rpx 0 0 -21rpx rgba(95, 141, 255, 0.72),
+    0 0 12rpx rgba(177, 70, 255, 0.18);
+}
+
+.player-metaverse-outer-ring::before {
+  display: none;
+}
+
+.player-metaverse-orbit {
+  position: absolute;
+  z-index: 2;
+  left: 42rpx;
+  top: 68rpx;
+  width: 76rpx;
+  height: 24rpx;
+  border: 1rpx solid rgba(82, 198, 241, 0.34);
+  border-radius: 50%;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.player-metaverse-orbit.orbit-one {
+  transform: rotate(0deg);
+}
+
+.player-metaverse-orbit.orbit-two {
+  left: 66rpx;
+  top: 43rpx;
+  width: 28rpx;
+  height: 76rpx;
+  border-width: 1rpx;
+  border-color: rgba(82, 198, 241, 0.34);
+  transform: rotate(0deg);
+}
+
+.player-metaverse-orbit.orbit-three {
+  left: 20rpx;
+  top: 59rpx;
+  width: 120rpx;
+  height: 42rpx;
+  border-width: 1rpx;
+  border-color: rgba(86, 244, 255, 0.66);
+  transform: rotate(45deg);
+}
+
+.player-metaverse-link {
+  position: absolute;
+  z-index: 5;
+  height: 0;
+  border-top: 1rpx dashed rgba(73, 244, 255, 0.68);
+  transform-origin: left center;
+}
+
+.player-metaverse-link.link-triangle {
+  left: 51rpx;
+  top: 116rpx;
+  width: 46rpx;
+  border-color: rgba(73, 244, 255, 0.68);
+  transform: rotate(-50deg);
+}
+
+.player-metaverse-link.link-diamond {
+  left: 109rpx;
+  top: 53rpx;
+  width: 40rpx;
+  border-color: rgba(255, 54, 205, 0.62);
+  transform: rotate(136deg);
+}
+
+.player-metaverse-point {
+  position: absolute;
+  z-index: 6;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #23f5ff;
+  box-shadow: 0 0 9rpx rgba(35, 245, 255, 0.72);
+}
+
+.player-metaverse-point.point-top {
+  left: 76rpx;
+  top: 6rpx;
+  background: #ff35c9;
+  box-shadow: 0 0 10rpx rgba(255, 53, 201, 0.76);
+}
+
+.player-metaverse-point.point-bottom {
+  left: 76rpx;
+  bottom: 6rpx;
+  background: #ff35c9;
+  box-shadow: 0 0 10rpx rgba(255, 53, 201, 0.76);
+}
+
+.player-metaverse-point.point-left {
+  left: 6rpx;
+  top: 76rpx;
+}
+
+.player-metaverse-point.point-right {
+  right: 6rpx;
+  top: 76rpx;
+}
+
+.player-metaverse-diamond {
+  position: absolute;
+  z-index: 7;
+  right: 44rpx;
+  top: 45rpx;
+  width: 15rpx;
+  height: 15rpx;
+  border: 3rpx solid rgba(255, 54, 205, 0.96);
+  box-sizing: border-box;
+  background: rgba(255, 54, 205, 0.08);
+  box-shadow:
+    0 0 4rpx rgba(255, 54, 205, 0.95),
+    0 0 12rpx rgba(255, 54, 205, 0.78),
+    0 0 22rpx rgba(255, 54, 205, 0.42);
+  transform: rotate(45deg);
+}
+
+.player-metaverse-diamond::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5rpx;
+  height: 5rpx;
+  background: rgba(255, 54, 205, 0.96);
+  box-shadow:
+    0 0 4rpx rgba(255, 54, 205, 0.9),
+    0 0 10rpx rgba(255, 54, 205, 0.62);
+  transform: translate(-50%, -50%);
+}
+
+.player-metaverse-triangle {
+  position: absolute;
+  z-index: 7;
+  left: 39rpx;
+  bottom: 37rpx;
+  color: rgba(73, 244, 255, 0.9);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 24rpx;
+  text-shadow: 0 0 10rpx rgba(73, 244, 255, 0.55);
+}
+
+.role-home-scroll {
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+.role-home-page {
+  width: 704rpx;
+  min-height: 100%;
+  padding-bottom: 40rpx;
+  box-sizing: border-box;
+  background: #000000;
+  font-family: "Noto Sans SC", sans-serif;
+}
+
+.role-home-page.guide .player-summary-card,
+.role-home-page.expert .player-summary-card {
+  border-color: rgba(180, 253, 255, 0.23);
+}
+
+.role-hero-title {
+  color: #adff2f;
+}
+
+.role-level-pill {
+  min-width: 160rpx;
+}
+
+.role-home-page.expert .role-level-pill {
+  background: #35c8f5;
+}
+
+.role-home-page.expert .role-hero-title {
+  color: #3bdfff;
+}
+
+.role-home-page.expert .player-role-tag.active {
+  border-color: rgba(180, 253, 255, 0.42);
+  background: linear-gradient(180deg, #007bd3 0%, #034373 100%);
+  opacity: 1;
+}
+
+.role-home-page.expert .player-summary-card.permission .player-role-tag.active {
+  border-color: rgba(231, 244, 255, 0.96);
+  background: linear-gradient(180deg, rgba(4, 19, 31, 0.96) 0%, rgba(2, 37, 58, 0.98) 100%);
+  opacity: 1;
+}
+
+.role-home-page.guide .role-hero-title {
+  color: #ff8a34;
+}
+
+.role-home-page.guide .player-summary-card {
+  border-color: rgba(90, 199, 255, 0.58);
+  background: linear-gradient(180deg, #0689d8 0%, #045d8d 100%);
+  box-shadow: 0 8rpx 22rpx rgba(0, 0, 0, 0.32), inset 0 1rpx 0 rgba(255, 255, 255, 0.16);
+}
+
+.role-home-page.guide .role-level-pill {
+  color: #001b55;
+  background: #ff8a34;
+}
+
+.role-home-page.guide .player-level-progress-fill {
+  background: linear-gradient(90deg, #d9f0ff 0%, #7fc3d8 100%);
+}
+
+.role-home-page.guide .player-role-tag.active {
+  border-color: rgba(219, 249, 255, 0.88);
+  background: linear-gradient(180deg, #0b91d6 0%, #06517c 100%);
+  box-shadow:
+    0 0 16rpx rgba(255, 255, 255, 0.72),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.24);
+  opacity: 1;
+}
+
+.role-home-page.guide .role-summary-device text:last-child {
+  background: linear-gradient(180deg, #ff9b42 0%, #ff6a26 100%);
+}
+
+.role-summary-device {
+  background: linear-gradient(180deg, #bfbaba 0%, #000000 100%);
+}
+
+.role-home-page.expert .role-summary-device text:last-child {
+  background: linear-gradient(180deg, #6ef7ff 0%, #1178ff 100%);
+}
+
+.role-action-grid {
+  margin-top: 28rpx;
+}
+
+.role-main-section {
+  margin-top: 36rpx;
+}
+
+.role-main-section .player-section-title {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.role-main-section .player-section-title::before {
+  display: none;
+}
+
+.role-home-page.guide .role-main-section .player-section-title {
+  margin-left: 16rpx;
+  padding-left: 52rpx;
+}
+
+.role-home-page.guide .role-main-section .player-section-title::before {
+  display: block;
+  left: 0;
+  top: 16rpx;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: #a2ef4d;
+}
+
+.role-section-title-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.role-section-icon {
+  margin-right: 4rpx;
+  color: #ffffff;
+  font-size: 36rpx;
+  line-height: 40rpx;
+}
+
+.role-section-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  margin-left: 10rpx;
+  border-radius: 20rpx;
+  color: rgba(239, 68, 68, 1);
+  background: rgba(239, 68, 68, 0.2);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 28rpx;
+  text-align: justify;
+}
+
+.role-section-more {
+  width: 112rpx;
+  height: 36rpx;
+  font-size: 18rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.role-section-more.disabled {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+}
+
+.role-section-more.enabled {
+  color: #16c0f6;
+  font-weight: 700;
+}
+
+.role-section-desc {
+  width: 662rpx;
+  margin: -6rpx auto 14rpx;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 20rpx;
+  line-height: 28rpx;
+}
+
+.role-main-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 662rpx;
+  height: 258rpx;
+  margin: 18rpx auto 0;
+  padding: 28rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 32rpx;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #007bd3 0%, #034373 100%);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.role-main-empty-title {
+  color: #72faff;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 38rpx;
+}
+
+.role-main-empty-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.role-session-card {
+  position: relative;
+  display: flex;
+  width: 662rpx;
+  min-height: 192rpx;
+  margin: 24rpx auto 0;
+  padding: 28rpx 28rpx 20rpx;
+  border: 2rpx solid rgba(0, 168, 255, 0.4);
+  border-radius: 30rpx;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #06486f 0%, #0a82c9 100%);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.role-session-time {
+  flex: none;
+  width: 138rpx;
+  margin-left: -28rpx;
+  padding-top: 20rpx;
+  text-align: center;
+}
+
+.role-session-time text {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.role-session-time text:first-child {
+  color: #fbbf24;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 44rpx;
+}
+
+.role-session-time text:last-child {
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+}
+
+.role-session-divider {
+  flex: none;
+  width: 2rpx;
+  height: 136rpx;
+  margin: 0 26rpx 0 0;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.role-session-main {
+  flex: 1;
+  min-width: 0;
+  padding-right: 96rpx;
+  box-sizing: border-box;
+}
+
+.role-session-title,
+.role-session-date,
+.role-session-meta {
+  display: block;
+}
+
+.role-session-title {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 40rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-session-date,
+.role-session-meta {
+  max-width: 100%;
+  height: 32rpx;
+  margin-top: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+  text-align: justify;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-session-tags {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 10rpx;
+}
+
+.role-session-tags text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 82rpx;
+  height: 34rpx;
+  padding: 0 16rpx;
+  border: 2rpx solid rgba(14, 165, 233, 0.3);
+  border-radius: 14rpx;
+  box-sizing: border-box;
+  color: rgba(103, 232, 249, 0.72);
+  background: rgba(14, 165, 233, 0.14);
+  font-size: 18rpx;
+  line-height: 30rpx;
+}
+
+.role-session-tags text.green {
+  border-color: rgba(34, 197, 94, 0.32);
+  color: rgba(74, 222, 128, 0.78);
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.role-session-income {
+  position: absolute;
+  right: 30rpx;
+  top: 54rpx;
+  width: 104rpx;
+  text-align: right;
+}
+
+.role-session-income text {
+  display: block;
+}
+
+.role-session-income text:first-child {
+  color: #fbbf24;
+  font-size: 36rpx;
+  font-weight: 900;
+  line-height: 44rpx;
+}
+
+.role-session-income text:last-child {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 18rpx;
+  font-weight: 400;
+  line-height: 24rpx;
+}
+
+.role-session-players {
+  position: absolute;
+  right: 24rpx;
+  bottom: 20rpx;
+  display: flex;
+  align-items: center;
+}
+
+.role-session-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+  font-size: 16rpx;
+  line-height: 28rpx;
+  overflow: hidden;
+}
+
+.role-session-avatar:not(:last-child) {
+  margin-right: -6rpx;
+}
+
+.role-session-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.role-session-joined {
+  margin-left: 8rpx;
+  color: #d8f5ff;
+  font-size: 14rpx;
+  font-weight: 400;
+  line-height: 20rpx;
+}
+
+.role-skill-panel,
+.role-review-panel,
+.role-recommend-panel,
+.role-network-panel {
+  width: 662rpx;
+  margin: 28rpx auto 0;
+  box-sizing: border-box;
+}
+
+.role-network-panel {
+  width: 660rpx;
+  min-height: 594rpx;
+  padding: 18rpx 32rpx 30rpx;
+  border: 2rpx solid rgba(255, 173, 64, 0.22);
+  border-radius: 40rpx;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 138, 52, 0.18) 0%, rgba(255, 138, 52, 0) 45%),
+    linear-gradient(180deg, rgba(7, 73, 112, 0.84) 0%, rgba(6, 20, 34, 0.96) 100%);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3), inset 0 1rpx 0 rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  text-align: center;
+  overflow: hidden;
+}
+
+.role-network-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 86rpx;
+  padding: 0 22rpx 0 18rpx;
+  box-sizing: border-box;
+}
+
+.role-network-title-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.role-network-title-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 8rpx;
+  box-sizing: border-box;
+  background: transparent;
+  font-size: 36rpx;
+  line-height: 44rpx;
+  text-align: center;
+}
+
+.role-network-title {
+  display: block;
+  width: 210rpx;
+  height: 30rpx;
+  color: rgba(16, 185, 129, 1);
+  font-family: "NotoSans-bold", "Noto Sans SC", sans-serif;
+  font-size: 32rpx;
+  font-weight: 900;
+  line-height: 38rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.role-network-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 168rpx;
+  height: 58rpx;
+  padding: 0;
+  border: 3rpx solid rgba(53, 208, 157, 0.34);
+  border-radius: 999rpx;
+  box-sizing: border-box;
+  background: rgba(53, 208, 157, 0.16);
+}
+
+.role-network-status-text {
+  display: block;
+  width: 100%;
+  height: 38rpx;
+  color: rgba(16, 185, 129, 1);
+  font-family: "NotoSans-regular", "Noto Sans SC", sans-serif;
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 38rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.role-skill-panel {
+  position: relative;
+  height: 302rpx;
+  padding: 24rpx 34rpx 0;
+  border: 2rpx solid #00a8ff;
+  border-radius: 28rpx;
+  background:
+    radial-gradient(circle at 24% 54%, rgba(0, 123, 211, 0.18) 0%, rgba(0, 123, 211, 0) 40%),
+    rgba(2, 16, 23, 0.96);
+  box-shadow:
+    0 0 18rpx rgba(0, 168, 255, 0.78),
+    0 0 34rpx rgba(0, 168, 255, 0.38),
+    inset 0 0 24rpx rgba(0, 168, 255, 0.12);
+  overflow: hidden;
+}
+
+.role-skill-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.role-skill-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42rpx;
+  height: 42rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background: transparent;
+  color: #ffffff;
+  font-size: 28rpx;
+  line-height: 42rpx;
+}
+
+.role-skill-heading {
+  color: #64ff38;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 42rpx;
+}
+
+.role-skill-tree {
+  position: relative;
+  z-index: 1;
+  height: 214rpx;
+  margin-top: 12rpx;
+}
+
+.role-skill-line {
+  position: absolute;
+  height: 2rpx;
+  background: rgba(151, 170, 180, 0.58);
+  transform-origin: left center;
+}
+
+.role-skill-line.left {
+  left: 106rpx;
+  top: 88rpx;
+  width: 121rpx;
+  border-top: 2rpx dashed rgba(196, 208, 214, 0.72);
+  background: transparent;
+}
+
+.role-skill-line.top {
+  left: 299rpx;
+  top: 88rpx;
+  width: 168rpx;
+  transform: rotate(-22deg);
+}
+
+.role-skill-line.bottom {
+  left: 299rpx;
+  top: 88rpx;
+  width: 169rpx;
+  transform: rotate(15deg);
+}
+
+.role-skill-node-wrap {
+  position: absolute;
+  width: 114rpx;
+  text-align: center;
+}
+
+.role-skill-node-wrap.start {
+  left: 12rpx;
+  top: 52rpx;
+}
+
+.role-skill-node-wrap.middle {
+  left: 206rpx;
+  top: 52rpx;
+}
+
+.role-skill-node-wrap.locked.top {
+  right: 34rpx;
+  top: -18rpx;
+}
+
+.role-skill-node-wrap.locked.bottom {
+  right: 34rpx;
+  top: 90rpx;
+}
+
+.role-skill-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0 auto;
+  border-radius: 50%;
+  font-size: 34rpx;
+  line-height: 72rpx;
+}
+
+.role-skill-node.green {
+  background: #64ff38;
+  box-shadow: 0 0 18rpx rgba(100, 255, 56, 0.3);
+}
+
+.role-skill-node.orange {
+  background: #ffbd66;
+  box-shadow: 0 0 18rpx rgba(255, 189, 102, 0.25);
+}
+
+.role-skill-node.blue {
+  background: #35c8f5;
+  box-shadow: 0 0 18rpx rgba(53, 200, 245, 0.28);
+}
+
+.role-skill-node.locked {
+  width: 82rpx;
+  height: 82rpx;
+  border: 4rpx dashed rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffd36a;
+  line-height: 82rpx;
+}
+
+.role-skill-node.locked text {
+  line-height: 82rpx;
+}
+
+.role-skill-node text {
+  line-height: 72rpx;
+}
+
+.role-skill-node-label {
+  display: block;
+  margin-top: 54rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 28rpx;
+}
+
+.role-skill-node-wrap.locked .role-skill-node-label {
+  margin-top: 6rpx;
+}
+
+.role-review-panel {
+  margin-top: 40rpx;
+}
+
+.role-review-head {
+  min-height: 68rpx;
+  margin-bottom: 6rpx;
+}
+
+.role-review-title-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.role-review-head .role-review-icon {
+  margin-right: 18rpx;
+  color: #ffd15c;
+  font-size: 40rpx;
+  line-height: 52rpx;
+}
+
+.role-review-head .role-review-title {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 900;
+  line-height: 44rpx;
+}
+
+.role-review-more {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.role-review-card,
+.role-network-card {
+  padding: 22rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, rgba(0, 123, 211, 0.18), rgba(3, 67, 115, 0.72));
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.22);
+}
+
+.role-network-card {
+  position: relative;
+  width: auto;
+  height: 266rpx;
+  margin: 0 22rpx 0 18rpx;
+  padding: 0;
+  border: 2rpx solid rgba(16, 185, 129, 0.1);
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background: radial-gradient(0.5% 0.5% at 50% 50%, rgba(16, 185, 129, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+  box-shadow: none;
+}
+
+.role-network-graph {
+  position: absolute;
+  left: 92rpx;
+  top: 8rpx;
+  width: 322rpx;
+  height: 182rpx;
+  background: transparent;
+}
+
+.role-network-line {
+  position: absolute;
+  height: 2rpx;
+  border-top: 2rpx solid rgba(16, 185, 129, 0.18);
+  transform-origin: left center;
+}
+
+.role-network-line.center-to-left-mid {
+  left: 161rpx;
+  top: 91rpx;
+  width: 75rpx;
+  transform: rotate(179deg);
+}
+
+.role-network-line.center-to-left-top {
+  left: 161rpx;
+  top: 91rpx;
+  width: 65rpx;
+  transform: rotate(225deg);
+}
+
+.role-network-line.center-to-top {
+  left: 161rpx;
+  top: 91rpx;
+  width: 71rpx;
+  transform: rotate(270deg);
+}
+
+.role-network-line.center-to-right-top {
+  left: 161rpx;
+  top: 91rpx;
+  width: 68rpx;
+  transform: rotate(317deg);
+}
+
+.role-network-line.center-to-right-mid {
+  left: 161rpx;
+  top: 91rpx;
+  width: 71rpx;
+  transform: rotate(1deg);
+}
+
+.role-network-line.center-to-right-bottom {
+  left: 158rpx;
+  top: 88rpx;
+  width: 70rpx;
+  transform: rotate(45deg);
+}
+
+.role-network-line.center-to-left-bottom {
+  left: 161rpx;
+  top: 91rpx;
+  width: 64rpx;
+  transform: rotate(134deg);
+}
+
+.role-network-line.center-to-bottom {
+  left: 161rpx;
+  top: 91rpx;
+  width: 79rpx;
+  transform: rotate(89deg);
+}
+
+.role-network-line.outer-top-left {
+  left: 115rpx;
+  top: 45rpx;
+  width: 59rpx;
+  transform: rotate(-28deg);
+}
+
+.role-network-line.outer-top-right {
+  left: 161rpx;
+  top: 20rpx;
+  width: 59rpx;
+  transform: rotate(25deg);
+}
+
+.role-network-line.outer-right-top {
+  left: 211rpx;
+  top: 45rpx;
+  width: 49rpx;
+  transform: rotate(67deg);
+}
+
+.role-network-line.outer-right-bottom {
+  left: 232rpx;
+  top: 92rpx;
+  width: 58rpx;
+  transform: rotate(121deg);
+}
+
+.role-network-line.outer-bottom-left {
+  left: 116rpx;
+  top: 137rpx;
+  width: 57rpx;
+  transform: rotate(34deg);
+}
+
+.role-network-line.outer-bottom-right {
+  left: 162rpx;
+  top: 170rpx;
+  width: 62rpx;
+  transform: rotate(-41deg);
+}
+
+.role-network-line.outer-left-top-to-right-top {
+  left: 115rpx;
+  top: 45rpx;
+  width: 96rpx;
+  border-color: rgba(16, 185, 129, 0.12);
+  transform: rotate(0deg);
+}
+
+.role-network-line.outer-top-to-right-bottom {
+  left: 161rpx;
+  top: 20rpx;
+  width: 126rpx;
+  border-color: rgba(16, 185, 129, 0.12);
+  transform: rotate(69deg);
+}
+
+.role-network-line.outer-left-bottom-to-right-mid {
+  left: 116rpx;
+  top: 137rpx;
+  width: 130rpx;
+  border-color: rgba(16, 185, 129, 0.12);
+  transform: rotate(-21deg);
+}
+
+.role-network-dot {
+  position: absolute;
+  z-index: 2;
+  width: 22rpx;
+  height: 22rpx;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 1);
+  box-shadow: 0 0 18rpx rgba(16, 185, 129, 0.76);
+}
+
+.role-network-dot.center {
+  left: 145rpx;
+  top: 75rpx;
+  width: 32rpx;
+  height: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 0 18rpx rgba(16, 185, 129, 0.82);
+}
+
+.role-network-dot.dot-1 {
+  left: 76rpx;
+  top: 82rpx;
+  width: 20rpx;
+  height: 20rpx;
+}
+
+.role-network-dot.dot-2 {
+  left: 102rpx;
+  top: 32rpx;
+  width: 26rpx;
+  height: 26rpx;
+}
+
+.role-network-dot.dot-3 {
+  left: 147rpx;
+  top: 6rpx;
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.role-network-dot.dot-4 {
+  right: 98rpx;
+  top: 32rpx;
+  width: 26rpx;
+  height: 26rpx;
+}
+
+.role-network-dot.dot-5 {
+  right: 80rpx;
+  top: 82rpx;
+  width: 20rpx;
+  height: 20rpx;
+}
+
+.role-network-dot.dot-6 {
+  right: 104rpx;
+  bottom: 32rpx;
+  width: 26rpx;
+  height: 26rpx;
+}
+
+.role-network-dot.dot-7 {
+  left: 146rpx;
+  bottom: -4rpx;
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.role-network-dot.dot-8 {
+  left: 104rpx;
+  bottom: 32rpx;
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.role-network-location-pill {
+  position: absolute;
+  left: 20rpx;
+  bottom: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 122rpx;
+  height: 52rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 40rpx;
+  box-sizing: border-box;
+  background: rgba(0, 140, 244, 0.12);
+}
+
+.role-network-location-icon {
+  flex: none;
+  margin-right: 2rpx;
+  font-size: 20rpx;
+  line-height: 28rpx;
+}
+
+.role-network-location-text {
+  width: 82rpx;
+  height: 34rpx;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: "NotoSans-regular", "Noto Sans SC", sans-serif;
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-network-count-pill {
+  position: absolute;
+  right: 17rpx;
+  top: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 176rpx;
+  height: 30rpx;
+  border: 2rpx solid rgba(16, 185, 129, 0.42);
+  border-radius: 999rpx;
+  box-sizing: border-box;
+  color: rgba(16, 185, 129, 1);
+  background: rgba(16, 185, 129, 0.16);
+  font-size: 14rpx;
+  line-height: 26rpx;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-network-income-pill {
+  position: absolute;
+  right: 17rpx;
+  bottom: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 184rpx;
+  height: 52rpx;
+  border: 2rpx solid rgba(255, 194, 74, 0.38);
+  border-radius: 999rpx;
+  box-sizing: border-box;
+  color: #ffd24d;
+  background: rgba(44, 61, 61, 0.72);
+  font-family: "NotoSans-regular", "Noto Sans SC", sans-serif;
+  font-size: 20rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-review-card {
+  min-height: 260rpx;
+  padding: 34rpx 32rpx 30rpx;
+  border-color: rgba(0, 168, 255, 0.68);
+  border-radius: 32rpx;
+  background: linear-gradient(180deg, #00293a 0%, #0775b2 100%);
+}
+
+.role-review-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.role-review-player {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.role-review-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70rpx;
+  height: 70rpx;
+  margin-right: 22rpx;
+  border-radius: 50%;
+  background: #2f8df0;
+  color: #111111;
+  font-size: 34rpx;
+  line-height: 70rpx;
+  overflow: hidden;
+}
+
+.role-review-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.role-review-player-copy {
+  min-width: 0;
+}
+
+.role-review-author {
+  display: block;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 400;
+  line-height: 42rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-review-time {
+  display: block;
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+}
+
+.role-review-rating {
+  flex: none;
+  margin-left: 20rpx;
+  color: #ffc44d;
+  font-size: 38rpx;
+  letter-spacing: 2rpx;
+  line-height: 44rpx;
+  white-space: nowrap;
+}
+
+.role-review-content {
+  display: block;
+  margin-top: 48rpx;
+  color: #d2ecff;
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 52rpx;
+}
+
+.role-recommend-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.role-recommend-panel .player-achievement-head {
+  min-height: 58rpx;
+  padding-left: 0;
+}
+
+.role-recommend-panel .player-panel-icon {
+  margin-right: 8rpx;
+  color: #22e2ee;
+  font-size: 40rpx;
+  line-height: 52rpx;
+}
+
+.role-recommend-panel .player-panel-title {
+  color: #22e2ee;
+  font-size: 40rpx;
+  font-weight: 900;
+  line-height: 52rpx;
+}
+
+.role-home-page.guide .player-achievement-panel {
+  margin-top: 42rpx;
+  padding: 0;
+  background: transparent;
+}
+
+.role-home-page.guide .player-achievement-head {
+  min-height: 64rpx;
+  padding-left: 16rpx;
+}
+
+.role-home-page.guide .player-achievement-head .player-panel-icon {
+  margin-right: 8rpx;
+  font-size: 44rpx;
+  line-height: 58rpx;
+}
+
+.role-home-page.guide .player-achievement-head .player-panel-title {
+  color: #64ff38;
+  font-size: 40rpx;
+  font-weight: 900;
+  line-height: 58rpx;
+}
+
+.role-home-page.guide .player-achievement-grid {
+  grid-template-columns: repeat(4, 136rpx);
+  column-gap: 34rpx;
+  width: 648rpx;
+  min-height: 172rpx;
+  margin-top: 28rpx;
+}
+
+.role-home-page.guide .player-achievement {
+  width: 136rpx;
+  height: 172rpx;
+}
+
+.role-home-page.guide .player-achievement-medal {
+  width: 136rpx;
+  height: 142rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #ff5b53 0%, #ff7f2c 16%, #ffc92e 100%);
+  box-shadow: 0 6rpx 14rpx rgba(255, 186, 44, 0.42);
+}
+
+.role-home-page.guide .player-achievement-medal::before {
+  left: 4rpx;
+  top: 4rpx;
+  width: 128rpx;
+  height: 136rpx;
+  border-radius: 22rpx;
+}
+
+.role-home-page.guide .player-achievement-medal::after {
+  left: 8rpx;
+  top: 7rpx;
+  width: 120rpx;
+  height: 128rpx;
+  border-radius: 20rpx;
+}
+
+.role-home-page.guide .player-achievement-face {
+  left: 0;
+  top: 0;
+  width: 136rpx;
+  height: 142rpx;
+}
+
+.role-home-page.guide .player-achievement.blue .player-achievement-medal {
+  background: linear-gradient(135deg, #8175ff 0%, #25b7ff 48%, #9d5cff 100%);
+  box-shadow: 0 6rpx 14rpx rgba(89, 170, 255, 0.38);
+}
+
+.role-home-page.guide .player-achievement.locked .player-achievement-medal {
+  background: linear-gradient(135deg, #c690f3 0%, #9fd8f4 48%, #7ee4b9 100%);
+  box-shadow: none;
+}
+
+.role-home-page.guide .player-achievement-icon-wrap {
+  left: 37rpx;
+  top: 8rpx;
+  width: 62rpx;
+  height: 76rpx;
+}
+
+.role-home-page.guide .player-achievement-icon {
+  font-size: 56rpx;
+  line-height: 82rpx;
+}
+
+.role-home-page.guide .player-achievement-icon-wrap.locked {
+  left: 0;
+  top: 20rpx;
+  width: 136rpx;
+  height: 58rpx;
+}
+
+.role-home-page.guide .player-achievement-icon-wrap.locked .player-achievement-icon {
+  line-height: 58rpx;
+}
+
+.role-home-page.guide .player-achievement-title {
+  top: 82rpx;
+  font-size: 18rpx;
+  font-weight: 900;
+  line-height: 30rpx;
+}
+
+.role-home-page.guide .player-achievement-progress {
+  left: 31rpx;
+  top: 116rpx;
+  width: 74rpx;
+}
+
+.role-home-page.guide .player-achievement-status {
+  bottom: -26rpx;
+  font-size: 16rpx;
+  line-height: 26rpx;
+}
+
+.role-home-page.guide .player-achievement.locked .player-achievement-status {
+  bottom: -26rpx;
+}
+
+.role-recommend-list {
+  display: flex;
+  align-items: center;
+  gap: 28rpx;
+  margin-top: 26rpx;
+}
+
+.role-recommend-item {
+  position: relative;
+  width: 86rpx;
+  height: 86rpx;
+  border: 6rpx solid rgba(120, 132, 232, 1);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: rgba(15, 45, 62, 0.92);
+  overflow: hidden;
+}
+
+.role-recommend-avatar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.role-recommend-avatar image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.role-recommend-avatar text {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.role-network-tags {
+  display: grid;
+  grid-template-columns: repeat(5, 74rpx);
+  justify-content: flex-start;
+  gap: 7rpx;
+  width: 398rpx;
+  margin: 14rpx 0 0 6rpx;
+}
+
+.role-network-tag {
+  min-width: 0;
+  min-height: 122rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  background: transparent;
+  text-align: center;
+}
+
+.role-network-tag-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50rpx;
+  height: 50rpx;
+  margin: 0 auto 8rpx;
+  border: 3rpx solid rgba(16, 185, 129, 0.58);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: rgba(16, 185, 129, 0.16);
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 44rpx;
+}
+
+.role-network-tag-icon.dashed {
+  border-style: dashed;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 36rpx;
+  line-height: 44rpx;
+}
+
+.role-network-tag-name,
+.role-network-tag-desc {
+  display: block;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-network-tag-name {
+  color: rgba(255, 255, 255, 0.92);
+  font-family: "NotoSans-regular", "Noto Sans SC", sans-serif;
+  font-size: 14rpx;
+  font-weight: 400;
+  line-height: 20rpx;
+}
+
+.role-network-tag-desc {
+  margin-top: 2rpx;
+  color: rgba(16, 185, 129, 1);
+  font-family: "NotoSans-regular", "Noto Sans SC", sans-serif;
+  font-size: 14rpx;
+  font-weight: 400;
+  line-height: 20rpx;
+}
+
+.role-network-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10rpx;
+  width: 100%;
+  margin: 30rpx auto 0;
+}
+
+.role-network-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 60rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: "NotoSans-regular", "Noto Sans SC", sans-serif;
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 56rpx;
+  text-align: center;
+}
+
+.role-network-button.primary {
+  border-color: rgba(16, 185, 129, 0.22);
+  color: rgba(16, 185, 129, 1);
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: none;
+}
+
+.role-metaverse-card {
+  position: relative;
+  width: 662rpx;
+  height: 204rpx;
+  margin-top: 50rpx;
+  margin-right: auto;
+  margin-left: auto;
+  overflow: hidden;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 32rpx;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 82% 50%, rgba(52, 241, 241, 0.2) 0%, rgba(52, 241, 241, 0) 34%),
+    linear-gradient(135deg, #0161a6 0%, #034373 100%);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
+}
+
+.role-metaverse-card .player-metaverse-title {
+  color: #67f5f5;
+}
+
+.role-metaverse-card .player-metaverse-desc {
+  color: #c4cad6;
+}
+
+.role-metaverse-card .player-metaverse-tags text {
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.role-metaverse-card .player-metaverse-tags text.purple {
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+/* Keep the role dashboard anchored to the shell frame, not to a page file. */
+.role-home-page,
+.player-home-page {
+  width: 100%;
+}
+
+.role-home-error {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 48rpx;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.role-home-error-title {
+  display: block;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+  text-align: center;
+}
+
+.role-home-error-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 220rpx;
+  height: 72rpx;
+  margin-top: 28rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  color: #000000;
+  background: #adff2f;
+  font-size: 26rpx;
+  font-weight: 800;
+  line-height: 72rpx;
+}
+
+.role-home-error-button::after {
+  display: none;
+}
+
+.player-ranking-panel,
+.player-achievement-panel,
+.player-summary-card,
+.player-world-card,
+.player-metaverse-card,
+.player-section-head,
+.role-section-desc,
+.role-session-card,
+.role-skill-panel,
+.role-review-panel,
+.role-recommend-panel,
+.role-network-panel,
+.role-metaverse-card {
+  width: calc(100% - 42rpx);
+  max-width: 662rpx;
+}
+
+.role-network-card {
+  width: calc(100% - 40rpx);
+  max-width: none;
+}
+
+.role-network-actions {
+  width: calc(100% - 68rpx);
+  max-width: 592rpx;
+}
+
+.player-summary-stats,
+.player-summary-divider {
+  width: auto;
+  right: 0;
+}
+
+.player-summary-divider {
+  right: 28rpx;
+}

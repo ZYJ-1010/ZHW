@@ -1,0 +1,10 @@
+<view class="page-shell">
+  <view class="module-card">
+    <text class="module-kicker">{{group.priority}}</text>
+    <text class="module-title">{{group.title}}</text>
+    <text class="module-desc">元宇宙和管理中心仅做预留，不进入第一轮核心闭环。</text>
+  </view>
+  <view class="screen-list">
+    <view wx:for="{{group.screens}}" wx:key="*this" class="screen-item">{{item}}</view>
+  </view>
+</view>

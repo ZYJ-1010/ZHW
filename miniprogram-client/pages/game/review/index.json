@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "home-apply-shell": "/components/home-apply-shell/index"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "home-apply-shell": "/components/home-apply-shell/index",
+    "role-dashboard-home": "/components/role-dashboard-home/index",
+    "role-comparison-home": "/components/role-comparison-home/index"
+  }
+}

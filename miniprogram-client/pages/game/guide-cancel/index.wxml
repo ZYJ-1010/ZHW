@@ -1,0 +1,95 @@
+<view class="guide-cancel-page">
+  <view class="guide-cancel-frame" style="{{shellLayout.frameStyle}}">
+    <view class="guide-cancel-top-bg"></view>
+    <view class="guide-cancel-nav">
+      <view class="guide-cancel-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="guide-cancel-back-icon"></view>
+      </view>
+      <text class="guide-cancel-title" style="{{shellLayout.titleStyle}}">{{pageTitle}}</text>
+    </view>
+
+    <scroll-view
+      class="guide-cancel-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      enable-back-to-top
+    >
+      <view class="guide-cancel-inner">
+        <view class="cancel-status-card">
+          <view class="cancel-mark">
+            <image class="cancel-mark-image" src="https://static.haowan.net.cn/miniprogram/pages/game/guide-cancel/assets/i34@3x.png" mode="aspectFit"></image>
+          </view>
+          <text class="cancel-status-title">{{cancelInfo.statusTitle}}</text>
+          <text class="cancel-status-desc">{{cancelInfo.statusDesc}}</text>
+        </view>
+
+        <view class="cancel-section reason-section">
+          <text class="section-title">取消原因</text>
+          <view class="reason-card">
+            <view class="reason-icon">
+              <image class="reason-icon-image" src="https://static.haowan.net.cn/miniprogram/pages/game/guide-cancel/assets/i35@3x.png" mode="aspectFit"></image>
+            </view>
+            <view class="reason-copy">
+              <text class="reason-title">{{cancelInfo.reasonTitle}}</text>
+              <text class="reason-desc">{{cancelInfo.reasonDesc}}</text>
+            </view>
+          </view>
+
+          <view class="message-card">
+            <text class="quote-mark">“</text>
+            <text class="message-text">{{cancelInfo.message}}</text>
+          </view>
+          <view class="message-meta">
+            <view class="message-user">
+              <view class="user-avatar {{cancelInfo.cancelAvatarClass}}">
+                <image wx:if="{{cancelInfo.cancelAvatarUrl}}" class="user-avatar-image" src="{{cancelInfo.cancelAvatarUrl}}" mode="aspectFill"></image>
+                <text wx:else>{{cancelInfo.cancelAvatarText}}</text>
+              </view>
+              <view class="user-name-row">
+                <text class="user-name">{{cancelInfo.cancelUserName}}</text>
+                <text class="user-role {{cancelInfo.cancelRoleClass}}">{{cancelInfo.cancelRoleLabel}}</text>
+              </view>
+            </view>
+            <text class="message-time">{{cancelInfo.messageTimeText}}</text>
+          </view>
+        </view>
+
+        <view class="cancel-section timeline-section">
+          <timeline-list title="取消历程" items="{{timeline}}" variant="cancel" />
+        </view>
+
+        <view class="cancel-section action-section">
+          <text class="section-title">你可以</text>
+          <view class="action-grid">
+            <button class="action-card orange" hover-class="none" bindtap="onRestartTap">
+              <view class="action-icon refresh-icon">
+                <image class="action-icon-image restart" src="https://static.haowan.net.cn/miniprogram/pages/game/guide-cancel/assets/i36@3x.png" mode="aspectFit"></image>
+              </view>
+              <text class="action-title">重新组局</text>
+              <text class="action-desc">更换时间/地点</text>
+            </button>
+            <button class="action-card blue" hover-class="none" bindtap="onRecommendTap">
+              <view class="action-icon add-user-icon">
+                <image class="action-icon-image recommend" src="https://static.haowan.net.cn/miniprogram/pages/game/guide-cancel/assets/i37@3x.png" mode="aspectFit"></image>
+              </view>
+              <text class="action-title">推荐他人</text>
+              <text class="action-desc">寻找其他玩家</text>
+            </button>
+          </view>
+        </view>
+
+        <view class="hint-card">
+          <image class="hint-icon" src="https://static.haowan.net.cn/miniprogram/pages/game/guide-cancel/assets/i38@3x.png" mode="aspectFit"></image>
+          <view class="hint-copy">
+            <text class="hint-title">提示</text>
+            <text class="hint-desc">已取消的组局已移至“历史记录”，你可以在个人中心查看</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="guide-cancel-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

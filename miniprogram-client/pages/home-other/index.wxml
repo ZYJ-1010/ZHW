@@ -1,0 +1,212 @@
+<view class="home-master-apply-page home-other-apply-page {{currentPage.variant}}">
+  <view class="home-master-apply-stage">
+    <view class="home-master-apply-frame" style="{{applyShellLayout.frameStyle}}">
+      <view class="home-master-apply-top-bg" style="{{applyShellLayout.topBgStyle}}"></view>
+      <view wx:if="{{currentPage.title && !currentPage.toolbarTitle}}" class="home-master-apply-nav" style="{{applyShellLayout.navStyle}}">
+        <text class="home-master-apply-nav-title">{{currentPage.title}}</text>
+      </view>
+      <view class="home-master-apply-phone" style="{{applyShellLayout.phoneStyle}}">
+        <view wx:if="{{currentPage.toolbar}}" class="home-other-toolbar {{currentPage.toolbarTitle ? 'with-title' : ''}}">
+          <text class="home-other-back" catchtap="handleGuideApplyBackTap">‹</text>
+          <text wx:if="{{currentPage.toolbarTitle}}" class="home-other-toolbar-title">{{currentPage.toolbarTitle}}</text>
+          <text wx:if="{{currentPage.toolbarSave}}" class="home-other-save" catchtap="handleGuideApplySaveTap">保存</text>
+        </view>
+        <scroll-view class="home-master-apply-main home-other-scroll" scroll-y enhanced show-scrollbar="false">
+          <view class="home-other-content">
+            <view class="home-other-hero">
+              <view class="home-other-status-icon {{currentPage.statusIconVariant ? currentPage.statusIconVariant : ''}}">
+                <text wx:if="{{currentPage.statusIconText}}" class="home-other-status-emoji">{{currentPage.statusIconText}}</text>
+                <image wx:else class="home-other-status-image" src="{{currentPage.statusIconSrc}}" mode="aspectFit"></image>
+              </view>
+              <text class="home-other-status-title">{{currentPage.statusTitle}}</text>
+              <text wx:if="{{currentPage.statusSubtitle}}" class="home-other-status-subtitle">{{currentPage.statusSubtitle}}</text>
+              <view wx:if="{{currentPage.description}}" class="home-other-desc">
+                <text wx:for="{{currentPage.description}}" wx:key="*this">{{item}}</text>
+              </view>
+            </view>
+
+            <block wx:if="{{currentPage.id === 'guideApplyForm'}}">
+              <view wx:if="{{currentPage.requirements && currentPage.requirements.length}}" class="home-other-guide-form-panel requirements">
+                <view class="home-other-guide-panel-title">
+                  <text class="home-other-section-symbol">{{uiIcons.panel.record}}</text>
+                  <text>{{currentPage.requirementsTitle}}</text>
+                </view>
+                <view
+                  wx:for="{{currentPage.requirements}}"
+                  wx:key="title"
+                  class="home-other-guide-requirement {{item.done ? 'done' : 'pending'}}"
+                >
+                  <view class="home-other-guide-check">{{item.done ? '✓' : '×'}}</view>
+                  <view class="home-other-guide-requirement-body">
+                    <text class="home-other-guide-requirement-title">{{item.title}}</text>
+                    <text class="home-other-guide-requirement-text">{{item.text}}</text>
+                  </view>
+                </view>
+                <view wx:if="{{currentPage.planTask && currentPage.planTask.title}}" class="home-other-guide-plan-row {{currentPage.planTask.done ? 'done' : 'pending'}}">
+                  <view class="home-other-guide-check">{{currentPage.planTask.done ? '✓' : ''}}</view>
+                  <view class="home-other-guide-requirement-body">
+                    <text class="home-other-guide-requirement-title">{{currentPage.planTask.title}}</text>
+                    <text class="home-other-guide-requirement-text">{{currentPage.planTask.text}}</text>
+                  </view>
+                  <text wx:if="{{currentPage.planTask.action}}" class="home-other-guide-plan-action">{{currentPage.planTask.action}}</text>
+                </view>
+              </view>
+
+              <view wx:if="{{currentPage.perks && currentPage.perks.length}}" class="home-other-guide-form-panel perks">
+                <view class="home-other-guide-panel-title crown">
+                  <text class="home-other-section-symbol">{{uiIcons.panel.crown}}</text>
+                  <text>{{currentPage.perksTitle}}</text>
+                </view>
+                <view wx:for="{{currentPage.perks}}" wx:key="text" class="home-other-guide-perk tone-{{index}}">
+                  <view class="home-other-guide-perk-icon">{{item.icon}}</view>
+                  <text class="home-other-guide-perk-text">{{item.text}}</text>
+                </view>
+              </view>
+            </block>
+
+            <block wx:elif="{{currentPage.rejected}}">
+              <view class="home-other-panel reject-reasons">
+                <view class="home-other-panel-title warn">
+                  <text class="home-other-section-symbol">{{uiIcons.panel.warning}}</text>
+                  <text>驳回原因</text>
+                </view>
+                <text wx:for="{{currentPage.reasons}}" wx:key="*this" class="home-other-list-line">{{item}}</text>
+              </view>
+
+              <view class="home-other-panel suggestions">
+                <view class="home-other-panel-title cyan">
+                  <text class="home-other-panel-symbol">{{uiIcons.panel.suggestion}}</text>
+                  <text>改进建议</text>
+                </view>
+                <text wx:for="{{currentPage.suggestions}}" wx:key="*this" class="home-other-list-line">{{index + 1}}. {{item}}</text>
+                <text class="home-other-note">{{currentPage.suggestionNote}}</text>
+              </view>
+
+              <view class="home-other-panel retry">
+                <view class="home-other-panel-title">
+                  <text class="home-other-section-symbol">{{uiIcons.panel.reapply}}</text>
+                  <text>重新申请</text>
+                </view>
+                <text class="home-other-card-text">{{currentPage.retryText}}</text>
+              </view>
+            </block>
+
+            <block wx:elif="{{currentPage.id === 'pendingSimple'}}">
+              <view class="home-other-estimate">
+                <view class="home-other-panel-title cyan">
+                  <text class="home-other-section-symbol">{{uiIcons.panel.estimate}}</text>
+                  <text>{{currentPage.estimateTitle}}</text>
+                </view>
+                <text>{{currentPage.estimateText}}</text>
+              </view>
+
+              <view class="home-other-timeline simple">
+                <view wx:for="{{currentPage.timeline}}" wx:key="title" class="home-other-timeline-item {{item.state}}">
+                  <view class="home-other-timeline-dot"></view>
+                  <view class="home-other-timeline-body">
+                    <text class="home-other-timeline-title">{{item.title}}</text>
+                    <text class="home-other-timeline-text">{{item.text}}</text>
+                    <text class="home-other-timeline-time">{{item.time}}</text>
+                  </view>
+                </view>
+              </view>
+            </block>
+
+            <block wx:elif="{{currentPage.id === 'pendingCards'}}">
+              <view class="home-other-progress">
+                <view class="home-other-progress-bar"><view></view></view>
+                <view class="home-other-progress-row">
+                  <text>{{currentPage.progressTextLeft}}</text>
+                  <text>{{currentPage.progressTextRight}}</text>
+                </view>
+              </view>
+
+              <view class="home-other-section-title">申请进度</view>
+              <view class="home-other-timeline cards">
+                <view wx:for="{{currentPage.timeline}}" wx:key="title" class="home-other-timeline-item {{item.state}}">
+                  <view class="home-other-timeline-dot"></view>
+                  <view class="home-other-timeline-card">
+                    <text class="home-other-timeline-title">{{item.title}}</text>
+                    <text class="home-other-timeline-text">{{item.text}}</text>
+                    <text class="home-other-timeline-time">{{item.time}}</text>
+                  </view>
+                </view>
+              </view>
+            </block>
+
+            <block wx:else>
+              <view class="home-other-cert">
+                <text class="home-other-cert-label">认证编号</text>
+                <text class="home-other-cert-no">{{currentPage.certNo}}</text>
+                <text class="home-other-cert-time">认证时间: {{currentPage.certTime}}</text>
+              </view>
+
+              <view class="home-other-panel gifts">
+                <view class="home-other-panel-title">
+                  <text class="home-other-panel-symbol">{{uiIcons.panel.gift}}</text>
+                  <text>{{currentPage.giftTitle}}</text>
+                </view>
+                <view wx:for="{{currentPage.gifts}}" wx:key="text" class="home-other-gift">
+                  <view class="home-other-gift-icon {{item.type}}">
+                    <text>{{item.icon}}</text>
+                  </view>
+                  <text class="home-other-gift-text">{{item.text}}</text>
+                  <text class="home-other-gift-tag {{item.type}}">{{item.tag}}</text>
+                </view>
+              </view>
+
+              <view class="home-other-action-grid">
+                <view
+                  wx:for="{{currentPage.actions}}"
+                  wx:key="text"
+                  class="home-other-action-card"
+                  data-route="{{item.route}}"
+                  catchtap="handlePassedActionTap"
+                >
+                  <text wx:if="{{item.iconText}}" class="home-other-action-emoji">{{item.iconText}}</text>
+                  <image wx:else class="home-other-action-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+                  <text class="home-other-action-text">{{item.text}}</text>
+                </view>
+              </view>
+            </block>
+
+            <view wx:if="{{currentPage.details}}" class="home-other-panel details">
+              <view class="home-other-panel-title">
+                <text wx:if="{{currentPage.detailsIconText}}" class="home-other-section-symbol">{{currentPage.detailsIconText}}</text>
+                <text wx:elif="{{currentPage.rejected}}" class="home-other-section-symbol">{{uiIcons.panel.record}}</text>
+                <text wx:else class="home-other-section-symbol">{{uiIcons.panel.record}}</text>
+                <text>{{currentPage.detailsTitle || (currentPage.id === 'pendingCards' ? '申请详情' : '申请信')}}</text>
+              </view>
+              <view wx:for="{{currentPage.details}}" wx:key="label" class="home-other-detail-row">
+                <text>{{item.label}}</text>
+                <text class="{{item.accent ? 'accent' : ''}} {{item.cyan ? 'cyan' : ''}}">{{item.value}}</text>
+              </view>
+            </view>
+
+            <text wx:if="{{currentPage.helperText}}" class="home-other-helper">{{currentPage.helperText}}</text>
+
+            <view wx:if="{{currentPage.footerButtons}}" class="home-other-footer-buttons">
+              <view
+                wx:for="{{currentPage.footerButtons}}"
+                wx:key="text"
+                class="home-other-footer-button {{item.ghost ? 'ghost' : ''}} {{item.green ? 'green' : ''}}"
+                data-index="{{index}}"
+                catchtap="handleFooterButtonTap"
+              >
+                {{item.text}}
+              </view>
+            </view>
+
+            <view wx:if="{{!currentPage.footerButtons}}" class="home-other-primary" catchtap="handlePrimaryTap">{{currentPage.primaryText}}</view>
+
+            <view class="home-other-bottom-spacer"></view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!previewSingle}}" class="home-other-counter">{{pageNo}} / {{pageTotal}}</view>
+  <view wx:if="{{!previewSingle}}" class="home-other-hit left" data-direction="-1" catchtap="handlePreviewTap"></view>
+  <view wx:if="{{!previewSingle}}" class="home-other-hit right" data-direction="1" catchtap="handlePreviewTap"></view>
+</view>

@@ -1,0 +1,54 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="metaverse-home">
+    <view class="metaverse-home__field">
+      <view class="metaverse-home__ray ray-a"></view>
+      <view class="metaverse-home__ray ray-b"></view>
+      <view class="metaverse-home__ray ray-c"></view>
+      <view class="metaverse-home__star star-a"></view>
+      <view class="metaverse-home__star star-b"></view>
+      <view class="metaverse-home__star star-c"></view>
+      <view class="metaverse-home__star star-d"></view>
+    </view>
+
+    <text class="metaverse-home__identity">数字身份 ID: #7X29F</text>
+
+    <view class="metaverse-home__content">
+      <view class="metaverse-home__portal">
+        <view class="metaverse-home__portal-halo outer"></view>
+        <view class="metaverse-home__portal-halo middle"></view>
+        <view class="metaverse-home__portal-core">
+          <view class="metaverse-home__portal-line line-a"></view>
+          <view class="metaverse-home__portal-line line-b"></view>
+          <view class="metaverse-home__portal-dot"></view>
+        </view>
+      </view>
+
+      <text class="metaverse-home__title">正在进入元宇宙</text>
+      <text class="metaverse-home__subtitle">全球玩家实时连线，共创数字空间</text>
+
+      <view class="metaverse-home__entries">
+        <view
+          wx:for="{{entries}}"
+          wx:key="key"
+          class="metaverse-home__entry {{item.tone}}"
+          bindtap="handleEntryTap"
+        >
+          <view class="metaverse-home__entry-icon {{item.icon}}">
+            <view class="metaverse-home__icon-shape"></view>
+          </view>
+          <text class="metaverse-home__entry-title">{{item.title}}</text>
+        </view>
+      </view>
+
+      <view class="metaverse-home__progress">
+        <view class="metaverse-home__progress-fill"></view>
+      </view>
+      <text class="metaverse-home__return">返回现实世界</text>
+    </view>
+  </view>
+</home-shell>
