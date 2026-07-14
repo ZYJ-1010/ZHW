@@ -2,11 +2,14 @@ const toast = require('../../utils/toast')
 const profileService = require('../../services/profile')
 const { ROUTES } = require('../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
+const { AUTH_EXPIRED_MESSAGE, goLogin, isAuthExpiredError } = require('../../utils/auth-error')
 
 Page({
   data: {
     loaded: false,
     loadError: '',
+    loadErrorActionText: '',
+    loadErrorAuthExpired: false,
     user: {
       nickname: '未登录',
       memberLevel: '',
@@ -48,12 +51,18 @@ Page({
       const data = await profileService.getProfileHome()
 
       this.setData(Object.assign({}, normalizeProfileHome(data), {
-        loadError: ''
+        loadError: '',
+        loadErrorActionText: '',
+        loadErrorAuthExpired: false
       }))
     } catch (error) {
+      const authExpired = isAuthExpiredError(error)
+
       this.setData({
         loaded: true,
-        loadError: error.message || '个人中心加载失败',
+        loadError: authExpired ? AUTH_EXPIRED_MESSAGE : (error.message || '个人中心加载失败'),
+        loadErrorActionText: authExpired ? '去登录' : '',
+        loadErrorAuthExpired: authExpired,
         serviceSections: []
       })
       console.warn('[profile] load home failed', error)
@@ -86,9 +95,18 @@ Page({
   },
 
   handleAvatarTap() {
+    if (this.data.loadErrorAuthExpired) {
+      goLogin(ROUTES.profile)
+      return
+    }
+
     navigateShellRoute(`/${ROUTES.profileSystemProfileInfo}`, {
       currentRoute: ROUTES.profile
     })
+  },
+
+  handleLoginTap() {
+    goLogin(ROUTES.profile)
   },
 
   handleShellNavTap(event) {

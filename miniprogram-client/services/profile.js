@@ -1,7 +1,12 @@
 const profileApi = require('../api/modules/profile')
+const { createAuthExpiredError, isAuthExpiredResult } = require('../utils/auth-error')
 
 async function getProfileHome() {
   const result = await profileApi.getProfileHome()
+
+  if (isAuthExpiredResult(result)) {
+    throw createAuthExpiredError(result.message)
+  }
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取个人中心失败')

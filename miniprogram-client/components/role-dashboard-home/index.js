@@ -5,6 +5,7 @@ const { ROUTES } = require('../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
 const { setActiveRole } = require('../../utils/active-role')
 const { isRoleApplyResultViewed, markRoleApplyResultViewed } = require('../../utils/role-apply-result-view')
+const { AUTH_EXPIRED_MESSAGE, goLogin, isAuthExpiredError } = require('../../utils/auth-error')
 
 const HOME_SCROLL_TAP_STEP_RPX = 360
 const HOME_SCROLL_HOLD_STEP_RPX = 72
@@ -276,6 +277,8 @@ Component({
   data: {
     homeReady: false,
     loadError: '',
+    loadErrorActionText: '重试',
+    loadErrorAuthExpired: false,
     onlineText: '',
     homeScrollTop: 0,
     navItems: [
@@ -433,6 +436,8 @@ Component({
         currentRoleType: roleType,
         homeReady: true,
         loadError: '',
+        loadErrorActionText: '重试',
+        loadErrorAuthExpired: false,
         onlineText: '',
         selectedRoleTag: roleType,
         roleStatusState,
@@ -509,6 +514,8 @@ Component({
         this.setData({
           currentRoleType: roleType,
           loadError: '',
+          loadErrorActionText: '重试',
+          loadErrorAuthExpired: false,
           selectedRoleTag: selectedRole,
           roleStatusConfig,
           roleStatusState,
@@ -550,10 +557,13 @@ Component({
         }
 
         const roleStatusState = Object.assign({}, DEFAULT_ROLE_STATUS_STATE)
+        const authExpired = isAuthExpiredError(error)
 
         this.setData({
           currentRoleType: roleType,
-          loadError: '网络异常，请重试',
+          loadError: authExpired ? AUTH_EXPIRED_MESSAGE : '网络异常，请重试',
+          loadErrorActionText: authExpired ? '去登录' : '重试',
+          loadErrorAuthExpired: authExpired,
           selectedRoleTag: roleType,
           roleStatusConfig: null,
           roleStatusState,
@@ -2496,10 +2506,17 @@ Component({
     },
 
     handleHomeRetryTap() {
+      if (this.data.loadErrorAuthExpired) {
+        goLogin(this.homeRoute())
+        return
+      }
+
       const roleType = this.normalizeRoleType(this.data.currentRoleType || this.properties.roleType)
 
       this.setData({
-        loadError: ''
+        loadError: '',
+        loadErrorActionText: '重试',
+        loadErrorAuthExpired: false
       })
       this.loadRoleHome(roleType)
     },

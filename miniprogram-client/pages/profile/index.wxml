@@ -95,7 +95,14 @@
           </view>
         </view>
 
-        <view wx:if="{{loadError}}" class="profile-empty">{{loadError}}</view>
+        <view wx:if="{{loadError}}" class="profile-empty">
+          <text>{{loadError}}</text>
+          <button
+            wx:if="{{loadErrorActionText}}"
+            class="profile-empty-button"
+            bindtap="handleLoginTap"
+          >{{loadErrorActionText}}</button>
+        </view>
       </view>
     </view>
   </view>

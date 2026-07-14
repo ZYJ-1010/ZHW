@@ -19,7 +19,7 @@
     <view class="player-home-page role-home-page {{currentRoleType}}">
       <view wx:if="{{loadError}}" class="role-home-error">
         <text class="role-home-error-title">{{loadError}}</text>
-        <button class="role-home-error-button" bindtap="handleHomeRetryTap">重试</button>
+        <button class="role-home-error-button" bindtap="handleHomeRetryTap">{{loadErrorActionText || '重试'}}</button>
       </view>
       <block wx:else>
       <view class="player-hero">

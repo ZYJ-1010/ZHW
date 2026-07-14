@@ -1,6 +1,11 @@
 const env = require('../config/env')
 const logger = require('../utils/logger')
 const { getAuthToken } = require('../utils/auth-session')
+const {
+  AUTH_EXPIRED_MESSAGE,
+  isAuthExpiredResult,
+  markAuthExpired
+} = require('../utils/auth-error')
 
 const requestLogger = logger.createLogger('request')
 const APP_VERSION = '0.1.0'
@@ -53,6 +58,25 @@ function request(options) {
       requestLogger.warn('request business error', logPayload)
     } else {
       requestLogger.info('request success', logPayload)
+    }
+
+    if (isAuthExpiredResult(Object.assign({}, body && typeof body === 'object' ? body : {}, { statusCode }))) {
+      markAuthExpired()
+
+      if (body && typeof body === 'object') {
+        return Object.assign({}, body, {
+          authExpired: true,
+          code: typeof code === 'number' ? code : 40102,
+          message: message || AUTH_EXPIRED_MESSAGE
+        })
+      }
+
+      return {
+        code: 40102,
+        message: AUTH_EXPIRED_MESSAGE,
+        data: null,
+        authExpired: true
+      }
     }
 
     return body
