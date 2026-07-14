@@ -98,7 +98,9 @@ Page({
     }
     if (invite.inviteCode) {
       this.verifyInviteAndContinue()
+      return
     }
+    this.continueToLoginWithoutInvite()
   },
 
   onShow() {
@@ -118,7 +120,7 @@ Page({
       return
     }
     if (!this.data.inviteCode) {
-      wx.showToast({ title: '请通过邀请二维码进入', icon: 'none' })
+      this.continueToLoginWithoutInvite()
       return
     }
     if (this.data.isInviteVerified) {
@@ -168,6 +170,20 @@ Page({
       inviteContext.entryType ? `entryType=${encodeURIComponent(inviteContext.entryType)}` : ''
     ].filter(Boolean).join('&')
     const url = `/${ROUTES.login}?${query}`
+    wx.redirectTo({
+      url,
+      fail: () => {
+        wx.reLaunch({ url })
+      }
+    })
+  },
+
+  continueToLoginWithoutInvite() {
+    if (this.data.isInviteNavigating) {
+      return
+    }
+    this.setData({ isInviteNavigating: true })
+    const url = `/${ROUTES.login}`
     wx.redirectTo({
       url,
       fail: () => {
