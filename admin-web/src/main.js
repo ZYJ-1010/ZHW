@@ -462,6 +462,10 @@ async function createInviteCode(event) {
     entryType,
     batchCount,
   };
+  if (payload.code && !/^[A-Za-z0-9_-]{4,32}$/.test(payload.code)) {
+    toast("邀请码只能使用 4-32 位字母、数字、下划线或短横线", true);
+    return;
+  }
   if (payload.batchCount > 1 && payload.code) {
     toast("批量生成时请留空邀请码，由系统自动生成", true);
     return;
@@ -476,6 +480,8 @@ async function createInviteCode(event) {
     if (ownerInput) ownerInput.value = "";
     if (entryTypeInput) entryTypeInput.value = "poster";
     if (batchCountInput) batchCountInput.value = "1";
+    const codeInput = form.querySelector("[name='code']");
+    if (codeInput) codeInput.value = "";
     await loadInviteCodes();
   } catch (error) {
     toast(error.message, true);
@@ -1571,6 +1577,9 @@ function showAvatarAuditDetail(userID) {
 function showRoleApplicationDetail(applicationID) {
   const item = state.roleApplications.find((app) => Number(app.id) === Number(applicationID));
   if (!item) return;
+  const inviteRelation = item.inviteRelation || {};
+  const inviter = item.inviter || {};
+  const inviteCode = item.inviteCode || inviteRelation.inviteCode || (inviteRelation.inviteCodeId ? `邀请码 ${inviteRelation.inviteCodeId}` : "-");
   openAdminDrawer({
     title: "角色申请详情",
     subtitle: `${roleLabel(item.roleCode)}申请`,
@@ -1582,6 +1591,9 @@ function showRoleApplicationDetail(applicationID) {
       ${detailCell("申请编号", item.id)}
       ${detailCell("申请人", userText(item.userId))}
       ${detailCell("申请角色", roleLabel(item.roleCode))}
+      ${detailCell("邀请人", inviterLabel(inviter, inviteRelation))}
+      ${detailCell("使用邀请码", inviteCode)}
+      ${detailCell("邀请绑定来源", inviteRelation.bindSource || "-")}
       ${detailCell("处理状态", statusLabel(item.status))}
       ${detailCell("申请说明", item.reason || "-")}
       ${detailCell("能力说明", item.abilityDescription || "-")}
@@ -3593,10 +3605,11 @@ async function importSensitiveWords(event) {
     toast("缺少 content:sensitive_word:import", true);
     return;
   }
-  const words = String(new FormData(form).get("words") || "")
-    .split(/\r?\n/)
+  const rawWords = String(new FormData(form).get("words") || "");
+  const words = Array.from(new Set(rawWords
+    .split(/[\s,，、]+/)
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter(Boolean)));
   if (words.length === 0) {
     toast("请先填写要导入的敏感词", true);
     return;
