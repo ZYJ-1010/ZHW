@@ -838,8 +838,12 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	getAdminJSON(t, mux, "/api/admin/invite-codes", operatorToken, http.StatusForbidden)
 
 	adminToken := adminLoginForTest(t, mux)
+	ownerToken := loginForTestWithCode(t, mux, "admin-invite-owner")
+	ownerUserID := currentUserIDForTest(t, mux, ownerToken)
+	ownerUserIDJSON := strconv.FormatInt(ownerUserID, 10)
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
-	body := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":9,"maxUses":99,"entryType":"qrcode"}`, http.StatusOK)
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":999999,"entryType":"qrcode"}`, http.StatusNotFound)
+	body := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"qrcode"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID        int64  `json:"id"`
@@ -852,7 +856,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Data.ID == 0 || created.Data.OwnerID != 9 || created.Data.Code != "ADMINQR001" || created.Data.MaxUses != 1 || created.Data.EntryType != "qrcode" {
+	if created.Data.ID == 0 || created.Data.OwnerID != ownerUserID || created.Data.Code != "ADMINQR001" || created.Data.MaxUses != 1 || created.Data.EntryType != "qrcode" {
 		t.Fatalf("expected created qrcode invite code: %s", string(body))
 	}
 	materialsBody := getAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001/materials", adminToken, http.StatusOK)
@@ -870,7 +874,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if materialsResp.Data.InviteCode != "ADMINQR001" || materialsResp.Data.EntryType != "qrcode" || materialsResp.Data.Scene != "ADMINQR001" || !strings.Contains(materialsResp.Data.Query, "entryType=qrcode") {
 		t.Fatalf("expected invite material scene to be raw invite code: %s", string(materialsBody))
 	}
-	batchBody := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":9,"maxUses":99,"entryType":"link","batchCount":3}`, http.StatusOK)
+	batchBody := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"link","batchCount":3}`, http.StatusOK)
 	var batchResp struct {
 		Data struct {
 			Total int `json:"total"`
@@ -890,7 +894,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 		t.Fatalf("expected 3 batched invite codes: %s", string(batchBody))
 	}
 	for _, item := range batchResp.Data.Items {
-		if item.Code == "" || item.EntryType != "link" || item.MaxUses != 1 || item.OwnerID != 9 || seenBatchCodes[item.Code] {
+		if item.Code == "" || item.EntryType != "link" || item.MaxUses != 1 || item.OwnerID != ownerUserID || seenBatchCodes[item.Code] {
 			t.Fatalf("expected unique link invite batch item: %#v in %s", item, string(batchBody))
 		}
 		seenBatchCodes[item.Code] = true

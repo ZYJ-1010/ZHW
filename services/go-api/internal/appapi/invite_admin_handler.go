@@ -52,6 +52,10 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "owner user id required")
 		return
 	}
+	if _, found := s.auth.UserByID(req.OwnerUserID); !found {
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "owner user not found")
+		return
+	}
 	if req.BatchCount < 0 || req.BatchCount > 200 {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch count")
 		return
