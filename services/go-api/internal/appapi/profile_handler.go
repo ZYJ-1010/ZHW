@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/profiles"
 	"zhw-mini/services/go-api/internal/users"
 )
@@ -581,7 +582,48 @@ func (s *Server) myRoleApplications(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminRoleApplications(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.profiles.AllRoleApplications()})
+	applications := s.profiles.AllRoleApplications()
+	codeByID := map[int64]string{}
+	if codes, err := s.auth.AdminInviteCodes(invites.CodeFilter{}); err == nil {
+		for _, code := range codes {
+			codeByID[code.ID] = code.Code
+		}
+	}
+	payload := make([]map[string]interface{}, 0, len(applications))
+	for _, application := range applications {
+		payload = append(payload, s.adminRoleApplicationPayload(application, codeByID))
+	}
+	httpx.OK(w, map[string]interface{}{"items": payload})
+}
+
+func (s *Server) adminRoleApplicationPayload(application profiles.RoleApplication, codeByID map[int64]string) map[string]interface{} {
+	payload := map[string]interface{}{
+		"id":                 application.ID,
+		"userId":             application.UserID,
+		"roleCode":           application.RoleCode,
+		"status":             application.Status,
+		"reason":             application.Reason,
+		"abilityDescription": application.AbilityDescription,
+		"proofFileIds":       application.ProofFileIDs,
+		"rejectReason":       application.RejectReason,
+		"reviewAdminId":      application.ReviewAdminID,
+		"reviewRemark":       application.ReviewRemark,
+		"certNo":             application.CertificateNo,
+		"certifiedAt":        application.CertifiedAt,
+		"createdAt":          application.CreatedAt,
+		"updatedAt":          application.UpdatedAt,
+	}
+	if relation, ok, err := s.auth.InviteRelationForUser(application.UserID); err == nil && ok {
+		payload["inviteRelation"] = relation
+		payload["inviteCodeId"] = relation.InviteCodeID
+		if code := strings.TrimSpace(codeByID[relation.InviteCodeID]); code != "" {
+			payload["inviteCode"] = code
+		}
+		if relation.InviterUserID > 0 {
+			payload["inviter"] = s.adminUserSummary(relation.InviterUserID)
+		}
+	}
+	return payload
 }
 
 func (s *Server) adminGuideQualificationRules(w http.ResponseWriter, r *http.Request) {

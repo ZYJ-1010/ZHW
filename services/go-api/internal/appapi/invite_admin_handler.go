@@ -48,6 +48,7 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	req.Code = strings.TrimSpace(req.Code)
 	if req.OwnerUserID <= 0 {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "owner user id required")
 		return
@@ -60,9 +61,22 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch count")
 		return
 	}
+	if req.Code != "" {
+		if !validManualInviteCode(req.Code) {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid invite code format")
+			return
+		}
+		if existing, found, err := s.adminInviteByCode(req.Code); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite codes failed")
+			return
+		} else if found && existing.ID > 0 {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invite code already exists")
+			return
+		}
+	}
 	const maxUses = 1
 	if req.BatchCount > 1 {
-		if strings.TrimSpace(req.Code) != "" {
+		if req.Code != "" {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "batch code must be auto generated")
 			return
 		}
@@ -102,6 +116,29 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		"ownerUserId": invite.OwnerID,
 	})
 	httpx.OK(w, invite)
+}
+
+func validManualInviteCode(code string) bool {
+	code = strings.TrimSpace(code)
+	if len(code) < 4 || len(code) > 32 {
+		return false
+	}
+	for _, ch := range code {
+		if ch >= 'A' && ch <= 'Z' {
+			continue
+		}
+		if ch >= 'a' && ch <= 'z' {
+			continue
+		}
+		if ch >= '0' && ch <= '9' {
+			continue
+		}
+		if ch == '_' || ch == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (s *Server) adminInviteCodeDetail(w http.ResponseWriter, r *http.Request) {

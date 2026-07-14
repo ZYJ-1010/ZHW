@@ -115,6 +115,7 @@ func TestGameDetailPrimaryActionByStatusAndRelation(t *testing.T) {
 		{name: "creator can start", status: "recruiting", relation: GameMyRelationDTO{IsCreator: true, IsMember: true, CanStart: true}, text: "开始组局", action: "start"},
 		{name: "creator audits applications", status: "recruiting", relation: GameMyRelationDTO{IsCreator: true, IsMember: true, CanAudit: true}, pendingCount: 2, text: "审核报名（2）", action: "audit", routePart: "gameId=42"},
 		{name: "guest applies", status: "recruiting", relation: GameMyRelationDTO{Role: "guest", CanApply: true}, text: "立即报名", action: "apply", routePart: "gameId=42"},
+		{name: "guest blocked by signup window", status: "recruiting", relation: GameMyRelationDTO{Role: "guest", ApplyDisabledReason: "signup closed"}, text: "signup closed", action: "none", disabled: true},
 		{name: "application pending", status: "recruiting", relation: GameMyRelationDTO{Role: "guest", ApplicationStatus: "pending"}, text: "报名审核中", action: "none", disabled: true},
 		{name: "member waits", status: "recruiting", relation: GameMyRelationDTO{IsMember: true}, text: "等待开局", action: "none", disabled: true},
 		{name: "full creator starts", status: "full", relation: GameMyRelationDTO{IsCreator: true, IsMember: true, CanStart: true}, text: "开始组局", action: "start"},

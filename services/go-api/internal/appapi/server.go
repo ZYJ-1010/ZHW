@@ -774,14 +774,22 @@ func (s *Server) routeAdminUsersPut(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) {
-	items, err := s.auth.AdminUsers(users.Filter{
+	filter := users.Filter{
 		Status:         r.URL.Query().Get("status"),
 		RealnameStatus: r.URL.Query().Get("realnameStatus"),
 		Keyword:        r.URL.Query().Get("keyword"),
-	})
+	}
+	items, err := s.auth.AdminUsers(filter)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
 		return
+	}
+	if keyword := strings.TrimSpace(filter.Keyword); keyword != "" {
+		items, err = s.appendIdentityMatchedAdminUsers(filter, items, keyword)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+			return
+		}
 	}
 	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{})
 	if err != nil {
@@ -806,6 +814,62 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) {
 		"items": payload,
 		"total": len(payload),
 	})
+}
+
+func (s *Server) appendIdentityMatchedAdminUsers(filter users.Filter, items []users.User, keyword string) ([]users.User, error) {
+	keyword = strings.ToLower(strings.TrimSpace(keyword))
+	if keyword == "" {
+		return items, nil
+	}
+	records := s.identity.AllRecords()
+	if len(records) == 0 {
+		return items, nil
+	}
+	recordByUserID := make(map[int64]identity.Record, len(records))
+	for _, record := range records {
+		recordByUserID[record.UserID] = record
+	}
+	seen := make(map[int64]bool, len(items))
+	for _, user := range items {
+		seen[user.ID] = true
+	}
+	filter.Keyword = ""
+	candidates, err := s.auth.AdminUsers(filter)
+	if err != nil {
+		return nil, err
+	}
+	for _, user := range candidates {
+		if seen[user.ID] {
+			continue
+		}
+		if s.identityRecordMatchesKeyword(recordByUserID[user.ID], keyword) {
+			items = append(items, user)
+			seen[user.ID] = true
+		}
+	}
+	return items, nil
+}
+
+func (s *Server) identityRecordMatchesKeyword(record identity.Record, keyword string) bool {
+	if record.UserID <= 0 || keyword == "" {
+		return false
+	}
+	if adminSearchContains(record.PhoneMasked, keyword) ||
+		adminSearchContains(record.RealNameMasked, keyword) ||
+		adminSearchContains(record.IDCardMasked, keyword) {
+		return true
+	}
+	plain, err := s.identity.RevealRecord(record)
+	if err != nil {
+		return false
+	}
+	return adminSearchContains(plain.RealName, keyword) ||
+		adminSearchContains(plain.IDCard, keyword)
+}
+
+func adminSearchContains(value string, keyword string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return value != "" && strings.Contains(value, keyword)
 }
 
 func (s *Server) adminUserOptions(w http.ResponseWriter, r *http.Request) {

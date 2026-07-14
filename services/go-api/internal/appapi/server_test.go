@@ -859,6 +859,8 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if created.Data.ID == 0 || created.Data.OwnerID != ownerUserID || created.Data.Code != "ADMINQR001" || created.Data.MaxUses != 1 || created.Data.EntryType != "qrcode" {
 		t.Fatalf("expected created qrcode invite code: %s", string(body))
 	}
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"邀请码中文","ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
 	materialsBody := getAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001/materials", adminToken, http.StatusOK)
 	var materialsResp struct {
 		Data struct {
@@ -1441,6 +1443,36 @@ func TestAdminUsersListSupportsInviteLoggedUsers(t *testing.T) {
 	got := resp.Data.Items[0]
 	if got.ID != user.ID || got.OpenID != user.OpenID || got.RealnameStatus != "verified" || got.Status != "active" {
 		t.Fatalf("unexpected admin user payload: %+v body=%s", got, string(body))
+	}
+	idCardBody := getAdminJSON(t, mux, "/api/admin/users?keyword=110101199001011234&realnameStatus=verified&status=active", adminToken, http.StatusOK)
+	var idCardResp struct {
+		Data struct {
+			Total int `json:"total"`
+			Items []struct {
+				ID int64 `json:"id"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(idCardBody, &idCardResp); err != nil {
+		t.Fatal(err)
+	}
+	if idCardResp.Data.Total != 1 || len(idCardResp.Data.Items) != 1 || idCardResp.Data.Items[0].ID != user.ID {
+		t.Fatalf("expected identity id card keyword to find user: %s", string(idCardBody))
+	}
+	realNameBody := getAdminJSON(t, mux, "/api/admin/users?keyword=User&realnameStatus=verified&status=active", adminToken, http.StatusOK)
+	var realNameResp struct {
+		Data struct {
+			Total int `json:"total"`
+			Items []struct {
+				ID int64 `json:"id"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(realNameBody, &realNameResp); err != nil {
+		t.Fatal(err)
+	}
+	if realNameResp.Data.Total != 1 || len(realNameResp.Data.Items) != 1 || realNameResp.Data.Items[0].ID != user.ID {
+		t.Fatalf("expected identity real name keyword to find user: %s", string(realNameBody))
 	}
 
 	detailBody := getAdminJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(user.ID, 10), adminToken, http.StatusOK)
