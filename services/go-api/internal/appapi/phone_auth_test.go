@@ -71,6 +71,25 @@ func TestPhoneLoginRegistersAndReturnsFormalTokenHTTP(t *testing.T) {
 	if secondResponse.Data.AuthPageMode != "login" || secondResponse.Data.User.ID != response.Data.User.ID {
 		t.Fatalf("expected existing phone login: %s", string(second))
 	}
+
+	third := postJSON(t, mux, "/api/app/auth/phone-login", "", `{
+  "phone":"13800138000",
+  "code":"000000"
+}`, http.StatusOK)
+	var thirdResponse struct {
+		Data struct {
+			AuthPageMode string `json:"authPageMode"`
+			User         struct {
+				ID int64 `json:"id"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(third, &thirdResponse); err != nil {
+		t.Fatal(err)
+	}
+	if thirdResponse.Data.AuthPageMode != "login" || thirdResponse.Data.User.ID != response.Data.User.ID {
+		t.Fatalf("expected existing phone login without invite: %s", string(third))
+	}
 }
 
 func TestPhoneLoginRejectsInvalidTemporaryCodeHTTP(t *testing.T) {

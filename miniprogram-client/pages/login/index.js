@@ -926,7 +926,7 @@ Page({
     try {
       await authService.sendPhoneCode({
         phone: this.data.phone,
-        scene: 'invite_register'
+        scene: this.data.inviteCode ? 'invite_register' : 'login'
       })
       toast.success('验证码已发送')
       this.startCodeTimer()
@@ -1178,9 +1178,8 @@ Page({
       return
     }
 
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info(INVITE_REQUIRED_MESSAGE)
+    if (!this.isValidPhone(this.data.phone)) {
+      toast.info('请输入正确手机号')
       return
     }
 
@@ -1299,10 +1298,6 @@ Page({
     }
 
     const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info(INVITE_REQUIRED_MESSAGE)
-      return
-    }
 
     if (!this.data.agreed) {
       toast.info('请先同意用户协议和隐私协议')
@@ -1328,17 +1323,20 @@ Page({
     })
 
     try {
-      const verified = await this.ensureValidInviteContext(inviteContext)
-      if (!verified.ok) {
-        this.showInviteError(verified.message)
-        return
+      let resolvedInvite = inviteContext
+      if (inviteContext) {
+        const verified = await this.ensureValidInviteContext(inviteContext)
+        if (!verified.ok) {
+          this.showInviteError(verified.message)
+          return
+        }
+        resolvedInvite = verified.inviteContext
       }
-      const resolvedInvite = verified.inviteContext
       const loginData = await authService.loginByPhone({
         phone: String(this.data.phone || '').trim(),
         code: String(this.data.verifyCode || '').trim(),
-        inviteCode: resolvedInvite.code,
-        entryType: resolvedInvite.entryType || ''
+        inviteCode: resolvedInvite ? resolvedInvite.code : '',
+        entryType: resolvedInvite ? resolvedInvite.entryType || '' : ''
       })
       this.setData({
         userInfo: loginData.user
@@ -1362,12 +1360,6 @@ Page({
   async handlePhoneLogin() {
     if (this.data.isUiPreview) {
       this.showUiPreviewMode('account')
-      return
-    }
-
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
