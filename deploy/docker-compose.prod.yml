@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zhw_mini
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ZHW2026
+    volumes:
+      - zhw-postgres-data:/var/lib/postgresql/data
+      - ../db:/app/db:ro
+      - ./postgres/init-prod.sh:/docker-entrypoint-initdb.d/00-init-zhw.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d zhw_mini"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "ZHW2026"]
+    volumes:
+      - zhw-redis-data:/data
+
+  go-api:
+    build:
+      context: ../services/go-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  admin-web:
+    build:
+      context: ../admin-web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ADMIN_WEB_PORT: 5173
+      ADMIN_API_BASE: http://go-api:8080
+    depends_on:
+      - go-api
+    ports:
+      - "127.0.0.1:5173:5173"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - go-api
+      - admin-web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/nginx/ssl/haowan.net.cn:/etc/nginx/ssl/haowan.net.cn:ro
+
+volumes:
+  zhw-postgres-data:
+  zhw-redis-data:

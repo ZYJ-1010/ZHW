@@ -1,0 +1,2798 @@
+﻿openapi: 3.0.3
+info:
+  title: 鐪熷ソ鐜╁皬绋嬪簭绔?API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /api/app/role-applications/expert/config:
+    get:
+      summary: 获取行家申请表单配置
+      description: 小程序行家申请页使用；配置来源为 system_configs.role.expert_apply_config，未配置时后端返回默认配置。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 skillOptions、fields、uploadField、validationRules、yearOptions、serviceCount、priceHint
+        "401":
+          description: 未登录或登录失效
+  /api/app/role-applications/guide/config:
+    get:
+      summary: 获取领路人申请表单配置
+      description: 小程序领路人申请页使用；配置来源为 system_configs.role.guide_apply_config，未配置时后端返回默认配置。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 requirements、planTask、perks、fields、uploadField、validationRules、serviceBlocks、serviceCount、priceHint
+        "401":
+          description: 未登录或登录失效
+  /api/app/role-applications/status-config:
+    get:
+      summary: 获取角色审核状态页配置
+      description: 小程序角色审核状态页使用；配置来源为 system_configs.role.status_page_config，控制审核进度、审核结果、驳回建议、成功动作等展示字段。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 roleAliases、statusMap、roleMeta、pendingTimeline、approvedActions、texts、defaultRejectReasons、suggestionTemplates
+        "401":
+          description: 未登录或登录失效
+  /api/app/role-applications/benefit-config:
+    get:
+      summary: 获取角色权益展示配置
+      description: 小程序角色入口提示和权益对比页使用；配置来源为 system_configs.role.benefit_config，前端只绑定字段，不内置业务权益文案。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 permissionPrompts、roleComparison、version。
+        "401":
+          description: 未登录或登录失效
+  /api/app/notifications:
+    get:
+      summary: 鑾峰彇鎴戠殑绔欏唴閫氱煡
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖褰撳墠鐢ㄦ埛鐨勯€氱煡鍒楄〃锛屽寘鍚妇鎶ョ敵璇夊鐞嗐€佽瘎浠锋彁閱掔瓑绔欏唴閫氱煡
+  /api/app/notifications/{notificationId}/read:
+    post:
+      summary: 鏍囪閫氱煡宸茶
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 閫氱煡鐘舵€佸彉涓?read
+        "403":
+          description: 鏃犳潈璇诲彇璇ラ€氱煡
+  /api/app/behavior/events:
+    post:
+      summary: 涓婃姤鐢ㄦ埛琛屼负浜嬩欢
+      description: Used for funnel and retention analytics; supports legacy and new behavior fields.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖 `BehaviorLogDTO`锛屽寘鍚?userId銆乪ventCode銆乥usinessType銆乥usinessId銆乻ource銆乨evice銆乮p銆乷ccurredAt
+        "422":
+          description: eventCode 鎴?eventType 涓嶈兘涓虹┖
+  /health:
+    get:
+      summary: Service health check
+      responses:
+        "200":
+          description: OK
+  /api/app/auth/wechat-login:
+    post:
+      summary: 微信登录并绑定邀请关系
+      description: 一期后端要求小程序只能通过邀请入口进入；登录请求必须携带 inviteCode。未绑定的邀请码进入注册模式，已绑定唯一微信的邀请码进入登录模式，其他微信使用该码会被拒绝；已注册微信通过新的唯一入口码进入时，会把该入口码绑定到当前微信并返回登录模式。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - inviteCode
+              properties:
+                code:
+                  type: string
+                  description: wx.login 返回 code；本地未配置 WECHAT_APP_ID/WECHAT_APP_SECRET 时使用 mock openid，生产配置后调用微信 jscode2session 换取 openid
+                inviteCode:
+                  type: string
+                  description: 三种邀请入口携带的唯一邀请码
+                entryType:
+                  type: string
+                  enum: [poster, qrcode, link]
+                  description: 入口类型。poster 表示小程序分享卡片，qrcode 表示扫码邀请，link 表示微信聊天链接邀请
+      responses:
+        "200":
+          description: 登录成功，返回 preAuthToken/token、CurrentUserDTO、entryType、authPageMode、boundWechat 和邀请关系
+        "403":
+          description: 缺少邀请码、邀请码无效、或邀请码已绑定其他微信
+  /api/app/auth/phone-login:
+    post:
+      summary: 手机号验证码注册或登录
+      description: 用户从有效邀请入口进入注册页后，以手机号和验证码创建账号；已存在并已绑定手机号的用户直接登录原账号。本阶段按产品确认暂时只接受验证码 000000，后续替换为真实短信校验。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - code
+              properties:
+                phone:
+                  type: string
+                  pattern: '^1[3-9][0-9]{9}$'
+                  description: 11 位大陆手机号
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  description: 当前临时验证码为 000000
+                inviteCode:
+                  type: string
+                  description: 新手机号注册时必填；已有手机号账号登录时可不传
+                entryType:
+                  type: string
+                  enum: [poster, qrcode, link]
+                  description: 邀请入口类型
+      responses:
+        "200":
+          description: 注册或登录成功，返回正式 token、CurrentUserDTO、authPageMode、entryType 和邀请关系
+        "403":
+          description: 新用户缺少有效邀请码，或邀请码已失效、已绑定
+        "422":
+          description: 手机号格式或验证码无效
+  /api/app/invites/precheck:
+    post:
+      summary: 邀请入口预检
+      description: 小程序从分享卡片、二维码 scene 或微信链接取得 inviteCode 后先调用本接口，决定跳注册页还是登录页。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - inviteCode
+              properties:
+                inviteCode:
+                  type: string
+                entryType:
+                  type: string
+                  enum: [poster, qrcode, link]
+      responses:
+        "200":
+          description: 返回 valid、entryType、authPageMode(register/login)、boundWechat、boundUserId 和 inviteCode 信息
+        "403":
+          description: 邀请码缺失、无效、入口类型不匹配或已失效
+  /api/app/invites/entries:
+    post:
+      summary: 生成邀请入口
+      description: 登录用户生成一次性唯一邀请码，用于小程序分享卡片、二维码 scene 或微信聊天链接邀请。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - entryType
+              properties:
+                entryType:
+                  type: string
+                  enum: [poster, qrcode, link]
+                title:
+                  type: string
+                gameId:
+                  type: integer
+                  description: 生成某个局的分享卡片时传入；poster 卡片会返回局详情路径、默认标题和 game 基本信息
+      responses:
+        "200":
+          description: 返回 inviteCode、entryType、path、scene、title、urlLink；带 gameId 时额外返回 game 基本信息。本地未配置 WECHAT_URL_LINK_BASE_URL 时 urlLink 为占位 scheme；生产配置后返回 HTTPS 链接并携带 inviteCode/entryType/path/query。
+        "422":
+          description: entryType 不是 poster/qrcode/link
+  /api/app/users/me:
+    get:
+      summary: 鑾峰彇褰撳墠鐧诲綍鐢ㄦ埛
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 褰撳墠鐢ㄦ埛淇℃伅
+        "401":
+          description: 鏈櫥褰曟垨鐧诲綍澶辨晥
+  /api/app/users/me/profile:
+    put:
+      summary: 鏇存柊褰撳墠鐢ㄦ埛璧勬枡
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  type: string
+                  maxLength: 32
+                avatarUrl:
+                  type: string
+                  maxLength: 500
+                avatarFileId:
+                  type: integer
+                  format: int64
+      responses:
+        "200":
+          description: 杩斿洖鏇存柊鍚庣殑鐢ㄦ埛璧勬枡
+        "422":
+          description: invalid nickname, avatarUrl or avatarFileId
+  /api/app/identity/phone/bind:
+    post:
+      summary: bind phone
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: return identity status
+  /api/app/sms/send-code:
+    post:
+      summary: send sms code
+      description: 本地默认返回 mockCode=123456；生产环境必须配置 SMS_HTTP_ENDPOINT/SMS_HTTP_SECRET，接口只返回 provider/messageId，不回传验证码。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 本地返回 mockCode；生产返回短信发送结果，不包含验证码明文
+  /api/app/sms/verify-code:
+    post:
+      summary: verify sms code
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: return identity status
+  /api/app/identity/phone/verify:
+    post:
+      summary: submit manual realname verification or verify phone realname
+      description: 一期未接入人身核验时，用户提交 realName 和 idCard 后进入 pending，后台审核通过后变为 verified；已完成短信验证的兼容旧流程会直接完成 phone_verified。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - realName
+                - idCard
+              properties:
+                realName:
+                  type: string
+                idCard:
+                  type: string
+                  pattern: "^[1-9]\\d{5}(18|19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]$"
+      responses:
+        "200":
+          description: return identity status
+  /api/app/identity/faceid/detect-auth:
+    post:
+      summary: start faceid verification
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: return faceToken from local mock or configured FACEID_HTTP_ENDPOINT
+  /api/app/identity/faceid/callback:
+    post:
+      summary: faceid callback
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: return identity status
+  /api/app/identity/faceid/result:
+    post:
+      summary: faceid result writeback
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: compatible with /api/app/identity/faceid/callback
+  /api/app/identity/status:
+    get:
+      summary: get identity status
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: return identity status
+  /api/app/games:
+    get:
+      summary: 灞€鍒楄〃
+      responses:
+        "200":
+          description: 返回小程序公开局列表；仅包含 recruiting、full、in_progress、pending_confirm、pending_review、completed，排除 pending_audit、draft、cancelled、closed。
+    post:
+      summary: 小程序端创建免费局
+      description: 一期只允许创建免费局；人数必须为 5-8。玩家创建免费局只要求已登录并通过邀请进入，不再强制实名；领路人、行家角色能力仍按角色实名规则校验。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, gameType, minPlayers, maxPlayers]
+              properties:
+                title:
+                  type: string
+                  maxLength: 80
+                gameType:
+                  type: string
+                  enum: [free]
+                minPlayers:
+                  type: integer
+                  minimum: 5
+                maxPlayers:
+                  type: integer
+                  maximum: 8
+                cityCode:
+                  type: string
+                  maxLength: 32
+                cityName:
+                  type: string
+                  maxLength: 64
+                address:
+                  type: string
+                  maxLength: 255
+                longitude:
+                  type: number
+                latitude:
+                  type: number
+      responses:
+        "200":
+          description: 创建成功，状态为 pending_audit；返回 Game，包含 mainGuideUserId（有主行家后返回）
+        "401":
+          description: 未登录或登录失效
+        "422":
+          description: 非免费局或人数规则错误
+        "429":
+          description: 每日创建超过 3 局
+  /api/app/games/application-config:
+    get:
+      summary: 获取入局申请配置
+      description: 小程序申请入局页使用；配置来源为 system_configs.game.application_config，后台可通过 /api/admin/games/application-config 维护。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回协议标题、协议文案、上传限制、简介长度、搜索开关等配置。
+        "401":
+          description: 未登录或登录失效
+  /api/app/games/condition-rule-config:
+    get:
+      summary: 获取条件局规则配置
+      description: 小程序展示条件局门槛使用；配置来源为 system_configs.game.condition_rule_config，后台可通过 /api/admin/games/condition-rule-config 维护。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 enabled、visibleInMiniProgram、adminOnlyCreate、ruleItems、defaultVisibility 等配置。
+        "401":
+          description: 未登录或登录失效
+  /api/app/games/cancel-config:
+    get:
+      summary: 获取取消赔付配置
+      description: 小程序玩家/行家取消赔付页使用；配置来源为 system_configs.game.cancel_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 player/expert 的 reasonOptions、defaultReason、agreementText 和 agreementItems。
+        "401":
+          description: 未登录或登录失效
+  /api/app/game-invites/replay-context:
+    get:
+      summary: 获取再玩一局确认上下文
+      description: 小程序评价完成后的“再玩一局”入口使用；quickActions 来源为 system_configs.game.replay_quick_actions，quickMessages 来源为 system_configs.game.replay_quick_messages，前端按 route 跳转到确认邀请、系统推荐或创建新局。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sourceGameId
+          in: query
+          schema:
+            type: integer
+        - name: serviceOrderId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 返回 sourceGameId、serviceOrderId、inviter、previousSession、invitees、quickActions、quickMessages。
+        "401":
+          description: 未登录或登录失效
+  /api/app/games/{gameId}:
+    get:
+      summary: 灞€璇︽儏
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 返回局详情；包含 myRelation、mainGuideUserId、im、review、serviceConfirm，以及 detailDisplay.statusText、pendingApplicationCount、可选组局者真实评分和后台生成的 primaryAction（text/disabled/action/route/confirmText）。
+        "404":
+          description: 局不存在
+  /api/app/games/{gameId}/members:
+    get:
+      summary: 获取局成员列表
+      description: 局成员或创建者可查看；成员 role 会返回 creator、main_guide 或 member，主行家由 mainGuideUserId 识别。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 members，包含 userId、role、isCreator、isCurrentUser、confirmed
+        "403":
+          description: 非局成员不能查看
+  /api/app/games/{gameId}/guide-invitations:
+    post:
+      summary: 邀请行家进入局
+      description: 创建者或主行家可邀请其他行家；被邀请人必须完成实名后才能接受。首个通过邀请入局并被审核通过的行家会成为 main_guide。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回邀请记录
+        "403":
+          description: 无权邀请或被邀请行家未实名
+  /api/app/game-invitations/{invitationId}/respond:
+    post:
+      summary: 响应局邀请
+      description: 被邀请行家接受后生成 pending 入局申请，仍需创建者或主行家审核；接受邀请要求已实名。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回邀请记录和入局申请
+        "403":
+          description: 未实名或不是被邀请人
+  /api/app/games/{gameId}/manual-start:
+    post:
+      summary: 手动开始局
+      description: 仅创建者或主行家可操作；局人数必须达到 minPlayers，且一期 minPlayers 最少为 5、maxPlayers 最高为 8，未到 5 人不允许手动开始。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 局状态进入 in_progress
+        "409":
+          description: 当前状态不可开始或人数未达到 minPlayers
+  /api/app/locations/current:
+    post:
+      summary: 淇濆瓨褰撳墠瀹氫綅
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖瀹氫綅璁板綍锛岀簿搴﹁秴杩?300m 鏃?accuracyWarning 涓?true
+  /api/app/locations/manual:
+    post:
+      summary: 淇濆瓨鎵嬪姩瀹氫綅
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖瀹氫綅璁板綍
+  /api/app/locations/my-recent:
+    get:
+      summary: My recent locations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        "200":
+          description: 杩斿洖褰撳墠鐢ㄦ埛鏈€杩戜繚瀛樼殑瀹氫綅璁板綍锛屼笉杩斿洖浠栦汉浣嶇疆
+  /api/app/games/city:
+    get:
+      summary: 鍚屽煄灞€
+      responses:
+        "200":
+          description: 鎸?cityCode 杩斿洖灞€鍒楄〃
+  /api/app/games/nearby:
+    get:
+      summary: 闄勮繎灞€
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 鎸夊綋鍓嶄綅缃繑鍥炶窛绂昏寖鍥村唴鐨勫眬
+  /api/app/map/search:
+    get:
+      summary: 腾讯地图地点搜索（后端代理）
+      description: 小程序前端不使用腾讯位置服务 SDK、不绑定地图 Key 的 AppID；前端只请求本接口，后端使用 TENCENT_MAP_KEY_SERVER 调腾讯 WebService。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 地点关键词
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: longitude
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: latitude
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: radiusMeter
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: 返回 provider=tencent、items、total；items 含 title/address/cityCode/cityName/longitude/latitude/distanceMeter
+        "422":
+          description: 地图请求参数错误
+        "503":
+          description: TENCENT_MAP_KEY_SERVER 未配置
+  /api/app/map/geocode:
+    get:
+      summary: 腾讯地图地址转经纬度（后端代理）
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 返回 provider=tencent 和 place
+        "422":
+          description: 地图请求参数错误
+        "503":
+          description: TENCENT_MAP_KEY_SERVER 未配置
+  /api/app/map/reverse-geocode:
+    get:
+      summary: 腾讯地图经纬度转地址（后端代理）
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: 返回 provider=tencent 和 place
+        "422":
+          description: 地图请求参数错误
+        "503":
+          description: TENCENT_MAP_KEY_SERVER 未配置
+  /api/app/map/route:
+    get:
+      summary: 腾讯地图路线规划（后端代理）
+      description: 一期可用于查看路线距离和预计时间；附近局排序仍优先使用后端直线距离。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fromLongitude
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: fromLatitude
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: toLongitude
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: toLatitude
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [driving, walking, bicycling]
+      responses:
+        "200":
+          description: 返回 provider=tencent、mode、distanceMeter、durationSecond
+        "422":
+          description: 地图请求参数错误
+        "503":
+          description: TENCENT_MAP_KEY_SERVER 未配置
+  /api/app/map/index-config:
+    get:
+      summary: 地图首页展示配置
+      description: 返回地图首页默认坐标、半径、筛选项和页面展示文案；配置来源为 system_configs.map.index_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 onlineText、defaultLocation、defaultRadiusMeters、radiusOptions、mapFilters、texts。
+  /api/app/map/play-pages:
+    get:
+      summary: 地图玩法页配置
+      description: pageKey 可传 city-atlas、footprint-heatmap、friend-city、real-checkin、blind-route；配置来源为 system_configs.map.play_pages_config。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pageKey
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 返回指定玩法页或完整玩法页配置。
+        "404":
+          description: 指定玩法页不存在。
+  /api/app/map/my-city:
+    get:
+      summary: 我的城市故事配置
+      description: 返回我的城市故事页所需的统计、图例、地图数据、故事分组和页面文案；这些原型测试数据来自 system_configs.map.my_city_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 onlineText、summaryStats、mapLegends、mapStats、storyGroups、tagEmojis、badgeEmojis 等页面数据
+  /api/app/map/checkins:
+    post:
+      summary: 提交地图玩法打卡
+      description: 实景打卡页提交照片、故事和打卡对象后进入后台待审核状态；不依赖腾讯地图第三方联调。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pointId:
+                  type: string
+                challengeId:
+                  type: string
+                gameId:
+                  type: string
+                story:
+                  type: string
+                fileIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        "200":
+          description: 返回 id、status=pending_audit、statusText、statusDesc、createdAt
+        "422":
+          description: 缺少地图打卡对象、打卡故事或照片
+  /api/app/map/blind-routes:
+    post:
+      summary: 开启地图盲盒路线
+      description: 盲盒路线页选择路线后创建一条进行中的路线记录，用于后续状态回写。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cardId:
+                  type: string
+                title:
+                  type: string
+      responses:
+        "200":
+          description: 返回路线 id、title、status=opened、statusText、timeText
+        "422":
+          description: 缺少路线选择
+  /api/app/map/challenges:
+    post:
+      summary: 发起好友城市挑战
+      description: 好友城市页发起城市挑战，返回进行中挑战记录。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                total:
+                  type: integer
+      responses:
+        "200":
+          description: 返回挑战 id、title、statusText、statusTone、进度字段和 createdAt
+  /api/app/games/{gameId}/chat-room:
+    get:
+      summary: 鑾峰彇灞€ IM 鎴块棿
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖鎴块棿銆佹垚鍛樺拰 OpenIM 缇?ID
+        "403":
+          description: 闈炲眬鎴愬憳涓嶈兘杩涘叆 IM
+  /api/app/games/{gameId}/chat-session:
+    get:
+      summary: Get OpenIM mini program session
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖 imUserId銆乷penIMGroupId銆乷penIMToken锛涙湭閰嶇疆 OpenIM 鏃?engine=local
+  /api/app/im/ws:
+    get:
+      summary: Local IM websocket connection
+      description: WebSocket upgrade endpoint; token can be supplied by Authorization bearer token or query token, and gameId is required.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: token
+          in: query
+          schema:
+            type: string
+      responses:
+        "101":
+          description: WebSocket upgrade accepted
+        "400":
+          description: Invalid gameId or websocket upgrade failed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Non-member cannot enter IM room
+  /api/app/games/{gameId}/chat/messages:
+    get:
+      summary: 鎸夊眬鎷夊彇 IM 鍘嗗彶娑堟伅
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖鍘嗗彶娑堟伅
+    post:
+      summary: 鎸夊眬鍙戦€?IM 娑堟伅
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Message sent.
+        "451":
+          description: Sensitive word hit.
+  /api/app/chat/rooms/{roomId}/messages:
+    get:
+      summary: 鎸夋埧闂存媺鍙?IM 鍘嗗彶娑堟伅
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖鍘嗗彶娑堟伅
+    post:
+      summary: 鎸夋埧闂村彂閫?IM 娑堟伅
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 娑堟伅鍙戦€佹垚鍔?
+  /api/app/files/upload-token:
+    post:
+      summary: 创建文件上传凭证
+      description: 本地未配置 STORAGE_UPLOAD_BASE_URL 时可返回 mock:// 上传地址；生产环境必须配置 HTTPS 的 STORAGE_UPLOAD_BASE_URL 和 STORAGE_DOWNLOAD_BASE_URL，否则返回 503，避免上线环境继续使用 mock 文件地址。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 fileId、uploadUrl、storageKey
+        "403":
+          description: 未强实名或非局成员不能上传对应文件
+        "422":
+          description: 文件业务类型、MIME 类型或大小不符合白名单
+        "503":
+          description: 生产环境未配置 HTTPS 上传/下载地址
+  /api/app/files/{fileId}/download-url:
+    get:
+      summary: 鑾峰彇鏂囦欢涓存椂涓嬭浇鍦板潃
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖涓存椂涓嬭浇鍦板潃
+        "403":
+          description: 闈炲眬鎴愬憳涓嶈兘涓嬭浇 IM 鏂囦欢
+        "503":
+          description: 生产环境未配置 HTTPS 下载地址
+  /api/app/games/{gameId}/service-confirm:
+    post:
+      summary: Start or submit service confirmation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                fileIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        "200":
+          description: 杩斿洖鏈嶅姟纭鍗曘€佺‘璁ゆ槑缁嗗拰灞€鐘舵€侊紱鍏ㄩ儴鎴愬憳纭鍚庤繘鍏?pending_review
+        "403":
+          description: 闈炲眬鎴愬憳涓嶈兘纭鏈嶅姟
+        "409":
+          description: Current game status cannot confirm service.
+  /api/app/games/{gameId}/service-confirm-items:
+    post:
+      summary: 鎴愬憳鎻愪氦鏈嶅姟纭鏄庣粏
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                fileIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        "200":
+          description: Returns service confirmation and confirmation items.
+  /api/app/reviews/todos:
+    get:
+      summary: Current user's review todo list
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖褰撳墠鐢ㄦ埛鍙備笌杩囦笖灏氭湭璇勪环瀵硅薄
+  /api/app/reviews/complete-config:
+    get:
+      summary: 获取评价完成页配置
+      description: 小程序评价完成页使用；配置来源为 system_configs.review.complete_config，后台可通过 /api/admin/reviews/complete-config 维护。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 benefits、playOptions、version。
+        "401":
+          description: 未登录或登录失效
+  /api/app/reviews:
+    post:
+      summary: Submit review and replay intent
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Returns review record and growth snapshot.
+        "403":
+          description: 闈炲眬鎴愬憳涓嶈兘璇勪环
+        "409":
+          description: 鏈嶅姟鏈畬鎴愭垨閲嶅璇勪环
+  /api/app/reviews/my-intents:
+    get:
+      summary: 鑾峰彇鎴戠殑鍐嶇帺鎰忓悜璁板綍
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖褰撳墠鐢ㄦ埛鎻愪氦杩囩殑鍐嶇帺鎰忓悜
+  /api/app/profile/service-center/reviews/{reviewId}/like:
+    post:
+      summary: 点赞收到的评价
+      description: 评价目标用户可对收到的评价执行点赞动作；当前记录行为日志并返回 liked 状态。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 reviewId、liked。
+        "404":
+          description: 评价不存在或不属于当前用户。
+  /api/app/profile/service-center/reviews/{reviewId}/actions:
+    post:
+      summary: 获取评价管理操作菜单
+      description: 返回当前评价可执行动作，例如查看关联局、回复评价、申请平台介入。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 actions，每个动作包含 key、text、route。
+        "404":
+          description: 评价不存在或不属于当前用户。
+  /api/app/users/me/growth:
+    get:
+      summary: 获取当前用户成长、积分、成就和足迹
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 profile、footprints、achievements 与 achievementConfig；成就展示文案、筛选项和未解锁卡片来自后端配置。
+  /api/app/growth/my:
+    get:
+      summary: 获取当前用户成长、今日信用、积分、成就和足迹
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 今日信用为空时返回 100；评价后返回经验、积分、已解锁成就、足迹和后端成就展示配置。
+  /api/app/games/{gameId}/exit:
+    post:
+      summary: 閫€鍑哄眬骞舵寜鐘舵€佹墸淇＄敤
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 纭鍚庢垨寮€濮嬪悗閫€鍑鸿繑鍥?credit 鎵ｅ垎娴佹按锛涚‘璁ゅ墠閫€鍑轰笉鎵ｅ垎
+  /api/app/connections/my:
+    get:
+      summary: My connection list
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Returns current user's connections from invite, co-game, review, and guide-match sources without sensitive fields.
+  /api/app/connections/{connectionId}/follow-logs:
+    post:
+      summary: Create connection follow log
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Creates a follow log for the connection owner; approved guides can also create guide follow logs.
+        "403":
+          description: Current user cannot follow this connection.
+        "404":
+          description: Connection not found.
+  /api/app/connections/{connectionId}/follow-up:
+    post:
+      summary: Create connection follow log compatibility alias
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Compatibility alias for /api/app/connections/{connectionId}/follow-logs.
+  /api/app/games/{gameId}/revenue-preview:
+    get:
+      summary: 鏌ョ湅褰撳墠灞€鍒嗘鼎棰勮
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: templateId
+          in: query
+          schema:
+            type: integer
+        - name: amountCent
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 杩斿洖骞冲彴銆佸彂璧蜂汉銆佹垚鍛樺垎娑﹂瑙堬紱閲戦鍗曚綅涓哄垎
+  /api/app/orders/{orderId}:
+    get:
+      summary: 鏌ヨ褰撳墠鐢ㄦ埛鏀粯璁㈠崟鍗犱綅
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Returns free_no_pay order; phase one does not trigger real WeChat Pay.
+        "403":
+          description: Current user can only read own orders.
+        "404":
+          description: Order not found.
+  /api/app/payment/precreate-placeholder:
+    post:
+      summary: Free game payment precreate placeholder
+      description: Phase one returns a fixed payment placeholder response and does not call real WeChat Pay.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 杩斿洖 `PaymentPrecreatePlaceholderDTO`
+        "403":
+          description: 鍙兘涓鸿嚜宸卞垱寤虹殑灞€棰勭暀涓嬪崟
+  /api/app/incomes/summary:
+    get:
+      summary: 鑾峰彇褰撳墠鐢ㄦ埛鏀剁泭鎽樿
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Returns income summary in cents.
+  /api/app/reports:
+    post:
+      summary: 鎻愪氦涓炬姤鐢宠瘔
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 涓炬姤鍒涘缓鎴愬姛锛涘鍏宠仈灞€宸叉湁鍒嗘鼎璁板綍锛屼細鑷姩鍐荤粨鐩稿叧鍒嗘鼎
+        "422":
+          description: 涓炬姤鍙傛暟閿欒
+  /api/app/reports/config:
+    get:
+      summary: 获取举报中心配置
+      description: 返回举报类型、上传数量限制和举报提示文案；小程序举报中心从该接口读取，避免前端写死业务规则。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 types、defaultType、maxEvidenceCount、allowedUploadTypes、tips、version。
+        "403":
+          description: 未登录或无权限
+  /api/app/reports/my:
+    get:
+      summary: 鑾峰彇鎴戠殑涓炬姤鐢宠瘔
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Returns reports submitted by the current user.
+  /api/app/auth/issue-token-after-identity:
+    post:
+      summary: Frontend integration endpoint Token
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-applications/received:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-applications/{applicationId}/audit:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/player-config:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/permission:
+    get:
+      summary: Check current game invite permission
+      description: Returns whether the current user can invite or recommend users for the source game.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sourceGameId
+          in: query
+          schema:
+            type: integer
+        - name: gameId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Returns allowed, reason and gameId
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/recent-players:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/players:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/system-recommendations:
+    get:
+      summary: 系统推荐适配局
+      description: 返回系统推荐页展示配置、分类和候选行家；二期 AI 未接入时 experts 可为空，但标题、空态、按钮和分类由 system_configs.game.system_recommendations_config 提供。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 返回 recommendationId、title、desc、loadingText、emptyText、summaryTemplate、summaryDesc、cancelText、confirmText、categories、experts
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/current:
+    post:
+      summary: Invite players or experts to current game
+      description: Creates grouped invitations for an existing game; requires sourceGameId plus at least one player and one expert target.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Returns sourceGameId, inviteGroupId, invitations and selected user ids
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/replay:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/reminders:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/guide-progress:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/guide-cancel-detail:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/game-invites/referral-records:
+    get:
+      summary: 我的引荐记录
+      description: 小程序领路人引荐记录页使用；返回 summary、tabs、records 和 pageConfig，pageConfig 来源于 system_configs.game.referral_records_config，用于页面标题、收益卡、tab、空态、角色标签和操作提示。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/category-config:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/profit-templates:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/my/manage:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/player/manage:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/favorites/my:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/success-detail:
+    get:
+      summary: 获取组局成功/服务交付详情
+      description: 小程序行家组局成功页和交付确认页使用；返回 pageTexts、viewer、group、participants、participantCount、completion、activityRows、fund、nextSteps、deliveryPage 和 deliveryProof。activityRows 返回真实服务类型/时长/开始与完成时间，nextSteps 返回行家确认、玩家确认和服务归档进度；deliveryPage 控制交付确认页展示文案/确认项/快捷动作，deliveryProof 控制交付凭证上传与联系动作。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/guide-success-detail:
+    get:
+      summary: 获取领路人组局成功详情
+      description: 仅本局领路人且玩家、行家均已确认引荐后可访问；返回 pageTexts、成局时间线、双方信息、积分奖励和后续跟进入口。尚未完成双方确认时返回 409。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "409":
+          description: 组局尚未成功
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/collaboration:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/guide-follow-ups:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/applications:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/retrospectives:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/player-cancel:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/expert-cancel:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/games/{gameId}/favorite:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/home:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/income/summary:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/income/logs:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/membership/my:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/newbie-tasks:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/messages/trade-warning:
+    get:
+      summary: 获取交易预警详情
+      description: 小程序交易预警页使用；返回 warning、countdown、order、deliveryMethods、actions 和 texts，展示配置来源于 system_configs.message.trade_warning_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/messages/center:
+    get:
+      summary: 获取消息中心聚合数据
+      description: 小程序消息中心页使用；兼容 /api/app/notifications，返回 quickActions、tabs、sections、items 和 texts，展示配置来源于 system_configs.message.center_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/messages/my-config:
+    get:
+      summary: 获取好友消息页展示配置
+      description: 小程序好友消息页使用；聊天房间和消息仍走 IM 接口，本接口只返回 pageTitle、onlineText、friend、quickActions 和 texts，展示配置来源于 system_configs.message.my_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/private-chat/messages:
+    get:
+      summary: 私聊消息列表
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+    post:
+      summary: 发送私聊消息
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "422":
+          description: Request validation failed
+  /api/app/messages/trade-warning/actions:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/messages/system-notification:
+    get:
+      summary: 获取系统通知详情
+      description: 小程序系统通知详情页使用；返回 article、feedback 和 texts，展示配置来源于 system_configs.message.system_notification_config。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/messages/system-notification/feedback:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/notifications/{notificationId}/actions:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/points/summary:
+    get:
+      summary: 获取积分概览与积分中心展示配置
+      description: 返回当前用户积分账户，并带 system_configs.points.page_config 中的统计项、规则、积分来源示例、筛选项和提示文案，供小程序积分中心页面渲染。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/points/logs:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/home:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/assets:
+    get:
+      summary: 获取资产管理聚合数据与展示配置
+      description: 返回资产概览、统计项、快捷入口、菜单、订单状态、最近订单、余额流水、银行卡状态和 FAQ。统计项、入口、菜单、订单状态卡和 FAQ 来自 system_configs.profile.asset_manage_config，金额与订单数量由后端实时计算。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/credit-center:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/credit-appeals:
+    post:
+      summary: Submit credit log appeal
+      description: 使用 creditLogId 提交独立信用处罚申诉，返回复用举报申诉 Report DTO。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Credit log not found for current user
+        "422":
+          description: Unified response payload
+  /api/app/profile/settings:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+    put:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/agreements:
+    get:
+      summary: 获取用户协议列表
+      description: 返回协议标题、版本、签署状态和重签状态，供签署协议列表页展示。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/agreements/{agreementKey}:
+    get:
+      summary: 获取用户协议详情
+      description: 返回协议正文、签署状态、签署按钮文案、确认弹窗文案和签署成功文案，协议详情页不再维护本地标题或弹窗业务文案。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agreementKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/agreements/{agreementKey}/sign:
+    post:
+      summary: 签署用户协议
+      description: 记录当前协议版本为已签署版本，并返回更新后的协议详情。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agreementKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/invite/overview:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/invite/network:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/invite/records:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/invite/ranking:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/invite/income:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/invite/member-detail:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/reviews:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/reviews/{reviewId}:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/service-center/reviews/{reviewId}/reply:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/profile-info:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+    put:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/skill-config:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+    put:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/service-cases/{caseId}:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/feedback:
+    get:
+      summary: 获取反馈首页配置
+      description: 返回反馈类型、会话入口、快捷入口、上传限制（contentMaxLength、fileMaxCount、uploadNote 等）和 feedback-home.successPage 成功页展示配置。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+    post:
+      summary: 提交用户反馈
+      description: 创建反馈记录并返回 record、successTitle、successDesc 和 successPage，成功页按接口字段展示奖励卡、评分项和满意原因。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/feedback-records:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/feedback-records/{recordId}:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/feedback-records/{recordId}/messages:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/system-management/block-settings:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+    put:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/redemption/items:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/redemption/orders:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/redemption/orders/my:
+    get:
+      summary: 获取我的积分兑换订单与订单页配置
+      description: 返回订单列表、tab、空状态和 system_configs.redemption.order_page_config 中的取消确认、详情空状态、物流空状态配置，供小程序订单页渲染。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/redemption/orders/{orderId}:
+    get:
+      summary: 获取积分兑换订单详情
+      description: 返回订单详情行、订单对象和订单页详情空状态配置，前端不再自行拼装业务详情标签。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/redemption/orders/{orderId}/cancel:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/profile/points/orders/{orderId}/logistics:
+    get:
+      summary: 获取积分兑换订单物流/履约进度
+      description: 返回订单履约进度、物流空状态和平台发放信息，供小程序订单页弹层渲染。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/reports/{reportId}:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/reports/{reportId}/appeal:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/reports/appeals/my:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/reviews/available:
+    get:
+      summary: 可评价对象与评价页配置
+      description: 返回当前用户可评价对象、一期默认隐藏的评价奖励，以及 review.page_config 中的满意度选项、评价标签、NPS、提交按钮和提示文案。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/role-applications:
+    post:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/role-applications/my:
+    get:
+      summary: 获取我的角色申请列表
+      description: 小程序角色申请页使用；返回 items 和 pageConfig，pageConfig 来源于 system_configs.role.application_page_config，用于申请页标题、说明、资格标签和按钮文案。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/roles/my:
+    get:
+      summary: Frontend integration endpoint
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Unified response payload
+        "404":
+          description: Unified response payload
+        "422":
+          description: Unified response payload
+  /api/app/users/me/summary:
+    get:
+      summary: Current user summary for mini program
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/games/applications/my:
+    get:
+      summary: Current user game applications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/game-applications/my:
+    get:
+      summary: Current user game applications alias
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/games/{gameId}/milestones/{milestoneId}:
+    put:
+      summary: Update game milestone
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/chat/rooms/{roomId}/ack:
+    post:
+      summary: Acknowledge room messages
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/chat/rooms/{roomId}/read:
+    post:
+      summary: Mark room messages read
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/chat/rooms/{roomId}/archive:
+    post:
+      summary: Archive IM room
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/footprints/my:
+    get:
+      summary: Current user footprints
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/incomes/account:
+    get:
+      summary: Current user income account
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/incomes/logs:
+    get:
+      summary: Current user income logs
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/income/account:
+    get:
+      summary: Current user income account alias
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/revenues/simulate:
+    post:
+      summary: Simulate app revenue split
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/membership/plans:
+    get:
+      summary: Membership plan list
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/membership/radar-config:
+    get:
+      summary: Membership radar display config
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/membership/radar/actions:
+    post:
+      summary: Submit membership radar action
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+      responses:
+        "200":
+          description: Unified response payload
+        "422":
+          description: Invalid radar action
+  /api/app/guides/payment/precreate-placeholder:
+    post:
+      summary: Guide payment placeholder
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/experts/me/skills:
+    get:
+      summary: Current expert skill profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    post:
+      summary: Update current expert skills
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    put:
+      summary: Update current expert skills
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/guides/me/resources:
+    get:
+      summary: Current guide resources
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    post:
+      summary: Update current guide resources
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    put:
+      summary: Update current guide resources
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/guides/qualification/me:
+    get:
+      summary: Current guide qualification
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/guides/apply:
+    post:
+      summary: Apply guide role
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/member-reports/me:
+    get:
+      summary: Current member report
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/teams/my:
+    get:
+      summary: Current team summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/teams/my/members:
+    get:
+      summary: Current team members
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/teams/my/revenue-summary:
+    get:
+      summary: Current team revenue summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/game-applications/{applicationId}/cancel:
+    post:
+      summary: Cancel game application
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/games/{gameId}/approve-local:
+    post:
+      summary: Local audit helper for game
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/games/{gameId}/continue:
+    post:
+      summary: Continue game flow
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+
+  /api/app/games/{gameId}/invitations/respond:
+    post:
+      summary: Respond game invitation
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+  /api/app/games/{gameId}/applications/{applicationId}/review:
+    post:
+      summary: Review game application
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
