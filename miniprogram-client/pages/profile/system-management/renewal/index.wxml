@@ -1,0 +1,45 @@
+<profile-white-shell
+  title="续期保护期"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page compact-page renewal-page">
+    <view class="renew-hero">
+      <text class="renew-icon">⏰</text>
+      <text class="renew-title">{{remainingDaysText}}</text>
+      <text class="renew-desc">到期后私域流量保护将自动失效</text>
+      <text class="renew-desc">请及时续期以持续保护您的用户</text>
+    </view>
+
+    <text class="section-label">选择续期时长</text>
+    <view class="renew-options">
+      <view
+        wx:for="{{options}}"
+        wx:key="days"
+        class="renew-option {{selectedDays === item.days ? 'active' : ''}}"
+        data-days="{{item.days}}"
+        bindtap="handleOptionTap"
+      >
+        <text class="renew-days">{{item.days}}天</text>
+        <text class="renew-option-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <text class="section-label">续期规则</text>
+    <view class="card renewal-rules">
+      <view wx:for="{{rules}}" wx:key="prefix" class="renew-rule">
+        <view class="cyan-dot"></view>
+        <text>{{item.prefix}}</text><text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+      </view>
+    </view>
+
+    <view class="renew-action">
+      <view class="primary-btn" bindtap="handleConfirmTap">确认续期 {{selectedDays}} 天</view>
+    </view>
+  </view>
+</profile-white-shell>

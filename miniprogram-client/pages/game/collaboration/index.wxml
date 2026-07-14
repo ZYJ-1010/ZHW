@@ -1,0 +1,103 @@
+<view class="collab-page">
+  <view class="collab-frame" style="{{layout.frameStyle}}">
+    <view class="collab-top-bg"></view>
+
+    <view class="collab-nav">
+      <button
+        class="collab-back"
+        style="{{layout.backStyle}}"
+        hover-class="collab-back--hover"
+        bindtap="handleBack"
+      >
+        <view class="collab-back-icon"></view>
+      </button>
+      <text class="collab-nav-title" style="{{layout.titleStyle}}">局内协作</text>
+    </view>
+
+    <scroll-view
+      class="collab-content"
+      style="{{layout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="collab-main">
+        <view class="collab-header">
+          <text class="collab-title">{{title}}</text>
+          <text class="collab-subtitle">{{subtitle}}</text>
+          <text wx:if="{{loadError}}" class="collab-error">{{loadError}}</text>
+        </view>
+
+        <view class="collab-card progress-card">
+          <text class="card-title">进度 {{progressPercent}}%</text>
+          <view class="progress-track">
+            <view class="progress-fill" style="width: {{progressPercent}}%;">
+              <view class="progress-glow"></view>
+            </view>
+          </view>
+
+          <view class="task-list">
+            <view wx:for="{{tasks}}" wx:key="id" class="task-item task-item--{{item.state}}">
+              <view class="task-dot task-dot--{{item.state}}">
+                <text wx:if="{{item.state === 'completed'}}" class="task-check">✓</text>
+              </view>
+              <view class="task-copy">
+                <text class="task-title">{{item.title}}</text>
+                <text class="task-desc">{{item.desc}}</text>
+              </view>
+            </view>
+            <view wx:if="{{!tasks.length}}" class="collab-empty">暂无进度任务</view>
+          </view>
+        </view>
+
+        <view class="collab-card">
+          <text class="card-title">成员</text>
+          <view wx:if="{{members.length}}" class="member-list">
+            <view wx:for="{{members}}" wx:key="id" class="member-item">
+              <view class="member-avatar member-avatar--{{item.roleClass}}">{{item.avatarText}}</view>
+              <view class="member-copy">
+                <text class="member-name">{{item.name}}</text>
+                <text class="member-role">{{item.roleText || '成员'}}</text>
+              </view>
+            </view>
+          </view>
+          <text wx:else class="members-text">{{membersText || '暂无成员数据'}}</text>
+        </view>
+
+        <view
+          class="collab-card chat-card"
+          hover-class="chat-card--hover"
+          role="button"
+          aria-label="进入局内聊天"
+          bindtap="handleChatTap"
+        >
+          <view class="chat-card-title">
+            <text class="card-title">聊天区</text>
+            <view class="chat-entry">
+              <text class="chat-entry-text">进入聊天</text>
+              <view class="chat-entry-icon"></view>
+            </view>
+          </view>
+          <view class="chat-list">
+            <view wx:for="{{messages}}" wx:key="id" class="chat-line">
+              <text class="chat-name">{{item.name}}:</text>
+              <text class="chat-content"> {{item.content}}</text>
+            </view>
+            <view wx:if="{{!messages.length}}" class="collab-empty">暂无聊天记录</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{actions.showFooter}}" class="collab-footer" style="{{layout.footerStyle}}">
+      <button wx:if="{{actions.canManageMembers}}" class="collab-button secondary" hover-class="collab-button--hover" bindtap="handleMemberManage">
+        {{actions.manageText}}
+      </button>
+      <button wx:if="{{actions.canEndGame}}" class="collab-button primary" hover-class="collab-button--active" bindtap="handleEndSession" loading="{{ending}}" disabled="{{ending}}">
+        {{actions.endText}}
+      </button>
+    </view>
+
+    <view class="collab-bottom-bg" style="{{layout.bottomStyle}}"></view>
+  </view>
+</view>

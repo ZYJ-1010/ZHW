@@ -1,0 +1,158 @@
+{
+  "description": "Enjoy miniprogram frontend",
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "/minitest",
+        "type": "folder"
+      },
+      {
+        "value": "/services/go-api",
+        "type": "folder"
+      },
+      {
+        "value": "/api/mock.js",
+        "type": "file"
+      },
+      {
+        "value": "/api/mock-data.js",
+        "type": "file"
+      },
+      {
+        "value": "/docs",
+        "type": "folder"
+      },
+      {
+        "value": "/db",
+        "type": "folder"
+      },
+      {
+        "value": "/scripts",
+        "type": "folder"
+      },
+      {
+        "value": "/.git",
+        "type": "folder"
+      },
+      {
+        "value": "/pages/message/assets/i58@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/i59@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/i60@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/i61@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/i62@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/i64@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/i65@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/friend.svg",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/assets/join.svg",
+        "type": "file"
+      },
+      {
+        "value": "/pages/message/system-detail/assets/system-update-cover.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/game/guide-progress-detail/assets/remind-bell.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/game/guide-progress-detail/assets/participant-waiting.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/game/guide-progress-detail/assets/participant-confirmed.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/im/room/assets/icon-game-info.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/im/room/assets/icon-report.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/game/audit-detail/assets/option-chat.png",
+        "type": "file"
+      },
+      {
+        "value": "/pages/game/audit-detail/assets/option-time.png",
+        "type": "file"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": true,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.16.1",
+  "appid": "wxa12d5e6acffa93a0",
+  "projectname": "01enjoy",
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "领路人审核通过",
+          "pathName": "pages/role/status/index",
+          "query": "roleType=guide&status=approved",
+          "scene": null
+        },
+        {
+          "name": "行家审核通过",
+          "pathName": "pages/role/status/index",
+          "query": "roleType=expert&status=approved",
+          "scene": null
+        }
+      ]
+    }
+  },
+  "simulatorPluginLibVersion": {},
+  "editorSetting": {}
+}

@@ -1,0 +1,160 @@
+<home-apply-shell
+  nav-title="{{navTitle}}"
+  shell-class="game-review-shell"
+  show-back="{{true}}"
+  right-text="{{skipText}}"
+  bindbacktap="onBackTap"
+  bindrighttap="onSkipTap"
+>
+  <scroll-view
+    class="review-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    enable-back-to-top
+  >
+    <view class="review-page">
+      <view class="status-header">
+        <view class="status-check">
+          <view class="status-check-mark"></view>
+        </view>
+        <text class="status-title">{{statusTitle}}</text>
+        <text class="status-desc">{{statusDesc}}</text>
+      </view>
+
+      <view class="review-card satisfaction-card">
+        <text class="card-question">{{satisfactionQuestion}}</text>
+        <view class="satisfaction-list">
+          <view
+            wx:for="{{satisfactionOptions}}"
+            wx:key="id"
+            class="satisfaction-option {{selectedSatisfaction === item.id ? 'active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="onSatisfactionTap"
+          >
+            <text class="satisfaction-emoji">{{item.emoji}}</text>
+            <text class="satisfaction-title">{{item.title}}</text>
+            <text class="satisfaction-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="review-card story-card">
+        <text class="card-title">{{storyTitle}}</text>
+        <view class="ai-tip">
+          <image class="ai-icon" src="https://static.haowan.net.cn/miniprogram/pages/game/player-cancel/assets/i39@3x.png" mode="aspectFit"></image>
+          <text class="ai-copy">{{aiTip}}</text>
+        </view>
+        <textarea
+          class="story-textarea"
+          value="{{storyText}}"
+          maxlength="{{storyMaxLength}}"
+          auto-height="{{false}}"
+          placeholder="{{storyPlaceholder}}"
+          placeholder-class="review-placeholder"
+          bindinput="onStoryInput"
+        />
+        <view class="story-footer">
+          <text class="counter">{{storyLength}}/{{storyMaxLength}}</text>
+          <view class="ai-summary" bindtap="onAiSummaryTap">
+            <text class="summary-pen-icon">🖊</text>
+            <text>{{aiSummaryText}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view
+        wx:for="{{evaluationSections}}"
+        wx:for-item="section"
+        wx:key="id"
+        class="review-card evaluation-card"
+      >
+        <view class="person-row">
+          <view class="avatar {{section.avatarTheme}}">{{section.avatarText}}</view>
+          <view class="person-copy">
+            <text class="person-title">{{section.title}}</text>
+			<text class="person-desc">{{section.desc}}</text>
+          </view>
+        </view>
+
+        <view class="rating-block">
+          <text class="rating-title">{{section.ratingTitle}}</text>
+          <view class="star-row">
+            <text
+              wx:for="{{stars}}"
+              wx:for-item="star"
+              wx:key="*this"
+              class="rating-star {{section.score >= star ? 'active' : ''}}"
+              data-section-id="{{section.id}}"
+              data-score="{{star}}"
+              bindtap="onStarTap"
+            >★</text>
+          </view>
+          <text class="rating-hint">{{ratingHint}}</text>
+        </view>
+
+        <view class="tag-block">
+          <text class="tag-title">{{section.tagTitle}}</text>
+          <view class="tag-list">
+            <text
+              wx:for="{{section.tags}}"
+              wx:for-item="tag"
+              wx:for-index="tagIndex"
+              wx:key="label"
+              class="review-tag {{tag.selected ? 'selected' : ''}}"
+              data-section-id="{{section.id}}"
+              data-tag-index="{{tagIndex}}"
+              bindtap="onTagTap"
+            >{{tag.label}}</text>
+          </view>
+        </view>
+
+        <textarea
+          class="evaluation-textarea"
+          value="{{section.comment}}"
+          maxlength="120"
+          auto-height="{{false}}"
+          placeholder="{{section.placeholder}}"
+          placeholder-class="review-placeholder"
+          data-section-id="{{section.id}}"
+          bindinput="onEvaluationCommentInput"
+        />
+      </view>
+
+      <view wx:if="{{reward.show}}" class="reward-card">
+        <text class="reward-icon">🎁</text>
+        <view class="reward-copy">
+          <text class="reward-title">{{reward.title}}</text>
+          <text class="reward-desc">{{reward.desc}}</text>
+        </view>
+      </view>
+
+		<view wx:if="{{showOrganizerNps}}" class="nps-card">
+        <view class="nps-head">
+          <text class="crown-icon">👑</text>
+          <text class="nps-title">{{npsHeadTitle}}</text>
+        </view>
+        <text class="nps-question">{{npsQuestion}}</text>
+        <view class="nps-list">
+          <button
+            wx:for="{{npsScores}}"
+            wx:key="*this"
+            class="nps-button {{npsScore === item ? 'selected' : ''}}"
+            data-score="{{item}}"
+            hover-class="none"
+            bindtap="onNpsTap"
+          >{{item}}</button>
+        </view>
+        <view class="nps-labels">
+          <text>{{npsLowLabel}}</text>
+          <text>{{npsHighLabel}}</text>
+        </view>
+      </view>
+
+      <view class="submit-area">
+        <button class="submit-button" hover-class="none" bindtap="onSubmitTap">{{submitText}}</button>
+        <text class="submit-note">{{submitNote}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</home-apply-shell>

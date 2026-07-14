@@ -1,0 +1,73 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{pageTitle}}"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="guide-chat-shell">
+    <scroll-view
+      class="guide-chat-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{chatScrollTop}}"
+      bindscroll="handleChatScroll"
+      enable-back-to-top
+    >
+      <view class="guide-chat-page">
+        <view class="message-row">
+          <view class="self-avatar">{{sender.avatarText}}</view>
+
+          <view class="message-stack">
+            <block wx:if="{{hasGuideCard}}">
+              <guide-assistant-card
+                card="{{guideAssistantCard}}"
+                bindaccept="onAcceptTap"
+                binddecline="onDeclineTap"
+              />
+
+              <view wx:if="{{guideMessageText}}" class="referrer-bubble-wrap">
+                <view class="bubble-caret"></view>
+                <view class="referrer-bubble">
+                  <text>{{guideMessageText}}</text>
+                </view>
+              </view>
+            </block>
+
+            <view wx:else class="guide-chat-empty">
+              <text>暂无引荐上下文，请从组局进度页进入</text>
+            </view>
+
+            <view
+              wx:for="{{sentMessages}}"
+              wx:key="id"
+              class="sent-bubble"
+            >
+              <text>{{item.text}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="guide-chat-input-wrap">
+      <chat-input-bar
+        wx:if="{{canSendGuideChat}}"
+        bindsendtext="onSendMessage"
+        bindrecordstart="onRecordStart"
+        bindrecordstop="onRecordStop"
+        bindrecorderror="onRecordError"
+        bindchooseimage="onChooseImage"
+        bindchoosefile="onChooseFile"
+      />
+      <view wx:else class="guide-chat-empty">
+        <text>请从有效引荐上下文进入</text>
+      </view>
+    </view>
+  </view>
+</home-shell>

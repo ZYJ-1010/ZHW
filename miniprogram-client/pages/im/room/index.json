@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "局 IM 群聊",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "chat-input-bar": "/components/chat-input-bar/index"
+  }
+}

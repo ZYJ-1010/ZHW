@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="247" height="176" viewBox="0 0 247 176">
+  <defs>
+    <linearGradient id="titleFill" x1="58" y1="88" x2="190" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f95bf6"/>
+      <stop offset="0.45" stop-color="#a142f8"/>
+      <stop offset="0.72" stop-color="#337ef3"/>
+      <stop offset="1" stop-color="#03f7eb"/>
+    </linearGradient>
+    <filter id="titleGlow" x="-20%" y="-45%" width="140%" height="190%">
+      <feGaussianBlur stdDeviation="1.6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.7  0 1 0 0 0.22  0 0 1 0 0.96  0 0 0 0.32 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#titleGlow)" transform="skewX(-8)">
+    <text
+      x="50"
+      y="106"
+      fill="url(#titleFill)"
+      stroke="#6e27d6"
+      stroke-width="5"
+      paint-order="stroke fill"
+      font-family="Noto Sans SC, Microsoft YaHei, PingFang SC, sans-serif"
+      font-size="32"
+      font-weight="900"
+      letter-spacing="14"
+    >再玩一局</text>
+    <text
+      x="50"
+      y="106"
+      fill="url(#titleFill)"
+      stroke="#efb8ff"
+      stroke-width="1.4"
+      paint-order="stroke fill"
+      font-family="Noto Sans SC, Microsoft YaHei, PingFang SC, sans-serif"
+      font-size="32"
+      font-weight="900"
+      letter-spacing="14"
+    >再玩一局</text>
+  </g>
+</svg>

@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "profile-white-shell": "/components/profile-white-shell/index",
+    "member-center": "/components/member-center/index"
+  }
+}

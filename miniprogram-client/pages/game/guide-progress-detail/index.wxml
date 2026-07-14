@@ -1,0 +1,146 @@
+<view class="progress-detail-page">
+  <view class="progress-detail-frame" style="{{shellLayout.frameStyle}}">
+    <view class="progress-detail-top-bg"></view>
+    <view class="progress-detail-nav">
+      <view class="progress-detail-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="progress-detail-back-icon"></view>
+      </view>
+      <text class="progress-detail-title" style="{{shellLayout.titleStyle}}">{{pageTitle}}</text>
+    </view>
+
+    <scroll-view
+      class="progress-detail-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{detailScrollTop}}"
+      bindscroll="onDetailScroll"
+      enable-back-to-top
+    >
+      <view class="progress-detail-inner">
+        <view wx:if="{{loading}}" class="progress-detail-state">
+          <text>{{pageTexts.detailLoadingText}}</text>
+        </view>
+
+        <view wx:elif="{{errorText}}" class="progress-detail-state error" bindtap="onRetryTap">
+          <text>{{errorText}}</text>
+          <text class="progress-detail-state-action">{{pageTexts.detailRetryText}}</text>
+        </view>
+
+        <block wx:else>
+          <game-detail-status-card
+            status="{{detail.statusCard}}"
+            variant="progress"
+            countdown-label="{{pageTexts.countdownLabel}}"
+          />
+
+          <view class="timeline-section">
+            <text class="timeline-section-title">{{pageTexts.timelineTitle}}</text>
+            <view class="timeline-list">
+              <view
+                wx:for="{{detail.steps}}"
+                wx:key="key"
+                class="timeline-item {{item.state}} {{item.emphasis ? 'emphasis' : ''}} {{item.hasLine ? 'with-line' : ''}} line-{{item.lineState}}"
+              >
+                <view class="timeline-rail">
+                  <view class="timeline-mark"></view>
+                </view>
+                <view class="timeline-copy">
+                  <view class="timeline-head">
+                    <text class="timeline-title">{{item.title}}</text>
+                    <text wx:if="{{item.timeText}}" class="timeline-time">{{item.timeText}}</text>
+                  </view>
+                  <text wx:if="{{item.desc}}" class="timeline-desc">{{item.desc}}</text>
+                  <view
+                    wx:if="{{item.actionText}}"
+                    class="timeline-action"
+                    hover-class="none"
+                    data-key="{{item.actionKey}}"
+                    bindtap="onTimelineActionTap"
+                  >
+                    <text wx:if="{{item.iconText}}" class="timeline-action-emoji">{{item.iconText}}</text>
+                    <image
+                      wx:elif="{{item.iconSrc}}"
+                      class="timeline-action-icon"
+                      src="{{item.iconSrc}}"
+                      mode="aspectFit"
+                    ></image>
+                    <text>{{item.actionText}}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="detail-card participants-card">
+            <text class="card-title">{{pageTexts.participantsTitle}}</text>
+            <view class="participant-flow">
+              <view class="participant-card {{detail.player.cardClass}}">
+                <view class="participant-avatar {{detail.player.avatarClass}}">
+                  <image wx:if="{{detail.player.avatarUrl}}" class="participant-avatar-img" src="{{detail.player.avatarUrl}}" mode="aspectFill"></image>
+                  <text wx:else>{{detail.player.avatarText}}</text>
+                  <view wx:if="{{detail.player.badgeIcon}}" class="participant-badge-icon {{detail.player.badgeClass}}">
+                    <image class="participant-badge-img" src="{{detail.player.badgeIcon}}" mode="aspectFit"></image>
+                  </view>
+                  <view wx:elif="{{detail.player.badgeClass}}" class="participant-badge {{detail.player.badgeClass}}"></view>
+                </view>
+                <view class="participant-main">
+                  <view class="participant-head">
+                    <text class="participant-name">{{detail.player.name}}</text>
+                    <text class="participant-role-tag {{detail.player.roleClass}}">{{detail.player.roleLabel}}</text>
+                  </view>
+                  <text class="participant-desc">{{detail.player.desc}}</text>
+                </view>
+                <text class="participant-state {{detail.player.stateClass}}">{{detail.player.state}}</text>
+              </view>
+
+              <view class="exchange-mark">
+                <view class="exchange-arrow top"></view>
+                <view class="exchange-arrow bottom"></view>
+              </view>
+
+              <view class="participant-card {{detail.expert.cardClass}}">
+                <view class="participant-avatar {{detail.expert.avatarClass}}">
+                  <image wx:if="{{detail.expert.avatarUrl}}" class="participant-avatar-img" src="{{detail.expert.avatarUrl}}" mode="aspectFill"></image>
+                  <text wx:else>{{detail.expert.avatarText}}</text>
+                  <view wx:if="{{detail.expert.badgeIcon}}" class="participant-badge-icon {{detail.expert.badgeClass}}">
+                    <image class="participant-badge-img" src="{{detail.expert.badgeIcon}}" mode="aspectFit"></image>
+                  </view>
+                  <view wx:elif="{{detail.expert.badgeClass}}" class="participant-badge {{detail.expert.badgeClass}}"></view>
+                </view>
+                <view class="participant-main">
+                  <view class="participant-head">
+                    <text class="participant-name">{{detail.expert.name}}</text>
+                    <text class="participant-role-tag {{detail.expert.roleClass}}">{{detail.expert.roleLabel}}</text>
+                  </view>
+                  <text class="participant-desc">{{detail.expert.desc}}</text>
+                </view>
+                <text class="participant-state {{detail.expert.stateClass}}">{{detail.expert.state}}</text>
+              </view>
+            </view>
+          </view>
+
+          <game-detail-session-card
+            items="{{detail.infoRows}}"
+            title-weight="regular"
+            card-class="progress-session-card"
+            show-title-icon="{{false}}"
+            show-item-icon="{{false}}"
+            show-map-button="{{false}}"
+          />
+
+          <view class="bottom-spacer"></view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <view class="bottom-action-bar" style="{{shellLayout.actionStyle}}">
+      <button class="detail-button secondary" hover-class="none" bindtap="onCancelTap">{{pageTexts.cancelActionText}}</button>
+      <button class="detail-button primary" hover-class="none" bindtap="onRemindTap">{{detail.primaryActionText}}</button>
+    </view>
+
+    <view class="progress-detail-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

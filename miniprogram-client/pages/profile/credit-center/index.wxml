@@ -1,0 +1,50 @@
+<profile-white-shell title="个人中心" background="#ffffff">
+  <view class="profile-page is-white">
+    <text class="credit-heading">信用中心</text>
+
+    <view class="credit-score-card">
+      <text class="credit-score-label">{{scoreLabel}}</text>
+      <view class="credit-score-row">
+        <text class="credit-score-number">{{score}}</text>
+        <view class="credit-score-badges">
+          <text class="profile-status green">{{level}}</text>
+          <text class="profile-status">{{monthlyDelta}} 本月</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="credit-summary-grid">
+      <view wx:for="{{summary}}" wx:key="label" class="credit-summary-item">
+        <text class="credit-summary-value">{{item.value}}</text>
+        <text class="credit-summary-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="profile-section">
+      <view class="profile-section-head">
+        <text class="profile-section-title">信用明细</text>
+        <text class="profile-section-action" bindtap="handleAppealTap">{{appealEntry.text}}</text>
+      </view>
+      <view class="profile-list-card">
+        <view wx:if="{{!records.length}}" class="credit-empty">暂无信用变更记录</view>
+        <view
+          wx:for="{{records}}"
+          wx:key="id"
+          class="credit-record-row"
+          data-report-id="{{item.reportId}}"
+          data-credit-log-id="{{item.creditLogId}}"
+          data-appeal-route="{{item.appealRoute}}"
+          bindtap="handleRecordTap"
+        >
+          <view>
+            <text class="profile-row-title">{{item.title}}</text>
+            <text class="profile-muted">{{item.desc}}</text>
+          </view>
+          <text class="credit-score-change {{item.tone}}">{{item.score}}</text>
+        </view>
+      </view>
+    </view>
+
+    <text class="credit-bottom-note">{{bottomNote}}</text>
+  </view>
+</profile-white-shell>

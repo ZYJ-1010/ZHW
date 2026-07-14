@@ -1,0 +1,190 @@
+.detail-card {
+  width: 682rpx;
+  margin-top: 24rpx;
+  margin-right: 0;
+  margin-left: 11rpx;
+  padding: 28rpx;
+  border-radius: 32rpx;
+  box-sizing: border-box;
+  background: var(--game-detail-panel-background-color, #ffffff);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.18);
+}
+
+.party-detail-card {
+  height: 446rpx;
+  margin-top: 40rpx;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.section-title {
+  color: var(--game-detail-panel-text-color, #111827);
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 40rpx;
+}
+
+.section-title.regular {
+  font-weight: 400;
+}
+
+.section-tip {
+  color: var(--game-detail-panel-muted-color, #6b7280);
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.party-row {
+  display: grid;
+  grid-template-columns: 1fr 112rpx 1fr;
+  align-items: start;
+  gap: 14rpx;
+  margin-top: 44rpx;
+}
+
+.party-person {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.party-avatar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112rpx;
+  height: 112rpx;
+  border: 4rpx solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 42rpx;
+  box-shadow: 0 12rpx 22rpx rgba(0, 0, 0, 0.28);
+}
+
+.party-avatar.pink {
+  background: #ec4899;
+}
+
+.party-avatar.blue {
+  background: #3b82f6;
+}
+
+.party-check-icon {
+  position: absolute;
+  right: -2rpx;
+  bottom: -2rpx;
+  width: 34rpx;
+  height: 34rpx;
+  display: block;
+}
+
+.party-name {
+  max-width: 170rpx;
+  margin-top: 16rpx;
+  overflow: hidden;
+  color: var(--game-detail-panel-text-color, #111827);
+  font-size: 26rpx;
+  font-weight: 800;
+  line-height: 36rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-role {
+  margin-top: 4rpx;
+  color: var(--game-detail-panel-muted-color, #6b7280);
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.party-state {
+  margin-top: 8rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.14);
+  font-size: 20rpx;
+  line-height: 28rpx;
+  white-space: nowrap;
+}
+
+.party-state.confirmed {
+  color: #16a34a;
+  background: #dcfce7;
+}
+
+.party-link {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 12rpx;
+}
+
+.link-circle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.link-icon-image {
+  display: block;
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.link-line {
+  width: 1rpx;
+  height: 34rpx;
+  margin-top: -10rpx;
+  border-left: 2rpx dashed rgba(34, 197, 94, 0.5);
+}
+
+.link-text {
+  margin-top: 2rpx;
+  padding: 0 6rpx;
+  color: #22c55e;
+  background: var(--game-detail-panel-background-color, #ffffff);
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.party-detail-card.audit-invitation-party-card .section-title {
+  font-weight: 400;
+}
+
+.party-detail-card.success-guide-party-card .party-link,
+.party-detail-card.audit-invitation-party-card .party-link {
+  padding-top: 28rpx;
+}
+
+.party-detail-card.success-guide-party-card .link-line,
+.party-detail-card.audit-invitation-party-card .link-line {
+  height: 58rpx;
+  margin-top: -6rpx;
+  margin-bottom: -24rpx;
+  border-left-color: rgba(34, 197, 94, 0.55);
+}
+
+.party-detail-card.success-guide-party-card .link-text,
+.party-detail-card.audit-invitation-party-card .link-text {
+  position: relative;
+  z-index: 1;
+  margin-top: 0;
+  padding: 0 10rpx;
+  background: var(--game-detail-panel-background-color, #ffffff);
+}

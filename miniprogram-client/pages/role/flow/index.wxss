@@ -1,0 +1,956 @@
+@import "../../home/master/index.wxss";
+
+.home-preview-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #f7f7f8;
+  color: #1a1a2e;
+}
+
+.home-preview-screen {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  padding: 54rpx 48rpx 48rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #f7f7f8;
+}
+
+.home-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.home-preview-badge,
+.home-preview-title,
+.home-preview-subtitle,
+.home-preview-desc,
+.home-preview-count,
+.home-preview-plan-name,
+.home-preview-plan-desc {
+  display: block;
+}
+
+.home-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96rpx;
+  height: 44rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: linear-gradient(100deg, #8a5cf6 0%, #e44f9b 100%);
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 44rpx;
+}
+
+.home-preview-title {
+  margin-top: 28rpx;
+  color: #1a1a2e;
+  font-size: 46rpx;
+  font-weight: 900;
+  line-height: 58rpx;
+}
+
+.home-preview-subtitle {
+  margin-top: 10rpx;
+  color: #666672;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
+.home-preview-desc {
+  margin-top: 34rpx;
+  color: #777783;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.home-preview-count {
+  flex: 0 0 auto;
+  color: #9a9aa3;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 44rpx;
+}
+
+.home-preview-compare,
+.home-preview-theme {
+  margin-top: 48rpx;
+}
+
+.home-preview-primary,
+.home-preview-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 92rpx;
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 92rpx;
+}
+
+.home-preview-primary {
+  margin-top: 42rpx;
+  color: #ffffff;
+  background: linear-gradient(100deg, #8a5cf6 0%, #e44f9b 100%);
+}
+
+.home-preview-secondary {
+  margin-top: 18rpx;
+  color: #777783;
+  background: #ffffff;
+}
+
+.home-preview-plan {
+  margin-bottom: 20rpx;
+  padding: 26rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+}
+
+.home-preview-plan-name {
+  color: #1a1a2e;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 40rpx;
+}
+
+.home-preview-plan-desc {
+  margin-top: 8rpx;
+  color: #777783;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.home-preview-plan-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.home-preview-plan-tag {
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  color: #8a5cf6;
+  background: #f2ecff;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.home-preview-form-row,
+.home-preview-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 86rpx;
+  margin-bottom: 18rpx;
+  padding: 0 24rpx;
+  border-radius: 20rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #1a1a2e;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.home-preview-form-placeholder,
+.home-preview-color-row text:last-child {
+  color: #8a5cf6;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.home-preview-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 54rpx;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.home-preview-hit.left {
+  left: 0;
+}
+
+.home-preview-hit.right {
+  right: 0;
+}
+
+.home-preview-page.expertApplyForm,
+.home-preview-page.expertApplyOverview {
+  height: auto;
+  min-height: 100vh;
+  overflow-y: auto;
+  background: #efefef;
+  color: #ffffff;
+}
+
+.home-expert-apply {
+  color: #ffffff;
+}
+
+.home-expert-apply-toolbar {
+  display: grid;
+  grid-template-columns: 176rpx 1fr 176rpx;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 96rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.home-expert-apply-back,
+.home-expert-apply-save,
+.home-expert-apply-toolbar-title,
+.home-expert-apply-heading,
+.home-expert-apply-tagline,
+.home-expert-field-label text,
+.home-expert-field-helper,
+.home-expert-upload-title,
+.home-expert-requirement-title,
+.home-expert-requirement-status,
+.home-expert-plan-title,
+.home-expert-plan-desc,
+.home-expert-plan-action,
+.home-expert-benefit-text,
+.home-expert-apply-hint {
+  display: block;
+}
+
+.home-expert-apply-back {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 64rpx;
+  height: 64rpx;
+  color: #ffffff;
+  font-size: 42rpx;
+  font-weight: 400;
+  line-height: 64rpx;
+}
+
+.home-expert-apply-save {
+  grid-column: 3;
+  justify-self: end;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+  text-align: right;
+}
+
+.home-expert-apply-toolbar-title {
+  grid-column: 2;
+  justify-self: center;
+  max-width: 100%;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 44rpx;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-expert-apply-main {
+  flex: 1;
+  padding: 24rpx 30rpx 36rpx;
+  box-sizing: border-box;
+}
+
+.home-expert-apply-hero {
+  padding: 20rpx 0 42rpx;
+  text-align: center;
+}
+
+.home-expert-apply-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160rpx;
+  height: 160rpx;
+  margin: 0 auto 24rpx;
+  border: 4rpx solid #16c0f6;
+  border-radius: 80rpx;
+  box-sizing: border-box;
+  background: #0a1b2e;
+  box-shadow: 0 0 50rpx 10rpx rgba(0, 191, 255, 0.4);
+  font-size: 72rpx;
+  line-height: 160rpx;
+}
+
+.home-expert-apply-heading {
+  color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 58rpx;
+}
+
+.home-expert-apply-tagline {
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.home-expert-apply-panel {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 32rpx;
+  box-sizing: border-box;
+  background: #141926;
+}
+
+.home-expert-apply-panel {
+  padding: 30rpx 28rpx 32rpx;
+}
+
+.home-expert-overview-shell {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.home-expert-apply-panel.secondary {
+  margin-top: 48rpx;
+}
+
+.home-expert-field {
+  margin-bottom: 32rpx;
+}
+
+.home-expert-field:last-child {
+  margin-bottom: 0;
+}
+
+.home-expert-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-bottom: 16rpx;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.home-expert-field-label .required {
+  color: #ff6b35;
+}
+
+.home-expert-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18rpx 20rpx;
+}
+
+.home-expert-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 52rpx;
+  padding: 0 22rpx;
+  border: 2rpx solid #2d3748;
+  border-radius: 26rpx;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.home-expert-chip.active {
+  border-color: #00bfff;
+  color: #00bfff;
+  background: rgba(0, 191, 255, 0.1);
+}
+
+.home-expert-chip.custom {
+  padding: 0 10rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 22rpx;
+  line-height: 24rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.home-expert-chip.custom.active {
+  color: #00bfff;
+}
+
+.home-expert-custom-field {
+  display: grid;
+  grid-template-columns: 1fr 112rpx;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+
+.home-expert-custom-input {
+  min-height: 72rpx;
+  padding: 0 22rpx;
+  border: 2rpx solid #2d3748;
+  border-radius: 20rpx;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(30, 41, 59, 0.5);
+  font-size: 26rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.home-expert-custom-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72rpx;
+  border-radius: 20rpx;
+  color: #ffffff;
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.home-expert-input,
+.home-expert-textarea {
+  display: flex;
+  box-sizing: border-box;
+  border: 2rpx solid #2d3748;
+  border-radius: 24rpx;
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.home-expert-input.error,
+.home-expert-textarea.error,
+.home-expert-upload.error {
+  border-color: #ff5a5f;
+}
+
+.home-expert-input {
+  align-items: center;
+  min-height: 88rpx;
+  padding: 0 32rpx;
+}
+
+.home-expert-input-control,
+.home-expert-textarea-control {
+  width: 100%;
+  min-height: 36rpx;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.86);
+  background: transparent;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.home-expert-textarea-control {
+  height: 144rpx;
+}
+
+.home-expert-input-placeholder,
+.home-expert-placeholder {
+  color: #64748b;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.home-expert-input-value {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.home-expert-select {
+  position: relative;
+}
+
+.home-expert-select .home-expert-input {
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.home-expert-select-arrow {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.home-expert-select-menu {
+  position: relative;
+  z-index: 4;
+  max-height: 360rpx;
+  margin-top: 12rpx;
+  overflow-y: auto;
+  border: 2rpx solid #2d3748;
+  border-radius: 20rpx;
+  box-sizing: border-box;
+  background: #151c2a;
+}
+
+.home-expert-select-option {
+  display: flex;
+  align-items: center;
+  min-height: 72rpx;
+  padding: 0 28rpx;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 36rpx;
+}
+
+.home-expert-select-option:last-child {
+  border-bottom: 0;
+}
+
+.home-expert-select-option.active {
+  color: #00bfff;
+  background: rgba(0, 191, 255, 0.1);
+}
+
+.home-expert-input.price .home-expert-input-control {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 32rpx;
+}
+
+.home-expert-textarea {
+  min-height: 192rpx;
+  padding: 24rpx 32rpx;
+}
+
+.home-expert-upload {
+  display: flex;
+  box-sizing: border-box;
+  border: 4rpx dashed #4b5563;
+  border-radius: 32rpx;
+  background: rgba(30, 41, 59, 0.3);
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 190rpx;
+  padding: 32rpx 20rpx;
+  text-align: center;
+}
+
+.home-expert-upload-icon {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 54rpx;
+  line-height: 60rpx;
+}
+
+.home-expert-upload-copy {
+  margin-top: 18rpx;
+}
+
+.home-expert-upload-title {
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 36rpx;
+}
+
+.home-expert-upload-list {
+  margin-top: 18rpx;
+}
+
+.home-expert-upload-file {
+  display: grid;
+  grid-template-columns: 40rpx 1fr 72rpx;
+  align-items: center;
+  gap: 12rpx;
+  min-height: 58rpx;
+  padding: 0 18rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 14rpx;
+  box-sizing: border-box;
+  background: rgba(30, 41, 59, 0.35);
+}
+
+.home-expert-upload-file + .home-expert-upload-file {
+  margin-top: 10rpx;
+}
+
+.home-expert-upload-file-index {
+  color: #00bfff;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+}
+
+.home-expert-upload-file-name {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-expert-upload-file-remove {
+  color: #ff6b6b;
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+  text-align: right;
+}
+
+.home-expert-field-helper {
+  margin-top: 12rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 32rpx;
+}
+
+.home-expert-field-helper.price {
+  margin-top: 24rpx;
+}
+
+.home-expert-error {
+  display: block;
+  margin-top: 10rpx;
+  color: #ff6b6b;
+  font-size: 22rpx;
+  font-weight: 400;
+  line-height: 30rpx;
+}
+
+.home-expert-service-block {
+  padding-top: 32rpx;
+}
+
+.home-expert-service-block.first {
+  margin-top: 8rpx;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.home-expert-service-title {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 28rpx;
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 42rpx;
+}
+
+.home-expert-service-title .required {
+  margin-left: 8rpx;
+  color: #ff6b35;
+}
+
+.home-expert-service-name-input {
+  width: 172rpx;
+  min-height: 42rpx;
+  margin-left: 10rpx;
+  padding: 0 6rpx;
+  border-bottom: 2rpx solid #4b5563;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: transparent;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 42rpx;
+}
+
+.home-expert-service-name-input.error {
+  border-bottom-color: #ff5a5f;
+}
+
+.home-expert-error.service-name {
+  margin-top: -14rpx;
+  margin-bottom: 20rpx;
+}
+
+.home-expert-service-field {
+  margin-bottom: 28rpx;
+}
+
+.home-expert-service-field:last-child {
+  margin-bottom: 0;
+}
+
+.home-expert-field-label.service {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 26rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.home-expert-overview-shell {
+  padding: 24rpx;
+}
+
+.home-expert-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 22rpx;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 400;
+  line-height: 40rpx;
+}
+
+.home-expert-section-title text:first-child {
+  color: #00d4ff;
+  font-size: 34rpx;
+  line-height: 40rpx;
+}
+
+.home-expert-section-title.crown text:first-child {
+  color: #ffd166;
+}
+
+.home-expert-requirements-card {
+  padding: 28rpx 0 0;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: #111827;
+  overflow: hidden;
+}
+
+.home-expert-requirements-card .home-expert-section-title {
+  padding: 0 36rpx;
+  margin-bottom: 22rpx;
+  box-sizing: border-box;
+}
+
+.home-expert-requirement {
+  display: grid;
+  grid-template-columns: 44rpx 1fr;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 18rpx 36rpx;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.home-expert-requirement + .home-expert-requirement {
+  margin-top: 0;
+}
+
+.home-expert-status-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.42);
+  background: transparent;
+  font-size: 24rpx;
+  line-height: 28rpx;
+}
+
+.home-expert-status-dot.checked {
+  border-color: rgba(0, 230, 118, 0.28);
+  color: #00e676;
+  background: rgba(0, 230, 118, 0.16);
+}
+
+.home-expert-status-dot.failed {
+  border-color: rgba(255, 82, 82, 0.3);
+  color: #ff6b6b;
+  background: rgba(255, 82, 82, 0.12);
+  font-size: 20rpx;
+}
+
+.home-expert-status-dot text {
+  display: block;
+  line-height: 28rpx;
+}
+
+.home-expert-requirement-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 34rpx;
+}
+
+.home-expert-requirement-status {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.home-expert-plan-card {
+  display: grid;
+  grid-template-columns: 44rpx 1fr auto;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 96rpx;
+  margin: 0;
+  padding: 22rpx 36rpx 28rpx;
+  border-bottom: 0;
+  box-sizing: border-box;
+}
+
+.home-expert-plan-title {
+  color: #ffffff;
+  font-size: 28rpx;
+  line-height: 36rpx;
+}
+
+.home-expert-plan-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.home-expert-plan-action {
+  justify-self: end;
+  color: #00d4ff;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.home-expert-apply.role-guide .home-expert-plan-action {
+  color: #ff7f18;
+}
+
+.home-expert-benefits-card {
+  margin-top: 34rpx;
+  padding: 24rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: #111827;
+}
+
+.home-expert-benefits-card .home-expert-section-title {
+  margin-bottom: 22rpx;
+}
+
+.home-expert-benefit {
+  display: grid;
+  grid-template-columns: 44rpx 1fr;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 74rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 26rpx;
+  line-height: 34rpx;
+}
+
+.home-expert-benefit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 10rpx;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 30rpx;
+  line-height: 40rpx;
+}
+
+.home-expert-benefit.tone-0 .home-expert-benefit-icon {
+  background: rgba(255, 107, 53, 0.15);
+}
+
+.home-expert-benefit.tone-1 .home-expert-benefit-icon {
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.home-expert-benefit.tone-2 .home-expert-benefit-icon {
+  background: rgba(156, 39, 176, 0.15);
+}
+
+.home-expert-apply-hint {
+  margin: 24rpx 0 0;
+  color: #64748b;
+  font-size: 26rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.home-expert-submit-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 468rpx;
+  min-height: 96rpx;
+  margin: 20rpx auto 0;
+  padding: 18rpx 30rpx;
+  border-radius: 8rpx;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.86);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+  text-align: center;
+}
+
+.home-expert-submit-notice text {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.home-expert-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  height: 104rpx;
+  margin: 48rpx auto 0;
+  border-radius: 52rpx;
+  color: #ffffff;
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  box-shadow: 0 8rpx 30rpx rgba(0, 191, 255, 0.3);
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 38rpx;
+}
+
+.home-expert-apply.role-guide .home-expert-primary {
+  background: linear-gradient(180deg, #ff8b17 0%, #ff6817 100%);
+  box-shadow: 0 8rpx 30rpx rgba(255, 127, 24, 0.32);
+}
+
+.home-expert-primary.disabled {
+  opacity: 0.68;
+}
+

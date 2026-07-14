@@ -1,0 +1,20 @@
+<view class="participant-card {{participant.roleClass}} {{compact ? 'compact' : ''}}" bindtap="handleTap">
+  <view class="participant-avatar-wrap">
+    <image wx:if="{{participant.avatarSrc}}" class="participant-avatar-image" src="{{participant.avatarSrc}}" mode="aspectFill" />
+    <view wx:else class="participant-avatar-fallback">{{participant.avatarText}}</view>
+    <text class="participant-role-badge {{participant.roleClass}}">{{participant.role}}</text>
+  </view>
+  <view class="participant-main">
+    <view class="participant-title-row">
+      <text class="participant-name">{{participant.name}}</text>
+      <text class="participant-role-text">{{participant.position}}</text>
+    </view>
+    <text class="participant-topic">{{participant.topic}}</text>
+    <text class="participant-primary-tag">{{participant.primaryTag}}</text>
+    <view class="participant-location">
+      <image class="participant-location-icon" src="https://static.haowan.net.cn/miniprogram/components/participant-card/assets/icon-location.png" mode="aspectFit" />
+      <text class="participant-location-text">{{participant.location}}</text>
+      <text>{{participant.distance}}</text>
+    </view>
+  </view>
+</view>

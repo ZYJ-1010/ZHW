@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "申请加入",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "work-upload-panel": "/components/work-upload-panel/index"
+  }
+}

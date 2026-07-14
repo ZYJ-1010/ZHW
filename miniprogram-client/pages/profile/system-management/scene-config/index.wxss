@@ -1,0 +1,80 @@
+@import "../block-settings/shared.wxss";
+
+.scene-top-label {
+  margin-top: 2rpx;
+}
+
+.scene-row {
+  min-height: 98rpx;
+}
+
+.scene-note {
+  padding-top: 18rpx;
+  padding-bottom: 18rpx;
+}
+
+.scene-note .note-line {
+  margin: 6rpx 0;
+  font-size: 23rpx;
+  line-height: 32rpx;
+}
+
+.scene-sheet {
+  padding-top: 32rpx;
+}
+
+.sheet-options {
+  margin-top: 22rpx;
+}
+
+.sheet-option {
+  display: flex;
+  align-items: center;
+  min-height: 108rpx;
+  margin-bottom: 18rpx;
+  padding: 18rpx 24rpx;
+  border: 2rpx solid transparent;
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  background: #1d283b;
+}
+
+.sheet-option.active {
+  border-color: rgba(0, 212, 255, 0.62);
+}
+
+.sheet-option-icon {
+  flex: none;
+  width: 58rpx;
+  height: 58rpx;
+  margin-right: 20rpx;
+}
+
+.sheet-option-emoji {
+  display: block;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 38rpx;
+  font-weight: 400;
+  line-height: 58rpx;
+  text-align: center;
+}
+
+.mode-radio-light {
+  flex: none;
+  width: 42rpx;
+  height: 42rpx;
+  border: 4rpx solid #8a9ab0;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.mode-radio-light image {
+  width: 42rpx;
+  height: 42rpx;
+  margin: -4rpx 0 0 -4rpx;
+}
+
+.sheet-cancel {
+  margin-top: 20rpx;
+  color: #ff5e2c;
+}

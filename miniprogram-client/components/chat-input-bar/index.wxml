@@ -1,0 +1,40 @@
+<view class="chat-input-bar">
+  <button class="input-tool voice {{isRecording ? 'recording' : ''}}" hover-class="none" bindtap="handleVoiceTap" data-type="voice">
+    <image src="/components/chat-input-bar/assets/voice.svg" mode="aspectFit" />
+  </button>
+  <input
+    class="message-input"
+    value="{{inputValue}}"
+    placeholder="{{placeholder}}"
+    placeholder-class="message-input-placeholder"
+    confirm-type="send"
+    bindinput="handleInput"
+    bindfocus="handleInputFocus"
+    bindconfirm="handleInputConfirm"
+  />
+  <button class="input-tool emoji {{activePanel === 'emoji' ? 'active' : ''}}" hover-class="none" bindtap="handleEmojiTap" data-type="emoji">
+    <image src="/components/chat-input-bar/assets/emoji.svg" mode="aspectFit" />
+  </button>
+  <button class="input-tool add {{inputValue ? 'send' : activePanel === 'attach' ? 'active' : ''}}" hover-class="none" bindtap="handleSendOrAttachTap" data-type="{{inputValue ? 'send' : 'add'}}">
+    <text wx:if="{{inputValue}}" class="send-label">发送</text>
+    <image wx:else src="/components/chat-input-bar/assets/add.svg" mode="aspectFit" />
+  </button>
+</view>
+
+<view wx:if="{{activePanel === 'emoji'}}" class="chat-panel emoji-panel">
+  <button
+    wx:for="{{emojis}}"
+    wx:key="*this"
+    class="emoji-item"
+    hover-class="none"
+    data-emoji="{{item}}"
+    bindtap="handleEmojiSelect"
+  >
+    {{item}}
+  </button>
+</view>
+
+<view wx:if="{{activePanel === 'attach'}}" class="chat-panel attach-panel">
+  <button class="attach-item" hover-class="none" bindtap="handleChooseImage">图片</button>
+  <button class="attach-item" hover-class="none" bindtap="handleChooseFile">文件</button>
+</view>

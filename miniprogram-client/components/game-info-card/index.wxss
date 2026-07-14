@@ -1,0 +1,268 @@
+.game-info-card {
+  position: relative;
+  width: 100%;
+  height: 880rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.1);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.game-info-card-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 84rpx;
+  padding: 0 28rpx 0 24rpx;
+  box-sizing: border-box;
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.header-icon {
+  flex: none;
+  width: 36rpx;
+  height: 32rpx;
+}
+
+.header-title {
+  margin-left: 14rpx;
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.header-chevron {
+  flex: none;
+  width: 16rpx;
+  height: 24rpx;
+  margin-left: 14rpx;
+}
+
+.game-info-card-body {
+  padding: 36rpx 34rpx 0;
+}
+
+.info-summary {
+  display: flex;
+  align-items: center;
+  height: 92rpx;
+}
+
+.info-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 82rpx;
+  height: 92rpx;
+  border-radius: 50%;
+  background: #dbeafe;
+}
+
+.info-summary-icon image {
+  width: 28rpx;
+  height: 36rpx;
+}
+
+.info-summary-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  margin-left: 24rpx;
+}
+
+.info-title,
+.info-guide,
+.expert-name,
+.expert-desc,
+.expert-intro,
+.game-info-card-footer text {
+  display: block;
+}
+
+.info-title {
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-guide {
+  margin-top: 2rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.expert-panel {
+  position: relative;
+  height: 330rpx;
+  margin-top: 30rpx;
+  padding: 28rpx 24rpx 26rpx;
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: #f9fafb;
+}
+
+.expert-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  min-height: 118rpx;
+}
+
+.expert-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 66rpx;
+  height: 74rpx;
+  margin-top: 24rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #3b82f6;
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.expert-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 16rpx;
+}
+
+.expert-name {
+  color: #1f2937;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.expert-desc {
+  width: 222rpx;
+  margin-top: 6rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.expert-role {
+  position: absolute;
+  right: 0;
+  top: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 108rpx;
+  height: 44rpx;
+  border-radius: 8rpx;
+  color: #2563eb;
+  background: #dbeafe;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.expert-intro {
+  margin-top: 12rpx;
+  color: #4b5563;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.expert-tags {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+}
+
+.expert-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 132rpx;
+  height: 46rpx;
+  margin-right: 16rpx;
+  border-radius: 8rpx;
+  color: #2563eb;
+  background: #eff6ff;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.info-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  height: 36rpx;
+  margin: 28rpx 12rpx 0;
+}
+
+.info-meta-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  color: #4b5563;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.info-meta-icon {
+  flex: none;
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 8rpx;
+}
+
+.confirm-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 458rpx;
+  height: 92rpx;
+  margin: 28rpx 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #3b82f6;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.confirm-button::after {
+  border: 0;
+}
+
+.game-info-card-footer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 86rpx;
+  padding: 0 24rpx;
+  border-top: 1rpx solid #f3f4f6;
+  box-sizing: border-box;
+  background: #f9fafb;
+}
+
+.mini-program-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 14rpx;
+}
+
+.game-info-card-footer text {
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}

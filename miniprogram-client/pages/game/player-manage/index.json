@@ -1,0 +1,6 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "game-role-switch": "/components/game-role-switch/index"
+  }
+}

@@ -1,0 +1,526 @@
+﻿<home-shell
+  online-text="{{onlineText}}"
+  topbar-title=""
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="create-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{createScrollTop}}"
+    bindscroll="handleCreateScroll"
+    enable-back-to-top
+  >
+    <view class="create-page">
+      <text class="create-title">发起组局</text>
+
+      <view class="cover-section">
+        <view class="section-heading">
+          <text class="section-title">局封面</text>
+          <text class="section-required">{{coverUploadEnabled ? '（必填）' : '（当前使用默认封面）'}}</text>
+        </view>
+        <text wx:if="{{coverUploadEnabled}}" class="cover-hint">仅支持 JPG/JPEG、PNG、WEBP，单张不超过 10MB</text>
+        <text wx:else class="cover-hint">真实封面上传恢复后，可通过配置开关重新启用</text>
+        <view wx:if="{{coverUploadEnabled}}" class="cover-uploader" bindtap="chooseCover">
+          <image wx:if="{{coverImage}}" class="cover-preview" src="{{coverImage}}" mode="aspectFill" />
+          <view wx:else class="plus-icon"></view>
+        </view>
+        <view wx:else class="cover-uploader">
+          <image class="cover-preview" src="{{defaultGameCover}}" mode="aspectFill" />
+        </view>
+      </view>
+
+      <text class="block-title">局属性</text>
+      <view class="form-panel">
+        <view class="form-field">
+          <text class="field-label">局主题</text>
+          <input
+            class="theme-control"
+            value="{{form.theme}}"
+            placeholder="请输入局标题"
+            placeholder-class="control-placeholder"
+            maxlength="{{themeMaxLength}}"
+            bindinput="onThemeInput"
+          />
+          <text class="field-count">{{themeLength}}/{{themeMaxLength}}</text>
+        </view>
+
+        <view class="form-field">
+          <view class="field-heading">
+            <text class="field-label">局类型</text>
+            <text class="field-required">（必填）</text>
+          </view>
+          <view class="chip-row type-row">
+            <button
+              wx:for="{{gameTypes}}"
+              wx:key="key"
+              class="option-chip type-chip {{form.type === item.key ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="selectType"
+            >{{item.name}}</button>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view wx:for="{{scheduleFields}}" wx:key="key" class="schedule-block {{index === 0 ? '' : 'with-line'}}">
+          <view
+            class="select-row"
+            data-key="{{item.key}}"
+            bindtap="chooseSchedule"
+          >
+            <view class="select-main">
+              <view class="field-heading">
+                <text class="field-label">{{item.label}}</text>
+                <text wx:if="{{item.required}}" class="field-required">必填</text>
+              </view>
+              <text class="field-hint">{{item.hint}}</text>
+            </view>
+            <view class="select-action {{item.value && item.key !== 'location' ? 'selected' : ''}}">
+              <text>{{item.value && item.key !== 'gameTime' && item.key !== 'signupTime' && item.key !== 'location' ? item.value : '请选择'}}</text>
+              <text class="chevron">›</text>
+            </view>
+          </view>
+
+          <view wx:if="{{item.key === 'gameTime' && timePanelVisible}}" class="time-panel">
+            <view class="time-grid">
+              <picker
+                mode="date"
+                start="{{todayDate}}"
+                value="{{timeDraft.startDate}}"
+                data-field="startDate"
+                bindchange="onGameTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">开始日期</text>
+                  <text class="time-picker-value">{{timeDraft.startDate}}</text>
+                </view>
+              </picker>
+              <picker
+                mode="time"
+                value="{{timeDraft.startTime}}"
+                data-field="startTime"
+                bindchange="onGameTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">开始时间</text>
+                  <text class="time-picker-value">{{timeDraft.startTime}}</text>
+                </view>
+              </picker>
+              <picker
+                mode="date"
+                start="{{todayDate}}"
+                value="{{timeDraft.endDate}}"
+                data-field="endDate"
+                bindchange="onGameTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">结束日期</text>
+                  <text class="time-picker-value">{{timeDraft.endDate}}</text>
+                </view>
+              </picker>
+              <picker
+                mode="time"
+                value="{{timeDraft.endTime}}"
+                data-field="endTime"
+                bindchange="onGameTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">结束时间</text>
+                  <text class="time-picker-value">{{timeDraft.endTime}}</text>
+                </view>
+              </picker>
+            </view>
+            <view class="time-panel-actions">
+              <button class="time-panel-button secondary" bindtap="cancelGameTimePanel">取消</button>
+              <button class="time-panel-button primary" bindtap="confirmGameTimePanel">完成</button>
+            </view>
+          </view>
+          <view wx:if="{{item.key === 'gameTime' && gameTimeConfirmed}}" class="time-summary">
+            <view class="time-summary-item">
+              <text class="time-summary-label">开始时间</text>
+              <text class="time-summary-value">{{gameTimeSummary.startText}}</text>
+            </view>
+            <view class="time-summary-item">
+              <text class="time-summary-label">结束时间</text>
+              <text class="time-summary-value">{{gameTimeSummary.endText}}</text>
+            </view>
+            <view class="time-summary-item">
+              <text class="time-summary-label">局持续时间</text>
+              <text class="time-summary-value">{{gameTimeSummary.durationText}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.key === 'signupTime' && signupTimePanelVisible}}" class="time-panel">
+            <view class="time-grid">
+              <picker
+                mode="date"
+                start="{{todayDate}}"
+                value="{{signupTimeDraft.startDate}}"
+                data-field="startDate"
+                bindchange="onSignupTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">报名开始日期</text>
+                  <text class="time-picker-value">{{signupTimeDraft.startDate}}</text>
+                </view>
+              </picker>
+              <picker
+                mode="time"
+                value="{{signupTimeDraft.startTime}}"
+                data-field="startTime"
+                bindchange="onSignupTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">报名开始时间</text>
+                  <text class="time-picker-value">{{signupTimeDraft.startTime}}</text>
+                </view>
+              </picker>
+              <picker
+                mode="date"
+                start="{{todayDate}}"
+                value="{{signupTimeDraft.endDate}}"
+                data-field="endDate"
+                bindchange="onSignupTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">报名结束日期</text>
+                  <text class="time-picker-value">{{signupTimeDraft.endDate}}</text>
+                </view>
+              </picker>
+              <picker
+                mode="time"
+                value="{{signupTimeDraft.endTime}}"
+                data-field="endTime"
+                bindchange="onSignupTimePickerChange"
+              >
+                <view class="time-picker-cell">
+                  <text class="time-picker-label">报名结束时间</text>
+                  <text class="time-picker-value">{{signupTimeDraft.endTime}}</text>
+                </view>
+              </picker>
+            </view>
+            <view class="time-panel-actions">
+              <button class="time-panel-button secondary" bindtap="cancelSignupTimePanel">取消</button>
+              <button class="time-panel-button primary" bindtap="confirmSignupTimePanel">完成</button>
+            </view>
+          </view>
+          <view wx:if="{{item.key === 'signupTime' && signupTimeConfirmed}}" class="time-summary">
+            <view class="time-summary-item">
+              <text class="time-summary-label">报名开始时间</text>
+              <text class="time-summary-value">{{signupTimeSummary.startText}}</text>
+            </view>
+            <view class="time-summary-item">
+              <text class="time-summary-label">报名结束时间</text>
+              <text class="time-summary-value">{{signupTimeSummary.endText}}</text>
+            </view>
+            <view class="time-summary-item">
+              <text class="time-summary-label">报名持续时间</text>
+              <text class="time-summary-value">{{signupTimeSummary.durationText}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.key === 'location' && item.value}}" class="time-summary location-summary">
+            <view class="time-summary-item location-summary-item">
+              <text class="time-summary-label">组局地址</text>
+              <text class="time-summary-value location-summary-value">{{item.value}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.key === 'location' && locationSearchVisible}}" class="time-panel">
+            <view class="location-map-card" bindtap="chooseGameLocation">
+              <map
+                class="location-map"
+                latitude="{{locationMapLatitude}}"
+                longitude="{{locationMapLongitude}}"
+                markers="{{locationMapMarkers}}"
+                scale="15"
+                show-location
+              ></map>
+              <view class="location-map-footer">
+                <text>{{locationInfo.name || '在地图上选择组局位置'}}</text>
+                <button class="location-map-button" size="mini" catchtap="chooseGameLocation">地图选点</button>
+              </view>
+            </view>
+            <input
+              class="location-search-input"
+              value="{{locationSearchKeyword}}"
+              placeholder="输入地点关键词"
+              confirm-type="search"
+              bindinput="onLocationSearchInput"
+              bindconfirm="searchLocationByKeyword"
+            />
+            <view wx:if="{{locationSearchResults.length}}" class="time-summary location-summary">
+              <view
+                wx:for="{{locationSearchResults}}"
+                wx:for-item="place"
+                wx:key="id"
+                class="time-summary-item location-summary-item"
+                data-index="{{index}}"
+                bindtap="selectLocationSearchResult"
+              >
+                <text class="time-summary-label">{{place.title}}</text>
+                <text class="time-summary-value location-summary-value">{{place.displayAddress}}</text>
+              </view>
+            </view>
+            <view class="time-panel-actions">
+              <button class="time-panel-button secondary" bindtap="closeLocationSearchPanel">取消</button>
+              <button class="time-panel-button primary" loading="{{locationSearchLoading}}" disabled="{{locationSearchLoading || locationSearchCooldown}}" bindtap="searchLocationByKeyword">搜索</button>
+            </view>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="form-field">
+          <view class="field-heading">
+            <text class="field-label">局人数</text>
+            <text class="field-required">必填</text>
+          </view>
+          <view class="capacity-row">
+            <slider
+              class="capacity-slider"
+              min="{{capacityMin}}"
+              max="{{capacityMax}}"
+              step="1"
+              value="{{form.capacity}}"
+              block-size="18"
+              activeColor="#ffffff"
+              backgroundColor="rgba(255,255,255,0.28)"
+              bindchange="onCapacityChange"
+            />
+            <view class="capacity-input">
+              <input
+                type="number"
+                value="{{form.capacity}}"
+                bindinput="onCapacityInput"
+                maxlength="2"
+              />
+              <text>人</text>
+            </view>
+          </view>
+          <text class="field-tip">达到人数上限自动结束招募</text>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="form-field">
+          <text class="field-label">参与方式</text>
+          <view class="chip-row participation-row">
+            <button
+              wx:for="{{participationModes}}"
+              wx:key="key"
+              class="option-chip participation-chip {{form.participation === item.key ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="selectParticipation"
+            >{{item.name}}</button>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="form-field">
+          <text class="field-label">标签</text>
+          <view class="tag-row">
+            <button
+              wx:for="{{tags}}"
+              wx:key="name"
+              class="tag-chip {{item.active ? 'active' : ''}}"
+              data-index="{{index}}"
+              bindtap="toggleTag"
+            >{{item.name}}</button>
+          </view>
+        </view>
+      </view>
+
+      <text class="block-title">局概述</text>
+      <view class="form-panel">
+        <view class="form-field">
+          <view class="field-heading">
+            <text class="field-label">局介绍</text>
+            <text class="field-required">（必填）</text>
+          </view>
+          <text class="field-help intro-help">详细描述你的局内容，包括目标是什么，需要什么样的人参与，预期产出是什么</text>
+          <textarea
+            class="textarea-control intro-control"
+            value="{{form.intro}}"
+            maxlength="{{introMaxLength}}"
+            placeholder="请输入局介绍"
+            placeholder-class="control-placeholder"
+            bindinput="onIntroInput"
+          ></textarea>
+          <text class="field-count">{{introLength}}/{{introMaxLength}}</text>
+        </view>
+
+        <view class="form-field">
+          <view class="field-heading">
+            <text class="field-label">亮点</text>
+            <text class="field-required">（必填）</text>
+          </view>
+          <text class="field-help highlights-help">请列举2-5条亮点</text>
+          <textarea
+            class="textarea-control highlights-control"
+            value="{{form.highlights}}"
+            maxlength="{{highlightsMaxLength}}"
+            placeholder="请输入亮点"
+            placeholder-class="control-placeholder"
+            bindinput="onHighlightsInput"
+          ></textarea>
+          <text class="field-count">{{highlightsLength}}/{{highlightsMaxLength}}</text>
+        </view>
+
+        <view class="form-field">
+          <view class="field-heading">
+            <text class="field-label">局描述</text>
+            <text class="field-required">（必填）</text>
+          </view>
+          <text class="field-help description-help">请输入活动详细介绍、流程、目标等，支持文字、图片（最多9张）和视频（60秒内）格式</text>
+          <textarea
+            class="textarea-control description-control"
+            value="{{form.description}}"
+            placeholder="请输入局描述"
+            placeholder-class="control-placeholder"
+            bindinput="onDescriptionInput"
+          ></textarea>
+          <view class="description-media-actions">
+            <button class="description-media-button" data-type="image" bindtap="chooseDescriptionMedia">添加图片</button>
+            <button class="description-media-button" data-type="video" bindtap="chooseDescriptionMedia">添加视频</button>
+          </view>
+          <view wx:if="{{descriptionMedia.length}}" class="description-media-list">
+            <view wx:for="{{descriptionMedia}}" wx:key="id" class="description-media-item">
+              <image
+                class="description-media-thumb"
+                src="{{item.thumbTempFilePath}}"
+                mode="aspectFill"
+              />
+              <text wx:if="{{item.type === 'video'}}" class="description-media-duration">{{item.durationText}}</text>
+              <button
+                class="description-media-remove"
+                data-id="{{item.id}}"
+                bindtap="removeDescriptionMedia"
+              >×</button>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-field">
+          <text class="field-label">活动须知</text>
+          <text class="field-help notice-help">输入活动须知，让活动前客户直观了解限制项</text>
+          <input
+            class="text-control notice-control"
+            value="{{form.notice}}"
+            maxlength="{{noticeMaxLength}}"
+            placeholder="请输入活动须知"
+            placeholder-class="control-placeholder"
+            bindinput="onNoticeInput"
+          />
+          <text class="field-count">{{noticeLength}}/{{noticeMaxLength}}</text>
+        </view>
+
+        <view class="form-field">
+          <text class="field-label">活动受众</text>
+          <text class="field-help audience-help">让引荐人快速直观了解受众对象，便于高效引荐达成</text>
+          <input
+            class="text-control audience-control"
+            value="{{form.audience}}"
+            maxlength="{{audienceMaxLength}}"
+            placeholder="请输入活动受众"
+            placeholder-class="control-placeholder"
+            bindinput="onAudienceInput"
+          />
+          <text class="field-count">{{audienceLength}}/{{audienceMaxLength}}</text>
+        </view>
+
+        <view class="form-field">
+          <text class="field-label">完成标准</text>
+          <view class="completion-row">
+            <button
+              wx:for="{{completionRules}}"
+              wx:key="key"
+              class="completion-chip {{item.active ? 'active' : ''}}"
+              data-index="{{index}}"
+              bindtap="toggleCompletionRule"
+            >{{item.name}}</button>
+          </view>
+        </view>
+      </view>
+
+      <text class="block-title">费用与利润</text>
+      <view class="form-panel">
+        <view class="form-field">
+          <view class="field-heading">
+            <text class="field-label">是否收费</text>
+            <text class="field-required">必填</text>
+          </view>
+          <view class="fee-row">
+            <button
+              wx:for="{{feeTypes}}"
+              wx:key="key"
+              class="fee-chip {{form.feeType === item.key ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="selectFeeType"
+            >{{item.name}}</button>
+          </view>
+        </view>
+
+        <view class="form-field">
+          <text class="field-label">局费</text>
+          <view class="price-control {{form.feeType === 'free' ? 'readonly' : ''}}">
+            <block wx:if="{{form.feeType === 'paid'}}">
+              <input
+                class="price-input"
+                type="digit"
+                value="{{form.price}}"
+                placeholder="请输入金额"
+                placeholder-class="control-placeholder"
+                bindinput="onPriceInput"
+              />
+              <text class="price-unit">元/人</text>
+            </block>
+            <text wx:else class="price-static">0元/人</text>
+          </view>
+        </view>
+
+        <view wx:if="{{showProfitTemplate}}" class="form-field">
+          <text class="field-label">分润模板</text>
+          <view class="profit-list">
+            <view
+              wx:for="{{profitTemplates}}"
+              wx:key="key"
+              class="profit-card {{form.profitTemplate === item.key ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="selectProfitTemplate"
+            >
+              <text class="profit-title">{{item.name}}</text>
+              <text wx:if="{{item.desc}}" class="profit-desc">{{item.desc}}</text>
+              <text wx:if="{{item.disabled && item.disabledReason}}" class="profit-disabled-reason">{{item.disabledReason}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{depositRuleText}}" class="form-field">
+          <text class="field-label">押金局规则</text>
+          <view class="rule-box">
+            <text>{{depositRuleText}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{depositNoticeText}}" class="form-field">
+          <text class="field-label deposit-notice-label">押金局提示</text>
+          <view class="rule-box subtle">
+            <text>{{depositNoticeText}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="action-row">
+        <button class="secondary-action" bindtap="saveDraft">保存草稿</button>
+        <button class="secondary-action" bindtap="previewSubmit">浏览提交</button>
+        <button class="primary-action {{publishDisabled ? 'disabled' : ''}}" bindtap="publishGame">发布并同步到地球网</button>
+      </view>
+    </view>
+  </scroll-view>
+</home-shell>

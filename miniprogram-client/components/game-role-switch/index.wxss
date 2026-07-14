@@ -1,0 +1,3 @@
+.role-switch { display:flex; gap:16rpx; padding:22rpx 28rpx 18rpx; background:#f7f8fa; box-sizing:border-box; }
+.role-item { min-width:112rpx; padding:13rpx 28rpx; border-radius:999rpx; background:#e7ebf0; color:#64748b; font-size:26rpx; line-height:34rpx; text-align:center; box-sizing:border-box; }
+.role-item.active { background:#1685f5; color:#fff; font-weight:600; }

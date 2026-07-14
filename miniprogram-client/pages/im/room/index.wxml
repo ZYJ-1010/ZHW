@@ -1,0 +1,182 @@
+<home-shell
+  online-text="{{memberText}}"
+  topbar-title="{{pageTitle}}"
+  shell-class="home-shell--blue-topbar im-room-shell"
+  shell-variant="topNoBrand"
+  back-visible="{{true}}"
+  bindbacktap="onBackTap"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  nav-auto-navigate="{{true}}"
+>
+  <view class="im-room-page">
+    <scroll-view
+      class="message-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-into-view="{{scrollAnchor}}"
+    >
+      <view class="message-body">
+        <view class="room-strip">
+          <view class="room-strip-copy">
+            <text class="room-strip-title">{{title}}</text>
+            <text class="room-strip-desc">{{desc}}</text>
+          </view>
+          <view class="room-strip-actions">
+            <button wx:if="{{collaborationEntry}}" class="room-collab-entry" hover-class="none" bindtap="onCollaborationTap">
+              <text>{{collaborationEntry.text}}</text>
+            </button>
+            <button class="room-member-entry" hover-class="none" bindtap="onMembersTap">
+              <text>{{memberText}}</text>
+            </button>
+          </view>
+        </view>
+
+        <block wx:for="{{messages}}" wx:key="id">
+          <view id="message-{{index}}" class="message-node">
+            <view wx:if="{{item.kind === 'system'}}" class="system-card">
+              <view class="system-card-header">
+                <text class="assistant-badge">IM</text>
+                <text class="assistant-name">{{item.card.assistantName}}</text>
+                <text wx:if="{{item.createdAtText}}" class="system-time">{{item.createdAtText}}</text>
+              </view>
+
+              <view class="system-card-body">
+                <view class="invite-title-row">
+                  <view class="invite-icon">
+                    <image src="./assets/icon-handshake.svg" mode="aspectFit" />
+                  </view>
+                  <view class="invite-title-copy">
+                    <text class="invite-title">{{item.card.title}}</text>
+                    <text class="invite-subtitle">{{item.card.guideLabel}}：{{item.card.guideName}}</text>
+                  </view>
+                </view>
+
+                <view class="member-info-box">
+                  <text class="member-info-label">{{item.card.playerInfoLabel}}</text>
+                  <view class="member-info-row">
+                    <view class="member-avatar-card">
+                      <image wx:if="{{item.card.player.avatarSrc}}" src="{{item.card.player.avatarSrc}}" mode="aspectFill" />
+                      <text wx:else>{{item.card.player.avatarText}}</text>
+                    </view>
+                    <view class="member-copy">
+                      <text class="member-name">{{item.card.player.name}}</text>
+                      <text class="member-desc">{{item.card.player.desc}}</text>
+                    </view>
+                  </view>
+                </view>
+
+                <view class="event-detail-list">
+                  <view class="event-detail-row">
+                    <image class="detail-icon time-icon" src="./assets/icon-time.svg" mode="aspectFit" />
+                    <text>{{item.card.game.dateText}}</text>
+                  </view>
+                  <view class="event-detail-row">
+                    <image class="detail-icon location-icon" src="./assets/icon-location.svg" mode="aspectFit" />
+                    <text>{{item.card.game.location}}</text>
+                  </view>
+                </view>
+              </view>
+
+              <view wx:if="{{item.card.acceptButtonText || item.card.declineButtonText}}" class="system-actions">
+                <button
+                  wx:if="{{item.card.acceptButtonText}}"
+                  class="system-action primary"
+                  hover-class="none"
+                  data-action="accept"
+                  data-route="{{item.card.actionRoute}}"
+                  bindtap="onSystemActionTap"
+                >
+                  {{item.card.acceptButtonText}}
+                </button>
+                <button
+                  wx:if="{{item.card.declineButtonText}}"
+                  class="system-action secondary"
+                  hover-class="none"
+                  data-action="decline"
+                  bindtap="onSystemActionTap"
+                >
+                  {{item.card.declineButtonText}}
+                </button>
+              </view>
+            </view>
+
+            <view wx:else class="chat-row {{item.rowClass}}">
+              <view wx:if="{{!item.isSelf}}" class="member-avatar">
+                <image wx:if="{{item.avatarSrc}}" src="{{item.avatarSrc}}" mode="aspectFill" />
+                <text wx:else>{{item.avatarText}}</text>
+              </view>
+
+              <view
+                wx:if="{{item.failed}}"
+                class="message-fail-icon"
+                data-reason="{{item.failReason}}"
+                bindtap="onFailedMessageTap"
+              >!</view>
+
+              <view class="message-stack">
+                <view class="sender-line {{item.isSelf ? 'self' : ''}}">
+                  <text class="sender-name">{{item.senderName}}</text>
+                  <text class="sender-role">{{item.senderRoleText}}</text>
+                  <text wx:if="{{item.createdAtText}}" class="message-time">{{item.createdAtText}}</text>
+                </view>
+
+                <view wx:if="{{item.kind === 'media'}}" class="media-bubble {{item.messageType}}">
+                  <view class="media-icon">
+                    <text>{{item.messageType === 'image' ? 'IMG' : 'FILE'}}</text>
+                  </view>
+                  <view class="media-copy">
+                    <text class="media-title">{{item.messageType === 'image' ? '图片消息' : item.fileName}}</text>
+                    <text class="media-desc">{{item.fileId ? '文件已入库，后台可查看下载' : '等待文件信息同步'}}</text>
+                  </view>
+                </view>
+
+                <view wx:else class="text-bubble">
+                  <text>{{item.contentText}}</text>
+                </view>
+
+                <text wx:if="{{item.statusText}}" class="message-status">{{item.statusText}}</text>
+              </view>
+
+              <view wx:if="{{item.isSelf}}" class="member-avatar self-avatar">
+                <image wx:if="{{item.avatarSrc}}" src="{{item.avatarSrc}}" mode="aspectFill" />
+                <text wx:else>{{item.avatarText}}</text>
+              </view>
+            </view>
+          </view>
+        </block>
+
+        <view wx:if="{{!messages.length && !loading}}" class="empty-state">
+          <text>暂无消息</text>
+        </view>
+        <view wx:if="{{loading}}" class="empty-state">
+          <text>正在加载局 IM...</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="compose-zone">
+      <view wx:if="{{readOnly}}" class="readonly-bar">
+        <text>{{readOnlyText}}</text>
+        <button class="readonly-action" hover-class="none" bindtap="onGameInfoTap">查看局信息</button>
+      </view>
+
+      <chat-input-bar
+        wx:else
+        placeholder="发送局内消息"
+        bindsendtext="onSendMessage"
+        bindrecordstart="onRecordStart"
+        bindrecordstop="onRecordStop"
+        bindrecorderror="onRecordError"
+        bindchooseimage="onChooseImage"
+        bindchoosefile="onChooseFile"
+      />
+
+      <view wx:if="{{uploading}}" class="upload-mask">
+        <text>文件发送中...</text>
+      </view>
+    </view>
+  </view>
+</home-shell>

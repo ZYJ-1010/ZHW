@@ -1,0 +1,76 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{pageTitle}}"
+  shell-variant="joinApply"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="system-detail-page">
+    <view class="system-inner">
+        <view class="article-card message-card">
+          <view class="article-head">
+            <text class="tag">{{article.tagText}}</text>
+            <text class="article-title">{{article.title}}</text>
+            <view class="meta-row">
+              <text>{{article.author}}</text>
+              <text class="dot">·</text>
+              <text>{{article.publishedAtText}}</text>
+              <text class="dot">·</text>
+              <text>{{article.readText}}</text>
+            </view>
+          </view>
+
+          <view class="article-body">
+            <block wx:for="{{article.blocks}}" wx:key="id">
+              <text wx:if="{{item.type === 'paragraph'}}" class="paragraph {{item.lead ? 'lead' : ''}}">{{item.text}}</text>
+
+              <view wx:elif="{{item.type === 'updateBox'}}" class="update-box">
+                <view class="update-box-title">
+                  <view class="update-icon">{{item.icon}}</view>
+                  <text>{{item.title}}</text>
+                </view>
+                <view class="update-list">
+                  <view wx:for="{{item.points}}" wx:for-item="point" wx:key="*this" class="update-item">
+                    <view class="check-dot"></view>
+                    <text>{{point}}</text>
+                  </view>
+                </view>
+              </view>
+
+              <view wx:elif="{{item.type === 'cover'}}" class="cover-panel">
+                <image class="cover-image" src="{{item.imageUrl}}" mode="aspectFill"></image>
+                <text>{{item.caption}}</text>
+              </view>
+
+              <view wx:elif="{{item.type === 'signature'}}" class="signature">
+                <text>{{item.teamText}}</text>
+                <text>{{item.dateText}}</text>
+              </view>
+            </block>
+          </view>
+        </view>
+
+        <view class="feedback-row">
+          <text>{{feedback.question}}</text>
+          <view class="feedback-actions">
+            <button class="feedback-button" hover-class="none" data-value="useful" bindtap="onFeedbackTap">
+              <text class="feedback-icon">{{feedback.useful.icon}}</text>
+              <view class="feedback-copy">
+                <text>{{feedback.useful.label}}</text>
+                <text>{{feedback.useful.countText}}</text>
+              </view>
+            </button>
+            <button class="feedback-button" hover-class="none" data-value="useless" bindtap="onFeedbackTap">
+              <text class="feedback-icon">{{feedback.useless.icon}}</text>
+              <view class="feedback-copy">
+                <text>{{feedback.useless.label}}</text>
+                <text>{{feedback.useless.countText}}</text>
+              </view>
+            </button>
+          </view>
+        </view>
+    </view>
+  </view>
+</home-shell>

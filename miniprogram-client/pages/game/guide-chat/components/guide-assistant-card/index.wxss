@@ -1,0 +1,235 @@
+.guide-assistant-card {
+  width: 526rpx;
+  overflow: hidden;
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-shadow: 0 14rpx 28rpx rgba(0, 0, 0, 0.22);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  height: 78rpx;
+  padding: 0 28rpx;
+  border-bottom: 1rpx solid #edf0f3;
+  box-sizing: border-box;
+}
+
+.assistant-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34rpx;
+  height: 24rpx;
+  margin-right: 13rpx;
+  border-radius: 5rpx;
+  color: #ffffff;
+  background: #20c968;
+  font-size: 17rpx;
+  font-weight: 700;
+  line-height: 24rpx;
+}
+
+.assistant-name {
+  color: #69707a;
+  font-size: 25rpx;
+  line-height: 34rpx;
+}
+
+.card-body {
+  padding: 28rpx;
+  box-sizing: border-box;
+}
+
+.invite-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.invite-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86rpx;
+  height: 86rpx;
+  margin-right: 21rpx;
+  border-radius: 50%;
+  background: #fff1db;
+}
+
+.invite-icon image {
+  width: 40rpx;
+  height: 32rpx;
+}
+
+.invite-title-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.invite-title,
+.invite-subtitle,
+.player-info-label,
+.player-name,
+.player-desc,
+.event-detail-row {
+  display: block;
+}
+
+.invite-title {
+  color: #333333;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 42rpx;
+}
+
+.invite-subtitle {
+  margin-top: 4rpx;
+  color: #8a8f98;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.player-info-box {
+  margin-top: 30rpx;
+  padding: 22rpx;
+  border-radius: 15rpx;
+  background: #f4f5f7;
+  box-sizing: border-box;
+}
+
+.player-info-label {
+  margin-bottom: 16rpx;
+  color: #a3a8b0;
+  font-size: 21rpx;
+  line-height: 29rpx;
+}
+
+.player-info-row {
+  display: flex;
+  align-items: center;
+}
+
+.player-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  margin-right: 21rpx;
+  border-radius: 12rpx;
+  color: #9aa2ad;
+  background: #e1e5ea;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.player-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-name {
+  overflow: hidden;
+  color: #333333;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 36rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-desc {
+  margin-top: 4rpx;
+  overflow: hidden;
+  color: #8a8f98;
+  font-size: 21rpx;
+  line-height: 30rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-detail-list {
+  margin-top: 27rpx;
+  padding-left: 2rpx;
+}
+
+.event-detail-row {
+  display: flex;
+  align-items: center;
+  min-height: 36rpx;
+  margin-top: 13rpx;
+  color: #333333;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.event-detail-row:first-child {
+  margin-top: 0;
+}
+
+.detail-icon {
+  flex: none;
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 16rpx;
+}
+
+.detail-icon.calendar {
+  width: 22rpx;
+  height: 24rpx;
+  margin-right: 26rpx;
+}
+
+.detail-icon.location {
+  width: 18rpx;
+  height: 24rpx;
+  margin-right: 30rpx;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  column-gap: 16rpx;
+  padding: 0 28rpx 28rpx;
+}
+
+.card-button-wrap {
+  flex: 0 0 168rpx;
+  width: 168rpx;
+  min-width: 0;
+}
+
+.card-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 168rpx;
+  height: 64rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+}
+
+.card-button::after {
+  border: 0;
+}
+
+.card-button.primary {
+  color: #ffffff;
+  background: #22c55e;
+  box-shadow: 0 7rpx 14rpx rgba(34, 197, 94, 0.22);
+}
+
+.card-button.secondary {
+  color: #333333;
+  background: #f1f2f4;
+}

@@ -1,0 +1,20 @@
+<view class="page">
+  <view class="card">
+    <text class="title">{{title}}</text>
+    <text class="subtitle">{{subtitle}}</text>
+    <view class="qrcode-box">
+      <text wx:if="{{loading}}" class="status">正在生成小程序码…</text>
+      <image wx:elif="{{qrcodeUrl}}" class="qrcode" src="{{qrcodeUrl}}" mode="aspectFit" show-menu-by-longpress />
+      <view wx:elif="{{inviteCode}}" class="code-card">
+        <text class="code-label">邀请码</text>
+        <text class="code-large">{{inviteCode}}</text>
+      </view>
+      <text wx:else class="error">{{errorText}}</text>
+    </view>
+    <text class="code">邀请码：{{inviteCode || '--'}}</text>
+    <button class="primary" open-type="share" disabled="{{!inviteCode}}">{{actionText}}</button>
+    <button class="secondary" bindtap="copyInvitePath" disabled="{{!inviteCode}}">复制邀请入口</button>
+    <button wx:if="{{qrcodeUrl}}" class="secondary" bindtap="saveQrcode">保存二维码到相册</button>
+    <text wx:if="{{errorText}}" class="hint">{{errorText}}</text>
+  </view>
+</view>

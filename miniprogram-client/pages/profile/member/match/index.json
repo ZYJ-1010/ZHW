@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "usingComponents": {
+    "member-radar-flow": "/components/member-radar-flow/index"
+  }
+}

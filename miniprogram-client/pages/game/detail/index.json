@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "活动详情",
+  "usingComponents": {
+    "participant-card": "/components/participant-card/index"
+  }
+}

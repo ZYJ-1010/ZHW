@@ -1,0 +1,9 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "小程序通知",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "guide-assistant-card": "/pages/game/guide-chat/components/guide-assistant-card/index",
+    "chat-input-bar": "/components/chat-input-bar/index"
+  }
+}

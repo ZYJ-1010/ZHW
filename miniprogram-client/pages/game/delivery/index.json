@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "确认服务完成",
+  "usingComponents": {
+    "timeline-list": "/components/timeline-list/index"
+  }
+}

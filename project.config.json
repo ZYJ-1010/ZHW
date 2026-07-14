@@ -1,0 +1,123 @@
+{
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "uglifyFileName": false,
+    "enhance": true,
+    "packNpmRelationList": [],
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "useCompilerPlugins": false,
+    "minifyWXML": true
+  },
+  "compileType": "miniprogram",
+  "miniprogramRoot": "miniprogram-client/",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "/cdn-assets",
+        "type": "folder"
+      },
+      {
+        "value": "/miniprogram-client/services/go-api",
+        "type": "folder"
+      },
+      {
+        "value": "/miniprogram-client/db",
+        "type": "folder"
+      },
+      {
+        "value": "/miniprogram-client/docs",
+        "type": "folder"
+      },
+      {
+        "value": "/miniprogram-client/scripts",
+        "type": "folder"
+      },
+      {
+        "value": "/miniprogram-client/api/mock.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/api/mock-data.js",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i58@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i59@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i60@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i61@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i62@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i64@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/i65@3x.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/friend.svg",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/assets/join.svg",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/message/system-detail/assets/system-update-cover.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/game/guide-progress-detail/assets/remind-bell.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/game/guide-progress-detail/assets/participant-waiting.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/game/guide-progress-detail/assets/participant-confirmed.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/im/room/assets/icon-game-info.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/im/room/assets/icon-report.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/game/audit-detail/assets/option-chat.png",
+        "type": "file"
+      },
+      {
+        "value": "/miniprogram-client/pages/game/audit-detail/assets/option-time.png",
+        "type": "file"
+      }
+    ],
+    "include": []
+  },
+  "appid": "wxa12d5e6acffa93a0",
+  "editorSetting": {}
+}

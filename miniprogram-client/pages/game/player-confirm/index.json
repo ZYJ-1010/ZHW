@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "确认组局",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index",
+    "game-detail-status-card": "/components/game-detail/status-card/index",
+    "game-detail-party-card": "/components/game-detail/party-card/index",
+    "game-detail-session-card": "/components/game-detail/session-card/index",
+    "game-detail-action-bar": "/components/game-detail/action-bar/index"
+  }
+}

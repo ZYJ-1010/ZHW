@@ -1,0 +1,832 @@
+const { ROUTES } = require('../../../config/routes')
+const gameService = require('../../../services/game')
+const inviteService = require('../../../services/invite')
+const userService = require('../../../services/user')
+const { navigateShellRoute } = require('../../../utils/shell-nav')
+
+const DEFAULT_CONTENT_TOP_RPX = 160
+const NAV_BOTTOM_GAP_RPX = 18
+const NAV_TITLE_HEIGHT_RPX = 50
+const NAV_BUTTON_SIZE_RPX = 44
+const BOTTOM_ACTION_RPX = 148
+const DEFAULT_CAPSULE_BOTTOM_RPX = 142
+const DEFAULT_SHARE_RIGHT_RPX = 206
+const SHARE_CAPSULE_GAP_RPX = 18
+
+function roundRpx(value) {
+  return Math.round(value * 100) / 100
+}
+
+function getMenuMetricsRpx() {
+  try {
+    if (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect && wx.getSystemInfoSync) {
+      const menuButton = wx.getMenuButtonBoundingClientRect()
+      const systemInfo = wx.getSystemInfoSync()
+
+      if (menuButton && systemInfo && systemInfo.windowWidth) {
+        const ratio = 750 / systemInfo.windowWidth
+        const capsuleBottom = roundRpx((menuButton.top + menuButton.height) * ratio)
+        const capsuleLeftGap = menuButton.left
+          ? roundRpx((systemInfo.windowWidth - menuButton.left) * ratio)
+          : DEFAULT_SHARE_RIGHT_RPX - SHARE_CAPSULE_GAP_RPX
+
+        return {
+          capsuleBottom,
+          shareRight: roundRpx(capsuleLeftGap + SHARE_CAPSULE_GAP_RPX)
+        }
+      }
+    }
+  } catch (error) {
+    return {
+      capsuleBottom: DEFAULT_CAPSULE_BOTTOM_RPX,
+      shareRight: DEFAULT_SHARE_RIGHT_RPX
+    }
+  }
+
+  return {
+    capsuleBottom: DEFAULT_CAPSULE_BOTTOM_RPX,
+    shareRight: DEFAULT_SHARE_RIGHT_RPX
+  }
+}
+
+function getWhiteDetailLayout() {
+  const { capsuleBottom, shareRight } = getMenuMetricsRpx()
+  const contentTop = Math.max(DEFAULT_CONTENT_TOP_RPX, roundRpx(capsuleBottom + NAV_BOTTOM_GAP_RPX))
+  const titleTop = Math.max(0, roundRpx(capsuleBottom - NAV_TITLE_HEIGHT_RPX))
+  const buttonTop = Math.max(0, roundRpx(capsuleBottom - NAV_BUTTON_SIZE_RPX))
+
+  return {
+    headerStyle: `height: ${contentTop}rpx;`,
+    titleStyle: `top: ${titleTop}rpx; height: ${NAV_TITLE_HEIGHT_RPX}rpx; line-height: ${NAV_TITLE_HEIGHT_RPX}rpx;`,
+    backStyle: `top: ${buttonTop}rpx; width: ${NAV_BUTTON_SIZE_RPX}rpx; height: ${NAV_BUTTON_SIZE_RPX}rpx;`,
+    shareStyle: `top: ${buttonTop}rpx; right: ${shareRight}rpx; width: ${NAV_BUTTON_SIZE_RPX}rpx; height: ${NAV_BUTTON_SIZE_RPX}rpx;`,
+    scrollStyle: `top: ${contentTop}rpx; height: calc(100vh - ${contentTop}rpx - ${BOTTOM_ACTION_RPX}rpx - env(safe-area-inset-bottom));`
+  }
+}
+
+function isRealnameVerified(user) {
+  if (!user) {
+    return false
+  }
+
+  if (user.needRealname === true || user.realnameRequired === true) {
+    return false
+  }
+
+  const status = user.realnameStatus || user.authStatus || user.certificationStatus
+
+  return status === 'verified' ||
+    status === 'approved' ||
+    status === 'passed' ||
+    status === 'success' ||
+    status === true ||
+    user.realnameVerified === true ||
+    user.isRealnameVerified === true ||
+    user.verified === true ||
+    user.needRealname === false
+}
+
+function gameStatusText(status = '') {
+  const map = {
+    pending_audit: '待后台审核',
+    recruiting: '招募中',
+    full: '已满员',
+    in_progress: '进行中',
+    pending_confirm: '已结束',
+    pending_review: '待评价',
+    completed: '已完成'
+  }
+
+  return map[status] || status || '招募中'
+}
+
+function gameTypeText(type = '') {
+  const map = {
+    free: '免费局',
+    standard: '标准局',
+    public_welfare: '公益局',
+    aa: 'AA局',
+    crowdfund: '众筹局',
+    deposit: '押金局',
+    condition: '条件局'
+  }
+
+  return map[type] || type || '免费局'
+}
+
+function formatCreatedAt(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+
+  return `${month}月${day}日 ${hour}:${minute}`
+}
+
+function normalizeParticipant(item = {}, index, game = {}) {
+	const userId = item.userId || item.id || ''
+	const roleKey = String(item.role || '').trim().toLowerCase()
+	const roleClass = roleKey === 'expert'
+		? 'expert'
+		: (roleKey === 'guide' || roleKey === 'main_guide' ? 'guide' : (roleKey === 'member' || roleKey === 'player' ? 'player' : 'unknown'))
+	const role = item.roleLabel || '后台未返回'
+	const name = item.displayName || item.name || item.nickname || '后台未返回'
+
+	return {
+		id: userId || `member-${index + 1}`,
+		userId,
+		name,
+		avatarSrc: item.avatarUrl || item.avatarSrc || '',
+		avatarText: item.avatarText || '未',
+		role,
+		roleClass,
+		position: item.position || '后台未返回',
+		topic: item.topic || '后台未返回',
+		primaryTag: item.primaryTag || '后台未返回',
+		tags: Array.isArray(item.tags) ? item.tags : [],
+		location: item.location || '后台未返回',
+		distance: item.distance || ''
+	}
+}
+
+function normalizeParticipants(data = {}, game = {}) {
+	const members = Array.isArray(data.members)
+		? data.members
+		: (Array.isArray(data.memberIds) ? data.memberIds.map((userId) => ({ userId })) : [])
+	return members
+		.slice(0, Number(game.maxPlayers || 8))
+		.map((item, index) => normalizeParticipant(item, index, game))
+}
+
+function buildOrganizer(game = {}, display = {}) {
+	const rating = String(display.rating || '').trim()
+  const ratingCount = Number(display.ratingCount || 0)
+  const ratingValue = Number(rating)
+
+	return {
+		name: display.name || '后台未返回',
+		avatarSrc: display.avatarUrl || display.avatarSrc || '',
+		avatarText: display.avatarText || '未',
+		role: display.roleLabel || '后台未返回',
+    summary: `人数 ${Number(game.currentPlayers || 0)}/${Number(game.maxPlayers || 8)}`,
+    rating,
+    ratingCount,
+    ratingVisible: ratingCount > 0 && Number.isFinite(ratingValue) && ratingValue > 0
+  }
+}
+
+function normalizePrimaryAction(detailDisplay = {}, game = {}, statusText = '') {
+  const source = detailDisplay.primaryAction || {}
+
+  if (source.text) {
+    return {
+      text: String(source.text),
+      disabled: source.disabled === true,
+      action: String(source.action || 'none'),
+      route: String(source.route || ''),
+      confirmText: String(source.confirmText || '')
+    }
+  }
+
+  if (game.status === 'pending_audit') {
+    return { text: '后台审核中', disabled: true, action: 'none', route: '', confirmText: '' }
+  }
+
+  return {
+    text: statusText || '状态处理中',
+    disabled: true,
+    action: 'none',
+    route: '',
+    confirmText: ''
+  }
+}
+
+function compactList(items) {
+  return items.map((item) => String(item || '').trim()).filter(Boolean)
+}
+
+function buildBottomTools(relation = {}, game = {}) {
+  if (['pending_review', 'completed', 'canceled', 'cancelled'].indexOf(game.status) !== -1) {
+    return []
+  }
+
+  const role = String(relation.role || '').toLowerCase()
+  const isCreator = Boolean(relation.isCreator)
+  const isMember = Boolean(relation.isMember)
+  const tools = [
+    { key: 'share', text: '分享', iconSrc: '/pages/game/detail/assets/i45@3x.png' }
+  ]
+  const canInvite = ['recruiting', 'full'].indexOf(game.status) !== -1 &&
+    (relation.isCreator || role === 'main_guide' || role === 'guide')
+
+  if (canInvite) {
+    tools.push({ key: 'invite', text: '引荐', iconSrc: '/pages/game/detail/assets/i46@3x.png' })
+  }
+
+  if (isMember && ['in_progress', 'pending_confirm'].indexOf(game.status) !== -1) {
+    tools.push({ key: 'checkin', text: '签到', iconSrc: '/pages/game/detail/assets/i47@3x.png' })
+  }
+
+  if (relation.canEnterIM) {
+    tools.push({ key: 'chat', text: isCreator ? '聊天' : '打招呼', iconSrc: '/pages/game/detail/assets/i48@3x.png' })
+  } else if (!isCreator && !isMember && game.creatorUserId) {
+    tools.push({ key: 'greet', text: '打招呼', iconSrc: '/pages/game/detail/assets/i48@3x.png' })
+  }
+
+  return tools
+}
+
+function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
+  const game = data.game || data
+  const detailDisplay = data.detailDisplay || {}
+  const relation = data.myRelation || {}
+  const memberIds = Array.isArray(data.memberIds) ? data.memberIds : []
+  const currentPlayers = Number(game.currentPlayers || memberIds.length || 0)
+  const minPlayers = Number(game.minPlayers || 5)
+  const maxPlayers = Number(game.maxPlayers || 8)
+  const cityName = String(game.cityName || '').trim()
+  const address = String(game.address || '').trim()
+  const title = String(game.title || fallbackEvent.title || '').trim()
+  const statusText = String(detailDisplay.statusText || gameStatusText(game.status))
+  const gameType = gameTypeText(game.gameType)
+  const categoryText = String(game.primaryCategoryText || game.secondaryCategoryText || '').trim()
+  const createdAtText = formatCreatedAt(game.createdAt)
+  const bottomTools = buildBottomTools(relation, game)
+
+  return {
+    event: Object.assign({}, fallbackEvent, {
+      coverSrc: game.coverImage || game.coverUrl || game.coverSrc || fallbackEvent.coverSrc,
+      title,
+      location: address || cityName || fallbackEvent.location,
+      category: categoryText || gameType,
+      fee: game.gameType === 'free' ? '免费局' : gameType,
+      time: statusText
+    }),
+    stats: [
+      { key: 'status', label: '状态', value: statusText, action: 'status' },
+      { key: 'reviews', label: '评价', value: data.review && data.review.complete ? '已完成' : '待评价', action: 'reviews' },
+      { key: 'participants', iconSrc: 'https://static.haowan.net.cn/miniprogram/pages/game/assets/icons/icon-participants.svg', value: `${currentPlayers}/${maxPlayers}人已报名` }
+    ],
+    tags: compactList([gameType, statusText, categoryText, cityName]).map((name, index) => ({
+      name: `#${name}`,
+      tone: ['blue', 'green', 'purple'][index % 3]
+    })),
+    organizer: buildOrganizer(game, detailDisplay.organizer || {}),
+    introduction: title ? `${title}。${cityName || address ? `地点：${address || cityName}。` : ''}` : '暂无组局介绍',
+    highlights: compactList([
+      categoryText ? `分类：${categoryText}` : '',
+      `人数规则：最少${minPlayers}人，最多${maxPlayers}人`,
+      game.mainGuideUserId ? `主行家：${game.mainGuideUserId}` : '',
+      statusText ? `当前状态：${statusText}` : ''
+    ]),
+    schedule: createdAtText ? [
+      { title: '组局发布', time: createdAtText, desc: '后台审核通过后进入报名和组局流程。' }
+    ] : [],
+    detailImages: [],
+    noticeLead: '请按平台规则参与组局。',
+    noticeBullets: [
+      `人数限制：${minPlayers}-${maxPlayers}人，未满${minPlayers}人不能开始，满${maxPlayers}人后不可继续报名。`,
+      '领路人和行家需要完成实名认证后参与对应身份流程。',
+      '请以平台内报名、审核、确认和评价流程为准。'
+    ],
+    audience: categoryText ? `适合关注${categoryText}的用户参与。` : '适合符合本局条件的用户参与。',
+    participants: normalizeParticipants(data, game),
+    primaryAction: normalizePrimaryAction(detailDisplay, game, statusText),
+    myRelation: relation,
+    game: {
+      id: game.id || game.gameId || '',
+      title,
+      creatorUserId: game.creatorUserId || game.creatorID || 0
+    },
+    bottomTools,
+    showBottomTools: bottomTools.length > 0
+  }
+}
+
+Page({
+  data: {
+    gameId: '',
+    entryIntent: '',
+    interested: false,
+    authPromptVisible: false,
+    showShareWindow: false,
+    shareEntry: null,
+    detailScrollTop: 0,
+    navLayout: getWhiteDetailLayout(),
+    event: {
+      coverSrc: 'https://static.haowan.net.cn/miniprogram/assets/game/hall/hall-featured-city.jpg',
+      title: '',
+      time: '',
+      location: '',
+      category: '',
+      categoryIcon: 'https://static.haowan.net.cn/miniprogram/pages/game/assets/icons/icon-social-handshake.svg',
+      fee: ''
+    },
+    primaryAction: {
+      text: '',
+      disabled: true,
+      action: 'none',
+      route: '',
+      confirmText: ''
+    },
+    game: {},
+    myRelation: {},
+    bottomTools: [],
+    showBottomTools: true,
+    stats: [],
+    tags: [],
+    organizer: {
+      name: '',
+      avatarSrc: 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-01.png',
+      avatarText: '',
+      role: '',
+      summary: '',
+      rating: '',
+      ratingCount: 0,
+      ratingVisible: false
+    },
+    introduction: '??????',
+    highlights: [],
+    schedule: [],
+    detailImages: [],
+    noticeLead: '???????????',
+    noticeBullets: [],
+    audience: '',
+    participants: []
+  },
+
+  onLoad(options = {}) {
+    this.saveInviteEntryContext(options)
+
+    this.setData({
+      gameId: options.gameId || options.id || '',
+      entryIntent: options.intent || '',
+      navLayout: getWhiteDetailLayout()
+    })
+
+    this.loadGameDetail()
+
+    if (wx.showShareMenu) {
+      wx.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline']
+      })
+    }
+  },
+
+  saveInviteEntryContext(options = {}) {
+    const inviteCode = String(options.inviteCode || options.code || '').trim().toUpperCase()
+
+    if (!inviteCode) {
+      return
+    }
+
+    inviteService.saveInviteContext({
+      code: inviteCode,
+      entryType: String(options.entryType || '').trim(),
+      gameId: options.gameId || options.id || '',
+      source: 'game_detail_share'
+    })
+  },
+
+  async loadGameDetail() {
+    if (!this.data.gameId) {
+      return
+    }
+
+    try {
+      const detail = await gameService.getGameDetail(this.data.gameId)
+      this.setData(normalizeGameDetailPayload(detail, this.data.event))
+      this.ensureShareEntry()
+      this.showEntryIntentHint()
+    } catch (error) {
+      this.showInfo(error.message || '局详情加载失败')
+    }
+  },
+
+  async ensureShareEntry() {
+    if (!this.data.gameId || this.data.shareEntry) {
+      return this.data.shareEntry
+    }
+
+    try {
+      const shareEntry = await gameService.createInviteEntry({
+        entryType: 'link',
+        gameId: Number(this.data.gameId),
+        title: this.data.event.title || '真好玩组局邀请'
+      })
+
+      this.setData({ shareEntry })
+      return shareEntry
+    } catch (error) {
+      return null
+    }
+  },
+
+  showEntryIntentHint() {
+    if (this.data.entryIntent === 'join') {
+      if (this.joinIntentHintShown) {
+        return
+      }
+      this.joinIntentHintShown = true
+      this.showInfo('已进入组队详情，可点击底部按钮提交报名')
+      return
+    }
+
+    if (this.entryIntentHandled) {
+      return
+    }
+
+    const tools = this.data.bottomTools || []
+    if (this.data.entryIntent === 'greet') {
+      const tool = tools.find((item) => item.key === 'greet' || item.key === 'chat')
+      if (tool) {
+        this.entryIntentHandled = true
+        this.onToolTap({ currentTarget: { dataset: { action: tool.key } } })
+      }
+      return
+    }
+
+    if (this.data.entryIntent === 'refer') {
+      const tool = tools.find((item) => item.key === 'refer' || item.key === 'invite')
+      if (tool) {
+        this.entryIntentHandled = true
+        this.onToolTap({ currentTarget: { dataset: { action: tool.key } } })
+      }
+    }
+  },
+
+  async onShow() {
+    this.updateDetailLayout()
+
+    if (this.data.gameId) {
+      await this.loadGameDetail()
+    }
+
+    const user = await this.getLatestEnrollUser()
+
+    if (isRealnameVerified(user) && this.data.authPromptVisible) {
+      this.setData({ authPromptVisible: false })
+    }
+  },
+
+  onResize() {
+    this.updateDetailLayout()
+  },
+
+  updateDetailLayout() {
+    this.setData({
+      navLayout: getWhiteDetailLayout()
+    })
+  },
+
+  onBack() {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+
+    navigateShellRoute(ROUTES.gameHall, {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  async toggleInterest() {
+    if (!this.data.gameId) {
+      this.setData({ interested: true })
+      this.showInfo('已标记感兴趣')
+      return
+    }
+
+    try {
+      await gameService.favoriteGame(this.data.gameId)
+      this.setData({ interested: true })
+      this.showInfo('已加入感兴趣')
+    } catch (error) {
+      this.showInfo(error.message || '收藏失败')
+    }
+  },
+
+  onMapTap() {
+    const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}&mode=route` : ''
+
+    navigateShellRoute(`${ROUTES.map}${query}`, {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  onStatTap(event) {
+    const action = event.currentTarget.dataset.action
+
+    if (action === 'reviews') {
+      navigateShellRoute(`${ROUTES.gameReview}${this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    if (action === 'status') {
+      this.showInfo(this.data.event.time)
+      return
+    }
+
+    this.onViewAllParticipants()
+  },
+
+  async onToolTap(event) {
+    const action = event.currentTarget.dataset.action
+    const gameIdQuery = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
+
+    if (action === 'share') {
+      this.onOpenShare()
+      return
+    }
+
+    if (action === 'invite') {
+      try {
+        const permission = await gameService.getInvitePermission({ gameId: this.data.gameId })
+
+        if (!permission.allowed) {
+          this.showInfo(permission.reason || '仅局创建者或主领路人可发起引荐')
+          return
+        }
+
+        navigateShellRoute(`${ROUTES.gameInvite}${gameIdQuery}`, {
+          currentRoute: ROUTES.gameDetail
+        })
+      } catch (error) {
+        this.showInfo(error.message || '引荐权限校验失败')
+      }
+      return
+    }
+
+    if (action === 'greet') {
+      this.navigateToCreatorPrivateChat()
+      return
+    }
+
+    if (action === 'checkin') {
+      if (!this.data.myRelation || !this.data.myRelation.isMember) {
+        this.showInfo('仅局内成员可签到')
+        return
+      }
+
+      navigateShellRoute(`${ROUTES.mapRealCheckin || 'pages/map/real-checkin/index'}${gameIdQuery}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    if (action === 'chat') {
+      if (!this.data.myRelation || !this.data.myRelation.canEnterIM) {
+        this.showInfo('当前身份不可进入聊天')
+        return
+      }
+
+      navigateShellRoute(`${ROUTES.imRoom}${gameIdQuery}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    this.showInfo('暂无可执行操作')
+  },
+
+  navigateToCreatorPrivateChat() {
+    const creatorUserId = Number(this.data.game && this.data.game.creatorUserId)
+
+    if (!Number.isInteger(creatorUserId) || creatorUserId <= 0) {
+      this.showInfo('缺少组局者信息')
+      return
+    }
+
+    const query = [
+      'mode=private',
+      `targetUserId=${encodeURIComponent(creatorUserId)}`,
+      this.data.gameId ? `sourceGameId=${encodeURIComponent(this.data.gameId)}` : '',
+      this.data.event && this.data.event.title ? `gameTitle=${encodeURIComponent(this.data.event.title)}` : '',
+      this.data.organizer && this.data.organizer.name ? `targetName=${encodeURIComponent(this.data.organizer.name)}` : ''
+    ].filter(Boolean).join('&')
+
+    navigateShellRoute(`${ROUTES.messageMy}?${query}`, {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  noop() {},
+
+  onOpenShare() {
+    this.setData({
+      showShareWindow: true
+    })
+  },
+
+  onCloseShare() {
+    this.setData({
+      showShareWindow: false
+    })
+  },
+
+  onNativeShareTap() {
+    this.onCloseShare()
+  },
+
+  onShareTimelineTap() {
+    this.showInfo('请通过右上角菜单分享到朋友圈')
+  },
+
+  onShareDirect() {
+    this.onCloseShare()
+    navigateShellRoute(`${ROUTES.message}?from=gameShare${this.data.gameId ? `&gameId=${encodeURIComponent(this.data.gameId)}` : ''}`, {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  onPreventTouch() {},
+
+  onPreventBubble() {},
+
+  async onPrimaryAction() {
+    const primaryAction = this.data.primaryAction || {}
+
+    if (primaryAction.disabled || primaryAction.action === 'none') {
+      this.showInfo(primaryAction.text || this.data.event.time)
+      return
+    }
+
+    if (primaryAction.action === 'start') {
+      this.confirmStartGame(primaryAction)
+      return
+    }
+
+    if (primaryAction.action !== 'apply') {
+      if (primaryAction.route) {
+        navigateShellRoute(primaryAction.route, {
+          currentRoute: ROUTES.gameDetail
+        })
+      }
+      return
+    }
+
+    this.navigateToApply(primaryAction.route)
+  },
+
+  confirmStartGame(primaryAction = {}) {
+    wx.showModal({
+      title: '开始组局',
+      content: primaryAction.confirmText || '确认开始本局？',
+      success: async (result) => {
+        if (!result.confirm) {
+          return
+        }
+
+        wx.showLoading({ title: '开始中', mask: true })
+        try {
+          await gameService.startGame(this.data.gameId)
+          wx.hideLoading()
+          navigateShellRoute(`/${ROUTES.imRoom}?gameId=${encodeURIComponent(this.data.gameId)}&role=creator`, {
+            currentRoute: ROUTES.gameDetail
+          })
+        } catch (error) {
+          wx.hideLoading()
+          this.showInfo(error.message || '开始组局失败')
+        }
+      }
+    })
+  },
+
+  getCachedEnrollUser() {
+    return wx.getStorageSync('enjoy_user') || null
+  },
+
+  async getLatestEnrollUser() {
+    try {
+      const user = await userService.getCurrentUser()
+
+      if (user) {
+        wx.setStorageSync('enjoy_user', user)
+        return user
+      }
+    } catch (error) {
+      // Keep the cached user as a temporary fallback when the profile request fails.
+    }
+
+    return this.getCachedEnrollUser()
+  },
+
+  showAuthPrompt() {
+    this.setData({
+      authPromptVisible: true
+    })
+  },
+
+  navigateToApply(route = '') {
+    const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
+
+    navigateShellRoute(route || `${ROUTES.gameApply}${query}`, {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  closeAuthPrompt() {
+    this.setData({
+      authPromptVisible: false
+    })
+  },
+
+  goRealnameAuth() {
+    this.setData({
+      authPromptVisible: false
+    })
+
+    navigateShellRoute('/pages/login/realname/index', {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  onViewAllParticipants() {
+    const query = this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''
+
+    navigateShellRoute(`${ROUTES.gameParticipants}${query}`, {
+      currentRoute: ROUTES.gameDetail
+    })
+  },
+
+  onParticipantTap(event) {
+    const participant = event.detail && event.detail.participant
+    const memberId = participant && (participant.userId || participant.id)
+
+    if (memberId) {
+      navigateShellRoute(`/pages/profile/service-center/invite/member-detail/index?id=${encodeURIComponent(memberId)}`, {
+        currentRoute: ROUTES.gameDetail
+      })
+      return
+    }
+
+    this.onViewAllParticipants()
+  },
+
+  handleDetailScroll(event) {
+    const scrollTop = event.detail && event.detail.scrollTop
+
+    if (typeof scrollTop === 'number') {
+      this.detailScrollTopValue = scrollTop
+    }
+  },
+
+  showInfo(title) {
+    wx.showToast({
+      title,
+      icon: 'none'
+    })
+  },
+
+  showPendingFeature() {
+    this.showInfo('暂无可执行操作')
+  },
+
+  onShareAppMessage() {
+    const entry = this.data.shareEntry || {}
+    const inviteCode = entry.inviteCode || ''
+    const entryType = entry.entryType || 'link'
+    const fallbackPath = `/${ROUTES.gameDetail}${this.data.gameId ? `?id=${encodeURIComponent(this.data.gameId)}` : ''}`
+    const path = entry.path
+      ? entry.path.replace(/^\/+/, '/')
+      : `${fallbackPath}${inviteCode ? `&inviteCode=${encodeURIComponent(inviteCode)}&entryType=${encodeURIComponent(entryType)}` : ''}`
+
+    return {
+      title: entry.title || this.data.event.title,
+      path,
+      imageUrl: this.data.event.coverSrc
+    }
+  },
+
+  onShareTimeline() {
+    const entry = this.data.shareEntry || {}
+    const inviteCode = entry.inviteCode || ''
+    const entryType = entry.entryType || 'link'
+    const query = [
+      this.data.gameId ? `id=${encodeURIComponent(this.data.gameId)}` : '',
+      inviteCode ? `inviteCode=${encodeURIComponent(inviteCode)}` : '',
+      entryType ? `entryType=${encodeURIComponent(entryType)}` : ''
+    ].filter(Boolean).join('&')
+
+    return {
+      title: entry.title || this.data.event.title,
+      query,
+      imageUrl: this.data.event.coverSrc
+    }
+  }
+})

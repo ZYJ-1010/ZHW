@@ -1,0 +1,10 @@
+@import "../audit-detail/index.wxss";
+
+.player-confirm-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+.player-confirm-page {
+  padding-bottom: 180rpx;
+}

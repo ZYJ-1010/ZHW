@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "审核",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}

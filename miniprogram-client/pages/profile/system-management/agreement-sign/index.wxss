@@ -1,0 +1,120 @@
+.agreement-sign-page {
+  min-height: 100%;
+  padding: 34rpx 32rpx 160rpx;
+  border-top: 2rpx solid #242a33;
+  box-sizing: border-box;
+  background: #0d1117;
+  color: #f8fbff;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.agreement-list-card {
+  overflow: hidden;
+  border: 2rpx solid #282f39;
+  border-radius: 32rpx;
+  background: #161b22;
+}
+
+.agreement-row {
+  display: flex;
+  align-items: center;
+  height: 160rpx;
+  padding: 0 30rpx 0 32rpx;
+  border-bottom: 2rpx solid #2a3038;
+  box-sizing: border-box;
+}
+
+.agreement-row.last {
+  border-bottom: 0;
+}
+
+.agreement-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  flex: 0 0 auto;
+}
+
+.agreement-icon-box.green {
+  background: #123526;
+}
+
+.agreement-icon-box.deep-green {
+  background: #113426;
+}
+
+.agreement-icon-box.orange {
+  background: #2e2d19;
+}
+
+.agreement-icon {
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.agreement-copy {
+  display: flex;
+  min-width: 0;
+  margin-left: 26rpx;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.agreement-title,
+.agreement-desc {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agreement-title {
+  color: #f8fbff;
+  font-size: 36rpx;
+  font-weight: 400;
+  line-height: 50rpx;
+}
+
+.agreement-desc {
+  margin-top: 14rpx;
+  color: #8b949e;
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 38rpx;
+}
+
+.agreement-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 148rpx;
+  margin-left: 18rpx;
+  font-size: 32rpx;
+  font-weight: 400;
+  line-height: 44rpx;
+  white-space: nowrap;
+}
+
+.agreement-status.signed {
+  color: #1ff134;
+}
+
+.agreement-status.unsigned {
+  color: #8c8e93;
+}
+
+.agreement-check {
+  width: 26rpx;
+  height: 20rpx;
+  margin-right: 18rpx;
+}
+
+.agreement-arrow {
+  width: 12rpx;
+  height: 22rpx;
+  margin-left: 14rpx;
+}

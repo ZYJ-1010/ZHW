@@ -1,0 +1,84 @@
+<view class="home-shell-scroll {{shellClass}}">
+  <view class="home-shell-canvas" style="{{shellCanvasStyle}}">
+    <scroll-view
+      wx:if="{{contentScrollY}}"
+      class="home-shell-content"
+      style="{{shellContentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-top="{{shellContentScrollTop}}"
+      bindscroll="handleContentScroll"
+    >
+      <slot></slot>
+    </scroll-view>
+    <view wx:else class="home-shell-content" style="{{shellContentStyle}}">
+      <slot></slot>
+    </view>
+
+    <view class="home-shell-topbar" style="{{shellTopbarStyle}}">
+      <view class="home-shell-status-fill" style="{{shellStatusFillStyle}}"></view>
+      <view class="home-shell-nav" style="{{shellNavStyle}}">
+        <view wx:if="{{resolvedBrandVisible}}" class="home-shell-brand" style="{{shellBrandStyle}}">
+          <image
+            class="home-shell-brand__icon"
+            mode="aspectFit"
+            src="/pages/entry/assets/entry-ticket-icon.svg"
+          />
+          <image
+            class="home-shell-brand__mark"
+            mode="aspectFit"
+            src="/pages/entry/assets/entry-brand-wordmark.svg"
+          />
+          <view class="home-shell-brand__online">
+            <view class="home-shell-brand__online-dot"></view>
+            <text class="home-shell-brand__online-text">{{resolvedOnlineText}}</text>
+          </view>
+        </view>
+        <text wx:if="{{resolvedTopbarTitle}}" class="home-shell-page-title" style="{{shellPageTitleStyle}}">{{resolvedTopbarTitle}}</text>
+      </view>
+    </view>
+
+    <view class="home-shell-toolbar" style="{{shellToolbarStyle}}">
+      <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
+      <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
+      <view wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
+      <view wx:if="{{resolvedToolbarAvatarVisible}}" class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap">
+        <image wx:if="{{shellAvatarUrl}}" class="home-shell-avatar__image" src="{{shellAvatarUrl}}" mode="aspectFill"></image>
+        <image wx:else class="home-shell-avatar__icon" src="./assets/master-avatar.svg" mode="aspectFit"></image>
+      </view>
+    </view>
+
+    <view class="home-shell-dock" style="{{shellDockStyle}}">
+      <view class="home-shell-dpad">
+        <view class="home-shell-dpad-key up" data-key="up" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+        <view class="home-shell-dpad-key left" data-key="left" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+        <view class="home-shell-dpad-key right" data-key="right" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+        <view class="home-shell-dpad-key down" data-key="down" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
+          <view class="home-shell-dpad-arrow"></view>
+        </view>
+      </view>
+      <button class="home-shell-nav-button home-shell-home-key" data-key="home" bindtap="handleNavTap">
+        <view class="home-shell-home-disc">
+          <text>{{shellNavItems[4].name}}</text>
+        </view>
+      </button>
+      <button class="home-shell-nav-button home-shell-message" data-key="message" bindtap="handleNavTap">
+        <view class="home-shell-message__shadow"></view>
+        <view class="home-shell-message__face"></view>
+        <text class="home-shell-message__label">{{shellNavItems[3].name}}</text>
+      </button>
+      <view class="home-shell-action-pad">
+        <button class="home-shell-nav-button metaverse" data-key="metaverse" bindtap="handleNavTap">{{shellNavItems[1].name}}</button>
+        <button class="home-shell-nav-button mine" data-key="mine" bindtap="handleNavTap">{{shellNavItems[0].name}}</button>
+        <button class="home-shell-nav-button map" data-key="map" bindtap="handleNavTap">{{shellNavItems[2].name}}</button>
+      </view>
+    </view>
+  </view>
+</view>

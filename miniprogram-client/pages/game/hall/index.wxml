@@ -1,0 +1,193 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="game-hall-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{hallScrollTop}}"
+    bindscroll="handleHallScroll"
+    enable-back-to-top
+  >
+    <view class="game-hall-page">
+      <view class="search-panel">
+        <view class="search-symbol"></view>
+        <input
+          class="search-input"
+          placeholder="搜索感兴趣的局、玩家或地点..."
+          placeholder-class="search-placeholder"
+          value="{{keyword}}"
+          bindinput="onSearchInput"
+          confirm-type="search"
+          bindconfirm="onSearch"
+        />
+      </view>
+
+      <view class="featured-card" bindtap="onBannerTap">
+        <image class="featured-image" src="{{featuredCover}}" mode="aspectFill" />
+        <view class="featured-mask"></view>
+        <view class="featured-copy">
+          <text class="featured-title">真好玩·再玩一局全球首发</text>
+          <text class="featured-kicker">HOT 官方局</text>
+          <text class="featured-desc">已有 100+人报名</text>
+        </view>
+      </view>
+
+      <view class="category-row">
+        <view
+          wx:for="{{categories}}"
+          wx:key="key"
+          class="category-item {{activeFilter === item.key ? 'active' : ''}}"
+          bindtap="onCategoryTap"
+          data-type="{{item.key}}"
+        >
+          <view class="category-icon {{item.className}}">
+            <image class="category-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
+          </view>
+          <text class="category-name">{{item.name}}</text>
+        </view>
+      </view>
+
+      <view class="filter-bar">
+        <view
+          class="filter-tab {{activeFilter === 'all' ? 'active' : ''}}"
+          bindtap="onCategoryTap"
+          data-type="all"
+        >
+          <text>全部</text>
+          <view class="filter-active-line"></view>
+        </view>
+        <view class="filter-option {{sortKey === 'time' ? 'active' : ''}}" bindtap="toggleTimeFilter">时间 {{sortKey === 'time' ? sortArrow : '▼'}}</view>
+        <view class="filter-option {{sortKey === 'distance' ? 'active' : ''}}" bindtap="toggleLocationFilter">地点 {{sortKey === 'distance' ? sortArrow : '▼'}}</view>
+        <view class="filter-option {{activeTypeFilter !== 'all' ? 'active' : ''}}" bindtap="toggleTypeFilter">{{typeFilterText}} ▼</view>
+        <view class="sort-option {{sortKey ? 'active' : ''}}" bindtap="openAdvancedFilter">
+          <text>排序</text>
+          <text class="sort-arrow">{{sortArrow}}</text>
+        </view>
+      </view>
+
+      <view class="feed-list">
+        <view
+          wx:for="{{displayEventsList}}"
+          wx:key="id"
+          class="feed-card-item"
+        >
+          <game-card
+            item="{{item}}"
+            bind:cardtap="onViewDetail"
+          />
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{advancedFilterVisible}}" class="advanced-filter-mask" catchtap="closeAdvancedFilter">
+    <view class="advanced-filter-panel" catchtap="noop">
+      <view class="advanced-filter-header">
+        <view class="advanced-filter-back" bindtap="closeAdvancedFilter">
+          <view class="advanced-filter-back-icon"></view>
+        </view>
+        <text class="advanced-filter-title">高级筛选</text>
+      </view>
+
+      <scroll-view class="advanced-filter-content" scroll-y enhanced show-scrollbar="false">
+        <text class="advanced-section-title">筛选条件</text>
+
+        <view class="advanced-field">
+          <text class="advanced-label">地点范围:</text>
+          <view class="advanced-option-row">
+            <view
+              wx:for="{{advancedLocationOptions}}"
+              wx:key="key"
+              class="advanced-radio {{advancedDraft.locationScope === item.key ? 'active' : ''}}"
+              data-field="locationScope"
+              data-key="{{item.key}}"
+              bindtap="selectAdvancedOption"
+            >
+              <view class="advanced-radio-mark"></view>
+              <text>{{item.name}}</text>
+            </view>
+            <view
+              class="advanced-city-select {{advancedDraft.locationScope === 'city' ? 'active' : ''}}"
+              bindtap="selectAdvancedCity"
+            >
+              <text>{{advancedDraft.cityName || '请选择城市'}}</text>
+              <text class="advanced-city-arrow">▼</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="advanced-field">
+          <text class="advanced-label">组局类型:</text>
+          <view class="advanced-option-row wrap">
+            <view
+              wx:for="{{advancedCategoryOptions}}"
+              wx:key="key"
+              class="advanced-radio {{advancedDraft.categoryKey === item.key ? 'active' : ''}}"
+              data-field="categoryKey"
+              data-key="{{item.key}}"
+              bindtap="selectAdvancedOption"
+            >
+              <view class="advanced-radio-mark"></view>
+              <text>{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="advanced-field">
+          <text class="advanced-label">排序方式:</text>
+          <view class="advanced-option-row wrap">
+            <view
+              wx:for="{{advancedSortOptions}}"
+              wx:key="key"
+              class="advanced-radio {{advancedDraft.sortMode === item.key ? 'active' : ''}}"
+              data-field="sortMode"
+              data-key="{{item.key}}"
+              bindtap="selectAdvancedOption"
+            >
+              <view class="advanced-radio-mark"></view>
+              <text>{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="advanced-field calendar-field">
+          <text class="advanced-label">时间排序:</text>
+          <view class="advanced-calendar">
+            <view class="advanced-calendar-header">
+              <view class="calendar-nav" data-direction="prev" bindtap="changeAdvancedMonth">←</view>
+              <text class="calendar-title">{{calendarTitle}}</text>
+              <view class="calendar-nav" data-direction="next" bindtap="changeAdvancedMonth">→</view>
+            </view>
+            <view class="calendar-week-row">
+              <text wx:for="{{calendarWeekdays}}" wx:key="*this" class="calendar-weekday">{{item}}</text>
+            </view>
+            <view class="calendar-day-grid">
+              <view
+                wx:for="{{calendarDays}}"
+                wx:key="id"
+                class="calendar-day {{item.empty ? 'empty' : ''}} {{item.today ? 'today' : ''}} {{advancedDraft.selectedDate === item.date ? 'selected' : ''}}"
+                data-date="{{item.date}}"
+                bindtap="selectAdvancedDate"
+              >
+                <text wx:if="{{!item.empty}}">{{item.day}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="advanced-filter-actions">
+        <view class="advanced-filter-button reset" bindtap="resetAdvancedFilter">重置筛选</view>
+        <view class="advanced-filter-button confirm" bindtap="confirmAdvancedFilter">确认</view>
+      </view>
+    </view>
+  </view>
+</home-shell>

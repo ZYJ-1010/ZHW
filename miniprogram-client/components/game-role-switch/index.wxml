@@ -1,0 +1,3 @@
+<view class="role-switch">
+  <view wx:for="{{roles}}" wx:key="key" class="role-item {{currentRole === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onRoleTap">{{item.label}}</view>
+</view>

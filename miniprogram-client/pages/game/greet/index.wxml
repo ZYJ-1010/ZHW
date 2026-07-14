@@ -1,0 +1,46 @@
+<home-shell
+  online-text="{{onlineText}}"
+  topbar-title="{{pageTitle}}"
+  toolbar-actions-visible="{{false}}"
+  dock-visible="{{false}}"
+  content-bottom-gap="{{36}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="game-greet-shell">
+    <scroll-view class="greet-canvas-scroll" scroll-y enhanced show-scrollbar="false">
+      <view class="greet-canvas" style="min-height: {{canvasMinHeight}}rpx;">
+        <view class="contact-avatar">{{contact.avatarText}}</view>
+
+        <view class="game-info-card-wrap">
+          <game-info-card info="{{groupInfo}}" bindconfirm="onConfirmTap" />
+        </view>
+
+        <view class="referrer-bubble">
+          <text>{{messageText}}</text>
+        </view>
+
+        <view class="sent-message-list">
+          <view
+            wx:for="{{sentMessages}}"
+            wx:key="id"
+            class="sent-bubble"
+          >
+            <text>{{item.text}}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="greet-input-wrap">
+      <chat-input-bar
+        bindsendtext="onSendMessage"
+        bindrecordstart="onRecordStart"
+        bindrecordstop="onRecordStop"
+        bindrecorderror="onRecordError"
+        bindchooseimage="onChooseImage"
+        bindchoosefile="onChooseFile"
+      />
+    </view>
+  </view>
+</home-shell>

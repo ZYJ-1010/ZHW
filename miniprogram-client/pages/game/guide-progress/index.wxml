@@ -1,0 +1,61 @@
+<view class="guide-progress-page">
+  <view class="guide-progress-frame" style="{{shellLayout.frameStyle}}">
+    <view class="guide-progress-top-bg"></view>
+    <view class="guide-progress-nav">
+      <view class="guide-progress-back" style="{{shellLayout.backStyle}}" bindtap="onBackTap">
+        <view class="guide-progress-back-icon"></view>
+      </view>
+      <text class="guide-progress-title" style="{{shellLayout.titleStyle}}">{{pageTitle}}</text>
+    </view>
+
+    <scroll-view
+      class="guide-progress-content"
+      style="{{shellLayout.contentStyle}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
+      <view class="guide-progress-inner">
+        <view wx:if="{{loading}}" class="guide-progress-state">
+          <text>{{pageTexts.loadingText}}</text>
+        </view>
+
+        <view wx:elif="{{errorText}}" class="guide-progress-state error" bindtap="onRetryTap">
+          <text>{{errorText}}</text>
+          <text class="guide-progress-state-action">{{pageTexts.retryText}}</text>
+        </view>
+
+        <block wx:else>
+          <view class="section-heading active">
+            <image class="section-heading-icon" src="./assets/section-active.png" mode="aspectFit"></image>
+            <text>{{activeTitleText}}</text>
+          </view>
+
+          <view wx:if="{{!activeParties.length}}" class="guide-progress-empty">{{pageTexts.activeEmptyText}}</view>
+
+          <guide-progress-card
+            wx:for="{{activeParties}}"
+            wx:key="id"
+            item="{{item}}"
+            bind:cardtap="onProgressCardTap"
+          ></guide-progress-card>
+
+          <view class="section-heading recent">
+            <text>{{pageTexts.completedTitle}}</text>
+          </view>
+
+          <view wx:if="{{!completedParties.length}}" class="guide-progress-empty">{{pageTexts.completedEmptyText}}</view>
+
+          <guide-complete-card
+            wx:for="{{completedParties}}"
+            wx:key="id"
+            item="{{item}}"
+            bind:cardtap="onProgressCardTap"
+          ></guide-complete-card>
+        </block>
+      </view>
+    </scroll-view>
+
+    <view class="guide-progress-bottom-bg" style="{{shellLayout.bottomStyle}}"></view>
+  </view>
+</view>

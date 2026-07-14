@@ -1,0 +1,518 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  shell-class="home-shell--blue-topbar"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <scroll-view
+    class="player-home-scroll role-home-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="false"
+    scroll-with-animation
+    scroll-top="{{homeScrollTop}}"
+    bindscroll="handleHomeScroll"
+  >
+    <view class="player-home-page role-home-page {{currentRoleType}}">
+      <view wx:if="{{loadError}}" class="role-home-error">
+        <text class="role-home-error-title">{{loadError}}</text>
+        <button class="role-home-error-button" bindtap="handleHomeRetryTap">重试</button>
+      </view>
+      <block wx:else>
+      <view class="player-hero">
+        <text class="player-hero-title role-hero-title">{{hero.title}}</text>
+        <text class="player-hero-date">{{hero.date}}</text>
+      </view>
+
+      <view class="player-summary-card {{rolePermissionPrompt.visible ? 'permission' : ''}} {{roleAuditPrompt.visible ? 'audit' : ''}} {{rolePermissionPrompt.roleType}} {{roleAuditPrompt.roleType}} {{roleAuditPrompt.resultStatus}}">
+        <block wx:if="{{roleAuditPrompt.visible}}">
+          <view class="player-role-audit-card">
+            <text class="player-role-audit-title">{{roleAuditPrompt.icon}}{{roleAuditPrompt.title}}</text>
+            <text class="player-role-audit-subtitle">{{roleAuditPrompt.submittedText}}</text>
+            <view class="player-role-audit-steps {{roleAuditPrompt.done ? 'done' : ''}} {{roleAuditPrompt.resultStatus}}">
+              <view
+                wx:for="{{roleAuditPrompt.steps}}"
+                wx:key="key"
+                class="player-role-audit-step {{item.state}}"
+              >
+                <view class="player-role-audit-dot"></view>
+                <text>{{item.name}}</text>
+              </view>
+            </view>
+            <view class="player-role-audit-detail" bindtap="handleRoleAuditDetailTap">{{roleAuditPrompt.detailText}}</view>
+            <text class="player-role-audit-helper">{{roleAuditPrompt.helperText}}</text>
+          </view>
+        </block>
+        <block wx:elif="{{!rolePermissionPrompt.visible}}">
+          <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
+          <view class="player-summary-copy">
+            <text class="player-summary-title">{{playerCard.title}}</text>
+            <text class="player-summary-name" catchtap="handlePlayerNameTap">{{playerCard.name}}</text>
+          </view>
+          <view class="player-level-progress">
+            <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
+          </view>
+          <text class="player-summary-xp">{{playerCard.xp}}</text>
+          <text class="player-next-level">{{playerCard.next}}</text>
+          <view class="player-summary-stats">
+            <view wx:for="{{playerCard.stats}}" wx:key="label">
+              <text>{{item.value}}</text>
+              <text>{{item.label}}</text>
+            </view>
+          </view>
+          <view class="player-summary-device role-summary-device">
+            <text>{{playerCard.deviceIcon}}</text>
+            <text>{{playerCard.deviceBadge}}</text>
+          </view>
+        </block>
+        <view wx:else class="player-permission-card">
+          <text class="player-permission-title">{{rolePermissionPrompt.title}}</text>
+          <button class="player-permission-primary" bindtap="handleRoleApplyTap">
+            {{rolePermissionPrompt.primary}}
+          </button>
+          <text class="player-permission-secondary" bindtap="handleRoleCompareTap">
+            {{rolePermissionPrompt.secondary}}
+          </text>
+        </view>
+        <view class="player-summary-divider"></view>
+        <view class="player-summary-divider player-summary-divider-bottom"></view>
+        <view class="player-summary-stat-divider player-summary-stat-divider-left"></view>
+        <view class="player-summary-stat-divider player-summary-stat-divider-right"></view>
+        <view class="player-role-tags">
+          <view
+            wx:for="{{roleTags}}"
+            wx:key="key"
+            data-key="{{item.key}}"
+            catchtap="handleRoleTagTap"
+            class="player-role-tag {{item.active ? 'active' : ''}} {{item.status === 'pending' ? 'pending' : ''}} {{item.resultStatus}}"
+          >
+            <text>{{item.icon}} {{item.name}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{entries.length}}" class="player-action-grid role-action-grid">
+        <view wx:for="{{entries}}" wx:key="title" data-route="{{item.route}}" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
+          <view class="player-action-icon">
+            <view wx:if="{{item.routeIcon}}" class="player-lobby-icon">
+              <view class="player-lobby-icon-group">
+                <image class="player-lobby-icon-piece player-lobby-icon-pin-start" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/lobby-route-pin-start.png" mode="scaleToFill" />
+                <image class="player-lobby-icon-piece player-lobby-icon-line" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/lobby-route-line.png" mode="scaleToFill" />
+                <image class="player-lobby-icon-piece player-lobby-icon-pin-end" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/lobby-route-pin-end.png" mode="scaleToFill" />
+              </view>
+            </view>
+            <image wx:elif="{{item.iconSrc}}" class="player-action-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
+            <text wx:else class="player-action-icon-text">{{item.icon}}</text>
+          </view>
+          <text class="player-action-title">{{item.title}}</text>
+          <text class="player-action-desc">{{item.desc}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'guide' && network}}" class="role-network-panel">
+        <view class="role-network-head">
+          <view class="role-network-title-wrap">
+            <text class="role-network-title-icon">🌐</text>
+            <text class="role-network-title">{{network.title}}</text>
+          </view>
+          <view class="role-network-status">
+            <text class="role-network-status-text">{{network.status}}</text>
+          </view>
+        </view>
+
+        <view class="role-network-card">
+          <view class="role-network-graph">
+            <view class="role-network-line center-to-left-mid"></view>
+            <view class="role-network-line center-to-left-top"></view>
+            <view class="role-network-line center-to-top"></view>
+            <view class="role-network-line center-to-right-top"></view>
+            <view class="role-network-line center-to-right-mid"></view>
+            <view class="role-network-line center-to-left-bottom"></view>
+            <view class="role-network-line center-to-right-bottom"></view>
+            <view class="role-network-line center-to-bottom"></view>
+            <view class="role-network-line outer-top-left"></view>
+            <view class="role-network-line outer-top-right"></view>
+            <view class="role-network-line outer-right-top"></view>
+            <view class="role-network-line outer-right-bottom"></view>
+            <view class="role-network-line outer-bottom-left"></view>
+            <view class="role-network-line outer-bottom-right"></view>
+            <view class="role-network-line outer-left-top-to-right-top"></view>
+            <view class="role-network-line outer-top-to-right-bottom"></view>
+            <view class="role-network-line outer-left-bottom-to-right-mid"></view>
+            <view class="role-network-dot center"></view>
+            <view class="role-network-dot dot-1"></view>
+            <view class="role-network-dot dot-2"></view>
+            <view class="role-network-dot dot-3"></view>
+            <view class="role-network-dot dot-4"></view>
+            <view class="role-network-dot dot-5"></view>
+            <view class="role-network-dot dot-6"></view>
+            <view class="role-network-dot dot-7"></view>
+            <view class="role-network-dot dot-8"></view>
+          </view>
+          <view class="role-network-location-pill">
+            <text class="role-network-location-icon">📍</text>
+            <text class="role-network-location-text">{{network.locationText}}</text>
+          </view>
+          <text wx:if="{{network.summary}}" class="role-network-count-pill">{{network.summary}}</text>
+          <text class="role-network-income-pill">{{network.income}}</text>
+        </view>
+
+        <view class="role-network-tags">
+          <view wx:for="{{network.items}}" wx:key="id" class="role-network-tag">
+            <view class="role-network-tag-icon {{item.dashed ? 'dashed' : ''}}">
+              <image wx:if="{{item.iconSrc}}" class="role-network-tag-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
+              <text wx:else>{{item.icon}}</text>
+            </view>
+            <text class="role-network-tag-name">{{item.name}}</text>
+            <text class="role-network-tag-desc">{{item.desc}}</text>
+          </view>
+        </view>
+
+        <view class="role-network-actions">
+          <view
+            wx:for="{{network.buttons}}"
+            wx:key="text"
+            class="role-network-button {{item.primary ? 'primary' : ''}}"
+            data-route="{{item.route}}"
+            bindtap="handleActionTap"
+          >{{item.text}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'expert'}}" class="role-skill-panel">
+        <view class="role-skill-head">
+          <text class="role-skill-mark">🎯</text>
+          <text class="role-skill-heading">行家技能树</text>
+        </view>
+        <view class="role-skill-tree">
+          <view class="role-skill-line left"></view>
+          <view class="role-skill-line top"></view>
+          <view class="role-skill-line bottom"></view>
+
+          <view class="role-skill-node-wrap start {{skills[0].locked ? 'locked' : ''}}">
+            <view class="role-skill-node {{skills[0].locked ? 'locked' : 'unlocked'}} {{skills[0].tone}}" style="{{skills[0].nodeStyle}}">
+              <text>{{skills[0].icon}}</text>
+            </view>
+            <text class="role-skill-node-label">{{skills[0].title}}</text>
+          </view>
+
+          <view class="role-skill-node-wrap middle {{skills[1].locked ? 'locked' : ''}}">
+            <view class="role-skill-node {{skills[1].locked ? 'locked' : 'unlocked'}} {{skills[1].tone}}" style="{{skills[1].nodeStyle}}">
+              <text>{{skills[1].icon}}</text>
+            </view>
+            <text class="role-skill-node-label">{{skills[1].title}}</text>
+          </view>
+
+          <view class="role-skill-node-wrap locked top">
+            <view class="role-skill-node locked">
+              <text>🔒</text>
+            </view>
+          </view>
+
+          <view class="role-skill-node-wrap bottom {{skills[2].locked ? 'locked' : ''}}">
+            <view class="role-skill-node {{skills[2].locked ? 'locked' : 'unlocked'}} {{skills[2].tone}}" style="{{skills[2].nodeStyle}}">
+              <text>{{skills[2].icon}}</text>
+            </view>
+            <text class="role-skill-node-label">{{skills[2].title}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="player-world-card" data-route="{{onlineCard.route}}" bindtap="handleActionTap">
+        <view>
+          <text class="player-world-title">{{onlineCard.title}}</text>
+          <text class="player-world-desc">{{onlineCard.desc}}</text>
+          <view class="player-world-tags">
+            <text wx:for="{{onlineCard.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+          </view>
+        </view>
+        <view class="player-world-globe">
+          <view class="player-world-map-track">
+            <image class="player-world-map-image" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/earth-map-texture.png" mode="scaleToFill" />
+            <image class="player-world-map-image" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/earth-map-texture.png" mode="scaleToFill" />
+          </view>
+        </view>
+      </view>
+
+      <view class="player-section-head nearby role-main-section">
+        <view class="role-section-title-wrap">
+          <text wx:if="{{currentRoleType === 'expert'}}" class="role-section-icon">🎲</text>
+          <text class="player-section-title">{{mainSection.title}}</text>
+          <text wx:if="{{mainSection.count}}" class="role-section-count">{{mainSection.count}}</text>
+        </view>
+        <view wx:if="{{mainTabs.length}}" class="player-tabs nearby-tabs">
+          <view
+            wx:for="{{mainTabs}}"
+            wx:for-item="tab"
+            wx:key="key"
+            data-key="{{tab.key}}"
+            bindtap="handleMainTabTap"
+            class="player-tab {{tab.active ? 'active' : ''}}"
+          >{{tab.name}}</view>
+        </view>
+        <text
+          wx:elif="{{mainSection.moreEnabled}}"
+          class="role-section-more enabled"
+          data-route="{{mainSection.route}}"
+          bindtap="handleActionTap"
+        >{{mainSection.moreText}}</text>
+        <text wx:else class="role-section-more disabled">{{mainSection.moreText}}</text>
+      </view>
+      <text wx:if="{{mainSection.desc}}" class="role-section-desc">{{mainSection.desc}}</text>
+
+      <block wx:if="{{mainVisibleGames.length}}">
+        <block wx:for="{{mainVisibleGames}}" wx:key="title">
+          <view
+            wx:if="{{currentRoleType === 'expert'}}"
+            class="role-session-card"
+            data-route="{{item.route}}"
+            bindtap="handleActionTap"
+          >
+            <view class="role-session-time">
+              <text>{{item.startTime}}</text>
+              <text>{{item.day}}</text>
+            </view>
+            <view class="role-session-divider"></view>
+            <view class="role-session-main">
+              <text class="role-session-title">{{item.title}}</text>
+              <text class="role-session-date">⏰ {{item.date}}</text>
+              <text class="role-session-meta">📍 {{item.venue}} · 👥 {{item.members}}</text>
+              <view class="role-session-tags">
+                <text wx:for="{{item.sessionTags}}" wx:key="*this" class="{{index === 1 ? 'green' : ''}}">{{item}}</text>
+              </view>
+            </view>
+            <view class="role-session-income">
+              <text>{{item.income}}</text>
+              <text>预计收入</text>
+            </view>
+            <view class="role-session-players">
+              <view wx:for="{{item.playerAvatars}}" wx:key="index" class="role-session-avatar">
+                <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
+                <text wx:else>{{item.text}}</text>
+              </view>
+              <text wx:if="{{item.joinedText}}" class="role-session-joined">{{item.joinedText}}</text>
+            </view>
+          </view>
+          <game-card
+            wx:else
+            item="{{item}}"
+            bind:cardtap="handleActionTap"
+            bind:cardaction="handleGameCardAction"
+          />
+        </block>
+      </block>
+      <view wx:else class="role-main-empty-card">
+        <text class="role-main-empty-title">{{mainEmptyText}}</text>
+        <text class="role-main-empty-desc">可以切换全部或同城看看</text>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'expert' && review}}" class="role-review-panel">
+        <view class="player-panel-head player-achievement-head role-review-head">
+          <view class="role-review-title-wrap">
+            <text class="player-panel-icon role-review-icon">⭐</text>
+            <text class="player-panel-title role-review-title">{{review.title}}</text>
+          </view>
+          <text wx:if="{{review.moreText}}" class="role-review-more" bindtap="handleReviewMoreTap">{{review.moreText}}</text>
+        </view>
+        <view class="role-review-card">
+          <view class="role-review-card-head">
+            <view class="role-review-player">
+              <view class="role-review-avatar">
+                <image wx:if="{{review.avatarUrl}}" src="{{review.avatarUrl}}" mode="aspectFill" />
+                <text wx:else>{{review.avatarFallback}}</text>
+              </view>
+              <view class="role-review-player-copy">
+                <text class="role-review-author">{{review.playerLevel}}</text>
+                <text class="role-review-time">{{review.timeText}}</text>
+              </view>
+            </view>
+            <text class="role-review-rating">{{review.ratingText}}</text>
+          </view>
+          <text class="role-review-content">{{review.content}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'guide' && recommendation}}" class="role-recommend-panel">
+        <view class="player-panel-head player-achievement-head">
+          <view>
+            <text class="player-panel-icon">✨</text>
+            <text class="player-panel-title">{{recommendation.title}}</text>
+          </view>
+        </view>
+        <view class="role-recommend-list">
+          <view wx:for="{{recommendation.items}}" wx:key="id" class="role-recommend-item avatar-{{index}}">
+            <view class="role-recommend-avatar">
+              <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" />
+              <text wx:elif="{{item.avatarFallback}}">{{item.avatarFallback}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="role-friend-section">
+        <view class="player-section-head friends">
+          <view>
+            <text wx:if="{{friendSection.icon}}" class="player-panel-icon">{{friendSection.icon}}</text>
+            <text class="player-section-title">{{friendSection.title}}</text>
+            <text wx:if="{{friendSection.count}}" class="player-friend-count">{{friendSection.count}}</text>
+          </view>
+          <text
+            wx:if="{{friendSection.moreText && friendSection.route}}"
+            class="player-friend-more"
+            data-route="{{friendSection.route}}"
+            bindtap="handleActionTap"
+          >{{friendSection.moreText}}</text>
+          <text wx:elif="{{friendSection.moreText}}" class="player-friend-more">{{friendSection.moreText}}</text>
+        </view>
+
+        <block wx:if="{{friendGames.length}}">
+          <block wx:for="{{friendGames}}" wx:key="id">
+            <game-card
+              item="{{item}}"
+              bind:cardtap="handleActionTap"
+              bind:cardaction="handleGameCardAction"
+            />
+          </block>
+        </block>
+        <view wx:else class="role-main-empty-card">
+          <text class="role-main-empty-title">{{friendEmptyText}}</text>
+          <text class="role-main-empty-desc">好友加入的组局会出现在这里</text>
+        </view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-ranking-panel">
+        <view class="player-panel-head player-ranking-head">
+          <view>
+            <text class="player-panel-icon">{{rankingSection.icon}}</text>
+            <text class="player-panel-title">{{rankingSection.title}}</text>
+          </view>
+          <view class="player-tabs role player-ranking-tabs">
+            <view
+              wx:for="{{rankingTabs}}"
+              wx:for-item="tab"
+              wx:key="key"
+              data-key="{{tab.key}}"
+              bindtap="handleRankingTabTap"
+              class="player-ranking-tab {{tab.active ? 'active' : ''}}"
+            >{{tab.name}}</view>
+          </view>
+        </view>
+
+        <view wx:for="{{rankingList}}" wx:key="rank" class="player-rank-row rank-{{index}}">
+          <text class="player-rank-no">{{item.rank}}</text>
+          <view class="player-rank-avatar">
+            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" />
+            <text wx:else>{{item.avatarFallback}}</text>
+          </view>
+          <view class="player-rank-copy">
+            <text class="player-rank-name">{{item.name}}</text>
+            <text class="player-rank-desc">{{item.desc}}</text>
+          </view>
+          <view class="player-rank-xp">
+            <text>{{item.xp}}</text>
+            <text>{{item.xpUnit}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{showMyRank}}" class="player-rank-row me">
+          <text class="player-rank-no">{{myRank.rank}}</text>
+          <view class="player-rank-avatar me">
+            <image wx:if="{{myRank.avatarUrl}}" src="{{myRank.avatarUrl}}" mode="aspectFill" />
+            <text wx:else>{{myRank.avatarFallback}}</text>
+          </view>
+          <view class="player-rank-copy">
+            <text class="player-rank-name">{{myRank.name}}</text>
+            <text class="player-rank-desc">{{myRank.desc}}</text>
+          </view>
+          <view class="player-rank-xp">
+            <text>{{myRank.xp}}</text>
+            <text>{{myRank.xpUnit}}</text>
+          </view>
+        </view>
+
+        <view class="player-rank-more" data-route="{{rankingSection.route}}" bindtap="handleActionTap">{{rankingSection.moreText}}</view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-achievement-panel">
+        <view class="player-panel-head player-achievement-head">
+          <view>
+            <text class="player-panel-icon">{{achievementSection.icon}}</text>
+            <text class="player-panel-title">{{achievementSection.title}}</text>
+          </view>
+        </view>
+        <view class="player-achievement-grid">
+          <view
+            wx:for="{{achievements}}"
+            wx:key="id"
+            class="player-achievement {{item.tone}} {{item.locked ? 'locked' : ''}}"
+          >
+            <view class="player-achievement-medal">
+              <view class="player-achievement-face">
+                <view wx:if="{{!item.locked}}" class="player-achievement-icon-wrap">
+                  <text class="player-achievement-icon">{{item.icon}}</text>
+                </view>
+                <view wx:else class="player-achievement-icon-wrap locked">
+                  <text class="player-achievement-icon">{{item.icon}}</text>
+                </view>
+                <text wx:if="{{!item.locked}}" class="player-achievement-title">{{item.title}}</text>
+                <view wx:if="{{item.showProgress}}" class="player-achievement-progress">
+                  <view
+                    class="player-achievement-progress-fill"
+                    style="width: {{item.progressPercent}}%;"
+                  ></view>
+                </view>
+              </view>
+              <text class="player-achievement-status">{{item.status}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-metaverse-card" data-route="{{metaverse.route}}" bindtap="handleActionTap">
+        <view class="player-metaverse-copy">
+          <view class="player-metaverse-heading">
+            <view class="player-metaverse-dot"></view>
+            <text class="player-metaverse-title">{{metaverse.title}}</text>
+          </view>
+          <text class="player-metaverse-desc">{{metaverse.desc}}</text>
+          <view class="player-metaverse-footer">
+            <view class="player-metaverse-tags">
+              <text
+                wx:for="{{metaverse.tags}}"
+                wx:for-item="tag"
+                wx:key="*this"
+                class="{{index === 1 ? 'purple' : 'cyan'}}"
+              >{{tag}}</text>
+            </view>
+            <view class="player-metaverse-avatars">
+              <view wx:for="{{metaverse.avatars}}" wx:key="index" class="player-metaverse-avatar">
+                <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill"></image>
+                <text wx:else>{{item.text}}</text>
+              </view>
+              <text class="player-metaverse-badge">{{metaverse.badge}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="player-metaverse-symbol">
+          <view class="player-metaverse-planet"></view>
+          <view class="player-metaverse-orbit orbit-one"></view>
+          <view class="player-metaverse-orbit orbit-two"></view>
+          <view class="player-metaverse-orbit orbit-three"></view>
+          <view class="player-metaverse-link link-triangle"></view>
+          <view class="player-metaverse-link link-diamond"></view>
+          <view class="player-metaverse-outer-ring"></view>
+          <view class="player-metaverse-point point-top"></view>
+          <view class="player-metaverse-point point-bottom"></view>
+          <view class="player-metaverse-point point-left"></view>
+          <view class="player-metaverse-point point-right"></view>
+          <view class="player-metaverse-diamond"></view>
+          <text class="player-metaverse-triangle">△</text>
+        </view>
+      </view>
+      </block>
+    </view>
+  </scroll-view>
+</home-shell>

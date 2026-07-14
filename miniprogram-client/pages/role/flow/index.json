@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "角色流程",
+  "usingComponents": {
+    "home-apply-shell": "/components/home-apply-shell/index",
+    "role-comparison-home": "/components/role-comparison-home/index"
+  }
+}

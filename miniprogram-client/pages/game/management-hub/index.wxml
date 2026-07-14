@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="custom-nav" style="{{navigationLayout.navStyle}}">
+    <view class="nav-back" style="{{navigationLayout.backStyle}}" bindtap="onBackTap">
+      <image src="/pages/profile/asset-center/points/assets/icon-chevron-left.svg" mode="aspectFit" />
+    </view>
+    <text class="nav-title" style="{{navigationLayout.titleStyle}}">组局管理</text>
+  </view>
+  <scroll-view scroll-x class="tabs"><view class="tab {{activeRole === item.key ? 'active' : ''}}" wx:for="{{roleTabs}}" wx:key="key" data-key="{{item.key}}" bindtap="onRoleTap">{{item.label}}</view></scroll-view>
+  <view class="role-summary"><business-summary-card summary="{{currentSummary}}" role-type="{{activeRole}}" /></view>
+  <scroll-view scroll-x class="status-tabs"><view class="status-tab {{activeStatus === item.key ? 'active' : ''}}" wx:for="{{statusTabs}}" wx:key="key" data-key="{{item.key}}" bindtap="onStatusTap">{{item.displayLabel || item.label}}</view></scroll-view>
+  <view wx:if="{{loading}}" class="empty">正在加载组局服务…</view>
+  <view wx:elif="{{errorText}}" class="empty error">{{errorText}}</view>
+  <view wx:elif="{{!visibleItems.length}}" class="empty">当前分类暂无组局</view>
+  <view wx:else class="list">
+    <view class="card {{item.role}} {{item.status}}" wx:for="{{visibleItems}}" wx:key="id" data-id="{{item.id}}" bindtap="onItemTap">
+      <view class="card-head"><text class="role {{item.roleTone}}">{{item.roleLabel}}</text><text class="status">{{item.statusText}}</text></view>
+      <block wx:if="{{item.role === 'guide'}}">
+        <view class="people-row">
+          <view class="person"><view class="avatar expert">{{item.expertAvatar}}</view><text>{{item.expertName || '行家'}}</text><text class="identity">行家</text></view>
+          <view class="relation"><text>🤝</text><view class="relation-line"></view><text>我</text></view>
+          <view class="person"><view class="avatar player">{{item.playerAvatar}}</view><text>{{item.playerName || '玩家'}}</text><text class="identity player">玩家</text></view>
+        </view>
+      </block>
+      <block wx:elif="{{item.role === 'expert'}}">
+        <view class="single-person"><view class="avatar player">{{item.playerAvatar}}</view><view><text class="person-name">{{item.playerName || item.person || '玩家'}}</text><text class="identity">服务对象</text></view></view>
+      </block>
+      <block wx:else>
+        <view class="single-person"><view class="avatar expert">{{item.expertAvatar}}</view><view><text class="person-name">{{item.expertName || item.person || '行家'}}</text><text class="identity">服务行家</text></view></view>
+      </block>
+      <view class="service-row"><text class="title">{{item.title}}</text><text class="amount">{{item.amount}}</text></view>
+      <view wx:if="{{item.status === 'active'}}" class="actions"><view class="action primary">{{item.primaryText}}</view><view class="action secondary">{{item.secondaryText}}</view></view>
+      <view wx:elif="{{item.status === 'complete' && item.reviewPending}}" class="result review-result">★ 服务已完成，等待评价</view>
+      <view wx:elif="{{item.status === 'complete'}}" class="result complete-result">✓ 服务已完成，点击查看详情</view>
+      <view wx:else class="result cancel-result">已取消/退款，点击查看处理记录</view>
+      <view wx:if="{{item.noticeText}}" class="notice">{{item.noticeText}}</view>
+      <view class="card-foot"><text>{{item.progressText || '查看业务详情'}}</text><text class="arrow">›</text></view>
+    </view>
+  </view>
+</view>

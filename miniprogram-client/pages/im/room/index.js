@@ -1,0 +1,626 @@
+const imService = require('../../../services/im')
+const fileService = require('../../../services/file')
+const gameService = require('../../../services/game')
+const { ROUTES } = require('../../../config/routes')
+const toast = require('../../../utils/toast')
+const { navigateShellBack, navigateShellRoute } = require('../../../utils/shell-nav')
+
+const READONLY_STATUSES = ['archived', 'readonly', 'ended', 'finished', 'completed', 'canceled']
+const ROOM_REFRESH_INTERVAL_MS = 3000
+
+function toPositiveInt(value) {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? number : 0
+}
+
+function safeText(value, fallback = '') {
+  const text = String(value || '').trim()
+  return text || fallback
+}
+
+function formatTime(value) {
+  if (!value) {
+    return ''
+  }
+
+  return String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/, '')
+}
+
+function avatarTextFromName(name, userId) {
+  const text = safeText(name)
+  if (text) {
+    return text.slice(0, 1)
+  }
+
+  const id = toPositiveInt(userId)
+  return id ? `U${id}`.slice(-2) : '局'
+}
+
+function roomStatusText(status) {
+  const map = {
+    active: '进行中',
+    archived: '已归档',
+    readonly: '只读',
+    ended: '已结束',
+    finished: '已结束',
+    completed: '已结束',
+    canceled: '已取消'
+  }
+
+  return map[status] || '进行中'
+}
+
+function isReadOnlyRoom(room = {}) {
+  return READONLY_STATUSES.indexOf(safeText(room.status || room.gameStatus)) >= 0
+}
+
+function isSystemMessage(type) {
+  return [
+    'system',
+    'invite',
+    'invitation',
+    'game_invite',
+    'group_success',
+    'member_join',
+    'time_location_changed',
+    'service_confirm_remind'
+  ].indexOf(type) >= 0
+}
+
+function tryParseObject(content) {
+  if (!content || typeof content !== 'string') {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(content)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (error) {
+    return null
+  }
+}
+
+function systemTitle(type, payload) {
+  if (payload && payload.title) {
+    return payload.title
+  }
+
+  const map = {
+    invite: '收到组局邀请',
+    invitation: '收到组局邀请',
+    game_invite: '收到组局邀请',
+    group_success: '组局成功',
+    member_join: '成员加入',
+    time_location_changed: '时间地点变更'
+  }
+
+  return map[type] || '局内通知'
+}
+
+function pickGameTitle(gameDetail) {
+  if (!gameDetail || typeof gameDetail !== 'object') {
+    return ''
+  }
+
+  const detailDisplay = gameDetail.detailDisplay || {}
+  const header = detailDisplay.header || {}
+  const game = gameDetail.game || gameDetail.detail || {}
+
+  return safeText(gameDetail.title || game.title || detailDisplay.title || header.title)
+}
+
+function normalizeMembers(room = {}) {
+  const members = Array.isArray(room.members) ? room.members : []
+  const memberIds = Array.isArray(room.memberIds) ? room.memberIds : []
+  const map = {}
+
+  members.forEach((member) => {
+    const userId = toPositiveInt(member.userId || member.id)
+    if (!userId) {
+      return
+    }
+
+    map[userId] = {
+      userId,
+      name: safeText(member.name || member.nickname, `成员${userId}`),
+      roleText: safeText(member.roleText || member.roleName, '成员'),
+      avatarText: safeText(member.avatarText, avatarTextFromName(member.name || member.nickname, userId)),
+      avatarSrc: safeText(member.avatarSrc || member.avatarUrl)
+    }
+  })
+
+  memberIds.forEach((userId) => {
+    const id = toPositiveInt(userId)
+    if (!id || map[id]) {
+      return
+    }
+
+    map[id] = {
+      userId: id,
+      name: `成员${id}`,
+      roleText: '成员',
+      avatarText: avatarTextFromName('', id),
+      avatarSrc: ''
+    }
+  })
+
+  return map
+}
+
+function buildMemberPreview(room = {}, memberMap = {}) {
+  const memberIds = Array.isArray(room.memberIds) ? room.memberIds : Object.keys(memberMap)
+
+  return memberIds.map((userId) => memberMap[toPositiveInt(userId)]).filter(Boolean).slice(0, 3)
+}
+
+function memberForMessage(item, memberMap) {
+  const userId = toPositiveInt(item.senderUserId || item.senderId)
+  const member = memberMap[userId] || {}
+
+  if (!userId) {
+    return {
+      userId: 0,
+      name: '组局助手',
+      roleText: '系统',
+      avatarText: '助',
+      avatarSrc: ''
+    }
+  }
+
+  return {
+    userId,
+    name: safeText(item.senderName, safeText(member.name, `成员${userId}`)),
+    roleText: safeText(item.senderRoleText || item.roleText, safeText(member.roleText, '成员')),
+    avatarText: safeText(item.avatarText || item.senderAvatarText, safeText(member.avatarText, avatarTextFromName(member.name, userId))),
+    avatarSrc: ''
+  }
+}
+
+function buildSystemCard(message, type, payload = {}) {
+  const member = payload.player || payload.member || {}
+  const game = payload.game || {}
+
+  return {
+    assistantName: safeText(payload.assistantName, '组局助手'),
+    title: systemTitle(type, payload),
+    subtitle: safeText(payload.subtitle, safeText(message.content, '局内状态已更新')),
+    guideLabel: safeText(payload.guideLabel, '领路人'),
+    guideName: safeText(payload.guideName, '待同步'),
+    playerInfoLabel: safeText(payload.playerInfoLabel, '成员信息'),
+    player: {
+      name: safeText(member.name, safeText(payload.memberName, '局内成员')),
+      desc: safeText(member.desc, safeText(payload.memberDesc, '成员资料以后端群资料为准')),
+      avatarText: safeText(member.avatarText, '员'),
+      avatarSrc: safeText(member.avatarSrc)
+    },
+    game: {
+      dateText: safeText(game.dateText, safeText(payload.dateText, '时间以后端同步为准')),
+      location: safeText(game.location, safeText(payload.location, '地点以后端同步为准'))
+    },
+    acceptButtonText: safeText(payload.acceptButtonText),
+    declineButtonText: safeText(payload.declineButtonText),
+    actionRoute: safeText(payload.actionRoute)
+  }
+}
+
+function buildRoomCard(room, session, readOnly, titleText) {
+  const memberCount = Array.isArray(room.memberIds) ? room.memberIds.length : 0
+  const title = safeText(titleText || room.title || session.title, '局')
+  const statusText = readOnly ? '已结束' : '进行中'
+
+  return {
+    id: `room-card-${room.id || room.gameId || 'current'}`,
+    kind: 'system',
+    messageType: 'group_success',
+    createdAtText: '',
+    card: {
+      assistantName: '组局助手',
+      title: `${title}IM`,
+      subtitle: readOnly ? '本局已结束，群聊切换为只读归档' : '局内消息仅成员可见',
+      guideLabel: '局状态',
+      guideName: statusText,
+      playerInfoLabel: '群聊成员',
+      player: {
+        name: memberCount ? `${memberCount} 位成员` : '成员待同步',
+        desc: '成员消息会显示姓名、角色和头像标识',
+        avatarText: '局',
+        avatarSrc: ''
+      },
+      game: {
+        dateText: readOnly ? '成员仅可查看历史消息' : '时间变更会通过系统卡片同步',
+        location: '地点变更会通过系统卡片同步'
+      },
+      acceptButtonText: '',
+      declineButtonText: ''
+    }
+  }
+}
+
+function normalizeMessage(item, currentUserId, memberMap) {
+  const messageType = safeText(item.messageType || item.type, 'text')
+  const sender = memberForMessage(item, memberMap)
+  const isSelf = currentUserId > 0 && sender.userId === currentUserId
+  const payload = tryParseObject(item.content)
+
+  if (isSystemMessage(messageType)) {
+    return {
+      id: item.id || `system-${Date.now()}`,
+      kind: 'system',
+      messageType,
+      createdAtText: formatTime(item.createdAt),
+      card: buildSystemCard(item, messageType, payload || {})
+    }
+  }
+
+  const fileName = safeText(item.fileName || item.content, messageType === 'image' ? '图片消息' : '局内文件')
+
+  return {
+    id: item.id || `message-${Date.now()}`,
+    kind: messageType === 'image' || messageType === 'file' ? 'media' : 'text',
+    messageType,
+    isSelf,
+    rowClass: isSelf ? 'self' : 'other',
+    senderUserId: sender.userId,
+    senderName: sender.name,
+    senderRoleText: sender.roleText,
+    avatarText: sender.avatarText,
+    avatarSrc: sender.avatarSrc,
+    contentText: safeText(item.content),
+    fileName,
+    fileId: toPositiveInt(item.fileId),
+    createdAtText: formatTime(item.createdAt),
+    statusText: item.status === 'risk_flagged' ? '待审核' : ''
+  }
+}
+
+function normalizeMessages(items, currentUserId, memberMap) {
+  return (Array.isArray(items) ? items : []).map((item) => normalizeMessage(item, currentUserId, memberMap))
+}
+
+function firstChosenFile(result = {}) {
+  const files = result.tempFiles || result.files || []
+  const paths = result.tempFilePaths || []
+  const file = files[0] || {}
+  const path = file.tempFilePath || file.path || paths[0] || ''
+  const name = file.name || file.fileName || String(path).split('/').filter(Boolean).pop() || ''
+
+  return { path, name, size: Number(file.size || 1) || 1 }
+}
+
+function isSensitiveReject(error) {
+  const message = safeText(error && error.message)
+  return message.indexOf('敏感词') >= 0 || message.indexOf('451') >= 0
+}
+
+function buildFailedTextMessage(content) {
+  return {
+    id: `failed-${Date.now()}`,
+    kind: 'text',
+    messageType: 'text',
+    isSelf: true,
+    rowClass: 'self failed',
+    senderUserId: 0,
+    senderName: '我',
+    senderRoleText: '玩家',
+    avatarText: '我',
+    avatarSrc: '',
+    contentText: content,
+    createdAtText: '刚刚',
+    statusText: '已拒绝发送',
+    failed: true,
+    failReason: '消息涉及敏感词，已拒绝发送'
+  }
+}
+
+Page({
+  data: {
+    pageTitle: '局IM',
+    title: '局',
+    desc: '正在加载群聊',
+    memberText: '成员',
+    gameId: 0,
+    roomId: 0,
+    roomStatus: '',
+    roomEngine: '',
+    openIMGroupId: '',
+    loading: false,
+    sending: false,
+    uploading: false,
+    readOnly: false,
+    readOnlyText: '',
+    inputText: '',
+    messages: [],
+    memberPreview: [],
+    collaborationEntry: null,
+    scrollAnchor: ''
+  },
+
+  onLoad(options = {}) {
+    this.gameId = toPositiveInt(options.gameId)
+    this.prefillText = safeText(options.prefill || options.message)
+    this.hasShown = false
+    this.loadRoom()
+  },
+
+  onShow() {
+    if (this.hasShown) {
+      this.loadRoom()
+    }
+    this.hasShown = true
+    this.startRoomRefresh()
+  },
+
+  onHide() {
+    this.stopRoomRefresh()
+  },
+
+  onUnload() {
+    this.stopRoomRefresh()
+  },
+
+  startRoomRefresh() {
+    this.stopRoomRefresh()
+    this.roomRefreshTimer = setInterval(() => {
+      if (!this.data.loading && !this.data.sending && !this.data.uploading) {
+        this.loadRoom()
+      }
+    }, ROOM_REFRESH_INTERVAL_MS)
+  },
+
+  stopRoomRefresh() {
+    if (this.roomRefreshTimer) {
+      clearInterval(this.roomRefreshTimer)
+      this.roomRefreshTimer = null
+    }
+  },
+
+  onBackTap() {
+    if (navigateShellBack()) {
+      return
+    }
+
+    if (this.gameId) {
+      navigateShellRoute(`${ROUTES.gameDetail}?gameId=${encodeURIComponent(this.gameId)}`, { reuseExisting: false })
+      return
+    }
+
+    navigateShellRoute(ROUTES.message, { reuseExisting: false })
+  },
+
+  async loadRoom() {
+    if (!this.gameId) {
+      this.setData({
+        title: '局',
+        pageTitle: '局IM',
+        desc: '缺少 gameId，无法进入局 IM'
+      })
+      return
+    }
+
+    this.setData({ loading: true })
+
+    try {
+      const [room, session, messagesResp, gameDetail] = await Promise.all([
+        imService.getChatRoom(this.gameId),
+        imService.getRoomByGame(this.gameId),
+        imService.getMessages(this.gameId),
+        gameService.getGameDetail(this.gameId).catch(() => null)
+      ])
+      const list = messagesResp.items || messagesResp.messages || messagesResp.list || messagesResp.data || messagesResp
+      const roomId = toPositiveInt(room.id || session.roomId)
+      const currentUserId = toPositiveInt(room.currentUserId || session.currentUserId)
+      const memberCount = Array.isArray(room.memberIds) ? room.memberIds.length : 0
+      const readOnly = isReadOnlyRoom(room)
+      const memberMap = normalizeMembers(room)
+      const memberPreview = buildMemberPreview(room, memberMap)
+      const roomTitle = safeText(session.title || room.title || pickGameTitle(gameDetail), '局')
+      const messages = [
+        buildRoomCard(room, session, readOnly, roomTitle),
+        ...normalizeMessages(list, currentUserId, memberMap)
+      ]
+
+      this.setData({
+        loading: false,
+        title: roomTitle,
+        pageTitle: `${roomTitle}IM`,
+        desc: readOnly ? '本局已结束，只能查看历史消息' : '局内消息仅成员可见',
+        memberText: memberCount ? `成员${memberCount}人` : '成员',
+        memberPreview,
+        gameId: this.gameId,
+        roomId,
+        roomStatus: room.status || '',
+        collaborationEntry: room.collaborationEntry || null,
+        readOnly,
+        readOnlyText: readOnly ? '本局已结束，成员只能查看历史消息，不能再发送消息' : '',
+        roomEngine: session.engine || room.engine || '',
+        openIMGroupId: session.openIMGroupId || room.openIMGroupId || '',
+        messages,
+        inputText: this.prefillText || this.data.inputText,
+        scrollAnchor: messages.length ? `message-${messages.length - 1}` : ''
+      })
+    } catch (error) {
+      this.setData({ loading: false })
+      toast.info(error && error.message ? error.message : '加载局 IM 失败')
+    }
+  },
+
+  onRecordStart() {
+    toast.info('语音消息能力待接入')
+  },
+
+  onRecordStop() {
+    toast.info('语音消息能力待接入')
+  },
+
+  onRecordError() {
+    toast.info('录音失败')
+  },
+
+  onSendMessage(event) {
+    const value = event.detail && event.detail.value
+    return this.onSendTap(value || '')
+  },
+
+  onChooseImage(event) {
+    this.sendPickedFile(firstChosenFile(event.detail || {}), 'image')
+  },
+
+  onChooseFile(event) {
+    this.sendPickedFile(firstChosenFile(event.detail || {}), 'file')
+  },
+
+  onSystemActionTap(event) {
+    const action = event.currentTarget.dataset.action || ''
+    const route = safeText(event.currentTarget.dataset.route)
+
+    if (route) {
+      navigateShellRoute(route.startsWith('/') ? route : `/${route}`, {
+        reuseExisting: false
+      })
+      return
+    }
+
+    toast.info(action === 'accept' ? '已记录确认参加意向' : '已记录婉拒意向')
+  },
+
+  async onSendTap(value) {
+    const source = typeof value === 'string' ? value : this.data.inputText
+    const content = String(source || '').trim()
+
+    if (!content) {
+      toast.info('请输入消息')
+      return
+    }
+
+    if (this.data.readOnly) {
+      toast.info('本局已结束，只能查看历史消息')
+      return
+    }
+
+    if (!this.gameId) {
+      toast.info('缺少局 ID')
+      return
+    }
+
+    this.setData({ sending: true })
+
+    try {
+      await imService.sendMessage(this.gameId, {
+        messageType: 'text',
+        content
+      })
+      this.setData({ sending: false, inputText: '' })
+      await this.loadRoom()
+    } catch (error) {
+      if (isSensitiveReject(error)) {
+        const messages = this.data.messages.concat(buildFailedTextMessage(content))
+        this.setData({
+          sending: false,
+          inputText: '',
+          messages,
+          scrollAnchor: `message-${messages.length - 1}`
+        })
+        return
+      }
+      this.setData({ sending: false })
+      toast.info(error && error.message ? error.message : '发送失败')
+    }
+  },
+
+  onFailedMessageTap(event) {
+    const reason = event.currentTarget.dataset.reason || '消息发送失败'
+    toast.info(reason)
+  },
+
+  async sendPickedFile(file, messageType) {
+    if (!this.gameId) {
+      toast.info('缺少局 ID')
+      return
+    }
+
+    if (this.data.readOnly) {
+      toast.info('本局已结束，只能查看历史消息')
+      return
+    }
+
+    if (!file.path) {
+      toast.info('未选择文件')
+      return
+    }
+
+    this.setData({ uploading: true })
+
+    try {
+      const fileId = await fileService.uploadSingleFile(file, {
+        bizType: 'chat_file',
+        objectId: this.gameId
+      })
+
+      if (!fileId) {
+        throw new Error('文件上传失败')
+      }
+
+      await imService.sendMessage(this.gameId, {
+        messageType,
+        content: file.name || (messageType === 'image' ? '图片消息' : '局内文件'),
+        fileId
+      })
+
+      this.setData({ uploading: false })
+      await this.loadRoom()
+    } catch (error) {
+      this.setData({ uploading: false })
+      toast.info(error && error.message ? error.message : '文件发送失败')
+    }
+  },
+
+  onMembersTap() {
+    if (!this.gameId) {
+      toast.info('缺少局 ID')
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.gameParticipants}?gameId=${encodeURIComponent(this.gameId)}`)
+  },
+
+  onCollaborationTap() {
+    const entry = this.data.collaborationEntry || {}
+    const route = safeText(entry.route, `${ROUTES.gameCollaboration}?gameId=${encodeURIComponent(this.gameId || 0)}`)
+
+    if (!this.gameId) {
+      toast.info('缺少局 ID')
+      return
+    }
+
+    navigateShellRoute(route.startsWith('/') ? route : `/${route}`)
+  },
+
+  onGameInfoTap() {
+    if (!this.gameId) {
+      toast.info('缺少局 ID')
+      return
+    }
+
+    navigateShellRoute(`${ROUTES.gameDetail}?gameId=${encodeURIComponent(this.gameId)}`)
+  },
+
+  onBackTap() {
+    const pages = getCurrentPages()
+
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+
+    navigateShellRoute(ROUTES.gameManage)
+  },
+
+  onReportTap() {
+    if (!this.gameId) {
+      toast.info('缺少局 ID，无法发起举报')
+      return
+    }
+
+    navigateShellRoute(`/pages/profile/system-management/report-center/index?gameId=${encodeURIComponent(this.gameId)}`)
+  }
+})

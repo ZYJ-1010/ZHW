@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "评价完成",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}

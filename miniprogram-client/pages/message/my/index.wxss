@@ -1,0 +1,189 @@
+page {
+  background: #007bd3;
+}
+
+.friend-message-page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #efeff1;
+  color: #111827;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.friend-message-scroll {
+  width: 100%;
+  height: calc(100% - 238rpx);
+  box-sizing: border-box;
+}
+
+.friend-message-body {
+  min-height: 860rpx;
+  padding: 42rpx 32rpx 54rpx;
+  box-sizing: border-box;
+}
+
+.friend-profile {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
+  box-sizing: border-box;
+}
+
+.friend-avatar {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78rpx;
+  height: 78rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(135deg, #3a86ff 0%, #8338ec 100%);
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 78rpx;
+}
+
+.friend-online {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16rpx;
+  height: 16rpx;
+  border: 4rpx solid #ffffff;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.friend-profile-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+}
+
+.friend-name,
+.friend-status {
+  display: block;
+}
+
+.friend-name {
+  color: #1f2937;
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 44rpx;
+}
+
+.friend-status {
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.message-list {
+  margin-top: 42rpx;
+}
+
+.chat-row {
+  display: flex;
+  flex-direction: column;
+  margin-top: 26rpx;
+}
+
+.chat-row.friend {
+  align-items: flex-start;
+}
+
+.chat-row.self {
+  align-items: flex-end;
+}
+
+.chat-time {
+  margin-bottom: 10rpx;
+  color: #9ca3af;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.chat-bubble-line {
+  display: flex;
+  align-items: center;
+}
+
+.chat-row.self .chat-bubble-line {
+  flex-direction: row;
+}
+
+.chat-bubble {
+  max-width: 480rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  color: #1f2937;
+  background: #ffffff;
+  font-size: 28rpx;
+  line-height: 42rpx;
+}
+
+.chat-row.self .chat-bubble {
+  background: #95ec69;
+}
+
+.message-fail-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34rpx;
+  height: 34rpx;
+  margin-right: 14rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #e11d48;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 34rpx;
+}
+
+.friend-message-input-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  background: #efeff1;
+}
+
+.quick-action-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 22rpx 32rpx 18rpx;
+  box-sizing: border-box;
+}
+
+.quick-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  height: 58rpx;
+  margin: 0;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: rgba(0, 123, 211, 0.86);
+  font-size: 26rpx;
+  line-height: 58rpx;
+  box-sizing: border-box;
+}
+
+.quick-action::after {
+  border: 0;
+}

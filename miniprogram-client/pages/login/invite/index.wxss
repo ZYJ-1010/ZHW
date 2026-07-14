@@ -1,0 +1,4 @@
+.invite-redirect-page {
+  min-height: 100vh;
+  background: #ffffff;
+}

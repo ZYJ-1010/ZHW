@@ -1,0 +1,96 @@
+<profile-white-shell
+  title="屏蔽设置"
+  background="#0a0e1a"
+  nav-background="#0a0e1a"
+  title-color="#ffffff"
+  title-weight="400"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#ffffff"
+>
+  <view class="block-page no-bottom block-home">
+    <view wx:if="{{debugMessage}}" class="debug-banner">{{debugMessage}}</view>
+
+    <view class="hero-card">
+      <view class="hero-head">
+        <text class="hero-icon emoji-icon">🛡</text>
+        <text class="hero-title">私域流量保护</text>
+        <view class="switch {{enabled ? 'on' : ''}}" bindtap="handleToggle">
+          <view class="switch-thumb"></view>
+        </view>
+      </view>
+      <view class="hero-desc">
+        <text>您发展的</text><text class="hero-strong">{{summary.protectedUserText}}</text><text>，系统已自动屏蔽 </text><text class="hero-strong">{{summary.blockedExpertText}}</text><text> 同类行家内容</text>
+      </view>
+      <view class="hero-stats">
+        <view wx:for="{{stats}}" wx:key="label" class="hero-stat">
+          <text class="hero-stat-value">{{item.value}}</text>
+          <text class="hero-stat-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="expiry-banner" data-key="renewal" bindtap="handleNavigateTap">
+      <text class="expiry-icon emoji-icon">⏰</text>
+      <text class="expiry-label">保护期剩余</text>
+      <text class="expiry-value">{{summary.renewalDaysText}}</text>
+      <image class="chevron" src="{{icons.chevron}}" mode="aspectFit"></image>
+    </view>
+
+    <text class="section-label">配置</text>
+    <view class="card">
+      <view
+        wx:for="{{configRows}}"
+        wx:key="key"
+        class="card-row"
+        data-key="{{item.key}}"
+        bindtap="handleNavigateTap"
+      >
+        <view class="icon-tile {{item.tone}}">
+          <text class="tile-emoji">{{item.iconText}}</text>
+        </view>
+        <view class="row-main">
+          <text class="row-title">{{item.title}}</text>
+          <text class="row-desc">{{item.desc}}</text>
+        </view>
+        <view class="row-side" data-key="{{item.key}}" catchtap="handleNavigateTap">
+          <text class="pill">{{item.badge}}</text>
+          <image class="chevron" src="{{icons.chevron}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+
+    <text class="section-label">屏蔽管理</text>
+    <view class="card">
+      <view
+        wx:for="{{manageRows}}"
+        wx:key="key"
+        class="card-row"
+        data-key="{{item.key}}"
+        bindtap="handleNavigateTap"
+      >
+        <view class="icon-tile {{item.tone}}">
+          <text class="tile-emoji">{{item.iconText}}</text>
+        </view>
+        <view class="row-main">
+          <text class="row-title">{{item.title}}</text>
+          <text class="row-desc">{{item.desc}}</text>
+        </view>
+        <view class="row-side" data-key="{{item.key}}" catchtap="handleNavigateTap">
+          <text class="pill {{item.badgeClass}}">{{item.badge}}</text>
+          <image class="chevron" src="{{icons.chevron}}" mode="aspectFit"></image>
+        </view>
+      </view>
+    </view>
+
+    <text class="section-label">规则说明</text>
+    <view class="note-card">
+      <view wx:for="{{rules}}" wx:key="prefix" class="note-line">
+        <view class="note-dot"></view>
+        <view>
+          <text>{{item.prefix}}</text><text class="note-strong">{{item.strong}}</text><text>{{item.suffix}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</profile-white-shell>

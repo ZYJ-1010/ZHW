@@ -1,0 +1,80 @@
+<profile-white-shell
+  title="申诉详情"
+  background="#071321"
+  nav-background="#071321"
+  title-color="#f8fbff"
+  title-weight="400"
+  back-url="/pages/profile/system-management/report-appeals/index"
+  back-background="transparent"
+  back-border-color="transparent"
+  back-icon-color="#f8fbff"
+>
+  <view class="report-page appeal-detail-page with-bottom">
+    <view wx:if="{{loadError}}" class="report-card">
+      <text class="paragraph">{{loadError}}</text>
+    </view>
+
+    <view wx:else class="report-content">
+    <view class="report-card detail-status-card">
+      <view class="status-icon warning">
+        <text class="status-icon-symbol">⟳</text>
+      </view>
+      <text class="status-main warning">处理中</text>
+      <text class="status-sub">平台正在审核您的申诉材料</text>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">基本信息</text>
+      <view wx:for="{{basicInfo}}" wx:key="label" class="info-row">
+        <text class="info-label">{{item.label}}</text>
+        <text class="info-value {{item.className}}">{{item.value}}</text>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">申诉内容</text>
+      <text class="paragraph-label">申诉原因</text>
+      <text class="paragraph">{{appealReason}}</text>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">申诉证据 (2张)</text>
+      <view class="evidence-row">
+        <view wx:for="{{evidence}}" wx:key="label" class="evidence-card {{item.tone}}">
+          <text class="evidence-text">{{item.label}}</text>
+          <text class="evidence-index">{{item.index}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">原举报信息</text>
+      <view wx:for="{{originalInfo}}" wx:key="label" class="info-row">
+        <text class="info-label">{{item.label}}</text>
+        <text class="info-value">{{item.value}}</text>
+      </view>
+      <view class="original-reason">
+        <text class="paragraph-label">举报原因</text>
+        <text class="paragraph">{{originalReason}}</text>
+      </view>
+    </view>
+
+    <view class="report-card">
+      <text class="section-title">处理进度</text>
+      <view class="timeline">
+        <view wx:for="{{timeline}}" wx:key="title" class="timeline-item">
+          <view class="timeline-dot {{item.state}}"></view>
+          <text class="timeline-time">{{item.time}}</text>
+          <text class="timeline-title">{{item.title}}</text>
+          <text class="timeline-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+    </view>
+  </view>
+
+  <view class="report-bottom-actions">
+    <view class="secondary-report-button" bindtap="handleBackList">返回列表</view>
+    <view class="primary-report-button" bindtap="handleWithdrawTap">撤回申诉</view>
+  </view>
+</profile-white-shell>

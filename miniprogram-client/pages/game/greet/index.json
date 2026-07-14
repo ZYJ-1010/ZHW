@@ -1,0 +1,9 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "打招呼",
+  "usingComponents": {
+    "game-info-card": "/components/game-info-card/index",
+    "home-shell": "/components/home-shell/index",
+    "chat-input-bar": "/components/chat-input-bar/index"
+  }
+}

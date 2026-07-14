@@ -1,0 +1,168 @@
+@import "../block-settings/shared.wxss";
+
+.keyword-page {
+  padding-top: 16rpx;
+}
+
+.keyword-form {
+  margin-top: 18rpx;
+}
+
+.keyword-input-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.keyword-input-row input {
+  flex: 1;
+  min-width: 0;
+  height: 70rpx;
+  padding: 0 20rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 20rpx;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 24rpx;
+}
+
+.keyword-add-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 108rpx;
+  height: 70rpx;
+  border-radius: 20rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #12d8ff 0%, #0a8cff 100%);
+  font-size: 25rpx;
+}
+
+.fuzzy-tip {
+  display: flex;
+  align-items: center;
+  margin-top: 14rpx;
+  color: #667788;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.fuzzy-tip image {
+  width: 26rpx;
+  height: 26rpx;
+  margin-right: 8rpx;
+}
+
+.keyword-emoji-icon,
+.keyword-tip-emoji {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.keyword-emoji-icon {
+  width: 32rpx;
+  height: 32rpx;
+  font-size: 28rpx;
+}
+
+.keyword-tip-emoji {
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 8rpx;
+  font-size: 24rpx;
+}
+
+.keyword-used {
+  margin-left: auto;
+}
+
+.keyword-section-head {
+  display: flex;
+  justify-content: space-between;
+  margin: 22rpx 0 12rpx;
+  color: #667788;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx 12rpx;
+  padding: 18rpx 22rpx;
+}
+
+.keyword-tag {
+  display: flex;
+  align-items: center;
+  height: 54rpx;
+  padding: 0 14rpx 0 20rpx;
+  border: 2rpx solid rgba(255, 77, 77, 0.32);
+  border-radius: 27rpx;
+  color: #ff6b6b;
+  background: rgba(255, 77, 77, 0.12);
+  font-size: 24rpx;
+}
+
+.keyword-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  margin-left: 10rpx;
+  border-radius: 50%;
+  background: rgba(255, 77, 77, 0.24);
+}
+
+.recommend-card {
+  padding: 18rpx 22rpx 22rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.recommend-title {
+  display: flex;
+  align-items: center;
+  color: #667788;
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.recommend-title image {
+  width: 30rpx;
+  height: 30rpx;
+  margin-right: 10rpx;
+}
+
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx 10rpx;
+  margin-top: 16rpx;
+}
+
+.suggestion-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 26rpx;
+  color: #8a9ab0;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 22rpx;
+}
+
+.keyword-rules .note-line {
+  font-size: 22rpx;
+  line-height: 32rpx;
+}

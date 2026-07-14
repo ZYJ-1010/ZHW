@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "组局取消",
+  "usingComponents": {
+    "timeline-list": "/components/timeline-list/index"
+  }
+}

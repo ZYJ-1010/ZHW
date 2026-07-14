@@ -1,0 +1,47 @@
+<view class="status-card {{variant === 'progress' ? 'progress' : ''}} {{status.hideQuote ? 'hide-quote' : ''}}">
+  <block wx:if="{{variant === 'progress'}}">
+    <view class="progress-status-head">
+      <view class="progress-status-copy">
+        <text class="progress-status-label">当前状态</text>
+        <text class="progress-status-title">{{status.title}}</text>
+      </view>
+      <view class="status-icon progress-hourglass">
+        <view class="hourglass"></view>
+      </view>
+    </view>
+
+    <view wx:if="{{status.countdown || countdownText}}" class="progress-countdown-box">
+      <view class="progress-countdown-row">
+        <text>{{countdownLabel}}</text>
+        <text class="progress-countdown-value">{{status.countdown || countdownText}}</text>
+      </view>
+      <view class="progress-track">
+        <view class="progress-fill" style="{{status.progressStyle}}"></view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="status-main">
+      <view class="status-icon">
+        <view class="hourglass"></view>
+      </view>
+      <view class="status-copy">
+        <text class="status-label">当前状态</text>
+        <text class="status-title">{{status.title}}</text>
+      </view>
+    </view>
+    <view wx:if="{{status.quote && !status.hideQuote}}" class="referral-quote">"{{status.quote}}"</view>
+    <view class="status-meta-box">
+      <view class="referral-copy">
+        <text>领路人 </text>
+        <text class="referral-name">{{status.guideName}}</text>
+        <text> {{referralText}}</text>
+      </view>
+      <view wx:if="{{status.countdown || countdownText}}" class="countdown-row">
+        <text>{{countdownLabel}}</text>
+        <text class="countdown-value">{{status.countdown || countdownText}}</text>
+      </view>
+    </view>
+  </block>
+</view>

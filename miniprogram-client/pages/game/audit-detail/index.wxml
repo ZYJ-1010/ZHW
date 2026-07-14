@@ -1,0 +1,181 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  topbar-title="{{detailPageTitle || detailConfig.pageTitle}}"
+  shell-variant="joinApply"
+  toolbar-actions-visible="{{false}}"
+  nav-toast-enabled="{{false}}"
+  bindnavtap="handleShellNavTap"
+  bindnavlongpress="handleShellNavLongPress"
+  bindnavtouchend="handleShellNavTouchEnd"
+>
+  <view class="audit-detail-shell">
+    <scroll-view
+      class="audit-detail-scroll"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+      scroll-with-animation
+      scroll-top="{{detailScrollTop}}"
+      bindscroll="handleDetailScroll"
+      enable-back-to-top
+    >
+      <view class="audit-detail-page">
+        <block wx:if="{{hasDetail}}">
+        <game-detail-status-card
+          status="{{status}}"
+          countdown-text="{{countdownText}}"
+          referral-text="{{referralText || detailConfig.referralText}}"
+          countdown-label="倒计时"
+        />
+
+        <view class="detail-card player-card {{game.player.compactCard ? 'compact-expert-card' : ''}}">
+          <view class="card-head player-head">
+            <text class="card-title">{{applicantTitle || detailConfig.texts.playerTitle}}</text>
+            <view wx:if="{{game.player.requirementStatusText}}" class="confirm-pill {{game.player.requirementConfirmed ? 'confirmed' : 'pending'}}">
+              <view class="confirm-dot"></view>
+              <text>{{game.player.requirementStatusText}}</text>
+            </view>
+          </view>
+          <view wx:if="{{game.player.badges.length}}" class="player-badge-row">
+            <text wx:for="{{game.player.badges}}" wx:key="text" class="player-top-badge {{item.tone}}">{{item.text}}</text>
+          </view>
+          <view class="player-profile">
+            <view class="player-avatar {{game.player.avatarClass}}">
+              <image wx:if="{{game.player.avatarSrc}}" class="player-avatar-image" src="{{game.player.avatarSrc}}" mode="aspectFill"></image>
+              <text wx:else>{{game.player.avatarText}}</text>
+            </view>
+            <view class="player-copy">
+              <view class="player-title-row">
+                <text class="player-name">{{game.player.name}}</text>
+                <text wx:if="{{game.player.roleName && !game.player.hideRoleBadge}}" class="player-role-badge {{game.player.roleKey}}">{{game.player.roleName}}</text>
+              </view>
+              <text class="player-desc">{{game.player.desc}}</text>
+              <view wx:if="{{game.player.metrics.length}}" class="metric-row">
+                <text wx:for="{{game.player.metrics}}" wx:key="text" class="metric-tag {{item.tone}}">{{item.text}}</text>
+              </view>
+              <view wx:if="{{game.player.tags.length && !game.player.hideTags}}" class="tag-row">
+                <text wx:for="{{game.player.tags}}" wx:key="*this" class="gray-tag">{{item}}</text>
+              </view>
+            </view>
+          </view>
+          <view wx:if="{{game.player.needText || game.player.expectedTime || game.player.profileSections.length}}" class="need-panel {{game.player.compactProfile ? 'compact-profile-panel' : ''}}">
+            <text wx:if="{{game.player.needTitle}}" class="need-title">{{game.player.needTitle}}</text>
+            <text wx:if="{{game.player.needText}}" class="profile-section-text">{{game.player.needText}}</text>
+            <block wx:for="{{game.player.profileSections}}" wx:key="title">
+              <view wx:if="{{item.text !== game.player.needText}}" class="profile-section {{item.tone}}">
+                <view class="profile-section-row">
+                  <image wx:if="{{item.iconSrc}}" class="profile-section-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+                  <view class="profile-section-copy">
+                    <text wx:if="{{item.title && item.title !== game.player.needTitle}}" class="profile-section-label">{{item.title}}：</text>
+                    <block wx:if="{{item.tags && item.tags.length}}">
+                      <view class="profile-tag-row">
+                        <text wx:for="{{item.tags}}" wx:key="*this" class="profile-tag">{{item}}</text>
+                      </view>
+                    </block>
+                    <text wx:else class="profile-section-text">{{item.text}}</text>
+                  </view>
+                </view>
+              </view>
+            </block>
+            <view wx:if="{{game.player.expectedTime}}" class="time-row">
+              <view class="clock-icon"></view>
+              <text>{{game.player.expectedTime}}</text>
+            </view>
+          </view>
+          <view wx:if="{{game.player.remark}}" class="remark-panel">
+            <view class="remark-icon"></view>
+            <text>{{game.player.remark}}</text>
+          </view>
+        </view>
+
+        <game-detail-party-card wx:if="{{showRelation && (detailMode === 'invitation' || relation.variant === 'parties')}}" party="{{relation}}" />
+        <game-detail-relation-card wx:elif="{{showRelation}}" relation="{{relation}}" />
+
+        <view wx:if="{{showPortfolio}}" class="detail-card upload-card">
+          <text class="card-title block">{{detailConfig.texts.portfolioTitle}}</text>
+          <work-upload-panel bind:imageupload="handleUploadImageTap" bind:fileupload="handleUploadFileTap" />
+        </view>
+
+        <game-detail-session-card
+          wx:if="{{showSession && sessionInfo.length}}"
+          items="{{sessionInfo}}"
+          title-weight="regular"
+          card-class="audit-session-card"
+          bind:maptap="handleMapTap"
+        />
+
+        <view wx:if="{{showConfirm && confirmRows.length}}" class="detail-card confirm-card">
+          <text class="card-title block">{{confirmTitle || detailConfig.texts.confirmTitle}}</text>
+          <view class="confirm-list">
+            <view wx:for="{{confirmRows}}" wx:key="label" class="confirm-row {{item.divider ? 'divider' : ''}} {{item.total ? 'total' : ''}}">
+              <text class="confirm-label">{{item.label}}</text>
+              <text class="confirm-value {{item.highlight ? 'highlight' : ''}} {{item.success ? 'success' : ''}}">{{item.value}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{showRecommend}}" class="recommend-card">
+          <text class="quote-mark">“</text>
+          <view class="recommend-copy">
+            <text class="recommend-text">{{game.guide.recommendation}}</text>
+            <text class="recommend-author">{{game.guide.name}}</text>
+          </view>
+        </view>
+
+        <view wx:if="{{showOptions && optionalActions.length}}" class="detail-card option-card">
+          <text class="card-title block">{{optionTitle || detailConfig.texts.optionTitle}}</text>
+          <view class="option-list">
+            <view wx:for="{{optionalActions}}" wx:key="key" class="option-row" data-key="{{item.key}}" bindtap="handleOptionalActionTap">
+              <view class="option-main">
+                <image wx:if="{{item.iconSrc}}" class="option-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+                <view wx:else class="option-icon option-icon-placeholder"></view>
+                <text>{{item.name}}</text>
+              </view>
+              <text class="option-chevron">›</text>
+            </view>
+          </view>
+        </view>
+
+        <view wx:if="{{showNotice && noticeBullets.length}}" class="notice-card">
+          <view class="notice-head">
+            <view class="notice-icon">i</view>
+            <text>{{noticeTitle || detailConfig.texts.noticeTitle}}</text>
+          </view>
+          <view class="notice-list">
+            <view wx:for="{{noticeBullets}}" wx:key="*this" class="notice-item">
+              <view class="notice-dot"></view>
+              <text>{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        </block>
+
+        <view wx:else class="audit-empty-card">
+          <text class="audit-empty-title">{{detailConfig.texts.emptyTitle}}</text>
+          <text class="audit-empty-text">{{detailConfig.texts.emptyText}}</text>
+        </view>
+      </view>
+    </scroll-view>
+    <view wx:if="{{hasDetail && showActionBar}}" class="audit-detail-action-layer">
+      <game-detail-action-bar
+        tip="{{actionTip || detailConfig.texts.actionTip}}"
+        loading="{{actionLoading}}"
+        loading-text="{{detailConfig.texts.actionLoadingText}}"
+        decline-text="{{declineText}}"
+        confirm-text="{{confirmText || detailConfig.texts.confirmText}}"
+        confirm-disabled="{{!canConfirm}}"
+        confirm-disabled-reason="{{confirmDisabledReason}}"
+        bind:decline="handleDeclineTap"
+        bind:confirm="handleApproveTap"
+        bind:confirmdisabled="handleConfirmDisabledTap"
+      />
+    </view>
+    <view wx:elif="{{hasDetail}}" class="audit-detail-action-layer">
+      <view class="audit-readonly-action">
+        <text>{{reviewReadonlyText || status.title}}</text>
+      </view>
+    </view>
+  </view>
+</home-shell>

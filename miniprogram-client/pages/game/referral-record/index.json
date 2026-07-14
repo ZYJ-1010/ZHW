@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "business-summary-card": "/components/business-summary-card/index",
+    "game-role-switch": "/components/game-role-switch/index"
+  }
+}

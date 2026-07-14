@@ -1,0 +1,112 @@
+<home-shell online-text="{{onlineText}}" topbar-title="{{pageTitle}}" shell-variant="joinApply" toolbar-actions-visible="{{false}}" nav-toast-enabled="{{false}}" nav-auto-navigate="{{true}}">
+  <view class="audit-detail-shell player-confirm-shell">
+    <scroll-view class="audit-detail-scroll" scroll-y enhanced show-scrollbar="false" enable-back-to-top>
+      <view class="audit-detail-page player-confirm-page">
+        <block wx:if="{{hasDetail}}">
+          <game-detail-status-card
+            status="{{status}}"
+            countdown-text="{{countdownText}}"
+            referral-text="{{referralText}}"
+            countdown-label="倒计时"
+          />
+
+          <view class="detail-card player-card {{profile.compactCard ? 'compact-expert-card' : ''}}">
+            <view wx:if="{{!profile.compactCard}}" class="card-head player-head">
+              <text class="card-title">{{applicantTitle}}</text>
+              <view wx:if="{{profile.requirementStatusText}}" class="confirm-pill {{profile.requirementConfirmed ? 'confirmed' : 'pending'}}">
+                <view class="confirm-dot"></view>
+                <text>{{profile.requirementStatusText}}</text>
+              </view>
+            </view>
+            <view wx:if="{{profile.badges.length}}" class="player-badge-row">
+              <text wx:for="{{profile.badges}}" wx:key="text" class="player-top-badge {{item.tone}}">{{item.text}}</text>
+            </view>
+            <view class="player-profile">
+              <view class="player-avatar {{profile.avatarClass}}">
+                <image wx:if="{{profile.avatarSrc}}" class="player-avatar-image" src="{{profile.avatarSrc}}" mode="aspectFill"></image>
+                <text wx:else>{{profile.avatarText}}</text>
+              </view>
+              <view class="player-copy">
+                <view class="player-title-row">
+                  <text class="player-name">{{profile.name}}</text>
+                  <text wx:if="{{profile.roleName && !profile.hideRoleBadge}}" class="player-role-badge {{profile.roleKey}}">{{profile.roleName}}</text>
+                </view>
+                <text class="player-desc">{{profile.desc}}</text>
+                <view wx:if="{{profile.tags.length && !profile.hideTags}}" class="tag-row">
+                  <text wx:for="{{profile.tags}}" wx:key="*this" class="gray-tag">{{item}}</text>
+                </view>
+              </view>
+            </view>
+            <view wx:if="{{profile.needText || profile.profileSections.length}}" class="need-panel {{profile.compactProfile ? 'compact-profile-panel' : ''}}">
+              <text wx:if="{{profile.needText}}" class="profile-section-text">{{profile.needText}}</text>
+              <block wx:for="{{profile.profileSections}}" wx:key="title">
+                <view class="profile-section {{item.tone}}">
+                  <view class="profile-section-row">
+                    <image wx:if="{{item.iconSrc}}" class="profile-section-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
+                    <view class="profile-section-copy">
+                      <text wx:if="{{item.title}}" class="profile-section-label">{{item.title}}：</text>
+                      <block wx:if="{{item.tags && item.tags.length}}">
+                        <view class="profile-tag-row"><text wx:for="{{item.tags}}" wx:key="*this" class="profile-tag">{{item}}</text></view>
+                      </block>
+                      <text wx:else class="profile-section-text">{{item.text}}</text>
+                    </view>
+                  </view>
+                </view>
+              </block>
+            </view>
+          </view>
+
+          <game-detail-party-card wx:if="{{showRelation}}" party="{{relation}}" />
+          <game-detail-session-card
+            wx:if="{{sessionInfo.length}}"
+            items="{{sessionInfo}}"
+            title-weight="regular"
+            card-class="audit-session-card"
+            bind:maptap="handleMapTap"
+          />
+
+          <view wx:if="{{confirmRows.length}}" class="detail-card confirm-card">
+            <text class="card-title block">{{confirmTitle}}</text>
+            <view class="confirm-list">
+              <view wx:for="{{confirmRows}}" wx:key="label" class="confirm-row {{item.total ? 'total' : ''}}">
+                <text class="confirm-label">{{item.label}}</text>
+                <text class="confirm-value {{item.highlight ? 'highlight' : ''}}">{{item.value}}</text>
+              </view>
+            </view>
+          </view>
+
+          <view wx:if="{{noticeBullets.length}}" class="notice-card">
+            <view class="notice-head"><view class="notice-icon">i</view><text>{{noticeTitle}}</text></view>
+            <view class="notice-list">
+              <view wx:for="{{noticeBullets}}" wx:key="*this" class="notice-item"><view class="notice-dot"></view><text>{{item}}</text></view>
+            </view>
+          </view>
+
+          <game-detail-action-bar
+            wx:if="{{showActionBar}}"
+            tip="{{actionTip}}"
+            loading="{{actionLoading}}"
+            loading-text="处理中"
+            decline-text="{{declineText}}"
+            confirm-text="{{confirmText}}"
+            confirm-disabled="{{!canConfirm}}"
+            confirm-disabled-reason="{{confirmDisabledReason}}"
+            bind:decline="handleDeclineTap"
+            bind:confirm="handleConfirmTap"
+            bind:confirmdisabled="handleConfirmDisabledTap"
+          />
+          <game-detail-action-bar
+            wx:else
+            single-readonly="{{true}}"
+            confirm-text="{{readonlyText}}"
+          />
+        </block>
+
+        <view wx:else class="audit-empty-card">
+          <text class="audit-empty-title">{{emptyTitle}}</text>
+          <text class="audit-empty-text">{{emptyText}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</home-shell>

@@ -1,0 +1,110 @@
+<view class="page">
+  <view class="forgot-wrap" wx:if="{{step === 'phone'}}">
+    <text class="forgot-title">找回密码</text>
+
+    <view class="step-bars">
+      <view class="step-bar active"></view>
+      <view class="step-bar"></view>
+      <view class="step-bar"></view>
+    </view>
+
+    <text class="step-title">验证手机号</text>
+
+    <view class="forgot-form">
+      <view class="forgot-field phone-field enjoy-field enjoy-field--large">
+        <text class="country-code">+86 ›</text>
+        <input
+          class="field-input enjoy-input enjoy-input--large"
+          value="{{phone}}"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPhoneInput"
+        />
+      </view>
+
+      <view class="forgot-field code-field enjoy-field enjoy-field--large">
+        <input
+          class="field-input enjoy-input enjoy-input--large"
+          value="{{verifyCode}}"
+          type="number"
+          maxlength="6"
+          placeholder="请输入验证码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onCodeInput"
+        />
+        <view class="code-button enjoy-code-action" bindtap="getVerifyCode">
+          {{isSendingCode ? '发送中...' : '获取验证码'}}
+        </view>
+      </view>
+    </view>
+
+    <view class="primary-button phone-next-button enjoy-button enjoy-button--primary enjoy-button--large" bindtap="goPasswordStep">
+      {{isCheckingCode ? '校验中...' : '下一步'}}
+    </view>
+    <view class="back-link enjoy-link--muted" bindtap="backToLogin">← 返回登录</view>
+  </view>
+
+  <view class="forgot-wrap" wx:elif="{{step === 'password'}}">
+    <text class="forgot-title">找回密码</text>
+
+    <view class="step-bars">
+      <view class="step-bar active"></view>
+      <view class="step-bar active"></view>
+      <view class="step-bar"></view>
+    </view>
+
+    <text class="step-title">设置新密码</text>
+
+    <view class="forgot-form password-form">
+      <view class="forgot-field enjoy-field enjoy-field--large">
+        <input
+          class="field-input enjoy-input enjoy-input--large"
+          value="{{password}}"
+          password
+          maxlength="20"
+          placeholder="请输入新密码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onPasswordInput"
+        />
+      </view>
+
+      <view class="strength-bars">
+        <view class="strength-bar active"></view>
+        <view class="strength-bar {{password.length >= 10 ? 'active' : ''}}"></view>
+        <view class="strength-bar {{password.length >= 14 ? 'active' : ''}}"></view>
+      </view>
+
+      <text class="password-tip">仅支持字母和数字，长度8-20位</text>
+
+      <view class="forgot-field confirm-field enjoy-field enjoy-field--large">
+        <input
+          class="field-input enjoy-input enjoy-input--large"
+          value="{{confirmPassword}}"
+          password
+          maxlength="20"
+          placeholder="请再次输入新密码"
+          placeholder-class="enjoy-placeholder"
+          bindinput="onConfirmPasswordInput"
+        />
+      </view>
+    </view>
+
+    <view class="primary-button password-submit-button enjoy-button enjoy-button--primary enjoy-button--large" bindtap="submitReset">
+      {{isSubmitting ? '提交中...' : '确认修改'}}
+    </view>
+    <view class="back-link password-back-link enjoy-link--muted" bindtap="goPhoneStep">← 返回上一步</view>
+  </view>
+
+  <view class="forgot-wrap success-wrap" wx:else>
+    <view class="success-icon">✓</view>
+    <text class="success-title">密码重置成功</text>
+    <text class="success-desc">请使用新密码重新登录</text>
+    <text class="success-subdesc">建议定期更换密码保障账户安全</text>
+    <view class="success-button enjoy-button enjoy-button--primary enjoy-button--large" bindtap="backToLogin">去登录</view>
+  </view>
+
+  <view wx:if="{{isUiPreview}}" class="walkthrough-tap-zone walkthrough-tap-zone--left" catchtap="showPreviousForgotWalkthrough"></view>
+  <view wx:if="{{isUiPreview}}" class="walkthrough-tap-zone walkthrough-tap-zone--right" catchtap="showNextForgotWalkthrough"></view>
+</view>

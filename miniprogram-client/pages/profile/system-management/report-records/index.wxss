@@ -1,0 +1,27 @@
+@import "../report-center/shared.wxss";
+
+.records-filters {
+  margin: 32rpx 0 28rpx;
+  flex-wrap: nowrap;
+}
+
+.records-filters .filter-chip {
+  min-width: 106rpx;
+  height: 62rpx;
+  padding: 0 24rpx;
+  font-size: 26rpx;
+}
+
+.records-page .report-tab,
+.records-page .report-tab.active,
+.records-page .filter-chip,
+.records-page .filter-chip.active,
+.records-page .stat-value,
+.records-page .stat-label,
+.records-page .list-title,
+.records-page .status-badge,
+.records-page .list-desc,
+.records-page .list-time,
+.records-page .detail-link {
+  font-weight: 400;
+}

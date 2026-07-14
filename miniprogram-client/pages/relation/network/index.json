@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "关系网首页",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}

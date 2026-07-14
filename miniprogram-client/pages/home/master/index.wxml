@@ -1,0 +1,51 @@
+<view wx:if="{{masterMode === 'apply'}}" class="home-master-apply-page" style="{{applyShellLayout.pageStyle}}">
+  <view class="home-master-apply-stage">
+    <view class="home-master-apply-frame" style="{{applyShellLayout.frameStyle}}">
+      <view class="home-master-apply-top-bg" style="{{applyShellLayout.topBgStyle}}"></view>
+      <view class="home-master-apply-nav" style="{{applyShellLayout.navStyle}}">
+        <text class="home-master-apply-nav-title">{{applyMaster.navTitle}}</text>
+      </view>
+      <view class="home-master-apply-phone" style="{{applyShellLayout.phoneStyle}}">
+        <view class="home-master-apply-main"></view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view wx:elif="{{masterMode === 'whiteBackground'}}" class="home-master-white-page">
+  <view class="home-master-white-stage">
+    <view class="home-master-white-frame" style="{{whiteShellLayout.frameStyle}}">
+      <view class="home-master-white-top-bg"></view>
+      <view class="home-master-white-nav">
+        <view class="home-master-white-back-button" style="{{whiteShellLayout.backStyle}}">
+          <view class="home-master-white-back-icon"></view>
+        </view>
+        <text class="home-master-white-nav-title" style="{{whiteShellLayout.titleStyle}}">{{whiteMaster.navTitle}}</text>
+      </view>
+      <scroll-view
+        class="home-master-white-phone"
+        style="{{whiteShellLayout.contentStyle}}"
+        scroll-y
+        enhanced
+        show-scrollbar="false"
+      >
+        <view class="home-master-white-main"></view>
+      </scroll-view>
+      <view class="home-master-white-bottom-bg" style="{{whiteShellLayout.bottomStyle}}"></view>
+    </view>
+  </view>
+</view>
+
+<home-shell
+  wx:else
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  shell-variant="{{shellVariant}}"
+  dock-visible="{{dockVisible}}"
+  content-scroll-y="{{contentScrollY}}"
+  shell-class="{{shellClass}}"
+  toolbar-actions-visible="{{toolbarActionsVisible}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="home-master-placeholder"></view>
+</home-shell>

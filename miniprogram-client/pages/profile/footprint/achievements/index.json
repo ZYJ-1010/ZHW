@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "我的成就墙",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}

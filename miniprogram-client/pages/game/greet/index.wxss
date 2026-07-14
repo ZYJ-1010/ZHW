@@ -1,0 +1,119 @@
+page {
+  background: #007bd3;
+}
+
+.game-greet-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+  color: #1f2937;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+}
+
+.greet-canvas-scroll {
+  width: 100%;
+  height: calc(100% - 124rpx);
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.greet-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 1280rpx;
+  box-sizing: border-box;
+  background: #000000;
+}
+
+.contact-avatar {
+  position: absolute;
+  left: 50rpx;
+  top: 114rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 82rpx;
+  height: 82rpx;
+  border-radius: 16rpx;
+  color: #ffffff;
+  background: #f59e0b;
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+.game-info-card-wrap {
+  position: absolute;
+  left: 134rpx;
+  top: 154rpx;
+  width: 526rpx;
+}
+
+.referrer-bubble text {
+  display: block;
+}
+
+.referrer-bubble {
+  position: absolute;
+  left: 134rpx;
+  top: 1038rpx;
+  width: 526rpx;
+  min-height: 180rpx;
+  padding: 46rpx 26rpx 20rpx;
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: #95ec69;
+}
+
+.referrer-bubble::before {
+  position: absolute;
+  left: 30rpx;
+  top: 0;
+  width: 16rpx;
+  height: 18rpx;
+  background: #95ec69;
+  content: '';
+}
+
+.referrer-bubble text {
+  color: #1f2937;
+  font-size: 28rpx;
+  line-height: 40rpx;
+}
+
+.sent-message-list {
+  position: absolute;
+  left: 134rpx;
+  top: 1244rpx;
+  width: 526rpx;
+  padding-bottom: 120rpx;
+  box-sizing: border-box;
+}
+
+.greet-input-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+}
+
+.sent-bubble {
+  position: relative;
+  width: fit-content;
+  max-width: 420rpx;
+  margin: 0 0 24rpx auto;
+  padding: 20rpx 24rpx;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  background: #95ec69;
+}
+
+.sent-bubble text {
+  display: block;
+  color: #1f2937;
+  font-size: 27rpx;
+  line-height: 40rpx;
+  word-break: break-all;
+}

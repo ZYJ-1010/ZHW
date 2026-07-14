@@ -1,0 +1,10 @@
+@import "../report-center/shared.wxss";
+
+.report-page,
+.report-page view,
+.report-page text,
+.report-bottom-actions,
+.report-bottom-actions view,
+.report-bottom-actions text {
+  font-weight: 400 !important;
+}

@@ -1,0 +1,112 @@
+<home-shell
+  online-text="{{onlineText}}"
+  nav-items="{{navItems}}"
+  nav-toast-enabled="{{false}}"
+  content-scroll-y="{{true}}"
+  bindnavtap="handleShellNavTap"
+>
+  <view class="friend-city-page">
+    <view class="friend-city-header">
+      <button class="friend-city-back" hover-class="none" bindtap="handleBackTap">
+        <view class="friend-city-back-icon"></view>
+      </button>
+      <text class="friend-city-title">{{pageConfig.title}}</text>
+    </view>
+
+    <view class="friend-duel-card">
+      <view class="friend-duel-top">
+        <view class="friend-player self">
+          <view class="friend-avatar-ring">
+            <view class="friend-avatar-placeholder"></view>
+          </view>
+          <text class="friend-player-name">{{duel.selfName}}</text>
+          <text class="friend-player-count">{{duel.selfCount}}</text>
+        </view>
+
+        <view class="friend-vs">
+          <text class="friend-vs-text">{{duel.vsText}}</text>
+          <text class="friend-vs-subtitle">{{duel.subtitle}}</text>
+        </view>
+
+        <view class="friend-player rival">
+          <view class="friend-avatar-ring">
+            <view class="friend-avatar-placeholder"></view>
+          </view>
+          <text class="friend-player-name">{{duel.rivalName}}</text>
+          <text class="friend-player-count">{{duel.rivalCount}}</text>
+        </view>
+      </view>
+
+      <view class="friend-action-row">
+        <view class="friend-primary-button" bindtap="handleStartChallenge">{{duel.startButtonText}}</view>
+        <view class="friend-secondary-button" bindtap="handleRecordTap">{{duel.recordButtonText}}</view>
+      </view>
+    </view>
+
+    <view class="friend-section">
+      <text class="friend-section-title">{{pageConfig.challengeTitle}}</text>
+      <view class="friend-challenge-list">
+        <view
+          wx:for="{{challenges}}"
+          wx:key="id"
+          class="friend-challenge-card"
+          data-id="{{item.id}}"
+          bindtap="handleChallengeTap"
+        >
+          <view class="friend-challenge-head">
+            <view class="friend-challenge-copy">
+              <text class="friend-challenge-title">{{item.title}}</text>
+              <text class="friend-challenge-time">剩余时间: {{item.timeLeft}}</text>
+            </view>
+            <view class="friend-status-pill {{item.statusTone}}">{{item.statusText}}</view>
+          </view>
+
+          <view class="friend-progress-row">
+            <view class="friend-progress-block">
+              <view class="friend-progress-meta">
+                <text>{{duel.selfName}}</text>
+                <text>{{item.selfValue}}/{{item.total}}</text>
+              </view>
+              <view class="friend-progress-track">
+                <view class="friend-progress-fill self" style="width: {{item.selfPercent}}%;"></view>
+              </view>
+            </view>
+
+            <view class="friend-progress-block">
+              <view class="friend-progress-meta">
+                <text>{{duel.rivalName}}</text>
+                <text>{{item.rivalValue}}/{{item.total}}</text>
+              </view>
+              <view class="friend-progress-track">
+                <view class="friend-progress-fill rival" style="width: {{item.rivalPercent}}%;"></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="friend-section">
+      <text class="friend-section-title spaced">{{pageConfig.rankingTitle}}</text>
+      <view class="friend-ranking-card">
+        <view
+          wx:for="{{rankings}}"
+          wx:key="rank"
+          class="friend-rank-row tone-{{item.tone}}"
+          data-rank="{{item.rank}}"
+          bindtap="handleRankingTap"
+        >
+          <text class="friend-rank-number">{{item.rank}}</text>
+          <view class="friend-rank-avatar"></view>
+          <view class="friend-rank-copy">
+            <text class="friend-rank-name">{{item.name}}</text>
+            <text class="friend-rank-desc">{{item.desc}}</text>
+          </view>
+          <text class="friend-rank-score">{{item.score}}</text>
+        </view>
+
+        <button class="friend-more-button" hover-class="none" bindtap="handleNationalRankTap">{{pageConfig.nationalRankText}}</button>
+      </view>
+    </view>
+  </view>
+</home-shell>

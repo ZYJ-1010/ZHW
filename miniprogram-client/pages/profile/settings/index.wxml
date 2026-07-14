@@ -1,0 +1,56 @@
+<profile-white-shell
+  title="系统设置"
+  background="#0A0A0A"
+  navBackground="#0A0A0A"
+  titleColor="#FFFFFF"
+  titleWeight="400"
+  titleSize="34"
+  backBackground="transparent"
+  backBorderColor="transparent"
+  backIconColor="#FFFFFF"
+>
+  <view class="settings-page {{previewMode === 'dynamic' ? 'is-dynamic' : ''}}">
+    <view wx:for="{{sections}}" wx:key="title" wx:for-index="sectionIndex" class="settings-section">
+      <text class="settings-section-title">{{item.title}}</text>
+      <view class="settings-card">
+        <view
+          wx:for="{{item.rows}}"
+          wx:for-item="row"
+          wx:for-index="rowIndex"
+          wx:key="id"
+          class="settings-row"
+          data-section-index="{{sectionIndex}}"
+          data-row-index="{{rowIndex}}"
+          bindtap="handleRowTap"
+        >
+          <image class="settings-icon" src="{{row.icon}}" mode="aspectFit"></image>
+          <text class="settings-label">{{row.label}}</text>
+          <view class="settings-spacer"></view>
+
+          <view
+            wx:if="{{row.switch}}"
+            class="settings-switch {{row.enabled ? 'is-on' : ''}}"
+            data-section-index="{{sectionIndex}}"
+            data-row-index="{{rowIndex}}"
+            catchtap="handleSwitch"
+          >
+            <view class="settings-switch-thumb"></view>
+          </view>
+
+          <view wx:else class="settings-right">
+            <text wx:if="{{row.value}}" class="settings-value">{{row.value}}</text>
+            <image wx:if="{{row.arrow}}" class="settings-chevron" src="{{chevronIcon}}" mode="aspectFit"></image>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{loadError || !sections.length}}" class="settings-empty">
+      <text>{{loadError || '暂无系统设置'}}</text>
+    </view>
+
+    <view class="settings-logout" bindtap="handleLogout">
+      <text>退出登录</text>
+    </view>
+  </view>
+</profile-white-shell>
