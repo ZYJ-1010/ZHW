@@ -55,7 +55,7 @@
           </view>
 
           <view class="stats-row">
-            <view wx:for="{{stats}}" wx:key="key" class="stats-item stats-item-{{item.key}}" data-action="{{item.action}}" bindtap="onStatTap">
+            <view wx:for="{{stats}}" wx:key="key" class="stats-item stats-item-{{item.key}} {{item.disabled ? 'disabled' : ''}}" data-action="{{item.action}}" bindtap="onStatTap">
               <image wx:if="{{item.iconSrc}}" class="stats-icon-image" src="{{item.iconSrc}}" mode="aspectFit" />
               <text wx:if="{{item.label}}" class="stats-label">{{item.label}}</text>
               <text class="stats-value">{{item.value}}</text>

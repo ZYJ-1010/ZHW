@@ -211,6 +211,29 @@ function normalizePrimaryAction(detailDisplay = {}, game = {}, statusText = '') 
   }
 }
 
+function buildReviewStat(data = {}, game = {}, relation = {}, primaryAction = {}) {
+  const review = data.review || {}
+  const status = String(game.status || '').toLowerCase()
+  const canOpen = status === 'pending_review' && (
+    review.reviewable === true ||
+    relation.canReview === true ||
+    (primaryAction.action === 'review' && primaryAction.disabled !== true) ||
+    (Array.isArray(review.todos) && review.todos.length > 0)
+  )
+  const complete = review.complete === true || review.completed === true
+
+  return {
+    key: 'reviews',
+    label: '评价',
+    value: complete ? '已完成' : (canOpen ? '待评价' : '未开启'),
+    action: 'reviews',
+    disabled: !canOpen,
+    disabledToast: status !== 'pending_review'
+      ? '本局尚未进入评价阶段'
+      : (!relation.isMember ? '加入并完成本局后才能评价' : '暂无可评价内容')
+  }
+}
+
 function compactList(items) {
   return items.map((item) => String(item || '').trim()).filter(Boolean)
 }
@@ -262,6 +285,7 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
   const categoryText = String(game.primaryCategoryText || game.secondaryCategoryText || '').trim()
   const createdAtText = formatCreatedAt(game.createdAt)
   const bottomTools = buildBottomTools(relation, game)
+  const primaryAction = normalizePrimaryAction(detailDisplay, game, statusText)
 
   return {
     event: Object.assign({}, fallbackEvent, {
@@ -274,7 +298,7 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
     }),
     stats: [
       { key: 'status', label: '状态', value: statusText, action: 'status' },
-      { key: 'reviews', label: '评价', value: data.review && data.review.complete ? '已完成' : '待评价', action: 'reviews' },
+      buildReviewStat(data, game, relation, primaryAction),
       { key: 'participants', iconSrc: 'https://static.haowan.net.cn/miniprogram/pages/game/assets/icons/icon-participants.svg', value: `${currentPlayers}/${maxPlayers}人已报名` }
     ],
     tags: compactList([gameType, statusText, categoryText, cityName]).map((name, index) => ({
@@ -301,7 +325,7 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
     ],
     audience: categoryText ? `适合关注${categoryText}的用户参与。` : '适合符合本局条件的用户参与。',
     participants: normalizeParticipants(data, game),
-    primaryAction: normalizePrimaryAction(detailDisplay, game, statusText),
+    primaryAction,
     myRelation: relation,
     game: {
       id: game.id || game.gameId || '',
@@ -531,6 +555,13 @@ Page({
     const action = event.currentTarget.dataset.action
 
     if (action === 'reviews') {
+      const reviewStat = (this.data.stats || []).find((item) => item && item.key === 'reviews') || {}
+
+      if (reviewStat.disabled) {
+        this.showInfo(reviewStat.disabledToast || '本局尚未进入评价阶段')
+        return
+      }
+
       navigateShellRoute(`${ROUTES.gameReview}${this.data.gameId ? `?gameId=${encodeURIComponent(this.data.gameId)}` : ''}`, {
         currentRoute: ROUTES.gameDetail
       })
