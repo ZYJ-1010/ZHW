@@ -2,6 +2,7 @@ package appapi
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,6 +21,7 @@ import (
 type identityService interface {
 	Ensure(userID int64) identity.Record
 	BindPhone(userID int64, phone string) (identity.Record, error)
+	RestartRealname(userID int64, phone string) (identity.Record, error)
 	SendSMSCode(userID int64) (identity.SMSDispatchResult, error)
 	VerifySMSCode(userID int64, code string) (identity.Record, error)
 	VerifyPhone(userID int64, realName string, idCard string) (identity.Record, error)
@@ -60,6 +62,92 @@ func (s *Server) bindPhone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.OK(w, record)
+}
+
+func (s *Server) restartRealname(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireIdentityUser(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Code          string `json:"code"`
+		Phone         string `json:"phone"`
+		EncryptedData string `json:"encryptedData"`
+		IV            string `json:"iv"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
+	phone := strings.TrimSpace(req.Phone)
+	if phone == "" {
+		var err error
+		phone, err = s.wechatPhoneNumber(r.Context(), req.Code)
+		if err != nil {
+			httpx.Error(w, http.StatusBadGateway, httpx.CodeSystemError, "获取微信手机号失败")
+			return
+		}
+	}
+	if _, err := s.auth.BindPhoneAuth(userID, phone); err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号已被使用或格式错误")
+		return
+	}
+	record, err := s.identity.RestartRealname(userID, phone)
+	if err != nil {
+		if errors.Is(err, identity.ErrPhoneInvalid) {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
+			return
+		}
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号不能为空")
+		return
+	}
+	if _, err := s.auth.UpdateRealnameStatus(userID, string(record.Status)); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "sync user realname status failed")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{
+		"status":      record.Status,
+		"phoneMasked": record.PhoneMasked,
+		"next":        "/pages/login/realname/index?mode=reverify",
+	})
+}
+
+func (s *Server) wechatPhoneNumber(ctx context.Context, code string) (string, error) {
+	code = strings.TrimSpace(code)
+	if code == "" || strings.TrimSpace(s.cfg.Wechat.AppID) == "" || strings.TrimSpace(s.cfg.Wechat.AppSecret) == "" {
+		return "", errors.New("wechat phone code unavailable")
+	}
+	token, err := s.wechatAccessToken(ctx)
+	if err != nil {
+		return "", err
+	}
+	var payload struct {
+		ErrCode   int    `json:"errcode"`
+		ErrMsg    string `json:"errmsg"`
+		PhoneInfo struct {
+			PhoneNumber     string `json:"phoneNumber"`
+			PurePhoneNumber string `json:"purePhoneNumber"`
+			CountryCode     string `json:"countryCode"`
+		} `json:"phone_info"`
+	}
+	body := map[string]string{"code": code}
+	if err := s.wechatPostJSON(ctx, "/wxa/business/getuserphonenumber", token, body, &payload); err != nil {
+		return "", err
+	}
+	if payload.ErrCode != 0 {
+		if strings.TrimSpace(payload.ErrMsg) != "" {
+			return "", errors.New(payload.ErrMsg)
+		}
+		return "", errors.New("wechat phone number failed")
+	}
+	phone := strings.TrimSpace(payload.PhoneInfo.PurePhoneNumber)
+	if phone == "" {
+		phone = strings.TrimSpace(payload.PhoneInfo.PhoneNumber)
+	}
+	if phone == "" {
+		return "", errors.New("wechat phone number empty")
+	}
+	return phone, nil
 }
 
 func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {

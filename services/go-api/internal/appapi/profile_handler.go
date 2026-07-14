@@ -91,14 +91,19 @@ func (s *Server) adminProfileUsers(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
 		return
 	}
-	identityByUser := make(map[int64]string)
+	identityByUser := make(map[int64]adminProfileUserIdentity)
 	for _, record := range s.identity.AllRecords() {
-		identityByUser[record.UserID] = record.IDCardMasked
+		item := adminProfileUserIdentity{IDCardMasked: record.IDCardMasked}
+		if plain, err := s.identity.RevealRecord(record); err == nil {
+			item.PhoneFull = strings.TrimSpace(plain.Phone)
+			item.IDCardFull = strings.TrimSpace(plain.IDCard)
+		}
+		identityByUser[record.UserID] = item
 	}
 	matches := make([]map[string]interface{}, 0)
 	for _, user := range items {
-		idCardMasked := identityByUser[user.ID]
-		matchFields := profileUserMatchFields(user, idCardMasked, keyword)
+		identityInfo := identityByUser[user.ID]
+		matchFields := profileUserMatchFieldsWithIdentity(user, identityInfo, keyword)
 		if len(matchFields) == 0 {
 			continue
 		}
@@ -106,7 +111,9 @@ func (s *Server) adminProfileUsers(w http.ResponseWriter, r *http.Request) {
 			"id":             user.ID,
 			"nickname":       user.Nickname,
 			"phoneMasked":    user.PhoneMasked,
-			"idCardMasked":   idCardMasked,
+			"phoneFull":      identityInfo.PhoneFull,
+			"idCardMasked":   identityInfo.IDCardMasked,
+			"idCardFull":     identityInfo.IDCardFull,
 			"realnameStatus": user.RealnameStatus,
 			"status":         user.Status,
 			"matchFields":    matchFields,
@@ -121,7 +128,17 @@ func (s *Server) adminProfileUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type adminProfileUserIdentity struct {
+	PhoneFull    string
+	IDCardMasked string
+	IDCardFull   string
+}
+
 func profileUserMatchFields(user users.User, idCardMasked string, keyword string) []string {
+	return profileUserMatchFieldsWithIdentity(user, adminProfileUserIdentity{IDCardMasked: idCardMasked}, keyword)
+}
+
+func profileUserMatchFieldsWithIdentity(user users.User, identityInfo adminProfileUserIdentity, keyword string) []string {
 	fields := make([]string, 0, 4)
 	if strings.Contains(strconv.FormatInt(user.ID, 10), keyword) {
 		fields = append(fields, "用户编号")
@@ -130,11 +147,13 @@ func profileUserMatchFields(user users.User, idCardMasked string, keyword string
 		fields = append(fields, "昵称")
 	}
 	phoneMasked := strings.ToLower(user.PhoneMasked)
-	if phoneMasked != "" && (strings.Contains(phoneMasked, keyword) || maskProfilePhoneKeyword(keyword) == phoneMasked) {
+	phoneFull := strings.ToLower(strings.TrimSpace(identityInfo.PhoneFull))
+	if phoneMasked != "" && (strings.Contains(phoneMasked, keyword) || maskProfilePhoneKeyword(keyword) == phoneMasked) || phoneFull != "" && strings.Contains(phoneFull, keyword) {
 		fields = append(fields, "手机号")
 	}
-	idMasked := strings.ToLower(idCardMasked)
-	if idMasked != "" && (strings.Contains(idMasked, keyword) || maskProfileIDCardKeyword(keyword) == idMasked) {
+	idMasked := strings.ToLower(identityInfo.IDCardMasked)
+	idFull := strings.ToLower(strings.TrimSpace(identityInfo.IDCardFull))
+	if idMasked != "" && (strings.Contains(idMasked, keyword) || maskProfileIDCardKeyword(keyword) == idMasked) || idFull != "" && strings.Contains(idFull, keyword) {
 		fields = append(fields, "身份证号")
 	}
 	return fields

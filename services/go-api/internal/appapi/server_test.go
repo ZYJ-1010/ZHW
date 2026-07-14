@@ -1422,6 +1422,73 @@ func TestIdentityFlowHTTP(t *testing.T) {
 	}
 }
 
+func TestRestartRealnameResetsIdentityAndExposesPhoneFullHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	token := loginForTestWithCode(t, mux, "restart-realname")
+	completeIdentityForTest(t, mux, token)
+	userID := currentUserIDForTest(t, mux, token)
+	if !identityService.IsVerified(userID) {
+		t.Fatal("expected identity to start verified")
+	}
+
+	restartBody := postJSON(t, mux, "/api/app/identity/realname/restart", token, `{"phone":"13900139011"}`, http.StatusOK)
+	var restartResp struct {
+		Data struct {
+			Status      string `json:"status"`
+			PhoneMasked string `json:"phoneMasked"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(restartBody, &restartResp); err != nil {
+		t.Fatal(err)
+	}
+	if restartResp.Data.Status != "phone_bound" || restartResp.Data.PhoneMasked != "139****9011" {
+		t.Fatalf("expected phone_bound restart response: %s", string(restartBody))
+	}
+	if identityService.IsVerified(userID) {
+		t.Fatal("expected restart realname to clear verified identity")
+	}
+	user, ok := authService.CurrentUser(token)
+	if !ok || user.RealnameStatus != "phone_bound" || user.PhoneMasked != "139****9011" {
+		t.Fatalf("expected user realname status and phone to be reset: %+v", user)
+	}
+
+	adminToken := adminLoginForTest(t, mux)
+	detailBody := getAdminJSON(t, mux, "/api/admin/identity-verifications/"+strconv.FormatInt(userID, 10), adminToken, http.StatusOK)
+	var detailResp struct {
+		Data struct {
+			Status      string `json:"status"`
+			PhoneMasked string `json:"phoneMasked"`
+			PhoneFull   string `json:"phoneFull"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(detailBody, &detailResp); err != nil {
+		t.Fatal(err)
+	}
+	if detailResp.Data.Status != "phone_bound" || detailResp.Data.PhoneMasked != "139****9011" || detailResp.Data.PhoneFull != "13900139011" {
+		t.Fatalf("expected admin identity detail to expose restarted full phone: %s", string(detailBody))
+	}
+
+	submitBody := postJSON(t, mux, "/api/app/identity/phone/verify", token, `{"realName":"Restart User","idCard":"110101199001011235"}`, http.StatusOK)
+	var submitResp struct {
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(submitBody, &submitResp); err != nil {
+		t.Fatal(err)
+	}
+	if submitResp.Data.Status != "pending" {
+		t.Fatalf("expected manual review pending after re-submit: %s", string(submitBody))
+	}
+	user, ok = authService.CurrentUser(token)
+	if !ok || user.RealnameStatus != "pending" {
+		t.Fatalf("expected user realname status pending after re-submit: %+v", user)
+	}
+}
+
 func TestAdminUsersListSupportsInviteLoggedUsers(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())

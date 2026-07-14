@@ -174,6 +174,33 @@ func (s *Service) BindPhone(userID int64, phone string) (Record, error) {
 	return record, s.persistRecord(record)
 }
 
+func (s *Service) RestartRealname(userID int64, phone string) (Record, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return Record{}, ErrPhoneRequired
+	}
+	if !validMainlandPhone(phone) {
+		return Record{}, ErrPhoneInvalid
+	}
+	phoneEncrypted, err := s.encryptIdentitySecret(phone)
+	if err != nil {
+		return Record{}, err
+	}
+	s.mu.Lock()
+	record := s.ensureLocked(userID)
+	record.PhoneMasked = maskPhone(phone)
+	record.PhoneEncrypted = phoneEncrypted
+	record.SMSVerified = false
+	record.PhoneVerified = false
+	record.FaceVerified = false
+	record.Status = StatusPhoneBound
+	record.FailureReason = ""
+	record.UpdatedAt = now()
+	s.records[userID] = record
+	s.mu.Unlock()
+	return record, s.persistRecord(record)
+}
+
 func (s *Service) SendSMSCode(userID int64) (SMSDispatchResult, error) {
 	s.mu.Lock()
 	record := s.ensureLocked(userID)

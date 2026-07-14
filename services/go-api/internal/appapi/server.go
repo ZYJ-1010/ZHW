@@ -314,6 +314,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/app/sms/send-code", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.sendSMSCode)))
 	handle("POST /api/app/sms/verify-code", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.verifySMSCode)))
 	handle("POST /api/app/identity/phone/verify", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.verifyPhone)))
+	handle("POST /api/app/identity/realname/restart", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.restartRealname)))
 	handle("POST /api/app/identity/faceid/detect-auth", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.startFaceID)))
 	handle("POST /api/app/identity/faceid/callback", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDCallback)))
 	handle("POST /api/app/identity/faceid/result", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDCallback)))
