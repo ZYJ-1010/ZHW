@@ -507,6 +507,33 @@ nav button[data-view]:hover,
   background: var(--surface);
 }
 
+.game-audit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: calc(var(--space) * 1.5);
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.game-audit-select-all,
+.audit-select-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.game-audit-select-all input,
+.audit-select-inline input {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -730,6 +757,8 @@ tbody tr:hover {
 
 .row-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
 }
 

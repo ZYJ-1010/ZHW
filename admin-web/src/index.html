@@ -210,11 +210,14 @@
         <div class="panel-head">
           <div>
             <h2>创建邀请码</h2>
-            <p>支持小程序卡片、二维码、链接三种入口；后台生成的邀请码固定归属后台管理员，且每个邀请码只能使用一次。</p>
+            <p>支持小程序卡片、二维码、链接三种入口；创建时需要指定邀请人用户编号，每个邀请码只能使用一次。</p>
           </div>
         </div>
         <form id="invite-create-form" class="form-grid">
           <input name="code" type="hidden" value="" />
+          <label>邀请人用户编号
+            <input name="ownerUserId" inputmode="numeric" required placeholder="例如：91006" />
+          </label>
           <label>邀请入口
             <select name="entryType">
               <option value="poster">小程序卡片</option>
@@ -223,7 +226,7 @@
             </select>
           </label>
           <label>生成数量<input name="batchCount" inputmode="numeric" value="1" placeholder="1-200" /></label>
-          <div class="form-note">系统自动生成邀请码，固定归属后台管理员，每个邀请码只能绑定一个微信用户。</div>
+          <div class="form-note">系统自动生成邀请码，生成前会校验邀请人是否存在。</div>
           <button class="primary" type="submit">生成邀请码</button>
         </form>
       </section>
@@ -383,13 +386,19 @@
             <option value="completed">已完成</option>
           </select>
           <button class="ghost" type="submit">筛选</button>
-          <button id="game-batch-audit-button" class="ghost" type="button">批量通过待审核</button>
         </form>
+        <div class="game-audit-toolbar">
+          <label class="game-audit-select-all">
+            <input id="game-audit-select-all" type="checkbox" aria-label="全选本页待审核组局" />
+            <span>全选本页待审核</span>
+          </label>
+          <span id="game-audit-summary">当前页没有待审核局</span>
+          <button id="game-batch-audit-button" class="ghost" type="button">批量通过已勾选</button>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th><input id="game-audit-select-all" type="checkbox" aria-label="全选本页待审核组局" /></th>
                 <th>组局</th>
                 <th>标题</th>
                 <th>局型</th>
@@ -1478,6 +1487,7 @@
           </label>
           <button class="primary" type="submit">新增敏感词</button>
         </form>
+        <div class="form-note">等级说明：高风险用于违法、诈骗、色情、辱骂等必须拦截内容；中风险用于争议、擦边或需复核内容；低风险用于提醒类、观察类内容。</div>
         <form id="sensitive-import-form" class="form-grid compact-grid">
           <label>批量敏感词<textarea name="words" rows="4" placeholder="每行一个词"></textarea></label>
           <button class="ghost" type="submit">批量导入</button>

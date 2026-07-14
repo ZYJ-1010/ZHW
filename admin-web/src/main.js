@@ -451,8 +451,14 @@ async function createInviteCode(event) {
   const entryType = ["poster", "qrcode", "link"].includes(data.entryType) ? data.entryType : "poster";
   const rawBatchCount = Number(data.batchCount || 1);
   const batchCount = Number.isFinite(rawBatchCount) ? Math.min(Math.max(rawBatchCount, 1), 200) : 1;
+  const ownerUserId = Number(data.ownerUserId || 0);
+  if (!Number.isInteger(ownerUserId) || ownerUserId <= 0) {
+    toast("请输入有效的邀请人用户编号", true);
+    return;
+  }
   const payload = {
     code: String(data.code || "").trim(),
+    ownerUserId,
     entryType,
     batchCount,
   };
@@ -464,8 +470,10 @@ async function createInviteCode(event) {
     const result = (await apiPost("/api/admin/invite-codes", payload)) || {};
     toast(payload.batchCount > 1 ? `已批量生成 ${result.total || payload.batchCount} 个邀请码` : "邀请码已创建");
     form.reset();
+    const ownerInput = form.querySelector("[name='ownerUserId']");
     const entryTypeInput = form.querySelector("[name='entryType']");
     const batchCountInput = form.querySelector("[name='batchCount']");
+    if (ownerInput) ownerInput.value = "";
     if (entryTypeInput) entryTypeInput.value = "poster";
     if (batchCountInput) batchCountInput.value = "1";
     await loadInviteCodes();
@@ -985,9 +993,17 @@ function updateGameAuditSelectionUI() {
   const checkedCount = boxes.filter((box) => box.checked).length;
   selectAll.checked = boxes.length > 0 && checkedCount === boxes.length;
   selectAll.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+  selectAll.disabled = boxes.length === 0;
+  const summary = $("#game-audit-summary");
+  if (summary) {
+    summary.textContent = boxes.length
+      ? `本页待审核 ${boxes.length} 个，已勾选 ${state.selectedGameAuditIds.size} 个`
+      : "当前页没有待审核局";
+  }
   const button = $("#game-batch-audit-button");
   if (button) {
     button.textContent = state.selectedGameAuditIds.size ? `批量通过已选 ${state.selectedGameAuditIds.size} 个` : "批量通过已勾选";
+    button.disabled = state.selectedGameAuditIds.size === 0;
   }
 }
 
@@ -996,7 +1012,7 @@ async function loadGames(formData) {
   const data = await apiGet(`/api/admin/games${querySuffix(formData)}`);
   state.games = data.items || [];
   pruneGameAuditSelection();
-  renderPaginatedTable("#games-table", state.games, "games", gameRow, 9, "暂无组局");
+  renderPaginatedTable("#games-table", state.games, "games", gameRow, 8, "暂无组局");
   updateGameAuditSelectionUI();
   await loadGameApplications();
 }
@@ -2930,11 +2946,12 @@ async function renderAdmins() {
 
 async function createAdminUser(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   if (!can("admin_user:create")) {
     toast("当前角色没有创建后台账号权限", true);
     return;
   }
-  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const data = Object.fromEntries(new FormData(form).entries());
   try {
     await apiPost("/api/admin/admin-users", {
       username: data.username.trim(),
@@ -2943,8 +2960,8 @@ async function createAdminUser(event) {
       status: data.status,
     });
     toast("后台账号已创建");
-    event.currentTarget.reset();
-    const statusInput = event.currentTarget.querySelector("[name='status']");
+    form.reset();
+    const statusInput = form.querySelector("[name='status']");
     if (statusInput) statusInput.value = "active";
     await loadAdminAccounts();
   } catch (error) {
@@ -3548,11 +3565,12 @@ async function saveProfitTemplateConfig(event) {
 
 async function createSensitiveWord(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   if (!can("content:sensitive_word:create")) {
     toast("缺少 content:sensitive_word:create", true);
     return;
   }
-  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const data = Object.fromEntries(new FormData(form).entries());
   try {
     await apiPost("/api/admin/sensitive-words", {
       word: data.word.trim(),
@@ -3561,7 +3579,7 @@ async function createSensitiveWord(event) {
       status: "active",
     });
     toast("敏感词已新增");
-    event.currentTarget.reset();
+    form.reset();
     await loadSensitiveWords();
   } catch (error) {
     toast(error.message, true);
@@ -3570,18 +3588,23 @@ async function createSensitiveWord(event) {
 
 async function importSensitiveWords(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   if (!can("content:sensitive_word:import")) {
     toast("缺少 content:sensitive_word:import", true);
     return;
   }
-  const words = String(new FormData(event.currentTarget).get("words") || "")
+  const words = String(new FormData(form).get("words") || "")
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
+  if (words.length === 0) {
+    toast("请先填写要导入的敏感词", true);
+    return;
+  }
   try {
     await apiPost("/api/admin/sensitive-words/import", { words });
     toast(`已导入 ${words.length} 个敏感词`);
-    event.currentTarget.reset();
+    form.reset();
     await loadSensitiveWords();
   } catch (error) {
     toast(error.message, true);
@@ -4860,9 +4883,20 @@ function adminApplicationCopyText(item = {}) {
 function gameRow(game) {
   const canAudit = game.status === "pending_audit" && can("game:update_status");
   const checked = state.selectedGameAuditIds.has(String(game.id)) ? "checked" : "";
+  const actions = [
+    `<button class="ghost" data-action="detail" data-id="${game.id}" type="button">详情</button>`,
+  ];
+  if (canAudit) {
+    actions.unshift(`
+      <label class="audit-select-inline">
+        <input class="game-audit-checkbox" type="checkbox" value="${escapeHTML(game.id)}" aria-label="选择局 ${escapeHTML(game.id)}" ${checked} />
+        <span>勾选</span>
+      </label>
+    `);
+    actions.push(`<button class="ghost" data-action="audit" data-id="${game.id}" type="button">通过</button>`);
+  }
   return `
     <tr>
-      <td>${canAudit ? `<input class="game-audit-checkbox" type="checkbox" value="${escapeHTML(game.id)}" aria-label="选择局 ${escapeHTML(game.id)}" ${checked} />` : ""}</td>
       <td>${escapeHTML(game.id ? `局 ${game.id}` : "-")}</td>
       <td>${escapeHTML(game.title)}</td>
       <td>${gameTypeLabel(game.gameType)}</td>
@@ -4872,8 +4906,7 @@ function gameRow(game) {
       <td>${escapeHTML(game.address || game.cityName || game.cityCode || "-")}</td>
       <td>
         <div class="row-actions">
-          <button class="ghost" data-action="detail" data-id="${game.id}" type="button">详情</button>
-          ${canAudit ? `<button class="ghost" data-action="audit" data-id="${game.id}" type="button">通过</button>` : ""}
+          ${actions.join("")}
         </div>
       </td>
     </tr>
