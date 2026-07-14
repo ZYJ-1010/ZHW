@@ -1,0 +1,1547 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>真好玩管理后台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="login-screen" class="login-screen">
+      <section class="login-panel">
+        <div class="login-copy">
+          <p class="eyebrow">真好玩后台</p>
+          <h1>真好玩管理后台</h1>
+          <p class="muted">运营、审核、交易、数据和系统治理按管理员角色分区开放。</p>
+        </div>
+        <form id="login-form" class="login-form" data-login-content="login">
+          <label>
+            登录账号
+            <input id="login-username" autocomplete="username" placeholder="例如：admin / finance" />
+          </label>
+          <label>
+            密码
+            <input id="login-password" type="password" autocomplete="current-password" />
+          </label>
+          <button class="primary" type="submit">登录后台</button>
+          <p class="login-switch">还没有后台账号？<button class="link-button" data-login-panel="apply" type="button">申请管理员</button></p>
+          <p id="login-error" class="error-text"></p>
+        </form>
+        <form id="admin-apply-form" class="login-form hidden" data-login-content="apply">
+          <label>申请人姓名<input name="name" required maxlength="64" placeholder="填写真实姓名或岗位名" /></label>
+          <label>联系方式<input name="contact" required maxlength="120" placeholder="手机号 / 微信 / 企业微信" /></label>
+          <label>申请角色
+            <select name="desiredRole" required>
+              <option value="operation_manager">运营管理员</option>
+              <option value="game_manager">组局管理员</option>
+              <option value="user_manager">用户管理员</option>
+              <option value="finance_manager">财务管理员</option>
+              <option value="customer_manager">客服管理员</option>
+              <option value="data_analyst">数据分析员</option>
+            </select>
+          </label>
+          <label>申请说明<textarea name="reason" maxlength="500" placeholder="说明负责的岗位和需要处理的后台范围"></textarea></label>
+          <button class="primary" type="submit">提交申请</button>
+          <p class="login-switch">已有后台账号？<button class="link-button" data-login-panel="login" type="button">返回登录</button></p>
+          <p id="admin-apply-result" class="form-result"></p>
+        </form>
+      </section>
+    </div>
+
+    <div id="app-shell" class="app-shell hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">真</span>
+          <div>
+            <strong>真好玩后台</strong>
+            <small id="admin-role">未登录</small>
+          </div>
+        </div>
+        <nav id="main-nav">
+          <section class="nav-section">
+            <button class="nav-section-toggle" data-nav-group="operations" type="button">运营工作</button>
+            <div class="nav-section-items" data-nav-items="operations">
+              <button data-view="dashboard" class="active">总览</button>
+              <button data-view="users">用户管理</button>
+              <button data-view="invites">邀请管理</button>
+              <button data-view="games">组局管理</button>
+              <button data-view="audits">角色审核</button>
+            </div>
+          </section>
+          <section class="nav-section">
+            <button class="nav-section-toggle" data-nav-group="growth" type="button">交易与增长</button>
+            <div class="nav-section-items" data-nav-items="growth">
+              <button data-view="revenue">分润结算</button>
+              <button data-view="redemption">积分兑换</button>
+              <button data-view="members">会员团队</button>
+              <button data-view="profiles">画像关系</button>
+              <button data-view="growth">评价成长</button>
+            </div>
+          </section>
+          <section class="nav-section">
+            <button class="nav-section-toggle" data-nav-group="risk" type="button">风控与交付</button>
+            <div class="nav-section-items" data-nav-items="risk">
+              <button data-view="reports">举报申诉</button>
+              <button data-view="exports">导出中心</button>
+              <button data-view="analytics">数据分析</button>
+              <button data-view="delivery">通知交付</button>
+              <button data-view="im">局内消息证据</button>
+            </div>
+          </section>
+          <section class="nav-section">
+            <button class="nav-section-toggle" data-nav-group="system" type="button">系统治理</button>
+            <div class="nav-section-items" data-nav-items="system">
+              <button data-view="admins">后台账号</button>
+              <button data-view="system">运营规则</button>
+              <button data-view="logs">操作日志</button>
+            </div>
+          </section>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p id="breadcrumb" class="eyebrow">总览</p>
+            <h1 id="page-title">一期后台工作台</h1>
+          </div>
+          <div class="topbar-actions">
+            <span id="api-status" class="status-dot pending">服务连接中</span>
+            <button id="refresh-button" class="ghost" type="button">刷新</button>
+            <button id="logout-button" class="ghost" type="button">退出</button>
+          </div>
+        </header>
+
+        <section id="toast" class="toast hidden"></section>
+        <section id="view-root" class="view-root"></section>
+      </main>
+    </div>
+
+    <template id="dashboard-template">
+      <div class="metric-grid">
+        <article class="metric-card">
+          <span>用户事件</span>
+          <strong data-field="behaviorCount">0</strong>
+          <small>小程序行为与后台操作输入</small>
+        </article>
+        <article class="metric-card">
+          <span>组局数</span>
+          <strong data-field="gameCount">0</strong>
+          <small>普通局、标准局、条件局</small>
+        </article>
+        <article class="metric-card">
+          <span>待审局</span>
+          <strong data-field="pendingGameCount">0</strong>
+          <small>后台审核后进入招募</small>
+        </article>
+        <article class="metric-card">
+          <span>局内消息房间</span>
+          <strong data-field="imRoomCount">0</strong>
+          <small>房间、消息和争议证据</small>
+        </article>
+      </div>
+      <div class="split">
+        <section class="panel">
+          <div class="panel-head"><h2>局型分布</h2></div>
+          <div id="game-type-bars" class="bars"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>组局状态</h2></div>
+          <div id="game-status-bars" class="bars"></div>
+        </section>
+      </div>
+      <div class="split">
+        <section class="panel">
+          <div class="panel-head"><h2>今日待办</h2></div>
+          <div id="dashboard-work-queue" class="stack-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>管理员职责</h2></div>
+          <div id="dashboard-permission-scope" class="stack-list"></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="users-template">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>用户列表</h2>
+          </div>
+          <form id="user-filter-form" class="filters">
+            <input name="keyword" placeholder="昵称 / 手机尾号 / 用户" />
+            <select name="realnameStatus">
+              <option value="">全部实名状态</option>
+              <option value="pending">待处理</option>
+              <option value="phone_bound">已绑手机</option>
+              <option value="verified">已实名</option>
+              <option value="rejected">已驳回</option>
+            </select>
+            <select name="status">
+              <option value="">全部账号状态</option>
+              <option value="active">正常</option>
+              <option value="disabled">已禁用</option>
+            </select>
+            <button class="ghost" type="submit">筛选</button>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>用户</th>
+                <th>用户来源</th>
+                <th>昵称</th>
+                <th>邀请人</th>
+                <th>实名状态</th>
+                <th>账号状态</th>
+                <th>创建时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="users-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="invites-template">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>创建邀请码</h2>
+            <p>支持小程序卡片、二维码、链接三种入口；后台生成的邀请码固定归属后台管理员，且每个邀请码只能使用一次。</p>
+          </div>
+        </div>
+        <form id="invite-create-form" class="form-grid">
+          <input name="code" type="hidden" value="" />
+          <label>邀请入口
+            <select name="entryType">
+              <option value="poster">小程序卡片</option>
+              <option value="qrcode">二维码</option>
+              <option value="link">链接</option>
+            </select>
+          </label>
+          <label>生成数量<input name="batchCount" inputmode="numeric" value="1" placeholder="1-200" /></label>
+          <div class="form-note">系统自动生成邀请码，固定归属后台管理员，每个邀请码只能绑定一个微信用户。</div>
+          <button class="primary" type="submit">生成邀请码</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>邀请码列表</h2>
+          </div>
+          <form id="invite-filter-form" class="filters">
+            <select name="entryType">
+              <option value="">全部入口</option>
+              <option value="poster">小程序卡片</option>
+              <option value="qrcode">二维码</option>
+              <option value="link">链接</option>
+            </select>
+            <select name="status">
+              <option value="">全部状态</option>
+              <option value="active">正常</option>
+              <option value="disabled">已禁用</option>
+              <option value="exhausted">已用尽</option>
+            </select>
+            <button class="ghost" type="submit">筛选</button>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>记录</th>
+                <th>邀请码</th>
+                <th>邀请入口</th>
+                <th>状态</th>
+                <th>使用状态</th>
+                <th>使用用户</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="invite-codes-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>邀请关系</h2>
+          </div>
+          <form id="relation-filter-form" class="filters">
+            <input name="inviteeUserId" inputmode="numeric" placeholder="被邀请用户" />
+            <input name="inviteCodeId" inputmode="numeric" placeholder="邀请码" />
+            <button class="ghost" type="submit">筛选</button>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>邀请码</th>
+                <th>被邀请用户</th>
+                <th>绑定来源</th>
+                <th>入口</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="invite-relations-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="games-template">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>后台开局</h2>
+            <p>小程序用户只能发起普通局；后台可按运营需要创建其他局型并开放招募。</p>
+          </div>
+          <button id="open-game-create-drawer" class="primary" type="button">创建新局</button>
+        </div>
+        <form id="game-create-form" class="form-grid hidden">
+          <label>主领路人（二期）<input inputmode="numeric" placeholder="暂不接入创建流程" disabled /></label>
+          <label>标题<input name="title" required maxlength="80" placeholder="例如：北京周末条件局" /></label>
+          <div class="field-with-hint">
+            <label>发起人
+              <select id="game-creator-select" name="creatorUserId" required>
+                <option value="">正在加载用户...</option>
+              </select>
+            </label>
+            <span id="game-creator-hint" class="muted">选择后将使用该用户编号创建局</span>
+          </div>
+          <label>局型
+            <select id="game-create-type-select" name="gameType">
+              <option value="free">普通局</option>
+              <option value="standard">标准局</option>
+              <option value="public_welfare">公益局</option>
+              <option value="aa">均摊局</option>
+              <option value="crowdfund">众筹局</option>
+              <option value="deposit">押金局</option>
+              <option value="condition">条件局</option>
+            </select>
+          </label>
+          <div class="span-full cover-upload-field">
+            <label>局封面<input name="coverImage" maxlength="500" placeholder="上传后自动填入 COS/CDN 封面地址，也可手动粘贴" /></label>
+            <div class="cover-upload-actions">
+              <input id="game-cover-file" accept="image/jpeg,image/png,image/webp" type="file" />
+              <button id="game-cover-upload-button" class="ghost" type="button">上传封面</button>
+              <span id="game-cover-upload-status" class="muted">支持 JPG/PNG/WEBP，不超过 10MB</span>
+            </div>
+            <div id="game-cover-preview" class="cover-upload-preview hidden"></div>
+          </div>
+          <label>城市名称<input name="cityName" maxlength="64" placeholder="北京" /></label>
+          <label>详细地址<input name="address" maxlength="255" placeholder="地点门牌或地图地址" /></label>
+          <label>报名开始时间<input name="signupStartAt" type="datetime-local" required /></label>
+          <label>报名截止时间<input name="signupEndAt" type="datetime-local" required /></label>
+          <label>组局开始时间<input name="startAt" type="datetime-local" required /></label>
+          <label>组局结束时间<input name="endAt" type="datetime-local" required /></label>
+          <input name="cityCode" type="hidden" />
+          <input name="longitude" type="hidden" />
+          <input name="latitude" type="hidden" />
+          <div class="map-search-box">
+            <label>地点搜索<input id="game-map-keyword" placeholder="输入地点或地址关键词" /></label>
+            <button id="game-map-search-button" class="ghost" type="button">搜索地点</button>
+            <div id="game-map-results" class="map-search-results"></div>
+          </div>
+          <label>最少人数<input name="minPlayers" required inputmode="numeric" type="number" min="5" max="8" value="5" /></label>
+          <label>最多人数<input name="maxPlayers" required inputmode="numeric" type="number" min="5" max="8" value="8" /></label>
+          <button class="primary" type="submit">创建并开放招募</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head panel-head-compact">
+          <div>
+            <h2>组局列表</h2>
+            <p>按关键词、局型和状态筛选；批量审核只处理当前筛选结果中的待审核局。</p>
+          </div>
+        </div>
+        <form id="game-filter-form" class="filters filter-strip">
+          <input name="keyword" placeholder="标题 / 城市" />
+          <select id="game-filter-type-select" name="gameType">
+            <option value="">全部局型</option>
+            <option value="free">普通局</option>
+            <option value="standard">标准局</option>
+            <option value="public_welfare">公益局</option>
+            <option value="aa">均摊局</option>
+            <option value="crowdfund">众筹局</option>
+            <option value="deposit">押金局</option>
+            <option value="condition">条件局</option>
+          </select>
+          <select name="status">
+            <option value="">全部状态</option>
+            <option value="pending_audit">待审核</option>
+            <option value="recruiting">招募中</option>
+            <option value="in_progress">进行中</option>
+            <option value="pending_review">待评价</option>
+            <option value="completed">已完成</option>
+          </select>
+          <button class="ghost" type="submit">筛选</button>
+          <button id="game-batch-audit-button" class="ghost" type="button">批量通过待审核</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>组局</th>
+                <th>标题</th>
+                <th>局型</th>
+                <th>创建方式</th>
+                <th>状态</th>
+                <th>人数</th>
+                <th>城市</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="games-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="audits-template">
+      <div class="section-tabs">
+        <button class="active" data-tab-group="audits" data-tab-target="#audit-identities-panel" type="button">认证记录</button>
+        <button data-tab-group="audits" data-tab-target="#audit-roles-panel" type="button">行家/领路人申请</button>
+      </div>
+      <div class="view-root">
+        <section id="audit-identities-panel" class="panel" data-tab-panel-group="audits">
+          <div class="panel-head">
+            <div>
+              <h2>认证记录查询</h2>
+              <p>一期实名认证由用户提交姓名和身份证号，后台人工审核通过后生效。</p>
+            </div>
+            <button class="ghost" data-action="reload-identities" type="button">刷新</button>
+          </div>
+          <div id="identity-list" class="stack-list"></div>
+        </section>
+        <section id="audit-roles-panel" class="panel hidden" data-tab-panel-group="audits">
+          <div class="panel-head">
+            <div>
+              <h2>行家/领路人申请</h2>
+              <p>只处理行家、领路人等需要运营确认的身份申请。</p>
+            </div>
+            <button class="ghost" data-action="reload-roles" type="button">刷新</button>
+          </div>
+          <div id="role-list" class="stack-list"></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="revenue-template">
+      <div class="section-tabs" role="tablist" aria-label="分润结算模块">
+        <button class="active" data-tab-group="revenue" data-tab-target="#revenue-plan-panel" type="button">方案规则</button>
+        <button data-tab-group="revenue" data-tab-target="#revenue-calc-panel" type="button">分润试算</button>
+        <button data-tab-group="revenue" data-tab-target="#revenue-records-panel" type="button">分润记录</button>
+        <button data-tab-group="revenue" data-tab-target="#revenue-settlements-panel" type="button">线下结算</button>
+      </div>
+      <div id="revenue-plan-panel" data-tab-panel-group="revenue">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>局型分润方案</h2>
+          </div>
+        </div>
+        <form id="revenue-template-form" class="form-grid">
+          <label>方案名称<input name="name" maxlength="64" value="默认方案" /></label>
+          <label>局类型
+            <select id="revenue-template-type-select" name="gameType">
+              <option value="free">普通局</option>
+              <option value="standard">标准局</option>
+              <option value="public_welfare">公益局</option>
+              <option value="aa">均摊局</option>
+              <option value="crowdfund">众筹局</option>
+              <option value="deposit">押金局</option>
+              <option value="condition">条件局</option>
+            </select>
+          </label>
+          <label>平台服务费比例<input name="platformBps" inputmode="decimal" value="10" placeholder="例如：10" /></label>
+          <label>发起人收益比例<input name="creatorBps" inputmode="decimal" value="30" placeholder="例如：30" /></label>
+          <label>参与人分配比例<input name="memberBps" inputmode="decimal" value="60" placeholder="例如：60" /></label>
+          <div class="form-note">比例按百分比填写，普通局可配置为 0；收费局、押金局、条件局由后台提前配置。</div>
+          <button class="primary" type="submit">保存方案</button>
+        </form>
+      </section>
+      <div class="split">
+        <section class="panel">
+          <div class="panel-head"><h2>方案列表</h2></div>
+          <div id="revenue-template-list" class="stack-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>分润规则</h2></div>
+          <form id="revenue-rule-form" class="form-grid compact-grid">
+            <label>所属方案<input id="revenue-rule-template-display" readonly placeholder="从左侧选择方案" /></label>
+            <input name="templateId" type="hidden" required />
+            <label>规则名称
+              <select name="ruleCode">
+                <option value="expert_bps">行家分润比例</option>
+                <option value="guide_bps">领路人分润比例</option>
+                <option value="freeze_days">冻结天数</option>
+                <option value="min_amount">最低结算金额</option>
+              </select>
+            </label>
+            <label>规则内容<input name="ruleValue" maxlength="128" placeholder="例如：20% 或 7天" /></label>
+            <button class="ghost" type="submit">保存规则</button>
+          </form>
+          <div id="revenue-rule-list" class="stack-list"></div>
+        </section>
+      </div>
+      </div>
+      <section id="revenue-calc-panel" class="panel hidden" data-tab-panel-group="revenue">
+        <div class="panel-head">
+          <div>
+            <h2>分润试算</h2>
+          </div>
+        </div>
+        <form id="revenue-calc-form" class="form-grid">
+          <label>组局<input name="gameId" required inputmode="numeric" placeholder="输入组局编号" /></label>
+          <label>结算金额<input name="amountCent" required inputmode="numeric" value="0" /></label>
+          <label>分润方案<input id="revenue-calc-template-display" readonly placeholder="从左侧方案选择" /></label>
+          <input name="templateId" type="hidden" required />
+          <label>发起人<input name="creatorUserId" inputmode="numeric" placeholder="发起人" /></label>
+          <label>参与人<input name="memberIds" placeholder="多个用户用逗号分隔" /></label>
+          <label>行家<input name="expertUserId" inputmode="numeric" placeholder="行家" /></label>
+          <label>领路人<input name="guideUserId" inputmode="numeric" placeholder="领路人" /></label>
+          <div class="form-note">试算用于财务核对，正式收益以组局完成后的系统结算记录为准。</div>
+          <div class="row-actions form-actions">
+            <button class="ghost" data-action="revenue-preview" type="button">试算</button>
+            <button class="primary" data-action="revenue-generate" type="button">生成记录</button>
+          </div>
+        </form>
+        <section id="revenue-preview-panel" class="sub-panel hidden"></section>
+      </section>
+      <section id="revenue-records-panel" class="panel hidden" data-tab-panel-group="revenue">
+        <div class="panel-head"><h2>分润记录</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>举报单</th>
+                <th>记录号</th>
+                <th>组局</th>
+                <th>分润方案</th>
+                <th>金额</th>
+                <th>状态</th>
+                <th>明细</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="revenue-records-table"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="revenue-settlements-panel" class="panel hidden" data-tab-panel-group="revenue">
+        <div class="panel-head"><h2>线下结算记录</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>记录</th>
+                <th>对应分润</th>
+                <th>方式</th>
+                <th>凭证号</th>
+                <th>金额</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="revenue-settlements-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="redemption-template">
+      <div class="section-tabs" role="tablist" aria-label="积分兑换模块">
+        <button class="active" data-tab-group="redemption" data-tab-target="#redemption-items-panel" type="button">兑换商品</button>
+        <button data-tab-group="redemption" data-tab-target="#redemption-orders-panel" type="button">兑换订单</button>
+        <button data-tab-group="redemption" data-tab-target="#redemption-points-panel" type="button">积分流水</button>
+      </div>
+      <section id="redemption-items-panel" class="panel" data-tab-panel-group="redemption">
+        <div class="panel-head">
+          <div>
+            <h2>兑换商品</h2>
+          </div>
+        </div>
+        <form id="redemption-item-form" class="form-grid">
+          <label>商品名称<input name="name" maxlength="64" required placeholder="体验券" /></label>
+          <label>描述<input name="description" maxlength="128" placeholder="兑换说明" /></label>
+          <label class="span-2">商品图片<input name="imageUrl" maxlength="500" placeholder="填写已上传到 COS/CDN 的图片地址" /></label>
+          <label>所需积分<input name="pointsCost" inputmode="numeric" required value="10" /></label>
+          <label>库存<input name="stock" inputmode="numeric" required value="1" /></label>
+          <button class="primary" type="submit">新增商品</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>商品</th>
+                <th>图片地址</th>
+                <th>名称</th>
+                <th>所需积分</th>
+                <th>库存</th>
+                <th>状态</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="redemption-items-table"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="redemption-orders-panel" class="panel hidden" data-tab-panel-group="redemption">
+        <div class="panel-head">
+          <div>
+            <h2>兑换订单</h2>
+          </div>
+          <button id="redemption-orders-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>订单</th>
+                <th>订单号</th>
+                <th>用户</th>
+                <th>商品</th>
+                <th>所需积分</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="redemption-orders-table"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="redemption-points-panel" class="panel hidden" data-tab-panel-group="redemption">
+        <div class="panel-head">
+          <div>
+            <h2>积分流水</h2>
+          </div>
+          <button id="points-logs-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>流水</th>
+                <th>用户</th>
+                <th>积分变动</th>
+                <th>变动前/后</th>
+                <th>业务</th>
+                <th>原因</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="points-logs-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="members-template">
+      <div class="section-tabs" role="tablist" aria-label="会员团队模块">
+        <button class="active" data-tab-group="members" data-tab-target="#members-teams-panel" type="button">团队列表</button>
+        <button data-tab-group="members" data-tab-target="#members-reports-panel" type="button">会员报表</button>
+      </div>
+        <section id="members-teams-panel" class="panel" data-tab-panel-group="members">
+          <div class="panel-head">
+            <div>
+              <h2>团队列表</h2>
+            </div>
+            <button id="member-teams-refresh" class="ghost" type="button">刷新</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>团队</th>
+                  <th>团长</th>
+                  <th>名称</th>
+                  <th>状态</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="member-teams-table"></tbody>
+            </table>
+          </div>
+        </section>
+        <section id="members-reports-panel" class="panel hidden" data-tab-panel-group="members">
+          <div class="panel-head">
+            <div>
+              <h2>会员报表</h2>
+            </div>
+            <button id="member-reports-refresh" class="ghost" type="button">刷新</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>用户</th>
+                  <th>周期</th>
+                  <th>方案</th>
+                  <th>邀请数</th>
+                  <th>组局数</th>
+                  <th>收益</th>
+                  <th>创建时间</th>
+                </tr>
+              </thead>
+              <tbody id="member-reports-table"></tbody>
+            </table>
+          </div>
+        </section>
+    </template>
+
+    <template id="profiles-template">
+      <div class="section-tabs" role="tablist" aria-label="画像关系模块">
+        <button class="active" data-tab-group="profiles" data-tab-target="#profiles-connections-panel" type="button">人脉关系</button>
+        <button data-tab-group="profiles" data-tab-target="#profiles-query-panel" type="button">画像查询</button>
+      </div>
+        <section id="profiles-connections-panel" class="panel" data-tab-panel-group="profiles">
+          <div class="panel-head">
+            <div>
+              <h2>人脉关系</h2>
+            </div>
+            <button id="connections-refresh" class="ghost" type="button">刷新</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>关系</th>
+                  <th>用户</th>
+                  <th>关联用户</th>
+                  <th>关系类型</th>
+                  <th>来源</th>
+                  <th>关系强度</th>
+                  <th>更新时间</th>
+                </tr>
+              </thead>
+              <tbody id="connections-table"></tbody>
+            </table>
+          </div>
+        </section>
+        <section id="profiles-query-panel" class="panel hidden" data-tab-panel-group="profiles">
+          <div class="panel-head">
+            <div>
+              <h2>画像查询</h2>
+              <p>按手机号、昵称、身份证号或用户编号模糊查询，数据来自小程序端资料沉淀。</p>
+            </div>
+          </div>
+          <form id="expert-profile-form" class="form-grid compact-grid">
+            <label>行家用户<input name="keyword" required placeholder="手机号 / 昵称 / 身份证号 / 用户编号" /></label>
+            <button class="ghost" type="submit">查询行家</button>
+          </form>
+          <div id="expert-profile-panel" class="profile-card"></div>
+          <form id="guide-profile-form" class="form-grid compact-grid profile-form-gap">
+            <label>领路人用户<input name="keyword" required placeholder="手机号 / 昵称 / 身份证号 / 用户编号" /></label>
+            <button class="ghost" type="submit">查询领路人</button>
+          </form>
+          <div id="guide-profile-panel" class="profile-card"></div>
+        </section>
+    </template>
+
+    <template id="reports-template">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>举报申诉列表</h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>记录</th>
+                <th>相关组局</th>
+                <th>举报人</th>
+                <th>被举报人</th>
+                <th>举报类型</th>
+                <th>证据</th>
+                <th>状态</th>
+                <th>分润状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="reports-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="growth-template">
+      <div class="section-tabs" role="tablist" aria-label="评价成长模块">
+        <button class="active" data-tab-group="growth" data-tab-target="#growth-user-panel" type="button">用户成长</button>
+        <button data-tab-group="growth" data-tab-target="#growth-review-panel" type="button">局评价</button>
+      </div>
+        <section id="growth-user-panel" class="panel" data-tab-panel-group="growth">
+          <div class="panel-head">
+            <div>
+              <h2>用户成长追踪</h2>
+            </div>
+          </div>
+          <form id="user-growth-form" class="form-grid compact-grid">
+            <label>用户<input name="userId" required inputmode="numeric" placeholder="输入用户编号" /></label>
+            <button class="ghost" type="submit">查询用户</button>
+          </form>
+          <div id="user-growth-panel" class="profile-card"></div>
+        </section>
+        <section id="growth-review-panel" class="panel hidden" data-tab-panel-group="growth">
+          <div class="panel-head">
+            <div>
+              <h2>局评价追踪</h2>
+              <p>按组局查看服务确认后评价、再玩意向、信用扣分和足迹证据。</p>
+            </div>
+          </div>
+          <form id="game-review-trace-form" class="form-grid compact-grid">
+            <label>组局<input name="gameId" required inputmode="numeric" placeholder="输入组局编号" /></label>
+            <button class="ghost" type="submit">查询局</button>
+          </form>
+          <div id="game-review-trace-panel" class="profile-card"></div>
+        </section>
+    </template>
+
+    <template id="exports-template">
+      <div class="section-tabs" role="tablist" aria-label="导出中心模块">
+        <button class="active" data-tab-group="exports" data-tab-target="#exports-task-panel" type="button">导出任务</button>
+        <button data-tab-group="exports" data-tab-target="#exports-create-panel" type="button">创建导出</button>
+      </div>
+      <div id="exports-create-panel" class="split hidden" data-tab-panel-group="exports">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>报表类型</h2>
+            </div>
+          </div>
+          <div id="export-template-list" class="stack-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>创建导出任务</h2>
+            <p>选择需要导出的业务报表，系统会生成文件供管理员下载。</p>
+            </div>
+          </div>
+          <form id="export-create-form" class="form-grid compact-grid">
+            <label>报表类型<input id="export-template-display" readonly placeholder="先从左侧选择报表" /></label>
+            <input name="templateCode" type="hidden" required />
+            <textarea name="filters" class="hidden"></textarea>
+            <button class="primary" type="submit">创建任务</button>
+          </form>
+          <button id="export-runner-button" class="ghost" type="button">生成文件</button>
+        </section>
+      </div>
+      <section id="exports-task-panel" class="panel" data-tab-panel-group="exports">
+        <div class="panel-head"><h2>导出任务</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>任务</th>
+              <th>报表类型</th>
+                <th>内容范围</th>
+              <th>文件状态</th>
+                <th>状态</th>
+                <th>文件</th>
+                <th>创建时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="export-tasks-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="analytics-template">
+      <div class="metric-grid">
+        <article class="metric-card">
+          <span>智能数据用户</span>
+          <strong data-field="aiUserCount">0</strong>
+          <small>可用于推荐的数据用户数</small>
+        </article>
+        <article class="metric-card">
+          <span>用户行为</span>
+          <strong data-field="aiBehaviorCount">0</strong>
+          <small>小程序内关键操作记录</small>
+        </article>
+        <article class="metric-card">
+          <span>评价数据</span>
+          <strong data-field="aiReviewCount">0</strong>
+          <small>服务评价和成长样本</small>
+        </article>
+        <article class="metric-card">
+          <span>验收状态</span>
+          <strong data-field="aiAcceptanceReady">否</strong>
+          <small>智能数据准备验收门槛</small>
+        </article>
+      </div>
+
+      <div class="section-tabs" role="tablist" aria-label="数据分析模块">
+        <button class="active" data-tab-group="analytics" data-tab-target="#analytics-behavior-panel" type="button">行为事件</button>
+        <button data-tab-group="analytics" data-tab-target="#analytics-funnel-panel" type="button">漏斗留存</button>
+        <button data-tab-group="analytics" data-tab-target="#analytics-ai-panel" type="button">智能数据</button>
+      </div>
+
+      <div id="analytics-funnel-panel" class="split hidden" data-tab-panel-group="analytics">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>漏斗分析</h2>
+            </div>
+            <form id="funnel-filter-form" class="filters">
+              <input name="eventCodes" placeholder="行为名称，多个用逗号分隔" />
+              <button class="ghost" type="submit">刷新</button>
+            </form>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>行为节点</th>
+                  <th>用户数</th>
+                  <th>转化率</th>
+                  <th>流失率</th>
+                </tr>
+              </thead>
+              <tbody id="analytics-funnel-table"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>留存分析</h2>
+            </div>
+            <button id="retention-refresh" class="ghost" type="button">刷新</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>留存日期</th>
+                  <th>新增用户</th>
+                  <th>次日留存</th>
+                  <th>7日留存</th>
+                  <th>30日留存</th>
+                </tr>
+              </thead>
+              <tbody id="analytics-retention-table"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section id="analytics-behavior-panel" class="panel" data-tab-panel-group="analytics">
+        <div class="panel-head">
+          <div>
+            <h2>行为事件</h2>
+          </div>
+          <form id="behavior-filter-form" class="filters hidden">
+            <input name="userId" inputmode="numeric" placeholder="用户" />
+            <input name="eventType" placeholder="行为分类" />
+            <input name="eventCode" placeholder="行为名称" />
+            <button id="behavior-logs-refresh" class="ghost" type="button">完整时间线</button>
+            <button class="ghost" type="submit">筛选</button>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>记录</th>
+                <th>用户</th>
+                  <th>行为分类</th>
+                  <th>行为名称</th>
+                <th>目标</th>
+                <th>来源</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="behavior-events-table"></tbody>
+          </table>
+        </div>
+        <div id="behavior-log-list" class="stack-list"></div>
+      </section>
+
+      <div id="analytics-ai-panel" class="split hidden" data-tab-panel-group="analytics">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>智能数据快照</h2>
+            </div>
+            <div class="row-actions">
+              <button id="ai-fixture-button" class="ghost hidden" type="button">准备推荐数据</button>
+              <button id="ai-im-export-button" class="ghost hidden" type="button">导出局内消息数据</button>
+              <button id="ai-snapshot-refresh" class="ghost" type="button">刷新</button>
+            </div>
+          </div>
+          <div id="ai-snapshot-panel" class="detail-grid"></div>
+          <div id="ai-im-export-panel" class="stack-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>数据准备分区</h2>
+              <p>用于核查用户画像、行为、评价、人脉和局内消息数据是否已具备智能功能基础。</p>
+            </div>
+          </div>
+          <div id="ai-readiness-list" class="stack-list"></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="delivery-template">
+      <div class="section-tabs" role="tablist" aria-label="交付验收模块">
+        <button class="active" data-tab-group="delivery" data-tab-target="#delivery-wechat-panel" type="button">微信通知</button>
+        <button data-tab-group="delivery" data-tab-target="#delivery-documents-panel" type="button">上线材料</button>
+        <button data-tab-group="delivery" data-tab-target="#delivery-tests-panel" type="button">验收用例</button>
+      </div>
+      <div id="delivery-wechat-panel" class="split" data-tab-panel-group="delivery">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>微信订阅任务</h2>
+            </div>
+            <div class="row-actions">
+              <button id="wechat-send-pending" class="ghost" type="button">发送待发通知</button>
+              <button id="wechat-tasks-refresh" class="ghost" type="button">刷新</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>通知</th>
+                  <th>通知单号</th>
+                  <th>用户</th>
+                  <th>场景</th>
+                  <th>模板</th>
+                  <th>状态</th>
+                  <th>结果</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="wechat-tasks-table"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>订阅模板</h2>
+            </div>
+            <button id="wechat-templates-refresh" class="ghost" type="button">刷新</button>
+          </div>
+          <div id="wechat-template-list" class="stack-list"></div>
+        </section>
+      </div>
+
+      <section id="delivery-documents-panel" class="panel hidden" data-tab-panel-group="delivery">
+        <div class="panel-head">
+          <div>
+            <h2>上线材料归档</h2>
+          </div>
+        </div>
+        <form id="delivery-document-form" class="form-grid">
+          <label>材料类型
+            <select name="docType">
+              <option value="user_agreement">用户协议</option>
+              <option value="privacy">隐私保护指引</option>
+              <option value="service_agreement">服务协议</option>
+              <option value="launch_material">上线材料</option>
+              <option value="test-report">验收报告</option>
+              <option value="release-record">发布记录</option>
+              <option value="rollback-plan">回滚方案</option>
+            </select>
+          </label>
+          <label>标题<input name="title" required maxlength="120" placeholder="一期上线验收报告" /></label>
+          <label>状态
+            <select name="status">
+              <option value="draft">草稿</option>
+              <option value="ready">已就绪</option>
+              <option value="archived">已归档</option>
+            </select>
+          </label>
+          <label>备注<input name="reason" maxlength="160" placeholder="就绪或归档时填写" /></label>
+          <button class="primary" type="submit">新增材料记录</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>材料</th>
+                <th>材料类型</th>
+                <th>标题</th>
+                <th>状态</th>
+                <th>备注</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="delivery-documents-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div id="delivery-tests-panel" class="split hidden" data-tab-panel-group="delivery">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>验收用例</h2>
+            </div>
+          </div>
+          <form id="test-case-form" class="form-grid compact-grid">
+            <label>业务模块
+              <select name="module" required>
+                <option value="invite">邀请注册</option>
+                <option value="auth">登录与短信验证</option>
+                <option value="game">组局流程</option>
+                <option value="im">局内消息</option>
+                <option value="report">举报申诉</option>
+                <option value="revenue">分润结算</option>
+                <option value="admin">后台管理</option>
+                <option value="map">地图能力</option>
+              </select>
+            </label>
+            <label>用例名称<input name="caseName" required maxlength="120" placeholder="不少于五人不可开始" /></label>
+            <label>优先级
+              <select name="priority">
+                <option value="P1">高</option>
+                <option value="P0">最高</option>
+                <option value="P2">普通</option>
+              </select>
+            </label>
+            <label>预期结果<textarea name="expectedResult" required rows="3"></textarea></label>
+            <button class="primary" type="submit">新增验收用例</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>验收用例</th>
+                  <th>业务模块</th>
+                  <th>用例名称</th>
+                  <th>优先级</th>
+                  <th>预期结果</th>
+                </tr>
+              </thead>
+              <tbody id="test-cases-table"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>验收记录</h2>
+            </div>
+          </div>
+          <form id="test-run-form" class="form-grid compact-grid">
+            <label>验收用例<input name="caseId" required inputmode="numeric" /></label>
+            <label>结果
+              <select name="result">
+                <option value="passed">通过</option>
+                <option value="failed">失败</option>
+                <option value="blocked">阻塞</option>
+              </select>
+            </label>
+            <label>外部记录号<input name="requestId" placeholder="可为空" /></label>
+            <label>附件<input name="evidenceFileId" inputmode="numeric" placeholder="可为空" /></label>
+            <label>实际结果<textarea name="actualResult" rows="3"></textarea></label>
+            <button class="primary" type="submit">记录验收结果</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>验收记录</th>
+                  <th>验收用例</th>
+                  <th>结果</th>
+                  <th>外部记录</th>
+                  <th>附件</th>
+                  <th>创建时间</th>
+                </tr>
+              </thead>
+              <tbody id="test-runs-table"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </template>
+
+    <template id="im-template">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>局内消息房间</h2>
+            <p>查看局内消息、文件消息、争议证据和归档状态。</p>
+          </div>
+          <form id="im-filter-form" class="filters">
+          <input name="gameId" inputmode="numeric" placeholder="组局" />
+            <select name="status">
+              <option value="">全部状态</option>
+              <option value="active">正常</option>
+              <option value="archived">已归档</option>
+            </select>
+            <button class="ghost" type="submit">筛选</button>
+          </form>
+        </div>
+        <div id="im-room-list" class="stack-list"></div>
+      </section>
+    </template>
+
+    <template id="admins-template">
+      <div class="section-tabs" role="tablist" aria-label="后台账号模块">
+        <button class="active" data-tab-group="admins" data-tab-target="#admins-list-panel" type="button">账号角色</button>
+        <button data-tab-group="admins" data-tab-target="#admins-application-panel" type="button">账号申请</button>
+        <button data-tab-group="admins" data-tab-target="#admins-create-panel" type="button">创建账号</button>
+      </div>
+      <section id="admins-create-panel" class="panel hidden" data-tab-panel-group="admins">
+        <div class="panel-head">
+          <div>
+            <h2>创建后台账号</h2>
+            <p>创建后台账号后，可按所选角色获得对应菜单和操作权限。</p>
+          </div>
+        </div>
+        <form id="admin-create-form" class="form-grid">
+          <label>账号<input name="username" required maxlength="64" placeholder="例如：财务运营账号" /></label>
+          <label>密码<input name="password" required type="password" placeholder="初始密码" /></label>
+          <label>角色
+            <select name="roles" required>
+              <option value="operation_manager">运营管理员</option>
+              <option value="customer_manager">客服管理员</option>
+              <option value="finance_manager">财务管理员</option>
+              <option value="game_manager">组局管理员</option>
+              <option value="user_manager">用户管理员</option>
+              <option value="data_analyst">数据分析员</option>
+              <option value="super_admin">超级管理员</option>
+            </select>
+          </label>
+          <label>状态
+            <select name="status">
+              <option value="active">正常</option>
+              <option value="disabled">已禁用</option>
+            </select>
+          </label>
+          <button class="primary" type="submit">创建账号</button>
+        </form>
+      </section>
+      <div id="admins-list-panel" class="split" data-tab-panel-group="admins">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>后台账号</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>账号</th>
+                  <th>账号名称</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>职责范围</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+            <h2>后台角色说明</h2>
+            <p>按运营岗位查看后台账号的职责边界。</p>
+            </div>
+          </div>
+          <div id="admin-role-list" class="stack-list"></div>
+        </section>
+      </div>
+      <section id="admins-application-panel" class="panel hidden" data-tab-panel-group="admins">
+        <div class="panel-head">
+          <div>
+            <h2>管理员申请</h2>
+            <p>登录页提交的申请会出现在这里，超级管理员确认后再创建正式后台账号。</p>
+          </div>
+          <button id="admin-applications-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>申请</th>
+                <th>申请人</th>
+                <th>联系方式</th>
+                <th>申请角色</th>
+                <th>说明</th>
+                <th>时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="admin-applications-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="system-template">
+      <div class="section-tabs system-tabs" role="tablist" aria-label="系统配置模块">
+        <button class="active" data-tab-group="system" data-tab-target="#system-game-category-panel" type="button">局类型</button>
+        <button data-tab-group="system" data-tab-target="#system-home-display-panel" type="button">首页展示</button>
+        <button data-tab-group="system" data-tab-target="#system-application-panel" type="button">入局规则</button>
+        <button data-tab-group="system" data-tab-target="#system-audit-panel" type="button">审核规则</button>
+        <button data-tab-group="system" data-tab-target="#system-condition-panel" type="button">条件局</button>
+        <button data-tab-group="system" data-tab-target="#system-role-benefit-panel" type="button">角色权益</button>
+        <button data-tab-group="system" data-tab-target="#system-review-complete-panel" type="button">评价完成</button>
+        <button data-tab-group="system" data-tab-target="#system-credit-panel" type="button">信用规则</button>
+        <button data-tab-group="system" data-tab-target="#system-profit-panel" type="button">押金规则</button>
+        <button data-tab-group="system" data-tab-target="#system-sensitive-panel" type="button">敏感词</button>
+        <button data-tab-group="system" data-tab-target="#system-risk-panel" type="button">风险日志</button>
+        <button data-tab-group="system" data-tab-target="#guide-rule-panel" type="button">资格规则</button>
+        <button data-tab-group="system" data-tab-target="#system-ai-export-panel" type="button">数据留存</button>
+      </div>
+      <section id="system-game-category-panel" class="panel" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>局类型与筛选规则</h2>
+            <p>维护小程序首页和地图页可展示的局类型、筛选项和默认分类。</p>
+          </div>
+          <button id="game-category-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="game-category-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="game-category-config-json" name="configJson" rows="12" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="game-category-config-panel" class="detail-grid"></div>
+      </section>
+
+      <section id="system-home-display-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>首页展示数据</h2>
+            <p>维护小程序首页展示数字和文案，前端不写死固定业务数据。</p>
+          </div>
+          <button id="home-display-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="home-display-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="home-display-config-json" name="configJson" rows="6" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存展示</button>
+        </form>
+        <div id="home-display-config-panel" class="detail-grid"></div>
+      </section>
+
+      <section id="system-application-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>入局申请规则</h2>
+            <p>维护申请协议、上传材料要求和搜索开关，小程序申请页按规则展示。</p>
+          </div>
+          <button id="game-application-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="game-application-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="game-application-config-json" name="configJson" rows="9" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="game-application-config-panel" class="detail-grid"></div>
+      </section>
+
+      <section id="system-audit-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>组局审核规则</h2>
+            <p>维护哪些局型需要人工审核、驳回原因要求和入局审核方式。</p>
+          </div>
+          <button id="game-audit-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="game-audit-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="game-audit-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="game-audit-config-panel" class="detail-grid"></div>
+      </section>
+
+      <section id="system-condition-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>条件局规则</h2>
+            <p>维护条件局门槛、可见性和后台开条件局的业务边界。</p>
+          </div>
+          <button id="condition-rule-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="condition-rule-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="condition-rule-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="condition-rule-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-role-benefit-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>角色权益展示</h2>
+            <p>维护行家、领路人等角色入口提示和权益展示内容。</p>
+          </div>
+          <button id="role-benefit-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="role-benefit-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="role-benefit-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存展示</button>
+        </form>
+        <div id="role-benefit-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-review-complete-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>评价完成展示</h2>
+            <p>维护评价完成后的权益展示和再玩意愿选项。</p>
+          </div>
+          <button id="review-complete-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="review-complete-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="review-complete-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存展示</button>
+        </form>
+        <div id="review-complete-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-credit-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>信用扣分规则</h2>
+          <p>后台维护退出、低分评价、举报核实等扣分规则。</p>
+          </div>
+          <button id="credit-rule-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="credit-rule-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="credit-rule-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="credit-rule-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-profit-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>押金局规则</h2>
+            <p>小程序发起组局页读取该配置展示押金局规则和支付提示。</p>
+          </div>
+          <button id="profit-config-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="profit-config-form" class="form-grid">
+          <label>押金规则说明<textarea name="depositRuleText" rows="4" maxlength="300"></textarea></label>
+          <label>押金提示说明<textarea name="depositNoticeText" rows="4" maxlength="300"></textarea></label>
+          <label>规则版本<input name="version" maxlength="32" placeholder="例如：2026-07" /></label>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="profit-config-panel" class="detail-grid"></div>
+      </section>
+
+
+
+      <section id="system-sensitive-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>敏感词库</h2>
+          </div>
+        </div>
+        <form id="sensitive-word-form" class="form-grid">
+          <label>敏感词<input name="word" maxlength="80" required /></label>
+          <label>等级
+            <select name="level">
+              <option value="high">高</option>
+              <option value="medium">中</option>
+              <option value="low">低</option>
+            </select>
+          </label>
+          <label>处理方式
+            <select name="action">
+              <option value="block">直接拦截</option>
+              <option value="flag">标记待查</option>
+            </select>
+          </label>
+          <button class="primary" type="submit">新增敏感词</button>
+        </form>
+        <form id="sensitive-import-form" class="form-grid compact-grid">
+          <label>批量敏感词<textarea name="words" rows="4" placeholder="每行一个词"></textarea></label>
+          <button class="ghost" type="submit">批量导入</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>记录</th>
+                <th>敏感词</th>
+                <th>等级</th>
+                <th>处理方式</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>管理</th>
+              </tr>
+            </thead>
+            <tbody id="sensitive-words-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div id="system-risk-panel" class="split hidden" data-tab-panel-group="system">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>内容风险日志</h2>
+            </div>
+            <button id="risk-logs-refresh" class="ghost" type="button">刷新</button>
+          </div>
+          <div id="risk-log-list" class="stack-list"></div>
+        </section>
+        <section class="panel hidden" aria-hidden="true">
+          <div id="permission-tree-panel" class="stack-list"></div>
+        </section>
+      </div>
+
+      <section id="system-ai-export-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>数据留存开关</h2>
+            <p>控制是否保留可用于推荐和复盘的业务数据，开启前请确认已取得用户授权。</p>
+          </div>
+          <div class="row-actions">
+            <button class="ghost" data-action="ai-export-disable" type="button">关闭</button>
+            <button class="primary" data-action="ai-export-enable" type="button">开启</button>
+          </div>
+        </div>
+        <div id="ai-export-config-panel" class="detail-grid"></div>
+      </section>
+    </template>
+
+    <template id="logs-template">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>操作日志</h2>
+          <p>记录后台管理员的关键操作，仅超级管理员可查看全部日志，普通管理员只能查看自己的操作。</p>
+          <button class="ghost" data-action="reload-logs" type="button">刷新</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>操作内容</th>
+                <th>关联业务</th>
+                <th>管理员</th>
+                <th>时间</th>
+                <th>摘要</th>
+              </tr>
+            </thead>
+            <tbody id="logs-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <script src="/main.js"></script>
+  </body>
+</html>
