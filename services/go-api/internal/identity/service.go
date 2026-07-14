@@ -68,12 +68,18 @@ type Record struct {
 	RealNameCiphertext        string `json:"-"`
 	RealNameInitials          string `json:"-"`
 	IDCardMasked              string `json:"idCardMasked,omitempty"`
+	IDCardCiphertext          string `json:"-"`
 	SMSVerified               bool   `json:"smsVerified"`
 	PhoneVerified             bool   `json:"phoneVerified"`
 	FaceVerified              bool   `json:"faceVerified"`
 	WechatRealnameConsistency string `json:"wechatRealnameConsistency"`
 	FailureReason             string `json:"failureReason,omitempty"`
 	UpdatedAt                 string `json:"updatedAt"`
+}
+
+type PlainIdentity struct {
+	RealName string
+	IDCard   string
 }
 
 type InGameIdentity struct {
@@ -228,7 +234,7 @@ func (s *Service) VerifySMSCode(userID int64, code string) (Record, error) {
 
 func (s *Service) VerifyPhone(userID int64, realName string, idCard string) (Record, error) {
 	realName = strings.TrimSpace(realName)
-	idCard = strings.TrimSpace(idCard)
+	idCard = strings.ToUpper(strings.TrimSpace(idCard))
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
 	if !record.SMSVerified {
@@ -248,10 +254,16 @@ func (s *Service) VerifyPhone(userID int64, realName string, idCard string) (Rec
 		s.mu.Unlock()
 		return Record{}, err
 	}
+	idCardCiphertext, err := s.encryptIdentitySecret(idCard)
+	if err != nil {
+		s.mu.Unlock()
+		return Record{}, err
+	}
 	record.RealNameMasked = maskRealName(realName)
 	record.RealNameCiphertext = ciphertext
 	record.RealNameInitials = RealNameInitials(realName)
 	record.IDCardMasked = maskIDCard(idCard)
+	record.IDCardCiphertext = idCardCiphertext
 	record.PhoneVerified = true
 	record.Status = StatusPhoneVerified
 	record.UpdatedAt = now()
@@ -276,12 +288,17 @@ func (s *Service) SubmitManualRealname(userID int64, realName string, idCard str
 	if err != nil {
 		return Record{}, err
 	}
+	idCardCiphertext, err := s.encryptIdentitySecret(idCard)
+	if err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
 	record.RealNameMasked = maskRealName(realName)
 	record.RealNameCiphertext = ciphertext
 	record.RealNameInitials = RealNameInitials(realName)
 	record.IDCardMasked = maskIDCard(idCard)
+	record.IDCardCiphertext = idCardCiphertext
 	record.PhoneVerified = false
 	record.FaceVerified = false
 	record.Status = StatusPendingManualReview
@@ -351,6 +368,33 @@ func (s *Service) InGameIdentity(userID int64) (InGameIdentity, bool) {
 		initials = RealNameInitials(realName)
 	}
 	return InGameIdentity{RealName: realName, DisplayName: realName, AvatarText: initials}, true
+}
+
+func (s *Service) RevealRecord(record Record) (PlainIdentity, error) {
+	var result PlainIdentity
+	if strings.TrimSpace(record.RealNameCiphertext) != "" {
+		realName, err := s.decryptRealName(record.RealNameCiphertext)
+		if err != nil {
+			return PlainIdentity{}, err
+		}
+		result.RealName = realName
+	}
+	if strings.TrimSpace(record.IDCardCiphertext) != "" {
+		idCard, err := s.decryptIdentitySecret(record.IDCardCiphertext)
+		if err != nil {
+			return PlainIdentity{}, err
+		}
+		result.IDCard = idCard
+	}
+	return result, nil
+}
+
+func (s *Service) encryptIdentitySecret(value string) (string, error) {
+	return s.encryptRealName(value)
+}
+
+func (s *Service) decryptIdentitySecret(value string) (string, error) {
+	return s.decryptRealName(value)
 }
 
 func (s *Service) encryptRealName(value string) (string, error) {

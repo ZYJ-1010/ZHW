@@ -1,6 +1,9 @@
 package games
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 type fakeIdentity struct {
 	verified  bool
@@ -177,7 +180,19 @@ func TestCreateFromAdminRequiresVerifiedMainGuide(t *testing.T) {
 
 func TestAdminGameForcesApprovedEntrantsToPlayer(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
-	game, err := service.CreateFromAdmin(CreateRequest{Title: "admin players only", CreatorUserID: 1, GameType: "free", MinPlayers: 5, MaxPlayers: 8, SignupStartAt: "2026-07-10 09:00", SignupEndAt: "2026-07-12 14:00", StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	format := func(value time.Time) string { return value.Format("2006-01-02 15:04") }
+	now := time.Now()
+	game, err := service.CreateFromAdmin(CreateRequest{
+		Title:         "admin players only",
+		CreatorUserID: 1,
+		GameType:      "free",
+		MinPlayers:    5,
+		MaxPlayers:    8,
+		SignupStartAt: format(now.Add(-time.Hour)),
+		SignupEndAt:   format(now.Add(time.Hour)),
+		StartAt:       format(now.Add(2 * time.Hour)),
+		EndAt:         format(now.Add(3 * time.Hour)),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,6 +279,31 @@ func TestAppGameKeepsSelectedEntryRole(t *testing.T) {
 	}
 	if roleByUser[1] != "member" || roleByUser[2] != "expert" || roleByUser[3] != "main_guide" || roleByUser[4] != "member" {
 		t.Fatalf("unexpected app game roles: %+v", roleByUser)
+	}
+}
+
+func TestApplyRejectsBeforeSignupWindow(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	format := func(value time.Time) string { return value.Format("2006-01-02 15:04") }
+	start := time.Now().Add(4 * time.Hour)
+	game, err := service.Create(1, CreateRequest{
+		Title:         "future signup",
+		GameType:      "free",
+		MinPlayers:    5,
+		MaxPlayers:    8,
+		SignupStartAt: format(start),
+		SignupEndAt:   format(start.Add(30 * time.Minute)),
+		StartAt:       format(start.Add(time.Hour)),
+		EndAt:         format(start.Add(2 * time.Hour)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Apply(2, game.ID, ApplyRequest{Reason: "join"}); err != ErrSignupClosed {
+		t.Fatalf("expected ErrSignupClosed before signup window, got %v", err)
 	}
 }
 

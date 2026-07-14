@@ -18,9 +18,9 @@ func (r *SQLRepository) SaveRecord(ctx context.Context, record Record) error {
 	updatedAt := parseTimeOrNow(record.UpdatedAt)
 	_, err := r.db.ExecContext(ctx, `
 insert into identity_verification_records (
-  user_id, status, phone_masked, real_name_masked, real_name_ciphertext, real_name_initials, id_card_masked, sms_verified, phone_verified, face_verified,
+  user_id, status, phone_masked, real_name_masked, real_name_ciphertext, real_name_initials, id_card_masked, id_card_ciphertext, sms_verified, phone_verified, face_verified,
   wechat_realname_consistency, failure_reason, updated_at
-) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 on conflict (user_id) do update set
   status = excluded.status,
   phone_masked = excluded.phone_masked,
@@ -28,13 +28,14 @@ on conflict (user_id) do update set
   real_name_ciphertext = excluded.real_name_ciphertext,
   real_name_initials = excluded.real_name_initials,
   id_card_masked = excluded.id_card_masked,
+  id_card_ciphertext = excluded.id_card_ciphertext,
   sms_verified = excluded.sms_verified,
   phone_verified = excluded.phone_verified,
   face_verified = excluded.face_verified,
   wechat_realname_consistency = excluded.wechat_realname_consistency,
   failure_reason = excluded.failure_reason,
   updated_at = excluded.updated_at
-`, record.UserID, string(record.Status), nullString(record.PhoneMasked), nullString(record.RealNameMasked), nullString(record.RealNameCiphertext), nullString(record.RealNameInitials), nullString(record.IDCardMasked), record.SMSVerified, record.PhoneVerified, record.FaceVerified, record.WechatRealnameConsistency, nullString(record.FailureReason), updatedAt)
+`, record.UserID, string(record.Status), nullString(record.PhoneMasked), nullString(record.RealNameMasked), nullString(record.RealNameCiphertext), nullString(record.RealNameInitials), nullString(record.IDCardMasked), nullString(record.IDCardCiphertext), record.SMSVerified, record.PhoneVerified, record.FaceVerified, record.WechatRealnameConsistency, nullString(record.FailureReason), updatedAt)
 	return err
 }
 
@@ -98,7 +99,7 @@ on conflict (face_token_hash) do update set
 func (r *SQLRepository) queryRecords(ctx context.Context, suffix string, args ...any) (*sql.Rows, error) {
 	query := `
 select user_id, status, phone_masked, sms_verified, phone_verified, face_verified,
-  real_name_masked, real_name_ciphertext, real_name_initials, id_card_masked, wechat_realname_consistency, failure_reason, updated_at
+  real_name_masked, real_name_ciphertext, real_name_initials, id_card_masked, id_card_ciphertext, wechat_realname_consistency, failure_reason, updated_at
 from identity_verification_records ` + suffix
 	return r.db.QueryContext(ctx, query, args...)
 }
@@ -111,10 +112,11 @@ func scanRecord(rows *sql.Rows) (Record, error) {
 	var realNameCiphertext sql.NullString
 	var realNameInitials sql.NullString
 	var idCardMasked sql.NullString
+	var idCardCiphertext sql.NullString
 	var consistency sql.NullString
 	var failureReason sql.NullString
 	var updatedAt time.Time
-	if err := rows.Scan(&record.UserID, &status, &phoneMasked, &record.SMSVerified, &record.PhoneVerified, &record.FaceVerified, &realNameMasked, &realNameCiphertext, &realNameInitials, &idCardMasked, &consistency, &failureReason, &updatedAt); err != nil {
+	if err := rows.Scan(&record.UserID, &status, &phoneMasked, &record.SMSVerified, &record.PhoneVerified, &record.FaceVerified, &realNameMasked, &realNameCiphertext, &realNameInitials, &idCardMasked, &idCardCiphertext, &consistency, &failureReason, &updatedAt); err != nil {
 		return Record{}, err
 	}
 	record.Status = Status(status)
@@ -123,6 +125,7 @@ func scanRecord(rows *sql.Rows) (Record, error) {
 	record.RealNameCiphertext = realNameCiphertext.String
 	record.RealNameInitials = realNameInitials.String
 	record.IDCardMasked = idCardMasked.String
+	record.IDCardCiphertext = idCardCiphertext.String
 	record.WechatRealnameConsistency = consistency.String
 	record.FailureReason = failureReason.String
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)

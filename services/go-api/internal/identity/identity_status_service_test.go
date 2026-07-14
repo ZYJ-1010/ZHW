@@ -33,6 +33,13 @@ func TestManualReviewSatisfiesPhaseOneIdentity(t *testing.T) {
 	if record.RealNameMasked != "U***" || record.IDCardMasked != "110***********1234" {
 		t.Fatalf("expected masked identity fields, got %+v", record)
 	}
+	revealed, err := service.RevealRecord(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revealed.RealName != "User" || revealed.IDCard != "110101199001011234" {
+		t.Fatalf("expected full manual identity to be decryptable, got %+v", revealed)
+	}
 	if record.Status != StatusPendingManualReview || service.IsVerified(userID) {
 		t.Fatalf("expected pending manual review before admin approval, got %+v", record)
 	}

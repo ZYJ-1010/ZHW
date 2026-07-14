@@ -17,6 +17,7 @@ var (
 	ErrDailyLimit              = errors.New("daily limit reached")
 	ErrGameNotFound            = errors.New("game not found")
 	ErrGameNotRecruiting       = errors.New("game not recruiting")
+	ErrSignupClosed            = errors.New("signup closed")
 	ErrGameNotStartable        = errors.New("game not startable")
 	ErrAlreadyApplied          = errors.New("already applied")
 	ErrAlreadyMember           = errors.New("already member")
@@ -661,6 +662,20 @@ func validAdminSignupTimeRange(signupStartText string, signupEndText string, gam
 		signupEndAt.After(signupStartAt) && !signupEndAt.After(gameStartAt)
 }
 
+func CanApplyWithinSignupWindow(game Game, now time.Time) bool {
+	return signupWindowError(game, now) == nil
+}
+
+func signupWindowError(game Game, now time.Time) error {
+	if signupStartAt, ok := parseAppGameTime(game.SignupStartAt); ok && now.Before(signupStartAt) {
+		return ErrSignupClosed
+	}
+	if signupEndAt, ok := parseAppGameTime(game.SignupEndAt); ok && now.After(signupEndAt) {
+		return ErrSignupClosed
+	}
+	return nil
+}
+
 func validateCreateRequest(req CreateRequest) error {
 	if req.MinPlayers < MinGamePlayers || req.MaxPlayers > MaxGamePlayers || req.MinPlayers > req.MaxPlayers {
 		return ErrInvalidPlayers
@@ -902,6 +917,9 @@ func (s *Service) Apply(userID int64, gameID int64, req ApplyRequest) (Applicati
 	if game.Status != "recruiting" {
 		return Application{}, ErrGameNotRecruiting
 	}
+	if err := signupWindowError(game, time.Now()); err != nil {
+		return Application{}, err
+	}
 	if s.memberLocked(gameID, userID) {
 		return Application{}, ErrAlreadyMember
 	}
@@ -1077,6 +1095,9 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 	}
 	if game.Status != "recruiting" {
 		return Invitation{}, Application{}, ErrGameNotRecruiting
+	}
+	if err := signupWindowError(game, time.Now()); err != nil {
+		return Invitation{}, Application{}, err
 	}
 	if s.memberLocked(invitation.GameID, userID) {
 		return Invitation{}, Application{}, ErrAlreadyMember

@@ -31,6 +31,7 @@ type identityService interface {
 	InGameIdentity(userID int64) (identity.InGameIdentity, bool)
 	IsVerified(userID int64) bool
 	AllRecords() []identity.Record
+	RevealRecord(record identity.Record) (identity.PlainIdentity, error)
 }
 
 func (s *Server) bindPhone(w http.ResponseWriter, r *http.Request) {
@@ -259,7 +260,7 @@ func (s *Server) adminIdentityVerifications(w http.ResponseWriter, r *http.Reque
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	userID := parseInt64Query(r, "userId")
 	items := s.identity.AllRecords()
-	filtered := make([]identity.Record, 0, len(items))
+	filtered := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
 		if status != "" && string(item.Status) != status {
 			continue
@@ -267,7 +268,7 @@ func (s *Server) adminIdentityVerifications(w http.ResponseWriter, r *http.Reque
 		if userID > 0 && item.UserID != userID {
 			continue
 		}
-		filtered = append(filtered, item)
+		filtered = append(filtered, s.adminIdentityPayload(item))
 	}
 	httpx.OK(w, map[string]interface{}{"items": filtered})
 }
@@ -281,7 +282,7 @@ func (s *Server) adminIdentityVerificationDetail(w http.ResponseWriter, r *http.
 	s.recordOperation(r, "identity:verification:view", "identity_verification", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"status": record.Status,
 	})
-	httpx.OK(w, record)
+	httpx.OK(w, s.adminIdentityPayload(record))
 }
 
 func (s *Server) routeAdminIdentityVerificationPost(w http.ResponseWriter, r *http.Request) {
@@ -346,7 +347,37 @@ func (s *Server) reviewIdentityVerification(w http.ResponseWriter, r *http.Reque
 		"status": status,
 		"reason": reason,
 	})
-	httpx.OK(w, record)
+	httpx.OK(w, s.adminIdentityPayload(record))
+}
+
+func (s *Server) adminIdentityPayload(record identity.Record) map[string]interface{} {
+	payload := map[string]interface{}{
+		"userId":                    record.UserID,
+		"status":                    record.Status,
+		"phoneMasked":               record.PhoneMasked,
+		"realNameMasked":            record.RealNameMasked,
+		"idCardMasked":              record.IDCardMasked,
+		"smsVerified":               record.SMSVerified,
+		"phoneVerified":             record.PhoneVerified,
+		"faceVerified":              record.FaceVerified,
+		"wechatRealnameConsistency": record.WechatRealnameConsistency,
+		"failureReason":             record.FailureReason,
+		"updatedAt":                 record.UpdatedAt,
+		"idCardFullAvailable":       false,
+		"realNameFullAvailable":     false,
+	}
+	plain, err := s.identity.RevealRecord(record)
+	if err == nil {
+		if strings.TrimSpace(plain.RealName) != "" {
+			payload["realNameFull"] = plain.RealName
+			payload["realNameFullAvailable"] = true
+		}
+		if strings.TrimSpace(plain.IDCard) != "" {
+			payload["idCardFull"] = plain.IDCard
+			payload["idCardFullAvailable"] = true
+		}
+	}
+	return payload
 }
 
 func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) (int64, bool) {

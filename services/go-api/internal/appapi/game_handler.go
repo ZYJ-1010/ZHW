@@ -117,17 +117,18 @@ type GameDetailPrimaryActionDTO struct {
 }
 
 type GameMyRelationDTO struct {
-	Role              string `json:"role"`
-	IsCreator         bool   `json:"isCreator"`
-	IsMember          bool   `json:"isMember"`
-	CanApply          bool   `json:"canApply"`
-	CanAudit          bool   `json:"canAudit"`
-	CanStart          bool   `json:"canStart"`
-	CanEnterIM        bool   `json:"canEnterIM"`
-	CanConfirm        bool   `json:"canConfirm"`
-	CanReview         bool   `json:"canReview"`
-	ApplicationID     int64  `json:"applicationId,omitempty"`
-	ApplicationStatus string `json:"applicationStatus,omitempty"`
+	Role                string `json:"role"`
+	IsCreator           bool   `json:"isCreator"`
+	IsMember            bool   `json:"isMember"`
+	CanApply            bool   `json:"canApply"`
+	ApplyDisabledReason string `json:"applyDisabledReason,omitempty"`
+	CanAudit            bool   `json:"canAudit"`
+	CanStart            bool   `json:"canStart"`
+	CanEnterIM          bool   `json:"canEnterIM"`
+	CanConfirm          bool   `json:"canConfirm"`
+	CanReview           bool   `json:"canReview"`
+	ApplicationID       int64  `json:"applicationId,omitempty"`
+	ApplicationStatus   string `json:"applicationStatus,omitempty"`
 }
 
 type GameProgressDTO struct {
@@ -2630,6 +2631,9 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 		if game.Status == "recruiting" && relation.CanApply {
 			return action("立即报名", "apply", "/pages/game/apply/index?gameId="+gameID)
 		}
+		if game.Status == "recruiting" && relation.ApplyDisabledReason != "" && !relation.IsCreator && !relation.IsMember {
+			return disabled(relation.ApplyDisabledReason)
+		}
 		if game.Status == "full" {
 			if relation.IsMember {
 				return disabled("等待开局")
@@ -3683,17 +3687,21 @@ func (s *Server) createGuideFollowUpNotifications(userID int64, game games.Game,
 func (s *Server) buildGameRelation(userID int64, game games.Game) GameMyRelationDTO {
 	isCreator := game.CreatorUserID == userID
 	isMember := s.games.IsMember(game.ID, userID)
+	signupOpen := games.CanApplyWithinSignupWindow(game, time.Now())
 	canManageProgress := isCreator || (game.MainGuideUserID > 0 && game.MainGuideUserID == userID)
 	startableStatus := game.Status == "recruiting" || game.Status == "full"
 	relation := GameMyRelationDTO{
 		Role:       s.userRoleForGame(game, userID),
 		IsCreator:  isCreator,
 		IsMember:   isMember,
-		CanApply:   game.Status == "recruiting" && !isMember,
+		CanApply:   game.Status == "recruiting" && !isMember && signupOpen,
 		CanAudit:   isCreator && game.Status == "recruiting",
 		CanStart:   canManageProgress && startableStatus && game.CurrentPlayers >= game.MinPlayers,
 		CanEnterIM: isMember && (game.Status == "in_progress" || game.Status == "pending_confirm" || game.Status == "pending_review" || game.Status == "completed"),
 		CanConfirm: isMember && (game.Status == "in_progress" || game.Status == "pending_confirm"),
+	}
+	if game.Status == "recruiting" && !isMember && !signupOpen {
+		relation.ApplyDisabledReason = "不在报名时间内"
 	}
 	for _, app := range s.games.ApplicationsForUser(userID) {
 		if app.GameID != game.ID {
@@ -5297,6 +5305,8 @@ func writeGameError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusConflict, 40924, "请等待行家先确认服务完成")
 	case errors.Is(err, games.ErrInvitationPlayerPending):
 		httpx.Error(w, http.StatusConflict, 40925, "请等待玩家先确认组局")
+	case errors.Is(err, games.ErrSignupClosed):
+		httpx.Error(w, http.StatusConflict, 40926, "不在报名时间范围内")
 	case errors.Is(err, games.ErrGameNotRecruiting), errors.Is(err, games.ErrGameNotStartable), errors.Is(err, games.ErrApplicationNotPending), errors.Is(err, games.ErrInvitationNotPending), errors.Is(err, games.ErrGameNotConfirmable):
 		httpx.Error(w, http.StatusConflict, 40921, "当前状态不可操作")
 	case errors.Is(err, games.ErrAlreadyApplied), errors.Is(err, games.ErrAlreadyMember), errors.Is(err, games.ErrAlreadyInvited):
