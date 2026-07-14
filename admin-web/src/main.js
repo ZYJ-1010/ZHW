@@ -2215,8 +2215,8 @@ function profileUserCandidatesBlock(items) {
       <tr>
         <td>${escapeHTML(item.id || "-")}</td>
         <td>${escapeHTML(item.nickname || userText(item.userId))}</td>
-        <td>${escapeHTML(item.phoneMasked || "-")}</td>
-        <td>${escapeHTML(item.idCardMasked || "-")}</td>
+        <td>${escapeHTML(identityPhoneForAdmin(item))}</td>
+        <td>${escapeHTML(identityIDCardForAdmin(item))}</td>
         <td>${escapeHTML(fields)}</td>
       </tr>
     `;
