@@ -52,6 +52,13 @@
               catchtap="handleVisibilityTap"
             >{{option.label}}</view>
           </view>
+          <button
+            class="restart-realname-button"
+            loading="{{isRestartingRealname}}"
+            disabled="{{isRestartingRealname}}"
+            catchtap="handleRestartRealnamePrompt"
+          >重新实名</button>
+          <text class="restart-realname-hint">重新审核期间该账户会暂时变为未实名状态。</text>
         </view>
 
         <block wx:elif="{{item.type === 'avatar'}}">
@@ -146,6 +153,23 @@
     <view class="privacy-note">
       <image class="privacy-icon" src="{{icons.lock}}" mode="aspectFit"></image>
       <text class="privacy-text">你的信息将受到严格保护，仅在你授权的情况下展示给其他用户。</text>
+    </view>
+
+    <view wx:if="{{showRestartRealnameModal}}" class="restart-realname-mask" catchtap="handleRestartRealnameCancel" catchtouchmove="noop">
+      <view class="restart-realname-dialog" catchtap="noop">
+        <text class="restart-realname-title">重新实名</text>
+        <text class="restart-realname-content">重新审核期间，该账户会暂时变为未实名状态。确认后将获取微信手机号，并跳转到实名信息填写页重新提交后台审核。</text>
+        <view class="restart-realname-actions">
+          <button class="restart-realname-cancel" disabled="{{isRestartingRealname}}" catchtap="handleRestartRealnameCancel">取消</button>
+          <button
+            class="restart-realname-confirm"
+            open-type="getPhoneNumber"
+            loading="{{isRestartingRealname}}"
+            disabled="{{isRestartingRealname}}"
+            bindgetphonenumber="handleRestartRealnamePhone"
+          >确认重新实名</button>
+        </view>
+      </view>
     </view>
   </view>
 </profile-white-shell>

@@ -356,6 +356,28 @@ async function saveSystemProfileInfo(payload = {}) {
   return result.data
 }
 
+async function restartRealname(payload = {}) {
+  const code = String(payload.code || '').trim()
+  const encryptedData = String(payload.encryptedData || '').trim()
+  const iv = String(payload.iv || '').trim()
+
+  if (!code && (!encryptedData || !iv)) {
+    throw new Error('请先授权微信手机号')
+  }
+
+  const result = await profileApi.restartRealname({
+    code,
+    encryptedData,
+    iv
+  })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '重新实名发起失败')
+  }
+
+  return result.data
+}
+
 async function getSystemSkillConfig() {
   const result = await profileApi.getSystemSkillConfig()
 
@@ -608,6 +630,7 @@ module.exports = {
   getInviteMemberDetail,
   getSystemProfileInfo,
   saveSystemProfileInfo,
+  restartRealname,
   getSystemSkillConfig,
   getSystemServiceCaseDetail,
   saveSystemSkillConfig,

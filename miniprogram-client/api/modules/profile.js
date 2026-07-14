@@ -116,6 +116,10 @@ function saveSystemProfileInfo(data) {
   return request.put('/api/app/profile/system-management/profile-info', data)
 }
 
+function restartRealname(data) {
+  return request.post('/api/app/identity/realname/restart', data)
+}
+
 function getSystemSkillConfig() {
   return request.get('/api/app/profile/system-management/skill-config')
 }
@@ -206,6 +210,7 @@ module.exports = {
   getInviteMemberDetail,
   getSystemProfileInfo,
   saveSystemProfileInfo,
+  restartRealname,
   getSystemSkillConfig,
   getSystemServiceCaseDetail,
   saveSystemSkillConfig,

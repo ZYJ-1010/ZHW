@@ -35,6 +35,8 @@ Page({
     avatarFileId: 0,
     pendingAvatarFileId: 0,
     isSaving: false,
+    isRestartingRealname: false,
+    showRestartRealnameModal: false,
     loadError: '',
     visibilityOptions: [],
     personalRows: [
@@ -317,6 +319,77 @@ Page({
     }
 
     toast.info('企业认证需后台审核企业材料，请联系平台管理员')
+  },
+
+  noop() {},
+
+  handleRestartRealnamePrompt() {
+    if (this.data.isRestartingRealname) {
+      return
+    }
+
+    this.setData({
+      showRestartRealnameModal: true
+    })
+  },
+
+  handleRestartRealnameCancel() {
+    if (this.data.isRestartingRealname) {
+      return
+    }
+
+    this.setData({
+      showRestartRealnameModal: false
+    })
+  },
+
+  async handleRestartRealnamePhone(event = {}) {
+    if (this.data.isRestartingRealname) {
+      return
+    }
+
+    const detail = event.detail || {}
+    const errMsg = String(detail.errMsg || '')
+
+    if (errMsg && !errMsg.includes(':ok')) {
+      this.setData({
+        showRestartRealnameModal: false
+      })
+      toast.info('未授权手机号，已取消重新实名')
+      return
+    }
+
+    const code = String(detail.code || '').trim()
+    const encryptedData = String(detail.encryptedData || '').trim()
+    const iv = String(detail.iv || '').trim()
+
+    if (!code && (!encryptedData || !iv)) {
+      toast.info('未获取到微信手机号，请重试')
+      return
+    }
+
+    this.setData({
+      isRestartingRealname: true
+    })
+
+    try {
+      await profileService.restartRealname({
+        code,
+        encryptedData,
+        iv
+      })
+      toast.success('请重新填写实名信息')
+      this.setData({
+        showRestartRealnameModal: false
+      })
+      navigateShellRoute('/pages/login/realname/index?mode=reverify')
+    } catch (error) {
+      toast.info(error.message || '重新实名发起失败')
+    } finally {
+      this.setData({
+        isRestartingRealname: false
+      })
+    }
   },
 
   buildSavePayload() {
