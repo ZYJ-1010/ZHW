@@ -389,6 +389,7 @@
           <table>
             <thead>
               <tr>
+                <th><input id="game-audit-select-all" type="checkbox" aria-label="全选本页待审核组局" /></th>
                 <th>组局</th>
                 <th>标题</th>
                 <th>局型</th>
@@ -408,6 +409,7 @@
     <template id="audits-template">
       <div class="section-tabs">
         <button class="active" data-tab-group="audits" data-tab-target="#audit-identities-panel" type="button">认证记录</button>
+        <button data-tab-group="audits" data-tab-target="#audit-avatars-panel" type="button">头像审核</button>
         <button data-tab-group="audits" data-tab-target="#audit-roles-panel" type="button">行家/领路人申请</button>
       </div>
       <div class="view-root">
@@ -420,6 +422,16 @@
             <button class="ghost" data-action="reload-identities" type="button">刷新</button>
           </div>
           <div id="identity-list" class="stack-list"></div>
+        </section>
+        <section id="audit-avatars-panel" class="panel hidden" data-tab-panel-group="audits">
+          <div class="panel-head">
+            <div>
+              <h2>头像审核</h2>
+              <p>用户上传头像后先进入后台待审核，通过后才同步到个人头像。</p>
+            </div>
+            <button class="ghost" data-action="reload-avatar-audits" type="button">刷新</button>
+          </div>
+          <div id="avatar-audit-list" class="stack-list"></div>
         </section>
         <section id="audit-roles-panel" class="panel hidden" data-tab-panel-group="audits">
           <div class="panel-head">

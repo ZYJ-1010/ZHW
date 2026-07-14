@@ -281,6 +281,11 @@ nav button[data-view]:hover,
   background: var(--surface);
 }
 
+.ghost.danger {
+  color: var(--danger);
+  border-color: rgba(185, 28, 28, 0.3);
+}
+
 .primary:hover,
 .ghost:hover {
   filter: brightness(0.97);
@@ -867,6 +872,17 @@ tbody tr:hover {
 .detail-cell strong {
   display: block;
   margin-top: 4px;
+}
+
+.avatar-audit-image {
+  display: block;
+  width: 88px;
+  height: 88px;
+  margin-top: 8px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .invite-material-panel {

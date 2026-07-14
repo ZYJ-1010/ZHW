@@ -5,6 +5,7 @@
   view: "dashboard",
   games: [],
   gameApplications: [],
+  selectedGameAuditIds: new Set(),
   gameCreatorOptions: [],
   dashboard: null,
   imRooms: [],
@@ -50,6 +51,7 @@
   adminApplications: [],
   aiExportConfig: null,
   identities: [],
+  avatarAudits: [],
   roleApplications: [],
   gameApplicationConfig: null,
   gameAuditConfig: null,
@@ -611,6 +613,7 @@ async function showInviteCodeDetail(code) {
 
 async function renderGames() {
   $("#game-batch-audit-button").addEventListener("click", batchAuditGames);
+  $("#game-audit-select-all")?.addEventListener("change", onGameAuditSelectAllChange);
   $("#open-game-create-drawer")?.addEventListener("click", () => {
     openEmbeddedFormDrawer("#game-create-form", "后台开局", "填写封面、地点、报名时间和人数后创建并开放招募");
   });
@@ -627,6 +630,7 @@ async function renderGames() {
     loadGames(new FormData(event.currentTarget));
   });
   $("#games-table").addEventListener("click", onGameTableClick);
+  $("#games-table").addEventListener("change", onGameAuditCheckboxChange);
   ensureGameApplicationsPanel();
   await Promise.all([loadGameTypeOptionsForGames(), loadGameCreatorOptionsForGames()]);
   await loadGames();
@@ -928,17 +932,62 @@ function categoryName(categories = [], key) {
 }
 
 async function batchAuditGames() {
-  const ids = state.games.filter((item) => item.status === "pending_audit").map((item) => item.id);
+  const ids = [...state.selectedGameAuditIds].map((id) => Number(id)).filter(Boolean);
   if (!ids.length) {
-    toast("当前列表没有待审核组局", true);
+    toast("请先勾选要批量通过的待审核组局", true);
     return;
   }
   try {
     const result = await apiPost("/api/admin/games/batch-audit", { gameIds: ids, approve: true, remark: "后台批量审核通过" });
     toast(`批量通过 ${result.success || 0} 个组局，失败 ${result.failed || 0} 个`);
+    state.selectedGameAuditIds.clear();
     await loadGames(new FormData($("#game-filter-form")));
   } catch (error) {
     toast(error.message, true);
+  }
+}
+
+function onGameAuditSelectAllChange(event) {
+  const checked = Boolean(event.currentTarget.checked);
+  document.querySelectorAll("#games-table .game-audit-checkbox").forEach((checkbox) => {
+    checkbox.checked = checked;
+    updateGameAuditSelection(checkbox.value, checked);
+  });
+  updateGameAuditSelectionUI();
+}
+
+function onGameAuditCheckboxChange(event) {
+  const checkbox = event.target.closest(".game-audit-checkbox");
+  if (!checkbox) return;
+  updateGameAuditSelection(checkbox.value, checkbox.checked);
+  updateGameAuditSelectionUI();
+}
+
+function updateGameAuditSelection(id, checked) {
+  const value = String(id || "");
+  if (!value) return;
+  if (checked) {
+    state.selectedGameAuditIds.add(value);
+  } else {
+    state.selectedGameAuditIds.delete(value);
+  }
+}
+
+function pruneGameAuditSelection() {
+  const pendingIDs = new Set(state.games.filter((item) => item.status === "pending_audit").map((item) => String(item.id)));
+  state.selectedGameAuditIds = new Set([...state.selectedGameAuditIds].filter((id) => pendingIDs.has(String(id))));
+}
+
+function updateGameAuditSelectionUI() {
+  const selectAll = $("#game-audit-select-all");
+  if (!selectAll) return;
+  const boxes = [...document.querySelectorAll("#games-table .game-audit-checkbox")];
+  const checkedCount = boxes.filter((box) => box.checked).length;
+  selectAll.checked = boxes.length > 0 && checkedCount === boxes.length;
+  selectAll.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+  const button = $("#game-batch-audit-button");
+  if (button) {
+    button.textContent = state.selectedGameAuditIds.size ? `批量通过已选 ${state.selectedGameAuditIds.size} 个` : "批量通过已勾选";
   }
 }
 
@@ -946,7 +995,9 @@ async function loadGames(formData) {
   if (formData) resetPagination("games");
   const data = await apiGet(`/api/admin/games${querySuffix(formData)}`);
   state.games = data.items || [];
-  renderPaginatedTable("#games-table", state.games, "games", gameRow, 8, "暂无组局");
+  pruneGameAuditSelection();
+  renderPaginatedTable("#games-table", state.games, "games", gameRow, 9, "暂无组局");
+  updateGameAuditSelectionUI();
   await loadGameApplications();
 }
 
@@ -1236,8 +1287,10 @@ async function renderAudits() {
   const tasks = [];
   if (can("identity:read")) {
     tasks.push(loadIdentities());
+    tasks.push(loadAvatarAudits());
   } else {
     renderNoAccess("#identity-list", "缺少 identity:read");
+    renderNoAccess("#avatar-audit-list", "缺少 identity:read");
   }
   if (can("role:view")) {
     tasks.push(loadRoles());
@@ -1249,11 +1302,11 @@ async function renderAudits() {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     try {
-      if (["reload-identities", "identity-detail"].includes(button.dataset.action) && !can("identity:read")) {
+      if (["reload-identities", "identity-detail", "reload-avatar-audits", "avatar-detail"].includes(button.dataset.action) && !can("identity:read")) {
         toast("缺少 identity:read", true);
         return;
       }
-      if (["identity-approve", "identity-reject"].includes(button.dataset.action) && !can("identity:update")) {
+      if (["identity-approve", "identity-reject", "avatar-approve", "avatar-reject"].includes(button.dataset.action) && !can("identity:update")) {
         toast("缺少 identity:update", true);
         return;
       }
@@ -1266,6 +1319,7 @@ async function renderAudits() {
         return;
       }
       if (button.dataset.action === "reload-identities") await loadIdentities();
+      if (button.dataset.action === "reload-avatar-audits") await loadAvatarAudits();
       if (button.dataset.action === "reload-roles") await loadRoles();
       if (button.dataset.action === "identity-detail") await showIdentityDetail(Number(button.dataset.userId));
       if (button.dataset.action === "identity-approve") {
@@ -1277,6 +1331,17 @@ async function renderAudits() {
         await reviewIdentityVerification(button.dataset.userId, false, "姓名或身份证号需要重新核对");
         toast("实名认证已驳回");
         await loadIdentities();
+      }
+      if (button.dataset.action === "avatar-detail") showAvatarAuditDetail(Number(button.dataset.userId));
+      if (button.dataset.action === "avatar-approve") {
+        await reviewAvatarAudit(button.dataset.userId, true, "后台审核通过");
+        toast("头像已通过");
+        await loadAvatarAudits();
+      }
+      if (button.dataset.action === "avatar-reject") {
+        await reviewAvatarAudit(button.dataset.userId, false, "头像不符合平台展示规范");
+        toast("头像已驳回");
+        await loadAvatarAudits();
       }
       if (button.dataset.action === "role-detail") showRoleApplicationDetail(Number(button.dataset.id));
       if (button.dataset.action === "role-approve") {
@@ -1309,12 +1374,33 @@ async function loadIdentities() {
     badge: item.status,
     meta: [
       `手机号：${item.phoneMasked || item.phone || "-"}`,
-      `认证姓名：${item.realNameMasked || item.realname || "-"}`,
-      `身份证：${item.idCardMasked || "-"}`,
+      `认证姓名：${identityNameForAdmin(item)}`,
+      `身份证：${identityIDCardForAdmin(item)}`,
       `最近更新：${formatTime(item.updatedAt || item.createdAt)}`,
     ],
     action: identityActions(item),
   }), "暂无认证记录");
+}
+
+async function loadAvatarAudits() {
+  if (!can("identity:read")) {
+    renderNoAccess("#avatar-audit-list", "缺少 identity:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/avatar-audits");
+  const items = data.items || [];
+  state.avatarAudits = items;
+  renderPaginatedList("#avatar-audit-list", items, "avatarAudits", (item) => stackItem({
+    title: userText(item.userId),
+    badge: item.status,
+    meta: [
+      `昵称：${item.nickname || item.userName || userText(item.userId)}`,
+      `当前头像：${item.currentAvatarUrl ? "已设置" : "-"}`,
+      `待审头像：${item.pendingAvatarUrl ? "待审核" : "-"}`,
+      `审核说明：${item.statusText || "-"}`,
+    ],
+    action: avatarAuditActions(item),
+  }), "暂无头像审核记录");
 }
 
 function identityActions(item) {
@@ -1328,6 +1414,19 @@ function identityActions(item) {
 
 function identityCanReview(item) {
   return item && item.status === "pending" && can("identity:update") && Boolean(item.realNameMasked || item.idCardMasked);
+}
+
+function avatarAuditActions(item) {
+  const actions = [`<button class="ghost" data-action="avatar-detail" data-user-id="${escapeHTML(item.userId)}" type="button">详情</button>`];
+  if (item.status === "pending" && can("identity:update")) {
+    actions.push(`<button class="ghost" data-action="avatar-approve" data-user-id="${escapeHTML(item.userId)}" type="button">通过</button>`);
+    actions.push(`<button class="ghost" data-action="avatar-reject" data-user-id="${escapeHTML(item.userId)}" type="button">驳回</button>`);
+  }
+  return actions.join("");
+}
+
+async function reviewAvatarAudit(userID, approve, reason) {
+  return apiPost(`/api/admin/avatar-audits/${userID}/review`, { approve, reason });
 }
 
 async function loadRoles() {
@@ -1364,6 +1463,16 @@ async function reviewIdentityVerification(userID, approve, reason) {
   return apiPost(`/api/admin/identity-verifications/${userID}/review`, { approve, reason });
 }
 
+function identityNameForAdmin(item) {
+  return item?.realNameFull || item?.realNameMasked || item?.realname || "-";
+}
+
+function identityIDCardForAdmin(item) {
+  if (item?.idCardFull) return item.idCardFull;
+  if (item?.idCardMasked) return `${item.idCardMasked}（旧记录仅保留脱敏信息）`;
+  return "-";
+}
+
 async function showIdentityDetail(userID) {
   if (!userID) return;
   const item = await apiGet(`/api/admin/identity-verifications/${userID}`);
@@ -1379,14 +1488,67 @@ async function showIdentityDetail(userID) {
       ${detailCell("用户", userText(item.userId))}
       ${detailCell("认证方式", method)}
       ${detailCell("手机号", item.phoneMasked || item.phone || "-")}
-      ${detailCell("姓名", item.realNameMasked || item.realname || "-")}
-      ${detailCell("身份证号", item.idCardMasked || "-")}
+      ${detailCell("姓名", identityNameForAdmin(item))}
+      ${detailCell("身份证号", identityIDCardForAdmin(item))}
       ${detailCell("认证状态", statusLabel(item.status))}
       ${detailCell("失败/驳回原因", item.failureReason || "-")}
       ${detailCell("创建时间", formatTime(item.createdAt))}
       ${detailCell("最近更新", formatTime(item.updatedAt))}
     </div>
   `,
+  });
+}
+
+function avatarPreviewCell(label, url, fallback = "-") {
+  const text = url || fallback;
+  const image = url ? `<img class="avatar-audit-image" src="${escapeHTML(url)}" alt="${escapeHTML(label)}" />` : "";
+  return `
+    <div class="detail-cell">
+      <span>${escapeHTML(label)}</span>
+      ${image}
+      <strong>${escapeHTML(text)}</strong>
+    </div>
+  `;
+}
+
+function showAvatarAuditDetail(userID) {
+  const item = state.avatarAudits.find((audit) => Number(audit.userId) === Number(userID));
+  if (!item) return;
+  const panel = openAdminDrawer({
+    title: "头像审核详情",
+    subtitle: userText(item.userId),
+    body: `
+    <div class="row-actions">
+      <span class="${badgeClass(item.status)}">${statusLabel(item.status)}</span>
+    </div>
+    <div class="detail-grid">
+      ${detailCell("用户", userText(item.userId))}
+      ${detailCell("昵称", item.nickname || item.userName || "-")}
+      ${detailCell("审核状态", statusLabel(item.status))}
+      ${detailCell("审核说明", item.statusText || item.avatarAuditReason || "-")}
+      ${avatarPreviewCell("当前头像", item.currentAvatarUrl)}
+      ${avatarPreviewCell("待审头像", item.pendingAvatarUrl)}
+    </div>
+    <div class="row-actions">
+      ${item.status === "pending" && can("identity:update") ? `
+        <button class="primary" data-action="avatar-approve" data-user-id="${escapeHTML(item.userId)}" type="button">通过头像</button>
+        <button class="ghost danger" data-action="avatar-reject" data-user-id="${escapeHTML(item.userId)}" type="button">驳回头像</button>
+      ` : ""}
+    </div>
+  `,
+  });
+  panel.querySelectorAll("button[data-action='avatar-approve'], button[data-action='avatar-reject']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const approve = button.dataset.action === "avatar-approve";
+      try {
+        await reviewAvatarAudit(button.dataset.userId, approve, approve ? "后台审核通过" : "头像不符合平台展示规范");
+        toast(approve ? "头像已通过" : "头像已驳回");
+        closeAdminDrawer();
+        await loadAvatarAudits();
+      } catch (error) {
+        toast(error.message, true);
+      }
+    });
   });
 }
 
@@ -4697,8 +4859,10 @@ function adminApplicationCopyText(item = {}) {
 
 function gameRow(game) {
   const canAudit = game.status === "pending_audit" && can("game:update_status");
+  const checked = state.selectedGameAuditIds.has(String(game.id)) ? "checked" : "";
   return `
     <tr>
+      <td>${canAudit ? `<input class="game-audit-checkbox" type="checkbox" value="${escapeHTML(game.id)}" aria-label="选择局 ${escapeHTML(game.id)}" ${checked} />` : ""}</td>
       <td>${escapeHTML(game.id ? `局 ${game.id}` : "-")}</td>
       <td>${escapeHTML(game.title)}</td>
       <td>${gameTypeLabel(game.gameType)}</td>
@@ -5597,6 +5761,7 @@ function renderPaginatedTable(selector, items, key, rowRenderer, colspan, emptyT
   const start = (pageState.page - 1) * pageSize;
   const pageItems = list.slice(start, start + pageSize);
   tbody.innerHTML = pageItems.map(rowRenderer).join("") || emptyRow(colspan, emptyText);
+  if (key === "games") updateGameAuditSelectionUI();
   renderPager(tbody.closest(".table-wrap"), key, list.length, pageState.page, totalPages, () => {
     renderPaginatedTable(selector, list, key, rowRenderer, colspan, emptyText, pageSize);
   });
