@@ -10,6 +10,7 @@ Page({
     loadError: '',
     loadErrorActionText: '',
     loadErrorAuthExpired: false,
+    onlineText: '在线0人',
     user: {
       nickname: '未登录',
       memberLevel: '',
@@ -123,6 +124,10 @@ function normalizeProfileHome(data = {}) {
 
   if (data.user) {
     patch.user = data.user
+  }
+
+  if (data.onlineText) {
+    patch.onlineText = data.onlineText
   }
 
   if (Array.isArray(data.stats)) {

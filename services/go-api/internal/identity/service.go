@@ -64,6 +64,7 @@ type Record struct {
 	UserID                    int64  `json:"userId"`
 	Status                    Status `json:"status"`
 	PhoneMasked               string `json:"phoneMasked,omitempty"`
+	PhoneEncrypted            string `json:"-"`
 	RealNameMasked            string `json:"realNameMasked,omitempty"`
 	RealNameCiphertext        string `json:"-"`
 	RealNameInitials          string `json:"-"`
@@ -80,6 +81,7 @@ type Record struct {
 type PlainIdentity struct {
 	RealName string
 	IDCard   string
+	Phone    string
 }
 
 type InGameIdentity struct {
@@ -157,9 +159,14 @@ func (s *Service) BindPhone(userID int64, phone string) (Record, error) {
 	if !validMainlandPhone(phone) {
 		return Record{}, ErrPhoneInvalid
 	}
+	phoneEncrypted, err := s.encryptIdentitySecret(phone)
+	if err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
 	record.PhoneMasked = maskPhone(phone)
+	record.PhoneEncrypted = phoneEncrypted
 	record.Status = StatusPhoneBound
 	record.UpdatedAt = now()
 	s.records[userID] = record
@@ -372,6 +379,13 @@ func (s *Service) InGameIdentity(userID int64) (InGameIdentity, bool) {
 
 func (s *Service) RevealRecord(record Record) (PlainIdentity, error) {
 	var result PlainIdentity
+	if strings.TrimSpace(record.PhoneEncrypted) != "" {
+		phone, err := s.decryptIdentitySecret(record.PhoneEncrypted)
+		if err != nil {
+			return PlainIdentity{}, err
+		}
+		result.Phone = phone
+	}
 	if strings.TrimSpace(record.RealNameCiphertext) != "" {
 		realName, err := s.decryptRealName(record.RealNameCiphertext)
 		if err != nil {

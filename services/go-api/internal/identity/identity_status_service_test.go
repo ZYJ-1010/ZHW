@@ -37,7 +37,7 @@ func TestManualReviewSatisfiesPhaseOneIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if revealed.RealName != "User" || revealed.IDCard != "110101199001011234" {
+	if revealed.Phone != "13800138000" || revealed.RealName != "User" || revealed.IDCard != "110101199001011234" {
 		t.Fatalf("expected full manual identity to be decryptable, got %+v", revealed)
 	}
 	if record.Status != StatusPendingManualReview || service.IsVerified(userID) {

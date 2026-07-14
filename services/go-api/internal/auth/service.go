@@ -403,6 +403,13 @@ func (s *Service) IssueAppToken(userID int64) (Session, error) {
 	return s.tokens.IssueApp(userID)
 }
 
+func (s *Service) ActiveAppSessionCount() int {
+	if s == nil || s.tokens == nil {
+		return 0
+	}
+	return s.tokens.ActiveSessionCount(SessionKindApp)
+}
+
 func (s *Service) CurrentUser(token string) (users.User, bool) {
 	session, ok := s.tokens.Verify(token)
 	if !ok {

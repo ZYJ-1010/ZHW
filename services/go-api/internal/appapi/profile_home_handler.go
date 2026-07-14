@@ -50,6 +50,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 	avatarFileID, avatarURL := s.currentUserAvatar(userID)
 
 	return map[string]interface{}{
+		"onlineText": s.homeOnlineText(0, 0),
 		"user": map[string]interface{}{
 			"nickname":     name,
 			"avatarText":   avatarTextForName(name, userID),

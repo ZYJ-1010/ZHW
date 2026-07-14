@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestTokenStorePersistsAndReloadsSession(t *testing.T) {
@@ -26,6 +27,39 @@ func TestTokenStorePersistsAndReloadsSession(t *testing.T) {
 	}
 	if reloaded.UserID != 42 || reloaded.Kind != SessionKindPreAuth || reloaded.Token != session.Token {
 		t.Fatalf("unexpected reloaded session: %+v", reloaded)
+	}
+}
+
+func TestTokenStoreActiveSessionCountOnlyCountsValidAppSessions(t *testing.T) {
+	store := NewTokenStore()
+	appSession, err := store.IssueApp(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.IssuePreAuth(2); err != nil {
+		t.Fatal(err)
+	}
+	expiredSession, err := store.IssueApp(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store.mu.Lock()
+	expiredSession.ExpiresAt = time.Now().Add(-time.Minute)
+	store.sessions[expiredSession.Token] = expiredSession
+	store.mu.Unlock()
+
+	if got := store.ActiveSessionCount(SessionKindApp); got != 1 {
+		t.Fatalf("expected one active app session, got %d", got)
+	}
+	if got := store.ActiveSessionCount(""); got != 2 {
+		t.Fatalf("expected app and preauth sessions, got %d", got)
+	}
+	if _, ok := store.sessions[appSession.Token]; !ok {
+		t.Fatal("active app session should remain cached")
+	}
+	if _, ok := store.sessions[expiredSession.Token]; ok {
+		t.Fatal("expired app session should be removed")
 	}
 }
 

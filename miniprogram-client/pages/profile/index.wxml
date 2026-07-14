@@ -5,7 +5,7 @@
   topbar-title-visible="{{false}}"
   toolbar-avatar-visible="{{false}}"
   toolbar-actions-visible="{{false}}"
-  online-text="在线"
+  online-text="{{onlineText}}"
   content-scroll-y="{{true}}"
   nav-toast-enabled="{{false}}"
   bindnavtap="handleShellNavTap"
@@ -13,8 +13,8 @@
   <view class="profile-home-shell">
     <view class="profile-home-page">
       <view class="profile-user-block">
-        <view class="profile-user">
-          <view class="profile-avatar" bindtap="handleAvatarTap">
+        <view class="profile-user" bindtap="handleAvatarTap">
+          <view class="profile-avatar">
             <image
               wx:if="{{user.avatarUrl}}"
               class="profile-avatar-image"

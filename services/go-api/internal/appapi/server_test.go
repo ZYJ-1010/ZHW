@@ -1087,7 +1087,8 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 		t.Fatalf("expected avatar file id: %s", string(uploadBody))
 	}
 
-	updateBody := putJSON(t, mux, "/api/app/users/me/profile", login.Data.PreAuthToken, `{"nickname":"Alice","avatarFileId":`+strconv.FormatInt(uploadResp.Data.File.ID, 10)+`}`, http.StatusOK)
+	putJSON(t, mux, "/api/app/users/me/profile", login.Data.PreAuthToken, `{"nickname":"Alice","avatarFileId":`+strconv.FormatInt(uploadResp.Data.File.ID, 10)+`}`, http.StatusUnprocessableEntity)
+	updateBody := putJSON(t, mux, "/api/app/users/me/profile", login.Data.PreAuthToken, `{"nickname":"Alice"}`, http.StatusOK)
 	var updated struct {
 		Data struct {
 			Nickname     string `json:"nickname"`
@@ -1098,16 +1099,17 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	if err := json.Unmarshal(updateBody, &updated); err != nil {
 		t.Fatal(err)
 	}
-	if updated.Data.Nickname != "Alice" || updated.Data.AvatarURL == "" || updated.Data.AvatarFileID != uploadResp.Data.File.ID {
+	if updated.Data.Nickname != "Alice" || updated.Data.AvatarURL != "" || updated.Data.AvatarFileID != 0 {
 		t.Fatalf("expected updated profile: %s", string(updateBody))
 	}
 
 	otherToken := loginForTestWithCode(t, mux, "avatar-other")
 	completeIdentityForTest(t, mux, login.Data.PreAuthToken)
 	formalToken := issueFormalTokenForTest(t, mux, login.Data.PreAuthToken)
-	putJSON(t, mux, "/api/app/users/me/profile", otherToken, `{"nickname":"Bob","avatarFileId":1}`, http.StatusForbidden)
-	getJSON(t, mux, "/api/app/files/1/download-url", formalToken, http.StatusOK)
-	getJSON(t, mux, "/api/app/files/1/download-url", otherToken, http.StatusForbidden)
+	putJSON(t, mux, "/api/app/users/me/profile", otherToken, `{"nickname":"Bob","avatarFileId":1}`, http.StatusUnprocessableEntity)
+	avatarDownloadPath := "/api/app/files/" + strconv.FormatInt(uploadResp.Data.File.ID, 10) + "/download-url"
+	getJSON(t, mux, avatarDownloadPath, formalToken, http.StatusOK)
+	getJSON(t, mux, avatarDownloadPath, otherToken, http.StatusForbidden)
 
 	meReq = httptest.NewRequest(http.MethodGet, "/api/app/users/me", nil)
 	meReq.Header.Set("Authorization", "Bearer "+login.Data.PreAuthToken)
@@ -1211,17 +1213,22 @@ func TestUpdateProfileUsesConfiguredAvatarDownloadURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	updateBody := putJSON(t, mux, "/api/app/users/me/profile", token, `{"nickname":"Avatar","avatarFileId":`+strconv.FormatInt(uploadResp.Data.File.ID, 10)+`}`, http.StatusOK)
+	updateBody := putJSON(t, mux, "/api/app/profile/system-management/profile-info", token, `{"personalInfo":{"name":"Avatar","avatarFileId":`+strconv.FormatInt(uploadResp.Data.File.ID, 10)+`}}`, http.StatusOK)
 	var updated struct {
 		Data struct {
-			AvatarURL string `json:"avatarUrl"`
+			PersonalInfo struct {
+				AvatarURL           string `json:"avatarUrl"`
+				PendingAvatarURL    string `json:"pendingAvatarUrl"`
+				AvatarAuditStatus   string `json:"avatarAuditStatus"`
+				PendingAvatarFileID int64  `json:"pendingAvatarFileId"`
+			} `json:"personalInfo"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(updateBody, &updated); err != nil {
 		t.Fatal(err)
 	}
-	if updated.Data.AvatarURL != "https://download.example.com/private/avatar/0/1-my%20avatar.png" {
-		t.Fatalf("expected configured avatar download url, got %s body=%s", updated.Data.AvatarURL, string(updateBody))
+	if updated.Data.PersonalInfo.AvatarURL != "" || updated.Data.PersonalInfo.PendingAvatarFileID != uploadResp.Data.File.ID || updated.Data.PersonalInfo.AvatarAuditStatus != "pending" || updated.Data.PersonalInfo.PendingAvatarURL != "https://download.example.com/private/avatar/0/1-my%20avatar.png" {
+		t.Fatalf("expected configured pending avatar download url, got %+v body=%s", updated.Data.PersonalInfo, string(updateBody))
 	}
 }
 
@@ -1397,18 +1404,21 @@ func TestIdentityFlowHTTP(t *testing.T) {
 	var detailResp struct {
 		Data struct {
 			PhoneMasked    string `json:"phoneMasked"`
+			PhoneFull      string `json:"phoneFull"`
 			RealNameMasked string `json:"realNameMasked"`
+			RealNameFull   string `json:"realNameFull"`
 			IDCardMasked   string `json:"idCardMasked"`
+			IDCardFull     string `json:"idCardFull"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(detailRec.Body.Bytes(), &detailResp); err != nil {
 		t.Fatal(err)
 	}
 	if detailResp.Data.PhoneMasked != "138****8000" || detailResp.Data.RealNameMasked != "U***" || detailResp.Data.IDCardMasked != "110***********1234" {
-		t.Fatalf("expected admin identity detail to expose masked fields only: %s", detailRec.Body.String())
+		t.Fatalf("expected admin identity detail to keep masked fields: %s", detailRec.Body.String())
 	}
-	if bytes.Contains(detailRec.Body.Bytes(), []byte("110101199001011234")) {
-		t.Fatalf("identity detail leaked raw id card: %s", detailRec.Body.String())
+	if detailResp.Data.PhoneFull != "13800138000" || detailResp.Data.RealNameFull != "User" || detailResp.Data.IDCardFull != "110101199001011234" {
+		t.Fatalf("expected admin identity detail to expose full review fields: %s", detailRec.Body.String())
 	}
 }
 

@@ -46,19 +46,21 @@ func (s *Server) saveSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 				nextName = name
 			}
 			if avatarFileID > 0 {
-				avatarURL, ok := s.avatarURLForOwnedFile(w, userID, avatarFileID)
-				if !ok {
-					return
+				clearAvatarFields(personal)
+				clearPayloadAvatarFields(payload)
+				if avatarFileID != user.AvatarFileID {
+					avatarURL, ok := s.avatarURLForOwnedFile(w, userID, avatarFileID)
+					if !ok {
+						return
+					}
+					personal["pendingAvatarFileId"] = avatarFileID
+					personal["pendingAvatarUrl"] = avatarURL
+					personal["avatarAuditStatus"] = "pending"
+					personal["avatarAuditText"] = "待审核"
+					delete(personal, "avatarAuditReason")
+					delete(personal, "rejectedAvatarFileId")
+					delete(personal, "rejectedAvatarUrl")
 				}
-				personal["pendingAvatarFileId"] = avatarFileID
-				personal["pendingAvatarUrl"] = avatarURL
-				personal["avatarAuditStatus"] = "pending"
-				personal["avatarAuditText"] = "待审核"
-				delete(personal, "avatarFileId")
-				delete(personal, "avatarUrl")
-				delete(personal, "avatarAuditReason")
-				delete(personal, "rejectedAvatarFileId")
-				delete(personal, "rejectedAvatarUrl")
 			}
 			if name != "" {
 				if _, err := s.auth.UpdateProfile(userID, nextName, user.AvatarURL, user.AvatarFileID); err != nil {
@@ -134,6 +136,22 @@ func (s *Server) withCurrentProfileAvatar(userID int64, payload map[string]inter
 		result[sectionKey] = section
 	}
 	return result
+}
+
+func clearPayloadAvatarFields(payload map[string]interface{}) {
+	for _, sectionKey := range []string{"profile", "personalInfo"} {
+		section, ok := objectField(payload, sectionKey)
+		if !ok {
+			continue
+		}
+		clearAvatarFields(section)
+		payload[sectionKey] = section
+	}
+}
+
+func clearAvatarFields(section map[string]interface{}) {
+	delete(section, "avatarFileId")
+	delete(section, "avatarUrl")
 }
 
 func (s *Server) rejectSensitiveNickname(w http.ResponseWriter, nickname string) bool {

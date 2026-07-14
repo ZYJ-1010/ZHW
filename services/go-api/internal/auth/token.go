@@ -92,6 +92,39 @@ func (s *TokenStore) Verify(token string) (Session, bool) {
 	return session, true
 }
 
+func (s *TokenStore) ActiveSessionCount(kind string) int {
+	if s == nil {
+		return 0
+	}
+	now := time.Now()
+	count := 0
+	expired := make([]string, 0)
+
+	s.mu.RLock()
+	for token, session := range s.sessions {
+		if now.After(session.ExpiresAt) {
+			expired = append(expired, token)
+			continue
+		}
+		if kind == "" || session.Kind == kind {
+			count++
+		}
+	}
+	s.mu.RUnlock()
+
+	if len(expired) > 0 {
+		s.mu.Lock()
+		for _, token := range expired {
+			if session, ok := s.sessions[token]; ok && now.After(session.ExpiresAt) {
+				delete(s.sessions, token)
+			}
+		}
+		s.mu.Unlock()
+	}
+
+	return count
+}
+
 func randomToken(size int) (string, error) {
 	bytes := make([]byte, size)
 	if _, err := rand.Read(bytes); err != nil {

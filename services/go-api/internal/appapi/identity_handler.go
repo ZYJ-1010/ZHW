@@ -364,10 +364,16 @@ func (s *Server) adminIdentityPayload(record identity.Record) map[string]interfa
 		"failureReason":             record.FailureReason,
 		"updatedAt":                 record.UpdatedAt,
 		"idCardFullAvailable":       false,
+		"phoneFullAvailable":        false,
 		"realNameFullAvailable":     false,
 	}
 	plain, err := s.identity.RevealRecord(record)
 	if err == nil {
+		if strings.TrimSpace(plain.Phone) != "" {
+			payload["phone"] = plain.Phone
+			payload["phoneFull"] = plain.Phone
+			payload["phoneFullAvailable"] = true
+		}
 		if strings.TrimSpace(plain.RealName) != "" {
 			payload["realNameFull"] = plain.RealName
 			payload["realNameFullAvailable"] = true

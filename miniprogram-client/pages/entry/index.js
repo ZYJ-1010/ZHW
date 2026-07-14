@@ -4,7 +4,7 @@ const { ROUTES } = require('../../config/routes')
 const { getAuthToken } = require('../../utils/auth-session')
 const entryLayout = require('./layout')
 
-const DEFAULT_ONLINE_COUNT = '3999'
+const DEFAULT_ONLINE_COUNT = '0'
 const ENTRY_LOGIN_DELAY_MS = 3000
 
 function formatOnlineText(value) {

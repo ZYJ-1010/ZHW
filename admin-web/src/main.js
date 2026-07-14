@@ -1395,7 +1395,7 @@ async function loadIdentities() {
     title: userText(item.userId),
     badge: item.status,
     meta: [
-      `手机号：${item.phoneMasked || item.phone || "-"}`,
+      `手机号：${identityPhoneForAdmin(item)}`,
       `认证姓名：${identityNameForAdmin(item)}`,
       `身份证：${identityIDCardForAdmin(item)}`,
       `最近更新：${formatTime(item.updatedAt || item.createdAt)}`,
@@ -1489,6 +1489,13 @@ function identityNameForAdmin(item) {
   return item?.realNameFull || item?.realNameMasked || item?.realname || "-";
 }
 
+function identityPhoneForAdmin(item) {
+  if (item?.phoneFull) return item.phoneFull;
+  if (item?.phone) return item.phone;
+  if (item?.phoneMasked) return item.phoneMasked;
+  return "-";
+}
+
 function identityIDCardForAdmin(item) {
   if (item?.idCardFull) return item.idCardFull;
   if (item?.idCardMasked) return `${item.idCardMasked}（旧记录仅保留脱敏信息）`;
@@ -1509,7 +1516,7 @@ async function showIdentityDetail(userID) {
     <div class="detail-grid">
       ${detailCell("用户", userText(item.userId))}
       ${detailCell("认证方式", method)}
-      ${detailCell("手机号", item.phoneMasked || item.phone || "-")}
+      ${detailCell("手机号", identityPhoneForAdmin(item))}
       ${detailCell("姓名", identityNameForAdmin(item))}
       ${detailCell("身份证号", identityIDCardForAdmin(item))}
       ${detailCell("认证状态", statusLabel(item.status))}

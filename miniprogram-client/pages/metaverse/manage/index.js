@@ -3,7 +3,7 @@ const { navigateShellKey } = require('../../../utils/shell-nav')
 
 Page({
   data: {
-    onlineText: '3999人在线',
+    onlineText: '在线0人',
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: true },

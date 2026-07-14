@@ -863,7 +863,8 @@ func (s *Server) identityRecordMatchesKeyword(record identity.Record, keyword st
 	if err != nil {
 		return false
 	}
-	return adminSearchContains(plain.RealName, keyword) ||
+	return adminSearchContains(plain.Phone, keyword) ||
+		adminSearchContains(plain.RealName, keyword) ||
 		adminSearchContains(plain.IDCard, keyword)
 }
 
@@ -1511,26 +1512,12 @@ func (s *Server) updateCurrentUserProfile(w http.ResponseWriter, r *http.Request
 	if req.Nickname != "" && s.rejectSensitiveNickname(w, req.Nickname) {
 		return
 	}
-	if req.AvatarFileID > 0 {
-		file, err := s.files.Get(req.AvatarFileID)
-		if err != nil || file.UploaderID != userID || file.BizType != "avatar" {
-			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "invalid avatar file")
-			return
-		}
-		if req.AvatarURL == "" {
-			download, err := s.files.DownloadURLForFile(file)
-			if err != nil {
-				if errors.Is(err, files.ErrStorageNotConfigured) {
-					httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "storage base url not configured")
-					return
-				}
-				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "failed to generate avatar url")
-				return
-			}
-			req.AvatarURL = download.DownloadURL
-		}
+	if req.AvatarFileID > 0 || strings.TrimSpace(req.AvatarURL) != "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "头像需在我的资料提交后台审核")
+		return
 	}
-	user, err := s.auth.UpdateProfile(userID, req.Nickname, req.AvatarURL, req.AvatarFileID)
+	current, _ := s.auth.UserByID(userID)
+	user, err := s.auth.UpdateProfile(userID, req.Nickname, current.AvatarURL, current.AvatarFileID)
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid profile")
 		return

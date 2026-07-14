@@ -141,7 +141,11 @@ func (s *Server) homeOnlineText(gameCount int, connectionCount int) string {
 	if suffix == "" {
 		suffix = "\u4eba\u5728\u7ebf"
 	}
-	return strconv.Itoa(maxInt(1, config.OnlineBaseCount+gameCount+connectionCount+1)) + suffix
+	activeCount := 0
+	if s.auth != nil {
+		activeCount = s.auth.ActiveAppSessionCount()
+	}
+	return strconv.Itoa(maxInt(0, activeCount)) + suffix
 }
 
 func (s *Server) currentHomeDisplayConfig() homeDisplayConfigDTO {
