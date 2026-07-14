@@ -5,6 +5,7 @@ const { getAuthToken } = require('../../utils/auth-session')
 const entryLayout = require('./layout')
 
 const DEFAULT_ONLINE_COUNT = '3999'
+const ENTRY_LOGIN_DELAY_MS = 3000
 
 function formatOnlineText(value) {
   const match = String(value || '').match(/\d[\d,]*/)
@@ -100,11 +101,15 @@ Page({
       this.verifyInviteAndContinue()
       return
     }
-    this.continueToLoginWithoutInvite()
+    this.scheduleContinueToLoginWithoutInvite()
   },
 
   onShow() {
     this.updateEntryTopbarLayout()
+  },
+
+  onUnload() {
+    this.clearLoginDelayTimer()
   },
 
   onResize() {
@@ -120,6 +125,7 @@ Page({
       return
     }
     if (!this.data.inviteCode) {
+      this.clearLoginDelayTimer()
       this.continueToLoginWithoutInvite()
       return
     }
@@ -178,10 +184,27 @@ Page({
     })
   },
 
+  scheduleContinueToLoginWithoutInvite() {
+    this.clearLoginDelayTimer()
+    this.entryLoginDelayTimer = setTimeout(() => {
+      this.entryLoginDelayTimer = null
+      this.continueToLoginWithoutInvite()
+    }, ENTRY_LOGIN_DELAY_MS)
+  },
+
+  clearLoginDelayTimer() {
+    if (!this.entryLoginDelayTimer) {
+      return
+    }
+    clearTimeout(this.entryLoginDelayTimer)
+    this.entryLoginDelayTimer = null
+  },
+
   continueToLoginWithoutInvite() {
     if (this.data.isInviteNavigating) {
       return
     }
+    this.clearLoginDelayTimer()
     this.setData({ isInviteNavigating: true })
     const url = `/${ROUTES.login}`
     wx.redirectTo({
