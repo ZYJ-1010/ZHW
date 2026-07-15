@@ -35,6 +35,7 @@ Page({
     avatarFileId: 0,
     pendingAvatarFileId: 0,
     isSaving: false,
+    isAvatarSubmitting: false,
     isRestartingRealname: false,
     showRestartRealnameModal: false,
     loadError: '',
@@ -258,12 +259,20 @@ Page({
 
   chooseAvatar() {
     const onSuccess = async (result = {}) => {
+      if (this.data.isAvatarSubmitting) {
+        return
+      }
+
       const file = Array.isArray(result.tempFiles) ? result.tempFiles[0] : null
       const path = (file && (file.tempFilePath || file.path)) || (result.tempFilePaths || [])[0]
 
       if (!path) {
         return
       }
+
+      this.setData({
+        isAvatarSubmitting: true
+      })
 
       try {
         const fileId = await fileService.uploadSingleFile(path, {
@@ -278,9 +287,19 @@ Page({
           'profile.avatarAuditStatus': 'pending',
           'profile.avatarAuditText': '待审核'
         })
-        toast.info('头像已上传，保存后进入后台审核')
+        const savedProfile = await profileService.saveSystemProfileInfo(this.buildSavePayload({
+          avatarFileId: fileId,
+          avatarText
+        }))
+        this.applySystemProfileInfo(savedProfile || {})
+        toast.success('头像已提交后台审核')
       } catch (error) {
-        toast.info(error.message || '头像上传失败')
+        toast.info(error.message || '头像提交审核失败')
+        this.loadSystemProfileInfo()
+      } finally {
+        this.setData({
+          isAvatarSubmitting: false
+        })
       }
     }
 
@@ -392,13 +411,15 @@ Page({
     }
   },
 
-  buildSavePayload() {
+  buildSavePayload(options = {}) {
     const profile = this.data.profile
+    const avatarFileId = Number(options.avatarFileId || this.data.pendingAvatarFileId || 0) || 0
+    const avatarText = options.avatarText || profile.avatarText
 
     return {
       personalInfo: {
-        avatarText: profile.avatarText,
-        avatarFileId: this.data.pendingAvatarFileId || 0,
+        avatarText,
+        avatarFileId,
         name: profile.name,
         phoneMasked: profile.phone,
         contactVisibility: profile.contactVisibility,
