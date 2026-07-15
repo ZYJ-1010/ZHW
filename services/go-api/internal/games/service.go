@@ -45,6 +45,16 @@ const (
 	MaxGamePlayers = 8
 )
 
+var appTimeLocation = loadAppTimeLocation()
+
+func loadAppTimeLocation() *time.Location {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err == nil {
+		return location
+	}
+	return time.FixedZone("Asia/Shanghai", 8*60*60)
+}
+
 type IdentityChecker interface {
 	IsVerified(userID int64) bool
 }
@@ -640,7 +650,7 @@ func normalizeCreateRequest(req CreateRequest) CreateRequest {
 func parseAppGameTime(value string) (time.Time, bool) {
 	value = strings.TrimSpace(value)
 	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02 15:04"} {
-		parsed, err := time.ParseInLocation(layout, value, time.Local)
+		parsed, err := time.ParseInLocation(layout, value, appTimeLocation)
 		if err == nil {
 			return parsed, true
 		}

@@ -307,6 +307,22 @@ func TestApplyRejectsBeforeSignupWindow(t *testing.T) {
 	}
 }
 
+func TestSignupWindowUsesShanghaiLocalTime(t *testing.T) {
+	game := Game{
+		SignupStartAt: "2026-07-15 22:00",
+		SignupEndAt:   "2026-07-15 23:00",
+	}
+	if CanApplyWithinSignupWindow(game, time.Date(2026, 7, 15, 13, 59, 0, 0, time.UTC)) {
+		t.Fatal("signup window must stay closed before Beijing signup start")
+	}
+	if !CanApplyWithinSignupWindow(game, time.Date(2026, 7, 15, 14, 30, 0, 0, time.UTC)) {
+		t.Fatal("signup window must open when Beijing signup start has passed")
+	}
+	if CanApplyWithinSignupWindow(game, time.Date(2026, 7, 15, 15, 1, 0, 0, time.UTC)) {
+		t.Fatal("signup window must close after Beijing signup end")
+	}
+}
+
 func TestApplicationCanBeRejectedMoreThanOnce(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	game, err := service.Create(1, CreateRequest{Title: "repeat reject", GameType: "free", MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
