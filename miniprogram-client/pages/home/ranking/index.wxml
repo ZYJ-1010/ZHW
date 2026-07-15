@@ -1,0 +1,56 @@
+<view class="ranking-page">
+  <view class="ranking-header">
+    <text class="ranking-title">{{title}}</text>
+    <text wx:if="{{desc}}" class="ranking-desc">{{desc}}</text>
+  </view>
+
+  <view class="ranking-tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="ranking-tab {{activeKey === item.key ? 'active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onTabTap"
+    >{{item.name}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="ranking-empty">加载中...</view>
+  <view wx:elif="{{error}}" class="ranking-empty" bindtap="onRetry">{{error}}，点击重试</view>
+  <view wx:elif="{{members.length === 0}}" class="ranking-empty">暂无榜单数据</view>
+  <view wx:else class="ranking-list">
+    <view wx:for="{{members}}" wx:key="id" class="ranking-row {{item.isMe ? 'me' : ''}}">
+      <text class="ranking-no">{{item.rank}}</text>
+      <view class="ranking-avatar">
+        <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" />
+        <text wx:else>{{item.avatarText}}</text>
+      </view>
+      <view class="ranking-copy">
+        <text class="ranking-name">{{item.name}}</text>
+        <text class="ranking-line">{{item.desc}}</text>
+      </view>
+      <view class="ranking-score">
+        <text>{{item.score}}</text>
+        <text>{{item.scoreUnit}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{myRank}}" class="my-rank-card">
+    <text class="my-rank-label">我的排名</text>
+    <view class="ranking-row me compact">
+      <text class="ranking-no">{{myRank.rank}}</text>
+      <view class="ranking-avatar">
+        <image wx:if="{{myRank.avatarUrl}}" src="{{myRank.avatarUrl}}" mode="aspectFill" />
+        <text wx:else>{{myRank.avatarText}}</text>
+      </view>
+      <view class="ranking-copy">
+        <text class="ranking-name">{{myRank.name}}</text>
+        <text class="ranking-line">{{myRank.desc}}</text>
+      </view>
+      <view class="ranking-score">
+        <text>{{myRank.score}}</text>
+        <text>{{myRank.scoreUnit}}</text>
+      </view>
+    </view>
+  </view>
+</view>

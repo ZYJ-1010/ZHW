@@ -610,8 +610,10 @@ func homeGameCover(game games.Game, index int) string {
 func (s *Server) homeRankingSection() map[string]interface{} {
 	return map[string]interface{}{
 		"icon":     "\u2605",
-		"title":    "\u672c\u5468\u73a9\u9738\u699c",
+		"title":    "\u73a9\u9738\u699c",
+		"desc":     "\u6309\u53c2\u4e0e\u5c40\u6570\u3001\u5b8c\u6210\u5c40\u6570\u548c\u7ecf\u9a8c\u503c\u7efc\u5408\u6392\u5e8f",
 		"moreText": "\u67e5\u770b\u5168\u90e8\u699c\u5355",
+		"route":    "pages/home/ranking/index",
 		"tabs": []map[string]string{
 			{"key": "player", "name": "\u73a9\u5bb6"},
 			{"key": "expert", "name": "\u884c\u5bb6"},
@@ -621,36 +623,96 @@ func (s *Server) homeRankingSection() map[string]interface{} {
 }
 
 func (s *Server) homeRankingBoards(userID int64, user users.User, stats games.UserStats, growth reviews.GrowthProfile, conns []connections.Connection) map[string]interface{} {
-	me := s.homeRankingItem(1, userID, homeDisplayName(user, s.displayName(userID, "\u7528\u6237")), stats, growth, true)
-	networkItems := make([]map[string]interface{}, 0, len(conns))
-	for index, conn := range conns {
-		connUser, _ := s.auth.UserByID(conn.ConnectedUserID)
-		connStats := s.games.StatsForUser(conn.ConnectedUserID)
-		connGrowth := s.reviews.Profile(conn.ConnectedUserID)
-		networkItems = append(networkItems, s.homeRankingItem(index+1, conn.ConnectedUserID, homeDisplayName(connUser, s.displayName(conn.ConnectedUserID, "\u7528\u6237")), connStats, connGrowth, false))
+	usersForRanking, err := s.auth.AdminUsers(users.Filter{})
+	if err != nil || len(usersForRanking) == 0 {
+		usersForRanking = []users.User{user}
+		for _, conn := range conns {
+			if connUser, ok := s.auth.UserByID(conn.ConnectedUserID); ok {
+				usersForRanking = append(usersForRanking, connUser)
+			}
+		}
 	}
-	if len(networkItems) == 0 {
-		networkItems = append(networkItems, me)
-	}
-	board := map[string]interface{}{"list": networkItems, "myRank": me}
+
 	return map[string]interface{}{
-		"player": board,
-		"expert": board,
-		"guide":  board,
+		"player": s.homeRankingBoardForRole(userID, usersForRanking, ""),
+		"expert": s.homeRankingBoardForRole(userID, usersForRanking, "expert"),
+		"guide":  s.homeRankingBoardForRole(userID, usersForRanking, "guide"),
 	}
 }
 
+func (s *Server) homeRankingBoardForRole(currentUserID int64, usersForRanking []users.User, roleType string) map[string]interface{} {
+	items := make([]map[string]interface{}, 0, len(usersForRanking))
+	myRank := map[string]interface{}{}
+	rankInput := make([]struct {
+		user   users.User
+		stats  games.UserStats
+		growth reviews.GrowthProfile
+		score  int
+	}, 0, len(usersForRanking))
+
+	for _, item := range usersForRanking {
+		if item.ID <= 0 {
+			continue
+		}
+		if roleType != "" && !s.homeUserHasActiveRole(item.ID, roleType) {
+			continue
+		}
+		itemStats := s.games.StatsForUser(item.ID)
+		itemGrowth := s.reviews.Profile(item.ID)
+		rankInput = append(rankInput, struct {
+			user   users.User
+			stats  games.UserStats
+			growth reviews.GrowthProfile
+			score  int
+		}{
+			user:   item,
+			stats:  itemStats,
+			growth: itemGrowth,
+			score:  homeRankingScore(itemStats, itemGrowth),
+		})
+	}
+
+	sort.Slice(rankInput, func(i, j int) bool {
+		if rankInput[i].score == rankInput[j].score {
+			return rankInput[i].user.ID < rankInput[j].user.ID
+		}
+		return rankInput[i].score > rankInput[j].score
+	})
+
+	for index, item := range rankInput {
+		rankingItem := s.homeRankingItem(index+1, item.user.ID, homeDisplayName(item.user, s.displayName(item.user.ID, "\u7528\u6237")), item.stats, item.growth, item.user.ID == currentUserID)
+		items = append(items, rankingItem)
+		if item.user.ID == currentUserID {
+			myRank = rankingItem
+		}
+	}
+
+	return map[string]interface{}{"list": items, "myRank": myRank}
+}
+
+func (s *Server) homeUserHasActiveRole(userID int64, roleType string) bool {
+	status := s.profiles.RoleSnapshot(userID).RoleStatusMap[roleType]
+	return status == "active" || status == "approved"
+}
+
+func homeRankingScore(stats games.UserStats, growth reviews.GrowthProfile) int {
+	return growth.Experience + stats.Completed*30 + stats.Participated*10
+}
+
 func (s *Server) homeRankingItem(rank int, userID int64, name string, stats games.UserStats, growth reviews.GrowthProfile, isMe bool) map[string]interface{} {
+	score := homeRankingScore(stats, growth)
 	return map[string]interface{}{
 		"userId":          userID,
 		"rank":            rank,
 		"avatarFallback":  avatarTextForName(name, userID),
 		"name":            name,
+		"desc":            "\u53c2\u4e0e" + strconv.Itoa(stats.Participated) + "\u5c40 \u00b7 \u5b8c\u6210" + strconv.Itoa(stats.Completed) + "\u5c40",
 		"gameCount":       stats.Participated,
 		"weeklyGameCount": stats.Participated,
 		"weeklyMvpCount":  len(growth.Achievements),
 		"experience":      growth.Experience,
-		"xp":              growth.Experience,
+		"xp":              score,
+		"xpUnit":          "\u5206",
 		"isMe":            isMe,
 	}
 }

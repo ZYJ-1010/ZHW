@@ -8,6 +8,7 @@
     "pages/login/realname/index",
     "pages/home/master/index",
     "pages/home/player/index",
+    "pages/home/ranking/index",
     "pages/home/expert/index",
     "pages/home/guide/index",
     "pages/role/apply/index",

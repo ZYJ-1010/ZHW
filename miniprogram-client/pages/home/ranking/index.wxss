@@ -1,0 +1,180 @@
+page {
+  min-height: 100%;
+  background: #007bd3;
+}
+
+.ranking-page {
+  min-height: 100vh;
+  padding: 40rpx 28rpx 64rpx;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: #000000;
+}
+
+.ranking-header,
+.ranking-title,
+.ranking-desc,
+.ranking-name,
+.ranking-line,
+.my-rank-label {
+  display: block;
+}
+
+.ranking-header {
+  margin-bottom: 28rpx;
+}
+
+.ranking-title {
+  color: #22e2ee;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 56rpx;
+}
+
+.ranking-desc {
+  margin-top: 10rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.ranking-tabs {
+  display: flex;
+  gap: 18rpx;
+  margin-bottom: 28rpx;
+}
+
+.ranking-tab {
+  min-width: 132rpx;
+  height: 52rpx;
+  border-radius: 26rpx;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 24rpx;
+  line-height: 52rpx;
+  text-align: center;
+}
+
+.ranking-tab.active {
+  color: #ffffff;
+  background: #ff007a;
+  box-shadow: 0 0 24rpx rgba(255, 0, 122, 0.42);
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  min-height: 132rpx;
+  padding: 22rpx;
+  border: 2rpx solid rgba(34, 226, 238, 0.22);
+  border-radius: 20rpx;
+  box-sizing: border-box;
+  background: rgba(13, 43, 63, 0.92);
+}
+
+.ranking-row.me {
+  border-color: rgba(255, 213, 64, 0.72);
+  background: rgba(45, 39, 18, 0.92);
+}
+
+.ranking-row.compact {
+  margin-top: 16rpx;
+}
+
+.ranking-no {
+  width: 64rpx;
+  color: #f8e84c;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.ranking-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  margin-right: 22rpx;
+  border-radius: 50%;
+  color: #0d1726;
+  background: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.ranking-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.ranking-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-name {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-line {
+  margin-top: 6rpx;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 22rpx;
+  line-height: 32rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 88rpx;
+  color: #f8e84c;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.ranking-score text + text {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 20rpx;
+  font-weight: 400;
+}
+
+.ranking-empty {
+  min-height: 260rpx;
+  border-radius: 20rpx;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 26rpx;
+  line-height: 260rpx;
+  text-align: center;
+}
+
+.my-rank-card {
+  margin-top: 32rpx;
+  padding: 22rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.my-rank-label {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}

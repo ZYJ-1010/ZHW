@@ -341,8 +341,9 @@ Component({
     rankingSection: {
       icon: '',
       title: '',
+      desc: '',
       moreText: '',
-      route: ROUTES.profileFootprintAchievements
+      route: ROUTES.homeRanking
     },
     rankingActiveRole: 'expert',
     rankingTabs: [],
@@ -1518,8 +1519,9 @@ Component({
         section: {
           icon: section.icon || '',
           title: section.title || section.name || '',
+          desc: section.desc || section.description || '',
           moreText: section.moreText || section.moreLabel || section.actionText || '',
-          route: section.route || section.moreRoute || section.actionRoute || ROUTES.profileFootprintAchievements
+          route: section.route || section.moreRoute || section.actionRoute || ROUTES.homeRanking
         },
         activeKey,
         tabs: tabs.map((item) => ({

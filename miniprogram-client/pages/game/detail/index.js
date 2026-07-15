@@ -332,6 +332,7 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
       title,
       creatorUserId: game.creatorUserId || game.creatorID || 0
     },
+    interested: data.isFavorited === true || data.favorited === true || relation.isFavorited === true,
     bottomTools,
     showBottomTools: bottomTools.length > 0
   }

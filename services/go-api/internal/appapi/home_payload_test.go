@@ -2,8 +2,10 @@ package appapi
 
 import (
 	"testing"
+	"time"
 
 	"zhw-mini/services/go-api/internal/auth"
+	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/users"
@@ -34,5 +36,42 @@ func TestParseGuideApplicationIndustries(t *testing.T) {
 	}
 	if len(audiences) != 2 || city != "宁波" {
 		t.Fatalf("unexpected audience or city: audiences=%#v city=%q", audiences, city)
+	}
+}
+
+func TestPublicGamesFiltersClosedSignupWindow(t *testing.T) {
+	now := time.Now()
+	format := func(value time.Time) string {
+		return value.Format("2006-01-02 15:04")
+	}
+
+	open := games.Game{
+		ID:            1,
+		Status:        "recruiting",
+		SignupStartAt: format(now.Add(-1 * time.Hour)),
+		SignupEndAt:   format(now.Add(1 * time.Hour)),
+	}
+	expired := games.Game{
+		ID:            2,
+		Status:        "recruiting",
+		SignupStartAt: format(now.Add(-2 * time.Hour)),
+		SignupEndAt:   format(now.Add(-1 * time.Minute)),
+	}
+	notStarted := games.Game{
+		ID:            3,
+		Status:        "recruiting",
+		SignupStartAt: format(now.Add(1 * time.Hour)),
+		SignupEndAt:   format(now.Add(2 * time.Hour)),
+	}
+	notPublic := games.Game{
+		ID:            4,
+		Status:        "pending_audit",
+		SignupStartAt: format(now.Add(-1 * time.Hour)),
+		SignupEndAt:   format(now.Add(1 * time.Hour)),
+	}
+
+	result := publicGames([]games.Game{open, expired, notStarted, notPublic})
+	if len(result) != 1 || result[0].ID != open.ID {
+		t.Fatalf("expected only open recruiting game, got %#v", result)
 	}
 }

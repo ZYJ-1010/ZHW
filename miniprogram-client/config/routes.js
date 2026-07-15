@@ -6,6 +6,7 @@ const ROUTES = {
   home: 'pages/home/player/index',
   roleFlow: 'pages/role/flow/index',
   playerHome: 'pages/home/player/index',
+  homeRanking: 'pages/home/ranking/index',
   expertHome: 'pages/home/expert/index',
   guideHome: 'pages/home/guide/index',
   roleApply: 'pages/role/apply/index',

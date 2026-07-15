@@ -24,6 +24,7 @@ page {
 .player-hero-date,
 .player-section-title,
 .player-panel-title,
+.player-ranking-desc,
 .player-rank-name,
 .player-rank-desc,
 .player-rank-more,
@@ -64,6 +65,13 @@ page {
   font-weight: 400;
   line-height: 32rpx;
   white-space: nowrap;
+}
+
+.player-ranking-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 20rpx;
+  line-height: 30rpx;
 }
 
 .player-ranking-panel,

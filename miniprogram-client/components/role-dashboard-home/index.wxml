@@ -388,6 +388,7 @@
           <view>
             <text class="player-panel-icon">{{rankingSection.icon}}</text>
             <text class="player-panel-title">{{rankingSection.title}}</text>
+            <text wx:if="{{rankingSection.desc}}" class="player-ranking-desc">{{rankingSection.desc}}</text>
           </view>
           <view class="player-tabs role player-ranking-tabs">
             <view

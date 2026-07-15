@@ -73,6 +73,8 @@ type GameDetailDTO struct {
 	DetailDisplay      GameDetailDisplayDTO `json:"detailDisplay"`
 	MemberIDs          []int64              `json:"memberIds"`
 	Members            []GameMemberDTO      `json:"members"`
+	IsFavorited        bool                 `json:"isFavorited"`
+	FavoriteCount      int                  `json:"favoriteCount"`
 	Progress           GameProgressDTO      `json:"progress"`
 	IM                 GameIMDTO            `json:"im"`
 	Review             GameReviewDTO        `json:"review"`
@@ -2234,8 +2236,9 @@ func serviceOrderSummary(items []map[string]interface{}, title string) map[strin
 
 func publicGames(items []games.Game) []games.Game {
 	result := make([]games.Game, 0, len(items))
+	now := time.Now()
 	for _, game := range items {
-		if isPublicGameStatus(game.Status) {
+		if isPublicGameStatus(game.Status) && games.CanApplyWithinSignupWindow(game, now) {
 			result = append(result, game)
 		}
 	}
@@ -2514,11 +2517,14 @@ func (s *Server) buildGameDetail(userID int64, game games.Game) GameDetailDTO {
 	memberIDs := s.games.Members(game.ID)
 	_, members := s.buildGameMembers(userID, game, false)
 	relation := s.buildGameRelation(userID, game)
+	isFavorited, favoriteCount := s.gameFavoriteState(userID, game.ID)
 	detail := GameDetailDTO{
-		Game:       game,
-		MemberIDs:  memberIDs,
-		Members:    members,
-		MyRelation: relation,
+		Game:          game,
+		MemberIDs:     memberIDs,
+		Members:       members,
+		MyRelation:    relation,
+		IsFavorited:   isFavorited,
+		FavoriteCount: favoriteCount,
 		Review: GameReviewDTO{
 			Complete: s.reviews.GameReviewComplete(game.ID),
 		},
@@ -2568,6 +2574,21 @@ func (s *Server) buildGameDetail(userID int64, game games.Game) GameDetailDTO {
 	}
 	detail.DetailDisplay = s.buildGameDetailDisplay(userID, game, detail.MyRelation)
 	return detail
+}
+
+func (s *Server) gameFavoriteState(userID int64, gameID int64) (bool, int) {
+	isFavorited := false
+	count := 0
+	for _, favorite := range s.games.AllFavorites() {
+		if favorite.GameID != gameID {
+			continue
+		}
+		count++
+		if userID > 0 && favorite.UserID == userID {
+			isFavorited = true
+		}
+	}
+	return isFavorited, count
 }
 
 func (s *Server) buildGameDetailDisplay(userID int64, game games.Game, relation GameMyRelationDTO) GameDetailDisplayDTO {
