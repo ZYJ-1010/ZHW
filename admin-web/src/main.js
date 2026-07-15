@@ -2438,7 +2438,14 @@ async function showReportDetail(id) {
     ${chatMessages.length ? `
       <div class="detail-block">
         <h3>聊天证据</h3>
-        ${chatMessages.slice(0, 5).map((message) => `<p>${escapeHTML(messageTypeLabel(message.messageType || "text"))}：${escapeHTML(message.content || "")}</p>`).join("")}
+        <div class="report-chat-evidence">
+          ${chatMessages.map((message) => `
+            <div class="report-chat-message">
+              <div class="muted">${escapeHTML(message.createdAt || message.created_at || "-")} · ${escapeHTML(userText(message.senderUserId || message.sender_user_id))} · ${escapeHTML(messageTypeLabel(message.messageType || message.message_type || "text"))}</div>
+              <div>${escapeHTML(message.content || "")}</div>
+            </div>
+          `).join("")}
+        </div>
       </div>
     ` : ""}
     ${fileAction ? `<div class="actions">${fileAction}</div>` : ""}

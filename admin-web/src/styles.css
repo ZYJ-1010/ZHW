@@ -1014,6 +1014,26 @@ tbody tr:hover {
   line-height: 1.6;
 }
 
+.report-chat-evidence {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.report-chat-message {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .bars {
   display: grid;
   gap: 10px;
