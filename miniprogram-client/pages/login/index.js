@@ -446,6 +446,20 @@ Page({
     })
   },
 
+  openAgreementDetail(key, title) {
+    const agreement = encodeURIComponent(key)
+    const encodedTitle = encodeURIComponent(title)
+    navigateShellRoute(`/pages/profile/system-management/agreement-detail/index?agreement=${agreement}&title=${encodedTitle}&signed=1`)
+  },
+
+  openUserAgreement() {
+    this.openAgreementDetail('user-service', '用户服务协议')
+  },
+
+  openPrivacyAgreement() {
+    this.openAgreementDetail('privacy', '隐私政策')
+  },
+
   onPhoneInput(event) {
     this.setData({
       phone: String(event.detail.value || '').trim()

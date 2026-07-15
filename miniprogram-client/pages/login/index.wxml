@@ -58,8 +58,9 @@
       <view class="invite-flow-agreement">
         <image class="invite-flow-check" src="/pages/login/assets/icon-check.svg" mode="aspectFit"></image>
         <text class="invite-flow-agree-muted">注册即表明同意</text>
-        <text class="invite-flow-agree-link">用户协议</text>
-        <text class="invite-flow-agree-link">及隐私协议</text>
+        <text class="invite-flow-agree-link" catchtap="openUserAgreement">用户协议</text>
+        <text class="invite-flow-agree-link">及</text>
+        <text class="invite-flow-agree-link" catchtap="openPrivacyAgreement">隐私协议</text>
       </view>
     </view>
   </view>
@@ -209,8 +210,9 @@
           <text wx:if="{{agreed}}">✓</text>
         </view>
         <text class="invite-flow-agree-muted">登录即表明同意</text>
-        <text class="invite-flow-agree-link">用户协议</text>
-        <text class="invite-flow-agree-link">及隐私协议</text>
+        <text class="invite-flow-agree-link" catchtap="openUserAgreement">用户协议</text>
+        <text class="invite-flow-agree-muted">及</text>
+        <text class="invite-flow-agree-link" catchtap="openPrivacyAgreement">隐私协议</text>
       </view>
     </view>
   </view>
@@ -312,9 +314,9 @@
       </view>
       <view class="agreement-copy">
         <text class="agreement-normal">登录即表明同意</text>
-        <text class="agreement-link">用户协议</text>
+        <text class="agreement-link" catchtap="openUserAgreement">用户协议</text>
         <text class="agreement-normal">及</text>
-        <text class="agreement-link">隐私协议</text>
+        <text class="agreement-link" catchtap="openPrivacyAgreement">隐私协议</text>
       </view>
     </view>
   </view>
