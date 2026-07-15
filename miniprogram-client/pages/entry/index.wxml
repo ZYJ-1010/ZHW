@@ -47,6 +47,12 @@
       <view class="entry-accent-dot" style="{{entryAccentStyle}}"></view>
       <view class="entry-accent-dot entry-accent-dot--violet" style="{{entryAccentStyle}}"></view>
       <view class="entry-accent-dot entry-accent-dot--cyan" style="{{entryAccentStyle}}"></view>
+
+      <view class="entry-access-note">
+        <text>本小程序仅限受邀用户和已注册用户使用</text>
+        <text>已注册账号可用验证码、微信或密码登录鉴权</text>
+        <text>新用户需邀请码</text>
+      </view>
     </view>
   </view>
 </view>

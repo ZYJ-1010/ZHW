@@ -6,6 +6,7 @@
         <text class="invite-flow-star">✦</text>
       </view>
       <text class="invite-flow-welcome">欢迎进入真好玩~</text>
+      <text class="invite-flow-access-note">仅限受邀用户和已注册账号登录。已注册账号可使用手机号验证码、微信或密码完成鉴权，新用户需输入有效邀请码。</text>
     </view>
 
     <view class="invite-flow-form">
@@ -53,7 +54,7 @@
         <view class="invite-flow-login-option" catchtap="startPasswordLogin">密码登录</view>
         <view class="invite-flow-login-option" catchtap="startWechatAuth">微信登录</view>
       </view>
-      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
+      <text class="invite-flow-invite-tip">已注册账号可用验证码、微信或密码登录；新用户需输入邀请码完成注册</text>
       <view class="invite-flow-agreement">
         <image class="invite-flow-check" src="/pages/login/assets/icon-check.svg" mode="aspectFit"></image>
         <text class="invite-flow-agree-muted">注册即表明同意</text>
@@ -154,6 +155,7 @@
         <text class="invite-flow-star">✦</text>
       </view>
       <text class="invite-flow-welcome">欢迎进入真好玩~</text>
+      <text class="invite-flow-access-note">仅限受邀用户和已注册账号登录。已注册账号可使用手机号验证码、微信或密码完成鉴权，新用户需输入有效邀请码。</text>
     </view>
 
     <view class="invite-flow-form">
@@ -201,7 +203,7 @@
         <view class="invite-flow-login-option" bindtap="startPasswordLogin">密码登录</view>
         <view class="invite-flow-login-option" bindtap="startWechatAuth">微信登录</view>
       </view>
-      <text class="invite-flow-invite-tip">已注册用户无需重复输入邀请码</text>
+      <text class="invite-flow-invite-tip">已注册账号可用验证码、微信或密码登录；新用户需输入邀请码完成注册</text>
       <view class="invite-flow-agreement" bindtap="toggleAgreement">
         <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
           <text wx:if="{{agreed}}">✓</text>

@@ -817,6 +817,15 @@
   line-height: 44rpx;
 }
 
+.invite-flow-access-note {
+  display: block;
+  width: 626rpx;
+  margin-top: 18rpx;
+  color: #7b7d8a;
+  font-size: 22rpx;
+  line-height: 34rpx;
+}
+
 .invite-flow-form {
   position: absolute;
   top: 420rpx;
