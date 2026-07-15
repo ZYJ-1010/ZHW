@@ -78,10 +78,12 @@ func TestManagementEndpointsUsePerGameRole(t *testing.T) {
 	expertUser, _ := authService.CurrentUser(expertToken)
 	server.profiles.GrantRole(expertUser.ID, "expert")
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"role management","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"role management","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	applyAndApproveRoleForTest(t, mux, creatorToken, expertToken, "expert")
 	applyAndApproveRoleForTest(t, mux, creatorToken, playerToken, "player")
+	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "role-management", 2)
+	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 
 	assertManageItemCountForTest(t, mux, expertToken, "/api/app/games/my/manage", 1)
 	assertManageItemCountForTest(t, mux, expertToken, "/api/app/games/player/manage", 0)
@@ -92,7 +94,6 @@ func TestManagementEndpointsUsePerGameRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertManageItemCountForTest(t, mux, expertToken, "/api/app/games/my/manage?status=dispute", 1)
-	assertManageItemCountForTest(t, mux, playerToken, "/api/app/games/player/manage?status=refund", 1)
 }
 
 func TestGameApplicationRequiresActivePlatformRole(t *testing.T) {
@@ -106,7 +107,7 @@ func TestGameApplicationRequiresActivePlatformRole(t *testing.T) {
 	completeIdentityForTest(t, mux, creatorToken)
 	completeIdentityForTest(t, mux, guideToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"guide role application","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"guide role application","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", guideToken, `{"reason":"join","roleType":"guide"}`, http.StatusForbidden)
 

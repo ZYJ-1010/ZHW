@@ -25,7 +25,7 @@ func TestGameAuditAndApplicationNotificationsHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, applicantToken)
 	completeIdentityForTest(t, mux, rejectedToken)
 
-	createBody := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"notification lifecycle game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	createBody := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"notification lifecycle game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID int64 `json:"id"`

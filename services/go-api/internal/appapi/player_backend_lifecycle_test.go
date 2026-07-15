@@ -147,10 +147,10 @@ func lifecycleInviteGuideAndApprove(t *testing.T, mux *http.ServeMux, ownerToken
 
 func lifecycleFinishGame(t *testing.T, mux *http.ServeMux, gameID int64, ownerToken string, memberTokens []string) {
 	t.Helper()
-	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm", ownerToken, `{"note":"isolated finished"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm", ownerToken, `{"note":"isolated finished","confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	var last []byte
 	for _, token := range memberTokens {
-		last = postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm-items", token, `{"note":"isolated confirmed"}`, http.StatusOK)
+		last = postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm-items", token, `{"note":"isolated confirmed","confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	if !jsonContainsLifecycle(last, `"status":"pending_review"`) {
 		t.Fatalf("expected pending_review after all confirmations: %s", string(last))

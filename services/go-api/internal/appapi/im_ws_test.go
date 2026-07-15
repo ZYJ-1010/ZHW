@@ -32,7 +32,7 @@ func TestIMWebSocketFlow(t *testing.T) {
 	playerToken := loginForTestWithCode(t, mux, "im-ws-player")
 	completeIdentityForTest(t, mux, playerToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"IM websocket game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"IM websocket game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)

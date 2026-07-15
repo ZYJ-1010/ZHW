@@ -22,7 +22,7 @@ func TestGameDetailHTTPReturnsBackendDrivenPrimaryAction(t *testing.T) {
 	newTestAppServer(authService, identityService).Register(mux)
 	creatorToken := loginForTestWithCode(t, mux, "detail-action-creator")
 
-	createdBody := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"详情动作测试","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	createdBody := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"详情动作测试","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID int64 `json:"id"`
@@ -63,8 +63,10 @@ func TestGameDetailHTTPReturnsBackendDrivenPrimaryAction(t *testing.T) {
 	if err := json.Unmarshal(homeBody, &home); err != nil {
 		t.Fatal(err)
 	}
-	if len(home.Data.RecommendedGames) == 0 || home.Data.RecommendedGames[0].ID != created.Data.ID || home.Data.RecommendedGames[0].Scope != "mine" || home.Data.RecommendedGames[0].StatusText != "待后台审核" || !strings.Contains(home.Data.RecommendedGames[0].Route, "id=") {
-		t.Fatalf("creator home must include its pending game without publishing it to others: %s", homeBody)
+	for _, item := range home.Data.RecommendedGames {
+		if item.ID == created.Data.ID {
+			t.Fatalf("pending game must not be shown on home recommendation list: %s", homeBody)
+		}
 	}
 
 	postJSON(t, mux, gamePath+"/approve-local", creatorToken, `{}`, http.StatusOK)

@@ -268,10 +268,20 @@ func (s *Server) currentReviewPageConfig() reviewPageConfigDTO {
 
 func defaultReviewCompleteConfig() reviewCompleteConfigDTO {
 	return reviewCompleteConfigDTO{
-		Reward:      map[string]interface{}{"show": false},
-		Benefits:    []reviewCompleteBenefitDTO{},
-		PlayOptions: []reviewCompletePlayOptionDTO{},
-		Version:     "2026-07-01",
+		Reward: map[string]interface{}{
+			"show":  false,
+			"title": "评价完成",
+			"desc":  "评价会计入信用与成长记录",
+		},
+		Benefits: []reviewCompleteBenefitDTO{
+			{IconText: "✓", Theme: "green", Title: "信用成长", Desc: "完成评价后沉淀履约记录", Order: 10, Visible: true},
+			{IconText: "↻", Theme: "blue", Title: "继续组局", Desc: "可继续邀请合作成员再开一局", Order: 20, Visible: true},
+		},
+		PlayOptions: []reviewCompletePlayOptionDTO{
+			{ID: "play_again", Theme: "green", Title: "再玩一局", Desc: "继续发起或加入相似组局", Intent: "yes", Route: "play_again", Order: 10, Visible: true},
+			{ID: "game_hall", Theme: "blue", Title: "返回大厅", Desc: "看看附近还有哪些局", Intent: "maybe", Route: "game_hall", Order: 20, Visible: true},
+		},
+		Version: "2026-07-01",
 	}
 }
 
@@ -729,13 +739,13 @@ func (s *Server) serviceConfirm(w http.ResponseWriter, r *http.Request) {
 		s.notifyPlayersAfterExpertConfirmation(game, userID)
 	}
 	s.recordBehavior(userID, "service_confirm", "game", gameID, map[string]interface{}{
-		"gameStatus":     game.Status,
+		"gameStatus":       game.Status,
 		"gameStatusBefore": gameBefore.Status,
-		"fileIds":        req.FileIDs,
-		"confirmItemKeys": req.ConfirmItemKeys,
-		"confirmSource":  strings.TrimSpace(req.ConfirmSource),
-		"pageGameId":     req.PageGameID,
-		"role":           s.userRoleForGame(gameBefore, userID),
+		"fileIds":          req.FileIDs,
+		"confirmItemKeys":  req.ConfirmItemKeys,
+		"confirmSource":    strings.TrimSpace(req.ConfirmSource),
+		"pageGameId":       req.PageGameID,
+		"role":             s.userRoleForGame(gameBefore, userID),
 	})
 	httpx.OK(w, map[string]interface{}{"confirm": confirm, "items": items, "game": game})
 }

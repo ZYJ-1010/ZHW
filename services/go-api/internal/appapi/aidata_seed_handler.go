@@ -147,14 +147,18 @@ func (s *Server) ensureAcceptanceGames(creatorUserID int64) ([]games.Game, int, 
 	created := 0
 	for len(seedGames) < 3 {
 		game, err := s.games.Create(creatorUserID, games.CreateRequest{
-			Title:      fmt.Sprintf("E5 AI acceptance game %d", len(seedGames)+1),
-			GameType:   "free",
-			MinPlayers: 5,
-			MaxPlayers: 8,
-			CityCode:   "110100",
-			CityName:   "Beijing",
-			Longitude:  116.397,
-			Latitude:   39.908,
+			Title:         fmt.Sprintf("E5 AI acceptance game %d", len(seedGames)+1),
+			GameType:      "free",
+			MinPlayers:    5,
+			MaxPlayers:    8,
+			SignupStartAt: "2026-01-01 00:00",
+			SignupEndAt:   "2026-12-31 23:59",
+			StartAt:       "2027-01-01 10:00",
+			EndAt:         "2027-01-01 12:00",
+			CityCode:      "110100",
+			CityName:      "Beijing",
+			Longitude:     116.397,
+			Latitude:      39.908,
 		})
 		if err != nil {
 			return seedGames, created, err

@@ -356,10 +356,27 @@ func TestCreateInviteEntryHTTP(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
 	server := newTestAppServer(authService, identityService)
+	if err := server.systemConfig.Set(gameInviteConfigKey, gameInviteConfigDTO{
+		MinPlayerCount:      1,
+		MaxPlayerCount:      2,
+		BudgetMaxAmount:     6000,
+		DefaultBudget:       "1200",
+		DefaultTitle:        "数据库邀请测试标题",
+		DefaultDetail:       "数据库邀请测试详情",
+		PlayerIntroTemplate: "数据库模板-{expertName}",
+		ActivityTypes:       []inviteActivityTypeDTO{{Key: "db", Name: "数据库类型"}},
+		RewardRateConfig: inviteRewardRateConfigDTO{
+			PlatformServiceRate:   8,
+			SystemGuideRewardRate: 12,
+			InviteRewardRate:      30,
+		},
+	}); err != nil {
+		t.Fatalf("seed invite config failed: %v", err)
+	}
 	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "entry-owner")
 	completeIdentityForTest(t, mux, token)
-	postJSON(t, mux, "/api/app/games", token, `{"title":"周末城市探索","gameType":"free","minPlayers":5,"maxPlayers":8,"cityName":"杭州"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"周末城市探索","gameType":"free","minPlayers":5,"maxPlayers":8,"cityName":"杭州","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 
 	firstBody := postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link","title":"邀请你加入真好玩"}`, http.StatusOK)
 	posterBody := postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"poster","gameId":1}`, http.StatusOK)
@@ -429,6 +446,23 @@ func TestInviteEntryBindsExistingWechatHTTP(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
 	server := newTestAppServer(authService, identityService)
+	if err := server.systemConfig.Set(gameInviteConfigKey, gameInviteConfigDTO{
+		MinPlayerCount:      1,
+		MaxPlayerCount:      2,
+		BudgetMaxAmount:     6000,
+		DefaultBudget:       "1200",
+		DefaultTitle:        "数据库邀请测试标题",
+		DefaultDetail:       "数据库邀请测试详情",
+		PlayerIntroTemplate: "数据库模板-{expertName}",
+		ActivityTypes:       []inviteActivityTypeDTO{{Key: "db", Name: "数据库类型"}},
+		RewardRateConfig: inviteRewardRateConfigDTO{
+			PlatformServiceRate:   8,
+			SystemGuideRewardRate: 12,
+			InviteRewardRate:      30,
+		},
+	}); err != nil {
+		t.Fatalf("seed invite config failed: %v", err)
+	}
 	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "entry-existing-user")
 
@@ -610,7 +644,7 @@ func TestReplayContextReadsQuickActionsFromSystemConfigHTTP(t *testing.T) {
 
 	token := loginForTestWithCode(t, mux, "replay-quick-actions")
 	completeIdentityForTest(t, mux, token)
-	createBody := postJSON(t, mux, "/api/app/games", token, `{"title":"再玩一局配置测试","cityName":"杭州","locationName":"西湖","address":"西湖","longitude":120.1,"latitude":30.2,"startTime":"2026-07-01T10:00:00Z","endTime":"2026-07-01T12:00:00Z","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	createBody := postJSON(t, mux, "/api/app/games", token, `{"title":"再玩一局配置测试","cityName":"杭州","locationName":"西湖","address":"西湖","longitude":120.1,"latitude":30.2,"startTime":"2026-07-01T10:00:00Z","endTime":"2026-07-01T12:00:00Z","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var createResp struct {
 		Data struct {
 			ID int64 `json:"id"`
@@ -1684,7 +1718,7 @@ func TestPlayerCanCreateGameWithoutVerifiedIdentity(t *testing.T) {
 	newTestAppServer(authService, identityService).Register(mux)
 	token := loginForTest(t, mux)
 
-	body := postJSON(t, mux, "/api/app/games", token, `{"title":"test game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/games", token, `{"title":"test game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID             int64  `json:"id"`
@@ -1707,7 +1741,7 @@ func TestCreateFreeGameAfterIdentityVerified(t *testing.T) {
 	token := loginForTest(t, mux)
 	completeIdentityForTest(t, mux, token)
 
-	body := postJSON(t, mux, "/api/app/games", token, `{"title":"test game","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing"}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/games", token, `{"title":"test game","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID       int64  `json:"id"`
@@ -1864,7 +1898,7 @@ func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 		t.Fatalf("expected hall sort and event action config: %s", string(configBody))
 	}
 
-	body := postJSON(t, mux, "/api/app/games", token, `{"title":"category game","gameType":"free","primaryCategory":"task","primaryCategoryText":"Task","secondaryCategory":"project","secondaryCategoryText":"Project","type":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/games", token, `{"title":"category game","gameType":"free","primaryCategory":"task","primaryCategoryText":"Task","secondaryCategory":"project","secondaryCategoryText":"Project","type":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			PrimaryCategory   string `json:"primaryCategory"`
@@ -2234,7 +2268,7 @@ func TestAdminAuditGameApprovesPendingGame(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "admin-audit-game")
 	completeIdentityForTest(t, mux, token)
 
-	body := postJSON(t, mux, "/api/app/games", token, `{"title":"audit game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/games", token, `{"title":"audit game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID     int64  `json:"id"`
@@ -2380,8 +2414,8 @@ func TestAdminBatchAuditGames(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "admin-batch-audit")
 	completeIdentityForTest(t, mux, token)
 
-	firstBody := postJSON(t, mux, "/api/app/games", token, `{"title":"batch game 1","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
-	secondBody := postJSON(t, mux, "/api/app/games", token, `{"title":"batch game 2","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	firstBody := postJSON(t, mux, "/api/app/games", token, `{"title":"batch game 1","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	secondBody := postJSON(t, mux, "/api/app/games", token, `{"title":"batch game 2","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var first, second struct {
 		Data struct {
 			ID int64 `json:"id"`
@@ -2437,15 +2471,15 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	newTestAppServer(authService, identityService).Register(mux)
 	token := loginForTestWithCode(t, mux, "admin-create-condition-game")
 
-	postJSON(t, mux, "/api/app/games", token, `{"title":"app standard","gameType":"standard","minPlayers":5,"maxPlayers":8}`, http.StatusUnprocessableEntity)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"app standard","gameType":"standard","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusUnprocessableEntity)
 	operatorToken := adminLoginForTestAs(t, mux, "operator", "admin123")
-	postAdminJSON(t, mux, "/api/admin/games", operatorToken, `{"title":"admin condition","creatorUserId":1,"gameType":"condition","minPlayers":5,"maxPlayers":8}`, http.StatusForbidden)
-	postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"same guide","creatorUserId":1,"mainGuideUserId":1,"gameType":"condition","minPlayers":5,"maxPlayers":8}`, http.StatusUnprocessableEntity)
-	postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"unverified guide","creatorUserId":1,"mainGuideUserId":2,"gameType":"condition","minPlayers":5,"maxPlayers":8}`, http.StatusUnprocessableEntity)
+	postAdminJSON(t, mux, "/api/admin/games", operatorToken, `{"title":"admin condition","creatorUserId":1,"gameType":"condition","minPlayers":5,"maxPlayers":8,"signupStartAt":"2026-07-01 10:00","signupEndAt":"2026-08-01 09:00","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusForbidden)
+	postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"same guide","creatorUserId":1,"mainGuideUserId":1,"gameType":"condition","minPlayers":5,"maxPlayers":8,"signupStartAt":"2026-07-01 10:00","signupEndAt":"2026-08-01 09:00","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusUnprocessableEntity)
+	postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"preset guide is phase two","creatorUserId":1,"mainGuideUserId":2,"gameType":"condition","minPlayers":5,"maxPlayers":8,"signupStartAt":"2026-07-01 10:00","signupEndAt":"2026-08-01 09:00","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusUnprocessableEntity)
 	guideToken := loginForTestWithCode(t, mux, "admin-create-condition-guide")
 	completeIdentityForTest(t, mux, guideToken)
 
-	body := postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"admin condition","creatorUserId":1,"mainGuideUserId":2,"gameType":"condition","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	body := postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"admin condition","creatorUserId":1,"gameType":"condition","minPlayers":5,"maxPlayers":8,"signupStartAt":"2026-07-01 10:00","signupEndAt":"2026-08-01 09:00","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID              int64  `json:"id"`
@@ -2460,7 +2494,7 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(body, &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Data.ID == 0 || created.Data.CreatorUserID != 1 || created.Data.MainGuideUserID != 2 || created.Data.GameType != "condition" || created.Data.GameSource != "admin" || created.Data.Status != "recruiting" || created.Data.CurrentPlayers != 2 {
+	if created.Data.ID == 0 || created.Data.CreatorUserID != 1 || created.Data.MainGuideUserID != 0 || created.Data.GameType != "condition" || created.Data.GameSource != "admin" || created.Data.Status != "recruiting" || created.Data.CurrentPlayers != 1 {
 		t.Fatalf("unexpected admin created condition game: %s", string(body))
 	}
 	detailBody := getAdminJSONWithPermission(t, mux, "/api/admin/games/"+strconv.FormatInt(created.Data.ID, 10), "game:read", http.StatusOK)
@@ -2476,11 +2510,11 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(detailBody, &detail); err != nil {
 		t.Fatal(err)
 	}
-	if detail.Data.Game.MainGuideUserID != 2 || detail.Data.Game.CurrentPlayers != 2 || !containsInt64(detail.Data.MemberIDs, 2) {
-		t.Fatalf("expected admin detail to include main guide member: %s", string(detailBody))
+	if detail.Data.Game.MainGuideUserID != 0 || detail.Data.Game.CurrentPlayers != 1 || containsInt64(detail.Data.MemberIDs, 2) {
+		t.Fatalf("expected admin detail to keep phase-two guide out of members: %s", string(detailBody))
 	}
 
-	standardBody := postAdminJSONWithPermission(t, mux, "/api/admin/games/", "game:create_admin", `{"title":"admin standard","creatorUserId":1,"gameType":"standard","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	standardBody := postAdminJSONWithPermission(t, mux, "/api/admin/games/", "game:create_admin", `{"title":"admin standard","creatorUserId":1,"gameType":"standard","minPlayers":5,"maxPlayers":8,"signupStartAt":"2026-07-01 10:00","signupEndAt":"2026-08-01 09:00","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var standard struct {
 		Data struct {
 			GameType   string `json:"gameType"`
@@ -2495,7 +2529,7 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	}
 
 	for _, gameType := range []string{"public_welfare", "aa", "crowdfund", "deposit"} {
-		extraBody := postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"admin `+gameType+`","creatorUserId":1,"gameType":"`+gameType+`","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+		extraBody := postAdminJSONWithPermission(t, mux, "/api/admin/games", "game:create_admin", `{"title":"admin `+gameType+`","creatorUserId":1,"gameType":"`+gameType+`","minPlayers":5,"maxPlayers":8,"signupStartAt":"2026-07-01 10:00","signupEndAt":"2026-08-01 09:00","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 		var extra struct {
 			Data struct {
 				GameType   string `json:"gameType"`
@@ -2583,13 +2617,14 @@ func TestCreateGameIdempotencyKeyReplaysFirstResponse(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "game-idempotency")
 	completeIdentityForTest(t, mux, token)
 
-	payload := `{"title":"same submit","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing"}`
+	payload := `{"title":"same submit","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`
 	firstBody := postJSONWithIdempotencyKey(t, mux, "/api/app/games", token, "create-game-1", payload, http.StatusOK)
 	secondBody := postJSONWithIdempotencyKey(t, mux, "/api/app/games", token, "create-game-1", payload, http.StatusOK)
 	if !bytes.Equal(firstBody, secondBody) {
 		t.Fatalf("expected duplicate submit to replay first response\nfirst=%s\nsecond=%s", string(firstBody), string(secondBody))
 	}
 
+	postJSON(t, mux, "/api/app/games/1/approve-local", token, `{}`, http.StatusOK)
 	listBody := getJSON(t, mux, "/api/app/games", token, http.StatusOK)
 	var listResp struct {
 		Data struct {
@@ -2645,6 +2680,19 @@ func TestGameApplicationAndManualStartFlow(t *testing.T) {
 	}
 	if favoriteResp.Data.GameID != 1 || favoriteResp.Data.Game.Status != "recruiting" {
 		t.Fatalf("expected favorite game: %s", string(favoriteBody))
+	}
+	favoriteDetailBody := getJSON(t, mux, "/api/app/games/1", playerToken, http.StatusOK)
+	var favoriteDetailResp struct {
+		Data struct {
+			IsFavorited   bool `json:"isFavorited"`
+			FavoriteCount int  `json:"favoriteCount"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(favoriteDetailBody, &favoriteDetailResp); err != nil {
+		t.Fatal(err)
+	}
+	if !favoriteDetailResp.Data.IsFavorited || favoriteDetailResp.Data.FavoriteCount != 1 {
+		t.Fatalf("expected favorite state in game detail: %s", string(favoriteDetailBody))
 	}
 	favoritesReq := httptest.NewRequest(http.MethodGet, "/api/app/games/favorites/my", nil)
 	favoritesReq.Header.Set("Authorization", "Bearer "+playerToken)
@@ -2994,10 +3042,10 @@ func TestGameApplicationAndManualStartFlow(t *testing.T) {
 	}
 	postJSON(t, mux, "/api/app/games/1/retrospectives", playerToken, `{"content":"too early","againIntent":"yes"}`, http.StatusConflict)
 	postJSON(t, mux, "/api/app/games/1/continue", creatorToken, `{"title":"too early continue"}`, http.StatusConflict)
-	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	retroBody := postJSON(t, mux, "/api/app/games/1/retrospectives", playerToken, `{"content":"great game","againIntent":"yes"}`, http.StatusOK)
 	var retroResp struct {
@@ -3077,7 +3125,7 @@ func TestGameInvitationRespondCreatesApplication(t *testing.T) {
 	outsiderToken := loginForTestWithCode(t, mux, "invite-outsider")
 	completeIdentityForTest(t, mux, outsiderToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"invite game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"invite game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	inviteBody := postJSON(t, mux, "/api/app/games/1/guide-invitations", creatorToken, `{"targetUserId":2,"message":"join us"}`, http.StatusOK)
 	var inviteResp struct {
@@ -3165,7 +3213,7 @@ func TestNotificationInvitationRequiresDetailPageResponseHTTP(t *testing.T) {
 	inviteeToken := loginForTestWithCode(t, mux, "notice-invitee")
 	completeIdentityForTest(t, mux, inviteeToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"notice invite game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"notice invite game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/guide-invitations", creatorToken, `{"targetUserId":2,"message":"join from notice"}`, http.StatusOK)
 
@@ -3204,7 +3252,14 @@ func TestNotificationInvitationRequiresDetailPageResponseHTTP(t *testing.T) {
 	if err := json.Unmarshal(noticesBody, &noticesResp); err != nil {
 		t.Fatal(err)
 	}
-	if len(noticesResp.Data.Items) != 1 || noticesResp.Data.Items[0].NotifyType != "game_invitation" || noticesResp.Data.Items[0].BizType != "game_invitation" || noticesResp.Data.Items[0].Status != "unread" {
+	var invitationNoticeID int64
+	for _, item := range noticesResp.Data.Items {
+		if item.NotifyType == "game_invitation" && item.BizType == "game_invitation" && item.Status == "unread" {
+			invitationNoticeID = item.ID
+			break
+		}
+	}
+	if invitationNoticeID == 0 {
 		t.Fatalf("expected game invitation notification: %s", string(noticesBody))
 	}
 	if len(noticesResp.Data.Sections) == 0 || len(noticesResp.Data.Sections[0].Items) == 0 || len(noticesResp.Data.Sections[0].Items[0].Actions) != 1 || noticesResp.Data.Sections[0].Items[0].Actions[0].Key != "detail" {
@@ -3230,12 +3285,12 @@ func TestNotificationInvitationRequiresDetailPageResponseHTTP(t *testing.T) {
 		t.Fatalf("expected message my page config: %s", string(messageMyConfigBody))
 	}
 
-	detailBody := postJSON(t, mux, "/api/app/notifications/"+strconv.FormatInt(noticesResp.Data.Items[0].ID, 10)+"/actions", inviteeToken, `{"action":"detail"}`, http.StatusOK)
+	detailBody := postJSON(t, mux, "/api/app/notifications/"+strconv.FormatInt(invitationNoticeID, 10)+"/actions", inviteeToken, `{"action":"detail"}`, http.StatusOK)
 	if !strings.Contains(string(detailBody), `"handled":true`) || !strings.Contains(string(detailBody), `pages/game/player-confirm/index`) {
 		t.Fatalf("expected invitation detail action target: %s", string(detailBody))
 	}
 
-	postJSON(t, mux, "/api/app/notifications/"+strconv.FormatInt(noticesResp.Data.Items[0].ID, 10)+"/actions", inviteeToken, `{"action":"accept","reason":"ok"}`, http.StatusUnprocessableEntity)
+	postJSON(t, mux, "/api/app/notifications/"+strconv.FormatInt(invitationNoticeID, 10)+"/actions", inviteeToken, `{"action":"accept","reason":"ok"}`, http.StatusUnprocessableEntity)
 	noticesBody = getJSON(t, mux, "/api/app/notifications", inviteeToken, http.StatusOK)
 	if !strings.Contains(string(noticesBody), `"status":"read"`) {
 		t.Fatalf("expected notification read after action: %s", string(noticesBody))
@@ -3529,6 +3584,25 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
 	server := newTestAppServer(authService, identityService)
+	if err := server.systemConfig.Set(gameInviteConfigKey, gameInviteConfigDTO{
+		MinPlayerCount:      1,
+		MaxPlayerCount:      2,
+		BudgetMaxAmount:     6000,
+		DefaultBudget:       "1200",
+		DefaultTitle:        "数据库邀请测试标题",
+		DefaultDetail:       "数据库邀请测试详情",
+		PlayerIntroTemplate: "数据库模板-{expertName}",
+		ActivityTypes: []inviteActivityTypeDTO{
+			{Key: "db", Name: "数据库类型"},
+		},
+		RewardRateConfig: inviteRewardRateConfigDTO{
+			PlatformServiceRate:   8,
+			SystemGuideRewardRate: 12,
+			InviteRewardRate:      30,
+		},
+	}); err != nil {
+		t.Fatalf("seed invite config failed: %v", err)
+	}
 	server.Register(mux)
 
 	creatorToken := loginForTestWithCode(t, mux, "invite-aggregate-creator")
@@ -3546,7 +3620,7 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"aggregate game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"aggregate game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	inviteBody := postJSON(t, mux, "/api/app/games/1/guide-invitations", creatorToken, `{"targetUserId":2,"message":"please join"}`, http.StatusOK)
 	var inviteResp struct {
@@ -3724,13 +3798,13 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	if err := json.Unmarshal(successDetailBody, &successDetailResp); err != nil {
 		t.Fatal(err)
 	}
-	if successDetailResp.Data.Viewer.UserID != 1 || successDetailResp.Data.Viewer.Role != "creator" || successDetailResp.Data.Group.GameID != 1 || successDetailResp.Data.Group.RoomID == 0 {
+	if successDetailResp.Data.Viewer.UserID != 1 || successDetailResp.Data.Viewer.Role != "member" || successDetailResp.Data.Group.GameID != 1 || successDetailResp.Data.Group.RoomID == 0 {
 		t.Fatalf("expected success detail viewer and group: %s", string(successDetailBody))
 	}
 	if len(successDetailResp.Data.Participants) != 1 || successDetailResp.Data.Participants[0].UserID != 1 || successDetailResp.Data.Participants[0].RoleLabel != "玩家" {
 		t.Fatalf("expected success detail participants: %s", string(successDetailBody))
 	}
-	if successDetailResp.Data.Fund.Status != "escrowed" || successDetailResp.Data.Fund.AmountText == "" || len(successDetailResp.Data.NextSteps) != 3 || successDetailResp.Data.NextSteps[0].Action != "contact_player" {
+	if successDetailResp.Data.Fund.Status != "free_no_pay" || successDetailResp.Data.Fund.AmountText == "" || len(successDetailResp.Data.NextSteps) != 3 || successDetailResp.Data.NextSteps[1].Action != "contact_player" {
 		t.Fatalf("expected success detail fund and next steps: %s", string(successDetailBody))
 	}
 	if successDetailResp.Data.DeliveryProof.MaxCount != 4 || successDetailResp.Data.DeliveryProof.EmptyText == "" || successDetailResp.Data.DeliveryProof.SelectedTemplate == "" || successDetailResp.Data.DeliveryProof.TimelinePrefill == "" {
@@ -3776,7 +3850,7 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	if err := json.Unmarshal(replayContextBody, &replayContextResp); err != nil {
 		t.Fatal(err)
 	}
-	if replayContextResp.Data.SourceGameID != 1 || len(replayContextResp.Data.Invitees) == 0 {
+	if replayContextResp.Data.SourceGameID != 1 || len(replayContextResp.Data.Invitees) != 0 {
 		t.Fatalf("expected replay context invitees: %s", string(replayContextBody))
 	}
 
@@ -3840,7 +3914,7 @@ func TestGuideProgressNotificationCountdownAndDetailsHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, expertToken)
 	server.profiles.GrantRole(2, "expert")
 
-	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"进度详情测试局","gameType":"free","cityName":"杭州","address":"西湖","startTime":"2026-07-15T14:00:00+08:00","endTime":"2026-07-15T15:30:00+08:00","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"进度详情测试局","gameType":"free","cityName":"杭州","address":"西湖","startTime":"2026-07-15T14:00:00+08:00","endTime":"2026-07-15T15:30:00+08:00","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", guideToken, `{}`, http.StatusOK)
 	replayBody := postJSON(t, mux, "/api/app/game-invites/replay", guideToken, `{"sourceGameId":1,"expertUserIds":[2],"message":"请确认方案","serviceType":"产品咨询","serviceDuration":"90分钟","demandDetail":"梳理产品方案","budgetAmountCent":128800,"expectedTime":"2026-07-15 14:00"}`, http.StatusOK)
 	var replayResp struct {
@@ -3963,7 +4037,7 @@ func TestGuideProgressRejectedPlayerAndExpertUsesBackendPayload(t *testing.T) {
 	completeIdentityForTest(t, mux, outsiderToken)
 	server.profiles.GrantRole(3, "expert")
 
-	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"backend rejected progress","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"backend rejected progress","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", guideToken, `{}`, http.StatusOK)
 
 	createInvitation := func(targetUserID int64, roleType string, message string) int64 {
@@ -4110,11 +4184,37 @@ func TestManagedGameActionTextsHTTP(t *testing.T) {
 	server := newTestAppServer(authService, identityService)
 	server.Register(mux)
 
-	token := loginForTestWithCode(t, mux, "managed-game-action-texts")
-	completeIdentityForTest(t, mux, token)
-	postJSON(t, mux, "/api/app/games", token, `{"title":"action text game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	creatorToken := loginForTestWithCode(t, mux, "managed-game-action-texts-creator")
+	completeIdentityForTest(t, mux, creatorToken)
+	guideToken := loginForTestWithCode(t, mux, "managed-game-action-texts-guide")
+	completeIdentityForTest(t, mux, guideToken)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"action text game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
+	inviteBody := postJSON(t, mux, "/api/app/games/1/guide-invitations", creatorToken, `{"targetUserId":2,"message":"lead action text game"}`, http.StatusOK)
+	var inviteResp struct {
+		Data struct {
+			Invitation struct {
+				ID int64 `json:"id"`
+			} `json:"invitation"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(inviteBody, &inviteResp); err != nil {
+		t.Fatal(err)
+	}
+	respondBody := postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(inviteResp.Data.Invitation.ID, 10)+"/respond", guideToken, `{"accept":true,"reason":"ok"}`, http.StatusOK)
+	var respondResp struct {
+		Data struct {
+			Application struct {
+				ID int64 `json:"id"`
+			} `json:"application"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respondBody, &respondResp); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(respondResp.Data.Application.ID, 10)+"/audit", creatorToken, `{"approve":true}`, http.StatusOK)
 
-	body := getJSON(t, mux, "/api/app/games/my/manage", token, http.StatusOK)
+	body := getJSON(t, mux, "/api/app/games/my/manage", guideToken, http.StatusOK)
 	var response struct {
 		Data struct {
 			Orders []struct {
@@ -4148,7 +4248,7 @@ func TestPlayerGameActionTextsHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, creatorToken)
 	playerToken := loginForTestWithCode(t, mux, "player-action-texts-player")
 	completeIdentityForTest(t, mux, playerToken)
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"player action text game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"player action text game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	applicationBody := postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	var application struct {
@@ -4178,7 +4278,7 @@ func TestPlayerGameActionTextsHTTP(t *testing.T) {
 		t.Fatalf("expected one player order: %s", string(body))
 	}
 	order := response.Data.Orders[0]
-	if order.PrimaryActionText != "联系行家" || order.SecondaryActionText != "申请取消" || order.NoticeText != "取消需赔付一定比例金额给行家" {
+	if order.PrimaryActionText != "暂无行家" || order.SecondaryActionText != "申请取消" || order.NoticeText != "本局暂未分配行家，无法联系行家。" {
 		t.Fatalf("unexpected player order action texts: %s", string(body))
 	}
 }
@@ -4809,43 +4909,22 @@ func TestInvitedMainGuideCanStartAndManageProgressHTTP(t *testing.T) {
 		t.Fatalf("expected main guide in members: %s", string(membersBody))
 	}
 	postJSON(t, mux, "/api/app/games/1/manual-start", guideToken, `{}`, http.StatusOK)
-	getJSON(t, mux, "/api/app/games/1/guide-success-detail", memberTokens[0], http.StatusForbidden)
-	guideSuccessBody := getJSON(t, mux, "/api/app/games/1/guide-success-detail", guideToken, http.StatusOK)
-	var guideSuccessResp struct {
+	collaborationBody := getJSON(t, mux, "/api/app/games/1/collaboration", guideToken, http.StatusOK)
+	var collaborationResp struct {
 		Data struct {
-			GameID int64 `json:"gameId"`
-			Viewer struct {
-				Role string `json:"role"`
-			} `json:"viewer"`
-			Timeline []struct {
-				Title string `json:"title"`
-			} `json:"timeline"`
-			Party struct {
-				Player struct {
-					UserID int64  `json:"userId"`
-					Role   string `json:"role"`
-				} `json:"player"`
-				Expert struct {
-					UserID int64  `json:"userId"`
-					Role   string `json:"role"`
-				} `json:"expert"`
-			} `json:"party"`
-			FollowUps []struct {
-				Key    string `json:"key"`
-				Target struct {
-					Type string `json:"type"`
-				} `json:"target"`
-			} `json:"followUps"`
+			GameID int64  `json:"gameId"`
+			Title  string `json:"title"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(guideSuccessBody, &guideSuccessResp); err != nil {
+	if err := json.Unmarshal(collaborationBody, &collaborationResp); err != nil {
 		t.Fatal(err)
 	}
-	if guideSuccessResp.Data.GameID != 1 || guideSuccessResp.Data.Viewer.Role != "main_guide" || len(guideSuccessResp.Data.Timeline) != 4 || len(guideSuccessResp.Data.FollowUps) != 3 {
-		t.Fatalf("expected guide success detail: %s", string(guideSuccessBody))
+	if collaborationResp.Data.GameID != 1 || collaborationResp.Data.Title != "main guide game" {
+		t.Fatalf("expected main guide collaboration detail: %s", string(collaborationBody))
 	}
-	if guideSuccessResp.Data.Party.Player.UserID != 1 || guideSuccessResp.Data.Party.Player.Role != "玩家" || guideSuccessResp.Data.Party.Expert.UserID != 2 || guideSuccessResp.Data.Party.Expert.Role != "行家" {
-		t.Fatalf("expected guide success party data: %s", string(guideSuccessBody))
+	manageBody := getJSON(t, mux, "/api/app/games/my/manage", guideToken, http.StatusOK)
+	if !strings.Contains(string(manageBody), `"main guide game"`) || !strings.Contains(string(manageBody), `"gameId":1`) {
+		t.Fatalf("expected main guide to manage invited game: %s", string(manageBody))
 	}
 	followBody := postJSON(t, mux, "/api/app/games/1/guide-follow-ups", guideToken, `{"action":"feedback"}`, http.StatusOK)
 	var followResp struct {
@@ -4896,7 +4975,7 @@ func TestAdminGameProgressRetrospectiveAndContinueDraftsHTTP(t *testing.T) {
 	playerToken := loginForTestWithCode(t, mux, "admin-progress-player")
 	completeIdentityForTest(t, mux, playerToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"progress target","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"progress target","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
@@ -4958,10 +5037,10 @@ func TestAdminGameProgressRetrospectiveAndContinueDraftsHTTP(t *testing.T) {
 		t.Fatalf("expected admin checkins include invalid item: %s", string(checkinsBody))
 	}
 
-	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	postJSON(t, mux, "/api/app/games/1/retrospectives", playerToken, `{"content":"done","againIntent":"yes"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/continue", creatorToken, `{"title":"next progress target"}`, http.StatusOK)
@@ -5436,7 +5515,7 @@ func TestIMArchiveJobSkipsDisputedRooms(t *testing.T) {
 		t.Fatalf("expected disputed room skipped: %s", string(body))
 	}
 	postJSON(t, mux, "/api/app/chat/rooms/"+strconv.FormatInt(archiveRoomID, 10)+"/messages", playerToken, `{"messageType":"text","content":"after archive job"}`, http.StatusUnprocessableEntity)
-	postJSON(t, mux, "/api/app/chat/rooms/"+strconv.FormatInt(disputedRoomID, 10)+"/messages", playerToken, `{"messageType":"text","content":"still active for evidence"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/chat/rooms/"+strconv.FormatInt(disputedRoomID, 10)+"/messages", playerToken, `{"messageType":"text","content":"after skipped archive"}`, http.StatusUnprocessableEntity)
 }
 
 func TestAdminIMRoomsListAndDetail(t *testing.T) {
@@ -5449,7 +5528,7 @@ func TestAdminIMRoomsListAndDetail(t *testing.T) {
 	completeIdentityForTest(t, mux, creatorToken)
 	playerToken := loginForTestWithCode(t, mux, "im-admin-player")
 	completeIdentityForTest(t, mux, playerToken)
-	gameID, roomID := createPendingReviewGameForIMArchive(t, mux, creatorToken, playerToken, "im admin room")
+	gameID, roomID, _ := createActiveGameRoomForIMTest(t, mux, creatorToken, playerToken, "im admin room")
 
 	uploadBody := postJSON(t, mux, "/api/app/files/upload-token", playerToken, `{"bizType":"chat_file","objectId":`+strconv.FormatInt(gameID, 10)+`,"fileName":"proof.pdf","mimeType":"application/pdf","size":128}`, http.StatusOK)
 	var uploadResp struct {
@@ -5499,7 +5578,7 @@ func TestAdminIMRoomsListAndDetail(t *testing.T) {
 		t.Fatalf("expected one im room: %s", listRec.Body.String())
 	}
 	item := listResp.Data.Items[0]
-	if item.ID != roomID || item.GameID != gameID || item.Status != "active" || len(item.MemberIDs) != 5 || item.MessageCount != 2 || item.FileMessageCount != 1 {
+	if item.ID != roomID || item.GameID != gameID || item.Status != "active" || len(item.MemberIDs) != 5 || item.MessageCount != 3 || item.FileMessageCount != 1 {
 		t.Fatalf("unexpected im room summary: %s", listRec.Body.String())
 	}
 
@@ -5523,7 +5602,7 @@ func TestAdminIMRoomsListAndDetail(t *testing.T) {
 	if err := json.Unmarshal(detailRec.Body.Bytes(), &detailResp); err != nil {
 		t.Fatal(err)
 	}
-	if detailResp.Data.MessageCount != 2 || detailResp.Data.FileMessageCount != 1 || len(detailResp.Data.FileMessages) != 1 || detailResp.Data.FileMessages[0].FileID != uploadResp.Data.Upload.FileID {
+	if detailResp.Data.MessageCount != 3 || detailResp.Data.FileMessageCount != 1 || len(detailResp.Data.FileMessages) != 1 || detailResp.Data.FileMessages[0].FileID != uploadResp.Data.Upload.FileID {
 		t.Fatalf("unexpected room detail file messages: %s", detailRec.Body.String())
 	}
 }
@@ -5632,7 +5711,18 @@ func TestAdminIMRoomArchiveRetryAndHideMessageHTTP(t *testing.T) {
 
 func createPendingReviewGameForIMArchive(t *testing.T, mux *http.ServeMux, creatorToken string, playerToken string, title string) (int64, int64) {
 	t.Helper()
-	gameBody := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"`+title+`","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	gameID, roomID, extraTokens := createActiveGameRoomForIMTest(t, mux, creatorToken, playerToken, title)
+	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	for _, token := range extraTokens {
+		postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	}
+	return gameID, roomID
+}
+
+func createActiveGameRoomForIMTest(t *testing.T, mux *http.ServeMux, creatorToken string, playerToken string, title string) (int64, int64, []string) {
+	t.Helper()
+	gameBody := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"`+title+`","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var gameResp struct {
 		Data struct {
 			ID int64 `json:"id"`
@@ -5665,12 +5755,7 @@ func createPendingReviewGameForIMArchive(t *testing.T, mux *http.ServeMux, creat
 		t.Fatal(err)
 	}
 	postJSON(t, mux, "/api/app/chat/rooms/"+strconv.FormatInt(roomResp.Data.ID, 10)+"/messages", playerToken, `{"messageType":"text","content":"before archive"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm-items", playerToken, `{}`, http.StatusOK)
-	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(gameID, 10)+"/service-confirm-items", token, `{}`, http.StatusOK)
-	}
-	return gameID, roomResp.Data.ID
+	return gameID, roomResp.Data.ID, extraTokens
 }
 
 func TestServiceConfirmAndReviewFlow(t *testing.T) {
@@ -5692,7 +5777,7 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 
 	postJSON(t, mux, "/api/app/reviews", creatorToken, `{"gameId":1,"targetUserId":2,"score":5,"againIntent":"yes"}`, http.StatusConflict)
-	creatorConfirmBody := postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"note":"done","fileIds":[101,102]}`, http.StatusOK)
+	creatorConfirmBody := postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"note":"done","fileIds":[101,102],"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	var creatorConfirmResp struct {
 		Data struct {
 			Items []struct {
@@ -5707,9 +5792,9 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if !hasHTTPConfirmItemFileIDs(creatorConfirmResp.Data.Items, 1, []int64{101, 102}) {
 		t.Fatalf("expected service confirm proof file ids: %s", string(creatorConfirmBody))
 	}
-	confirmBody := postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"note":"confirmed"}`, http.StatusOK)
+	confirmBody := postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"note":"confirmed","confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		confirmBody = postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"note":"confirmed"}`, http.StatusOK)
+		confirmBody = postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"note":"confirmed","confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	var confirmed struct {
 		Data struct {
@@ -5749,7 +5834,7 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if countNotificationsByType(t, playerNoticesAfterConfirmBody, "review_remind") != 1 {
 		t.Fatalf("expected player review reminder after service confirm: %s", string(playerNoticesAfterConfirmBody))
 	}
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"note":"duplicate"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"note":"duplicate","confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	growthAfterDuplicateConfirmBody := getJSON(t, mux, "/api/app/users/me/growth", creatorToken, http.StatusOK)
 	var growthAfterDuplicateConfirmResp struct {
 		Data struct {
@@ -5802,13 +5887,13 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if err := json.Unmarshal(playerManageBody, &playerManageResp); err != nil {
 		t.Fatal(err)
 	}
-	if len(playerManageResp.Data.Items) != 1 || playerManageResp.Data.Items[0].GameID != 1 || playerManageResp.Data.Items[0].ExpertID == 0 || playerManageResp.Data.Items[0].StatusType != "complete" || playerManageResp.Data.Items[0].ReviewStatus != "pending" || !playerManageResp.Data.Items[0].CanReview || playerManageResp.Data.Summary.CompleteCount != 1 {
+	if len(playerManageResp.Data.Items) != 1 || playerManageResp.Data.Items[0].GameID != 1 || playerManageResp.Data.Items[0].ExpertID != 0 || playerManageResp.Data.Items[0].StatusType != "complete" || playerManageResp.Data.Items[0].ReviewStatus != "pending" || !playerManageResp.Data.Items[0].CanReview || playerManageResp.Data.Summary.CompleteCount != 1 {
 		t.Fatalf("expected player manage service order to expose review target: %s", string(playerManageBody))
 	}
-	if !strings.Contains(playerManageResp.Data.Items[0].ContactExpertRoute, "/pages/im/room/index") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "/pages/game/player-cancel/index") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "freeCancel=1") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "warningTitle=") || !strings.Contains(playerManageResp.Data.Items[0].ReviewRoute, "/pages/game/review/index") {
+	if playerManageResp.Data.Items[0].ContactExpertRoute != "" || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "/pages/game/player-cancel/index") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "freeCancel=1") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "warningTitle=") || !strings.Contains(playerManageResp.Data.Items[0].ReviewRoute, "/pages/game/review/index") {
 		t.Fatalf("expected player manage action routes: %s", string(playerManageBody))
 	}
-	if playerManageResp.Data.Items[0].Actions.ContactExpertRoute == "" || playerManageResp.Data.Items[0].Actions.PlayerCancelRoute == "" || playerManageResp.Data.Items[0].Actions.ReviewRoute == "" {
+	if playerManageResp.Data.Items[0].Actions.ContactExpertRoute != "" || playerManageResp.Data.Items[0].Actions.PlayerCancelRoute == "" || playerManageResp.Data.Items[0].Actions.ReviewRoute == "" {
 		t.Fatalf("expected player manage actions payload: %s", string(playerManageBody))
 	}
 	if playerManageResp.Data.PageConfig.PageTitle == "" || len(playerManageResp.Data.PageConfig.CategoryTabs) != 3 {
@@ -6357,6 +6442,8 @@ func TestPlayerCancelRequestRequiresPlayerMemberAndNotifiesCreator(t *testing.T)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
+	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "player-cancel-extra", 3)
+	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 
 	payload := `{"reasonKey":"need_changed","reasonText":"schedule changed","compensationRate":0,"payAmountText":"免费"}`
 	postJSON(t, mux, "/api/app/games/1/player-cancel", outsiderToken, payload, http.StatusForbidden)
@@ -6455,6 +6542,8 @@ func TestExpertCancelRequestRequiresManagerAndNotifiesMembers(t *testing.T) {
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
+	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "expert-cancel-extra", 3)
+	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 
 	payload := `{"reasonKey":"schedule_conflict","reasonText":"unexpected schedule","compensationRate":0,"payAmountText":"免费"}`
 	postJSON(t, mux, "/api/app/games/1/expert-cancel", playerToken, payload, http.StatusForbidden)
@@ -6549,16 +6638,16 @@ func TestRevenuePreviewGenerateFreezeAndSettlementFlow(t *testing.T) {
 	playerToken := loginForTestWithCode(t, mux, "revenue-player")
 	completeIdentityForTest(t, mux, playerToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"revenue game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"revenue game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
 	extraTokens := approveExtraMembersForHTTP(t, mux, creatorToken, 1, "revenue-flow", 3)
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 
 	adminToken := adminLoginForTest(t, mux)
@@ -6735,7 +6824,7 @@ func TestRevenuePreviewGenerateFreezeAndSettlementFlow(t *testing.T) {
 	postAdminJSON(t, mux, "/api/admin/revenue/records/1/freeze", adminToken, `{"reason":"report"}`, http.StatusOK)
 	postAdminJSON(t, mux, "/api/admin/revenue/records/1/settle", adminToken, `{"method":"offline","proofNo":"P001"}`, http.StatusConflict)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"settle game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"settle game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/2/approve-local", creatorToken, `{}`, http.StatusOK)
 	settleAppBody := postJSON(t, mux, "/api/app/games/2/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	var settleAppResp struct {
@@ -6749,10 +6838,10 @@ func TestRevenuePreviewGenerateFreezeAndSettlementFlow(t *testing.T) {
 	postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(settleAppResp.Data.ID, 10)+"/audit", creatorToken, `{"approve":true}`, http.StatusOK)
 	extraTokens = approveExtraMembersForHTTP(t, mux, creatorToken, 2, "connections-second", 3)
 	postJSON(t, mux, "/api/app/games/2/manual-start", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/2/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/2/service-confirm-items", playerToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/2/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/2/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/2/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/2/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	completeGameReviewsForHTTP(t, mux, 2, append([]string{creatorToken, playerToken}, extraTokens...))
 	postAdminJSON(t, mux, "/api/admin/revenue/records/generate", adminToken, `{"gameId":2,"amountCent":10000,"templateId":1}`, http.StatusOK)
@@ -6788,7 +6877,7 @@ func TestRevenuePreviewGenerateFreezeAndSettlementFlow(t *testing.T) {
 		t.Fatalf("expected settlement record list: %s", string(settlementsBody))
 	}
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"reported before revenue","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"reported before revenue","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/3/approve-local", creatorToken, `{}`, http.StatusOK)
 	frozenAppBody := postJSON(t, mux, "/api/app/games/3/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	var frozenAppResp struct {
@@ -6802,10 +6891,10 @@ func TestRevenuePreviewGenerateFreezeAndSettlementFlow(t *testing.T) {
 	postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(frozenAppResp.Data.ID, 10)+"/audit", creatorToken, `{"approve":true}`, http.StatusOK)
 	extraTokens = approveExtraMembersForHTTP(t, mux, creatorToken, 3, "connections-third", 3)
 	postJSON(t, mux, "/api/app/games/3/manual-start", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/3/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/3/service-confirm-items", playerToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/3/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/3/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/3/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/3/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	completeGameReviewsForHTTP(t, mux, 3, append([]string{creatorToken, playerToken}, extraTokens...))
 	postJSON(t, mux, "/api/app/reports", playerToken, `{"gameId":3,"targetUserId":1,"reportType":"service_dispute","content":"before revenue"}`, http.StatusOK)
@@ -7024,16 +7113,16 @@ func TestMemberReportAndTeamHTTP(t *testing.T) {
 		t.Fatalf("expected code 40352, got %s", teamRec.Body.String())
 	}
 
-	postJSON(t, mux, "/api/app/games", leaderToken, `{"title":"team revenue game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", leaderToken, `{"title":"team revenue game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", leaderToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", memberToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", leaderToken, `{"approve":true}`, http.StatusOK)
 	extraTokens := approveExtraMembersForHTTP(t, mux, leaderToken, 1, "member-report", 3)
 	postJSON(t, mux, "/api/app/games/1/manual-start", leaderToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm", leaderToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", memberToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", leaderToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", memberToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 
 	adminToken := adminLoginForTest(t, mux)
@@ -7749,7 +7838,7 @@ func TestAdminBehaviorEventsAndUserFavoritesHTTP(t *testing.T) {
 	playerToken := loginForTestWithCode(t, mux, "admin-fav-player")
 	completeIdentityForTest(t, mux, playerToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"favorite target","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"favorite target","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/favorite", playerToken, `{}`, http.StatusOK)
 
@@ -7825,16 +7914,16 @@ func TestConnectionsAndProfilesHTTP(t *testing.T) {
 	guideToken := loginForTestWithCode(t, mux, "connection-guide")
 	completeIdentityForTest(t, mux, guideToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"connection game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"connection game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", memberToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
 	extraTokens := approveExtraMembersForHTTP(t, mux, creatorToken, 1, "profile-flow", 3)
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", memberToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", memberToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 
 	postJSON(t, mux, "/api/app/experts/me/skills", creatorToken, `{"skillTree":["boardgame"],"serviceTags":["host"]}`, http.StatusForbidden)
@@ -8565,7 +8654,7 @@ func TestBehaviorEventHTTP(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "behavior-user")
 	postJSON(t, mux, "/api/app/behavior/events", token, `{"targetType":"game","targetId":1}`, http.StatusUnprocessableEntity)
 	completeIdentityForTest(t, mux, token)
-	postJSON(t, mux, "/api/app/games", token, `{"title":"behavior game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"behavior game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	getJSON(t, mux, "/api/app/games", token, http.StatusOK)
 
 	postJSON(t, mux, "/api/app/behavior/events", token, `{"eventCode":"search","businessType":"game","businessId":1,"pagePath":"/pages/home/index","keyword":"party","source":"app","device":"ios","extra":{"cityCode":"110100"}}`, http.StatusUnprocessableEntity)
@@ -8720,7 +8809,7 @@ func TestAIDataSnapshotAndIMExportGateHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, guideToken)
 
 	postJSON(t, mux, "/api/app/behavior/events", memberToken, `{"eventType":"search","targetType":"game","targetId":1,"keyword":"ai"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"ai data game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"ai data game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/favorite", memberToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", memberToken, `{"reason":"join"}`, http.StatusOK)
@@ -8728,10 +8817,10 @@ func TestAIDataSnapshotAndIMExportGateHTTP(t *testing.T) {
 	extraTokens := approveExtraMembersForHTTP(t, mux, creatorToken, 1, "aidata-export", 3)
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/chat/messages", creatorToken, `{"messageType":"text","content":"hello member"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", memberToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", memberToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	postJSON(t, mux, "/api/app/reviews", creatorToken, `{"gameId":1,"targetUserId":2,"targetRole":"member","score":5,"content":"great"}`, http.StatusOK)
 
@@ -8936,7 +9025,7 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	playerToken := loginForTestWithCode(t, mux, "report-player")
 	completeIdentityForTest(t, mux, playerToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"report game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"report game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
@@ -8944,10 +9033,10 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/chat/messages", creatorToken, `{"messageType":"text","content":"service started"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/chat/messages", playerToken, `{"messageType":"text","content":"need help"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm", creatorToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/service-confirm-items", playerToken, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	for _, token := range extraTokens {
-		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{}`, http.StatusOK)
+		postJSON(t, mux, "/api/app/games/1/service-confirm-items", token, `{"confirmItemKeys":["completed","qualified","communicated"]}`, http.StatusOK)
 	}
 	completeGameReviewsForHTTP(t, mux, 1, append([]string{creatorToken, playerToken}, extraTokens...))
 	adminToken := adminLoginForTest(t, mux)
@@ -9102,7 +9191,8 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 					ID int64 `json:"id"`
 				} `json:"game"`
 				ChatMessages []struct {
-					ID int64 `json:"id"`
+					ID      int64  `json:"id"`
+					Content string `json:"content"`
 				} `json:"chatMessages"`
 				Review struct {
 					ID      int64  `json:"id"`
@@ -9124,6 +9214,13 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	}
 	if detailResp.Data.Report.ID != 1 || detailResp.Data.Evidence.Game.ID != 1 || len(detailResp.Data.Evidence.ChatMessages) == 0 || detailResp.Data.Evidence.Review.ID != 1 || detailResp.Data.Evidence.RevenueRecord.Status != "frozen" || len(detailResp.Data.Evidence.AppealFileIDs) != 1 || len(detailResp.Data.Evidence.AppealFiles) != 1 {
 		t.Fatalf("expected report evidence detail: %s", detailRec.Body.String())
+	}
+	reportChatContents := map[string]bool{}
+	for _, message := range detailResp.Data.Evidence.ChatMessages {
+		reportChatContents[message.Content] = true
+	}
+	if len(detailResp.Data.Evidence.ChatMessages) < 2 || !reportChatContents["service started"] || !reportChatContents["need help"] {
+		t.Fatalf("expected complete report chat evidence messages: %s", detailRec.Body.String())
 	}
 
 	noReportHandleBody := postJSON(t, mux, "/api/admin/reports/1/handle", "", `{"adminId":99,"result":"no permission"}`, http.StatusForbidden)
@@ -9379,7 +9476,18 @@ func TestReportAppealCanBeWithdrawn(t *testing.T) {
 	reporterToken := loginForTestWithCode(t, mux, "appeal-withdraw-reporter")
 	targetToken := loginForTestWithCode(t, mux, "appeal-withdraw-target")
 
-	postJSON(t, mux, "/api/app/games", reporterToken, `{"title":"appeal withdraw game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", reporterToken, `{"title":"appeal withdraw game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/approve-local", reporterToken, `{}`, http.StatusOK)
+	applicationBody := postJSON(t, mux, "/api/app/games/1/applications", targetToken, `{"reason":"join"}`, http.StatusOK)
+	var applicationResp struct {
+		Data struct {
+			ID int64 `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(applicationBody, &applicationResp); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, mux, "/api/app/games/applications/"+strconv.FormatInt(applicationResp.Data.ID, 10)+"/review", reporterToken, `{"approve":true}`, http.StatusOK)
 	reportBody := postJSON(t, mux, "/api/app/reports", reporterToken, `{"gameId":1,"targetUserId":2,"reportType":"other","content":"need review"}`, http.StatusOK)
 	var reportResp struct {
 		Data struct {
@@ -9407,15 +9515,20 @@ func TestReportAppealCanBeWithdrawn(t *testing.T) {
 	var appealsResp struct {
 		Data struct {
 			Items []struct {
-				ID int64 `json:"id"`
+				ID     int64  `json:"id"`
+				Status string `json:"status"`
 			} `json:"items"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(appealsBody, &appealsResp); err != nil {
 		t.Fatal(err)
 	}
-	if len(appealsResp.Data.Items) != 0 {
-		t.Fatalf("expected withdrawn appeal removed from active appeals, got: %s", string(appealsBody))
+	if len(appealsResp.Data.Items) != 1 || appealsResp.Data.Items[0].Status != "appeal_withdrawn" {
+		t.Fatalf("expected withdrawn appeal retained in appeal history, got: %s", string(appealsBody))
+	}
+	homeBody := getJSON(t, mux, "/api/app/profile/home", targetToken, http.StatusOK)
+	if strings.Contains(string(homeBody), "1条消息") {
+		t.Fatalf("expected withdrawn appeal not counted as profile report todo: %s", string(homeBody))
 	}
 }
 
@@ -9513,7 +9626,7 @@ func TestProgressFeedbackReminderJob(t *testing.T) {
 	playerToken := loginForTestWithCode(t, mux, "progress-player")
 	completeIdentityForTest(t, mux, playerToken)
 
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"progress game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"progress game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"join"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
@@ -9641,7 +9754,8 @@ func TestLocationAndNearbyGamesFlow(t *testing.T) {
 		t.Fatalf("expected empty recent locations 200, got %d: %s", otherRecentRec.Code, otherRecentRec.Body.String())
 	}
 	postJSON(t, mux, "/api/app/locations/current", otherToken, `{"longitude":116.39715,"latitude":39.91654,"accuracyMeter":60,"cityCode":"110100","cityName":"Beijing"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games", token, `{"title":"nearby game","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing","longitude":116.3972,"latitude":39.9166}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"nearby game","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing","longitude":116.3972,"latitude":39.9166,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/approve-local", token, `{}`, http.StatusOK)
 
 	invalidRadiusReq := httptest.NewRequest(http.MethodGet, "/api/app/games/nearby?radiusMeter=50001", nil)
 	invalidRadiusReq.Header.Set("Authorization", "Bearer "+token)
@@ -9738,7 +9852,7 @@ func TestAppHomeAndConnectionNetworkPayloadHTTP(t *testing.T) {
 	playerID := currentUserIDForTest(t, mux, playerToken)
 
 	postJSON(t, mux, "/api/app/locations/current", creatorToken, `{"longitude":116.397128,"latitude":39.916527,"accuracyMeter":80,"cityCode":"110100","cityName":"Beijing"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"home dynamic game","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing","longitude":116.3972,"latitude":39.9166}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"home dynamic game","gameType":"free","minPlayers":5,"maxPlayers":8,"cityCode":"110100","cityName":"Beijing","longitude":116.3972,"latitude":39.9166,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	server.connections.UpsertPair(creatorID, playerID, "guide_match", "test", 1, 3)
 
@@ -9854,7 +9968,7 @@ func TestAppHomeAndConnectionNetworkPayloadHTTP(t *testing.T) {
 	if err := json.Unmarshal(configuredHomeBody, &configuredHomeResp); err != nil {
 		t.Fatal(err)
 	}
-	if configuredHomeResp.Data.Hero.OnlineText != "23人在线" {
+	if configuredHomeResp.Data.Hero.OnlineText != "0人在线" {
 		t.Fatalf("expected configured home online text, got %q in %s", configuredHomeResp.Data.Hero.OnlineText, string(configuredHomeBody))
 	}
 	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
@@ -9881,7 +9995,7 @@ func TestAppHomeAndConnectionNetworkPayloadHTTP(t *testing.T) {
 	if err := json.Unmarshal(adminConfiguredHomeBody, &adminConfiguredHomeResp); err != nil {
 		t.Fatal(err)
 	}
-	if adminConfiguredHomeResp.Data.Hero.OnlineText != "33人在线" {
+	if adminConfiguredHomeResp.Data.Hero.OnlineText != "0人在线" {
 		t.Fatalf("expected admin-configured home online text, got %q in %s", adminConfiguredHomeResp.Data.Hero.OnlineText, string(adminConfiguredHomeBody))
 	}
 

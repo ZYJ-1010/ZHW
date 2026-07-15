@@ -185,7 +185,7 @@ func (s *Server) profileReportMessageCount(userID int64) int {
 
 func activeReportStatus(status string) bool {
 	switch status {
-	case "", "pending", "assigned", "appealed", "appeal_withdrawn":
+	case "", "pending", "assigned", "appealed":
 		return true
 	default:
 		return false

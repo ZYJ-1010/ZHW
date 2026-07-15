@@ -95,7 +95,7 @@ func TestInvitationProgressSeparatesExpertAndPlayerViewsHTTP(t *testing.T) {
 
 func createApprovedGameForInvitationViewTest(t *testing.T, mux *http.ServeMux, token string, title string) string {
 	t.Helper()
-	body := postJSON(t, mux, "/api/app/games", token, `{"title":"`+title+`","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/games", token, `{"title":"`+title+`","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var response struct {
 		Data struct {
 			ID int64 `json:"id"`

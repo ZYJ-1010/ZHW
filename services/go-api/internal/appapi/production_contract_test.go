@@ -19,7 +19,7 @@ func TestProductionPaymentPreviewComesFromBackend(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "payment-preview-owner")
 	completeIdentityForTest(t, mux, token)
 
-	created := postJSON(t, mux, "/api/app/games", token, `{"title":"payment preview","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	created := postJSON(t, mux, "/api/app/games", token, `{"title":"payment preview","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	var createdResp struct {
 		Data struct {
 			ID int64 `json:"id"`
@@ -55,7 +55,7 @@ func TestProductionReportRejectsSelfAndOutsider(t *testing.T) {
 	completeIdentityForTest(t, mux, ownerToken)
 	outsiderToken := loginForTestWithCode(t, mux, "report-outsider")
 	completeIdentityForTest(t, mux, outsiderToken)
-	postJSON(t, mux, "/api/app/games", ownerToken, `{"title":"report boundary","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", ownerToken, `{"title":"report boundary","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 
 	postJSON(t, mux, "/api/app/reports", ownerToken, `{"gameId":1,"targetUserId":1,"reportType":"other","content":"self"}`, http.StatusUnprocessableEntity)
 	postJSON(t, mux, "/api/app/reports", outsiderToken, `{"gameId":1,"targetUserId":1,"reportType":"other","content":"outsider"}`, http.StatusForbidden)

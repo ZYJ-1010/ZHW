@@ -566,9 +566,7 @@ func (s *Server) messagesForReport(report reports.Report) ([]interface{}, interf
 	}
 	result := make([]interface{}, 0)
 	for _, message := range messages {
-		if report.ChatMessageID == 0 || message.ID == report.ChatMessageID {
-			result = append(result, message)
-		}
+		result = append(result, message)
 	}
 	return result, room, nil
 }

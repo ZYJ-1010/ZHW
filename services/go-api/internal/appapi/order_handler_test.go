@@ -21,7 +21,7 @@ func TestFreeGameCreatesPaymentOrderAndPrecreateDoesNotTriggerWechatPay(t *testi
 	completeIdentityForTest(t, mux, token)
 	token = issueFormalTokenForTest(t, mux, token)
 
-	postJSON(t, mux, "/api/app/games", token, `{"title":"free order game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"free order game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	orderBody := getJSON(t, mux, "/api/app/orders/1", token, http.StatusOK)
 	var createdOrderResp struct {
 		Data struct {
@@ -82,7 +82,7 @@ func TestPaymentCallbackPlaceholderIsIdempotentHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, token)
 	token = issueFormalTokenForTest(t, mux, token)
 
-	postJSON(t, mux, "/api/app/games", token, `{"title":"callback game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"callback game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	precreateBody := postJSON(t, mux, "/api/app/payment/precreate-placeholder", token, `{"gameId":1}`, http.StatusOK)
 	var precreateResp struct {
 		Data struct {
@@ -174,7 +174,7 @@ func TestProfitSharingPlaceholdersDoNotTriggerWechatPayHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, token)
 	token = issueFormalTokenForTest(t, mux, token)
 
-	postJSON(t, mux, "/api/app/games", token, `{"title":"profit sharing game","gameType":"free","minPlayers":5,"maxPlayers":8}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games", token, `{"title":"profit sharing game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	precreateBody := postJSON(t, mux, "/api/app/payment/precreate-placeholder", token, `{"gameId":1}`, http.StatusOK)
 	var precreateResp struct {
 		Data struct {
