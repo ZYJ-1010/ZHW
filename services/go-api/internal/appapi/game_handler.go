@@ -38,6 +38,7 @@ type gameService interface {
 	CancelService(gameID int64, reason string) (games.Game, error)
 	RecordExitCredit(gameID int64, userID int64, creditLogID int64) error
 	ConfirmService(userID int64, gameID int64, note string, fileIDs ...int64) (games.ServiceConfirm, []games.ServiceConfirmItem, games.Game, error)
+	ResolveNoExpertPendingConfirm(gameID int64) (games.Game, bool, error)
 	ServiceConfirmForGame(gameID int64) (games.ServiceConfirm, []games.ServiceConfirmItem, bool)
 	AddProgressFeedback(userID int64, gameID int64, req games.ProgressFeedbackRequest) (games.ProgressFeedback, error)
 	ProgressFeedbacks(userID int64, gameID int64) ([]games.ProgressFeedback, error)
@@ -2710,6 +2711,17 @@ func (s *Server) gameSuccessDetail(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "forbidden")
 		return
 	}
+	if updatedGame, resolved, err := s.games.ResolveNoExpertPendingConfirm(game.ID); err != nil {
+		writeGameError(w, err)
+		return
+	} else if resolved {
+		game = updatedGame
+		if !currentGameReviewable(s.games, game.ID) {
+			s.reviews.MarkGameReviewable(game.ID)
+			s.reviews.AwardCompletedGame(game.ID)
+			s.createCoGameConnections(game.ID)
+		}
+	}
 	if r.URL.Query().Get("view") == "service-confirm" && !s.canAccessServiceConfirmation(game, userID) {
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅组局绑定的行家和玩家可进入确认页")
 		return
@@ -2924,7 +2936,8 @@ func (s *Server) serviceConfirmTimelineSteps(game games.Game, memberRoles map[in
 		}
 	}
 
-	expertConfirmed := expertID > 0 && !confirmed[expertID].CreatedAt.IsZero()
+	hasExpert := expertID > 0
+	expertConfirmed := !hasExpert || !confirmed[expertID].CreatedAt.IsZero()
 	playerConfirmed := playerID > 0 && !confirmed[playerID].CreatedAt.IsZero()
 	bothConfirmed := expertConfirmed && playerConfirmed
 
@@ -2932,7 +2945,12 @@ func (s *Server) serviceConfirmTimelineSteps(game games.Game, memberRoles map[in
 	expertTitle := "等待行家确认"
 	expertState := "active"
 	expertLineState := "pending"
-	if expertConfirmed {
+	if !hasExpert {
+		expertTitle = "无需行家确认"
+		expertDesc = "本局未配置行家，玩家确认后进入评价"
+		expertState = "done"
+		expertLineState = "confirmed"
+	} else if expertConfirmed {
 		expertTitle = "行家已确认完成"
 		expertDesc = "行家标记服务已完成 " + confirmed[expertID].CreatedAt.Format("01-02 15:04")
 		expertState = "done"

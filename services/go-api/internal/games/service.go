@@ -1343,8 +1343,8 @@ func (s *Service) ManualStart(userID int64, gameID int64) (Game, error) {
 	return game, nil
 }
 
-// RequestCompletion ends an admin-created game immediately, while app-created
-// games enter the ordered expert-then-player confirmation flow.
+// RequestCompletion ends admin-created and no-expert games immediately, while
+// app-created games with experts enter the ordered expert-then-player flow.
 func (s *Service) RequestCompletion(userID int64, gameID int64) (Game, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1364,7 +1364,11 @@ func (s *Service) RequestCompletion(userID int64, gameID int64) (Game, error) {
 	if game.Status != "in_progress" {
 		return Game{}, ErrGameNotConfirmable
 	}
-	if game.GameSource == "admin" {
+	expertIDs, _, _, err := s.confirmationParticipantsLocked(game)
+	if err != nil {
+		return Game{}, err
+	}
+	if game.GameSource == "admin" || len(expertIDs) == 0 {
 		game.Status = "pending_review"
 	} else {
 		game.Status = "pending_confirm"
@@ -1517,6 +1521,52 @@ func (s *Service) ConfirmService(userID int64, gameID int64, note string, fileID
 	s.confirms[gameID] = confirm
 	s.games[gameID] = game
 	return confirm, items, game, nil
+}
+
+func (s *Service) ResolveNoExpertPendingConfirm(gameID int64) (Game, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	game, ok, err := s.gameLocked(gameID)
+	if err != nil {
+		return Game{}, false, err
+	}
+	if !ok {
+		return Game{}, false, ErrGameNotFound
+	}
+	if game.Status != "pending_confirm" {
+		return game, false, nil
+	}
+	expertIDs, _, _, err := s.confirmationParticipantsLocked(game)
+	if err != nil {
+		return Game{}, false, err
+	}
+	if len(expertIDs) > 0 {
+		return game, false, nil
+	}
+	game.Status = "pending_review"
+	if confirm, ok := s.confirms[gameID]; ok {
+		confirm.Status = "completed"
+		if confirm.CompletedAt == "" {
+			confirm.CompletedAt = time.Now().Format(time.RFC3339)
+		}
+		if s.confirmRepo != nil {
+			saved, err := s.confirmRepo.SaveConfirm(context.Background(), confirm)
+			if err != nil {
+				return Game{}, false, err
+			}
+			confirm = saved
+		}
+		s.confirms[gameID] = confirm
+	}
+	if s.repo != nil {
+		saved, err := s.repo.UpdateGame(context.Background(), game)
+		if err != nil {
+			return Game{}, false, err
+		}
+		game = saved
+	}
+	s.games[gameID] = game
+	return game, true, nil
 }
 
 func (s *Service) confirmationParticipantsLocked(game Game) ([]int64, []int64, map[int64]string, error) {

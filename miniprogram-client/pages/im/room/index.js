@@ -339,7 +339,10 @@ Page({
     this.gameId = toPositiveInt(options.gameId)
     this.prefillText = safeText(options.prefill || options.message)
     this.hasShown = false
-    this.loadRoom()
+    this.hasLoadedRoom = false
+    this.shouldStickToLatest = true
+    this.lastMessageScrollTop = 0
+    this.loadRoom({ forceScroll: true })
   },
 
   onShow() {
@@ -374,6 +377,23 @@ Page({
     }
   },
 
+  onMessageScroll(event) {
+    const detail = event.detail || {}
+    const scrollTop = Number(detail.scrollTop || 0)
+    if (!Number.isFinite(scrollTop)) {
+      return
+    }
+
+    if (scrollTop + 2 < (this.lastMessageScrollTop || 0)) {
+      this.shouldStickToLatest = false
+    }
+    this.lastMessageScrollTop = scrollTop
+  },
+
+  onMessageScrollToLower() {
+    this.shouldStickToLatest = true
+  },
+
   onBackTap() {
     if (navigateShellBack()) {
       return
@@ -387,7 +407,7 @@ Page({
     navigateShellRoute(ROUTES.message, { reuseExisting: false })
   },
 
-  async loadRoom() {
+  async loadRoom(options = {}) {
     if (!this.gameId) {
       this.setData({
         title: '局',
@@ -418,8 +438,9 @@ Page({
         buildRoomCard(room, session, readOnly, roomTitle),
         ...normalizeMessages(list, currentUserId, memberMap)
       ]
+      const shouldScrollToLatest = Boolean(options.forceScroll) || !this.hasLoadedRoom || this.shouldStickToLatest
 
-      this.setData({
+      const nextData = {
         loading: false,
         title: roomTitle,
         pageTitle: `${roomTitle}IM`,
@@ -435,9 +456,16 @@ Page({
         roomEngine: session.engine || room.engine || '',
         openIMGroupId: session.openIMGroupId || room.openIMGroupId || '',
         messages,
-        inputText: this.prefillText || this.data.inputText,
-        scrollAnchor: messages.length ? `message-${messages.length - 1}` : ''
-      })
+        inputText: this.prefillText || this.data.inputText
+      }
+      if (shouldScrollToLatest) {
+        nextData.scrollAnchor = messages.length ? `message-${messages.length - 1}` : ''
+      }
+      this.setData(nextData)
+      this.hasLoadedRoom = true
+      if (shouldScrollToLatest) {
+        this.shouldStickToLatest = true
+      }
     } catch (error) {
       this.setData({ loading: false })
       toast.info(error && error.message ? error.message : '加载局 IM 失败')
@@ -510,10 +538,12 @@ Page({
         content
       })
       this.setData({ sending: false, inputText: '' })
-      await this.loadRoom()
+      this.shouldStickToLatest = true
+      await this.loadRoom({ forceScroll: true })
     } catch (error) {
       if (isSensitiveReject(error)) {
         const messages = this.data.messages.concat(buildFailedTextMessage(content))
+        this.shouldStickToLatest = true
         this.setData({
           sending: false,
           inputText: '',
@@ -567,7 +597,8 @@ Page({
       })
 
       this.setData({ uploading: false })
-      await this.loadRoom()
+      this.shouldStickToLatest = true
+      await this.loadRoom({ forceScroll: true })
     } catch (error) {
       this.setData({ uploading: false })
       toast.info(error && error.message ? error.message : '文件发送失败')

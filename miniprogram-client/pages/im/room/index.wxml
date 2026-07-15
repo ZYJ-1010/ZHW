@@ -17,6 +17,9 @@
       show-scrollbar="false"
       scroll-with-animation
       scroll-into-view="{{scrollAnchor}}"
+      lower-threshold="80"
+      bindscroll="onMessageScroll"
+      bindscrolltolower="onMessageScrollToLower"
     >
       <view class="message-body">
         <view class="room-strip">

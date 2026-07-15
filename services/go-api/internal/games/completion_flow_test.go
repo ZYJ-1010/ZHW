@@ -79,6 +79,39 @@ func TestAppGameRequiresExpertsBeforePlayersAndIgnoresGuide(t *testing.T) {
 	}
 }
 
+func TestAppGameWithoutExpertGoesDirectlyToReview(t *testing.T) {
+	service := newVerifiedGameService()
+	game, members := mustCreateStartedGame(t, service)
+
+	updated, err := service.RequestCompletion(members[0], game.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status != "pending_review" {
+		t.Fatalf("app game without expert status = %q, want pending_review", updated.Status)
+	}
+	if _, _, _, err := service.ConfirmService(members[0], game.ID, "no expert confirm"); !errors.Is(err, ErrGameNotConfirmable) {
+		t.Fatalf("no-expert reviewable game confirm error = %v, want ErrGameNotConfirmable", err)
+	}
+}
+
+func TestResolveNoExpertPendingConfirmMovesToReview(t *testing.T) {
+	service := newVerifiedGameService()
+	game, members := mustCreateStartedGame(t, service)
+	service.mu.Lock()
+	game.Status = "pending_confirm"
+	service.games[game.ID] = game
+	service.mu.Unlock()
+
+	updated, resolved, err := service.ResolveNoExpertPendingConfirm(game.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resolved || updated.Status != "pending_review" {
+		t.Fatalf("legacy no-expert game not resolved, resolved=%v game=%+v members=%+v", resolved, updated, members)
+	}
+}
+
 func TestGroupedInvitationCompletionOnlyAllowsBoundPlayer(t *testing.T) {
 	service := newVerifiedGameService()
 	game, members := mustCreateStartedGame(t, service)
