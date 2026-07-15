@@ -5025,6 +5025,39 @@ func TestIMFlow(t *testing.T) {
 		!strings.Contains(string(creatorIMNotices), `pages/im/room/index?gameId=1`) {
 		t.Fatalf("expected creator to receive IM notification: %s", string(creatorIMNotices))
 	}
+	creatorMessageCenter := getJSON(t, mux, "/api/app/messages/center", creatorToken, http.StatusOK)
+	var creatorCenterResp struct {
+		Data struct {
+			Sections []struct {
+				Key       string `json:"key"`
+				CountText string `json:"countText"`
+				Items     []struct {
+					Title    string `json:"title"`
+					RouteKey string `json:"routeKey"`
+					Unread   bool   `json:"unread"`
+				} `json:"items"`
+			} `json:"sections"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(creatorMessageCenter, &creatorCenterResp); err != nil {
+		t.Fatal(err)
+	}
+	friendCards := []struct {
+		Title    string `json:"title"`
+		RouteKey string `json:"routeKey"`
+		Unread   bool   `json:"unread"`
+	}{}
+	friendCountText := ""
+	for _, section := range creatorCenterResp.Data.Sections {
+		if section.Key == "friend" {
+			friendCards = section.Items
+			friendCountText = section.CountText
+			break
+		}
+	}
+	if len(friendCards) != 1 || friendCards[0].Title != "IM gameIM" || friendCards[0].RouteKey != "im_room" || !friendCards[0].Unread || friendCountText != "1/1" {
+		t.Fatalf("expected one aggregated IM room card in friend section: %s", string(creatorMessageCenter))
+	}
 	playerIMNotices := getJSON(t, mux, "/api/app/notifications?type=im_message", playerToken, http.StatusOK)
 	if countNotificationsByType(t, playerIMNotices, "im_message") != 0 {
 		t.Fatalf("sender must not receive own IM notification: %s", string(playerIMNotices))

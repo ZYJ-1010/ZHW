@@ -235,7 +235,8 @@ func (s *Server) notificationCenterPayload(userID int64, items []notifications.N
 		activeTab = "all"
 	}
 	activeBucket = strings.TrimSpace(activeBucket)
-	imCardTotal := len(s.messageCenterIMCards(userID, true))
+	imCardTotal := len(s.messageCenterIMCards(userID, true, allItems))
+	imUnreadRoomTotal := countUnreadIMRooms(allItems)
 	return map[string]interface{}{
 		"items":        items,
 		"pageTitle":    stringFromConfig(config, "pageTitle"),
@@ -243,7 +244,7 @@ func (s *Server) notificationCenterPayload(userID int64, items []notifications.N
 		"activeTab":    activeTab,
 		"activeBucket": activeBucket,
 		"showAll":      showAll,
-		"quickActions": messageCenterQuickActions(config, allItems, imCardTotal),
+		"quickActions": messageCenterQuickActions(config, allItems, imCardTotal, imUnreadRoomTotal),
 		"tabs":         messageCenterTabs(config, unread, trade),
 		"sections":     s.messageCenterSections(userID, config, items, allItems, activeBucket, showAll),
 		"texts":        stringMapFromConfig(config, "texts"),
@@ -282,14 +283,15 @@ func sliceMapFromConfig(config map[string]interface{}, key string) []map[string]
 	return result
 }
 
-func messageCenterQuickActions(config map[string]interface{}, items []notifications.Notification, imCardTotal int) []map[string]interface{} {
+func messageCenterQuickActions(config map[string]interface{}, items []notifications.Notification, imCardTotal int, imUnreadRoomTotal int) []map[string]interface{} {
 	actions := sliceMapFromConfig(config, "quickActions")
 	result := make([]map[string]interface{}, 0, len(actions))
 	for _, action := range actions {
 		item := cloneMap(action)
 		bucket, _ := item["bucket"].(string)
-		unreadCount, totalCount := countNotificationsByBucket(items, bucket)
+		unreadCount, totalCount := countMessageCenterBucket(items, bucket)
 		if bucket == "friend" {
+			unreadCount += imUnreadRoomTotal
 			totalCount += imCardTotal
 		}
 		item["unreadCount"] = unreadCount
@@ -320,8 +322,8 @@ func messageCenterTabs(config map[string]interface{}, unread int, trade int) []m
 func (s *Server) messageCenterSections(userID int64, config map[string]interface{}, items []notifications.Notification, allItems []notifications.Notification, activeBucket string, showAll bool) []map[string]interface{} {
 	sectionConfigs := messageCenterSectionConfigs(config)
 	result := make([]map[string]interface{}, 0, len(sectionConfigs))
-	imCards := s.messageCenterIMCards(userID, showAll)
-	imCardTotal := len(s.messageCenterIMCards(userID, true))
+	imCards := s.messageCenterIMCards(userID, showAll, items)
+	imCardTotal := len(s.messageCenterIMCards(userID, true, allItems))
 	for _, section := range sectionConfigs {
 		item := cloneMap(section)
 		bucket, _ := item["bucket"].(string)
@@ -333,9 +335,10 @@ func (s *Server) messageCenterSections(userID int64, config map[string]interface
 		}
 		item["moreText"] = "\u67e5\u770b\u5168\u90e8"
 		item["moreRoute"] = "/pages/message/index?bucket=" + url.QueryEscape(bucket) + "&detail=1"
-		unreadCount, totalCount := countNotificationsByBucket(allItems, bucket)
+		unreadCount, totalCount := countMessageCenterBucket(allItems, bucket)
 		cards := s.notificationCards(items, bucket, showAll)
 		if bucket == "friend" && len(imCards) > 0 {
+			unreadCount += countUnreadIMRooms(allItems)
 			totalCount += imCardTotal
 			cards = append(imCards, cards...)
 			if !showAll && len(cards) > 3 {
@@ -352,8 +355,9 @@ func (s *Server) messageCenterSections(userID int64, config map[string]interface
 	return result
 }
 
-func (s *Server) messageCenterIMCards(userID int64, showAll bool) []map[string]interface{} {
+func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []notifications.Notification) []map[string]interface{} {
 	cards := make([]map[string]interface{}, 0, 2)
+	unreadRooms := unreadIMRoomSet(noticeItems)
 	for _, room := range s.im.AdminRooms() {
 		if !s.games.IsMember(room.GameID, userID) {
 			continue
@@ -395,12 +399,46 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool) []map[string]i
 			"tagText":     "成员" + strconv.Itoa(memberCount) + "人",
 			"tagTone":     "green",
 			"metaText":    imRoomStatusText(room.Status),
+			"unread":      unreadRooms[room.GameID],
 		})
 		if !showAll && len(cards) >= 1 {
 			break
 		}
 	}
 	return cards
+}
+
+func countMessageCenterBucket(items []notifications.Notification, bucket string) (int, int) {
+	unreadCount := 0
+	totalCount := 0
+	for _, item := range items {
+		if bucket == "friend" && item.NotifyType == "im_message" {
+			continue
+		}
+		if notificationBucket(item) != bucket {
+			continue
+		}
+		totalCount++
+		if item.Status == "unread" {
+			unreadCount++
+		}
+	}
+	return unreadCount, totalCount
+}
+
+func countUnreadIMRooms(items []notifications.Notification) int {
+	return len(unreadIMRoomSet(items))
+}
+
+func unreadIMRoomSet(items []notifications.Notification) map[int64]bool {
+	seen := map[int64]bool{}
+	for _, item := range items {
+		if item.NotifyType != "im_message" || item.Status != "unread" || item.BizType != "game" || item.BizID <= 0 {
+			continue
+		}
+		seen[item.BizID] = true
+	}
+	return seen
 }
 
 func readableIMMessageSummary(content string) string {
@@ -478,6 +516,9 @@ func (s *Server) notificationCards(items []notifications.Notification, bucket st
 	actionTexts := stringMapFromConfig(s.currentMessageCenterConfig(), "actionTexts")
 	for _, item := range items {
 		if notificationBucket(item) != bucket {
+			continue
+		}
+		if bucket == "friend" && item.NotifyType == "im_message" {
 			continue
 		}
 		if !showAll && len(cards) >= 3 {
