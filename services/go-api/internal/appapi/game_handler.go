@@ -1941,10 +1941,8 @@ func (s *Server) buildManagedServiceOrder(userID int64, game games.Game) map[str
 }
 
 func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConfig map[string]interface{}) map[string]interface{} {
-	targetID := s.firstMemberWithGameRole(game, userID, "expert")
-	if targetID == 0 || targetID == userID {
-		targetID = firstOtherMember(userID, s.games.Members(game.ID))
-	}
+	expertID := s.firstMemberWithGameRole(game, userID, "expert")
+	targetID := expertID
 	hasReviewTodo := false
 	if todo, ok := s.reviewTodoForGame(userID, game.ID); ok {
 		targetID = todo.TargetUserID
@@ -1955,7 +1953,13 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 	canReview := hasReviewTodo && statusType == "complete" && targetID > 0
 	reviewed := hasSubmittedReview && !hasReviewTodo
 	amountCent := successFundAmount(game)
-	expertName := s.inGameDisplayName(targetID, "\u884c\u5bb6")
+	hasExpert := expertID > 0
+	expertName := "暂未分配行家"
+	expertAvatarText := "局"
+	if hasExpert {
+		expertName = s.inGameDisplayName(expertID, "\u884c\u5bb6")
+		expertAvatarText = avatarTextForName(expertName, expertID)
+	}
 	gameIDText := strconv.FormatInt(game.ID, 10)
 	serviceOrderID := serviceOrderID(game.ID)
 	reviewRoute := "/pages/game/review/index?gameId=" + gameIDText
@@ -1976,8 +1980,10 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 		"ref":                serviceOrderID,
 		"playerName":         playerName,
 		"playerAvatarText":   avatarTextForName(playerName, userID),
+		"expertId":           strconv.FormatInt(expertID, 10),
 		"expertName":         expertName,
-		"expertAvatarText":   avatarTextForName(expertName, targetID),
+		"expertAvatarText":   expertAvatarText,
+		"hasExpert":          boolQueryValue(hasExpert),
 		"serviceTitle":       game.Title,
 		"amount":             "0",
 		"contractAmount":     "0",
@@ -1996,7 +2002,16 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 		"warningTitle":       "免费局取消无需赔付",
 		"warningDesc":        "当前没有收费局，本次取消不会产生赔付金额，但会扣减信用分。",
 	})
-	contactExpertRoute := "/pages/im/room/index?gameId=" + gameIDText + "&prefill=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E6%88%91%E8%BF%99%E8%BE%B9%E6%83%B3%E7%A1%AE%E8%AE%A4%E4%B8%80%E4%B8%8B%E6%9C%8D%E5%8A%A1%E5%86%85%E5%AE%B9%E3%80%82"
+	contactExpertRoute := ""
+	if hasExpert {
+		contactExpertRoute = "/pages/message/my/index?mode=private&targetUserId=" + strconv.FormatInt(expertID, 10) + "&sourceGameId=" + gameIDText + "&prefill=" + url.QueryEscape("你好，我这边想确认一下服务内容。")
+	}
+	primaryActionText := myGamesPageConfigText(pageConfig, "contactExpertText", "联系行家")
+	noticeText := myGamesPageConfigText(pageConfig, "cancelNoticeText", "取消需赔付一定比例金额给行家")
+	if !hasExpert {
+		primaryActionText = "暂无行家"
+		noticeText = "本局暂未分配行家，无法联系行家。"
+	}
 	return map[string]interface{}{
 		"id":                  serviceOrderID,
 		"game":                game,
@@ -2010,10 +2025,11 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 		"amount":              amountCent / 100,
 		"amountCent":          amountCent,
 		"amountText":          serviceAmountText(amountCent),
-		"expertId":            targetID,
+		"expertId":            expertID,
 		"expertName":          expertName,
 		"name":                expertName,
-		"expert":              serviceOrderPerson(targetID, expertName),
+		"hasExpert":           hasExpert,
+		"expert":              serviceOrderPerson(expertID, expertName),
 		"guideId":             game.MainGuideUserID,
 		"guide":               serviceOrderPerson(game.MainGuideUserID, s.inGameDisplayName(game.MainGuideUserID, "\u9886\u8def\u4eba")),
 		"startedAt":           game.CreatedAt.Format(time.RFC3339),
@@ -2025,14 +2041,14 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 		"canReviewBoth":       canReview,
 		"reviewActionText":    completedActionText,
 		"canReviewAction":     completedActionEnabled,
-		"primaryActionText":   myGamesPageConfigText(pageConfig, "contactExpertText", "联系行家"),
+		"primaryActionText":   primaryActionText,
 		"secondaryActionText": myGamesPageConfigText(pageConfig, "cancelOrderText", "申请取消"),
-		"noticeText":          myGamesPageConfigText(pageConfig, "cancelNoticeText", "取消需赔付一定比例金额给行家"),
+		"noticeText":          noticeText,
 		"contactExpertRoute":  contactExpertRoute,
 		"playerCancelRoute":   playerCancelRoute,
 		"reviewRoute":         completedActionRoute,
 		"actions": map[string]interface{}{
-			"canContactExpert":   targetID > 0,
+			"canContactExpert":   hasExpert,
 			"contactExpertRoute": contactExpertRoute,
 			"canCancelOrder":     statusType == "active",
 			"playerCancelRoute":  playerCancelRoute,
@@ -2102,6 +2118,13 @@ func serviceCancelQuery(params map[string]string) string {
 		values.Set(key, value)
 	}
 	return values.Encode()
+}
+
+func boolQueryValue(value bool) string {
+	if value {
+		return "1"
+	}
+	return "0"
 }
 
 func serviceOrderPerson(userID int64, name string) map[string]interface{} {
@@ -4569,7 +4592,13 @@ func (s *Server) gameCancelDetail(w http.ResponseWriter, r *http.Request, role s
 		}
 	}
 	playerName := s.inGameDisplayName(playerID, "玩家")
-	expertName := s.inGameDisplayName(expertID, "行家")
+	hasExpert := expertID > 0
+	expertName := "暂未分配行家"
+	expertAvatarText := "局"
+	if hasExpert {
+		expertName = s.inGameDisplayName(expertID, "行家")
+		expertAvatarText = avatarTextForName(expertName, expertID)
+	}
 	warningTitle := "取消将产生赔付"
 	warningDesc := "赔付金额由后端根据订单金额和赔付比例计算。"
 	if isFree {
@@ -4581,7 +4610,7 @@ func (s *Server) gameCancelDetail(w http.ResponseWriter, r *http.Request, role s
 		"role": role, "gameId": game.ID, "serviceOrderId": serviceOrderID(game.ID), "ref": serviceOrderID(game.ID),
 		"serviceTitle": game.Title, "statusText": statusText, "gameType": game.GameType,
 		"playerId": playerID, "playerName": playerName, "playerAvatarText": avatarTextForName(playerName, playerID), "avatarText": avatarTextForName(playerName, playerID),
-		"expertId": expertID, "expertName": expertName, "expertAvatarText": avatarTextForName(expertName, expertID),
+		"expertId": expertID, "expertName": expertName, "expertAvatarText": expertAvatarText, "hasExpert": hasExpert,
 		"amount": float64(amountCent) / 100, "contractAmount": float64(amountCent) / 100,
 		"amountText": serviceAmountText(amountCent), "contractAmountText": serviceAmountText(amountCent),
 		"isFreeCancel": isFree, "minRate": minRate, "maxRate": maxRate, "suggestedRate": suggestedRate,

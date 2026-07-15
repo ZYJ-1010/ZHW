@@ -97,7 +97,16 @@ Page({
 
     try {
       const data = await gameService.getGameMembers(gameId)
-      const items = Array.isArray(data.items) ? data.items : []
+      let items = Array.isArray(data.items) ? data.items : []
+
+      if (!items.length) {
+        const detail = await gameService.getGameDetail(gameId)
+        if (Array.isArray(detail.members)) {
+          items = detail.members
+        } else if (Array.isArray(detail.memberIds)) {
+          items = detail.memberIds.map((userId) => ({ userId }))
+        }
+      }
 
       this.setData({
         participants: items.map(normalizeMember)

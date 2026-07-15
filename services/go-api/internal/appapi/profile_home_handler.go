@@ -8,6 +8,7 @@ import (
 	"zhw-mini/services/go-api/internal/connections"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/invites"
+	"zhw-mini/services/go-api/internal/reports"
 	"zhw-mini/services/go-api/internal/reviews"
 	"zhw-mini/services/go-api/internal/users"
 )
@@ -40,6 +41,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 	inProgressGameCount := countInProgressUserGames(userID, s.games.List(), s.games.IsMember)
 	managedServiceCount := countManagedUserGames(userID, s.games.List())
 	notifications := unreadNotificationCount(s.notices.List(userID))
+	reportMessageCount := s.profileReportMessageCount(userID)
 	growthLevel := "V" + strconv.Itoa(maxInt(1, current.Growth.Level)) + " 探险家"
 	role := homeRoleName(s.homeRoleType(userID))
 	memberLevel := membership.PlanName
@@ -84,10 +86,11 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 			"actionText": "增购会员 >",
 			"route":      "/pages/profile/member/index",
 		},
-		"serviceSections": s.profileHomeSections(reviewTodoCount, notifications, len(inviteRelations), inProgressGameCount, managedServiceCount),
+		"serviceSections": s.profileHomeSections(reviewTodoCount, reportMessageCount, len(inviteRelations), inProgressGameCount, managedServiceCount),
 		"badges": map[string]interface{}{
 			"reviewTodoCount":         reviewTodoCount,
 			"unreadNotificationCount": notifications,
+			"reportMessageCount":      reportMessageCount,
 			"connectionCount":         len(conns),
 		},
 		"summary": CurrentUserSummaryDTO{
@@ -157,6 +160,35 @@ func (s *Server) profileHomeSections(reviewTodoCount int, unreadCount int, conne
 				profileHomeItem("settings", "系统设置", "/pages/profile/assets/i85@3x.png", "blue-purple", "", "", "/pages/profile/settings/index"),
 			},
 		},
+	}
+}
+
+func (s *Server) profileReportMessageCount(userID int64) int {
+	if s.reports == nil {
+		return 0
+	}
+	seen := map[int64]bool{}
+	count := 0
+	add := func(items []reports.Report) {
+		for _, item := range items {
+			if item.ID <= 0 || seen[item.ID] || !activeReportStatus(item.Status) {
+				continue
+			}
+			seen[item.ID] = true
+			count++
+		}
+	}
+	add(s.reports.My(userID))
+	add(s.reports.Appeals(userID))
+	return count
+}
+
+func activeReportStatus(status string) bool {
+	switch status {
+	case "", "pending", "assigned", "appealed", "appeal_withdrawn":
+		return true
+	default:
+		return false
 	}
 }
 

@@ -394,7 +394,7 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []
 			"tone":        "green",
 			"icon":        "IM",
 			"title":       title + "IM",
-			"timeText":    room.CreatedAt.Format("01-02 15:04"),
+			"timeText":    formatAppDisplayTime(room.CreatedAt, "01-02 15:04"),
 			"desc":        lastText,
 			"tagText":     "成员" + strconv.Itoa(memberCount) + "人",
 			"tagTone":     "green",
@@ -530,7 +530,7 @@ func (s *Server) notificationCards(items []notifications.Notification, bucket st
 			"tone":     notificationTone(item),
 			"unread":   item.Status == "unread",
 			"title":    item.Title,
-			"timeText": item.CreatedAt.Format("01-02 15:04"),
+			"timeText": formatAppDisplayTime(item.CreatedAt, "01-02 15:04"),
 			"desc":     item.Content,
 			"bizType":  item.BizType,
 			"bizId":    item.BizID,
@@ -1047,7 +1047,7 @@ func (s *Server) systemNotificationDetail(w http.ResponseWriter, r *http.Request
 			article["tagText"] = notificationTypeLabel(notice.NotifyType)
 			article["title"] = notice.Title
 			article["author"] = "\u7cfb\u7edf\u901a\u77e5"
-			article["publishedAtText"] = notice.CreatedAt.Format("2006-01-02")
+			article["publishedAtText"] = formatAppDisplayTime(notice.CreatedAt, "2006-01-02")
 			article["readText"] = ""
 			article["blocks"] = []map[string]interface{}{
 				{"id": "content", "type": "paragraph", "text": notice.Content, "lead": true},
@@ -1094,7 +1094,7 @@ func (s *Server) submitSystemNotificationFeedback(w http.ResponseWriter, r *http
 		return
 	}
 
-	config := s.profiles.SystemManagementConfig(userID, "system-notification-feedback", map[string]interface{}{"useful": 128, "useless": 10})
+	config := s.profiles.SystemManagementConfig(userID, "system-notification-feedback", map[string]interface{}{"useful": 0, "useless": 0})
 	config[value] = interfaceToInt(config[value]) + 1
 	s.profiles.SaveSystemManagementConfig(userID, "system-notification-feedback", config)
 	feedback := systemNotificationFeedbackPayload(config)
@@ -1106,19 +1106,13 @@ func (s *Server) submitSystemNotificationFeedback(w http.ResponseWriter, r *http
 }
 
 func (s *Server) systemNotificationFeedback(userID int64) map[string]interface{} {
-	config := s.profiles.SystemManagementConfig(userID, "system-notification-feedback", map[string]interface{}{"useful": 128, "useless": 10})
+	config := s.profiles.SystemManagementConfig(userID, "system-notification-feedback", map[string]interface{}{"useful": 0, "useless": 0})
 	return systemNotificationFeedbackPayload(config)
 }
 
 func systemNotificationFeedbackPayload(config map[string]interface{}) map[string]interface{} {
 	useful := interfaceToInt(config["useful"])
 	useless := interfaceToInt(config["useless"])
-	if useful <= 0 {
-		useful = 128
-	}
-	if useless <= 0 {
-		useless = 10
-	}
 	return map[string]interface{}{
 		"question": "\u8fd9\u7bc7\u6587\u7ae0\u5bf9\u4f60\u6709\u5e2e\u52a9\u5417\uff1f",
 		"useful":   map[string]interface{}{"icon": "👍", "label": "\u6709\u7528", "count": useful, "countText": strconv.Itoa(useful)},
@@ -1374,6 +1368,9 @@ func (s *Server) notificationDetailTarget(notification notifications.Notificatio
 
 func (s *Server) notificationGameGroupRoute(notification notifications.Notification) (string, string) {
 	if notification.NotifyType == "game_approved" {
+		return "pages/game/detail/index?id=" + strconv.FormatInt(notification.BizID, 10), "gameDetail"
+	}
+	if notification.NotifyType == "application_approved" || notification.NotifyType == "application_rejected" {
 		return "pages/game/detail/index?id=" + strconv.FormatInt(notification.BizID, 10), "gameDetail"
 	}
 	if notification.NotifyType == "game_completion_requested" || notification.NotifyType == "expert_completion_confirmed" || notification.NotifyType == "review_remind" || notification.NotifyType == "game_ended" {

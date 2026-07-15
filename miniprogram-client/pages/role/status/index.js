@@ -129,6 +129,8 @@ function normalizeApplication(rawApplication = {}, roleType, status, config = EM
   const normalizedRole = normalizeRoleType(
     rawApplication.roleType ||
     rawApplication.role_type ||
+    rawApplication.roleCode ||
+    rawApplication.role_code ||
     rawApplication.type ||
     rawApplication.key ||
     rawApplication.name ||

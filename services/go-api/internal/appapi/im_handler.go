@@ -88,7 +88,7 @@ func (s *Server) chatRoomPayload(room im.Room, currentUserID int64, game games.G
 		"openIMGroupId":                room.OpenIMGroupID,
 		"archivedAt":                   room.ArchivedAt,
 		"archiveReason":                room.ArchiveReason,
-		"createdAt":                    room.CreatedAt,
+		"createdAt":                    appDisplayTime(room.CreatedAt),
 		"currentUserId":                currentUserID,
 		"canAccessServiceConfirmation": s.canAccessServiceConfirmation(game, currentUserID),
 		"collaborationEntry": map[string]interface{}{
@@ -381,7 +381,7 @@ func (s *Server) privateChatMessageDTO(message im.PrivateMessage) map[string]int
 		"type":           message.Type,
 		"content":        message.Content,
 		"status":         message.Status,
-		"createdAt":      message.CreatedAt,
+		"createdAt":      appDisplayTime(message.CreatedAt),
 	}
 }
 
@@ -417,7 +417,7 @@ func (s *Server) inGameMessageDTO(message im.Message) map[string]interface{} {
 		// Profile image URLs remain available on room members/group previews only.
 		"avatarSrc": "", "avatarUrl": "",
 		"messageType": message.Type, "type": message.Type, "content": message.Content, "fileName": message.Content, "fileId": message.FileID,
-		"status": message.Status, "ackedBy": message.AckedBy, "readBy": message.ReadBy, "createdAt": message.CreatedAt,
+		"status": message.Status, "ackedBy": message.AckedBy, "readBy": message.ReadBy, "createdAt": appDisplayTime(message.CreatedAt),
 	}
 }
 
@@ -871,7 +871,7 @@ func adminIMRoomDTO(room im.Room, messageCount int, fileMessageCount int) map[st
 		"openIMGroupId":    room.OpenIMGroupID,
 		"archivedAt":       room.ArchivedAt,
 		"archiveReason":    room.ArchiveReason,
-		"createdAt":        room.CreatedAt,
+		"createdAt":        appDisplayTime(room.CreatedAt),
 		"messageCount":     messageCount,
 		"fileMessageCount": fileMessageCount,
 	}

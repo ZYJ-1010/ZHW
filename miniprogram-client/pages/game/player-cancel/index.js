@@ -23,6 +23,7 @@ const EMPTY_CANCEL_DETAIL = {
   playerAvatarText: '',
   expertName: '',
   expertAvatarText: '',
+  hasExpert: false,
   serviceTitle: '',
   roleLabel: '',
   contractAmount: 0,
@@ -203,7 +204,10 @@ function buildCancelDetail(options = {}) {
   const isFreeCancel = gameType === 'free' || decodeOption(options.freeCancel) === '1' || amount <= 0
   const playerName = decodeOption(options.playerName) || EMPTY_CANCEL_DETAIL.playerName
   const playerAvatarText = getAvatarText(playerName, decodeOption(options.playerAvatarText) || EMPTY_CANCEL_DETAIL.playerAvatarText)
-  const expertName = decodeOption(options.expertName) || EMPTY_CANCEL_DETAIL.expertName
+  const hasExpert = decodeOption(options.hasExpert) === '1' || decodeOption(options.hasExpert) === 'true' || Number(options.expertId) > 0
+  const expertName = hasExpert
+    ? (decodeOption(options.expertName) || EMPTY_CANCEL_DETAIL.expertName)
+    : (decodeOption(options.expertName) || '暂未分配行家')
   const avatarText = getAvatarText(expertName, decodeOption(options.expertAvatarText) || EMPTY_CANCEL_DETAIL.expertAvatarText)
   const minRate = getRateNumber(options.minRate, EMPTY_CANCEL_DETAIL.minRate)
   const maxRate = getRateNumber(options.maxRate, EMPTY_CANCEL_DETAIL.maxRate)
@@ -248,6 +252,7 @@ function buildCancelDetail(options = {}) {
     playerAvatarText,
     expertName,
     expertAvatarText: avatarText,
+    hasExpert,
     serviceTitle: decodeOption(options.serviceTitle) || EMPTY_CANCEL_DETAIL.serviceTitle,
     contractAmount: amount,
     contractAmountText: amount <= 0 ? '免费' : formatCurrency(amount),
@@ -301,13 +306,15 @@ function buildAmountState(detail, rate) {
 }
 
 function buildActivityCard(detail) {
+  const hasExpert = detail.hasExpert !== false
+
   return {
     title: '活动信息',
-    avatarText: detail.expertAvatarText,
-    avatarClass: 'expert',
-    name: detail.expertName,
-    roleLabel: '行家',
-    roleClass: 'expert',
+    avatarText: hasExpert ? detail.expertAvatarText : '局',
+    avatarClass: hasExpert ? 'expert' : 'player',
+    name: hasExpert ? detail.expertName : (detail.serviceTitle || '本局暂未分配行家'),
+    roleLabel: hasExpert ? '行家' : '未分配行家',
+    roleClass: hasExpert ? 'expert' : 'player',
     serviceTitle: detail.serviceTitle,
     rows: [
       { label: '合同金额', value: detail.contractAmountText, tone: 'strong', divider: true },

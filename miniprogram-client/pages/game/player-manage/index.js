@@ -447,6 +447,11 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
     : String(completedAtRaw || '')
   const expert = rawOrder.expert || rawOrder.expertInfo || {}
   const expertId = expert.id || rawOrder.expertId || ''
+  const hasExpert = firstDefined(
+    normalizeBooleanFlag(rawOrder.hasExpert),
+    normalizeBooleanFlag(actionConfig.hasExpert),
+    expertId ? true : false
+  )
   const guide = rawOrder.guide || rawOrder.guideInfo || rawOrder.referrer || {}
   const cancelPreview = rawOrder.cancelPreview || rawOrder.playerCancelPreview || rawOrder.cancelInfo || {}
   const rawServedText = firstDefined(
@@ -494,11 +499,11 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
     avatarClass: statusType === 'active' ? 'active' : statusType === 'complete' ? 'complete' : 'canceled',
     muted: statusType === 'canceled',
     ref: firstDefined(rawOrder.ref, rawOrder.refNo, rawOrder.orderNo, rawOrder.serviceNo, rawOrder.gameNo, rawOrder.groupNo, fallback.ref),
-    name: firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name),
+    name: hasExpert ? firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name) : '暂未分配行家',
     avatar: getAvatarText({
       ...rawOrder,
       avatar: firstDefined(rawOrder.avatar, rawOrder.avatarText, expert.avatarText, expert.initials),
-      name: firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name)
+      name: hasExpert ? firstDefined(rawOrder.name, rawOrder.expertName, expert.name, expert.nickname, getNestedValue(rawOrder, ['expertUser', 'nickname']), fallback.name) : '局'
     }, fallback),
     title: firstDefined(rawOrder.gameTitle, rawOrder.title, rawOrder.serviceTitle, rawOrder.serviceName, serviceParts.title, fallback.title),
     servedDurationText,
@@ -531,12 +536,14 @@ function normalizeOrder(rawOrder = {}, index = 0, context = {}) {
     elapsedText: schedule.elapsedText,
     remainingText: schedule.remainingText,
     noticeText: rawOrder.noticeText || actionConfig.noticeText || '',
-    primaryActionText: rawOrder.primaryActionText || actionConfig.primaryActionText || '',
+    primaryActionText: hasExpert ? (rawOrder.primaryActionText || actionConfig.primaryActionText || '') : '暂无行家',
     secondaryActionText: rawOrder.secondaryActionText || actionConfig.secondaryActionText || '',
     contactExpertRoute: firstDefined(actionConfig.contactExpertRoute, rawOrder.contactExpertRoute),
     playerCancelRoute: firstDefined(actionConfig.playerCancelRoute, actionConfig.cancelRoute, rawOrder.playerCancelRoute, rawOrder.cancelRoute),
     reviewRoute: firstDefined(actionConfig.reviewRoute, rawOrder.reviewRoute),
-    canContactExpert: firstDefined(actionConfig.canContactExpert, rawOrder.canContactExpert, Boolean(expertId)),
+    expertId,
+    hasExpert,
+    canContactExpert: firstDefined(actionConfig.canContactExpert, rawOrder.canContactExpert, hasExpert && Boolean(expertId)),
     canCancelOrder: firstDefined(actionConfig.canCancelOrder, rawOrder.canCancelOrder, false),
     completeSummary: rawOrder.completeSummary || rawOrder.completedSummary || fallback.completeSummary,
     completedAt: completedAtText || fallback.completedAt,
@@ -620,8 +627,10 @@ function buildCancelQuery(order = {}) {
     serviceOrderId: order.serviceOrderId,
     gameId: order.gameId,
     ref: order.ref,
+    expertId: order.expertId,
     expertName: order.name,
     expertAvatarText: order.avatar,
+    hasExpert: order.hasExpert ? '1' : '0',
     serviceTitle: order.title,
     amount: order.contractAmount,
     servedDurationText: order.servedDurationText,

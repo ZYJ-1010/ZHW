@@ -26,11 +26,29 @@ function emptyGameInfo() {
   }
 }
 
+function gameStatusText(status) {
+  const map = {
+    draft: '草稿',
+    pending: '待审核',
+    approved: '已通过',
+    recruiting: '招募中',
+    full: '已满员',
+    in_progress: '进行中',
+    completed: '已完成',
+    canceled: '已取消',
+    rejected: '已驳回'
+  }
+
+  return map[status] || status || ''
+}
+
 function normalizeShareGameInfo(data = {}, fallback = emptyGameInfo()) {
   const game = data.game || data
+  const detailDisplay = data.detailDisplay || game.detailDisplay || {}
   const creatorId = game.creatorUserId || ''
   const title = String(game.title || '').trim()
-  const location = String(game.address || game.cityName || '').trim()
+  const location = String(detailDisplay.locationText || game.locationText || game.address || game.cityName || '').trim()
+  const statusText = String(detailDisplay.statusText || game.statusText || gameStatusText(game.status)).trim()
   const maxPlayers = Number(game.maxPlayers || fallback.maxPlayers || 8)
   const joinedCount = Number(game.currentPlayers || (Array.isArray(data.memberIds) ? data.memberIds.length : 0))
 
@@ -38,7 +56,7 @@ function normalizeShareGameInfo(data = {}, fallback = emptyGameInfo()) {
     id: game.id || fallback.id,
     bannerImage: game.coverUrl || game.bannerImage || fallback.bannerImage,
     title,
-    startTime: game.status ? `状态：${game.status}` : fallback.startTime,
+    startTime: statusText ? `状态：${statusText}` : fallback.startTime,
     location,
     joinedCount,
     maxPlayers,
@@ -140,14 +158,11 @@ Page({
       return
     }
 
-    const joinedCount = this.data.gameInfo.joinedCount + (isInterested ? 1 : 0)
-
     this.setData({
-      isInterested,
-      currentJoinedCount: joinedCount
+      isInterested
     })
 
-    this.showToast(isInterested ? '已加入感兴趣列表' : '已取消感兴趣')
+    this.showToast(isInterested ? '已标记感兴趣' : '已取消感兴趣')
   },
 
   onCopyLocation() {
