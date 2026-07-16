@@ -18,12 +18,41 @@ function safeText(value, fallback = '') {
   return text || fallback
 }
 
+function pad2(value) {
+  return String(value).padStart(2, '0')
+}
+
+function formatDateMinute(date) {
+  return [
+    date.getFullYear(),
+    pad2(date.getMonth() + 1),
+    pad2(date.getDate())
+  ].join('-') + ' ' + [
+    pad2(date.getHours()),
+    pad2(date.getMinutes())
+  ].join(':')
+}
+
 function formatTime(value) {
   if (!value) {
     return ''
   }
 
-  return String(value).replace('T', ' ').replace(/:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/, '')
+  const text = String(value).trim()
+  if (!text) {
+    return ''
+  }
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(text)) {
+    return text.slice(0, 16)
+  }
+
+  const parsed = new Date(text)
+  if (!Number.isNaN(parsed.getTime())) {
+    return formatDateMinute(parsed)
+  }
+
+  return text.replace('T', ' ').replace(/:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/, '')
 }
 
 function avatarTextFromName(name, userId) {
@@ -247,7 +276,7 @@ function normalizeMessage(item, currentUserId, memberMap) {
       id: item.id || `system-${Date.now()}`,
       kind: 'system',
       messageType,
-      createdAtText: formatTime(item.createdAt),
+      createdAtText: formatTime(item.createdAtText || item.createdAt),
       card: buildSystemCard(item, messageType, payload || {})
     }
   }
@@ -268,7 +297,7 @@ function normalizeMessage(item, currentUserId, memberMap) {
     contentText: safeText(item.content),
     fileName,
     fileId: toPositiveInt(item.fileId),
-    createdAtText: formatTime(item.createdAt),
+    createdAtText: formatTime(item.createdAtText || item.createdAt),
     statusText: item.status === 'risk_flagged' ? '待审核' : ''
   }
 }

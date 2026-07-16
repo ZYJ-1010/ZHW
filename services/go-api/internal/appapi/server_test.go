@@ -5405,6 +5405,39 @@ func TestIMFlow(t *testing.T) {
 	}
 }
 
+func TestIMMessageDTOIncludesShanghaiDisplayTime(t *testing.T) {
+	app := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+	createdAt := time.Date(2026, 7, 15, 9, 40, 0, 0, time.UTC)
+
+	inGame := app.inGameMessageDTO(im.Message{
+		ID:        1,
+		RoomID:    1,
+		GameID:    1,
+		SenderID:  0,
+		Type:      "text",
+		Content:   "hello",
+		Status:    "sent",
+		CreatedAt: createdAt,
+	})
+	if inGame["createdAtText"] != "2026-07-15 17:40" {
+		t.Fatalf("expected in-game message Shanghai display time, got %+v", inGame)
+	}
+
+	private := app.privateChatMessageDTO(im.PrivateMessage{
+		ID:             1,
+		ConversationID: 1,
+		SenderID:       1,
+		TargetID:       2,
+		Type:           "text",
+		Content:        "hello",
+		Status:         "sent",
+		CreatedAt:      createdAt,
+	})
+	if private["createdAtText"] != "2026-07-15 17:40" {
+		t.Fatalf("expected private message Shanghai display time, got %+v", private)
+	}
+}
+
 func TestPrivateChatMessagesHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())

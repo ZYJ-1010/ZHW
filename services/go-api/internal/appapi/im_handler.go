@@ -89,6 +89,7 @@ func (s *Server) chatRoomPayload(room im.Room, currentUserID int64, game games.G
 		"archivedAt":                   room.ArchivedAt,
 		"archiveReason":                room.ArchiveReason,
 		"createdAt":                    appDisplayTime(room.CreatedAt),
+		"createdAtText":                formatAppDisplayTime(room.CreatedAt, "2006-01-02 15:04"),
 		"currentUserId":                currentUserID,
 		"canAccessServiceConfirmation": s.canAccessServiceConfirmation(game, currentUserID),
 		"collaborationEntry": map[string]interface{}{
@@ -382,6 +383,7 @@ func (s *Server) privateChatMessageDTO(message im.PrivateMessage) map[string]int
 		"content":        message.Content,
 		"status":         message.Status,
 		"createdAt":      appDisplayTime(message.CreatedAt),
+		"createdAtText":  formatAppDisplayTime(message.CreatedAt, "2006-01-02 15:04"),
 	}
 }
 
@@ -417,7 +419,8 @@ func (s *Server) inGameMessageDTO(message im.Message) map[string]interface{} {
 		// Profile image URLs remain available on room members/group previews only.
 		"avatarSrc": "", "avatarUrl": "",
 		"messageType": message.Type, "type": message.Type, "content": message.Content, "fileName": message.Content, "fileId": message.FileID,
-		"status": message.Status, "ackedBy": message.AckedBy, "readBy": message.ReadBy, "createdAt": appDisplayTime(message.CreatedAt),
+		"status": message.Status, "ackedBy": message.AckedBy, "readBy": message.ReadBy,
+		"createdAt": appDisplayTime(message.CreatedAt), "createdAtText": formatAppDisplayTime(message.CreatedAt, "2006-01-02 15:04"),
 	}
 }
 
@@ -872,6 +875,7 @@ func adminIMRoomDTO(room im.Room, messageCount int, fileMessageCount int) map[st
 		"archivedAt":       room.ArchivedAt,
 		"archiveReason":    room.ArchiveReason,
 		"createdAt":        appDisplayTime(room.CreatedAt),
+		"createdAtText":    formatAppDisplayTime(room.CreatedAt, "2006-01-02 15:04"),
 		"messageCount":     messageCount,
 		"fileMessageCount": fileMessageCount,
 	}
