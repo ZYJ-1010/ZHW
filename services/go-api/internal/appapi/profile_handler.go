@@ -403,6 +403,28 @@ func defaultExpertApplyConfig() map[string]interface{} {
 			"acceptTypes": []string{"JPG", "PNG", "PDF"},
 			"maxCount":    5,
 		},
+		"requirementsTitle": "申请条件",
+		"requirements": []map[string]interface{}{
+			{"title": "玩家等级达到 Lv.20", "text": "以后台资格规则为准", "done": false},
+			{"title": "完成实名认证", "text": "行家必须实名", "done": false},
+			{"title": "完成企业认证", "text": "以认证记录为准", "done": false},
+			{"title": "发起过 5 次以上组局", "text": "以后台组局记录为准", "done": false},
+			{"title": "信用分 ≥ 90 分", "text": "以信用记录为准", "done": false},
+			{"title": "会员等级 ≥ 高级会员", "text": "以会员状态为准", "done": false},
+			{"title": "提交行家计划书", "text": "需描述你的资源、能力和项目说明书", "done": false},
+		},
+		"planTask": map[string]interface{}{
+			"title":  "提交行家计划书",
+			"text":   "需描述你的资源、能力和项目说明书",
+			"done":   false,
+			"action": "去填写 ›",
+		},
+		"perksTitle": "行家特权",
+		"perks": []map[string]interface{}{
+			{"icon": "Y", "text": "有权益的行家可发起有偿局并可获得相应收入"},
+			{"icon": "*", "text": "专属行家标识与优先推荐位"},
+			{"icon": "D", "text": "数据看板：查看服务数据与收益分析"},
+		},
 		"validationRules": map[string]interface{}{
 			"skillTags":   map[string]interface{}{"minLength": 2, "maxLength": 30},
 			"intro":       map[string]interface{}{"minLength": 50, "maxLength": 300},
@@ -423,7 +445,12 @@ func defaultGuideApplyConfig() map[string]interface{} {
 		"requirements": []map[string]interface{}{
 			{"title": "\u73a9\u5bb6\u7b49\u7ea7\u8fbe\u5230 Lv.5", "text": "\u4ee5\u540e\u53f0\u8d44\u683c\u89c4\u5219\u4e3a\u51c6", "done": false},
 			{"title": "\u5b8c\u6210\u5b9e\u540d\u8ba4\u8bc1", "text": "\u9886\u8def\u4eba\u5fc5\u987b\u5b9e\u540d", "done": false},
+			{"title": "\u5b8c\u6210\u4f01\u4e1a\u8ba4\u8bc1", "text": "\u4ee5\u8ba4\u8bc1\u8bb0\u5f55\u4e3a\u51c6", "done": false},
+			{"title": "\u53c2\u4e0e\u8fc7 3 \u6b21\u4ee5\u4e0a\u7ec4\u5c40", "text": "\u4ee5\u540e\u53f0\u7ec4\u5c40\u8bb0\u5f55\u4e3a\u51c6", "done": false},
+			{"title": "\u5df2\u6210\u529f\u9080\u8bf7 \u2265 1 \u4eba\u5b8c\u6210\u7ec4\u5c40", "text": "\u4ee5\u540e\u53f0\u9080\u8bf7\u8bb0\u5f55\u4e3a\u51c6", "done": false},
 			{"title": "\u4fe1\u7528\u5206 \u2265 80 \u5206", "text": "\u4ee5\u4fe1\u7528\u8bb0\u5f55\u4e3a\u51c6", "done": false},
+			{"title": "\u4f1a\u5458\u7b49\u7ea7 \u2265 \u57fa\u7840\u4f1a\u5458", "text": "\u4ee5\u4f1a\u5458\u72b6\u6001\u4e3a\u51c6", "done": false},
+			{"title": "\u63d0\u4ea4\u9886\u8def\u8ba1\u5212\u4e66", "text": "\u63cf\u8ff0\u4f60\u7684\u5e26\u961f\u98ce\u683c\u3001\u6218\u7ee9\u3001\u8d44\u6e90\u548c\u89c4\u5212", "done": false},
 		},
 		"planTask": map[string]interface{}{
 			"title":  "\u63d0\u4ea4\u9886\u8def\u8ba1\u5212\u4e66",

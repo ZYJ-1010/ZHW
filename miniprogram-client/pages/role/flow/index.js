@@ -140,6 +140,16 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   primaryText: '下一步',
   helperText: '审核预计 1-3 个工作日'
 }
+const DEFAULT_GUIDE_APPLY_REQUIREMENTS = [
+  { title: '玩家等级达到 Lv.5', text: '以后台资格规则为准', done: false },
+  { title: '完成实名认证', text: '领路人必须实名', done: false },
+  { title: '完成企业认证', text: '以认证记录为准', done: false },
+  { title: '参与过 3 次以上组局', text: '以后台组局记录为准', done: false },
+  { title: '已成功邀请 ≥ 1 人完成组局', text: '以后台邀请记录为准', done: false },
+  { title: '信用分 ≥ 80 分', text: '以信用记录为准', done: false },
+  { title: '会员等级 ≥ 基础会员', text: '以会员状态为准', done: false },
+  { title: '提交领路计划书', text: '描述你的带队风格、战绩、资源和规划', done: false }
+]
 const ROLE_APPLY_PREVIEW_META = {
   expert: {
     roleType: 'expert',
@@ -366,6 +376,13 @@ function normalizeExpertRequirements(requirements) {
     .filter(Boolean)
 }
 
+function resolveApplyRequirements(requirements, fallbackRequirements) {
+  const normalized = normalizeExpertRequirements(requirements)
+  const fallback = normalizeExpertRequirements(fallbackRequirements)
+
+  return normalized.length >= fallback.length ? normalized : fallback
+}
+
 function isExpertRequirementChecked(item = {}, statusText = '') {
   const boolKeys = ['checked', 'done', 'completed', 'passed', 'met', 'satisfied']
   const matchedBoolKey = boolKeys.find((key) => typeof item[key] === 'boolean')
@@ -479,7 +496,7 @@ function normalizeExpertApplyConfig(config) {
       : createExpertServiceBlocks(serviceCount),
     priceHint: rawConfig.priceHint || DEFAULT_EXPERT_APPLY_CONFIG.priceHint,
     requirementsTitle: rawConfig.requirementsTitle || DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
-    requirements: normalizeExpertRequirements(rawConfig.requirements),
+    requirements: resolveApplyRequirements(rawConfig.requirements, DEFAULT_EXPERT_APPLY_CONFIG.requirements),
     planTask: normalizeExpertPlanTask(rawConfig.planTask),
     benefitsTitle: rawConfig.benefitsTitle || rawConfig.perksTitle || DEFAULT_EXPERT_APPLY_CONFIG.perksTitle,
     benefits: normalizeExpertPerks(rawConfig.benefits || rawConfig.perks),
@@ -506,7 +523,7 @@ function normalizeGuideApplyConfig(config) {
       : createExpertServiceBlocks(serviceCount),
     priceHint: rawConfig.priceHint || DEFAULT_EXPERT_APPLY_CONFIG.priceHint,
     requirementsTitle: rawConfig.requirementsTitle || DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
-    requirements: normalizeExpertRequirements(rawConfig.requirements),
+    requirements: resolveApplyRequirements(rawConfig.requirements, DEFAULT_GUIDE_APPLY_REQUIREMENTS),
     planTask: normalizeExpertPlanTask(rawConfig.planTask),
     benefitsTitle: rawConfig.benefitsTitle || rawConfig.perksTitle || '领路人特权',
     benefits: normalizeExpertPerks(rawConfig.benefits || rawConfig.perks),
@@ -1102,6 +1119,9 @@ function getRoleApplyPreviewMeta(roleType) {
 
 function createRoleApplyPreviewPages(roleType = 'expert') {
   const meta = getRoleApplyPreviewMeta(roleType)
+  const defaultRequirements = meta.roleType === 'guide'
+    ? DEFAULT_GUIDE_APPLY_REQUIREMENTS
+    : DEFAULT_EXPERT_APPLY_CONFIG.requirements
   const overviewPage = {
     name: `${meta.pageName}操作页`,
     mode: 'expertApplyOverview',
@@ -1115,7 +1135,7 @@ function createRoleApplyPreviewPages(roleType = 'expert') {
     reviewHint: DEFAULT_EXPERT_APPLY_CONFIG.helperText,
     primary: meta.fallbackPrimaryText,
     requirementsTitle: DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
-    requirements: normalizeExpertRequirements(DEFAULT_EXPERT_APPLY_CONFIG.requirements),
+    requirements: normalizeExpertRequirements(defaultRequirements),
     planTask: normalizeExpertPlanTask(DEFAULT_EXPERT_APPLY_CONFIG.planTask),
     benefitsTitle: DEFAULT_EXPERT_APPLY_CONFIG.perksTitle,
     benefits: normalizeExpertPerks(DEFAULT_EXPERT_APPLY_CONFIG.perks)
