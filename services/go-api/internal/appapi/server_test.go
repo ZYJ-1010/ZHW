@@ -133,6 +133,10 @@ func TestExpertApplyConfigReadsSystemConfigHTTP(t *testing.T) {
 		"validationRules": map[string]interface{}{
 			"intro": map[string]interface{}{"minLength": 10, "maxLength": 200},
 		},
+		"requirements": []map[string]interface{}{
+			{"title": "数据库条件", "text": "数据库条件说明", "done": true},
+			{"title": "会员等级 ≥ 高级会员", "text": "一期隐藏", "done": false},
+		},
 		"yearOptions":  []string{"1年", "2年"},
 		"serviceCount": 2,
 		"priceHint":    "数据库价格提示",
@@ -152,6 +156,9 @@ func TestExpertApplyConfigReadsSystemConfigHTTP(t *testing.T) {
 			Fields []struct {
 				Key string `json:"key"`
 			} `json:"fields"`
+			Requirements []struct {
+				Title string `json:"title"`
+			} `json:"requirements"`
 			UploadField struct {
 				Label    string `json:"label"`
 				MaxCount int    `json:"maxCount"`
@@ -163,7 +170,7 @@ func TestExpertApplyConfigReadsSystemConfigHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &resp); err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Data.SkillOptions) != 1 || resp.Data.SkillOptions[0].Name != "数据库技能" || len(resp.Data.Fields) != 1 || resp.Data.Fields[0].Key != "dbField" || resp.Data.UploadField.Label != "数据库证明" || resp.Data.UploadField.MaxCount != 2 || resp.Data.ServiceCount != 2 || resp.Data.PriceHint != "数据库价格提示" {
+	if len(resp.Data.SkillOptions) != 1 || resp.Data.SkillOptions[0].Name != "数据库技能" || len(resp.Data.Fields) != 1 || resp.Data.Fields[0].Key != "dbField" || len(resp.Data.Requirements) != 1 || resp.Data.Requirements[0].Title != "数据库条件" || resp.Data.UploadField.Label != "数据库证明" || resp.Data.UploadField.MaxCount != 2 || resp.Data.ServiceCount != 2 || resp.Data.PriceHint != "数据库价格提示" {
 		t.Fatalf("expected expert apply config from system config: %s", string(body))
 	}
 }
@@ -178,6 +185,7 @@ func TestGuideApplyConfigFromSystemConfigHTTP(t *testing.T) {
 		"applyRoleName": "数据库领路人",
 		"requirements": []map[string]interface{}{
 			{"title": "数据库条件", "text": "数据库条件说明", "done": true},
+			{"title": "会员等级 ≥ 基础会员", "text": "一期隐藏", "done": false},
 		},
 		"fields": []map[string]interface{}{
 			{"type": "input", "key": "dbGuideField", "label": "数据库领路字段", "required": true},
@@ -8558,9 +8566,6 @@ func TestRoleApplicationAndGuideQualificationHTTP(t *testing.T) {
 		t.Fatalf("expected waiting condition and one guide rule: %s", string(qualificationBody))
 	}
 	postAdminJSONWithPermission(t, mux, "/api/admin/guide-qualification-rules", "role:update", `{"userId":1,"conditionMet":true,"paymentMet":false}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/guides/apply", userToken, `{"reason":"want to help"}`, http.StatusConflict)
-	postJSON(t, mux, "/api/app/role-applications", userToken, `{"roleCode":"guide","reason":"want to help"}`, http.StatusConflict)
-	postAdminJSONWithPermission(t, mux, "/api/admin/guide-qualification-rules", "role:update", `{"userId":1,"conditionMet":true,"paymentMet":true}`, http.StatusOK)
 	appBody := postJSON(t, mux, "/api/app/guides/apply", userToken, `{"reason":"want to help","abilityDescription":"hosted games","proofFileIds":[7,8]}`, http.StatusOK)
 	var appResp struct {
 		Data struct {
@@ -8656,7 +8661,7 @@ func TestRoleApplicationAndGuideQualificationHTTP(t *testing.T) {
 	if err := json.Unmarshal(adminGuideBody, &guideResp); err != nil {
 		t.Fatal(err)
 	}
-	if !guideResp.Data.ConditionMet || !guideResp.Data.PaymentMet || guideResp.Data.GuideOpenStatus != "opened" {
+	if !guideResp.Data.ConditionMet || guideResp.Data.PaymentMet || guideResp.Data.GuideOpenStatus != "opened" {
 		t.Fatalf("expected opened guide qualification: %s", string(adminGuideBody))
 	}
 

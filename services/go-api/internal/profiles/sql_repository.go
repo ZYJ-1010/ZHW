@@ -196,7 +196,7 @@ order by id asc
 		MinInviteCount:    0,
 		MinCreditScore:    0,
 		MinCompletedGames: 0,
-		PaymentRequired:   true,
+		PaymentRequired:   false,
 		Status:            "active",
 		UpdatedAt:         time.Now(),
 	}

@@ -3,6 +3,7 @@ package appapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -263,17 +264,51 @@ func (s *Server) adminRoleBenefitConfig(w http.ResponseWriter, r *http.Request) 
 func (s *Server) currentExpertApplyConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(expertApplyConfigKey, &config) && len(config) > 0 {
-		return config
+		return hideMembershipApplyRequirements(config)
 	}
-	return defaultExpertApplyConfig()
+	return hideMembershipApplyRequirements(defaultExpertApplyConfig())
 }
 
 func (s *Server) currentGuideApplyConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(guideApplyConfigKey, &config) && len(config) > 0 {
+		return hideMembershipApplyRequirements(config)
+	}
+	return hideMembershipApplyRequirements(defaultGuideApplyConfig())
+}
+
+func hideMembershipApplyRequirements(config map[string]interface{}) map[string]interface{} {
+	if config == nil {
 		return config
 	}
-	return defaultGuideApplyConfig()
+	rawRequirements, ok := config["requirements"]
+	if !ok {
+		return config
+	}
+	switch requirements := rawRequirements.(type) {
+	case []map[string]interface{}:
+		filtered := make([]map[string]interface{}, 0, len(requirements))
+		for _, item := range requirements {
+			if !isMembershipApplyRequirement(item["title"]) {
+				filtered = append(filtered, item)
+			}
+		}
+		config["requirements"] = filtered
+	case []interface{}:
+		filtered := make([]interface{}, 0, len(requirements))
+		for _, item := range requirements {
+			if requirement, ok := item.(map[string]interface{}); ok && isMembershipApplyRequirement(requirement["title"]) {
+				continue
+			}
+			filtered = append(filtered, item)
+		}
+		config["requirements"] = filtered
+	}
+	return config
+}
+
+func isMembershipApplyRequirement(title interface{}) bool {
+	return strings.Contains(strings.TrimSpace(fmt.Sprint(title)), "会员等级")
 }
 
 func (s *Server) currentRoleStatusPageConfig() map[string]interface{} {
@@ -410,7 +445,6 @@ func defaultExpertApplyConfig() map[string]interface{} {
 			{"title": "完成企业认证", "text": "以认证记录为准", "done": false},
 			{"title": "发起过 5 次以上组局", "text": "以后台组局记录为准", "done": false},
 			{"title": "信用分 ≥ 90 分", "text": "以信用记录为准", "done": false},
-			{"title": "会员等级 ≥ 高级会员", "text": "以会员状态为准", "done": false},
 			{"title": "提交行家计划书", "text": "需描述你的资源、能力和项目说明书", "done": false},
 		},
 		"planTask": map[string]interface{}{
@@ -449,7 +483,6 @@ func defaultGuideApplyConfig() map[string]interface{} {
 			{"title": "\u53c2\u4e0e\u8fc7 3 \u6b21\u4ee5\u4e0a\u7ec4\u5c40", "text": "\u4ee5\u540e\u53f0\u7ec4\u5c40\u8bb0\u5f55\u4e3a\u51c6", "done": false},
 			{"title": "\u5df2\u6210\u529f\u9080\u8bf7 \u2265 1 \u4eba\u5b8c\u6210\u7ec4\u5c40", "text": "\u4ee5\u540e\u53f0\u9080\u8bf7\u8bb0\u5f55\u4e3a\u51c6", "done": false},
 			{"title": "\u4fe1\u7528\u5206 \u2265 80 \u5206", "text": "\u4ee5\u4fe1\u7528\u8bb0\u5f55\u4e3a\u51c6", "done": false},
-			{"title": "\u4f1a\u5458\u7b49\u7ea7 \u2265 \u57fa\u7840\u4f1a\u5458", "text": "\u4ee5\u4f1a\u5458\u72b6\u6001\u4e3a\u51c6", "done": false},
 			{"title": "\u63d0\u4ea4\u9886\u8def\u8ba1\u5212\u4e66", "text": "\u63cf\u8ff0\u4f60\u7684\u5e26\u961f\u98ce\u683c\u3001\u6218\u7ee9\u3001\u8d44\u6e90\u548c\u89c4\u5212", "done": false},
 		},
 		"planTask": map[string]interface{}{

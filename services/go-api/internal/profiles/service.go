@@ -278,9 +278,6 @@ func (s *Service) SubmitRoleApplication(userID int64, req SubmitRoleApplicationR
 		if !qualification.ConditionMet {
 			return RoleApplication{}, ErrWaitingGuideCondition
 		}
-		if !qualification.PaymentMet {
-			return RoleApplication{}, ErrWaitingGuidePayment
-		}
 	}
 	if s.repo != nil {
 		items, err := s.repo.ListRoleApplicationsByUser(context.Background(), userID)
@@ -908,12 +905,10 @@ func (s *Service) reviewRoleApplication(app RoleApplication, adminID int64, req 
 	return app, nil
 }
 
-func guideOpenStatus(conditionMet bool, paymentMet bool, isGuide bool) string {
+func guideOpenStatus(conditionMet bool, _ bool, isGuide bool) string {
 	switch {
 	case !conditionMet:
 		return "waiting_condition"
-	case !paymentMet:
-		return "waiting_payment"
 	case isGuide:
 		return "opened"
 	default:
@@ -931,7 +926,7 @@ func (s *Service) ensureDefaultGuideRuleLocked() {
 		MinInviteCount:    0,
 		MinCreditScore:    0,
 		MinCompletedGames: 0,
-		PaymentRequired:   true,
+		PaymentRequired:   false,
 		Status:            "active",
 		UpdatedAt:         time.Now(),
 	}

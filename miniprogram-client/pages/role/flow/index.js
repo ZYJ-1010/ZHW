@@ -97,7 +97,6 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
     { title: '完成企业认证', text: '以认证记录为准', done: false },
     { title: '发起过 5 次以上组局', text: '以后台组局记录为准', done: false },
     { title: '信用分 ≥ 90 分', text: '以信用记录为准', done: false },
-    { title: '会员等级 ≥ 高级会员', text: '以会员状态为准', done: false },
     { title: '提交行家计划书', text: '需描述你的资源、能力和项目说明书', done: false }
   ],
   planTask: {
@@ -147,7 +146,6 @@ const DEFAULT_GUIDE_APPLY_REQUIREMENTS = [
   { title: '参与过 3 次以上组局', text: '以后台组局记录为准', done: false },
   { title: '已成功邀请 ≥ 1 人完成组局', text: '以后台邀请记录为准', done: false },
   { title: '信用分 ≥ 80 分', text: '以信用记录为准', done: false },
-  { title: '会员等级 ≥ 基础会员', text: '以会员状态为准', done: false },
   { title: '提交领路计划书', text: '描述你的带队风格、战绩、资源和规划', done: false }
 ]
 const ROLE_APPLY_PREVIEW_META = {
@@ -534,7 +532,7 @@ function normalizeGuideApplyConfig(config) {
 
 function applyGuideQualificationToConfig(config, roleInfo = {}) {
   const qualification = roleInfo.guideQualification || roleInfo.qualification || {}
-  const qualificationMet = Boolean(qualification.conditionMet && qualification.paymentMet)
+  const qualificationMet = Boolean(qualification.conditionMet)
 
   if (!qualificationMet) {
     return config

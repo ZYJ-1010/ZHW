@@ -93,12 +93,12 @@ func TestRepositoryBackedProfilesRequireRolesAndPersist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if qualification.GuideOpenStatus != "waiting_payment" {
-		t.Fatalf("expected waiting_payment, got %+v", qualification)
+	if qualification.GuideOpenStatus != "ready_for_review" {
+		t.Fatalf("expected ready_for_review, got %+v", qualification)
 	}
 	app, err := service.SubmitRoleApplication(3, SubmitRoleApplicationRequest{RoleCode: "guide", Reason: "want to guide"})
-	if err != ErrWaitingGuidePayment {
-		t.Fatalf("expected waiting payment, got app=%+v err=%v", app, err)
+	if err != nil || app.RoleCode != "guide" {
+		t.Fatalf("expected guide application without payment requirement, got app=%+v err=%v", app, err)
 	}
 
 	rules := service.GuideQualificationRules()
@@ -214,7 +214,7 @@ func (r *fakeProfileRepository) SaveGuideQualification(ctx context.Context, q Gu
 
 func (r *fakeProfileRepository) ListGuideQualificationRules(ctx context.Context) ([]GuideQualificationRule, error) {
 	if len(r.rules) == 0 {
-		_, _ = r.SaveGuideQualificationRule(ctx, GuideQualificationRule{RuleCode: "default", PaymentRequired: true, Status: "active"})
+		_, _ = r.SaveGuideQualificationRule(ctx, GuideQualificationRule{RuleCode: "default", PaymentRequired: false, Status: "active"})
 	}
 	result := make([]GuideQualificationRule, 0, len(r.rules))
 	for _, item := range r.rules {

@@ -7,6 +7,8 @@ deploy/env.*.bak*
 project.private.config.json
 miniprogram-client/project.private.config.json
 *.log
+*.tar.gz
+.restore-backups/
 tmp/
 dist/
 node_modules/
@@ -36,3 +38,4 @@ certs/
 *.pem
 *.key
 *.p12
+miniprogram-client/services/go-api/
