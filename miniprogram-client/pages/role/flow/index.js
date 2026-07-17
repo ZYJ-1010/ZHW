@@ -97,7 +97,8 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
     { title: '完成企业认证', text: '以认证记录为准', done: false },
     { title: '发起过 5 次以上组局', text: '以后台组局记录为准', done: false },
     { title: '信用分 ≥ 90 分', text: '以信用记录为准', done: false },
-    { title: '会员等级 ≥ 高级会员', text: '以会员状态为准', done: false }
+    { title: '会员等级 ≥ 高级会员', text: '以会员状态为准', done: false },
+    { title: '提交行家计划书', text: '需描述你的资源、能力和项目说明书', done: false }
   ],
   planTask: {
     title: '提交行家计划书',
@@ -1384,10 +1385,6 @@ Page({
         fetchApplyConfig()
       ])
 
-      if (this.redirectExistingRoleApply(roleInfo, roleType)) {
-        return
-      }
-
       const remoteConfig = extractResponseData(remoteConfigData)
       const config = roleType === 'guide'
         ? normalizeGuideApplyConfig(applyGuideQualificationToConfig(remoteConfig, roleInfo))
@@ -1520,10 +1517,7 @@ Page({
       return true
     }
 
-    const firstTitle = unmetRequirements[0].title || '申请条件'
-    toast.info(`请先满足：${firstTitle}`)
-
-    return false
+    return true
   },
 
   showExpertApplyForm() {
@@ -2060,8 +2054,15 @@ Page({
 
     try {
       const roleInfo = await roleService.getMyRoles()
+      const state = getExistingRoleApplyState(roleInfo, 'expert')
 
-      if (this.redirectExistingRoleApply(roleInfo, 'expert')) {
+      if (state.status === 'pending') {
+        toast.info('申请已提交，请等待后台审核')
+        return
+      }
+
+      if (state.status === 'approved') {
+        toast.info('该身份已开通，无需重复申请')
         return
       }
 
@@ -2100,8 +2101,15 @@ Page({
 
     try {
       const roleInfo = await roleService.getMyRoles()
+      const state = getExistingRoleApplyState(roleInfo, 'guide')
 
-      if (this.redirectExistingRoleApply(roleInfo, 'guide')) {
+      if (state.status === 'pending') {
+        toast.info('领路人申请已提交，请等待后台审核')
+        return
+      }
+
+      if (state.status === 'approved') {
+        toast.info('领路人身份已开通，无需重复申请')
         return
       }
 
@@ -2212,43 +2220,7 @@ Page({
       return
     }
 
-    if (this.data.roleApplyChecking) {
-      return
-    }
-
-    this.setData({
-      roleApplyChecking: true
-    })
-
-    try {
-      const roleInfo = await roleService.getMyRoles()
-      const state = getExistingRoleApplyState(roleInfo, roleType)
-      const status = state.status
-
-      if (status === 'pending') {
-        this.applyRoleComparisonApplyStatus(roleInfo, roleType)
-        return
-      }
-
-      if ((status === 'approved' || status === 'rejected') && !state.viewed) {
-        this.applyRoleComparisonApplyStatus(roleInfo, roleType)
-        this.navigateRoleApplyResult(roleType, status)
-        return
-      }
-
-      if (status === 'approved' && state.viewed) {
-        this.applyRoleComparisonApplyStatus(roleInfo, roleType)
-        return
-      }
-
-      this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, roleType)
-    } catch (error) {
-      toast.info(error.message || '角色申请状态加载失败，请重试')
-    } finally {
-      this.setData({
-        roleApplyChecking: false
-      })
-    }
+    this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, roleType)
   },
 
 })
