@@ -1740,14 +1740,20 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 			completed++
 		}
 	}
+	dailyItems := []map[string]interface{}{
+		{"code": "daily_join_game", "title": "今日参与 1 次组局", "completed": stats.Participated > 0, "current": stats.Participated, "required": 1},
+	}
+	activityItems := []map[string]interface{}{
+		{"code": "activity_complete_game", "title": "完成一局并提交评价", "completed": stats.Completed > 0 && len(reviewIntents) > 0, "current": stats.Completed, "required": 1},
+	}
 	httpx.OK(w, map[string]interface{}{
 		"items":     items,
 		"completed": completed,
 		"total":     len(items),
 		"categories": []map[string]interface{}{
 			{"key": "newbie", "title": "新手任务", "items": items},
-			{"key": "daily", "title": "每日任务", "items": []map[string]interface{}{}},
-			{"key": "activity", "title": "活动任务", "items": []map[string]interface{}{}},
+			{"key": "daily", "title": "每日任务", "items": dailyItems},
+			{"key": "activity", "title": "活动任务", "items": activityItems},
 		},
 	})
 }

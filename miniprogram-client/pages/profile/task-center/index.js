@@ -63,6 +63,7 @@ Page({
     tabs: CATEGORY_TABS,
     activeCategory: 'newbie',
     tasks: [],
+    categoryTasks: { newbie: [], daily: [], activity: [] },
     loading: true,
     error: '',
     completedCount: 0,
@@ -80,11 +81,19 @@ Page({
       const newbieItems = sourceCategories.length
         ? ((sourceCategories.find((item) => item.key === 'newbie') || {}).items || [])
         : (data.items || data.tasks || data.list || [])
-      const tasks = newbieItems.map(normalizeTask)
+      const categories = {}
+      sourceCategories.forEach((category) => {
+        categories[category.key] = (category.items || []).map(normalizeTask)
+      })
+      categories.newbie = (categories.newbie || newbieItems.map(normalizeTask))
+      categories.daily = categories.daily || []
+      categories.activity = categories.activity || []
+      const tasks = categories.newbie
       this.setData({
         loading: false,
         error: '',
         tasks,
+        categoryTasks: categories,
         completedCount: tasks.filter((item) => item.completed).length,
         totalCount: tasks.length
       })
@@ -95,7 +104,7 @@ Page({
 
   onTabTap(event) {
     const key = event.currentTarget.dataset.key
-    if (key) this.setData({ activeCategory: key })
+    if (key) this.setData({ activeCategory: key, tasks: (this.data.categoryTasks || {})[key] || [] })
   },
 
   onTaskTap(event) {

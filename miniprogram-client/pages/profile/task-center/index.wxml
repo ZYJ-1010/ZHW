@@ -21,7 +21,7 @@
       <text>{{completedCount}}/{{totalCount}} 已完成</text>
     </view>
 
-    <view class="task-list" wx:if="{{activeCategory === 'newbie' && !loading && !error}}">
+    <view class="task-list" wx:if="{{!loading && !error}}">
       <view wx:for="{{tasks}}" wx:key="id" class="task-item {{item.itemClass}}" data-id="{{item.id}}" bindtap="onTaskTap">
         <view class="task-check {{item.completed ? 'done' : ''}}">{{item.completed ? '✓' : ''}}</view>
         <view class="task-copy">
@@ -30,13 +30,9 @@
         </view>
         <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
       </view>
-      <view wx:if="{{!tasks.length}}" class="task-empty">暂无新手任务</view>
+      <view wx:if="{{!tasks.length}}" class="task-empty">暂无开放任务</view>
     </view>
 
-    <view wx:elif="{{activeCategory !== 'newbie'}}" class="task-empty-panel">
-      <text class="task-empty-title">{{activeCategory === 'daily' ? '每日任务' : '活动任务'}}</text>
-      <text class="task-empty">暂无开放任务，后续活动会在这里展示</text>
-    </view>
     <view wx:elif="{{loading}}" class="task-empty">任务加载中...</view>
     <view wx:else class="task-empty">{{error}}</view>
 </view>
