@@ -2537,9 +2537,7 @@ func (s *Server) buildGameDetail(userID int64, game games.Game) GameDetailDTO {
 			Complete: s.reviews.GameReviewComplete(game.ID),
 		},
 	}
-	s.gameAuditRejectMu.RLock()
-	detail.AuditRejectReason = s.gameAuditRejects[game.ID]
-	s.gameAuditRejectMu.RUnlock()
+	detail.AuditRejectReason = game.RejectReason
 	if relation.IsMember {
 		if feedbacks, err := s.games.ProgressFeedbacks(userID, game.ID); err == nil {
 			detail.Progress.Feedbacks = feedbacks
@@ -3978,11 +3976,6 @@ func (s *Server) reviewGameAudit(gameID int64, approve bool, remark string) (gam
 		game, err = s.games.ApproveGame(gameID)
 	} else {
 		game, err = s.games.RejectGame(gameID, remark)
-	}
-	if err == nil && !approve {
-		s.gameAuditRejectMu.Lock()
-		s.gameAuditRejects[gameID] = remark
-		s.gameAuditRejectMu.Unlock()
 	}
 	return game, err
 }

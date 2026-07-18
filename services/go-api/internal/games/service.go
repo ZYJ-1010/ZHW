@@ -917,6 +917,7 @@ func (s *Service) ApproveGame(gameID int64) (Game, error) {
 		return Game{}, ErrGameNotFound
 	}
 	game.Status = "recruiting"
+	game.RejectReason = ""
 	if s.repo != nil {
 		saved, err := s.repo.UpdateGame(context.Background(), game)
 		if err != nil {
