@@ -340,6 +340,8 @@ func imNotificationSummary(messageType string, content string, fileID int64) str
 		return "[图片]"
 	case "file":
 		return "[文件]"
+	case "voice":
+		return "[语音]"
 	}
 	if fileID > 0 {
 		return "[文件]"
@@ -560,7 +562,7 @@ func (s *Server) openIMWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) validateChatMessageFile(w http.ResponseWriter, req im.SendRequest, gameID int64) bool {
-	if req.MessageType != "image" && req.MessageType != "file" {
+	if req.MessageType != "image" && req.MessageType != "file" && req.MessageType != "voice" {
 		return true
 	}
 	file, err := s.files.Get(req.FileID)

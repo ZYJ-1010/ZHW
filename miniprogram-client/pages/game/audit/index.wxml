@@ -33,6 +33,9 @@
 
       <view class="audit-list">
         <view wx:for="{{displayApplications}}" wx:key="id" class="audit-card">
+          <view wx:if="{{item.statusKey === 'pending'}}" class="audit-card-select {{item.selected ? 'checked' : ''}}" data-id="{{item.id}}" bindtap="handleApplicationSelectTap">
+            <view wx:if="{{item.selected}}" class="audit-card-checkmark"></view>
+          </view>
           <view class="audit-initiator">
             <view class="audit-initiator-avatar">
               <image wx:if="{{item.initiator.avatarUrl}}" class="audit-initiator-avatar-image" src="{{item.initiator.avatarUrl}}" mode="aspectFill"></image>
@@ -47,6 +50,7 @@
             </view>
           </view>
           <text class="audit-card-status {{item.statusKey}}">{{item.statusText}}</text>
+          <text wx:if="{{item.statusKey === 'rejected' && item.rejectReason}}" class="audit-reject-reason">驳回原因：{{item.rejectReason}}</text>
           <view wx:if="{{item.statusKey === 'pending'}}" class="audit-approve-button" data-id="{{item.id}}" bindtap="handleApproveTap">{{auditPage.texts.approveText}}</view>
           <view wx:if="{{item.statusKey === 'pending'}}" class="audit-reject-button" data-id="{{item.id}}" bindtap="handleRejectTap">{{auditPage.texts.rejectText}}</view>
           <view wx:else class="audit-reviewed-button">{{auditPage.texts.reviewedText}}</view>
@@ -63,6 +67,23 @@
         </label>
         <view class="audit-batch-button reject" bindtap="handleBatchRejectTap">{{auditPage.texts.batchRejectText}}</view>
         <view class="audit-batch-button approve" bindtap="handleBatchApproveTap">{{auditPage.texts.batchApproveText}}</view>
+      </view>
+
+      <view wx:if="{{rejectDialogVisible}}" class="reject-dialog-mask">
+        <view class="reject-dialog" catchtap="noop">
+          <text class="reject-dialog-title">{{rejectDialogTitle}}</text>
+          <textarea
+            class="reject-dialog-input"
+            maxlength="300"
+            placeholder="请输入具体原因，提交后会通知申请人"
+            value="{{rejectReasonDraft}}"
+            bindinput="handleRejectReasonInput"
+          />
+          <view class="reject-dialog-actions">
+            <button class="reject-dialog-cancel" hover-class="none" bindtap="closeRejectDialog">取消</button>
+            <button class="reject-dialog-confirm" hover-class="none" bindtap="handleRejectReasonConfirm">确认驳回</button>
+          </view>
+        </view>
       </view>
     </view>
   </scroll-view>

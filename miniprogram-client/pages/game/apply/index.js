@@ -361,6 +361,7 @@ Page({
       await gameService.applyGame(this.data.gameId, {
         reason: this.buildApplyReason(),
         fileIds,
+        agreed: this.data.form.agreed,
         roleType: getActiveRole()
       })
       this.showInfo(this.textOf('submitSuccessText'))

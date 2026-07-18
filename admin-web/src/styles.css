@@ -238,6 +238,17 @@ nav button {
   text-align: left;
 }
 
+nav button[data-view].has-pending-dot::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: #e5484d;
+}
+
 nav button[data-view].active,
 nav button[data-view]:hover,
 .nav-section-toggle:hover {

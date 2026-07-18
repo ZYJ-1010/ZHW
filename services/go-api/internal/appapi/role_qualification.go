@@ -1,0 +1,266 @@
+package appapi
+
+import (
+	"fmt"
+	"strings"
+
+	"zhw-mini/services/go-api/internal/invites"
+)
+
+type roleApplyRequirement struct {
+	Key      string `json:"key"`
+	Title    string `json:"title"`
+	Text     string `json:"text"`
+	Met      bool   `json:"met"`
+	Checked  bool   `json:"checked"`
+	Required int    `json:"required,omitempty"`
+	Current  int    `json:"current,omitempty"`
+}
+
+type roleApplyEligibility struct {
+	RoleCode     string                 `json:"roleCode"`
+	Eligible     bool                   `json:"eligible"`
+	BaseEligible bool                   `json:"baseEligible"`
+	Requirements []roleApplyRequirement `json:"requirements"`
+}
+
+type roleApplicationRequirementsError struct {
+	RoleCode string
+	Missing  []string
+}
+
+func roleApplicationRequirementsErrorIs(err error) bool {
+	_, ok := err.(roleApplicationRequirementsError)
+	return ok
+}
+
+func (e roleApplicationRequirementsError) Error() string {
+	if len(e.Missing) == 0 {
+		return "未满足角色申请条件"
+	}
+	return fmt.Sprintf("未满足申请条件：%s", strings.Join(e.Missing, "、"))
+}
+
+func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyEligibility, error) {
+	roleCode = strings.TrimSpace(roleCode)
+	if userID <= 0 || (roleCode != "expert" && roleCode != "guide") {
+		return roleApplyEligibility{}, fmt.Errorf("invalid role code")
+	}
+
+	growth := s.reviews.Profile(userID)
+	createdGames, participatedGames, completedUsers := s.roleApplyGameStats()
+	enterpriseMet := s.enterpriseCertificationMet(userID)
+	requirements := make([]roleApplyRequirement, 0, 7)
+	if roleCode == "expert" {
+		requirements = append(requirements,
+			roleApplyCountRequirement("level", "玩家等级达到 Lv.20", growth.Level, 20),
+			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
+			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
+			roleApplyCountRequirement("created_games", "发起过 5 次以上组局", createdGames[userID], 5),
+			roleApplyCountRequirement("credit_score", "信用分 ≥ 90 分", growth.CreditScore, 90),
+			roleApplyRequirement{Key: "plan", Title: "提交行家计划书", Text: "提交申请时填写计划书", Met: false, Checked: false},
+		)
+	} else {
+		invitedCompleted := s.roleApplyInvitedCompletedCount(userID, completedUsers)
+		requirements = append(requirements,
+			roleApplyCountRequirement("level", "玩家等级达到 Lv.5", growth.Level, 5),
+			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
+			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
+			roleApplyCountRequirement("participated_games", "参与过 3 次以上组局", participatedGames[userID], 3),
+			roleApplyCountRequirement("invited_completed_game", "已成功邀请 ≥ 1 人完成组局", invitedCompleted, 1),
+			roleApplyCountRequirement("credit_score", "信用分 ≥ 80 分", growth.CreditScore, 80),
+			roleApplyRequirement{Key: "plan", Title: "提交领路计划书", Text: "提交申请时填写计划书", Met: false, Checked: false},
+		)
+		if qualification, err := s.profiles.GuideQualification(userID); err == nil && qualification.ConditionMet {
+			for index, item := range requirements {
+				if item.Key == "plan" {
+					continue
+				}
+				item.Met = true
+				item.Checked = true
+				item.Text = "后台已确认"
+				requirements[index] = item
+			}
+		}
+	}
+
+	baseEligible := true
+	eligible := true
+	for _, item := range requirements {
+		if item.Key != "plan" && !item.Met {
+			baseEligible = false
+		}
+		if !item.Met {
+			eligible = false
+		}
+	}
+	return roleApplyEligibility{RoleCode: roleCode, Eligible: eligible, BaseEligible: baseEligible, Requirements: requirements}, nil
+}
+
+func roleApplyCountRequirement(key, title string, current, required int) roleApplyRequirement {
+	return roleApplyRequirement{
+		Key: key, Title: title, Text: fmt.Sprintf("当前 %d / 需要 %d", current, required),
+		Met: current >= required, Checked: current >= required, Current: current, Required: required,
+	}
+}
+
+func roleApplyBoolRequirement(key, title string, met bool, yes, no string) roleApplyRequirement {
+	text := no
+	if met {
+		text = yes
+	}
+	return roleApplyRequirement{Key: key, Title: title, Text: text, Met: met, Checked: met}
+}
+
+func (s *Server) roleApplyGameStats() (map[int64]int, map[int64]int, map[int64]bool) {
+	created := make(map[int64]int)
+	participated := make(map[int64]int)
+	completedUsers := make(map[int64]bool)
+	for _, game := range s.games.List() {
+		if game.CreatorUserID > 0 {
+			created[game.CreatorUserID]++
+		}
+		members := s.games.Members(game.ID)
+		for _, userID := range members {
+			if userID <= 0 {
+				continue
+			}
+			participated[userID]++
+			if game.Status == "pending_review" || game.Status == "completed" {
+				completedUsers[userID] = true
+			}
+		}
+	}
+	return created, participated, completedUsers
+}
+
+func (s *Server) roleApplyInvitedCompletedCount(userID int64, completedUsers map[int64]bool) int {
+	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
+	if err != nil {
+		return 0
+	}
+	seen := make(map[int64]bool)
+	for _, relation := range relations {
+		if relation.InviteeUserID > 0 && completedUsers[relation.InviteeUserID] {
+			seen[relation.InviteeUserID] = true
+		}
+	}
+	return len(seen)
+}
+
+func (s *Server) enterpriseCertificationMet(userID int64) bool {
+	payload := s.profiles.SystemManagementConfig(userID, "profile-info", nil)
+	items, ok := payload["certifications"]
+	if !ok {
+		return false
+	}
+	matched := func(item map[string]interface{}) bool {
+		if strings.TrimSpace(fmt.Sprint(item["key"])) != "enterprise" {
+			return false
+		}
+		status := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["status"])))
+		className := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["statusClass"])))
+		return className == "verified" || className == "approved" || className == "passed" ||
+			status == "verified" || status == "approved" || status == "passed" || status == "已认证" || status == "已通过"
+	}
+	switch values := items.(type) {
+	case []map[string]interface{}:
+		for _, item := range values {
+			if matched(item) {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, value := range values {
+			if item, ok := value.(map[string]interface{}); ok && matched(item) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (e roleApplyEligibility) missingBaseRequirements() []string {
+	missing := make([]string, 0)
+	for _, item := range e.Requirements {
+		if item.Key != "plan" && !item.Met {
+			missing = append(missing, item.Title)
+		}
+	}
+	return missing
+}
+
+func (s *Server) decorateRoleApplyConfig(config map[string]interface{}, eligibility roleApplyEligibility) map[string]interface{} {
+	result := cloneObjectMap(config)
+	result["eligibility"] = eligibility
+	result["canSubmit"] = eligibility.BaseEligible
+	byKey := make(map[string]roleApplyRequirement, len(eligibility.Requirements))
+	for _, item := range eligibility.Requirements {
+		byKey[item.Key] = item
+	}
+	if raw, ok := result["requirements"]; ok {
+		result["requirements"] = decorateRoleApplyRequirements(raw, byKey)
+	}
+	return result
+}
+
+func decorateRoleApplyRequirements(raw interface{}, byKey map[string]roleApplyRequirement) interface{} {
+	decorate := func(item map[string]interface{}) map[string]interface{} {
+		key := roleApplyRequirementKey(fmt.Sprint(item["title"]))
+		condition, ok := byKey[key]
+		if !ok {
+			return item
+		}
+		item["key"] = condition.Key
+		item["text"] = condition.Text
+		item["status"] = condition.Text
+		item["met"] = condition.Met
+		item["checked"] = condition.Checked
+		item["done"] = condition.Checked
+		return item
+	}
+	switch values := raw.(type) {
+	case []map[string]interface{}:
+		result := make([]map[string]interface{}, 0, len(values))
+		for _, item := range values {
+			result = append(result, decorate(cloneObjectMap(item)))
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, 0, len(values))
+		for _, value := range values {
+			if item, ok := value.(map[string]interface{}); ok {
+				result = append(result, decorate(cloneObjectMap(item)))
+			} else {
+				result = append(result, value)
+			}
+		}
+		return result
+	default:
+		return raw
+	}
+}
+
+func roleApplyRequirementKey(title string) string {
+	title = strings.TrimSpace(title)
+	switch {
+	case strings.Contains(title, "等级"):
+		return "level"
+	case strings.Contains(title, "实名认证"):
+		return "realname"
+	case strings.Contains(title, "企业认证"):
+		return "enterprise"
+	case strings.Contains(title, "发起") && strings.Contains(title, "组局"):
+		return "created_games"
+	case strings.Contains(title, "参与") && strings.Contains(title, "组局"):
+		return "participated_games"
+	case strings.Contains(title, "邀请") && strings.Contains(title, "完成组局"):
+		return "invited_completed_game"
+	case strings.Contains(title, "信用分"):
+		return "credit_score"
+	case strings.Contains(title, "计划书"):
+		return "plan"
+	default:
+		return ""
+	}
+}

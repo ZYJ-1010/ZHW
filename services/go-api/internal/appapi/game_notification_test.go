@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 
 	"zhw-mini/services/go-api/internal/auth"
@@ -74,7 +75,7 @@ func TestGameAuditAndApplicationNotificationsHTTP(t *testing.T) {
 	}
 
 	postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(approvedApplicationID, 10)+"/audit", creatorToken, `{"approve":true}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(rejectedApplicationID, 10)+"/audit", creatorToken, `{"approve":false}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(rejectedApplicationID, 10)+"/audit", creatorToken, `{"approve":false,"rejectReason":"资料不完整"}`, http.StatusOK)
 
 	approvedNotices := getJSON(t, mux, "/api/app/notifications", applicantToken, http.StatusOK)
 	if countNotificationsByType(t, approvedNotices, "application_approved") != 1 {
@@ -83,6 +84,13 @@ func TestGameAuditAndApplicationNotificationsHTTP(t *testing.T) {
 	rejectedNotices := getJSON(t, mux, "/api/app/notifications", rejectedToken, http.StatusOK)
 	if countNotificationsByType(t, rejectedNotices, "application_rejected") != 1 {
 		t.Fatalf("expected application_rejected notification: %s", string(rejectedNotices))
+	}
+	if !strings.Contains(string(rejectedNotices), "资料不完整") {
+		t.Fatalf("rejection reason must be included in notification: %s", string(rejectedNotices))
+	}
+	received := getJSON(t, mux, "/api/app/game-applications/received?gameId="+gameIDText, creatorToken, http.StatusOK)
+	if !strings.Contains(string(received), `"rejectReason":"资料不完整"`) {
+		t.Fatalf("rejection reason must be returned in audit detail: %s", string(received))
 	}
 }
 

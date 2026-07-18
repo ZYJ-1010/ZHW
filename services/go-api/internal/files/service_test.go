@@ -93,6 +93,20 @@ func TestCreateUploadTokenAppliesAccessPolicy(t *testing.T) {
 		t.Fatalf("expected game member chat file, got %+v", chatFile)
 	}
 
+	_, voiceFile, err := service.CreateUploadToken(1, UploadTokenRequest{
+		BizType:  "chat_file",
+		ObjectID: 99,
+		FileName: "voice.mp3",
+		MimeType: "audio/mpeg",
+		Size:     256,
+	})
+	if err != nil {
+		t.Fatalf("chat voice upload should be allowed: %v", err)
+	}
+	if voiceFile.MimeType != "audio/mpeg" || voiceFile.AccessLevel != "game_member" {
+		t.Fatalf("unexpected chat voice file: %+v", voiceFile)
+	}
+
 	_, reportAudio, err := service.CreateUploadToken(1, UploadTokenRequest{
 		BizType:  "report_attachment",
 		FileName: "feedback.m4a",

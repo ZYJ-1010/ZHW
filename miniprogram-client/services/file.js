@@ -31,6 +31,30 @@ function guessMimeType(fileName = '') {
     return 'application/zip'
   }
 
+  if (lower.endsWith('.doc')) {
+    return 'application/msword'
+  }
+
+  if (lower.endsWith('.docx')) {
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  }
+
+  if (lower.endsWith('.xls')) {
+    return 'application/vnd.ms-excel'
+  }
+
+  if (lower.endsWith('.xlsx')) {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  }
+
+  if (lower.endsWith('.ppt')) {
+    return 'application/vnd.ms-powerpoint'
+  }
+
+  if (lower.endsWith('.pptx')) {
+    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  }
+
   if (lower.endsWith('.mp3')) {
     return 'audio/mpeg'
   }
@@ -153,7 +177,21 @@ async function uploadSingleFile(path, options = {}) {
   return ids[0] || 0
 }
 
+async function getDownloadURL(fileId) {
+  const id = Number(fileId || 0)
+  if (!id) {
+    throw new Error('文件编号无效')
+  }
+  const result = await fileApi.getDownloadURL(id)
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取文件地址失败')
+  }
+  const data = result.data || {}
+  return data.downloadUrl || data.url || data
+}
+
 module.exports = {
   uploadEvidenceImages,
-  uploadSingleFile
+  uploadSingleFile,
+  getDownloadURL
 }

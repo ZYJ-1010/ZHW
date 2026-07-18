@@ -139,6 +139,8 @@ type Server struct {
 	mapChallenges        map[int64]mapChallengeDTO
 	mapProviderLimitMu   sync.Mutex
 	mapProviderLastSeen  map[string]time.Time
+	gameAuditRejectMu    sync.RWMutex
+	gameAuditRejects     map[int64]string
 
 	faceIDCallbackSecret           string
 	faceIDCallbackRequireSignature bool
@@ -151,7 +153,7 @@ func New(authService *auth.Service, identityService identityService, gameService
 	reviewService := reviews.NewService(gameService)
 	revenueService := revenue.NewService(reviewService)
 	pointsService := points.NewService()
-	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
+	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), gameAuditRejects: make(map[int64]string), nearbyDefaultRadiusMeter: 5000}
 	server.imSocketHub = newIMSocketHub(server)
 	return server
 }
@@ -494,6 +496,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("PUT /api/admin/games/condition-rule-config", s.requireAdminPermission("system_config:update", s.adminGameConditionRuleConfig))
 	handle("GET /api/admin/roles/benefit-config", s.requireAdminPermission("system_config:read", s.adminRoleBenefitConfig))
 	handle("PUT /api/admin/roles/benefit-config", s.requireAdminPermission("system_config:update", s.adminRoleBenefitConfig))
+	handle("POST /api/admin/roles/grant", s.requireAdminPermission("role:update", s.adminGrantRole))
 	handle("GET /api/admin/home/display-config", s.requireAdminPermission("system_config:read", s.adminHomeDisplayConfig))
 	handle("PUT /api/admin/home/display-config", s.requireAdminPermission("system_config:update", s.adminHomeDisplayConfig))
 	handle("GET /api/admin/reviews/complete-config", s.requireAdminPermission("system_config:read", s.adminReviewCompleteConfig))
@@ -1180,6 +1183,14 @@ func (s *Server) createInviteEntry(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
+	}
+	// 个人邀请码、海报和二维码只属于行家/领路人；组局内的成员邀请仍由组局权限控制。
+	if req.GameID <= 0 {
+		roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
+		if roles["expert"] != "approved" && roles["expert"] != "active" && roles["guide"] != "approved" && roles["guide"] != "active" {
+			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成邀请入口")
+			return
+		}
 	}
 	invite, err := s.auth.IssueInviteEntry(userID, req.EntryType)
 	if err != nil {

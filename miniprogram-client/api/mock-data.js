@@ -826,7 +826,8 @@ const mockRoleHomes = {
 const mockProfileHome = {
   user: {
     nickname: '小明',
-    memberLevel: '基础会员',
+    memberLevel: '',
+    memberStatus: 'none',
     roleLevel: 'V5 探险家',
     growthLevel: 'V5 探险家',
     role: '玩家',
@@ -865,7 +866,8 @@ const mockProfileHome = {
         { title: '我的押金', iconSrc: '/pages/profile/assets/i71@3x.png', iconClass: 'orange' },
         { title: '积分商城', iconSrc: '/pages/profile/assets/i72@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/mall/index' },
         { title: '我的积分', iconSrc: '/pages/profile/assets/i73@3x.png', iconClass: 'orange', route: '/pages/profile/asset-center/points/index' },
-        { title: '开票中心', iconSrc: '/pages/profile/assets/i74@3x.png', iconClass: 'orange' }
+        { title: '开票中心', iconSrc: '/pages/profile/assets/i74@3x.png', iconClass: 'orange' },
+        { title: '任务中心', iconSrc: '/pages/profile/assets/i73@3x.png', iconClass: 'orange', route: '/pages/profile/task-center/index' }
       ]
     }
   ],

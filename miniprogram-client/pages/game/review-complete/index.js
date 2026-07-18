@@ -167,7 +167,7 @@ Page({
     const option = this.data.playOptions.find((item) => item.id === id) || {}
 
     if (option.route === 'play_again' || id === 'again') {
-      navigateShellRoute(`/${ROUTES.gamePlayAgain}${this.data.reviewGameId ? `?gameId=${this.data.reviewGameId}` : ''}`)
+      this.replaceRoute(`/${ROUTES.gamePlayAgain}${this.data.reviewGameId ? `?gameId=${this.data.reviewGameId}` : ''}`)
       return
     }
 
@@ -182,6 +182,13 @@ Page({
   intentTitle(id) {
     const option = this.data.playOptions.find((item) => item.id === id)
     return option ? option.title : '再玩一局'
+  },
+
+  replaceRoute(route) {
+    wx.redirectTo({
+      url: route,
+      fail: () => wx.reLaunch({ url: route })
+    })
   },
 
   showInfo(title) {

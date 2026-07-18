@@ -105,6 +105,8 @@ func TestGameDetailPrimaryActionByStatusAndRelation(t *testing.T) {
 	tests := []struct {
 		name         string
 		status       string
+		current      int
+		max          int
 		relation     GameMyRelationDTO
 		pendingCount int
 		reviewed     bool
@@ -117,6 +119,7 @@ func TestGameDetailPrimaryActionByStatusAndRelation(t *testing.T) {
 		{name: "creator can start", status: "recruiting", relation: GameMyRelationDTO{IsCreator: true, IsMember: true, CanStart: true}, text: "开始组局", action: "start"},
 		{name: "creator audits applications", status: "recruiting", relation: GameMyRelationDTO{IsCreator: true, IsMember: true, CanAudit: true}, pendingCount: 2, text: "审核报名（2）", action: "audit", routePart: "gameId=42"},
 		{name: "guest applies", status: "recruiting", relation: GameMyRelationDTO{Role: "guest", CanApply: true}, text: "立即报名", action: "apply", routePart: "gameId=42"},
+		{name: "recruiting game full by member count", status: "recruiting", current: 5, max: 5, relation: GameMyRelationDTO{Role: "guest", CanApply: true}, text: "该局已满员", action: "none", disabled: true},
 		{name: "guest blocked by signup window", status: "recruiting", relation: GameMyRelationDTO{Role: "guest", ApplyDisabledReason: "signup closed"}, text: "signup closed", action: "none", disabled: true},
 		{name: "application pending", status: "recruiting", relation: GameMyRelationDTO{Role: "guest", ApplicationStatus: "pending"}, text: "报名审核中", action: "none", disabled: true},
 		{name: "member waits", status: "recruiting", relation: GameMyRelationDTO{IsMember: true}, text: "等待开局", action: "none", disabled: true},
@@ -134,7 +137,7 @@ func TestGameDetailPrimaryActionByStatusAndRelation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := gameDetailPrimaryAction(games.Game{ID: 42, Status: test.status, GameType: "free"}, test.relation, test.pendingCount, test.reviewed)
+			result := gameDetailPrimaryAction(games.Game{ID: 42, Status: test.status, GameType: "free", CurrentPlayers: test.current, MaxPlayers: test.max}, test.relation, test.pendingCount, test.reviewed)
 			if result.Text != test.text || result.Action != test.action || result.Disabled != test.disabled {
 				t.Fatalf("unexpected action: %+v", result)
 			}

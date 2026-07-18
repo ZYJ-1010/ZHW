@@ -1,6 +1,7 @@
 const DPAD_SCROLL_STEP_RPX = 360
 const { navigateShellBack, navigateShellForward, navigateShellKey } = require('../../utils/shell-nav')
 const profileService = require('../../services/profile')
+const toast = require('../../utils/toast')
 const { getHomeShellFixedFrameLayout } = require('./layout')
 const DEFAULT_ONLINE_COUNT = '0'
 
@@ -334,6 +335,11 @@ Component({
       }
 
       this.triggerEvent('navtap', { key })
+
+      if (key === 'map') {
+        toast.info('地图玩法暂未开放')
+        return
+      }
 
       if (this.properties.navAutoNavigate) {
         if (navigateShellKey(key, {

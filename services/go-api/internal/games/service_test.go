@@ -307,6 +307,86 @@ func TestApplyRejectsBeforeSignupWindow(t *testing.T) {
 	}
 }
 
+func TestRejectedApplicationsDoNotConsumePlayerCapacity(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	format := func(value time.Time) string { return value.Format("2006-01-02 15:04") }
+	now := time.Now()
+	game, err := service.Create(1, CreateRequest{
+		Title:         "capacity by members",
+		GameType:      "free",
+		MinPlayers:    5,
+		MaxPlayers:    5,
+		SignupStartAt: format(now.Add(-time.Hour)),
+		SignupEndAt:   format(now.Add(time.Hour)),
+		StartAt:       format(now.Add(2 * time.Hour)),
+		EndAt:         format(now.Add(4 * time.Hour)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game, err = service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := service.Apply(2, game.ID, ApplyRequest{Reason: "first"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ReviewApplication(1, first.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	afterReject, err := service.Get(game.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterReject.CurrentPlayers != 1 || afterReject.Status != "recruiting" {
+		t.Fatalf("rejected application must not consume capacity: %+v", afterReject)
+	}
+
+	second, err := service.Apply(2, game.ID, ApplyRequest{Reason: "retry"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ReviewApplication(1, second.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []int64{3, 4} {
+		app, applyErr := service.Apply(userID, game.ID, ApplyRequest{Reason: "join"})
+		if applyErr != nil {
+			t.Fatal(applyErr)
+		}
+		if _, reviewErr := service.ReviewApplication(1, app.ID, true); reviewErr != nil {
+			t.Fatal(reviewErr)
+		}
+	}
+
+	// 创建者 + A/B/C = 4 人，D 仍可报名；申请次数（含 A 的 rejected 记录）不应占位。
+	d, err := service.Apply(5, game.ID, ApplyRequest{Reason: "join"})
+	if err != nil {
+		t.Fatalf("fourth applicant must still be allowed with one slot left: %v", err)
+	}
+	current, err := service.Get(game.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.CurrentPlayers != 4 || current.Status != "recruiting" {
+		t.Fatalf("pending application must not consume capacity: %+v", current)
+	}
+	if _, err = service.ReviewApplication(1, d.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	full, err := service.Get(game.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if full.CurrentPlayers != 5 || full.Status != "full" {
+		t.Fatalf("only approved members should fill the game: %+v", full)
+	}
+	if _, err = service.Apply(6, game.ID, ApplyRequest{Reason: "too late"}); err != ErrGameNotRecruiting {
+		t.Fatalf("full game should reject new applications, got %v", err)
+	}
+}
+
 func TestSignupWindowUsesShanghaiLocalTime(t *testing.T) {
 	game := Game{
 		SignupStartAt: "2026-07-15 22:00",

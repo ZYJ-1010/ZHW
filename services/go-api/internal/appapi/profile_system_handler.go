@@ -302,9 +302,34 @@ func (s *Server) saveSystemSkillConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	payload = mergeObjectMap(s.defaultSystemSkillConfig(userID), payload)
+	if err := validateSystemSkillConfig(payload); err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, err.Error())
+		return
+	}
 	saved := s.profiles.SaveSystemManagementConfig(userID, "skill-config", payload)
 	s.recordBehavior(userID, "update_system_skill_config", "profile", userID, map[string]interface{}{"activeTab": saved["activeTab"]})
 	httpx.OK(w, saved)
+}
+
+func validateSystemSkillConfig(payload map[string]interface{}) error {
+	if slots, ok := payload["skillSlots"].([]interface{}); ok && len(slots) > 3 {
+		return errors.New("最多配置 3 个技能")
+	}
+	if slots, ok := payload["skillSlots"].([]map[string]interface{}); ok && len(slots) > 3 {
+		return errors.New("最多配置 3 个技能")
+	}
+	groups, ok := payload["skillGroups"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	visible, ok := groups["visible"].([]interface{})
+	if ok && len(visible) > 3 {
+		return errors.New("最多配置 3 个技能")
+	}
+	if visible, ok := groups["visible"].([]map[string]interface{}); ok && len(visible) > 3 {
+		return errors.New("最多配置 3 个技能")
+	}
+	return nil
 }
 
 func (s *Server) getSystemFeedbackHome(w http.ResponseWriter, r *http.Request) {

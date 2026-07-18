@@ -39,6 +39,9 @@
 
         <block wx:for="{{messages}}" wx:key="id">
           <view id="message-{{index}}" class="message-node">
+            <view wx:if="{{item.showDateDivider}}" class="message-date-divider">
+              <text>{{item.dateDividerText}}</text>
+            </view>
             <view wx:if="{{item.kind === 'system'}}" class="system-card">
               <view class="system-card-header">
                 <text class="assistant-badge">IM</text>
@@ -126,13 +129,13 @@
                   <text wx:if="{{item.createdAtText}}" class="message-time">{{item.createdAtText}}</text>
                 </view>
 
-                <view wx:if="{{item.kind === 'media'}}" class="media-bubble {{item.messageType}}">
+                <view wx:if="{{item.kind === 'media'}}" class="media-bubble {{item.messageType}}" data-file-id="{{item.fileId}}" data-message-type="{{item.messageType}}" data-file-name="{{item.fileName}}" bindtap="onMediaTap">
                   <view class="media-icon">
-                    <text>{{item.messageType === 'image' ? 'IMG' : 'FILE'}}</text>
+                    <text>{{item.messageType === 'image' ? 'IMG' : (item.messageType === 'voice' ? '♫' : 'FILE')}}</text>
                   </view>
                   <view class="media-copy">
-                    <text class="media-title">{{item.messageType === 'image' ? '图片消息' : item.fileName}}</text>
-                    <text class="media-desc">{{item.fileId ? '文件已入库，后台可查看下载' : '等待文件信息同步'}}</text>
+                    <text class="media-title">{{item.messageType === 'image' ? '图片消息' : (item.messageType === 'voice' ? '语音消息' : item.fileName)}}</text>
+                    <text class="media-desc">{{item.fileId ? (item.messageType === 'voice' ? '点击播放' : (item.messageType === 'image' ? '点击查看' : '点击打开')) : '等待文件信息同步'}}</text>
                   </view>
                 </view>
 

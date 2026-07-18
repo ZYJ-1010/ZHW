@@ -742,6 +742,7 @@ function normalizeApplicationDetail(item = {}, detailConfig = EMPTY_DETAIL_CONFI
   const status = normalizeStatus(item.status || item.statusKey)
   const nickname = firstValue(item.nickname, item.userName, item.userNickname, item.user && item.user.nickname)
   const reason = String(firstValue(item.reason, item.remark, item.applyReason)).trim()
+  const rejectReason = String(firstValue(item.rejectReason, item.reject_reason)).trim()
   const texts = Object.assign({}, detailConfig.texts || {}, detailDisplay.texts || {})
   const playerStatusTexts = detailConfig.playerStatusTexts || {}
   const roleKey = normalizeAuditDetailRole(firstValue(item.roleKey, item.role, item.roleType))
@@ -786,7 +787,9 @@ function normalizeApplicationDetail(item = {}, detailConfig = EMPTY_DETAIL_CONFI
     roleKey,
     roleName,
     tags,
-    needText: reason ? `${texts.needPrefix || ''}${reason}` : '',
+    needText: status === 'rejected' && rejectReason
+      ? `驳回原因：${rejectReason}`
+      : (reason ? `${texts.needPrefix || ''}${reason}` : ''),
     expectedTime: firstValue(item.expectedTimeText, item.expectedTime),
     remark: firstValue(item.createdAtText, item.applyTime, item.createdAt) ? `${texts.remarkPrefix || ''}${firstValue(item.createdAtText, item.applyTime, item.createdAt)}` : ''
   }
@@ -884,6 +887,8 @@ Page({
     detailMode: 'application',
     hasDetail: false,
     actionLoading: false,
+    rejectDialogVisible: false,
+    rejectReasonDraft: '',
     uploadedFileIds: [],
     onlineText: '在线',
     countdownText: '',
@@ -1230,7 +1235,31 @@ Page({
   },
 
   handleDeclineTap() {
-    this.reviewCurrentApplication(false)
+    if (this.data.detailMode === 'invitation') {
+      this.reviewCurrentApplication(false)
+      return
+    }
+    this.setData({ rejectDialogVisible: true, rejectReasonDraft: '' })
+  },
+
+  handleRejectReasonInput(event) {
+    this.setData({ rejectReasonDraft: event.detail.value || '' })
+  },
+
+  closeRejectDialog() {
+    this.setData({ rejectDialogVisible: false, rejectReasonDraft: '' })
+  },
+
+  noop() {},
+
+  handleRejectReasonConfirm() {
+    const reason = String(this.data.rejectReasonDraft || '').trim()
+    if (!reason) {
+      toast.info('请填写驳回理由')
+      return
+    }
+    this.closeRejectDialog()
+    this.reviewCurrentApplication(false, reason)
   },
 
   handleApproveTap() {
@@ -1242,7 +1271,7 @@ Page({
     toast.info(reason || this.data.confirmDisabledReason || '当前暂不能确认')
   },
 
-  async reviewCurrentApplication(approve) {
+  async reviewCurrentApplication(approve, rejectReason = '') {
     if (this.data.actionLoading || !this.data.auditId || !this.data.hasDetail) {
       if (!this.data.hasDetail) {
         toast.info(this.textOf('detailRequiredReviewText'))
@@ -1273,7 +1302,7 @@ Page({
           return
         }
       } else {
-        const application = await gameService.reviewGameApplication(this.data.auditId, approve)
+        const application = await gameService.reviewGameApplication(this.data.auditId, approve, approve ? '' : rejectReason)
         this.setData(normalizeApplicationDetail(application, this.data.detailConfig))
         toast.success(approve ? this.textOf('approveSuccessText') : this.textOf('rejectSuccessText'))
       }

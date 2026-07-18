@@ -531,6 +531,10 @@ function normalizeGuideApplyConfig(config) {
 }
 
 function applyGuideQualificationToConfig(config, roleInfo = {}) {
+  if (config && config.eligibility) {
+    return config
+  }
+
   const qualification = roleInfo.guideQualification || roleInfo.qualification || {}
   const qualificationMet = Boolean(qualification.conditionMet)
 
@@ -706,6 +710,10 @@ function getUnmetExpertRequirements(page = {}) {
   const requirements = Array.isArray(page.requirements) ? page.requirements : []
 
   return requirements.filter((requirement) => requirement && !requirement.checked)
+}
+
+function isPlanRequirement(requirement = {}) {
+  return requirement.key === 'plan' || /计划书/.test(trimText(requirement.title))
 }
 
 function buildExpertApplyPayload(page, form) {
@@ -1529,13 +1537,14 @@ Page({
   stopExpertApplyTap() {},
 
   canEnterExpertApplyForm(page = this.data.currentHomePreview || {}) {
-    const unmetRequirements = getUnmetExpertRequirements(page)
+    const unmetRequirements = getUnmetExpertRequirements(page).filter((requirement) => !isPlanRequirement(requirement))
 
     if (!unmetRequirements.length) {
       return true
     }
 
-    return true
+    toast.info(`请先满足申请条件：${unmetRequirements.map((item) => item.title).join('、')}`)
+    return false
   },
 
   showExpertApplyForm() {

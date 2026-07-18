@@ -212,6 +212,21 @@ page {
   margin-top: 22rpx;
 }
 
+.message-date-divider {
+  display: flex;
+  justify-content: center;
+  margin: 4rpx 0 18rpx;
+}
+
+.message-date-divider text {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 20rpx;
+  line-height: 28rpx;
+}
+
 .system-card {
   width: 584rpx;
   max-width: 100%;
@@ -581,6 +596,11 @@ page {
   padding: 18rpx;
   border-radius: 18rpx;
   background: #ffffff;
+}
+
+.media-bubble.voice .media-icon {
+  background: #8b5cf6;
+  font-size: 38rpx;
 }
 
 .chat-row.self .media-bubble {

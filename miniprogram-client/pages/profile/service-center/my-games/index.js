@@ -187,17 +187,12 @@ Page({
 
   async loadMyGames() {
     try {
-      const [playerData, managedData, favoriteData] = await Promise.all([
+      const [playerData, favoriteData] = await Promise.all([
         gameService.getPlayerGameManage(),
-        gameService.getGameManage(),
         gameService.getMyFavoriteGames()
       ])
-      const cards = normalizeMyGameCards(
-        playerData,
-        managedData,
-        favoriteData
-      )
-      const pageConfig = normalizeMyGamesPageConfig(playerData.pageConfig || managedData.pageConfig || favoriteData.pageConfig)
+      const cards = normalizeMyGameCards(playerData, null, favoriteData)
+      const pageConfig = normalizeMyGamesPageConfig(playerData.pageConfig || favoriteData.pageConfig)
 
       this.setData({
         loaded: true,
@@ -264,7 +259,7 @@ function normalizeMyGameCards(playerData, managedData, favoriteData) {
   const playerOrders = normalizeOrders(playerData).map((item, index) => normalizeGameCard(item, 'joined', index))
   const joinedGameIds = new Set(playerOrders.map((item) => String(item.gameId || '')).filter(Boolean))
   const managedOrders = normalizeOrders(managedData)
-    .map((item, index) => normalizeGameCard(item, 'invited', index))
+    .map((item, index) => normalizeGameCard(item, 'created', index))
     .filter((item) => !item.gameId || !joinedGameIds.has(String(item.gameId)))
   const favoriteOrders = normalizeOrders(favoriteData).map((item, index) => normalizeGameCard(item, 'favorite', index))
 

@@ -30,6 +30,7 @@ func TestPlayerBackendIsolatedLifecycleHTTP(t *testing.T) {
 	ownerToken := loginForTestWithCode(t, mux, "isolated-owner")
 	completeIdentityForTest(t, mux, ownerToken)
 	ownerID := currentUserIDForTest(t, mux, ownerToken)
+	server.profiles.GrantRole(ownerID, "guide")
 
 	inviteBody := postJSON(t, mux, "/api/app/invites/entries", ownerToken, `{"entryType":"link","title":"isolated lifecycle invite"}`, http.StatusOK)
 	var inviteResp struct {
@@ -63,9 +64,10 @@ func TestPlayerBackendIsolatedLifecycleHTTP(t *testing.T) {
 	guideID := currentUserIDForTest(t, mux, guideToken)
 
 	// Exercise both role applications before the game flow.
-	expertAppBody := postJSON(t, mux, "/api/app/role-applications", ownerToken, `{"roleCode":"expert","reason":"isolated expert application","abilityDescription":"lifecycle test"}`, http.StatusOK)
-	expertAppID := lifecycleResponseID(t, expertAppBody)
-	postAdminJSON(t, mux, "/api/admin/audits/role-applications/"+strconv.FormatInt(expertAppID, 10)+"/review", adminToken, `{"approve":true,"remark":"isolated approval"}`, http.StatusOK)
+	expertAppBody := postJSON(t, mux, "/api/app/role-applications", ownerToken, `{"roleCode":"expert","reason":"isolated expert application","abilityDescription":"lifecycle test"}`, http.StatusConflict)
+	if !jsonContainsLifecycle(expertAppBody, "未满足申请条件") {
+		t.Fatalf("expected expert eligibility rejection: %s", string(expertAppBody))
+	}
 
 	postAdminJSON(t, mux, "/api/admin/guide-qualification-rules", adminToken, `{"userId":`+strconv.FormatInt(guideID, 10)+`,"conditionMet":true,"paymentMet":true}`, http.StatusOK)
 	guideAppBody := postJSON(t, mux, "/api/app/guides/apply", guideToken, `{"reason":"isolated guide application","abilityDescription":"lead isolated games"}`, http.StatusOK)

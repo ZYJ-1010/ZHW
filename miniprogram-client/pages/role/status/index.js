@@ -347,12 +347,15 @@ Page({
       if (!application || !application.status) {
         this.setData({
           loading: false,
-          loadError: '后端未返回该角色的申请状态',
+          loadError: '',
           roleType: normalizeRoleType(roleType, config),
           status: '',
           pageConfig: config,
           texts: config.texts
         })
+        // 没有申请记录时回到申请条件页，避免把“尚未申请”误显示为审核状态加载失败。
+        const targetRole = normalizeRoleType(roleType, config)
+        navigateShellRoute(`${ROUTES.roleFlow}?mode=${targetRole === 'expert' ? 'expertApplyOverview' : 'roleApplyOverview'}&single=1&roleType=${targetRole}`)
         return
       }
 

@@ -26,14 +26,14 @@ insert into games (
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at, updated_at
-) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34)
+  longitude, latitude, created_at, updated_at, reject_reason
+) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35)
 returning id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
   cover_image, description, highlights, notice, audience, participation, price, profit_template,
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at
+  longitude, latitude, created_at, reject_reason
 `, game.CreatorUserID, nullInt64(game.MainGuideUserID), game.Title, game.GameType, game.GameSource, game.Status,
 		nullString(game.CoverImage), nullString(game.Description), nullString(game.Highlights), nullString(game.Notice),
 		nullString(game.Audience), nullString(game.Participation), game.Price, nullString(game.ProfitTemplate),
@@ -41,7 +41,7 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
 		string(tagsJSON), string(completionRulesJSON),
 		nullString(game.PrimaryCategory), nullString(game.PrimaryCategoryText), nullString(game.SecondaryCategory), nullString(game.SecondaryCategoryText), nullString(game.Type),
 		game.MinPlayers, game.MaxPlayers, game.CurrentPlayers, game.CityCode, game.CityName,
-		nullString(game.Address), game.Longitude, game.Latitude, game.CreatedAt))
+		nullString(game.Address), game.Longitude, game.Latitude, game.CreatedAt, nullString(game.RejectReason)))
 }
 
 func (r *SQLRepository) UpdateGame(ctx context.Context, game Game) (Game, error) {
@@ -81,6 +81,7 @@ update games set
   address = $31,
   longitude = $32,
   latitude = $33,
+  reject_reason = $34,
   updated_at = now()
 where id = $1
 returning id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
@@ -88,7 +89,7 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at
+  longitude, latitude, created_at, reject_reason
 `, game.ID, nullInt64(game.MainGuideUserID), game.Title, game.GameType, game.GameSource, game.Status,
 		nullString(game.CoverImage), nullString(game.Description), nullString(game.Highlights), nullString(game.Notice),
 		nullString(game.Audience), nullString(game.Participation), game.Price, nullString(game.ProfitTemplate),
@@ -96,7 +97,7 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
 		string(tagsJSON), string(completionRulesJSON),
 		nullString(game.PrimaryCategory), nullString(game.PrimaryCategoryText), nullString(game.SecondaryCategory), nullString(game.SecondaryCategoryText), nullString(game.Type),
 		game.MinPlayers, game.MaxPlayers, game.CurrentPlayers, game.CityCode, game.CityName,
-		nullString(game.Address), game.Longitude, game.Latitude))
+		nullString(game.Address), game.Longitude, game.Latitude, nullString(game.RejectReason)))
 }
 
 func (r *SQLRepository) GetGame(ctx context.Context, gameID int64) (Game, error) {
@@ -106,7 +107,7 @@ select id, creator_user_id, main_guide_user_id, title, game_type, game_source, s
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at
+  longitude, latitude, created_at, reject_reason
 from games
 where id = $1
 `, gameID))
@@ -123,7 +124,7 @@ select id, creator_user_id, main_guide_user_id, title, game_type, game_source, s
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at
+  longitude, latitude, created_at, reject_reason
 from games
 order by created_at desc, id desc
 `)
@@ -225,10 +226,10 @@ order by joined_at asc, user_id asc
 func (r *SQLRepository) CreateApplication(ctx context.Context, application Application) (Application, error) {
 	fileIDs, _ := json.Marshal(application.FileIDs)
 	return scanApplication(r.db.QueryRowContext(ctx, `
-insert into game_applications (game_id, user_id, role, status, reason, file_ids, created_at)
-values ($1,$2,$3,$4,$5,$6,$7)
-returning id, game_id, user_id, role, status, reason, file_ids, created_at
-`, application.GameID, application.UserID, application.Role, application.Status, application.Reason, string(fileIDs), application.CreatedAt))
+insert into game_applications (game_id, user_id, role, status, reason, reject_reason, file_ids, created_at)
+values ($1,$2,$3,$4,$5,$6,$7,$8)
+returning id, game_id, user_id, role, status, reason, reject_reason, file_ids, created_at
+`, application.GameID, application.UserID, application.Role, application.Status, application.Reason, nullString(application.RejectReason), string(fileIDs), application.CreatedAt))
 }
 
 func (r *SQLRepository) UpdateApplication(ctx context.Context, application Application) (Application, error) {
@@ -237,16 +238,17 @@ func (r *SQLRepository) UpdateApplication(ctx context.Context, application Appli
 update game_applications set
   status = $2,
   reason = $3,
-  file_ids = $4,
+  reject_reason = $4,
+  file_ids = $5,
   reviewed_at = case when $2::varchar = 'pending' then reviewed_at else now() end
 where id = $1
-returning id, game_id, user_id, role, status, reason, file_ids, created_at
-`, application.ID, application.Status, application.Reason, string(fileIDs)))
+returning id, game_id, user_id, role, status, reason, reject_reason, file_ids, created_at
+`, application.ID, application.Status, application.Reason, nullString(application.RejectReason), string(fileIDs)))
 }
 
 func (r *SQLRepository) GetApplication(ctx context.Context, applicationID int64) (Application, error) {
 	app, err := scanApplication(r.db.QueryRowContext(ctx, `
-select id, game_id, user_id, role, status, reason, file_ids, created_at
+select id, game_id, user_id, role, status, reason, reject_reason, file_ids, created_at
 from game_applications
 where id = $1
 `, applicationID))
@@ -258,7 +260,7 @@ where id = $1
 
 func (r *SQLRepository) ListApplicationsByUser(ctx context.Context, userID int64) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select id, game_id, user_id, role, status, reason, file_ids, created_at
+select id, game_id, user_id, role, status, reason, reject_reason, file_ids, created_at
 from game_applications
 where user_id = $1
 order by created_at desc, id desc
@@ -272,7 +274,7 @@ order by created_at desc, id desc
 
 func (r *SQLRepository) ListApplicationsForCreator(ctx context.Context, creatorUserID int64) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select a.id, a.game_id, a.user_id, a.role, a.status, a.reason, a.file_ids, a.created_at
+select a.id, a.game_id, a.user_id, a.role, a.status, a.reason, a.reject_reason, a.file_ids, a.created_at
 from game_applications a
 join games g on g.id = a.game_id
 where g.creator_user_id = $1
@@ -414,6 +416,7 @@ func scanGame(row interface {
 	var address sql.NullString
 	var longitude sql.NullFloat64
 	var latitude sql.NullFloat64
+	var rejectReason sql.NullString
 	err := row.Scan(
 		&game.ID,
 		&game.CreatorUserID,
@@ -450,11 +453,13 @@ func scanGame(row interface {
 		&longitude,
 		&latitude,
 		&game.CreatedAt,
+		&rejectReason,
 	)
 	if err != nil {
 		return Game{}, err
 	}
 	game.MainGuideUserID = mainGuideUserID.Int64
+	game.RejectReason = rejectReason.String
 	game.CoverImage = coverImage.String
 	game.Description = description.String
 	game.Highlights = highlights.String
@@ -502,6 +507,7 @@ func scanApplication(row interface {
 }) (Application, error) {
 	var application Application
 	var reason sql.NullString
+	var rejectReason sql.NullString
 	var rawFileIDs []byte
 	if err := row.Scan(
 		&application.ID,
@@ -510,12 +516,14 @@ func scanApplication(row interface {
 		&application.Role,
 		&application.Status,
 		&reason,
+		&rejectReason,
 		&rawFileIDs,
 		&application.CreatedAt,
 	); err != nil {
 		return Application{}, err
 	}
 	application.Reason = reason.String
+	application.RejectReason = rejectReason.String
 	if len(rawFileIDs) > 0 {
 		_ = json.Unmarshal(rawFileIDs, &application.FileIDs)
 	}

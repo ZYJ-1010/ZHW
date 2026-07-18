@@ -63,6 +63,10 @@
           </view>
         </view>
 
+        <view wx:if="{{game.auditRejectReason || auditRejectReason}}" class="plain-card notice-card">
+          <text>审核未通过：{{game.auditRejectReason || auditRejectReason}}</text>
+        </view>
+
         <view class="tag-row">
           <view wx:for="{{tags}}" wx:key="name" class="tag-pill {{item.tone}}">{{item.name}}</view>
         </view>

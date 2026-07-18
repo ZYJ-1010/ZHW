@@ -26,7 +26,7 @@
           <view class="profile-user-copy">
             <view class="profile-name-row">
               <text class="profile-name">{{user.nickname}}</text>
-              <text wx:if="{{user.memberLevel}}" class="profile-member">{{user.memberLevel}}</text>
+              <text wx:if="{{user.memberLevel && user.memberStatus === 'active'}}" class="profile-member">{{user.memberLevel}}</text>
             </view>
             <view class="profile-role-row">
               <text>{{user.roleLevel}}</text>

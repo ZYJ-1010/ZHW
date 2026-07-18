@@ -86,6 +86,7 @@ type Game struct {
 	Type                  string    `json:"type,omitempty"`
 	GameSource            string    `json:"gameSource"`
 	Status                string    `json:"status"`
+	RejectReason          string    `json:"rejectReason,omitempty"`
 	MinPlayers            int       `json:"minPlayers"`
 	MaxPlayers            int       `json:"maxPlayers"`
 	CurrentPlayers        int       `json:"currentPlayers"`
@@ -100,14 +101,15 @@ type Game struct {
 }
 
 type Application struct {
-	ID        int64     `json:"id"`
-	GameID    int64     `json:"gameId"`
-	UserID    int64     `json:"userId"`
-	Role      string    `json:"role"`
-	Status    string    `json:"status"`
-	Reason    string    `json:"reason,omitempty"`
-	FileIDs   []int64   `json:"fileIds,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID           int64     `json:"id"`
+	GameID       int64     `json:"gameId"`
+	UserID       int64     `json:"userId"`
+	Role         string    `json:"role"`
+	Status       string    `json:"status"`
+	Reason       string    `json:"reason,omitempty"`
+	RejectReason string    `json:"rejectReason,omitempty"`
+	FileIDs      []int64   `json:"fileIds,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 type Invitation struct {
@@ -906,6 +908,33 @@ func (s *Service) ApproveGame(gameID int64) (Game, error) {
 	return game, nil
 }
 
+func (s *Service) RejectGame(gameID int64, reason string) (Game, error) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return Game{}, ErrInvalidGameInput
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	game, ok, err := s.gameLocked(gameID)
+	if err != nil {
+		return Game{}, err
+	}
+	if !ok {
+		return Game{}, ErrGameNotFound
+	}
+	game.Status = "rejected"
+	game.RejectReason = reason
+	if s.repo != nil {
+		saved, err := s.repo.UpdateGame(context.Background(), game)
+		if err != nil {
+			return Game{}, err
+		}
+		game = saved
+	}
+	s.games[gameID] = game
+	return game, nil
+}
+
 func (s *Service) Apply(userID int64, gameID int64, req ApplyRequest) (Application, error) {
 	req.Reason = strings.TrimSpace(req.Reason)
 	requestedRole := req.RoleType
@@ -927,14 +956,15 @@ func (s *Service) Apply(userID int64, gameID int64, req ApplyRequest) (Applicati
 	if game.Status != "recruiting" {
 		return Application{}, ErrGameNotRecruiting
 	}
+	// 满员校验必须在服务层完成，避免绕过 HTTP handler 直接调用 API 时超额报名。
+	if game.CurrentPlayers >= game.MaxPlayers {
+		return Application{}, ErrFull
+	}
 	if err := signupWindowError(game, time.Now()); err != nil {
 		return Application{}, err
 	}
 	if s.memberLocked(gameID, userID) {
 		return Application{}, ErrAlreadyMember
-	}
-	if game.CurrentPlayers >= game.MaxPlayers {
-		return Application{}, ErrFull
 	}
 	for _, app := range s.applications {
 		if app.GameID == gameID && app.UserID == userID && app.Status == "pending" {
@@ -1199,6 +1229,11 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 }
 
 func (s *Service) ReviewApplication(operatorUserID int64, applicationID int64, approve bool) (Application, error) {
+	return s.ReviewApplicationWithReason(operatorUserID, applicationID, approve, "")
+}
+
+func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationID int64, approve bool, rejectReason string) (Application, error) {
+	rejectReason = strings.TrimSpace(rejectReason)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	app, ok := s.applications[applicationID]
@@ -1263,6 +1298,7 @@ func (s *Service) ReviewApplication(operatorUserID int64, applicationID int64, a
 		s.games[game.ID] = game
 	} else {
 		app.Status = "rejected"
+		app.RejectReason = rejectReason
 	}
 	if s.repo != nil {
 		if saved, err := s.repo.UpdateApplication(context.Background(), app); err != nil {

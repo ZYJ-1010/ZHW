@@ -1,0 +1,42 @@
+<view class="task-center-page">
+    <view class="task-center-head">
+      <text class="task-center-title">任务中心</text>
+      <text class="task-center-desc">完成任务，获取经验和平台权益</text>
+    </view>
+
+    <scroll-view class="task-tabs" scroll-x enhanced show-scrollbar="false">
+      <view class="task-tab-row">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="task-tab {{activeCategory === item.key ? 'active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onTabTap"
+        >{{item.label}}</view>
+      </view>
+    </scroll-view>
+
+    <view class="task-summary" wx:if="{{activeCategory === 'newbie'}}">
+      <text>新手任务进度</text>
+      <text>{{completedCount}}/{{totalCount}} 已完成</text>
+    </view>
+
+    <view class="task-list" wx:if="{{activeCategory === 'newbie' && !loading && !error}}">
+      <view wx:for="{{tasks}}" wx:key="id" class="task-item {{item.itemClass}}" data-id="{{item.id}}" bindtap="onTaskTap">
+        <view class="task-check {{item.completed ? 'done' : ''}}">{{item.completed ? '✓' : ''}}</view>
+        <view class="task-copy">
+          <text class="task-title">{{item.title}}</text>
+          <text wx:if="{{item.rewardText}}" class="task-reward">{{item.rewardText}}</text>
+        </view>
+        <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
+      </view>
+      <view wx:if="{{!tasks.length}}" class="task-empty">暂无新手任务</view>
+    </view>
+
+    <view wx:elif="{{activeCategory !== 'newbie'}}" class="task-empty-panel">
+      <text class="task-empty-title">{{activeCategory === 'daily' ? '每日任务' : '活动任务'}}</text>
+      <text class="task-empty">暂无开放任务，后续活动会在这里展示</text>
+    </view>
+    <view wx:elif="{{loading}}" class="task-empty">任务加载中...</view>
+    <view wx:else class="task-empty">{{error}}</view>
+</view>

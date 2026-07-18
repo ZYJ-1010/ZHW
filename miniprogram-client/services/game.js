@@ -230,9 +230,10 @@ async function getReceivedApplications(params) {
   return result.data
 }
 
-async function reviewGameApplication(applicationId, approve) {
+async function reviewGameApplication(applicationId, approve, rejectReason = '') {
   const result = await gameApi.reviewGameApplication(applicationId, {
-    approve: Boolean(approve)
+    approve: Boolean(approve),
+    rejectReason: String(rejectReason || '').trim()
   })
 
   if (result.code !== 0) {

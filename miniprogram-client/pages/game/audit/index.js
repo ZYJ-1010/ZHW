@@ -80,7 +80,8 @@ function normalizeApplication(item = {}, auditPage = EMPTY_AUDIT_PAGE) {
     applyTime: item.createdAt || item.applyTime || '-',
     statusKey,
     statusText: auditPage.statusTexts[statusKey] || auditPage.statusTexts.pending || '',
-    reason: item.reason || ''
+    reason: item.reason || '',
+    rejectReason: item.rejectReason || item.reject_reason || ''
   }
 }
 
@@ -110,8 +111,14 @@ Page({
     filters: [],
     applications: EMPTY_APPLICATIONS,
     displayApplications: EMPTY_APPLICATIONS,
+    selectedApplicationIds: [],
     loading: false,
-    reviewing: false
+    reviewing: false,
+    rejectDialogVisible: false,
+    rejectDialogTitle: '填写驳回理由',
+    rejectDialogApplicationId: '',
+    rejectDialogBatch: false,
+    rejectReasonDraft: ''
   },
 
   onLoad(options = {}) {
@@ -156,7 +163,9 @@ Page({
 
       this.setData({
         applications: items,
-        displayApplications: filterApplications(items, this.data.activeFilter)
+        displayApplications: filterApplications(items, this.data.activeFilter),
+        selectedApplicationIds: [],
+        allSelected: false
       })
     } catch (error) {
       toast.info(error.message || this.textOf('loadFailedText'))
@@ -170,16 +179,43 @@ Page({
 
   handleFilterTap(event) {
     const key = event.currentTarget.dataset.key || 'all'
+    const selected = new Set(this.data.selectedApplicationIds.map((item) => String(item)))
+    const displayApplications = filterApplications(this.data.applications, key).map((item) => ({ ...item, selected: selected.has(String(item.id)) }))
 
     this.setData({
       activeFilter: key,
-      displayApplications: filterApplications(this.data.applications, key)
+      displayApplications,
+      allSelected: false
     })
   },
 
   handleSelectAllTap() {
+    const pendingIds = this.data.displayApplications.filter((item) => item.statusKey === 'pending' && item.id).map((item) => String(item.id))
+    const selected = this.data.allSelected ? [] : pendingIds
+    const selectedSet = new Set(selected)
     this.setData({
-      allSelected: !this.data.allSelected
+      allSelected: selected.length > 0 && selected.length === pendingIds.length,
+      selectedApplicationIds: selected,
+      displayApplications: this.data.displayApplications.map((item) => ({ ...item, selected: selectedSet.has(String(item.id)) }))
+    })
+  },
+
+  handleApplicationSelectTap(event) {
+    const id = String(event.currentTarget.dataset.id || '')
+    if (!id) {
+      return
+    }
+    const selected = new Set(this.data.selectedApplicationIds.map((item) => String(item)))
+    if (selected.has(id)) {
+      selected.delete(id)
+    } else {
+      selected.add(id)
+    }
+    const pendingIds = this.data.displayApplications.filter((item) => item.statusKey === 'pending' && item.id).map((item) => String(item.id))
+    this.setData({
+      selectedApplicationIds: [...selected],
+      allSelected: pendingIds.length > 0 && pendingIds.every((item) => selected.has(item)),
+      displayApplications: this.data.displayApplications.map((item) => ({ ...item, selected: selected.has(String(item.id)) }))
     })
   },
 
@@ -188,7 +224,7 @@ Page({
   },
 
   handleRejectTap(event) {
-    this.reviewApplication(event.currentTarget.dataset.id, false)
+    this.openRejectDialog({ applicationId: event.currentTarget.dataset.id })
   },
 
   handleDetailTap(event) {
@@ -203,10 +239,45 @@ Page({
   },
 
   handleBatchRejectTap() {
-    this.reviewVisiblePending(false)
+    this.openRejectDialog({ batch: true })
   },
 
-  async reviewApplication(applicationId, approve) {
+  openRejectDialog(options = {}) {
+    this.setData({
+      rejectDialogVisible: true,
+      rejectDialogApplicationId: options.applicationId || '',
+      rejectDialogBatch: options.batch === true,
+      rejectReasonDraft: ''
+    })
+  },
+
+  handleRejectReasonInput(event) {
+    this.setData({ rejectReasonDraft: event.detail.value || '' })
+  },
+
+  closeRejectDialog() {
+    this.setData({ rejectDialogVisible: false, rejectReasonDraft: '' })
+  },
+
+  noop() {},
+
+  handleRejectReasonConfirm() {
+    const reason = String(this.data.rejectReasonDraft || '').trim()
+    if (!reason) {
+      toast.info('请填写驳回理由')
+      return
+    }
+    const applicationId = this.data.rejectDialogApplicationId
+    const batch = this.data.rejectDialogBatch
+    this.closeRejectDialog()
+    if (batch) {
+      this.reviewVisiblePending(false, reason)
+      return
+    }
+    this.reviewApplication(applicationId, false, reason)
+  },
+
+  async reviewApplication(applicationId, approve, rejectReason = '') {
     if (!applicationId || this.data.reviewing) {
       return
     }
@@ -218,7 +289,7 @@ Page({
     })
 
     try {
-      await gameService.reviewGameApplication(applicationId, approve)
+      await gameService.reviewGameApplication(applicationId, approve, rejectReason)
       toast.info(approve ? this.textOf('approveSuccessText') : this.textOf('rejectSuccessText'))
       await this.loadApplications()
     } catch (error) {
@@ -229,11 +300,12 @@ Page({
     }
   },
 
-  async reviewVisiblePending(approve) {
-    const items = this.data.displayApplications.filter((item) => item.statusKey === 'pending' && item.id)
+  async reviewVisiblePending(approve, rejectReason = '') {
+    const selected = new Set(this.data.selectedApplicationIds.map((item) => String(item)))
+    const items = this.data.displayApplications.filter((item) => item.statusKey === 'pending' && item.id && selected.has(String(item.id)))
 
     if (!items.length || this.data.reviewing) {
-      toast.info(this.textOf('emptyPendingText'))
+      toast.info('请先勾选要审核的申请')
       return
     }
 
@@ -245,7 +317,7 @@ Page({
 
     try {
       for (const item of items) {
-        await gameService.reviewGameApplication(item.id, approve)
+        await gameService.reviewGameApplication(item.id, approve, rejectReason)
       }
       toast.info(approve ? this.textOf('batchApproveSuccess') : this.textOf('batchRejectSuccess'))
       await this.loadApplications()

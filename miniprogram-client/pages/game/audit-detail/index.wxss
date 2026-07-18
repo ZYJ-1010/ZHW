@@ -788,3 +788,71 @@ page {
 .action-tip {
   color: #6b7280;
 }
+
+.reject-dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.reject-dialog {
+  width: 100%;
+  padding: 34rpx;
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.reject-dialog-title {
+  display: block;
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 42rpx;
+}
+
+.reject-dialog-input {
+  width: 100%;
+  min-height: 180rpx;
+  margin-top: 24rpx;
+  padding: 18rpx;
+  border: 1rpx solid #d1d5db;
+  border-radius: 14rpx;
+  box-sizing: border-box;
+  color: #111827;
+  background: #f9fafb;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
+.reject-dialog-actions {
+  display: flex;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.reject-dialog-actions button {
+  flex: 1;
+  height: 72rpx;
+  margin: 0;
+  border: 0;
+  border-radius: 999rpx;
+  font-size: 25rpx;
+  line-height: 72rpx;
+}
+
+.reject-dialog-cancel {
+  color: #4b5563;
+  background: #f3f4f6;
+}
+
+.reject-dialog-confirm {
+  color: #ffffff;
+  background: #ef4444;
+}

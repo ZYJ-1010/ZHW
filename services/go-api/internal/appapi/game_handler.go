@@ -23,11 +23,13 @@ type gameService interface {
 	List() []games.Game
 	Get(id int64) (games.Game, error)
 	ApproveGame(gameID int64) (games.Game, error)
+	RejectGame(gameID int64, reason string) (games.Game, error)
 	SameCity(cityCode string) []games.Game
 	Apply(userID int64, gameID int64, req games.ApplyRequest) (games.Application, error)
 	CreateInvitation(inviterID int64, gameID int64, req games.InvitationRequest) (games.Invitation, error)
 	RespondInvitation(userID int64, invitationID int64, req games.InvitationRespondRequest) (games.Invitation, games.Application, error)
 	ReviewApplication(operatorUserID int64, applicationID int64, approve bool) (games.Application, error)
+	ReviewApplicationWithReason(operatorUserID int64, applicationID int64, approve bool, rejectReason string) (games.Application, error)
 	CancelApplication(userID int64, applicationID int64) (games.Application, error)
 	ApplicationsForUser(userID int64) []games.Application
 	ApplicationsForCreator(userID int64) []games.Application
@@ -80,6 +82,7 @@ type GameDetailDTO struct {
 	Review             GameReviewDTO        `json:"review"`
 	ServiceConfirm     *ServiceConfirmDTO   `json:"serviceConfirm,omitempty"`
 	PendingApplication *games.Application   `json:"pendingApplication,omitempty"`
+	AuditRejectReason  string               `json:"auditRejectReason,omitempty"`
 }
 
 type GameListAvatarDTO struct {
@@ -1740,6 +1743,11 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		"items":     items,
 		"completed": completed,
 		"total":     len(items),
+		"categories": []map[string]interface{}{
+			{"key": "newbie", "title": "新手任务", "items": items},
+			{"key": "daily", "title": "每日任务", "items": []map[string]interface{}{}},
+			{"key": "activity", "title": "活动任务", "items": []map[string]interface{}{}},
+		},
 	})
 }
 
@@ -1751,7 +1759,7 @@ func (s *Server) myManagedGames(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]interface{}, 0)
 	for _, game := range s.games.List() {
 		role := s.userRoleForGame(game, userID)
-		if s.userExpertForGame(game, userID) || isManagedGameRole(role) {
+		if game.CreatorUserID == userID || s.userExpertForGame(game, userID) || isManagedGameRole(role) {
 			items = append(items, s.buildManagedServiceOrder(userID, game))
 		}
 	}
@@ -1783,7 +1791,7 @@ func (s *Server) myPlayerGames(w http.ResponseWriter, r *http.Request) {
 	pageConfig := s.currentMyGamesPageConfig()
 	items := make([]map[string]interface{}, 0)
 	for _, game := range s.games.List() {
-		if s.userPlayerForGame(game, userID) {
+		if game.CreatorUserID != userID && game.MainGuideUserID != userID && !s.userGuideForGame(game, userID) && !s.userExpertForGame(game, userID) && s.userPlayerForGame(game, userID) {
 			items = append(items, s.buildPlayerServiceOrder(userID, game, pageConfig))
 		}
 	}
@@ -2529,6 +2537,9 @@ func (s *Server) buildGameDetail(userID int64, game games.Game) GameDetailDTO {
 			Complete: s.reviews.GameReviewComplete(game.ID),
 		},
 	}
+	s.gameAuditRejectMu.RLock()
+	detail.AuditRejectReason = s.gameAuditRejects[game.ID]
+	s.gameAuditRejectMu.RUnlock()
 	if relation.IsMember {
 		if feedbacks, err := s.games.ProgressFeedbacks(userID, game.ID); err == nil {
 			detail.Progress.Feedbacks = feedbacks
@@ -2672,6 +2683,11 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 		}
 		if game.Status == "recruiting" && relation.ApplicationStatus == "pending" {
 			return disabled("报名审核中")
+		}
+		// 人数以已入局成员数（CurrentPlayers）为准。即使状态字段尚未
+		// 同步为 full，也不能继续展示“立即报名”或报名时间提示。
+		if game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers && !relation.IsMember {
+			return disabled("该局已满员")
 		}
 		if game.Status == "recruiting" && relation.CanApply {
 			return action("立即报名", "apply", "/pages/game/apply/index?gameId="+gameID)
@@ -3762,19 +3778,32 @@ func (s *Server) buildGameRelation(userID int64, game games.Game) GameMyRelation
 		CanEnterIM: isMember && (game.Status == "in_progress" || game.Status == "pending_confirm" || game.Status == "pending_review" || game.Status == "completed"),
 		CanConfirm: isMember && (game.Status == "in_progress" || game.Status == "pending_confirm"),
 	}
-	if game.Status == "recruiting" && !isMember && !signupOpen {
+	if game.Status == "recruiting" && !isMember && game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers {
+		relation.CanApply = false
+		relation.ApplyDisabledReason = "该局已满员"
+	} else if game.Status == "recruiting" && !isMember && !signupOpen {
 		relation.ApplyDisabledReason = "不在报名时间内"
 	}
+	// ApplicationsForUser 在内存实现中来自 map，不能依赖遍历顺序；取该局
+	// 最新的一条申请，避免旧的 rejected/pending 记录覆盖当前状态。
+	var latest games.Application
+	var hasLatest bool
 	for _, app := range s.games.ApplicationsForUser(userID) {
 		if app.GameID != game.ID {
 			continue
 		}
-		relation.ApplicationID = app.ID
-		relation.ApplicationStatus = app.Status
-		if app.Status == "pending" {
-			relation.CanApply = false
+		if !hasLatest || app.CreatedAt.After(latest.CreatedAt) || (app.CreatedAt.Equal(latest.CreatedAt) && app.ID > latest.ID) {
+			latest = app
+			hasLatest = true
 		}
-		break
+	}
+	if hasLatest {
+		relation.ApplicationID = latest.ID
+		relation.ApplicationStatus = latest.Status
+		if latest.Status == "pending" {
+			relation.CanApply = false
+			relation.ApplyDisabledReason = "报名审核中"
+		}
 	}
 	return relation
 }
@@ -3880,17 +3909,22 @@ func (s *Server) adminAuditGame(w http.ResponseWriter, r *http.Request) {
 		Remark  string `json:"remark"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	if !req.Approve {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "only approve audit is supported")
+	remark := strings.TrimSpace(req.Remark)
+	if !req.Approve && remark == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
 		return
 	}
-	game, err := s.games.ApproveGame(gameID)
+	game, err := s.reviewGameAudit(gameID, req.Approve, remark)
 	if err != nil {
 		writeGameError(w, err)
 		return
 	}
-	s.notifyGameApproved(game)
-	s.recordOperation(r, "game:audit", "game", strconv.FormatInt(game.ID, 10), map[string]interface{}{"status": game.Status, "remark": req.Remark})
+	if req.Approve {
+		s.notifyGameApproved(game)
+	} else {
+		s.notifyGameRejected(game, remark)
+	}
+	s.recordOperation(r, "game:audit", "game", strconv.FormatInt(game.ID, 10), map[string]interface{}{"status": game.Status, "remark": remark})
 	httpx.OK(w, game)
 }
 
@@ -3904,14 +3938,14 @@ func (s *Server) adminBatchAuditGames(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid batch audit request")
 		return
 	}
-	if !req.Approve || len(req.GameIDs) == 0 || len(req.GameIDs) > 100 {
+	if len(req.GameIDs) == 0 || len(req.GameIDs) > 100 || (!req.Approve && strings.TrimSpace(req.Remark) == "") {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch audit request")
 		return
 	}
 	results := make([]batchMutationResult, 0, len(req.GameIDs))
 	success := 0
 	for _, gameID := range uniquePositiveIDs(req.GameIDs) {
-		game, err := s.games.ApproveGame(gameID)
+		game, err := s.reviewGameAudit(gameID, req.Approve, strings.TrimSpace(req.Remark))
 		result := batchMutationResult{ID: gameID}
 		if err != nil {
 			result.Success = false
@@ -3920,7 +3954,11 @@ func (s *Server) adminBatchAuditGames(w http.ResponseWriter, r *http.Request) {
 			result.Success = true
 			result.Status = game.Status
 			success++
-			s.notifyGameApproved(game)
+			if req.Approve {
+				s.notifyGameApproved(game)
+			} else {
+				s.notifyGameRejected(game, strings.TrimSpace(req.Remark))
+			}
 			s.recordOperation(r, "game:batch_audit", "game", strconv.FormatInt(game.ID, 10), map[string]interface{}{"status": game.Status, "remark": req.Remark})
 		}
 		results = append(results, result)
@@ -3933,6 +3971,22 @@ func (s *Server) adminBatchAuditGames(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) reviewGameAudit(gameID int64, approve bool, remark string) (games.Game, error) {
+	var game games.Game
+	var err error
+	if approve {
+		game, err = s.games.ApproveGame(gameID)
+	} else {
+		game, err = s.games.RejectGame(gameID, remark)
+	}
+	if err == nil && !approve {
+		s.gameAuditRejectMu.Lock()
+		s.gameAuditRejects[gameID] = remark
+		s.gameAuditRejectMu.Unlock()
+	}
+	return game, err
+}
+
 func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 	userID, ok := s.requireUser(w, r)
 	if !ok {
@@ -3942,6 +3996,10 @@ func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if game, err := s.games.Get(id); err == nil && game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers {
+		writeGameError(w, games.ErrFull)
+		return
+	}
 	var req struct {
 		Reason   string  `json:"reason"`
 		Role     string  `json:"role"`
@@ -3949,6 +4007,10 @@ func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 		FileIDs  []int64 `json:"fileIds"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
+	if config := s.currentGameApplicationConfig(); config.RequireRealname && !s.identity.IsVerified(userID) {
+		httpx.Error(w, http.StatusForbidden, 40341, "申请入局前请先完成实名认证")
+		return
+	}
 	requestedRole := strings.ToLower(strings.TrimSpace(firstNonEmpty(req.RoleType, req.Role)))
 	snapshot := s.profiles.RoleSnapshot(userID)
 	switch requestedRole {
@@ -4129,6 +4191,7 @@ func (s *Server) buildReceivedApplicationItem(reviewerID int64, app games.Applic
 		"avatarUrl":     s.imUserAvatarURL(app.UserID),
 		"avatarText":    avatarTextForName(applicantName, app.UserID),
 		"reason":        app.Reason,
+		"rejectReason":  app.RejectReason,
 		"fileIds":       app.FileIDs,
 		"createdAt":     app.CreatedAt,
 		"createdAtText": createdAtText,
@@ -4352,13 +4415,20 @@ func (s *Server) reviewApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Approve bool `json:"approve"`
+		Approve      bool   `json:"approve"`
+		RejectReason string `json:"rejectReason"`
+		Remark       string `json:"remark"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	app, err := s.games.ReviewApplication(userID, id, req.Approve)
+	rejectReason := strings.TrimSpace(firstNonEmpty(req.RejectReason, req.Remark))
+	if !req.Approve && rejectReason == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "拒绝申请必须填写原因")
+		return
+	}
+	app, err := s.games.ReviewApplicationWithReason(userID, id, req.Approve, rejectReason)
 	if err != nil {
 		writeGameError(w, err)
 		return
@@ -4367,6 +4437,9 @@ func (s *Server) reviewApplication(w http.ResponseWriter, r *http.Request) {
 		notifyType := "application_rejected"
 		title := "\u5165\u5c40\u7533\u8bf7\u672a\u901a\u8fc7"
 		content := "\u4f60\u7533\u8bf7\u52a0\u5165\u7684\u300a" + game.Title + "\u300b\u672a\u901a\u8fc7\u5ba1\u6838\u3002"
+		if app.RejectReason != "" {
+			content += "原因：" + app.RejectReason
+		}
 		if req.Approve {
 			notifyType = "application_approved"
 			title = "\u5165\u5c40\u7533\u8bf7\u5df2\u901a\u8fc7"
@@ -4396,6 +4469,21 @@ func (s *Server) notifyGameApproved(game games.Game) {
 		NotifyType: "game_approved",
 		Title:      "\u7ec4\u5c40\u5ba1\u6838\u901a\u8fc7",
 		Content:    "\u4f60\u7684\u7ec4\u5c40\u300a" + game.Title + "\u300b\u5df2\u901a\u8fc7\u5ba1\u6838\uff0c\u73b0\u5df2\u8fdb\u5165\u62db\u52df\u4e2d\u3002",
+		BizType:    "game",
+		BizID:      game.ID,
+	})
+}
+
+func (s *Server) notifyGameRejected(game games.Game, reason string) {
+	content := "你的组局《" + game.Title + "》未通过审核。"
+	if strings.TrimSpace(reason) != "" {
+		content += "原因：" + strings.TrimSpace(reason)
+	}
+	s.notices.Create(notifications.CreateRequest{
+		UserID:     game.CreatorUserID,
+		NotifyType: "game_rejected",
+		Title:      "组局审核未通过",
+		Content:    content,
 		BizType:    "game",
 		BizID:      game.ID,
 	})
@@ -5216,6 +5304,14 @@ func (s *Server) myFavoriteGames(w http.ResponseWriter, r *http.Request) {
 func (s *Server) currentMyGamesPageConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(gameMyGamesPageConfigKey, &config) && len(config) > 0 {
+		// 兼容旧版本将管理局错误放入“我的局”的配置，统一显示为“我受邀的”。
+		if tabs, ok := config["categoryTabs"].([]interface{}); ok {
+			for _, raw := range tabs {
+				if item, ok := raw.(map[string]interface{}); ok && item["key"] == "created" {
+					item["key"], item["text"] = "invited", "我受邀的"
+				}
+			}
+		}
 		return config
 	}
 	return map[string]interface{}{

@@ -206,17 +206,27 @@ func (s *Server) updateGuideResource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) expertApplyConfig(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireIdentityUser(w, r); !ok {
+	userID, ok := s.requireIdentityUser(w, r)
+	if !ok {
 		return
 	}
-	httpx.OK(w, s.currentExpertApplyConfig())
+	config := s.currentExpertApplyConfig()
+	if eligibility, err := s.roleApplyEligibility(userID, "expert"); err == nil {
+		config = s.decorateRoleApplyConfig(config, eligibility)
+	}
+	httpx.OK(w, config)
 }
 
 func (s *Server) guideApplyConfig(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireIdentityUser(w, r); !ok {
+	userID, ok := s.requireIdentityUser(w, r)
+	if !ok {
 		return
 	}
-	httpx.OK(w, s.currentGuideApplyConfig())
+	config := s.currentGuideApplyConfig()
+	if eligibility, err := s.roleApplyEligibility(userID, "guide"); err == nil {
+		config = s.decorateRoleApplyConfig(config, eligibility)
+	}
+	httpx.OK(w, config)
 }
 
 func (s *Server) roleStatusPageConfig(w http.ResponseWriter, r *http.Request) {
@@ -585,6 +595,17 @@ func (s *Server) submitRoleApplication(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	if err := s.validateRoleApplicationEligibility(userID, req.RoleCode, req.AbilityDescription); err != nil {
+		writeProfileError(w, err)
+		return
+	}
+	if req.RoleCode == "guide" {
+		met := true
+		if _, err := s.profiles.UpdateGuideQualification(userID, profiles.UpdateGuideQualificationRequest{ConditionMet: &met}); err != nil {
+			writeProfileError(w, err)
+			return
+		}
+	}
 	app, err := s.profiles.SubmitRoleApplication(userID, req)
 	if err != nil {
 		writeProfileError(w, err)
@@ -640,6 +661,15 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	if err := s.validateRoleApplicationEligibility(userID, "guide", req.AbilityDescription); err != nil {
+		writeProfileError(w, err)
+		return
+	}
+	met := true
+	if _, err := s.profiles.UpdateGuideQualification(userID, profiles.UpdateGuideQualificationRequest{ConditionMet: &met}); err != nil {
+		writeProfileError(w, err)
+		return
+	}
 	app, err := s.profiles.SubmitRoleApplication(userID, profiles.SubmitRoleApplicationRequest{RoleCode: "guide", Reason: req.Reason, AbilityDescription: req.AbilityDescription, ProofFileIDs: req.ProofFileIDs})
 	if err != nil {
 		writeProfileError(w, err)
@@ -647,6 +677,25 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 	}
 	s.recordBehavior(userID, "submit_guide_application", "role_application", app.ID, map[string]interface{}{"roleCode": app.RoleCode})
 	httpx.OK(w, app)
+}
+
+func (s *Server) validateRoleApplicationEligibility(userID int64, roleCode string, abilityDescription string) error {
+	eligibility, err := s.roleApplyEligibility(userID, roleCode)
+	if err != nil {
+		return profiles.ErrInvalidRoleApplication
+	}
+	missing := eligibility.missingBaseRequirements()
+	if len(missing) > 0 {
+		return roleApplicationRequirementsError{RoleCode: roleCode, Missing: missing}
+	}
+	if strings.TrimSpace(abilityDescription) == "" {
+		title := "提交行家计划书"
+		if roleCode == "guide" {
+			title = "提交领路计划书"
+		}
+		return roleApplicationRequirementsError{RoleCode: roleCode, Missing: []string{title}}
+	}
+	return nil
 }
 
 func (s *Server) myRoleApplications(w http.ResponseWriter, r *http.Request) {
@@ -800,6 +849,8 @@ func profileUserIDFromPath(w http.ResponseWriter, path string, prefix string, su
 
 func writeProfileError(w http.ResponseWriter, err error) {
 	switch {
+	case roleApplicationRequirementsErrorIs(err):
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, err.Error())
 	case errors.Is(err, profiles.ErrExpertForbidden):
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "not expert")
 	case errors.Is(err, profiles.ErrGuideForbidden):

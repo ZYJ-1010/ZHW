@@ -177,5 +177,22 @@
         <text>{{reviewReadonlyText || status.title}}</text>
       </view>
     </view>
+
+    <view wx:if="{{rejectDialogVisible}}" class="reject-dialog-mask">
+      <view class="reject-dialog" catchtap="noop">
+        <text class="reject-dialog-title">填写驳回理由</text>
+        <textarea
+          class="reject-dialog-input"
+          maxlength="300"
+          placeholder="请输入具体原因，提交后会通知申请人"
+          value="{{rejectReasonDraft}}"
+          bindinput="handleRejectReasonInput"
+        />
+        <view class="reject-dialog-actions">
+          <button class="reject-dialog-cancel" hover-class="none" bindtap="closeRejectDialog">取消</button>
+          <button class="reject-dialog-confirm" hover-class="none" bindtap="handleRejectReasonConfirm">确认驳回</button>
+        </view>
+      </view>
+    </view>
   </view>
 </home-shell>

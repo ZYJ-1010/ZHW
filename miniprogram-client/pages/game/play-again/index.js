@@ -124,8 +124,10 @@ Page({
   navigateToRoute(route, params = {}) {
     const url = this.buildUrl(route, params)
 
-    navigateShellRoute(url, {
-      currentRoute: ROUTES.gamePlayAgain
+    // 再玩一局是结束后的单向流程，替换当前页，避免返回上一页重复选择。
+    wx.redirectTo({
+      url,
+      fail: () => wx.reLaunch({ url })
     })
   },
 
@@ -152,15 +154,7 @@ Page({
   },
 
   navigateBackOrHall() {
-    const pages = getCurrentPages()
-
-    if (pages.length > 1) {
-      wx.navigateBack()
-      return
-    }
-
-    navigateShellRoute(ROUTES.gameHall, {
-      currentRoute: ROUTES.gamePlayAgain
-    })
+    const url = `/${ROUTES.gameHall}`
+    wx.reLaunch({ url })
   }
 })

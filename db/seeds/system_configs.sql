@@ -11,6 +11,16 @@ values
         { "key": "explore", "name": "探索局", "icon": "category-income", "visible": true, "order": 20, "children": [
           { "key": "city_explore", "name": "城市探索", "visible": true, "order": 10, "selectable": true },
           { "key": "route_blind_box", "name": "路线盲盒", "visible": true, "order": 20, "selectable": true }
+        ] },
+        { "key": "social", "name": "社交局", "icon": "category-social", "visible": true, "order": 30, "children": [
+          { "key": "meal", "name": "饭局", "visible": true, "order": 10, "selectable": true },
+          { "key": "board_game", "name": "桌游局", "visible": true, "order": 20, "selectable": true },
+          { "key": "friend", "name": "交友局", "visible": true, "order": 30, "selectable": true }
+        ] },
+        { "key": "growth", "name": "成长局", "icon": "category-growth", "visible": true, "order": 40, "children": [
+          { "key": "reading", "name": "读书局", "visible": true, "order": 10, "selectable": true },
+          { "key": "fitness", "name": "健身局", "visible": true, "order": 20, "selectable": true },
+          { "key": "study", "name": "学习共修局", "visible": true, "order": 30, "selectable": true }
         ] }
       ],
       "typeFilters": [

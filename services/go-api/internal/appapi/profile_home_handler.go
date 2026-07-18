@@ -3,6 +3,7 @@ package appapi
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/connections"
@@ -45,11 +46,26 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 	growthLevel := "V" + strconv.Itoa(maxInt(1, current.Growth.Level)) + " 探险家"
 	role := homeRoleName(s.homeRoleType(userID))
 	memberLevel := membership.PlanName
-	if memberLevel == "" || memberLevel == "none" {
-		memberLevel = "基础会员"
+	memberStatus := strings.ToLower(strings.TrimSpace(membership.Status))
+	if memberLevel == "" || memberLevel == "none" || memberStatus != "active" {
+		memberLevel = ""
 	}
 	name := homeDisplayName(user, s.displayName(userID, "用户"))
 	avatarFileID, avatarURL := s.currentUserAvatar(userID)
+
+	serviceSections := s.profileHomeSections(reviewTodoCount, reportMessageCount, len(inviteRelations), inProgressGameCount, managedServiceCount)
+	if roles := s.profiles.RoleSnapshot(userID).RoleStatusMap; roles["expert"] != "approved" && roles["expert"] != "active" && roles["guide"] != "approved" && roles["guide"] != "active" {
+		for _, section := range serviceSections {
+			items, _ := section["items"].([]map[string]interface{})
+			for _, item := range items {
+				if item["key"] == "invite" {
+					item["route"] = ""
+					item["enabled"] = false
+					item["disabledReason"] = "仅行家或领路人可使用邀请功能"
+				}
+			}
+		}
+	}
 
 	return map[string]interface{}{
 		"onlineText": s.homeOnlineText(0, 0),
@@ -59,6 +75,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 			"avatarUrl":    avatarURL,
 			"avatarFileId": avatarFileID,
 			"memberLevel":  memberLevel,
+			"memberStatus": memberStatus,
 			"roleLevel":    growthLevel,
 			"growthLevel":  growthLevel,
 			"role":         role,
@@ -86,7 +103,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 			"actionText": "增购会员 >",
 			"route":      "/pages/profile/member/index",
 		},
-		"serviceSections": s.profileHomeSections(reviewTodoCount, reportMessageCount, len(inviteRelations), inProgressGameCount, managedServiceCount),
+		"serviceSections": serviceSections,
 		"badges": map[string]interface{}{
 			"reviewTodoCount":         reviewTodoCount,
 			"unreadNotificationCount": notifications,
@@ -137,6 +154,7 @@ func (s *Server) profileHomeSections(reviewTodoCount int, unreadCount int, conne
 				profileHomeItem("mall", "积分商城", "/pages/profile/assets/i72@3x.png", "orange", "", "", "/pages/profile/asset-center/mall/index"),
 				profileHomeItem("points", "我的积分", "/pages/profile/assets/i73@3x.png", "orange", "", "", "/pages/profile/asset-center/points/index"),
 				profileHomeDisabledItem("invoice", "开票中心", "/pages/profile/assets/i74@3x.png", "orange", "", "", "发票能力需上线资质确认后开放"),
+				profileHomeItem("taskCenter", "任务中心", "/pages/profile/assets/i73@3x.png", "orange", "", "", "/pages/profile/task-center/index"),
 			},
 		},
 		{

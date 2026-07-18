@@ -1,0 +1,154 @@
+.task-center-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 28rpx 24rpx 80rpx;
+  color: #f4f7ff;
+  background: #101521;
+}
+
+.task-center-head {
+  padding: 12rpx 8rpx 24rpx;
+}
+
+.task-center-title {
+  display: block;
+  font-size: 42rpx;
+  font-weight: 700;
+}
+
+.task-center-desc {
+  display: block;
+  margin-top: 10rpx;
+  color: #8e9ab0;
+  font-size: 24rpx;
+}
+
+.task-tabs {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.task-tab-row {
+  display: flex;
+  gap: 16rpx;
+  padding: 8rpx 0 20rpx;
+}
+
+.task-tab {
+  padding: 16rpx 26rpx;
+  border: 1rpx solid #2c374d;
+  border-radius: 28rpx;
+  color: #aab5c7;
+  font-size: 26rpx;
+}
+
+.task-tab.active {
+  border-color: #9b5cff;
+  color: #fff;
+  background: linear-gradient(90deg, #824cff, #d23eaa);
+}
+
+.task-summary,
+.task-item,
+.task-empty-panel {
+  display: flex;
+  align-items: center;
+  border: 1rpx solid #2a354a;
+  border-radius: 16rpx;
+  background: #171e2b;
+}
+
+.task-summary {
+  justify-content: space-between;
+  margin: 12rpx 0 16rpx;
+  padding: 22rpx 24rpx;
+  color: #b4c0d4;
+  font-size: 24rpx;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.task-item {
+  min-height: 92rpx;
+  padding: 12rpx 20rpx;
+}
+
+.task-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42rpx;
+  height: 42rpx;
+  margin-right: 18rpx;
+  border: 2rpx solid #65728a;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 24rpx;
+}
+
+.task-check.done {
+  border-color: #28cfa2;
+  background: #28cfa2;
+}
+
+.task-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title,
+.task-reward {
+  display: block;
+}
+
+.task-title {
+  color: #eaf0fb;
+  font-size: 28rpx;
+}
+
+.task-reward {
+  margin-top: 6rpx;
+  color: #ca72ff;
+  font-size: 22rpx;
+}
+
+.task-status {
+  margin-left: 16rpx;
+  font-size: 24rpx;
+}
+
+.task-status.pending {
+  color: #cf76ff;
+}
+
+.task-status.completed {
+  color: #36d3a6;
+}
+
+.task-empty,
+.task-empty-panel {
+  color: #8793a8;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.task-empty {
+  padding: 70rpx 24rpx;
+}
+
+.task-empty-panel {
+  flex-direction: column;
+  gap: 14rpx;
+  justify-content: center;
+  min-height: 240rpx;
+  padding: 30rpx;
+}
+
+.task-empty-title {
+  color: #eaf0fb;
+  font-size: 32rpx;
+}

@@ -858,21 +858,8 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 			req.PlayerUserIDs = appendUnique(req.PlayerUserIDs, id)
 		}
 	}
-	sourceParticipants := map[int64]bool{
-		sourceGame.CreatorUserID: true,
-	}
-	if sourceGame.MainGuideUserID > 0 {
-		sourceParticipants[sourceGame.MainGuideUserID] = true
-	}
-	for _, memberID := range s.games.Members(sourceGameID) {
-		sourceParticipants[memberID] = true
-	}
-	for _, playerID := range req.PlayerUserIDs {
-		if sourceParticipants[playerID] {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "该玩家已在局内，无需重复邀请")
-			return
-		}
-	}
+	// 续局是新建一局，上一局成员正是本流程的邀请对象，不能按旧局成员拦截。
+	// 仅由 appendUnique 排除当前发起人，避免把自己作为受邀人重复加入。
 	budgetAmountCent := parseFlexibleInt64(req.BudgetAmountCent)
 	if budgetAmountCent <= 0 {
 		budgetAmountCent = parseFlexibleInt64(req.BudgetAmount) * 100

@@ -218,6 +218,9 @@ func (s *Server) currentMessageCenterConfig() map[string]interface{} {
 
 func (s *Server) notificationCenterPayload(userID int64, items []notifications.Notification, allItems []notifications.Notification, activeTab string, activeBucket string, showAll bool) map[string]interface{} {
 	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].ID > items[j].ID
+		}
 		return items[i].CreatedAt.After(items[j].CreatedAt)
 	})
 	config := s.currentMessageCenterConfig()
@@ -345,6 +348,14 @@ func (s *Server) messageCenterSections(userID int64, config map[string]interface
 				cards = cards[:3]
 			}
 		}
+		sort.SliceStable(cards, func(i, j int) bool {
+			left, _ := cards[i]["_sortTimestamp"].(int64)
+			right, _ := cards[j]["_sortTimestamp"].(int64)
+			return left > right
+		})
+		for _, card := range cards {
+			delete(card, "_sortTimestamp")
+		}
 		item["unreadCount"] = unreadCount
 		item["totalCount"] = totalCount
 		item["countText"] = strconv.Itoa(unreadCount) + "/" + strconv.Itoa(totalCount)
@@ -371,15 +382,21 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []
 		}
 		memberCount := len(room.MemberIDs)
 		lastText := "进入群聊查看消息"
+		latestAt := room.CreatedAt
 		if messages, _, err := s.im.AdminMessagesByRoom(room.ID); err == nil && len(messages) > 0 {
 			for i := len(messages) - 1; i >= 0; i-- {
 				if messages[i].Status == "hidden" {
 					continue
 				}
+				if messages[i].CreatedAt.After(latestAt) {
+					latestAt = messages[i].CreatedAt
+				}
 				if messages[i].Type == "image" {
 					lastText = "最新消息：[图片]"
 				} else if messages[i].Type == "file" || messages[i].FileID > 0 {
 					lastText = "最新消息：[文件]"
+				} else if messages[i].Type == "voice" {
+					lastText = "最新消息：[语音]"
 				} else if summary := readableIMMessageSummary(messages[i].Content); summary != "" {
 					lastText = "最新消息：" + summary
 				}
@@ -387,23 +404,32 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []
 			}
 		}
 		cards = append(cards, map[string]interface{}{
-			"id":          "im-room-" + strconv.FormatInt(room.GameID, 10),
-			"routeKey":    "im_room",
-			"route":       "/pages/im/room/index?gameId=" + strconv.FormatInt(room.GameID, 10),
-			"detailRoute": "/pages/im/room/index?gameId=" + strconv.FormatInt(room.GameID, 10),
-			"tone":        "green",
-			"icon":        "IM",
-			"title":       title + "IM",
-			"timeText":    formatAppDisplayTime(room.CreatedAt, "01-02 15:04"),
-			"desc":        lastText,
-			"tagText":     "成员" + strconv.Itoa(memberCount) + "人",
-			"tagTone":     "green",
-			"metaText":    imRoomStatusText(room.Status),
-			"unread":      unreadRooms[room.GameID],
+			"id":             "im-room-" + strconv.FormatInt(room.GameID, 10),
+			"routeKey":       "im_room",
+			"route":          "/pages/im/room/index?gameId=" + strconv.FormatInt(room.GameID, 10),
+			"detailRoute":    "/pages/im/room/index?gameId=" + strconv.FormatInt(room.GameID, 10),
+			"tone":           "green",
+			"icon":           "IM",
+			"title":          title + "IM",
+			"timeText":       formatAppDisplayTime(latestAt, "01-02 15:04"),
+			"desc":           lastText,
+			"tagText":        "成员" + strconv.Itoa(memberCount) + "人",
+			"tagTone":        "green",
+			"metaText":       imRoomStatusText(room.Status),
+			"unread":         unreadRooms[room.GameID],
+			"_sortTimestamp": latestAt.UnixNano(),
 		})
-		if !showAll && len(cards) >= 1 {
-			break
+	}
+	sort.SliceStable(cards, func(i, j int) bool {
+		left := cards[i]["_sortTimestamp"].(int64)
+		right := cards[j]["_sortTimestamp"].(int64)
+		if left == right {
+			return cards[i]["id"].(string) > cards[j]["id"].(string)
 		}
+		return left > right
+	})
+	if !showAll && len(cards) > 1 {
+		cards = cards[:1]
 	}
 	return cards
 }
@@ -525,15 +551,16 @@ func (s *Server) notificationCards(items []notifications.Notification, bucket st
 			break
 		}
 		card := map[string]interface{}{
-			"id":       item.ID,
-			"routeKey": notificationRouteKey(item),
-			"tone":     notificationTone(item),
-			"unread":   item.Status == "unread",
-			"title":    item.Title,
-			"timeText": formatAppDisplayTime(item.CreatedAt, "01-02 15:04"),
-			"desc":     item.Content,
-			"bizType":  item.BizType,
-			"bizId":    item.BizID,
+			"id":             item.ID,
+			"routeKey":       notificationRouteKey(item),
+			"tone":           notificationTone(item),
+			"unread":         item.Status == "unread",
+			"title":          item.Title,
+			"timeText":       formatAppDisplayTime(item.CreatedAt, "01-02 15:04"),
+			"desc":           item.Content,
+			"bizType":        item.BizType,
+			"bizId":          item.BizID,
+			"_sortTimestamp": item.CreatedAt.UnixNano(),
 		}
 		if target := s.notificationDetailTarget(item); target != nil {
 			if route, ok := target["route"].(string); ok && strings.TrimSpace(route) != "" {

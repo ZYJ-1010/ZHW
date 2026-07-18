@@ -376,6 +376,10 @@ Page({
   },
 
   onLoad(options = {}) {
+    if (options.mode === 'newbieTasks' && options.auth === '1' && getAuthToken()) {
+      this.showAuthenticatedNewbieTasks()
+      return
+    }
     if (options.walkthrough === 'loginAuth' || options.preview === 'loginAuth') {
       this.enterLoginAuthPreview(options.mode || options.step)
       return
@@ -812,6 +816,25 @@ Page({
       newbieTaskLoadFailed: false
     }, newbieTaskData))
 
+    this.loadNewbieTasks()
+  },
+
+  showAuthenticatedNewbieTasks() {
+    const newbieTaskData = getNewbieTaskData()
+    this.clearCodeTimer()
+    this.setData(Object.assign({
+      isUiPreview: true,
+      isLoginAuthPreview: false,
+      isPostLoginRealnameFlow: true,
+      uiPreviewStep: 'newbieTasks',
+      realnameGuideUrl: '/pages/login/realname/index',
+      loginMode: 'home',
+      isCheckingRealname: false,
+      isStartingRealname: false,
+      isLoadingNewbieTasks: false,
+      newbieTasksLoaded: false,
+      newbieTaskLoadFailed: false
+    }, newbieTaskData))
     this.loadNewbieTasks()
   },
 

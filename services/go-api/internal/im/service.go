@@ -1184,7 +1184,7 @@ func validMessageRequest(req SendRequest) bool {
 	switch req.MessageType {
 	case "text":
 		return req.Content != "" && len(req.Content) <= 1000 && req.FileID == 0
-	case "image", "file":
+	case "image", "file", "voice":
 		return req.FileID > 0 && len(req.Content) <= 300
 	case "service_confirm_remind":
 		return req.Content != "" && len(req.Content) <= 2000 && req.FileID == 0

@@ -308,7 +308,13 @@ async function renderDashboard() {
 
   setField("behaviorCount", countArray(dashboard.behaviorEvents || dashboard.events || dashboard.behaviorLogs));
   setField("gameCount", state.games.length);
-  setField("pendingGameCount", state.games.filter((item) => item.status === "pending_audit").length);
+  const pendingGames = state.games.filter((item) => item.status === "pending_audit").length;
+  setField("pendingGameCount", pendingGames);
+  const gamesNavButton = document.querySelector('#main-nav button[data-view="games"]');
+  if (gamesNavButton) {
+    gamesNavButton.classList.toggle("has-pending-dot", pendingGames > 0);
+    gamesNavButton.setAttribute("data-pending-count", String(pendingGames));
+  }
   setField("imRoomCount", state.imRooms.length);
   renderGameTypeBars(state.games);
   renderDashboardStatusBars(state.games);
@@ -627,6 +633,7 @@ async function showInviteCodeDetail(code) {
 
 async function renderGames() {
   $("#game-batch-audit-button").addEventListener("click", batchAuditGames);
+  $("#game-batch-reject-button")?.addEventListener("click", batchRejectGames);
   $("#game-audit-select-all")?.addEventListener("change", onGameAuditSelectAllChange);
   $("#open-game-create-drawer")?.addEventListener("click", () => {
     openEmbeddedFormDrawer("#game-create-form", "后台开局", "填写封面、地点、报名时间和人数后创建并开放招募");
@@ -961,6 +968,27 @@ async function batchAuditGames() {
   }
 }
 
+async function batchRejectGames() {
+  const ids = [...state.selectedGameAuditIds].map((id) => Number(id)).filter(Boolean)
+  if (!ids.length) {
+    toast("请先勾选要批量驳回的待审核组局", true)
+    return
+  }
+  const reason = window.prompt("请输入批量驳回原因")
+  if (reason == null || !String(reason).trim()) {
+    toast("驳回必须填写原因", true)
+    return
+  }
+  try {
+    const result = await apiPost("/api/admin/games/batch-audit", { gameIds: ids, approve: false, remark: String(reason).trim() })
+    toast(`批量驳回 ${result.success || 0} 个组局，失败 ${result.failed || 0} 个`)
+    state.selectedGameAuditIds.clear()
+    await loadGames(new FormData($("#game-filter-form")))
+  } catch (error) {
+    toast(error.message, true)
+  }
+}
+
 function onGameAuditSelectAllChange(event) {
   const checked = Boolean(event.currentTarget.checked);
   document.querySelectorAll("#games-table .game-audit-checkbox").forEach((checkbox) => {
@@ -1199,6 +1227,16 @@ async function onGameTableClick(event) {
       toast(`局 ${id} 已审核通过`);
       await loadGames(new FormData($("#game-filter-form")));
     }
+    if (button.dataset.action === "reject-audit") {
+      const reason = window.prompt("请输入驳回原因");
+      if (reason == null || !String(reason).trim()) {
+        toast("驳回必须填写原因", true);
+        return;
+      }
+      await apiPost(`/api/admin/games/${id}/audit`, { approve: false, remark: String(reason).trim() });
+      toast(`局 ${id} 已驳回`);
+      await loadGames(new FormData($("#game-filter-form")));
+    }
     if (button.dataset.action === "detail") {
       await showGameDetail(id);
     }
@@ -1306,6 +1344,7 @@ function bindGameOpsPanel(panel, gameID) {
 
 async function renderAudits() {
   bindSectionTabs($("#view-root"));
+  $("#role-grant-form")?.addEventListener("submit", grantRoleFromAdmin);
   const tasks = [];
   if (can("identity:read")) {
     tasks.push(loadIdentities());
@@ -1380,6 +1419,29 @@ async function renderAudits() {
       toast(error.message, true);
     }
   });
+}
+
+async function grantRoleFromAdmin(event) {
+  event.preventDefault();
+  if (!can("role:update")) {
+    toast("缺少 role:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const userIds = String(data.userIds || "").split(/[\s,，、]+/).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0);
+  if (!userIds.length) {
+    toast("请填写有效用户 ID", true);
+    return;
+  }
+  try {
+    const result = await apiPost("/api/admin/roles/grant", { userIds, roleCode: data.roleCode });
+    toast(`已开通 ${result.total || userIds.length} 个身份`);
+    form.reset();
+    await loadRoles();
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function loadIdentities() {
@@ -3591,7 +3653,7 @@ async function saveProfitTemplateConfig(event) {
 
 async function createSensitiveWord(event) {
   event.preventDefault();
-  const form = event.currentTarget;
+  const form = event.currentTarget || (event.target && event.target.closest ? event.target.closest("form") : null);
   if (!can("content:sensitive_word:create")) {
     toast("缺少 content:sensitive_word:create", true);
     return;
@@ -3605,7 +3667,7 @@ async function createSensitiveWord(event) {
       status: "active",
     });
     toast("敏感词已新增");
-    form.reset();
+    if (form && typeof form.reset === "function") form.reset();
     await loadSensitiveWords();
   } catch (error) {
     toast(error.message, true);
@@ -3614,7 +3676,7 @@ async function createSensitiveWord(event) {
 
 async function importSensitiveWords(event) {
   event.preventDefault();
-  const form = event.currentTarget;
+  const form = event.currentTarget || (event.target && event.target.closest ? event.target.closest("form") : null);
   if (!can("content:sensitive_word:import")) {
     toast("缺少 content:sensitive_word:import", true);
     return;
@@ -3631,7 +3693,7 @@ async function importSensitiveWords(event) {
   try {
     await apiPost("/api/admin/sensitive-words/import", { words });
     toast(`已导入 ${words.length} 个敏感词`);
-    form.reset();
+    if (form && typeof form.reset === "function") form.reset();
     await loadSensitiveWords();
   } catch (error) {
     toast(error.message, true);
@@ -4921,6 +4983,7 @@ function gameRow(game) {
       </label>
     `);
     actions.push(`<button class="ghost" data-action="audit" data-id="${game.id}" type="button">通过</button>`);
+    actions.push(`<button class="ghost danger" data-action="reject-audit" data-id="${game.id}" type="button">驳回</button>`);
   }
   return `
     <tr>
@@ -5692,6 +5755,7 @@ function messageTypeLabel(value) {
     text: "文字消息",
     image: "图片消息",
     file: "文件消息",
+    voice: "语音消息",
     system: "系统消息",
   }[value] || adminDisplayValue(value);
 }

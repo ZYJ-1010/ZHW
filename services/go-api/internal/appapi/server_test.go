@@ -384,6 +384,7 @@ func TestCreateInviteEntryHTTP(t *testing.T) {
 	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "entry-owner")
 	completeIdentityForTest(t, mux, token)
+	server.profiles.GrantRole(currentUserIDForTest(t, mux, token), "guide")
 	postJSON(t, mux, "/api/app/games", token, `{"title":"周末城市探索","gameType":"free","minPlayers":5,"maxPlayers":8,"cityName":"杭州","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 
 	firstBody := postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link","title":"邀请你加入真好玩"}`, http.StatusOK)
@@ -473,6 +474,7 @@ func TestInviteEntryBindsExistingWechatHTTP(t *testing.T) {
 	}
 	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "entry-existing-user")
+	server.profiles.GrantRole(currentUserIDForTest(t, mux, token), "guide")
 
 	entryBody := postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link"}`, http.StatusOK)
 	var entry struct {
@@ -8073,6 +8075,7 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, memberToken)
 	creatorID := currentUserIDForTest(t, mux, creatorToken)
 	memberID := currentUserIDForTest(t, mux, memberToken)
+	server.profiles.GrantRole(creatorID, "guide")
 	server.connections.UpsertPair(creatorID, memberID, "invite", "invite", 1, 4)
 
 	overviewBody := getJSON(t, mux, "/api/app/profile/service-center/invite/overview", creatorToken, http.StatusOK)
@@ -8207,6 +8210,7 @@ func TestProfileHomeHTTP(t *testing.T) {
 			User struct {
 				Nickname     string `json:"nickname"`
 				MemberLevel  string `json:"memberLevel"`
+				MemberStatus string `json:"memberStatus"`
 				RoleLevel    string `json:"roleLevel"`
 				AvatarText   string `json:"avatarText"`
 				AvatarURL    string `json:"avatarUrl"`
@@ -8236,11 +8240,11 @@ func TestProfileHomeHTTP(t *testing.T) {
 	if err := json.Unmarshal(homeBody, &homeResp); err != nil {
 		t.Fatal(err)
 	}
-	if homeResp.Data.User.Nickname == "" || homeResp.Data.User.MemberLevel == "" || homeResp.Data.User.RoleLevel == "" || homeResp.Data.User.AvatarText == "" {
+	if homeResp.Data.User.Nickname == "" || homeResp.Data.User.RoleLevel == "" || homeResp.Data.User.AvatarText == "" {
 		t.Fatalf("expected profile home user block: %s", string(homeBody))
 	}
-	if homeResp.Data.User.MemberLevel == "none" {
-		t.Fatalf("expected user-facing member level instead of none: %s", string(homeBody))
+	if homeResp.Data.User.MemberStatus == "none" && homeResp.Data.User.MemberLevel != "" {
+		t.Fatalf("unsubscribed user must not display a member level: %s", string(homeBody))
 	}
 	if len(homeResp.Data.Stats) != 4 || len(homeResp.Data.Assets) != 3 || len(homeResp.Data.ServiceSections) == 0 || len(homeResp.Data.ServiceSections[0].Items) == 0 {
 		t.Fatalf("expected profile home summary blocks: %s", string(homeBody))
@@ -8661,26 +8665,15 @@ func TestRoleApplicationAndGuideQualificationHTTP(t *testing.T) {
 	if err := json.Unmarshal(adminGuideBody, &guideResp); err != nil {
 		t.Fatal(err)
 	}
-	if !guideResp.Data.ConditionMet || guideResp.Data.PaymentMet || guideResp.Data.GuideOpenStatus != "opened" {
+	if !guideResp.Data.ConditionMet || !guideResp.Data.PaymentMet || guideResp.Data.GuideOpenStatus != "opened" {
 		t.Fatalf("expected opened guide qualification: %s", string(adminGuideBody))
 	}
 
 	postJSON(t, mux, "/api/app/role-applications", userToken, `{"roleCode":"guide","reason":"duplicate active guide"}`, http.StatusConflict)
-	expertBody := postJSON(t, mux, "/api/app/role-applications", userToken, `{"roleCode":"expert","reason":"expert application"}`, http.StatusOK)
-	var expertResp struct {
-		Data struct {
-			ID       int64  `json:"id"`
-			RoleCode string `json:"roleCode"`
-		} `json:"data"`
+	expertBody := postJSON(t, mux, "/api/app/role-applications", userToken, `{"roleCode":"expert","reason":"expert application"}`, http.StatusConflict)
+	if !strings.Contains(string(expertBody), "未满足申请条件") {
+		t.Fatalf("expected expert eligibility rejection: %s", string(expertBody))
 	}
-	if err := json.Unmarshal(expertBody, &expertResp); err != nil {
-		t.Fatal(err)
-	}
-	if expertResp.Data.ID == 0 || expertResp.Data.RoleCode != "expert" {
-		t.Fatalf("expected separate expert application: %s", string(expertBody))
-	}
-	postAdminJSONWithPermission(t, mux, "/api/admin/audits/role-applications/"+strconv.FormatInt(expertResp.Data.ID, 10)+"/review", "role:update", `{"approve":false,"remark":"retry later"}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/role-applications", userToken, `{"roleCode":"expert","reason":"retry too soon"}`, http.StatusConflict)
 }
 
 func TestBehaviorEventHTTP(t *testing.T) {

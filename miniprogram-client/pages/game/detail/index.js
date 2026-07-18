@@ -89,6 +89,7 @@ function isRealnameVerified(user) {
 function gameStatusText(status = '') {
   const map = {
     pending_audit: '待后台审核',
+    rejected: '审核未通过',
     recruiting: '招募中',
     full: '已满员',
     in_progress: '进行中',
@@ -200,6 +201,10 @@ function normalizePrimaryAction(detailDisplay = {}, game = {}, statusText = '') 
 
   if (game.status === 'pending_audit') {
     return { text: '后台审核中', disabled: true, action: 'none', route: '', confirmText: '' }
+  }
+
+  if (game.status === 'rejected') {
+    return { text: '审核未通过', disabled: true, action: 'none', route: '', confirmText: '' }
   }
 
   return {
@@ -330,7 +335,8 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
     game: {
       id: game.id || game.gameId || '',
       title,
-      creatorUserId: game.creatorUserId || game.creatorID || 0
+      creatorUserId: game.creatorUserId || game.creatorID || 0,
+      auditRejectReason: game.auditRejectReason || data.auditRejectReason || ''
     },
     interested: data.isFavorited === true || data.favorited === true || relation.isFavorited === true,
     bottomTools,

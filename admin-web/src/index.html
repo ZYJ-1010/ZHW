@@ -396,6 +396,7 @@
           </label>
           <span id="game-audit-summary">当前页没有待审核局</span>
           <button id="game-batch-audit-button" class="ghost" type="button">批量通过已勾选</button>
+          <button id="game-batch-reject-button" class="ghost danger" type="button">批量驳回已勾选</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -452,6 +453,13 @@
             </div>
             <button class="ghost" data-action="reload-roles" type="button">刷新</button>
           </div>
+          <form id="role-grant-form" class="form-grid compact-grid">
+            <label>用户 ID（可批量）<input name="userIds" placeholder="例如：12,15,18" required /></label>
+            <label>直接赋予身份
+              <select name="roleCode"><option value="expert">行家</option><option value="guide">领路人</option></select>
+            </label>
+            <button class="ghost" type="submit">白名单开通</button>
+          </form>
           <div id="role-list" class="stack-list"></div>
         </section>
       </div>

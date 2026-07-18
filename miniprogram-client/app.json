@@ -83,6 +83,7 @@
         "asset-center/mall/index",
         "asset-center/orders/index",
         "asset-center/points/index",
+        "task-center/index",
         "system-management/agreement-detail/index",
         "system-management/agreement-sign/index",
         "system-management/appeal-detail/index",

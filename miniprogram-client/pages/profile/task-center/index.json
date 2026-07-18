@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "default",
+  "navigationBarTitleText": "任务中心",
+  "usingComponents": {
+    "home-shell": "/components/home-shell/index"
+  }
+}

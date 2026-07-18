@@ -281,11 +281,11 @@ function normalizeMessage(item, currentUserId, memberMap) {
     }
   }
 
-  const fileName = safeText(item.fileName || item.content, messageType === 'image' ? '图片消息' : '局内文件')
+  const fileName = safeText(item.fileName || item.content, messageType === 'image' ? '图片消息' : (messageType === 'voice' ? '语音消息' : '局内文件'))
 
   return {
     id: item.id || `message-${Date.now()}`,
-    kind: messageType === 'image' || messageType === 'file' ? 'media' : 'text',
+    kind: messageType === 'image' || messageType === 'file' || messageType === 'voice' ? 'media' : 'text',
     messageType,
     isSelf,
     rowClass: isSelf ? 'self' : 'other',
@@ -302,8 +302,38 @@ function normalizeMessage(item, currentUserId, memberMap) {
   }
 }
 
+function messageTimeValue(item = {}) {
+  const value = item.createdAt || item.created_at || item.createdAtText || ''
+  const timestamp = Date.parse(String(value).replace(' ', 'T'))
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function messageDateLabel(item = {}) {
+  const timestamp = messageTimeValue(item)
+  if (!timestamp) {
+    return ''
+  }
+  const date = new Date(timestamp)
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+}
+
 function normalizeMessages(items, currentUserId, memberMap) {
-  return (Array.isArray(items) ? items : []).map((item) => normalizeMessage(item, currentUserId, memberMap))
+  const source = (Array.isArray(items) ? items : []).slice().sort((left, right) => {
+    const timeDiff = messageTimeValue(left) - messageTimeValue(right)
+    if (timeDiff !== 0) {
+      return timeDiff
+    }
+    return Number(left.id || 0) - Number(right.id || 0)
+  })
+  let previousDate = ''
+  return source.map((item) => {
+    const normalized = normalizeMessage(item, currentUserId, memberMap)
+    const dateText = messageDateLabel(item)
+    normalized.showDateDivider = Boolean(dateText && dateText !== previousDate)
+    normalized.dateDividerText = dateText
+    previousDate = dateText || previousDate
+    return normalized
+  })
 }
 
 function firstChosenFile(result = {}) {
@@ -314,6 +344,15 @@ function firstChosenFile(result = {}) {
   const name = file.name || file.fileName || String(path).split('/').filter(Boolean).pop() || ''
 
   return { path, name, size: Number(file.size || 1) || 1 }
+}
+
+function recordedFile(result = {}) {
+  const path = result.tempFilePath || result.filePath || ''
+  return {
+    path,
+    name: path ? (path.split('/').filter(Boolean).pop() || `voice-${Date.now()}.mp3`) : '',
+    size: Number(result.fileSize || result.size || 1) || 1
+  }
 }
 
 function isSensitiveReject(error) {
@@ -388,6 +427,11 @@ Page({
 
   onUnload() {
     this.stopRoomRefresh()
+    if (this.audioContext) {
+      this.audioContext.stop()
+      this.audioContext.destroy()
+      this.audioContext = null
+    }
   },
 
   startRoomRefresh() {
@@ -502,11 +546,16 @@ Page({
   },
 
   onRecordStart() {
-    toast.info('语音消息能力待接入')
+    toast.info('松开结束录音')
   },
 
-  onRecordStop() {
-    toast.info('语音消息能力待接入')
+  onRecordStop(event) {
+    const file = recordedFile(event.detail || {})
+    if (!file.path) {
+      toast.info('未获取到录音文件')
+      return
+    }
+    this.sendPickedFile(file, 'voice')
   },
 
   onRecordError() {
@@ -524,6 +573,56 @@ Page({
 
   onChooseFile(event) {
     this.sendPickedFile(firstChosenFile(event.detail || {}), 'file')
+  },
+
+  async onMediaTap(event) {
+    const dataset = event.currentTarget.dataset || {}
+    const fileId = toPositiveInt(dataset.fileId)
+    const messageType = safeText(dataset.messageType)
+    const fileName = safeText(dataset.fileName, '局内文件')
+    if (!fileId) {
+      toast.info('文件暂未同步完成')
+      return
+    }
+    try {
+      const url = await fileService.getDownloadURL(fileId)
+      if (!url || typeof url !== 'string') {
+        throw new Error('文件地址无效')
+      }
+      if (messageType === 'voice') {
+        if (this.audioContext) {
+          this.audioContext.stop()
+          this.audioContext.destroy()
+        }
+        this.audioContext = wx.createInnerAudioContext()
+        this.audioContext.src = url
+        this.audioContext.play()
+        return
+      }
+      if (messageType === 'image') {
+        wx.previewImage({ urls: [url] })
+        return
+      }
+      wx.downloadFile({
+        url,
+        success: (result) => {
+          if (result.statusCode !== 200) {
+            toast.info('文件下载失败')
+            return
+          }
+          const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : ''
+          wx.openDocument({
+            filePath: result.tempFilePath,
+            fileType: extension,
+            showMenu: true,
+            fail: () => toast.info('当前文件暂不支持预览，请稍后重试')
+          })
+        },
+        fail: () => toast.info('文件下载失败')
+      })
+    } catch (error) {
+      toast.info(error && error.message ? error.message : '获取文件失败')
+    }
   },
 
   onSystemActionTap(event) {
@@ -621,7 +720,7 @@ Page({
 
       await imService.sendMessage(this.gameId, {
         messageType,
-        content: file.name || (messageType === 'image' ? '图片消息' : '局内文件'),
+        content: file.name || (messageType === 'image' ? '图片消息' : (messageType === 'voice' ? '语音消息' : '局内文件')),
         fileId
       })
 
