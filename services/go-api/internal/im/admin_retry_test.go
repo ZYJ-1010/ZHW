@@ -29,6 +29,19 @@ func TestAdminRetryCreateRoomUsesRepositoryRoom(t *testing.T) {
 	}
 }
 
+func TestArchiveRoomsByGameIDsPersistsWithRepository(t *testing.T) {
+	repo := &retryRoomRepository{room: Room{ID: 12, GameID: 92012, Status: "active", CreatedAt: time.Now()}}
+	service := NewService(nil)
+	service.UseRepository(repo)
+	rooms := service.ArchiveRoomsByGameIDs([]int64{92012}, "game ended")
+	if len(rooms) != 1 || rooms[0].Status != "archived" {
+		t.Fatalf("expected archived room result, got %+v", rooms)
+	}
+	if repo.room.Status != "archived" || repo.room.ArchiveReason != "game ended" {
+		t.Fatalf("repository room was not archived: %+v", repo.room)
+	}
+}
+
 type retryRoomRepository struct {
 	room Room
 }

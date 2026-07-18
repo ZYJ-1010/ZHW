@@ -903,6 +903,27 @@ func (s *Service) ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []Room {
 	if err != nil {
 		normalizedReason = "archive_job"
 	}
+	if s.repo != nil {
+		rooms, err := s.repo.ListRooms(context.Background())
+		if err != nil {
+			return nil
+		}
+		archived := make([]Room, 0)
+		now := time.Now().Format(time.RFC3339)
+		for _, room := range rooms {
+			if _, ok := gameIDSet[room.GameID]; !ok || room.Status == "archived" {
+				continue
+			}
+			room.Status = "archived"
+			room.ArchivedAt = now
+			room.ArchiveReason = normalizedReason
+			updated, err := s.repo.SaveRoom(context.Background(), room)
+			if err == nil {
+				archived = append(archived, updated)
+			}
+		}
+		return archived
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
