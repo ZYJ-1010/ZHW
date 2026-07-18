@@ -79,3 +79,20 @@ func TestRecruitingGameDoesNotCreateRoomOnAccess(t *testing.T) {
 		t.Fatalf("recruiting game access created rooms: %+v", rooms)
 	}
 }
+
+func TestEnsureRoomRecordsOpenIMCreationFailure(t *testing.T) {
+	state := &readonlyGameState{members: []int64{1, 2}, roomReady: true}
+	service := NewServiceWithOpenIM(state, OpenIMConfig{
+		Enabled:     true,
+		APIAddr:     "http://127.0.0.1:1",
+		Secret:      "secret",
+		AdminUserID: "admin",
+	})
+	room := service.EnsureRoom(98)
+	if room.Status != "create_failed" || room.Engine != "openim" {
+		t.Fatalf("expected persisted openim failure state, got %+v", room)
+	}
+	if _, err := service.RoomForGame(1, 98); !errors.Is(err, ErrExternalIM) {
+		t.Fatalf("failed room access error = %v, want ErrExternalIM", err)
+	}
+}

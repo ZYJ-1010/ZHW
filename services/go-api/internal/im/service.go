@@ -224,14 +224,26 @@ func (s *Service) EnsureRoom(gameID int64) Room {
 		memberIDs := s.members.Members(gameID)
 		engine := "local"
 		openIMGroupID := ""
+		createFailed := false
 		if s.openim != nil {
 			if groupID, err := s.openim.SyncGameRoom(context.Background(), gameID, memberIDs); err == nil {
 				engine = "openim"
 				openIMGroupID = groupID
+			} else {
+				engine = "openim"
+				createFailed = true
 			}
 		}
 		room, err := s.repo.EnsureRoom(context.Background(), gameID, memberIDs, engine, openIMGroupID)
 		if err == nil {
+			if createFailed {
+				room.Status = "create_failed"
+				room.Engine = engine
+				room.OpenIMGroupID = ""
+				if saved, saveErr := s.repo.SaveRoom(context.Background(), room); saveErr == nil {
+					room = saved
+				}
+			}
 			return room
 		}
 	}
@@ -243,16 +255,20 @@ func (s *Service) EnsureRoom(gameID int64) Room {
 	memberIDs := s.members.Members(gameID)
 	engine := "local"
 	openIMGroupID := ""
+	status := "active"
 	if s.openim != nil {
 		if groupID, err := s.openim.SyncGameRoom(context.Background(), gameID, memberIDs); err == nil {
 			engine = "openim"
 			openIMGroupID = groupID
+		} else {
+			engine = "openim"
+			status = "create_failed"
 		}
 	}
 	room := Room{
 		ID:            s.nextRoomID,
 		GameID:        gameID,
-		Status:        "active",
+		Status:        status,
 		MemberIDs:     memberIDs,
 		Engine:        engine,
 		OpenIMGroupID: openIMGroupID,
@@ -275,6 +291,9 @@ func (s *Service) RoomForGame(userID int64, gameID int64) (Room, error) {
 		// the current game members. Returning a previously-created room directly
 		// left rooms created early with only their original member.
 		room := s.EnsureRoom(gameID)
+		if room.Status == "create_failed" {
+			return room, ErrExternalIM
+		}
 		if s.gameReadOnly(gameID) && !roomReadOnly(room) {
 			for _, updated := range s.ReadOnlyRoomsByGameIDs([]int64{gameID}, "game_ended") {
 				if updated.GameID == gameID {
@@ -290,6 +309,9 @@ func (s *Service) RoomForGame(userID int64, gameID int64) (Room, error) {
 	s.mu.RUnlock()
 	if !ok {
 		room = s.EnsureRoom(gameID)
+	}
+	if room.Status == "create_failed" {
+		return room, ErrExternalIM
 	}
 	if s.gameReadOnly(gameID) && !roomReadOnly(room) {
 		for _, updated := range s.ReadOnlyRoomsByGameIDs([]int64{gameID}, "game_ended") {
@@ -728,8 +750,13 @@ func (s *Service) AdminRetryCreateRoom(roomID int64) (Room, error) {
 		}
 		groupID, err := s.openim.SyncGameRoom(context.Background(), target.GameID, target.MemberIDs)
 		if err != nil {
+			target.Status = "create_failed"
+			target.Engine = "openim"
+			target.OpenIMGroupID = ""
+			_, _ = s.repo.SaveRoom(context.Background(), target)
 			return Room{}, err
 		}
+		target.Status = "active"
 		target.Engine = "openim"
 		target.OpenIMGroupID = groupID
 		return s.repo.SaveRoom(context.Background(), target)
@@ -753,10 +780,17 @@ func (s *Service) AdminRetryCreateRoom(roomID int64) (Room, error) {
 	}
 	groupID, err := s.openim.SyncGameRoom(context.Background(), target.GameID, target.MemberIDs)
 	if err != nil {
+		s.mu.Lock()
+		target.Status = "create_failed"
+		target.Engine = "openim"
+		target.OpenIMGroupID = ""
+		s.roomsByGame[target.GameID] = target
+		s.mu.Unlock()
 		return Room{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	target.Status = "active"
 	target.Engine = "openim"
 	target.OpenIMGroupID = groupID
 	s.roomsByGame[target.GameID] = target
