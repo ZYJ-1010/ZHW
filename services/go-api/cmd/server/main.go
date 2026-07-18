@@ -79,6 +79,7 @@ func main() {
 		AdminUserID: cfg.OpenIM.AdminUserID,
 		Enabled:     cfg.OpenIM.Enabled,
 	})
+	gameService.UseRoomEnsurer(imService)
 	if db != nil {
 		imService.UseRepository(im.NewSQLRepository(db))
 	}

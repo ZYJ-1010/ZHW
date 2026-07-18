@@ -10,6 +10,14 @@ type fakeIdentity struct {
 	byUserIDs map[int64]bool
 }
 
+type recordingRoomEnsurer struct {
+	gameIDs []int64
+}
+
+func (r *recordingRoomEnsurer) EnsureRoom(gameID int64) {
+	r.gameIDs = append(r.gameIDs, gameID)
+}
+
 func (f fakeIdentity) IsVerified(userID int64) bool {
 	if f.byUserIDs != nil {
 		return f.byUserIDs[userID]
@@ -25,6 +33,31 @@ func TestCreateAllowsPlayerWithoutVerifiedIdentity(t *testing.T) {
 	}
 	if game.ID == 0 || game.CurrentPlayers != 1 {
 		t.Fatalf("expected created game, got %+v", game)
+	}
+}
+
+func TestReviewApplicationCreatesRoomWhenGameBecomesFull(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	ensurer := &recordingRoomEnsurer{}
+	service.UseRoomEnsurer(ensurer)
+	game, err := service.Create(1, CreateRequest{Title: "满员建房", GameType: "free", MinPlayers: 5, MaxPlayers: 5, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []int64{2, 3, 4, 5} {
+		app, applyErr := service.Apply(userID, game.ID, ApplyRequest{Reason: "join"})
+		if applyErr != nil {
+			t.Fatal(applyErr)
+		}
+		if _, reviewErr := service.ReviewApplication(1, app.ID, true); reviewErr != nil {
+			t.Fatal(reviewErr)
+		}
+	}
+	if len(ensurer.gameIDs) != 1 || ensurer.gameIDs[0] != game.ID {
+		t.Fatalf("expected one room ensure for full game %d, got %+v", game.ID, ensurer.gameIDs)
 	}
 }
 

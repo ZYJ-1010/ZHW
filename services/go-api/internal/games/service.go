@@ -59,6 +59,13 @@ type IdentityChecker interface {
 	IsVerified(userID int64) bool
 }
 
+// RoomEnsurer is notified after a game becomes full so the IM layer can
+// create (or reconcile) the single room for that game. It is intentionally a
+// small interface to keep the games package independent from the IM package.
+type RoomEnsurer interface {
+	EnsureRoom(gameID int64)
+}
+
 type Game struct {
 	ID                    int64     `json:"id"`
 	CreatorUserID         int64     `json:"creatorUserId"`
@@ -484,6 +491,7 @@ type Service struct {
 	confirmRepo       ServiceConfirmRepository
 	favoriteRepo      FavoriteRepository
 	identity          IdentityChecker
+	roomEnsurer       RoomEnsurer
 	dailyCreateLimit  int
 }
 
@@ -533,6 +541,14 @@ func (s *Service) SetDailyCreateLimit(limit int) {
 		limit = 3
 	}
 	s.dailyCreateLimit = limit
+}
+
+// UseRoomEnsurer wires the IM room lifecycle into the games service. The
+// callback is invoked only after a successful approval makes the game full.
+func (s *Service) UseRoomEnsurer(ensurer RoomEnsurer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.roomEnsurer = ensurer
 }
 
 func (s *Service) UseProgressRepository(progressRepo ProgressRepository) {
@@ -1206,7 +1222,17 @@ func (s *Service) ReviewApplication(operatorUserID int64, applicationID int64, a
 func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationID int64, approve bool, rejectReason string) (Application, error) {
 	rejectReason = strings.TrimSpace(rejectReason)
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	var ensureRoomGameID int64
+	roomEnsurer := s.roomEnsurer
+	// Unlock before calling into the IM service. The IM service reads the game
+	// membership map through this service, so invoking it while the mutex is
+	// held would deadlock.
+	defer func() {
+		s.mu.Unlock()
+		if ensureRoomGameID > 0 && roomEnsurer != nil {
+			roomEnsurer.EnsureRoom(ensureRoomGameID)
+		}
+	}()
 	app, ok := s.applications[applicationID]
 	if !ok {
 		if s.repo == nil {
@@ -1284,6 +1310,9 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		}
 	}
 	s.applications[app.ID] = app
+	if approve && game.Status == "full" {
+		ensureRoomGameID = game.ID
+	}
 	return app, nil
 }
 
