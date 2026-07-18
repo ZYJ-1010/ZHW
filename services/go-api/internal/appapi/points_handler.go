@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/points"
@@ -95,10 +96,16 @@ func (s *Server) buildPointsSummaryPayload(userID int64) map[string]interface{} 
 	account := s.points.Summary(userID)
 	logs := s.points.Logs(userID)
 	config := s.currentPointsPageConfig()
+	operationRules := s.currentOperationRules()
 	redeemedPoints := 0
+	expiredPoints := 0
+	expiryCutoff := time.Now().Add(-time.Duration(operationRules.Points.ExpireDays) * 24 * time.Hour)
 	for _, item := range logs {
 		if item.ChangeValue < 0 {
 			redeemedPoints += -item.ChangeValue
+		}
+		if operationRules.Points.ExpireEnabled && item.ChangeValue > 0 && item.CreatedAt.Before(expiryCutoff) {
+			expiredPoints += item.ChangeValue
 		}
 	}
 
@@ -108,7 +115,7 @@ func (s *Server) buildPointsSummaryPayload(userID int64) map[string]interface{} 
 		"frozenPoints":      account.FrozenPoints,
 		"totalEarnedPoints": account.TotalEarnedPoints,
 		"redeemedPoints":    redeemedPoints,
-		"expiredPoints":     0,
+		"expiredPoints":     expiredPoints,
 		"updatedAt":         account.UpdatedAt,
 		"stats":             config.Stats,
 		"rules":             config.Rules,
