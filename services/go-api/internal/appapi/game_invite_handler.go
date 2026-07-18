@@ -789,6 +789,10 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
+	if !s.userCanGenerateInvitations(userID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成再玩一局邀请")
+		return
+	}
 	var req struct {
 		SourceGameID     interface{} `json:"sourceGameId"`
 		ExpertUserID     interface{} `json:"expertUserId"`
@@ -956,6 +960,10 @@ func (s *Server) createCurrentGameInvite(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
+	if !s.userCanGenerateInvitations(userID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成组局邀请")
+		return
+	}
 	var req struct {
 		SourceGameID     interface{} `json:"sourceGameId"`
 		ExpertUserID     interface{} `json:"expertUserId"`
@@ -1070,6 +1078,14 @@ func (s *Server) createCurrentGameInvite(w http.ResponseWriter, r *http.Request)
 		"playerUserIds":       playerUserIDs,
 		"expertUserIds":       expertUserIDs,
 	})
+}
+
+func (s *Server) userCanGenerateInvitations(userID int64) bool {
+	if userID <= 0 || s.profiles == nil {
+		return false
+	}
+	roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
+	return roles["expert"] == "approved" || roles["expert"] == "active" || roles["guide"] == "approved" || roles["guide"] == "active"
 }
 
 func (s *Server) createGameInviteReminder(w http.ResponseWriter, r *http.Request) {
@@ -1974,14 +1990,10 @@ func (s *Server) createPairedInvitationProgressNotification(invitation games.Inv
 		return
 	}
 	roleLabel := "玩家"
-	title := "领路人邀请的玩家已加入"
+	title := "领路人邀请的玩家待审核"
 	if role == "expert" {
 		roleLabel = "行家"
-		title = "领路人邀请的行家已加入"
-	}
-	_, _, allConfirmed := s.invitationConfirmedParties(invitation)
-	if allConfirmed {
-		title = "领路人引荐组局成功"
+		title = "领路人邀请的行家待审核"
 	}
 	for _, item := range s.notices.List(game.CreatorUserID) {
 		if item.NotifyType == "game_invitation_progress" && item.BizType == "game" && item.BizID == game.ID && item.Title == title {
@@ -1989,10 +2001,7 @@ func (s *Server) createPairedInvitationProgressNotification(invitation games.Inv
 		}
 	}
 	targetName := s.inGameDisplayName(invitation.TargetUserID, roleLabel)
-	content := targetName + "已同意领路人的邀请并加入本局，无需发起人再次审核。"
-	if allConfirmed {
-		content = "领路人邀请的玩家和行家均已确认加入，本局引荐组局成功。"
-	}
+	content := targetName + "已接受领路人的邀请，等待发起人或行家最终审核。"
 	s.notices.Create(notifications.CreateRequest{
 		UserID:     game.CreatorUserID,
 		NotifyType: "game_invitation_progress",

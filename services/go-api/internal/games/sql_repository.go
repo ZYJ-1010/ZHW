@@ -287,6 +287,21 @@ order by a.created_at desc, a.id desc
 	return scanApplications(rows)
 }
 
+func (r *SQLRepository) ListApplicationsForReviewer(ctx context.Context, reviewerUserID int64) ([]Application, error) {
+	rows, err := r.db.QueryContext(ctx, `
+select a.id, a.game_id, a.user_id, a.role, a.status, a.reason, a.reject_reason, a.file_ids, a.created_at
+from game_applications a
+join games g on g.id = a.game_id
+where g.creator_user_id = $1 or g.main_guide_user_id = $1
+order by a.created_at desc, a.id desc
+`, reviewerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanApplications(rows)
+}
+
 func (r *SQLRepository) PendingApplicationExists(ctx context.Context, gameID int64, userID int64) (bool, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `

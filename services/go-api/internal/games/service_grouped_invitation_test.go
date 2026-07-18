@@ -2,7 +2,7 @@ package games
 
 import "testing"
 
-func TestGroupedInvitationRequiresPlayerBeforeExpertAndApprovesDirectly(t *testing.T) {
+func TestGroupedInvitationRequiresPlayerBeforeExpertAndStillNeedsFinalAudit(t *testing.T) {
 	service := newVerifiedGameService()
 	game := mustCreateRecruitingGame(t, service)
 
@@ -35,15 +35,21 @@ func TestGroupedInvitationRequiresPlayerBeforeExpertAndApprovesDirectly(t *testi
 	if err != nil {
 		t.Fatalf("player response: %v", err)
 	}
-	if playerApplication.Status != "approved" || !service.IsMember(game.ID, 2) {
-		t.Fatalf("player should be approved and added directly: %+v", playerApplication)
+	if playerApplication.Status != "pending" || service.IsMember(game.ID, 2) {
+		t.Fatalf("player should remain pending and not be added before audit: %+v", playerApplication)
 	}
 
 	_, expertApplication, err := service.RespondInvitation(3, expertInvitation.ID, InvitationRespondRequest{Accept: true})
 	if err != nil {
 		t.Fatalf("expert response after player: %v", err)
 	}
-	if expertApplication.Status != "approved" || !service.IsMember(game.ID, 3) {
-		t.Fatalf("expert should be approved and added directly: %+v", expertApplication)
+	if expertApplication.Status != "pending" || service.IsMember(game.ID, 3) {
+		t.Fatalf("expert should remain pending and not be added before audit: %+v", expertApplication)
+	}
+	if _, err := service.ReviewApplication(1, playerApplication.ID, true); err != nil || !service.IsMember(game.ID, 2) {
+		t.Fatalf("player final audit failed: err=%v members=%v", err, service.Members(game.ID))
+	}
+	if _, err := service.ReviewApplication(1, expertApplication.ID, true); err != nil || !service.IsMember(game.ID, 3) {
+		t.Fatalf("expert final audit failed: err=%v members=%v", err, service.Members(game.ID))
 	}
 }

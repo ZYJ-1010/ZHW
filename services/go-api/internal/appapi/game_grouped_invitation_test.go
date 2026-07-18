@@ -26,6 +26,7 @@ func TestGroupedInvitationPlayerThenExpertConfirmationHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, playerToken)
 	expertToken := loginForTestWithCode(t, mux, "grouped-expert")
 	completeIdentityForTest(t, mux, expertToken)
+	server.profiles.GrantRole(1, "guide")
 	server.profiles.GrantRole(3, "expert")
 
 	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"grouped confirmation","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2030-01-01 10:00","endAt":"2030-01-01 12:00"}`, http.StatusOK)
@@ -51,8 +52,8 @@ func TestGroupedInvitationPlayerThenExpertConfirmationHTTP(t *testing.T) {
 
 	postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(expertInvitationID, 10)+"/respond", expertToken, `{"accept":true}`, http.StatusConflict)
 	playerBody := postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(playerInvitationID, 10)+"/respond", playerToken, `{"accept":true}`, http.StatusOK)
-	if !strings.Contains(string(playerBody), `"status":"approved"`) {
-		t.Fatalf("player confirmation should approve directly: %s", string(playerBody))
+	if !strings.Contains(string(playerBody), `"status":"pending"`) {
+		t.Fatalf("player confirmation should remain pending for final audit: %s", string(playerBody))
 	}
 	expertNotices := getJSON(t, mux, "/api/app/notifications?type=game_invitation_progress", expertToken, http.StatusOK)
 	if countNotificationsByType(t, expertNotices, "game_invitation_progress") != 1 ||
@@ -62,16 +63,13 @@ func TestGroupedInvitationPlayerThenExpertConfirmationHTTP(t *testing.T) {
 	}
 
 	progressBody := getJSON(t, mux, "/api/app/game-invites/guide-progress?invitationId="+strconv.FormatInt(expertInvitationID, 10), expertToken, http.StatusOK)
-	if !strings.Contains(string(progressBody), `"canConfirm":true`) ||
-		!strings.Contains(string(progressBody), `"requirementConfirmed":true`) ||
-		!strings.Contains(string(progressBody), `"requirementStatusText":"已确认"`) ||
-		strings.Contains(string(progressBody), "请等待玩家先确认组局") {
-		t.Fatalf("expert should be enabled after player confirmation: %s", string(progressBody))
+	if strings.Contains(string(progressBody), `"requirementStatusText":"已确认"`) {
+		t.Fatalf("expert must still wait for final audit: %s", string(progressBody))
 	}
 
 	expertBody := postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(expertInvitationID, 10)+"/respond", expertToken, `{"accept":true}`, http.StatusOK)
-	if !strings.Contains(string(expertBody), `"status":"approved"`) || !strings.Contains(string(expertBody), `pages/game/success-expert/index?gameId=1`) {
-		t.Fatalf("expert confirmation should complete the group: %s", string(expertBody))
+	if !strings.Contains(string(expertBody), `"status":"pending"`) {
+		t.Fatalf("expert confirmation should remain pending for final audit: %s", string(expertBody))
 	}
 }
 
@@ -90,6 +88,8 @@ func TestGroupedInvitationMainGuideReadsPlayerAutoApprovalHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, playerToken)
 	expertToken := loginForTestWithCode(t, mux, "grouped-guide-expert")
 	completeIdentityForTest(t, mux, expertToken)
+	server.profiles.GrantRole(1, "guide")
+	server.profiles.GrantRole(2, "guide")
 	server.profiles.GrantRole(4, "expert")
 
 	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"main guide grouped confirmation","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2030-01-01 10:00","endAt":"2030-01-01 12:00"}`, http.StatusOK)
@@ -136,14 +136,13 @@ func TestGroupedInvitationMainGuideReadsPlayerAutoApprovalHTTP(t *testing.T) {
 	expertInvitationID := create(`{"targetUserId":4,"playerUserId":3,"inviteGroupId":"main-guide-paired","roleType":"expert","message":"expert second"}`)
 
 	playerBody := postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(playerInvitationID, 10)+"/respond", playerToken, `{"accept":true}`, http.StatusOK)
-	if !strings.Contains(string(playerBody), `"status":"approved"`) {
-		t.Fatalf("main guide invitation should auto-approve the player: %s", string(playerBody))
+	if !strings.Contains(string(playerBody), `"status":"pending"`) {
+		t.Fatalf("accepted paired invitation should remain pending for final audit: %s", string(playerBody))
 	}
 	progressBody := getJSON(t, mux, "/api/app/game-invites/guide-progress?invitationId="+strconv.FormatInt(expertInvitationID, 10), expertToken, http.StatusOK)
-	if !strings.Contains(string(progressBody), `"canConfirm":true`) ||
-		!strings.Contains(string(progressBody), `"requirementStatusText":"已确认"`) ||
-		strings.Contains(string(progressBody), "请等待玩家先确认组局") {
-		t.Fatalf("expert should see the main guide's player as confirmed: %s", string(progressBody))
+	if strings.Contains(string(progressBody), `"canConfirm":true`) &&
+		strings.Contains(string(progressBody), `"requirementStatusText":"已确认"`) {
+		t.Fatalf("expert must wait for final audit after paired invitation acceptance: %s", string(progressBody))
 	}
 	assertAvatarCount := func(expected int) {
 		listBody := getJSON(t, mux, "/api/app/games", playerToken, http.StatusOK)
@@ -170,7 +169,25 @@ func TestGroupedInvitationMainGuideReadsPlayerAutoApprovalHTTP(t *testing.T) {
 			}
 		}
 	}
-	assertAvatarCount(3)
+	assertAvatarCount(2)
 	postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(expertInvitationID, 10)+"/respond", expertToken, `{"accept":true}`, http.StatusOK)
+	assertAvatarCount(2)
+	applicationsBody := getJSON(t, mux, "/api/app/game-applications/received?gameId=1&status=pending", guideToken, http.StatusOK)
+	var applicationsResponse struct {
+		Data struct {
+			Items []struct {
+				ID int64 `json:"id"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(applicationsBody, &applicationsResponse); err != nil {
+		t.Fatal(err)
+	}
+	if len(applicationsResponse.Data.Items) != 2 {
+		t.Fatalf("expected two pending paired applications: %s", string(applicationsBody))
+	}
+	for _, item := range applicationsResponse.Data.Items {
+		postJSON(t, mux, "/api/app/game-applications/"+strconv.FormatInt(item.ID, 10)+"/audit", guideToken, `{"approve":true}`, http.StatusOK)
+	}
 	assertAvatarCount(3)
 }

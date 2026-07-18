@@ -306,6 +306,10 @@ type invitationListRepository interface {
 	ListInvitationsForUser(ctx context.Context, userID int64) ([]Invitation, error)
 }
 
+type applicationReviewerRepository interface {
+	ListApplicationsForReviewer(ctx context.Context, userID int64) ([]Application, error)
+}
+
 type ProgressRepository interface {
 	CreateMilestone(ctx context.Context, milestone Milestone) (Milestone, error)
 	UpdateMilestone(ctx context.Context, milestone Milestone) (Milestone, error)
@@ -1159,16 +1163,12 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 			return Invitation{}, Application{}, ErrAlreadyApplied
 		}
 	}
-	applicationStatus := "pending"
-	if pairedInvitation {
-		applicationStatus = "approved"
-	}
 	app := Application{
 		ID:        s.nextApplicationID,
 		GameID:    invitation.GameID,
 		UserID:    userID,
 		Role:      normalizeInvitationRole(invitation.Role),
-		Status:    applicationStatus,
+		Status:    "pending",
 		Reason:    req.Reason,
 		CreatedAt: time.Now(),
 	}
@@ -1184,35 +1184,6 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 	}
 	s.nextApplicationID++
 	s.applications[app.ID] = app
-
-	if pairedInvitation {
-		if s.members[game.ID] == nil {
-			s.members[game.ID] = make(map[int64]bool)
-		}
-		s.members[game.ID][app.UserID] = true
-		memberRole := gameEntryRole(game, app.Role)
-		if s.memberRoles[game.ID] == nil {
-			s.memberRoles[game.ID] = make(map[int64]string)
-		}
-		s.memberRoles[game.ID][app.UserID] = memberRole
-		if s.repo != nil {
-			if err := s.repo.AddMember(context.Background(), game.ID, app.UserID, memberRole); err != nil {
-				return Invitation{}, Application{}, err
-			}
-		}
-		game.CurrentPlayers++
-		if game.CurrentPlayers >= game.MaxPlayers {
-			game.Status = "full"
-		}
-		if s.repo != nil {
-			saved, err := s.repo.UpdateGame(context.Background(), game)
-			if err != nil {
-				return Invitation{}, Application{}, err
-			}
-			game = saved
-		}
-		s.games[game.ID] = game
-	}
 
 	invitation.Status = "accepted"
 	invitation.ApplicationID = app.ID
@@ -1257,7 +1228,7 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 	if !ok {
 		return Application{}, ErrGameNotFound
 	}
-	if game.CreatorUserID != operatorUserID {
+	if game.CreatorUserID != operatorUserID && game.MainGuideUserID != operatorUserID {
 		return Application{}, ErrForbidden
 	}
 	if game.Status != "recruiting" {
@@ -2896,6 +2867,11 @@ func (s *Service) ApplicationsForUser(userID int64) []Application {
 }
 
 func (s *Service) ApplicationsForCreator(userID int64) []Application {
+	if repository, ok := s.repo.(applicationReviewerRepository); ok {
+		if items, err := repository.ListApplicationsForReviewer(context.Background(), userID); err == nil {
+			return items
+		}
+	}
 	if s.repo != nil {
 		if items, err := s.repo.ListApplicationsForCreator(context.Background(), userID); err == nil {
 			return items
@@ -2906,7 +2882,7 @@ func (s *Service) ApplicationsForCreator(userID int64) []Application {
 	result := make([]Application, 0)
 	for _, app := range s.applications {
 		game, ok := s.games[app.GameID]
-		if ok && game.CreatorUserID == userID {
+		if ok && (game.CreatorUserID == userID || game.MainGuideUserID == userID) {
 			result = append(result, app)
 		}
 	}

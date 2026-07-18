@@ -4053,6 +4053,10 @@ func (s *Server) createGameInvitation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.userCanGenerateInvitations(userID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成组局邀请")
+		return
+	}
 	gameID, ok := gameIDFromPath(w, r.URL.Path, "/api/app/games/", "/guide-invitations")
 	if !ok {
 		return
@@ -4101,8 +4105,10 @@ func (s *Server) respondGameInvitation(w http.ResponseWriter, r *http.Request) {
 	successRoute := ""
 	if invitation.Status == "accepted" {
 		s.connections.UpsertPair(invitation.InviterID, invitation.TargetUserID, "guide_match", "guide_match", invitation.ID, 3)
-		if app.Status == "approved" {
+		if strings.TrimSpace(invitation.InviteGroupID) != "" {
 			s.createPairedInvitationProgressNotification(invitation)
+		}
+		if app.Status == "approved" {
 			s.createGameInvitationSuccessNotifications(invitation)
 			if _, _, allConfirmed := s.invitationConfirmedParties(invitation); allConfirmed && guideProgressInvitationRole(invitation.Role) == "expert" {
 				successRoute, _ = gameInvitationSuccessRoute(invitation.GameID, "expert")
