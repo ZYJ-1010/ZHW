@@ -1068,7 +1068,19 @@ func (s *Server) profileCreditCenter(w http.ResponseWriter, r *http.Request) {
 
 	trace := s.reviews.TraceByUser(userID)
 	profile := trace.Profile
-	levelText := creditLevelText(profile.CreditScore)
+	creditRules := s.currentOperationRules().Credit
+	levelText := creditLevelText(profile.CreditScore, creditRules.ExcellentThreshold, creditRules.RestrictedThreshold, creditRules.SuspendedThreshold)
+	operationRules := s.currentOperationRules()
+	creditNote := operationRules.Messages["creditRestricted"]
+	if creditNote == "" {
+		creditNote = "信用分低于{score}分将限制部分功能"
+	}
+	creditNote = strings.ReplaceAll(creditNote, "{score}", strconv.Itoa(operationRules.Credit.RestrictedThreshold))
+	suspendedNote := operationRules.Messages["creditSuspended"]
+	if suspendedNote == "" {
+		suspendedNote = "信用分低于{score}分将暂停服务资格"
+	}
+	suspendedNote = strings.ReplaceAll(suspendedNote, "{score}", strconv.Itoa(operationRules.Credit.SuspendedThreshold))
 	monthlyDelta := 0
 	positiveCount := 0
 	negativeCount := 0
@@ -1113,7 +1125,7 @@ func (s *Server) profileCreditCenter(w http.ResponseWriter, r *http.Request) {
 			"route":   "/pages/profile/system-management/credit-appeal/index",
 			"text":    "信用申诉",
 		},
-		"bottomNote": "信用分低于80分将限制部分功能，低于60分将暂停服务资格。",
+		"bottomNote": creditNote + "，" + suspendedNote + "。",
 	})
 }
 
@@ -1125,13 +1137,13 @@ func (s *Server) myFootprints(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, map[string]interface{}{"items": s.reviews.Footprints(userID)})
 }
 
-func creditLevelText(score int) string {
+func creditLevelText(score int, excellent, restricted, suspended int) string {
 	switch {
-	case score >= 95:
+	case score >= excellent:
 		return "优秀"
-	case score >= 80:
+	case score >= restricted:
 		return "良好"
-	case score >= 60:
+	case score >= suspended:
 		return "受限"
 	default:
 		return "暂停服务"

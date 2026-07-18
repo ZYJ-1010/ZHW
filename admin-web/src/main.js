@@ -58,6 +58,7 @@
   conditionRuleConfig: null,
   roleBenefitConfig: null,
   growthRewardRules: null,
+  operationRules: null,
   creditDeductionRules: [],
   pagination: {},
   drawerRestore: null,
@@ -3208,6 +3209,8 @@ async function renderSystem() {
   $("#review-complete-form").addEventListener("submit", saveReviewCompleteConfig);
   $("#growth-rules-refresh").addEventListener("click", loadGrowthRewardRules);
   $("#growth-rules-form").addEventListener("submit", saveGrowthRewardRules);
+  $("#operation-rules-refresh").addEventListener("click", loadOperationRules);
+  $("#operation-rules-form").addEventListener("submit", saveOperationRules);
   $("#credit-rule-refresh").addEventListener("click", loadCreditDeductionRules);
   $("#credit-rule-form").addEventListener("submit", saveCreditDeductionRules);
   $("#profit-config-refresh").addEventListener("click", loadProfitTemplateConfig);
@@ -3229,6 +3232,7 @@ async function renderSystem() {
     tasks.push(loadRoleBenefitConfig());
     tasks.push(loadReviewCompleteConfig());
     tasks.push(loadGrowthRewardRules());
+    tasks.push(loadOperationRules());
     tasks.push(loadCreditDeductionRules());
     tasks.push(loadProfitTemplateConfig());
   } else {
@@ -3240,6 +3244,7 @@ async function renderSystem() {
     renderNoAccess("#role-benefit-config-panel", "缺少 system_config:read");
     renderNoAccess("#review-complete-config-panel", "缺少 system_config:read");
     renderNoAccess("#growth-rules-config-panel", "缺少 system_config:read");
+    renderNoAccess("#operation-rules-config-panel", "缺少 system_config:read");
     renderNoAccess("#credit-rule-config-panel", "缺少 system_config:read");
   }
   if (can("content:sensitive_word:view")) {
@@ -3643,6 +3648,48 @@ async function saveGrowthRewardRules(event) {
     textareaSelector: "#growth-rules-config-json",
     render: renderGrowthRewardRules,
     successMessage: "成长等级与积分规则已保存",
+  });
+}
+
+async function loadOperationRules() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#operation-rules-config-panel", "缺少 system_config:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/operation-rules");
+  state.operationRules = data.config || data;
+  const textarea = $("#operation-rules-config-json");
+  if (textarea) textarea.value = JSON.stringify(state.operationRules, null, 2);
+  renderOperationRules();
+}
+
+function renderOperationRules() {
+  const config = state.operationRules || {};
+  const tasks = config.tasks?.items || [];
+  const roles = config.roles || {};
+  const game = config.game || {};
+  const invite = config.invite || {};
+  const stateRules = config.state || {};
+  $("#operation-rules-config-panel").innerHTML = [
+    detailCell("任务规则", `${tasks.length} 条`),
+    detailCell("行家发起局门槛", `${roles.expertCreatedGames ?? "-"} 次`),
+    detailCell("领路人参与局门槛", `${roles.guideParticipatedGames ?? "-"} 次`),
+    detailCell("组局人数", `${game.minPlayers ?? "-"}-${game.maxPlayers ?? "-"}`),
+    detailCell("每日创建上限", `${game.dailyCreateLimit ?? "-"} 局`),
+    detailCell("邀请有效期", `${invite.timeoutMinutes ?? "-"} 分钟`),
+    detailCell("状态审核超时", `${stateRules.auditTimeoutHours ?? "-"} 小时`),
+  ].join("");
+}
+
+async function saveOperationRules(event) {
+  event.preventDefault();
+  await saveJSONSystemConfig({
+    form: event.currentTarget,
+    endpoint: "/api/admin/operation-rules",
+    stateKey: "operationRules",
+    textareaSelector: "#operation-rules-config-json",
+    render: renderOperationRules,
+    successMessage: "运营约束规则已保存",
   });
 }
 

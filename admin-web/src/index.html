@@ -1344,6 +1344,7 @@
         <button data-tab-group="system" data-tab-target="#system-role-benefit-panel" type="button">角色权益</button>
         <button data-tab-group="system" data-tab-target="#system-review-complete-panel" type="button">评价完成</button>
         <button data-tab-group="system" data-tab-target="#system-growth-rules-panel" type="button">成长积分</button>
+        <button data-tab-group="system" data-tab-target="#system-operation-rules-panel" type="button">运营约束</button>
         <button data-tab-group="system" data-tab-target="#system-credit-panel" type="button">信用规则</button>
         <button data-tab-group="system" data-tab-target="#system-profit-panel" type="button">押金规则</button>
         <button data-tab-group="system" data-tab-target="#system-sensitive-panel" type="button">敏感词</button>
@@ -1466,6 +1467,20 @@
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="growth-rules-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-operation-rules-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>运营约束规则</h2>
+            <p>统一维护任务、角色门槛、组局、邀请、信用限制、积分有效期和状态超时。</p>
+          </div>
+          <button id="operation-rules-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="operation-rules-form" class="form-grid" aria-hidden="false">
+          <textarea id="operation-rules-config-json" name="configJson" rows="18" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存运营约束</button>
+        </form>
+        <div id="operation-rules-config-panel" class="detail-grid"></div>
       </section>
       <section id="system-credit-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">

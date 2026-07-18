@@ -250,9 +250,16 @@ func invitationGameSchedule(game games.Game) (string, string) {
 func (s *Server) currentGameInviteConfig() gameInviteConfigDTO {
 	var stored gameInviteConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameInviteConfigKey, &stored) {
-		return normalizeGameInviteConfig(stored)
+		config := normalizeGameInviteConfig(stored)
+		rules := s.currentOperationRules().Invite
+		if rules.TimeoutMinutes > 0 {
+			config.InvitationTimeoutMinutes = rules.TimeoutMinutes
+		}
+		return config
 	}
-	return defaultGameInviteConfig()
+	config := defaultGameInviteConfig()
+	config.InvitationTimeoutMinutes = s.currentOperationRules().Invite.TimeoutMinutes
+	return config
 }
 
 func (s *Server) currentReplayQuickActionsConfig() []replayQuickActionDTO {

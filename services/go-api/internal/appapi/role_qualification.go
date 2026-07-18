@@ -50,13 +50,14 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 	growth := s.reviews.Profile(userID)
 	createdGames, participatedGames, completedUsers := s.roleApplyGameStats()
 	enterpriseMet := s.enterpriseCertificationMet(userID)
+	rules := s.currentOperationRules().Roles
 	requirements := make([]roleApplyRequirement, 0, 7)
 	if roleCode == "expert" {
 		requirements = append(requirements,
 			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
-			roleApplyCountRequirement("created_games", "发起过 5 次以上组局", createdGames[userID], 5),
-			roleApplyCountRequirement("credit_score", "信用分 ≥ 90 分", growth.CreditScore, 90),
+			roleApplyCountRequirement("created_games", fmt.Sprintf("发起过 %d 次以上组局", rules.ExpertCreatedGames), createdGames[userID], rules.ExpertCreatedGames),
+			roleApplyCountRequirement("credit_score", fmt.Sprintf("信用分 ≥ %d 分", rules.ExpertCreditScore), growth.CreditScore, rules.ExpertCreditScore),
 			roleApplyRequirement{Key: "plan", Title: "提交行家计划书", Text: "提交申请时填写计划书", Met: false, Checked: false},
 		)
 	} else {
@@ -64,9 +65,9 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 		requirements = append(requirements,
 			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
-			roleApplyCountRequirement("participated_games", "参与过 3 次以上组局", participatedGames[userID], 3),
-			roleApplyCountRequirement("invited_completed_game", "已成功邀请 ≥ 1 人完成组局", invitedCompleted, 1),
-			roleApplyCountRequirement("credit_score", "信用分 ≥ 80 分", growth.CreditScore, 80),
+			roleApplyCountRequirement("participated_games", fmt.Sprintf("参与过 %d 次以上组局", rules.GuideParticipatedGames), participatedGames[userID], rules.GuideParticipatedGames),
+			roleApplyCountRequirement("invited_completed_game", fmt.Sprintf("已成功邀请 ≥ %d 人完成组局", rules.GuideInvitedCompleted), invitedCompleted, rules.GuideInvitedCompleted),
+			roleApplyCountRequirement("credit_score", fmt.Sprintf("信用分 ≥ %d 分", rules.GuideCreditScore), growth.CreditScore, rules.GuideCreditScore),
 			roleApplyRequirement{Key: "plan", Title: "提交领路计划书", Text: "提交申请时填写计划书", Met: false, Checked: false},
 		)
 		if qualification, err := s.profiles.GuideQualification(userID); err == nil && qualification.ConditionMet {

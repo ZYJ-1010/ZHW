@@ -3,6 +3,7 @@ package appapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -788,6 +789,10 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	var growthRulesStored reviews.GrowthRules
 	if !s.systemConfig.Get(growthRewardRulesConfigKey, &growthRulesStored) {
 		_ = s.systemConfig.Set(growthRewardRulesConfigKey, reviews.DefaultGrowthRules())
+	}
+	var operationRulesStored operationRulesDTO
+	if !s.systemConfig.Get(operationRulesConfigKey, &operationRulesStored) {
+		_ = s.systemConfig.Set(operationRulesConfigKey, defaultOperationRules())
 	}
 	var mapMyCityStored mapMyCityConfigDTO
 	if !s.systemConfig.Get(mapMyCityConfigKey, &mapMyCityStored) || len(mapMyCityStored.StoryGroups) == 0 {
@@ -1594,6 +1599,14 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	categoryConfig := s.currentGameCategoryConfig()
+	operationRules := s.currentOperationRules()
+	if req.MinPlayers < operationRules.Game.MinPlayers || req.MaxPlayers > operationRules.Game.MaxPlayers || req.MinPlayers > req.MaxPlayers {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, fmt.Sprintf("每局人数必须为 %d-%d", operationRules.Game.MinPlayers, operationRules.Game.MaxPlayers))
+		return
+	}
+	if service, ok := s.games.(*games.Service); ok {
+		service.SetDailyCreateLimit(operationRules.Game.DailyCreateLimit)
+	}
 	if strings.TrimSpace(req.PrimaryCategory) != "" && !categoryKeyExists(categoryConfig.PrimaryCategories, strings.TrimSpace(req.PrimaryCategory)) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid primary category")
 		return
@@ -1623,11 +1636,11 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, games.ErrInvalidGameType):
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "小程序一期只能创建免费局")
 		case errors.Is(err, games.ErrInvalidPlayers):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "每局人数必须为 5-8")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, fmt.Sprintf("每局人数必须为 %d-%d", operationRules.Game.MinPlayers, operationRules.Game.MaxPlayers))
 		case errors.Is(err, games.ErrInvalidGameInput):
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game input")
 		case errors.Is(err, games.ErrDailyLimit):
-			httpx.Error(w, http.StatusTooManyRequests, 42921, "每日最多创建 3 局")
+			httpx.Error(w, http.StatusTooManyRequests, 42921, fmt.Sprintf("每日最多创建 %d 局", operationRules.Game.DailyCreateLimit))
 		default:
 			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "创建局失败")
 		}
@@ -1736,24 +1749,45 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	items := []map[string]interface{}{
-		{"code": "complete_identity", "title": "完成实名认证", "completed": record.Status == "verified"},
-		{"code": "apply_role", "title": "申请行家或领路人", "completed": hasRoleApplication || hasApprovedRole},
-		{"code": "join_or_create_game", "title": "创建或参与第一局", "completed": stats.Participated > 0},
-		{"code": "complete_game", "title": "完成一局服务", "completed": stats.Completed > 0},
-		{"code": "submit_review", "title": "完成评价", "completed": len(reviewIntents) > 0},
+	rules := s.currentOperationRules()
+	completion := map[string]bool{
+		"complete_identity":   record.Status == "verified",
+		"apply_role":          hasRoleApplication || hasApprovedRole,
+		"join_or_create_game": stats.Participated > 0,
+		"complete_game":       stats.Completed > 0,
+		"submit_review":       len(reviewIntents) > 0,
+	}
+	items := make([]map[string]interface{}, 0)
+	dailyItems := make([]map[string]interface{}, 0)
+	activityItems := make([]map[string]interface{}, 0)
+	for _, rule := range rules.Tasks.Items {
+		if !rule.Enabled {
+			continue
+		}
+		item := map[string]interface{}{"code": rule.Code, "title": rule.Title, "completed": completion[rule.Code], "required": rule.Required, "rewardPoints": rule.RewardPoints, "rewardExperience": rule.RewardExperience}
+		switch rule.Category {
+		case "daily":
+			dailyItems = append(dailyItems, item)
+		case "activity":
+			activityItems = append(activityItems, item)
+		default:
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		items = []map[string]interface{}{{"code": "complete_identity", "title": "完成实名认证", "completed": record.Status == "verified"}}
+	}
+	if len(dailyItems) == 0 {
+		dailyItems = []map[string]interface{}{{"code": "daily_join_game", "title": "今日参与 1 次组局", "completed": stats.Participated > 0, "current": stats.Participated, "required": 1}}
+	}
+	if len(activityItems) == 0 {
+		activityItems = []map[string]interface{}{{"code": "activity_complete_game", "title": "完成一局并提交评价", "completed": stats.Completed > 0 && len(reviewIntents) > 0, "current": stats.Completed, "required": 1}}
 	}
 	completed := 0
 	for _, item := range items {
 		if done, _ := item["completed"].(bool); done {
 			completed++
 		}
-	}
-	dailyItems := []map[string]interface{}{
-		{"code": "daily_join_game", "title": "今日参与 1 次组局", "completed": stats.Participated > 0, "current": stats.Participated, "required": 1},
-	}
-	activityItems := []map[string]interface{}{
-		{"code": "activity_complete_game", "title": "完成一局并提交评价", "completed": stats.Completed > 0 && len(reviewIntents) > 0, "current": stats.Completed, "required": 1},
 	}
 	completedCodes := map[string]bool{}
 	if s.tasks != nil {
