@@ -35,6 +35,7 @@ type gameService interface {
 	ApplicationsForCreator(userID int64) []games.Application
 	InvitationsForUser(userID int64) []games.Invitation
 	ManualStart(userID int64, gameID int64) (games.Game, error)
+	ManualStartWithReason(userID int64, gameID int64, startReason string) (games.Game, error)
 	RequestCompletion(userID int64, gameID int64) (games.Game, error)
 	Exit(userID int64, gameID int64) (games.ExitResult, error)
 	CancelService(gameID int64, reason string) (games.Game, error)
@@ -4916,7 +4917,17 @@ func (s *Server) manualStart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	game, err := s.games.ManualStart(userID, id)
+	var req struct {
+		StartReason string `json:"startReason"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	startReason := strings.TrimSpace(req.StartReason)
+	if startReason == "" {
+		startReason = "发起人手动开始"
+	}
+	game, err := s.games.ManualStartWithReason(userID, id, startReason)
 	if err != nil {
 		writeGameError(w, err)
 		return

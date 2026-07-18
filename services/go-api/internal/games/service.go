@@ -94,6 +94,9 @@ type Game struct {
 	GameSource            string    `json:"gameSource"`
 	Status                string    `json:"status"`
 	RejectReason          string    `json:"rejectReason,omitempty"`
+	StartReason           string    `json:"startReason,omitempty"`
+	StartedByUserID       int64     `json:"startedByUserId,omitempty"`
+	StartedAt             string    `json:"startedAt,omitempty"`
 	MinPlayers            int       `json:"minPlayers"`
 	MaxPlayers            int       `json:"maxPlayers"`
 	CurrentPlayers        int       `json:"currentPlayers"`
@@ -1350,6 +1353,14 @@ func (s *Service) CancelApplication(userID int64, applicationID int64) (Applicat
 }
 
 func (s *Service) ManualStart(userID int64, gameID int64) (Game, error) {
+	return s.ManualStartWithReason(userID, gameID, "发起人手动开始")
+}
+
+func (s *Service) ManualStartWithReason(userID int64, gameID int64, startReason string) (Game, error) {
+	startReason = strings.TrimSpace(startReason)
+	if startReason == "" || len([]rune(startReason)) > 300 {
+		return Game{}, ErrInvalidGameInput
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	game, ok, err := s.gameLocked(gameID)
@@ -1369,6 +1380,9 @@ func (s *Service) ManualStart(userID int64, gameID int64) (Game, error) {
 		return Game{}, ErrGameNotStartable
 	}
 	game.Status = "in_progress"
+	game.StartReason = startReason
+	game.StartedByUserID = userID
+	game.StartedAt = time.Now().Format(time.RFC3339)
 	if s.repo != nil {
 		saved, err := s.repo.UpdateGame(context.Background(), game)
 		if err != nil {

@@ -16,8 +16,21 @@ func TestManualStartRequiresMinPlayers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("manual start with min players failed: %v", err)
 	}
-	if started.Status != "in_progress" {
+	if started.Status != "in_progress" || started.StartReason == "" || started.StartedByUserID != 1 || started.StartedAt == "" {
 		t.Fatalf("expected in_progress, got %+v", started)
+	}
+}
+
+func TestManualStartWithReasonStoresProvidedReason(t *testing.T) {
+	service := newVerifiedGameService()
+	game := mustCreateRecruitingGame(t, service)
+	mustApproveMembers(t, service, game.ID, 2, 3, 4, 5)
+	started, err := service.ManualStartWithReason(1, game.ID, "成员已确认，提前开始")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if started.StartReason != "成员已确认，提前开始" || started.StartedByUserID != 1 || started.StartedAt == "" {
+		t.Fatalf("manual start metadata not saved: %+v", started)
 	}
 }
 

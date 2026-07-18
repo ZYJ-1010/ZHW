@@ -26,14 +26,14 @@ insert into games (
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at, updated_at, reject_reason
-) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35)
+  longitude, latitude, created_at, updated_at, reject_reason, start_reason, started_by_user_id, started_at
+) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$34,$35,$36,$37,$38)
 returning id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
   cover_image, description, highlights, notice, audience, participation, price, profit_template,
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at, reject_reason
+  longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
 `, game.CreatorUserID, nullInt64(game.MainGuideUserID), game.Title, game.GameType, game.GameSource, game.Status,
 		nullString(game.CoverImage), nullString(game.Description), nullString(game.Highlights), nullString(game.Notice),
 		nullString(game.Audience), nullString(game.Participation), game.Price, nullString(game.ProfitTemplate),
@@ -41,7 +41,7 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
 		string(tagsJSON), string(completionRulesJSON),
 		nullString(game.PrimaryCategory), nullString(game.PrimaryCategoryText), nullString(game.SecondaryCategory), nullString(game.SecondaryCategoryText), nullString(game.Type),
 		game.MinPlayers, game.MaxPlayers, game.CurrentPlayers, game.CityCode, game.CityName,
-		nullString(game.Address), game.Longitude, game.Latitude, game.CreatedAt, nullString(game.RejectReason)))
+		nullString(game.Address), game.Longitude, game.Latitude, game.CreatedAt, nullString(game.RejectReason), nullString(game.StartReason), nullInt64(game.StartedByUserID), nullTimeString(game.StartedAt)))
 }
 
 func (r *SQLRepository) UpdateGame(ctx context.Context, game Game) (Game, error) {
@@ -82,6 +82,9 @@ update games set
   longitude = $32,
   latitude = $33,
   reject_reason = $34,
+	start_reason = $35,
+	started_by_user_id = $36,
+	started_at = $37,
   updated_at = now()
 where id = $1
 returning id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
@@ -89,7 +92,7 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at, reject_reason
+  longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
 `, game.ID, nullInt64(game.MainGuideUserID), game.Title, game.GameType, game.GameSource, game.Status,
 		nullString(game.CoverImage), nullString(game.Description), nullString(game.Highlights), nullString(game.Notice),
 		nullString(game.Audience), nullString(game.Participation), game.Price, nullString(game.ProfitTemplate),
@@ -97,7 +100,7 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
 		string(tagsJSON), string(completionRulesJSON),
 		nullString(game.PrimaryCategory), nullString(game.PrimaryCategoryText), nullString(game.SecondaryCategory), nullString(game.SecondaryCategoryText), nullString(game.Type),
 		game.MinPlayers, game.MaxPlayers, game.CurrentPlayers, game.CityCode, game.CityName,
-		nullString(game.Address), game.Longitude, game.Latitude, nullString(game.RejectReason)))
+		nullString(game.Address), game.Longitude, game.Latitude, nullString(game.RejectReason), nullString(game.StartReason), nullInt64(game.StartedByUserID), nullTimeString(game.StartedAt)))
 }
 
 func (r *SQLRepository) GetGame(ctx context.Context, gameID int64) (Game, error) {
@@ -107,7 +110,7 @@ select id, creator_user_id, main_guide_user_id, title, game_type, game_source, s
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at, reject_reason
+  longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
 from games
 where id = $1
 `, gameID))
@@ -124,7 +127,7 @@ select id, creator_user_id, main_guide_user_id, title, game_type, game_source, s
   start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
   primary_category, primary_category_text, secondary_category, secondary_category_text, type,
   min_players, max_players, current_players, city_code, city_name, address,
-  longitude, latitude, created_at, reject_reason
+  longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
 from games
 order by created_at desc, id desc
 `)
@@ -432,6 +435,9 @@ func scanGame(row interface {
 	var longitude sql.NullFloat64
 	var latitude sql.NullFloat64
 	var rejectReason sql.NullString
+	var startReason sql.NullString
+	var startedByUserID sql.NullInt64
+	var startedAt sql.NullTime
 	err := row.Scan(
 		&game.ID,
 		&game.CreatorUserID,
@@ -469,12 +475,20 @@ func scanGame(row interface {
 		&latitude,
 		&game.CreatedAt,
 		&rejectReason,
+		&startReason,
+		&startedByUserID,
+		&startedAt,
 	)
 	if err != nil {
 		return Game{}, err
 	}
 	game.MainGuideUserID = mainGuideUserID.Int64
 	game.RejectReason = rejectReason.String
+	game.StartReason = startReason.String
+	game.StartedByUserID = startedByUserID.Int64
+	if startedAt.Valid {
+		game.StartedAt = startedAt.Time.Format(time.RFC3339)
+	}
 	game.CoverImage = coverImage.String
 	game.Description = description.String
 	game.Highlights = highlights.String
