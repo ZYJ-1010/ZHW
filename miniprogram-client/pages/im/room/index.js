@@ -7,6 +7,7 @@ const { navigateShellBack, navigateShellRoute } = require('../../../utils/shell-
 
 const READONLY_STATUSES = ['archived', 'readonly', 'ended', 'finished', 'completed', 'canceled']
 const ROOM_REFRESH_INTERVAL_MS = 3000
+const SOCKET_RECONNECT_DELAY_MS = 1500
 
 function toPositiveInt(value) {
   const number = Number(value)
@@ -410,7 +411,8 @@ Page({
     this.hasLoadedRoom = false
     this.shouldStickToLatest = true
     this.lastMessageScrollTop = 0
-    this.loadRoom({ forceScroll: true })
+    this.socketReconnectAttempts = 0
+    this.loadRoom({ forceScroll: true }).then(() => this.startSocket())
   },
 
   onShow() {
@@ -418,15 +420,18 @@ Page({
       this.loadRoom()
     }
     this.hasShown = true
+    this.startSocket()
     this.startRoomRefresh()
   },
 
   onHide() {
     this.stopRoomRefresh()
+    this.stopSocket()
   },
 
   onUnload() {
     this.stopRoomRefresh()
+    this.stopSocket()
     if (this.audioContext) {
       this.audioContext.stop()
       this.audioContext.destroy()
@@ -437,7 +442,7 @@ Page({
   startRoomRefresh() {
     this.stopRoomRefresh()
     this.roomRefreshTimer = setInterval(() => {
-      if (!this.data.loading && !this.data.sending && !this.data.uploading) {
+      if (!this.imSocket && !this.data.loading && !this.data.sending && !this.data.uploading) {
         this.loadRoom()
       }
     }, ROOM_REFRESH_INTERVAL_MS)
@@ -448,6 +453,86 @@ Page({
       clearInterval(this.roomRefreshTimer)
       this.roomRefreshTimer = null
     }
+  },
+
+  startSocket() {
+    if (!this.gameId || this.imSocket || typeof imService.connectGameSocket !== 'function') {
+      return
+    }
+    this.socketStopping = false
+    const socket = imService.connectGameSocket(this.gameId, {
+      onOpen: () => {
+        this.socketReconnectAttempts = 0
+        this.setData({ socketConnected: true })
+        this.stopRoomRefresh()
+      },
+      onConnected: () => {
+        this.setData({ socketConnected: true })
+      },
+      onMessage: (message) => this.appendSocketMessage(message),
+      onError: () => {
+        this.setData({ socketConnected: false })
+      },
+      onClose: () => {
+        this.imSocket = null
+        this.setData({ socketConnected: false })
+        this.startRoomRefresh()
+        if (!this.socketStopping) {
+          this.scheduleSocketReconnect()
+        }
+      }
+    })
+    if (socket) {
+      this.imSocket = socket
+      this.socketStopping = false
+    }
+  },
+
+  scheduleSocketReconnect() {
+    if (this.socketReconnectTimer || this.socketStopping || !this.gameId) {
+      return
+    }
+    this.socketReconnectAttempts = Math.min((this.socketReconnectAttempts || 0) + 1, 5)
+    const delay = SOCKET_RECONNECT_DELAY_MS * this.socketReconnectAttempts
+    this.socketReconnectTimer = setTimeout(() => {
+      this.socketReconnectTimer = null
+      this.startSocket()
+    }, delay)
+  },
+
+  stopSocket() {
+    this.socketStopping = true
+    if (this.socketReconnectTimer) {
+      clearTimeout(this.socketReconnectTimer)
+      this.socketReconnectTimer = null
+    }
+    if (this.imSocket) {
+      this.imSocket.close()
+      this.imSocket = null
+    }
+    this.setData({ socketConnected: false })
+  },
+
+  appendSocketMessage(message) {
+    if (!message || Number(message.gameId || this.gameId) !== this.gameId) {
+      return
+    }
+    const messageID = String(message.id || message.messageId || '')
+    const current = Array.isArray(this.data.messages) ? this.data.messages : []
+    if (messageID && current.some((item) => String(item.id) === messageID)) {
+      return
+    }
+    const normalized = normalizeMessage(message, this.currentUserId || 0, this.memberMap || {})
+    const previous = current[current.length - 1]
+    const dateText = messageDateLabel(message)
+    normalized.showDateDivider = Boolean(dateText && (!previous || previous.dateDividerText !== dateText))
+    normalized.dateDividerText = dateText
+    const messages = current.concat(normalized)
+    this.setData({
+      messages,
+      scrollAnchor: `message-${messages.length - 1}`
+    })
+    this.shouldStickToLatest = true
   },
 
   onMessageScroll(event) {
@@ -505,6 +590,8 @@ Page({
       const memberCount = Array.isArray(room.memberIds) ? room.memberIds.length : 0
       const readOnly = isReadOnlyRoom(room)
       const memberMap = normalizeMembers(room)
+      this.memberMap = memberMap
+      this.currentUserId = currentUserId
       const memberPreview = buildMemberPreview(room, memberMap)
       const roomTitle = safeText(session.title || room.title || pickGameTitle(gameDetail), '局')
       const messages = [
@@ -661,13 +748,20 @@ Page({
     this.setData({ sending: true })
 
     try {
-      await imService.sendMessage(this.gameId, {
+      const payload = {
         messageType: 'text',
         content
-      })
+      }
+      if (this.imSocket && this.imSocket.isOpen()) {
+        await this.imSocket.sendMessage(payload)
+      } else {
+        await imService.sendMessage(this.gameId, payload)
+      }
       this.setData({ sending: false, inputText: '' })
       this.shouldStickToLatest = true
-      await this.loadRoom({ forceScroll: true })
+      if (!this.imSocket) {
+        await this.loadRoom({ forceScroll: true })
+      }
     } catch (error) {
       if (isSensitiveReject(error)) {
         const messages = this.data.messages.concat(buildFailedTextMessage(content))
@@ -718,15 +812,22 @@ Page({
         throw new Error('文件上传失败')
       }
 
-      await imService.sendMessage(this.gameId, {
+      const payload = {
         messageType,
         content: file.name || (messageType === 'image' ? '图片消息' : (messageType === 'voice' ? '语音消息' : '局内文件')),
         fileId
-      })
+      }
+      if (this.imSocket && this.imSocket.isOpen()) {
+        await this.imSocket.sendMessage(payload)
+      } else {
+        await imService.sendMessage(this.gameId, payload)
+      }
 
       this.setData({ uploading: false })
       this.shouldStickToLatest = true
-      await this.loadRoom({ forceScroll: true })
+      if (!this.imSocket) {
+        await this.loadRoom({ forceScroll: true })
+      }
     } catch (error) {
       this.setData({ uploading: false })
       toast.info(error && error.message ? error.message : '文件发送失败')
