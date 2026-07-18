@@ -308,6 +308,14 @@ type Repository interface {
 	GetInvitation(ctx context.Context, invitationID int64) (Invitation, error)
 }
 
+type gameLockRepository interface {
+	LockGame(ctx context.Context, gameID int64) (Game, error)
+}
+
+type approvalGameRepository interface {
+	UpdateGameAfterApproval(ctx context.Context, game Game, expectedCurrentPlayers int) (Game, error)
+}
+
 type memberRoleRepository interface {
 	ListMemberRoles(ctx context.Context, gameID int64) ([]MemberRole, error)
 }
@@ -1258,6 +1266,11 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 	if !ok {
 		return Application{}, ErrGameNotFound
 	}
+	if locker, ok := s.repo.(gameLockRepository); ok {
+		if lockedGame, lockErr := locker.LockGame(context.Background(), app.GameID); lockErr == nil {
+			game = lockedGame
+		}
+	}
 	if game.CreatorUserID != operatorUserID && game.MainGuideUserID != operatorUserID {
 		return Application{}, ErrForbidden
 	}
@@ -1268,6 +1281,7 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		if game.CurrentPlayers >= game.MaxPlayers {
 			return Application{}, ErrFull
 		}
+		previousPlayers := game.CurrentPlayers
 		app.Status = "approved"
 		if s.members[game.ID] == nil {
 			s.members[game.ID] = make(map[int64]bool)
@@ -1287,16 +1301,27 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 			s.memberRoles[game.ID] = make(map[int64]string)
 		}
 		s.memberRoles[game.ID][app.UserID] = memberRole
-		if s.repo != nil {
-			if err := s.repo.AddMember(context.Background(), game.ID, app.UserID, memberRole); err != nil {
-				return Application{}, err
-			}
-		}
 		game.CurrentPlayers++
 		if game.CurrentPlayers >= game.MaxPlayers {
 			game.Status = "full"
 		}
 		s.games[game.ID] = game
+		if s.repo != nil {
+			if atomicRepo, ok := s.repo.(approvalGameRepository); ok {
+				saved, updateErr := atomicRepo.UpdateGameAfterApproval(context.Background(), game, previousPlayers)
+				if updateErr != nil {
+					return Application{}, ErrFull
+				}
+				game = saved
+			} else if saved, updateErr := s.repo.UpdateGame(context.Background(), game); updateErr != nil {
+				return Application{}, updateErr
+			} else {
+				game = saved
+			}
+			if err := s.repo.AddMember(context.Background(), game.ID, app.UserID, memberRole); err != nil {
+				return Application{}, err
+			}
+		}
 	} else {
 		app.Status = "rejected"
 		app.RejectReason = rejectReason
@@ -1307,10 +1332,12 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		} else {
 			app = saved
 		}
-		if saved, err := s.repo.UpdateGame(context.Background(), game); err != nil {
-			return Application{}, err
-		} else {
-			game = saved
+		if !approve {
+			if saved, err := s.repo.UpdateGame(context.Background(), game); err != nil {
+				return Application{}, err
+			} else {
+				game = saved
+			}
 		}
 	}
 	s.applications[app.ID] = app

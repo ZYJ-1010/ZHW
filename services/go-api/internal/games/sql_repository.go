@@ -103,6 +103,27 @@ returning id, creator_user_id, main_guide_user_id, title, game_type, game_source
 		nullString(game.Address), game.Longitude, game.Latitude, nullString(game.RejectReason), nullString(game.StartReason), nullInt64(game.StartedByUserID), nullTimeString(game.StartedAt)))
 }
 
+// UpdateGameAfterApproval atomically reserves one player slot. The expected
+// count predicate makes concurrent reviewers fail instead of overwriting the
+// same capacity value.
+func (r *SQLRepository) UpdateGameAfterApproval(ctx context.Context, game Game, expectedCurrentPlayers int) (Game, error) {
+	result, err := r.db.ExecContext(ctx, `
+update games
+set main_guide_user_id = $2,
+    current_players = $3,
+    status = $4,
+    updated_at = now()
+where id = $1 and status = 'recruiting' and current_players = $5
+`, game.ID, nullInt64(game.MainGuideUserID), game.CurrentPlayers, game.Status, expectedCurrentPlayers)
+	if err != nil {
+		return Game{}, err
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return Game{}, sql.ErrNoRows
+	}
+	return r.GetGame(ctx, game.ID)
+}
+
 func (r *SQLRepository) GetGame(ctx context.Context, gameID int64) (Game, error) {
 	game, err := scanGame(r.db.QueryRowContext(ctx, `
 select id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
@@ -113,6 +134,27 @@ select id, creator_user_id, main_guide_user_id, title, game_type, game_source, s
   longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
 from games
 where id = $1
+`, gameID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Game{}, ErrGameNotFound
+	}
+	return game, err
+}
+
+// LockGame is used by approval paths that must serialize capacity checks with
+// other reviewers. The caller keeps the surrounding database transaction open
+// when composing multiple mutations.
+func (r *SQLRepository) LockGame(ctx context.Context, gameID int64) (Game, error) {
+	game, err := scanGame(r.db.QueryRowContext(ctx, `
+select id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
+  cover_image, description, highlights, notice, audience, participation, price, profit_template,
+  start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
+  primary_category, primary_category_text, secondary_category, secondary_category_text, type,
+  min_players, max_players, current_players, city_code, city_name, address,
+  longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
+from games
+where id = $1
+for update
 `, gameID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Game{}, ErrGameNotFound
@@ -245,6 +287,7 @@ update game_applications set
   file_ids = $5,
   reviewed_at = case when $2::varchar = 'pending' then reviewed_at else now() end
 where id = $1
+	and status = 'pending'
 returning id, game_id, user_id, role, status, reason, reject_reason, file_ids, created_at
 `, application.ID, application.Status, application.Reason, nullString(application.RejectReason), string(fileIDs)))
 }
