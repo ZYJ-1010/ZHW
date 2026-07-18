@@ -151,7 +151,6 @@ const mockGuideApplyConfig = {
   applyRoleType: 'guide',
   applyRoleName: '领路人',
   requirements: [
-    { title: '玩家等级达到 Lv.5', text: '以后台资格规则为准', done: false },
     { title: '完成实名认证', text: '领路人必须实名', done: false },
     { title: '信用分 ≥ 80 分', text: '以信用记录为准', done: false }
   ],

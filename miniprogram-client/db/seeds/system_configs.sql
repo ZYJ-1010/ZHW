@@ -303,7 +303,6 @@ values
       },
       "requirementsTitle": "申请条件",
       "requirements": [
-        { "title": "玩家等级达到 Lv.20", "text": "以后台资格规则为准", "done": false },
         { "title": "完成实名认证", "text": "行家必须实名", "done": false },
         { "title": "完成企业认证", "text": "以认证记录为准", "done": false },
         { "title": "发起过 5 次以上组局", "text": "以后台组局记录为准", "done": false },
@@ -365,7 +364,6 @@ values
       "applyRoleType": "guide",
       "applyRoleName": "领路人",
       "requirements": [
-        { "title": "玩家等级达到 Lv.5", "text": "以后台资格规则为准", "done": false },
         { "title": "完成实名认证", "text": "领路人必须实名", "done": false },
         { "title": "信用分 ≥ 80 分", "text": "以信用记录为准", "done": false }
       ],

@@ -53,7 +53,6 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 	requirements := make([]roleApplyRequirement, 0, 7)
 	if roleCode == "expert" {
 		requirements = append(requirements,
-			roleApplyCountRequirement("level", "玩家等级达到 Lv.20", growth.Level, 20),
 			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
 			roleApplyCountRequirement("created_games", "发起过 5 次以上组局", createdGames[userID], 5),
@@ -63,7 +62,6 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 	} else {
 		invitedCompleted := s.roleApplyInvitedCompletedCount(userID, completedUsers)
 		requirements = append(requirements,
-			roleApplyCountRequirement("level", "玩家等级达到 Lv.5", growth.Level, 5),
 			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
 			roleApplyCountRequirement("participated_games", "参与过 3 次以上组局", participatedGames[userID], 3),

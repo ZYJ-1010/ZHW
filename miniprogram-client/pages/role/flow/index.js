@@ -92,7 +92,6 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   },
   requirementsTitle: '申请条件',
   requirements: [
-    { title: '玩家等级达到 Lv.20', text: '以后台资格规则为准', done: false },
     { title: '完成实名认证', text: '行家必须实名', done: false },
     { title: '完成企业认证', text: '以认证记录为准', done: false },
     { title: '发起过 5 次以上组局', text: '以后台组局记录为准', done: false },
@@ -140,7 +139,6 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   helperText: '审核预计 1-3 个工作日'
 }
 const DEFAULT_GUIDE_APPLY_REQUIREMENTS = [
-  { title: '玩家等级达到 Lv.5', text: '以后台资格规则为准', done: false },
   { title: '完成实名认证', text: '领路人必须实名', done: false },
   { title: '完成企业认证', text: '以认证记录为准', done: false },
   { title: '参与过 3 次以上组局', text: '以后台组局记录为准', done: false },

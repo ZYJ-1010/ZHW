@@ -451,7 +451,6 @@ func defaultExpertApplyConfig() map[string]interface{} {
 		},
 		"requirementsTitle": "申请条件",
 		"requirements": []map[string]interface{}{
-			{"title": "玩家等级达到 Lv.20", "text": "以后台资格规则为准", "done": false},
 			{"title": "完成实名认证", "text": "行家必须实名", "done": false},
 			{"title": "完成企业认证", "text": "以认证记录为准", "done": false},
 			{"title": "发起过 5 次以上组局", "text": "以后台组局记录为准", "done": false},
@@ -488,7 +487,6 @@ func defaultGuideApplyConfig() map[string]interface{} {
 		"applyRoleType": "guide",
 		"applyRoleName": "\u9886\u8def\u4eba",
 		"requirements": []map[string]interface{}{
-			{"title": "\u73a9\u5bb6\u7b49\u7ea7\u8fbe\u5230 Lv.5", "text": "\u4ee5\u540e\u53f0\u8d44\u683c\u89c4\u5219\u4e3a\u51c6", "done": false},
 			{"title": "\u5b8c\u6210\u5b9e\u540d\u8ba4\u8bc1", "text": "\u9886\u8def\u4eba\u5fc5\u987b\u5b9e\u540d", "done": false},
 			{"title": "\u5b8c\u6210\u4f01\u4e1a\u8ba4\u8bc1", "text": "\u4ee5\u8ba4\u8bc1\u8bb0\u5f55\u4e3a\u51c6", "done": false},
 			{"title": "\u53c2\u4e0e\u8fc7 3 \u6b21\u4ee5\u4e0a\u7ec4\u5c40", "text": "\u4ee5\u540e\u53f0\u7ec4\u5c40\u8bb0\u5f55\u4e3a\u51c6", "done": false},
