@@ -46,15 +46,15 @@ func (r *SQLBehaviorRepository) ListBehavior(ctx context.Context) ([]BehaviorLog
 func (r *SQLOperationRepository) SaveOperation(ctx context.Context, log OperationLog) error {
 	_, err := r.db.ExecContext(ctx, `
 insert into operation_logs (
-  admin_user_id, action, target_type, target_id, request_id, ip, detail_json, created_at
-) values ($1,$2,$3,$4,$5,$6,$7,$8)
-`, nullInt64(log.AdminUserID), log.Action, nullString(log.TargetType), nullString(log.TargetID), nullString(log.RequestID), nullString(log.IP), nullJSON(log.Detail), log.CreatedAt)
+  admin_user_id, action, target_type, target_id, request_id, ip, detail_json, before_json, after_json, created_at
+) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+`, nullInt64(log.AdminUserID), log.Action, nullString(log.TargetType), nullString(log.TargetID), nullString(log.RequestID), nullString(log.IP), nullJSON(log.Detail), nullJSON(log.Before), nullJSON(log.After), log.CreatedAt)
 	return err
 }
 
 func (r *SQLOperationRepository) ListOperations(ctx context.Context) ([]OperationLog, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select id, admin_user_id, action, target_type, target_id, request_id, ip, detail_json, created_at
+select id, admin_user_id, action, target_type, target_id, request_id, ip, detail_json, before_json, after_json, created_at
 from operation_logs
 order by created_at desc, id desc
 `)
@@ -157,7 +157,9 @@ func scanOperationLog(rows *sql.Rows) (OperationLog, error) {
 	var requestID sql.NullString
 	var ip sql.NullString
 	var detail []byte
-	if err := rows.Scan(&item.ID, &adminUserID, &item.Action, &targetType, &targetID, &requestID, &ip, &detail, &item.CreatedAt); err != nil {
+	var before []byte
+	var after []byte
+	if err := rows.Scan(&item.ID, &adminUserID, &item.Action, &targetType, &targetID, &requestID, &ip, &detail, &before, &after, &item.CreatedAt); err != nil {
 		return OperationLog{}, err
 	}
 	item.AdminUserID = adminUserID.Int64
@@ -166,6 +168,8 @@ func scanOperationLog(rows *sql.Rows) (OperationLog, error) {
 	item.RequestID = requestID.String
 	item.IP = ip.String
 	item.Detail = append(item.Detail, detail...)
+	item.Before = append(item.Before, before...)
+	item.After = append(item.After, after...)
 	return item, nil
 }
 

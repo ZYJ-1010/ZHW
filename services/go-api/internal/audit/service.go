@@ -36,6 +36,8 @@ type OperationLog struct {
 	RequestID   string          `json:"requestId,omitempty"`
 	IP          string          `json:"ip,omitempty"`
 	Detail      json.RawMessage `json:"detail,omitempty"`
+	Before      json.RawMessage `json:"before,omitempty"`
+	After       json.RawMessage `json:"after,omitempty"`
 	CreatedAt   time.Time       `json:"createdAt"`
 }
 
@@ -104,6 +106,8 @@ type OperationRequest struct {
 	RequestID   string
 	IP          string
 	Detail      map[string]interface{}
+	Before      map[string]interface{}
+	After       map[string]interface{}
 }
 
 type BehaviorRepository interface {
@@ -207,7 +211,12 @@ func (s *Service) RecordOperation(req OperationRequest) OperationLog {
 		RequestID:   req.RequestID,
 		IP:          req.IP,
 		Detail:      marshalMap(req.Detail),
+		Before:      marshalMap(req.Before),
+		After:       marshalMap(req.After),
 		CreatedAt:   time.Now(),
+	}
+	if len(log.After) == 0 {
+		log.After = append(log.After, log.Detail...)
 	}
 	s.nextOperationID++
 	s.operationLogs = append(s.operationLogs, log)
