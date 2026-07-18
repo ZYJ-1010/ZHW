@@ -11,6 +11,7 @@ import (
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/files"
 	"zhw-mini/services/go-api/internal/invites"
+	"zhw-mini/services/go-api/internal/notifications"
 	"zhw-mini/services/go-api/internal/profiles"
 	"zhw-mini/services/go-api/internal/users"
 )
@@ -813,6 +814,22 @@ func (s *Server) reviewRoleApplication(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
+	roleName := "行家"
+	if app.RoleCode == "guide" {
+		roleName = "领路人"
+	}
+	notifyTitle := roleName + "申请已通过"
+	notifyContent := "你的" + roleName + "申请已通过审核，身份已开通。"
+	notifyType := "role_application_approved"
+	if app.Status != "approved" {
+		notifyTitle = roleName + "申请未通过"
+		notifyContent = "你的" + roleName + "申请未通过审核。"
+		if app.RejectReason != "" {
+			notifyContent += "原因：" + app.RejectReason
+		}
+		notifyType = "role_application_rejected"
+	}
+	s.notices.Create(notifications.CreateRequest{UserID: app.UserID, NotifyType: notifyType, Title: notifyTitle, Content: notifyContent, BizType: "role_application", BizID: app.ID})
 	s.recordOperation(r, "role_application:review", "role_application", strconv.FormatInt(app.ID, 10), map[string]interface{}{"roleCode": app.RoleCode, "status": app.Status, "remark": req.Remark})
 	httpx.OK(w, app)
 }
