@@ -94,9 +94,7 @@ func normalizeMapIndexConfig(config mapIndexConfigDTO) mapIndexConfigDTO {
 	if len(config.RadiusOptions) == 0 {
 		config.RadiusOptions = defaults.RadiusOptions
 	}
-	if len(config.MapFilters) == 0 {
-		config.MapFilters = defaults.MapFilters
-	}
+	config.MapFilters = defaults.MapFilters
 	if config.Texts == nil {
 		config.Texts = map[string]string{}
 	}
@@ -120,7 +118,7 @@ func defaultMapIndexConfig() mapIndexConfigDTO {
 		},
 		DefaultRadiusMeters: 3000,
 		RadiusOptions:       []int{1000, 3000, 5000},
-		MapFilters:          []string{"附近组局", "组局路线", "热力图", "好友分布", "解锁图鉴", "AR"},
+		MapFilters:          []string{"附近组局"},
 		Texts: map[string]string{
 			"searchPlaceholder":      "搜局、搜人、搜地块...",
 			"loadingNearbyText":      "正在获取附近数据...",

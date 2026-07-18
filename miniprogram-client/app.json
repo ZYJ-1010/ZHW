@@ -129,13 +129,7 @@
     {
       "root": "pages/map",
       "pages": [
-        "index",
-        "blind-route/index",
-        "city-atlas/index",
-        "real-checkin/index",
-        "footprint-heatmap/index",
-        "friend-city/index",
-        "my-city/index"
+        "index"
       ]
     },
     {

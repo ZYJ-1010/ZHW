@@ -1387,7 +1387,7 @@ values
       "defaultLocation": { "latitude": 31.2304, "longitude": 121.4737 },
       "defaultRadiusMeters": 3000,
       "radiusOptions": [1000, 3000, 5000],
-      "mapFilters": ["附近组局", "组局路线", "热力图", "好友分布", "解锁图鉴", "AR"],
+      "mapFilters": ["附近组局"],
       "texts": {
         "searchPlaceholder": "搜局、搜人、搜地块...",
         "loadingNearbyText": "正在获取附近数据...",
