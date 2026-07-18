@@ -1790,10 +1790,26 @@ func (s *Server) myPlayerGames(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pageConfig := s.currentMyGamesPageConfig()
+	invitedGameIDs := make(map[int64]bool)
+	for _, invitation := range s.games.InvitationsForUser(userID) {
+		if invitation.TargetUserID == userID && (invitation.Status == "pending" || invitation.Status == "accepted") {
+			invitedGameIDs[invitation.GameID] = true
+		}
+	}
 	items := make([]map[string]interface{}, 0)
 	for _, game := range s.games.List() {
 		if game.CreatorUserID != userID && game.MainGuideUserID != userID && !s.userGuideForGame(game, userID) && !s.userExpertForGame(game, userID) && s.userPlayerForGame(game, userID) {
-			items = append(items, s.buildPlayerServiceOrder(userID, game, pageConfig))
+			item := s.buildPlayerServiceOrder(userID, game, pageConfig)
+			if invitedGameIDs[game.ID] {
+				item["category"] = "invited"
+			}
+			items = append(items, item)
+			continue
+		}
+		if invitedGameIDs[game.ID] && game.CreatorUserID != userID && game.MainGuideUserID != userID && !s.userGuideForGame(game, userID) && !s.userExpertForGame(game, userID) {
+			item := s.buildPlayerServiceOrder(userID, game, pageConfig)
+			item["category"] = "invited"
+			items = append(items, item)
 		}
 	}
 	allItems := items
