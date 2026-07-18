@@ -61,12 +61,6 @@ func (s *Server) chatRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	room, err := s.im.RoomForGame(userID, gameID)
 	if err != nil {
-		if errors.Is(err, im.ErrRoomNotFound) {
-			s.im.EnsureRoom(gameID)
-			room, err = s.im.RoomForGame(userID, gameID)
-		}
-	}
-	if err != nil {
 		writeIMError(w, err)
 		return
 	}

@@ -6,8 +6,9 @@ import (
 )
 
 type readonlyGameState struct {
-	members  []int64
-	readonly bool
+	members   []int64
+	readonly  bool
+	roomReady bool
 }
 
 func (s *readonlyGameState) Members(gameID int64) []int64 {
@@ -27,8 +28,12 @@ func (s *readonlyGameState) IsIMReadOnly(gameID int64) bool {
 	return s.readonly
 }
 
+func (s *readonlyGameState) IsIMRoomReady(gameID int64) bool {
+	return s.roomReady
+}
+
 func TestEndedGameRoomIsReadableButRejectsNewMessages(t *testing.T) {
-	state := &readonlyGameState{members: []int64{1, 2}}
+	state := &readonlyGameState{members: []int64{1, 2}, roomReady: true}
 	service := NewService(state)
 	room := service.EnsureRoom(99)
 	if room.Status != "active" {
@@ -61,5 +66,16 @@ func TestEndedGameRoomIsReadableButRejectsNewMessages(t *testing.T) {
 	}
 	if _, err := service.SendSystem(1, 99, SendRequest{MessageType: "text", Content: "system bypass"}); !errors.Is(err, ErrInvalidMessage) {
 		t.Fatalf("system bypass accepted a regular text message: %v", err)
+	}
+}
+
+func TestRecruitingGameDoesNotCreateRoomOnAccess(t *testing.T) {
+	state := &readonlyGameState{members: []int64{1, 2}, roomReady: false}
+	service := NewService(state)
+	if _, err := service.RoomForGame(1, 99); !errors.Is(err, ErrRoomNotFound) {
+		t.Fatalf("recruiting game access error = %v, want ErrRoomNotFound", err)
+	}
+	if rooms := service.AdminRooms(); len(rooms) != 0 {
+		t.Fatalf("recruiting game access created rooms: %+v", rooms)
 	}
 }

@@ -29,6 +29,12 @@ type GameReadOnlyChecker interface {
 	IsIMReadOnly(gameID int64) bool
 }
 
+// GameRoomReadyChecker lets the IM layer avoid creating rooms for recruiting
+// games that have not reached a valid start state yet.
+type GameRoomReadyChecker interface {
+	IsIMRoomReady(gameID int64) bool
+}
+
 type Repository interface {
 	EnsureRoom(ctx context.Context, gameID int64, memberIDs []int64, engine string, openIMGroupID string) (Room, error)
 	RoomByGame(ctx context.Context, gameID int64) (Room, bool, error)
@@ -261,6 +267,9 @@ func (s *Service) RoomForGame(userID int64, gameID int64) (Room, error) {
 	if err := s.AuthorizeGameAccess(userID, gameID); err != nil {
 		return Room{}, err
 	}
+	if checker, ok := s.members.(GameRoomReadyChecker); ok && !checker.IsIMRoomReady(gameID) {
+		return Room{}, ErrRoomNotFound
+	}
 	if s.repo != nil {
 		// EnsureRoom is idempotent and also synchronizes chat_room_members with
 		// the current game members. Returning a previously-created room directly
@@ -339,7 +348,10 @@ func (s *Service) Session(userID int64, gameID int64) (Session, error) {
 	if err := s.AuthorizeGameAccess(userID, gameID); err != nil {
 		return Session{}, err
 	}
-	room := s.EnsureRoom(gameID)
+	room, err := s.RoomForGame(userID, gameID)
+	if err != nil {
+		return Session{}, err
+	}
 	session := Session{
 		Engine:        room.Engine,
 		IMUserID:      openIMUserID(userID),
@@ -377,7 +389,10 @@ func (s *Service) send(userID int64, gameID int64, req SendRequest, allowReadOnl
 	if !allowReadOnly && s.gameReadOnly(gameID) {
 		return Message{}, ErrInvalidMessage
 	}
-	room := s.EnsureRoom(gameID)
+	room, err := s.RoomForGame(userID, gameID)
+	if err != nil {
+		return Message{}, err
+	}
 	if !allowReadOnly && roomReadOnly(room) {
 		return Message{}, ErrInvalidMessage
 	}

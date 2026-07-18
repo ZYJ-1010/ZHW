@@ -1831,6 +1831,22 @@ func (s *Service) IsIMReadOnly(gameID int64) bool {
 	}
 }
 
+// IsIMRoomReady reports whether a game has reached a lifecycle state where an
+// IM room may exist. Recruiting and pre-approval games deliberately return
+// false so merely opening their detail or IM endpoint cannot create a room.
+func (s *Service) IsIMRoomReady(gameID int64) bool {
+	game, err := s.Get(gameID)
+	if err != nil {
+		return false
+	}
+	switch game.Status {
+	case "full", "in_progress", "pending_confirm", "pending_review", "completed":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Service) invitationAcceptedByApplicationLocked(applicationID int64) bool {
 	if applicationID <= 0 {
 		return false
