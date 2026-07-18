@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/files"
 	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/profiles"
 	"zhw-mini/services/go-api/internal/users"
@@ -599,6 +600,10 @@ func (s *Server) submitRoleApplication(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
+	if err := s.validateRoleApplicationFiles(userID, req.ProofFileIDs); err != nil {
+		writeProfileError(w, err)
+		return
+	}
 	app, err := s.profiles.SubmitRoleApplication(userID, req)
 	if err != nil {
 		writeProfileError(w, err)
@@ -658,6 +663,10 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
+	if err := s.validateRoleApplicationFiles(userID, req.ProofFileIDs); err != nil {
+		writeProfileError(w, err)
+		return
+	}
 	app, err := s.profiles.SubmitRoleApplication(userID, profiles.SubmitRoleApplicationRequest{RoleCode: "guide", Reason: req.Reason, AbilityDescription: req.AbilityDescription, ProofFileIDs: req.ProofFileIDs})
 	if err != nil {
 		writeProfileError(w, err)
@@ -665,6 +674,24 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 	}
 	s.recordBehavior(userID, "submit_guide_application", "role_application", app.ID, map[string]interface{}{"roleCode": app.RoleCode})
 	httpx.OK(w, app)
+}
+
+func (s *Server) validateRoleApplicationFiles(userID int64, fileIDs []int64) error {
+	for _, fileID := range fileIDs {
+		if fileID <= 0 || s.files == nil {
+			return profiles.ErrInvalidRoleApplication
+		}
+		file, err := s.files.Get(fileID)
+		if errors.Is(err, files.ErrFileNotFound) {
+			// Keep compatibility with historical records whose file rows were not
+			// migrated; every file that exists is still checked strictly below.
+			continue
+		}
+		if err != nil || file.UploaderID != userID || file.BizType != "game_application" || file.ObjectID <= 0 {
+			return profiles.ErrInvalidRoleApplication
+		}
+	}
+	return nil
 }
 
 func (s *Server) validateRoleApplicationEligibility(userID int64, roleCode string, abilityDescription string) error {
