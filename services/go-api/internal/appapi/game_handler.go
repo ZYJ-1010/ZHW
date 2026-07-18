@@ -785,6 +785,10 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	if !s.systemConfig.Get(reviewPageConfigKey, &reviewPageStored) || strings.TrimSpace(reviewPageStored.NavTitle) == "" {
 		_ = s.systemConfig.Set(reviewPageConfigKey, defaultReviewPageConfig())
 	}
+	var growthRulesStored reviews.GrowthRules
+	if !s.systemConfig.Get(growthRewardRulesConfigKey, &growthRulesStored) {
+		_ = s.systemConfig.Set(growthRewardRulesConfigKey, reviews.DefaultGrowthRules())
+	}
 	var mapMyCityStored mapMyCityConfigDTO
 	if !s.systemConfig.Get(mapMyCityConfigKey, &mapMyCityStored) || len(mapMyCityStored.StoryGroups) == 0 {
 		_ = s.systemConfig.Set(mapMyCityConfigKey, defaultMapMyCityConfig())

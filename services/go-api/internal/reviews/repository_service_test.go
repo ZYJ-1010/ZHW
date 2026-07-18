@@ -2,11 +2,39 @@ package reviews
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"zhw-mini/services/go-api/internal/games"
 )
+
+type growthRulesProviderStub struct{ value GrowthRules }
+
+func (p growthRulesProviderStub) Get(key string, target interface{}) bool {
+	if key != growthRulesConfigKey {
+		return false
+	}
+	raw, _ := json.Marshal(p.value)
+	return json.Unmarshal(raw, target) == nil
+}
+
+func TestGrowthRewardsUseAdminRules(t *testing.T) {
+	gameProvider := &fakeGameProvider{game: games.Game{ID: 1, Status: "pending_review"}, members: map[int64][]int64{1: {1, 2}}}
+	service := NewService(gameProvider)
+	service.SetGrowthRulesProvider(growthRulesProviderStub{value: GrowthRules{
+		CompletedGameExperience: 20, SubmittedReviewExperience: 7, ReceivedReviewExperience: 11,
+		SubmittedReviewPoints: 4, ExperiencePerLevel: 25, InitialLevel: 1, InitialCreditScore: 80, CreditScoreCap: 120,
+	}})
+	service.MarkGameReviewable(1)
+	profiles := service.AwardCompletedGame(1)
+	if len(profiles) != 2 || profiles[0].Experience != 20 || profiles[0].Level != 1 {
+		t.Fatalf("expected configured completion reward, got %+v", profiles)
+	}
+	if _, profile, err := service.Submit(1, SubmitRequest{GameID: 1, TargetUserID: 2, TargetRole: "member", Score: 5}); err != nil || profile.Experience != 27 || profile.Level != 2 {
+		t.Fatalf("expected configured review reward and level, profile=%+v err=%v", profile, err)
+	}
+}
 
 func TestRepositoryPersistsReviewGrowthCreditFootprintsAndAchievements(t *testing.T) {
 	gameProvider := &fakeGameProvider{

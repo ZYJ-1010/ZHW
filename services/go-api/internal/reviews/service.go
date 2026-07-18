@@ -18,7 +18,30 @@ var (
 	ErrInvalidReview     = errors.New("invalid review")
 )
 
+// SubmittedReviewPoints is kept for backwards compatibility with callers that
+// still use the historical default. Runtime rewards are read from GrowthRules.
 const SubmittedReviewPoints = 2
+
+const growthRulesConfigKey = "growth.reward_rules"
+
+// GrowthRules controls the rewards and level calculation used by the growth
+// ledger. The values are persisted in system configuration and can be changed
+// by an administrator without rebuilding the service.
+type GrowthRules struct {
+	CompletedGameExperience   int `json:"completedGameExperience"`
+	CompletedGamePoints       int `json:"completedGamePoints"`
+	SubmittedReviewExperience int `json:"submittedReviewExperience"`
+	ReceivedReviewExperience  int `json:"receivedReviewExperience"`
+	SubmittedReviewPoints     int `json:"submittedReviewPoints"`
+	ExperiencePerLevel        int `json:"experiencePerLevel"`
+	InitialLevel              int `json:"initialLevel"`
+	InitialCreditScore        int `json:"initialCreditScore"`
+	CreditScoreCap            int `json:"creditScoreCap"`
+}
+
+type GrowthRulesProvider interface {
+	Get(key string, target interface{}) bool
+}
 
 type GameProvider interface {
 	Get(id int64) (games.Game, error)
@@ -152,19 +175,20 @@ type Repository interface {
 }
 
 type Service struct {
-	mu           sync.RWMutex
-	nextID       int64
-	nextCreditID int64
-	games        GameProvider
-	reviews      []Review
-	reviewed     map[string]bool
-	reviewable   map[int64]time.Time
-	growth       map[int64]GrowthProfile
-	dailyCredit  map[string]int
-	creditLogs   []CreditLog
-	achievements map[int64][]Achievement
-	footprints   []Footprint
-	repo         Repository
+	mu            sync.RWMutex
+	nextID        int64
+	nextCreditID  int64
+	games         GameProvider
+	reviews       []Review
+	reviewed      map[string]bool
+	reviewable    map[int64]time.Time
+	growth        map[int64]GrowthProfile
+	dailyCredit   map[string]int
+	creditLogs    []CreditLog
+	achievements  map[int64][]Achievement
+	footprints    []Footprint
+	repo          Repository
+	rulesProvider GrowthRulesProvider
 }
 
 func NewService(games GameProvider) *Service {
@@ -193,6 +217,78 @@ func (s *Service) Repository() Repository {
 	return s.repo
 }
 
+// SetGrowthRulesProvider connects the service to the system configuration
+// store. It is intentionally a small interface so the reviews package does
+// not depend on the app API package.
+func (s *Service) SetGrowthRulesProvider(provider GrowthRulesProvider) {
+	s.mu.Lock()
+	s.rulesProvider = provider
+	s.mu.Unlock()
+}
+
+func DefaultGrowthRules() GrowthRules {
+	return GrowthRules{
+		CompletedGameExperience:   10,
+		CompletedGamePoints:       0,
+		SubmittedReviewExperience: 5,
+		ReceivedReviewExperience:  10,
+		SubmittedReviewPoints:     SubmittedReviewPoints,
+		ExperiencePerLevel:        100,
+		InitialLevel:              1,
+		InitialCreditScore:        100,
+		CreditScoreCap:            100,
+	}
+}
+
+func (s *Service) GrowthRules() GrowthRules {
+	s.mu.RLock()
+	provider := s.rulesProvider
+	s.mu.RUnlock()
+	rules := DefaultGrowthRules()
+	if provider != nil {
+		var stored GrowthRules
+		if provider.Get(growthRulesConfigKey, &stored) {
+			rules = normalizeGrowthRules(stored)
+		}
+	}
+	return rules
+}
+
+func normalizeGrowthRules(rules GrowthRules) GrowthRules {
+	defaults := DefaultGrowthRules()
+	if rules.CompletedGameExperience <= 0 {
+		rules.CompletedGameExperience = defaults.CompletedGameExperience
+	}
+	if rules.CompletedGamePoints < 0 {
+		rules.CompletedGamePoints = defaults.CompletedGamePoints
+	}
+	if rules.SubmittedReviewExperience <= 0 {
+		rules.SubmittedReviewExperience = defaults.SubmittedReviewExperience
+	}
+	if rules.ReceivedReviewExperience <= 0 {
+		rules.ReceivedReviewExperience = defaults.ReceivedReviewExperience
+	}
+	if rules.SubmittedReviewPoints < 0 {
+		rules.SubmittedReviewPoints = defaults.SubmittedReviewPoints
+	}
+	if rules.ExperiencePerLevel <= 0 {
+		rules.ExperiencePerLevel = defaults.ExperiencePerLevel
+	}
+	if rules.InitialLevel <= 0 {
+		rules.InitialLevel = defaults.InitialLevel
+	}
+	if rules.InitialCreditScore <= 0 {
+		rules.InitialCreditScore = defaults.InitialCreditScore
+	}
+	if rules.CreditScoreCap <= 0 {
+		rules.CreditScoreCap = defaults.CreditScoreCap
+	}
+	if rules.CreditScoreCap < rules.InitialCreditScore {
+		rules.CreditScoreCap = rules.InitialCreditScore
+	}
+	return rules
+}
+
 func (s *Service) MarkGameReviewable(gameID int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -216,7 +312,8 @@ func (s *Service) AwardCompletedGame(gameID int64) []GrowthProfile {
 		if s.hasFootprintLocked(userID, gameID, "completed_game") {
 			continue
 		}
-		profiles = append(profiles, s.addExperienceOnlyLocked(userID, 10, gameID, "completed_game"))
+		rules := s.growthRulesLocked()
+		profiles = append(profiles, s.addExperienceOnlyLocked(userID, rules.CompletedGameExperience, rules.CompletedGamePoints, gameID, "completed_game"))
 	}
 	return profiles
 }
@@ -252,7 +349,7 @@ func (s *Service) Todos(userID int64) ([]Todo, error) {
 }
 
 func (s *Service) Submit(userID int64, req SubmitRequest) (Review, GrowthProfile, error) {
-	return s.submit(userID, req, SubmittedReviewPoints)
+	return s.submit(userID, req, s.GrowthRules().SubmittedReviewPoints)
 }
 
 // SubmitWithPoints lets the app API use the central points ledger as the only
@@ -347,8 +444,9 @@ func (s *Service) submit(userID int64, req SubmitRequest, rewardPoints int) (Rev
 	s.nextID++
 	s.reviews = append(s.reviews, review)
 	s.reviewed[key] = true
-	profile := s.addGrowthLocked(userID, 5, rewardPoints, req.GameID, "submitted_review")
-	s.addGrowthLocked(req.TargetUserID, 10, 0, req.GameID, "received_review")
+	rules := s.growthRulesLocked()
+	profile := s.addGrowthLocked(userID, rules.SubmittedReviewExperience, rewardPoints, req.GameID, "submitted_review")
+	s.addGrowthLocked(req.TargetUserID, rules.ReceivedReviewExperience, 0, req.GameID, "received_review")
 	s.ensureAchievementLocked(userID, "first_review", "首次评价")
 	s.ensureAchievementLocked(req.TargetUserID, "first_received_review", "首次收到评价")
 	return review, profile, nil
@@ -391,6 +489,8 @@ func (s *Service) AllReviews() []Review {
 func (s *Service) Profile(userID int64) GrowthProfile {
 	if s.repo != nil {
 		if profile, ok, err := s.repo.GetGrowthProfile(context.Background(), userID); err == nil && ok {
+			rules := s.GrowthRules()
+			profile.Level = profile.Experience/rules.ExperiencePerLevel + rules.InitialLevel
 			profile.TodayCreditScore = s.todayCreditFromRepository(userID)
 			profile.CreditScore = profile.TodayCreditScore
 			if achievements, err := s.repo.ListAchievementsByUser(context.Background(), userID); err == nil {
@@ -401,6 +501,8 @@ func (s *Service) Profile(userID int64) GrowthProfile {
 			return profile
 		}
 		profile := defaultGrowthProfile(userID)
+		rules := s.GrowthRules()
+		profile.Level = profile.Experience/rules.ExperiencePerLevel + rules.InitialLevel
 		profile.TodayCreditScore = s.todayCreditFromRepository(userID)
 		profile.CreditScore = profile.TodayCreditScore
 		if saved, err := s.repo.SaveGrowthProfile(context.Background(), profile); err == nil {
@@ -494,8 +596,8 @@ func (s *Service) RestoreCredit(userID int64, gameID int64, reason string, amoun
 	}
 	before := s.todayCreditLocked(userID)
 	after := before + amount
-	if after > 100 {
-		after = 100
+	if after > s.growthRulesLocked().CreditScoreCap {
+		after = s.growthRulesLocked().CreditScoreCap
 	}
 	change := after - before
 	s.dailyCredit[dailyCreditKey(userID, time.Now())] = after
@@ -689,7 +791,8 @@ func (s *Service) addGrowthLocked(userID int64, exp int, points int, gameID int6
 	profile.Experience += exp
 	profile.AvailablePoints += points
 	profile.ReviewCount++
-	profile.Level = profile.Experience/100 + 1
+	rules := s.growthRulesLocked()
+	profile.Level = profile.Experience/rules.ExperiencePerLevel + rules.InitialLevel
 	profile.UpdatedAt = time.Now().Format(time.RFC3339)
 	if s.repo != nil {
 		if saved, err := s.repo.SaveGrowthProfile(context.Background(), profile); err == nil {
@@ -716,16 +819,21 @@ func (s *Service) addGrowthLocked(userID int64, exp int, points int, gameID int6
 	return profile
 }
 
-func (s *Service) addExperienceOnlyLocked(userID int64, exp int, gameID int64, action string) GrowthProfile {
+func (s *Service) addExperienceOnlyLocked(userID int64, exp int, points int, gameID int64, action string) GrowthProfile {
 	profile := s.profileLocked(userID)
 	profile.Experience += exp
-	profile.Level = profile.Experience/100 + 1
+	profile.AvailablePoints += points
+	rules := s.growthRulesLocked()
+	profile.Level = profile.Experience/rules.ExperiencePerLevel + rules.InitialLevel
 	profile.UpdatedAt = time.Now().Format(time.RFC3339)
 	if s.repo != nil {
 		if saved, err := s.repo.SaveGrowthProfile(context.Background(), profile); err == nil {
 			profile = saved
 		}
 		_ = s.repo.AddExperienceLog(context.Background(), userID, gameID, exp, action, time.Now())
+		if points != 0 {
+			_ = s.repo.AddPointsLog(context.Background(), userID, gameID, points, action, time.Now())
+		}
 	}
 	s.growth[userID] = profile
 	footprint := Footprint{
@@ -770,22 +878,42 @@ func (s *Service) profileLocked(userID int64) GrowthProfile {
 	profile, ok := s.growth[userID]
 	if !ok {
 		profile = defaultGrowthProfile(userID)
+		rules := s.growthRulesLocked()
+		profile.Level = rules.InitialLevel
+		profile.CreditScore = rules.InitialCreditScore
+		profile.TodayCreditScore = rules.InitialCreditScore
 	}
 	return profile
 }
 
 func defaultGrowthProfile(userID int64) GrowthProfile {
+	rules := DefaultGrowthRules()
 	return GrowthProfile{
 		UserID:           userID,
-		Level:            1,
-		CreditScore:      100,
-		TodayCreditScore: 100,
+		Level:            rules.InitialLevel,
+		CreditScore:      rules.InitialCreditScore,
+		TodayCreditScore: rules.InitialCreditScore,
 		UpdatedAt:        time.Now().Format(time.RFC3339),
 	}
 }
 
+// growthRulesLocked is used by mutation paths that already hold s.mu. It
+// avoids taking a nested lock while still reading the latest admin config.
+func (s *Service) growthRulesLocked() GrowthRules {
+	rules := DefaultGrowthRules()
+	if s.rulesProvider != nil {
+		var stored GrowthRules
+		if s.rulesProvider.Get(growthRulesConfigKey, &stored) {
+			rules = normalizeGrowthRules(stored)
+		}
+	}
+	return rules
+}
+
 func (s *Service) profileWithCreditLocked(userID int64) GrowthProfile {
 	profile := s.profileLocked(userID)
+	rules := s.growthRulesLocked()
+	profile.Level = profile.Experience/rules.ExperiencePerLevel + rules.InitialLevel
 	profile.TodayCreditScore = s.todayCreditLocked(userID)
 	profile.CreditScore = profile.TodayCreditScore
 	for _, item := range s.achievements[userID] {
@@ -804,7 +932,7 @@ func (s *Service) todayCreditLocked(userID int64) int {
 	}
 	score, ok := s.dailyCredit[key]
 	if !ok {
-		score = 100
+		score = s.growthRulesLocked().InitialCreditScore
 		s.dailyCredit[key] = score
 	}
 	return score
@@ -967,7 +1095,7 @@ func (s *Service) reviewDeadlineLocked(userID int64, gameID int64) (time.Time, b
 func (s *Service) todayCreditFromRepository(userID int64) int {
 	score, err := s.repo.GetTodayCredit(context.Background(), userID, time.Now())
 	if err != nil {
-		return 100
+		return s.GrowthRules().InitialCreditScore
 	}
 	return score
 }

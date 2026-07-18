@@ -57,6 +57,7 @@
   gameAuditConfig: null,
   conditionRuleConfig: null,
   roleBenefitConfig: null,
+  growthRewardRules: null,
   creditDeductionRules: [],
   pagination: {},
   drawerRestore: null,
@@ -3205,6 +3206,8 @@ async function renderSystem() {
   $("#role-benefit-form").addEventListener("submit", saveRoleBenefitConfig);
   $("#review-complete-refresh").addEventListener("click", loadReviewCompleteConfig);
   $("#review-complete-form").addEventListener("submit", saveReviewCompleteConfig);
+  $("#growth-rules-refresh").addEventListener("click", loadGrowthRewardRules);
+  $("#growth-rules-form").addEventListener("submit", saveGrowthRewardRules);
   $("#credit-rule-refresh").addEventListener("click", loadCreditDeductionRules);
   $("#credit-rule-form").addEventListener("submit", saveCreditDeductionRules);
   $("#profit-config-refresh").addEventListener("click", loadProfitTemplateConfig);
@@ -3225,6 +3228,7 @@ async function renderSystem() {
     tasks.push(loadConditionRuleConfig());
     tasks.push(loadRoleBenefitConfig());
     tasks.push(loadReviewCompleteConfig());
+    tasks.push(loadGrowthRewardRules());
     tasks.push(loadCreditDeductionRules());
     tasks.push(loadProfitTemplateConfig());
   } else {
@@ -3235,6 +3239,7 @@ async function renderSystem() {
     renderNoAccess("#condition-rule-config-panel", "缺少 system_config:read");
     renderNoAccess("#role-benefit-config-panel", "缺少 system_config:read");
     renderNoAccess("#review-complete-config-panel", "缺少 system_config:read");
+    renderNoAccess("#growth-rules-config-panel", "缺少 system_config:read");
     renderNoAccess("#credit-rule-config-panel", "缺少 system_config:read");
   }
   if (can("content:sensitive_word:view")) {
@@ -3600,6 +3605,44 @@ async function saveReviewCompleteConfig(event) {
     textareaSelector: "#review-complete-config-json",
     render: renderReviewCompleteConfig,
     successMessage: "评价完成展示已保存",
+  });
+}
+
+async function loadGrowthRewardRules() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#growth-rules-config-panel", "缺少 system_config:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/growth/reward-rules");
+  state.growthRewardRules = data.config || data;
+  const textarea = $("#growth-rules-config-json");
+  if (textarea) textarea.value = JSON.stringify(state.growthRewardRules, null, 2);
+  renderGrowthRewardRules();
+}
+
+function renderGrowthRewardRules() {
+  const config = state.growthRewardRules || {};
+  $("#growth-rules-config-panel").innerHTML = [
+    detailCell("完成组局经验", config.completedGameExperience ?? "-"),
+    detailCell("完成组局积分", config.completedGamePoints ?? "-"),
+    detailCell("提交评价经验", config.submittedReviewExperience ?? "-"),
+    detailCell("收到评价经验", config.receivedReviewExperience ?? "-"),
+    detailCell("提交评价积分", config.submittedReviewPoints ?? "-"),
+    detailCell("升级所需经验", config.experiencePerLevel ?? "-"),
+    detailCell("初始信用分", config.initialCreditScore ?? "-"),
+    detailCell("信用分上限", config.creditScoreCap ?? "-"),
+  ].join("");
+}
+
+async function saveGrowthRewardRules(event) {
+  event.preventDefault();
+  await saveJSONSystemConfig({
+    form: event.currentTarget,
+    endpoint: "/api/admin/growth/reward-rules",
+    stateKey: "growthRewardRules",
+    textareaSelector: "#growth-rules-config-json",
+    render: renderGrowthRewardRules,
+    successMessage: "成长等级与积分规则已保存",
   });
 }
 

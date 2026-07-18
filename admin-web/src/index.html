@@ -1343,6 +1343,7 @@
         <button data-tab-group="system" data-tab-target="#system-condition-panel" type="button">条件局</button>
         <button data-tab-group="system" data-tab-target="#system-role-benefit-panel" type="button">角色权益</button>
         <button data-tab-group="system" data-tab-target="#system-review-complete-panel" type="button">评价完成</button>
+        <button data-tab-group="system" data-tab-target="#system-growth-rules-panel" type="button">成长积分</button>
         <button data-tab-group="system" data-tab-target="#system-credit-panel" type="button">信用规则</button>
         <button data-tab-group="system" data-tab-target="#system-profit-panel" type="button">押金规则</button>
         <button data-tab-group="system" data-tab-target="#system-sensitive-panel" type="button">敏感词</button>
@@ -1451,6 +1452,20 @@
           <button class="primary" type="submit">保存展示</button>
         </form>
         <div id="review-complete-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-growth-rules-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>成长等级与积分规则</h2>
+            <p>维护完成组局、评价产生的经验和积分，以及升级所需经验。</p>
+          </div>
+          <button id="growth-rules-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="growth-rules-form" class="form-grid">
+          <textarea id="growth-rules-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <div id="growth-rules-config-panel" class="detail-grid"></div>
       </section>
       <section id="system-credit-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">

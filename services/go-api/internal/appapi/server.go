@@ -154,6 +154,7 @@ func New(authService *auth.Service, identityService identityService, gameService
 	revenueService := revenue.NewService(reviewService)
 	pointsService := points.NewService()
 	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), tasks: tasks.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
+	reviewService.SetGrowthRulesProvider(server.systemConfig)
 	server.imSocketHub = newIMSocketHub(server)
 	return server
 }
@@ -231,6 +232,9 @@ func (s *Server) UseAIDataRepository(repository aidata.Repository) {
 func (s *Server) UseSystemConfigRepository(repository systemconfig.Repository) {
 	if repository != nil {
 		s.systemConfig = systemconfig.NewServiceWithRepository(repository)
+		if reviewService, ok := s.reviews.(*reviews.Service); ok {
+			reviewService.SetGrowthRulesProvider(s.systemConfig)
+		}
 		s.ensureDefaultSystemConfigs()
 	}
 }
@@ -246,7 +250,9 @@ func (s *Server) UseRepositories(behaviorRepo audit.BehaviorRepository, operatio
 		s.audit = audit.NewServiceWithRepositories(behaviorRepo, operationRepo)
 	}
 	if reviewRepo != nil {
-		s.reviews = reviews.NewServiceWithRepository(s.games, reviewRepo)
+		reviewService := reviews.NewServiceWithRepository(s.games, reviewRepo)
+		reviewService.SetGrowthRulesProvider(s.systemConfig)
+		s.reviews = reviewService
 		if revenueRepo != nil {
 			s.revenue = revenue.NewServiceWithRepository(s.reviews, revenueRepo)
 		} else {
@@ -503,6 +509,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("PUT /api/admin/home/display-config", s.requireAdminPermission("system_config:update", s.adminHomeDisplayConfig))
 	handle("GET /api/admin/reviews/complete-config", s.requireAdminPermission("system_config:read", s.adminReviewCompleteConfig))
 	handle("PUT /api/admin/reviews/complete-config", s.requireAdminPermission("system_config:update", s.adminReviewCompleteConfig))
+	handle("GET /api/admin/growth/reward-rules", s.requireAdminPermission("system_config:read", s.adminGrowthRewardRules))
+	handle("PUT /api/admin/growth/reward-rules", s.requireAdminPermission("system_config:update", s.adminGrowthRewardRules))
 	handle("GET /api/admin/credit-deduction-rules", s.requireAdminPermission("system_config:read", s.adminCreditDeductionRules))
 	handle("PUT /api/admin/credit-deduction-rules", s.requireAdminPermission("system_config:update", s.adminCreditDeductionRules))
 	handle("GET /api/admin/games/", s.routeAdminGamesGet)

@@ -13,6 +13,7 @@ import (
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/notifications"
+	"zhw-mini/services/go-api/internal/points"
 	"zhw-mini/services/go-api/internal/reviews"
 )
 
@@ -22,6 +23,7 @@ type reviewService interface {
 	Todos(userID int64) ([]reviews.Todo, error)
 	Submit(userID int64, req reviews.SubmitRequest) (reviews.Review, reviews.GrowthProfile, error)
 	SubmitWithPoints(userID int64, req reviews.SubmitRequest, rewardPoints int) (reviews.Review, reviews.GrowthProfile, error)
+	GrowthRules() reviews.GrowthRules
 	MyIntents(userID int64) []reviews.Review
 	AllReviews() []reviews.Review
 	Profile(userID int64) reviews.GrowthProfile
@@ -992,10 +994,16 @@ func (s *Server) submitReview(w http.ResponseWriter, r *http.Request) {
 		writeReviewError(w, err)
 		return
 	}
-	pointsAccount, pointsLog, err := s.points.Grant(userID, reviews.SubmittedReviewPoints, "review_reward", review.ID, "提交评价奖励")
-	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "grant review points failed")
-		return
+	rewardPoints := s.reviews.GrowthRules().SubmittedReviewPoints
+	pointsAccount := s.points.Summary(userID)
+	var pointsLog points.Log
+	if rewardPoints > 0 {
+		var err error
+		pointsAccount, pointsLog, err = s.points.Grant(userID, rewardPoints, "review_reward", review.ID, "提交评价奖励")
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "grant review points failed")
+			return
+		}
 	}
 	profile.AvailablePoints = pointsAccount.AvailablePoints
 	s.connections.UpsertPair(userID, review.TargetUserID, "co_game", "review", review.GameID, 1)
