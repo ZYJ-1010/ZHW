@@ -277,9 +277,10 @@ func normalizeGrowthRules(rules GrowthRules) GrowthRules {
 	if rules.InitialLevel <= 0 {
 		rules.InitialLevel = defaults.InitialLevel
 	}
-	if rules.InitialCreditScore <= 0 {
-		rules.InitialCreditScore = defaults.InitialCreditScore
-	}
+	// The phase-one credit baseline is fixed for every user. It is deliberately
+	// not an operational knob so historical accounts and new accounts share the
+	// same starting score.
+	rules.InitialCreditScore = defaults.InitialCreditScore
 	if rules.CreditScoreCap <= 0 {
 		rules.CreditScoreCap = defaults.CreditScoreCap
 	}

@@ -27,6 +27,9 @@ func TestGrowthRewardsUseAdminRules(t *testing.T) {
 		SubmittedReviewPoints: 4, ExperiencePerLevel: 25, InitialLevel: 1, InitialCreditScore: 80, CreditScoreCap: 120,
 	}})
 	service.MarkGameReviewable(1)
+	if rules := service.GrowthRules(); rules.InitialCreditScore != 100 {
+		t.Fatalf("expected fixed initial credit score 100, got %+v", rules)
+	}
 	profiles := service.AwardCompletedGame(1)
 	if len(profiles) != 2 || profiles[0].Experience != 20 || profiles[0].Level != 1 {
 		t.Fatalf("expected configured completion reward, got %+v", profiles)

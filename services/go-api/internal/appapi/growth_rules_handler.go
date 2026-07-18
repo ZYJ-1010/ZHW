@@ -69,9 +69,7 @@ func normalizeGrowthRewardRules(config reviews.GrowthRules) (reviews.GrowthRules
 	if config.InitialLevel <= 0 {
 		config.InitialLevel = defaults.InitialLevel
 	}
-	if config.InitialCreditScore <= 0 {
-		config.InitialCreditScore = defaults.InitialCreditScore
-	}
+	config.InitialCreditScore = defaults.InitialCreditScore
 	if config.CreditScoreCap <= 0 {
 		config.CreditScoreCap = defaults.CreditScoreCap
 	}

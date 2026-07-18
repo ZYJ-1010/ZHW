@@ -3629,7 +3629,7 @@ function renderGrowthRewardRules() {
     detailCell("收到评价经验", config.receivedReviewExperience ?? "-"),
     detailCell("提交评价积分", config.submittedReviewPoints ?? "-"),
     detailCell("升级所需经验", config.experiencePerLevel ?? "-"),
-    detailCell("初始信用分", config.initialCreditScore ?? "-"),
+    detailCell("信用初始分（固定）", 100),
     detailCell("信用分上限", config.creditScoreCap ?? "-"),
   ].join("");
 }
