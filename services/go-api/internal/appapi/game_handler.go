@@ -1589,6 +1589,11 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
+	categoryConfig := s.currentGameCategoryConfig()
+	if strings.TrimSpace(req.PrimaryCategory) != "" && !categoryKeyExists(categoryConfig.PrimaryCategories, strings.TrimSpace(req.PrimaryCategory)) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid primary category")
+		return
+	}
 	if req.CoverFileID > 0 {
 		file, err := s.files.Get(req.CoverFileID)
 		if err != nil || file.UploaderID != userID || file.BizType != "game_cover" {
