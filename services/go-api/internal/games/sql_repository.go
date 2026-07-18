@@ -12,6 +12,20 @@ type SQLRepository struct {
 	db *sql.DB
 }
 
+func (r *SQLRepository) SaveStatusLog(ctx context.Context, log StatusLog) (StatusLog, error) {
+	var saved StatusLog
+	var operatorID sql.NullInt64
+	var reason sql.NullString
+	err := r.db.QueryRowContext(ctx, `
+insert into game_status_logs (game_id, from_status, to_status, operator_user_id, reason, created_at)
+values ($1,$2,$3,$4,$5,$6)
+returning id, game_id, from_status, to_status, operator_user_id, reason, created_at
+	`, log.GameID, log.FromStatus, log.ToStatus, nullInt64(log.OperatorID), nullString(log.Reason), log.CreatedAt).Scan(&saved.ID, &saved.GameID, &saved.FromStatus, &saved.ToStatus, &operatorID, &reason, &saved.CreatedAt)
+	saved.OperatorID = operatorID.Int64
+	saved.Reason = reason.String
+	return saved, err
+}
+
 func NewSQLRepository(db *sql.DB) *SQLRepository {
 	return &SQLRepository{db: db}
 }

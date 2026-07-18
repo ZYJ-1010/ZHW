@@ -38,6 +38,7 @@ var (
 	ErrInvitationNotPending    = errors.New("invitation not pending")
 	ErrInvitationPlayerPending = errors.New("player invitation pending")
 	ErrAlreadyInvited          = errors.New("already invited")
+	ErrInvalidStatusTransition = errors.New("invalid game status transition")
 )
 
 const (
@@ -489,6 +490,8 @@ type Service struct {
 	memberRoles       map[int64]map[int64]string
 	nextConfirmID     int64
 	nextConfirmItemID int64
+	nextStatusLogID   int64
+	statusLogs        []StatusLog
 	confirms          map[int64]ServiceConfirm
 	confirmItems      map[int64]map[int64]ServiceConfirmItem
 	nextProgressID    int64
@@ -530,6 +533,8 @@ func NewServiceWithRepositories(identity IdentityChecker, repo Repository, favor
 		memberRoles:       make(map[int64]map[int64]string),
 		nextConfirmID:     1,
 		nextConfirmItemID: 1,
+		nextStatusLogID:   1,
+		statusLogs:        make([]StatusLog, 0),
 		confirms:          make(map[int64]ServiceConfirm),
 		confirmItems:      make(map[int64]map[int64]ServiceConfirmItem),
 		nextProgressID:    1,
@@ -564,6 +569,37 @@ func (s *Service) UseRoomEnsurer(ensurer RoomEnsurer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.roomEnsurer = ensurer
+}
+
+func (s *Service) transitionStatusLocked(game *Game, next string, operatorID int64, reason string) error {
+	if !validStatusTransition(game.Status, next) {
+		return ErrInvalidStatusTransition
+	}
+	if game.Status == next {
+		return nil
+	}
+	log := StatusLog{ID: s.nextStatusLogID, GameID: game.ID, FromStatus: game.Status, ToStatus: next, OperatorID: operatorID, Reason: reason, CreatedAt: time.Now()}
+	s.nextStatusLogID++
+	s.statusLogs = append(s.statusLogs, log)
+	game.Status = next
+	if repository, ok := s.repo.(statusLogRepository); ok {
+		if saved, err := repository.SaveStatusLog(context.Background(), log); err == nil {
+			log = saved
+		}
+	}
+	return nil
+}
+
+func (s *Service) StatusLogs(gameID int64) []StatusLog {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]StatusLog, 0)
+	for _, item := range s.statusLogs {
+		if gameID <= 0 || item.GameID == gameID {
+			items = append(items, item)
+		}
+	}
+	return items
 }
 
 func (s *Service) UseProgressRepository(progressRepo ProgressRepository) {
@@ -931,7 +967,9 @@ func (s *Service) ApproveGame(gameID int64) (Game, error) {
 	if !ok {
 		return Game{}, ErrGameNotFound
 	}
-	game.Status = "recruiting"
+	if err := s.transitionStatusLocked(&game, StatusRecruiting, 0, "admin approved game"); err != nil {
+		return Game{}, err
+	}
 	game.RejectReason = ""
 	if s.repo != nil {
 		saved, err := s.repo.UpdateGame(context.Background(), game)
@@ -958,7 +996,9 @@ func (s *Service) RejectGame(gameID int64, reason string) (Game, error) {
 	if !ok {
 		return Game{}, ErrGameNotFound
 	}
-	game.Status = "rejected"
+	if err := s.transitionStatusLocked(&game, StatusRejected, 0, reason); err != nil {
+		return Game{}, err
+	}
 	game.RejectReason = reason
 	if s.repo != nil {
 		saved, err := s.repo.UpdateGame(context.Background(), game)
@@ -1307,7 +1347,9 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		s.memberRoles[game.ID][app.UserID] = memberRole
 		game.CurrentPlayers++
 		if game.CurrentPlayers >= game.MaxPlayers {
-			game.Status = "full"
+			if err := s.transitionStatusLocked(&game, StatusFull, operatorUserID, "达到人数上限"); err != nil {
+				return Application{}, err
+			}
 		}
 		s.games[game.ID] = game
 		if s.repo != nil {
@@ -1410,7 +1452,9 @@ func (s *Service) ManualStartWithReason(userID int64, gameID int64, startReason 
 	if game.CurrentPlayers < game.MinPlayers {
 		return Game{}, ErrGameNotStartable
 	}
-	game.Status = "in_progress"
+	if err := s.transitionStatusLocked(&game, StatusInProgress, userID, startReason); err != nil {
+		return Game{}, err
+	}
 	game.StartReason = startReason
 	game.StartedByUserID = userID
 	game.StartedAt = time.Now().Format(time.RFC3339)
@@ -1451,9 +1495,13 @@ func (s *Service) RequestCompletion(userID int64, gameID int64) (Game, error) {
 		return Game{}, err
 	}
 	if game.GameSource == "admin" || len(expertIDs) == 0 {
-		game.Status = "pending_review"
+		if err := s.transitionStatusLocked(&game, StatusPendingReview, userID, "专家确认完成"); err != nil {
+			return Game{}, err
+		}
 	} else {
-		game.Status = "pending_confirm"
+		if err := s.transitionStatusLocked(&game, StatusPendingConfirm, userID, "等待成员确认"); err != nil {
+			return Game{}, err
+		}
 	}
 	if s.repo != nil {
 		saved, err := s.repo.UpdateGame(context.Background(), game)
@@ -1581,10 +1629,14 @@ func (s *Service) ConfirmService(userID int64, gameID int64, note string, fileID
 	if len(playerIDs) > 0 && allExpertsConfirmed && allPlayersConfirmed {
 		confirm.Status = "completed"
 		confirm.CompletedAt = time.Now().Format(time.RFC3339)
-		game.Status = "pending_review"
+		if err := s.transitionStatusLocked(&game, StatusPendingReview, userID, "服务确认完成"); err != nil {
+			return ServiceConfirm{}, nil, Game{}, err
+		}
 	} else {
 		confirm.Status = "pending"
-		game.Status = "pending_confirm"
+		if err := s.transitionStatusLocked(&game, StatusPendingConfirm, userID, "进入服务确认"); err != nil {
+			return ServiceConfirm{}, nil, Game{}, err
+		}
 	}
 	if s.confirmRepo != nil {
 		saved, err := s.confirmRepo.SaveConfirm(context.Background(), confirm)
@@ -1625,7 +1677,9 @@ func (s *Service) ResolveNoExpertPendingConfirm(gameID int64) (Game, bool, error
 	if len(expertIDs) > 0 {
 		return game, false, nil
 	}
-	game.Status = "pending_review"
+	if err := s.transitionStatusLocked(&game, StatusPendingReview, 0, "确认完成"); err != nil {
+		return Game{}, false, err
+	}
 	if confirm, ok := s.confirms[gameID]; ok {
 		confirm.Status = "completed"
 		if confirm.CompletedAt == "" {
@@ -2110,7 +2164,9 @@ func (s *Service) CancelService(gameID int64, reason string) (Game, error) {
 		delete(s.members[gameID], memberID)
 	}
 
-	game.Status = "canceled"
+	if err := s.transitionStatusLocked(&game, StatusCancelled, 0, reason); err != nil {
+		return Game{}, err
+	}
 	game.CurrentPlayers = 0
 	if s.repo != nil {
 		saved, err := s.repo.UpdateGame(context.Background(), game)
