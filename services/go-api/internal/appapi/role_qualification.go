@@ -149,35 +149,8 @@ func (s *Server) roleApplyInvitedCompletedCount(userID int64, completedUsers map
 }
 
 func (s *Server) enterpriseCertificationMet(userID int64) bool {
-	payload := s.profiles.SystemManagementConfig(userID, "profile-info", nil)
-	items, ok := payload["certifications"]
-	if !ok {
-		return false
-	}
-	matched := func(item map[string]interface{}) bool {
-		if strings.TrimSpace(fmt.Sprint(item["key"])) != "enterprise" {
-			return false
-		}
-		status := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["status"])))
-		className := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["statusClass"])))
-		return className == "verified" || className == "approved" || className == "passed" ||
-			status == "verified" || status == "approved" || status == "passed" || status == "已认证" || status == "已通过"
-	}
-	switch values := items.(type) {
-	case []map[string]interface{}:
-		for _, item := range values {
-			if matched(item) {
-				return true
-			}
-		}
-	case []interface{}:
-		for _, value := range values {
-			if item, ok := value.(map[string]interface{}); ok && matched(item) {
-				return true
-			}
-		}
-	}
-	return false
+	item, ok := s.profiles.EnterpriseCertification(userID)
+	return ok && item.Status == "approved"
 }
 
 func (e roleApplyEligibility) missingBaseRequirements() []string {

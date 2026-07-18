@@ -71,6 +71,8 @@ func (s *Server) saveSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	payload = mergeObjectMap(s.defaultSystemProfileInfo(userID), payload)
+	// certifications 的状态只允许由后端认证记录生成，不能接受客户端伪造。
+	payload["certifications"] = s.profileCertificationSummary(userID)
 	payload = s.withCurrentProfileAvatar(userID, payload)
 	saved := s.profiles.SaveSystemManagementConfig(userID, "profile-info", payload)
 	s.recordBehavior(userID, "update_system_profile_info", "profile", userID, map[string]interface{}{"sections": len(saved)})
@@ -772,12 +774,6 @@ func (s *Server) defaultSystemProfileInfo(userID int64) map[string]interface{} {
 	if phoneMasked == "" {
 		phoneMasked = "\u672a\u7ed1\u5b9a"
 	}
-	personalStatus := "\u672a\u8ba4\u8bc1"
-	personalClass := ""
-	if record.Status == "verified" {
-		personalStatus = "\u5df2\u8ba4\u8bc1"
-		personalClass = "verified"
-	}
 	profile := map[string]interface{}{
 		"avatarText":         avatarTextForName(name, userID),
 		"name":               name,
@@ -806,16 +802,45 @@ func (s *Server) defaultSystemProfileInfo(userID int64) map[string]interface{} {
 			"resources":          "\u672a\u586b\u5199",
 			"publicBusinessInfo": false,
 		},
-		"certifications": []map[string]interface{}{
-			{"key": "personal", "status": personalStatus, "statusClass": personalClass, "tone": "green"},
-			{"key": "enterprise", "status": "\u672a\u8ba4\u8bc1", "statusClass": "", "tone": "blue"},
-		},
+		"certifications": s.profileCertificationSummary(userID),
 		"visibilityOptions": []map[string]interface{}{
 			{"key": "all", "label": "\u5168\u90e8\u5c55\u793a"},
 			{"key": "member", "label": "\u4ec5\u4f1a\u5458\u53ef\u89c1"},
 			{"key": "hidden", "label": "\u5b8c\u5168\u9690\u85cf"},
 		},
 		"identity": record,
+	}
+}
+
+func (s *Server) profileCertificationSummary(userID int64) []map[string]interface{} {
+	personalStatus := "\u672a\u8ba4\u8bc1"
+	personalClass := ""
+	if s.identity.IsVerified(userID) {
+		personalStatus = "\u5df2\u8ba4\u8bc1"
+		personalClass = "verified"
+	}
+	enterpriseStatus := "\u672a\u8ba4\u8bc1"
+	enterpriseClass := ""
+	enterpriseDesc := "\u8425\u4e1a\u6267\u7167+\u5bf9\u516c\u8d26\u6237"
+	if item, ok := s.profiles.EnterpriseCertification(userID); ok {
+		switch item.Status {
+		case "pending":
+			enterpriseStatus = "\u5ba1\u6838\u4e2d"
+			enterpriseClass = "pending"
+		case "approved":
+			enterpriseStatus = "\u5df2\u8ba4\u8bc1"
+			enterpriseClass = "verified"
+		case "rejected":
+			enterpriseStatus = "\u5df2\u9a73\u56de"
+			enterpriseClass = "rejected"
+			if strings.TrimSpace(item.RejectReason) != "" {
+				enterpriseDesc = item.RejectReason
+			}
+		}
+	}
+	return []map[string]interface{}{
+		{"key": "personal", "status": personalStatus, "statusClass": personalClass, "tone": "green"},
+		{"key": "enterprise", "status": enterpriseStatus, "statusClass": enterpriseClass, "tone": "blue", "desc": enterpriseDesc},
 	}
 }
 

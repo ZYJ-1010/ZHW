@@ -36,6 +36,7 @@ Page({
     pendingAvatarFileId: 0,
     isSaving: false,
     isAvatarSubmitting: false,
+    isEnterpriseSubmitting: false,
     isRestartingRealname: false,
     showRestartRealnameModal: false,
     loadError: '',
@@ -329,7 +330,7 @@ Page({
     })
   },
 
-  openCertification(event = {}) {
+  async openCertification(event = {}) {
     const { key } = (event.currentTarget && event.currentTarget.dataset) || {}
 
     if (key === 'personal') {
@@ -337,7 +338,87 @@ Page({
       return
     }
 
-    toast.info('企业认证需后台审核企业材料，请联系平台管理员')
+    if (this.data.isEnterpriseSubmitting) {
+      return
+    }
+    const certification = (this.data.certifications || []).find((item) => item.key === 'enterprise') || {}
+    if (certification.status === '审核中') {
+      toast.info('企业认证材料正在后台审核')
+      return
+    }
+    if (certification.status === '已认证') {
+      toast.info('企业认证已通过')
+      return
+    }
+    const ask = (title, content = '') => new Promise((resolve) => {
+      wx.showModal({
+        title,
+        editable: true,
+        content,
+        placeholderText: `请输入${title}`,
+        success: (result) => resolve(result.confirm ? String(result.content || '').trim() : '')
+      })
+    })
+    const companyName = await ask('公司名称')
+    if (!companyName) return
+    const unifiedSocialCreditCode = await ask('统一社会信用代码')
+    if (!unifiedSocialCreditCode) return
+    const legalPerson = await ask('法定代表人')
+    if (!legalPerson) return
+    if (typeof wx.chooseMessageFile !== 'function') {
+      toast.info('当前环境不支持选择企业认证材料')
+      return
+    }
+    const chooseFile = (title) => new Promise((resolve) => {
+      wx.showModal({
+        title,
+        content: '请选择文件后继续',
+        showCancel: true,
+        success: (modal) => {
+          if (!modal.confirm) {
+            resolve('')
+            return
+          }
+          wx.chooseMessageFile({
+            count: 1,
+            type: 'file',
+            success: (result) => {
+              const file = Array.isArray(result.tempFiles) ? result.tempFiles[0] : null
+              resolve(file && (file.path || file.tempFilePath) || '')
+            },
+            fail: () => resolve('')
+          })
+        },
+        fail: () => resolve('')
+      })
+    })
+    const businessLicensePath = await chooseFile('选择营业执照')
+    if (!businessLicensePath) return
+    const publicAccountPath = await chooseFile('选择对公账户证明')
+    if (!publicAccountPath) return
+    this.setData({ isEnterpriseSubmitting: true })
+    try {
+      const fileIds = []
+      for (const path of [businessLicensePath, publicAccountPath]) {
+        fileIds.push(await fileService.uploadSingleFile(path, {
+          bizType: 'enterprise_material',
+          objectId: 0
+        }))
+      }
+      await profileService.submitEnterpriseCertification({
+        companyName,
+        unifiedSocialCreditCode,
+        legalPerson,
+        businessLicenseFileId: fileIds[0],
+        publicAccountFileId: fileIds[1]
+      })
+      toast.success('企业认证已提交，等待后台审核')
+      await this.loadSystemProfileInfo()
+    } catch (error) {
+      toast.info(error.message || '企业认证提交失败，请稍后重试')
+    } finally {
+      this.setData({ isEnterpriseSubmitting: false })
+    }
   },
 
   noop() {},

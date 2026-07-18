@@ -87,6 +87,16 @@ var uploadPolicies = map[string]uploadPolicy{
 			"audio/wav",
 		),
 	},
+	"enterprise_material": {
+		maxSize:     10 * mib,
+		accessLevel: "private",
+		mimeTypes: allowMIMEs(
+			"image/jpeg",
+			"image/png",
+			"image/webp",
+			"application/pdf",
+		),
+	},
 	"report_attachment": {
 		maxSize:     20 * mib,
 		accessLevel: "private",

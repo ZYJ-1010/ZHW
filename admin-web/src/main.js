@@ -1348,9 +1348,11 @@ async function renderAudits() {
   const tasks = [];
   if (can("identity:read")) {
     tasks.push(loadIdentities());
+    tasks.push(loadEnterpriseCertifications());
     tasks.push(loadAvatarAudits());
   } else {
     renderNoAccess("#identity-list", "缺少 identity:read");
+    renderNoAccess("#enterprise-certification-list", "缺少 identity:read");
     renderNoAccess("#avatar-audit-list", "缺少 identity:read");
   }
   if (can("role:view")) {
@@ -1363,11 +1365,11 @@ async function renderAudits() {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     try {
-      if (["reload-identities", "identity-detail", "reload-avatar-audits", "avatar-detail"].includes(button.dataset.action) && !can("identity:read")) {
+      if (["reload-identities", "identity-detail", "reload-enterprise-certifications", "enterprise-certification-detail", "reload-avatar-audits", "avatar-detail"].includes(button.dataset.action) && !can("identity:read")) {
         toast("缺少 identity:read", true);
         return;
       }
-      if (["identity-approve", "identity-reject", "avatar-approve", "avatar-reject"].includes(button.dataset.action) && !can("identity:update")) {
+      if (["identity-approve", "identity-reject", "enterprise-certification-approve", "enterprise-certification-reject", "avatar-approve", "avatar-reject"].includes(button.dataset.action) && !can("identity:update")) {
         toast("缺少 identity:update", true);
         return;
       }
@@ -1380,9 +1382,11 @@ async function renderAudits() {
         return;
       }
       if (button.dataset.action === "reload-identities") await loadIdentities();
+      if (button.dataset.action === "reload-enterprise-certifications") await loadEnterpriseCertifications();
       if (button.dataset.action === "reload-avatar-audits") await loadAvatarAudits();
       if (button.dataset.action === "reload-roles") await loadRoles();
       if (button.dataset.action === "identity-detail") await showIdentityDetail(Number(button.dataset.userId));
+      if (button.dataset.action === "enterprise-certification-detail") await showEnterpriseCertificationDetail(Number(button.dataset.userId));
       if (button.dataset.action === "identity-approve") {
         await reviewIdentityVerification(button.dataset.userId, true, "后台审核通过");
         toast("实名认证已通过");
@@ -1392,6 +1396,16 @@ async function renderAudits() {
         await reviewIdentityVerification(button.dataset.userId, false, "姓名或身份证号需要重新核对");
         toast("实名认证已驳回");
         await loadIdentities();
+      }
+      if (button.dataset.action === "enterprise-certification-approve") {
+        await reviewEnterpriseCertification(button.dataset.userId, true, "后台审核通过");
+        toast("企业认证已通过");
+        await loadEnterpriseCertifications();
+      }
+      if (button.dataset.action === "enterprise-certification-reject") {
+        await reviewEnterpriseCertification(button.dataset.userId, false, "企业认证材料需要重新核对");
+        toast("企业认证已驳回");
+        await loadEnterpriseCertifications();
       }
       if (button.dataset.action === "avatar-detail") showAvatarAuditDetail(Number(button.dataset.userId));
       if (button.dataset.action === "avatar-approve") {
@@ -1485,6 +1499,59 @@ async function loadAvatarAudits() {
     ],
     action: avatarAuditActions(item),
   }), "暂无头像审核记录");
+}
+
+async function loadEnterpriseCertifications() {
+  if (!can("identity:read")) {
+    renderNoAccess("#enterprise-certification-list", "缺少 identity:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/enterprise-certifications");
+  const items = data.items || [];
+  state.enterpriseCertifications = items;
+  renderPaginatedList("#enterprise-certification-list", items, "enterpriseCertifications", (item) => stackItem({
+    title: userText(item.userId),
+    badge: item.status,
+    meta: [
+      `企业：${item.companyName || "-"}`,
+      `统一社会信用代码：${item.unifiedSocialCreditCode || "-"}`,
+      `法定代表人：${item.legalPerson || "-"}`,
+      `提交时间：${formatTime(item.createdAt)}`,
+    ],
+    action: enterpriseCertificationActions(item),
+  }), "暂无企业认证记录");
+}
+
+function enterpriseCertificationActions(item) {
+  const actions = [`<button class="ghost" data-action="enterprise-certification-detail" data-user-id="${escapeHTML(item.userId)}" type="button">详情</button>`];
+  if (item.status === "pending" && can("identity:update")) {
+    actions.push(`<button class="ghost" data-action="enterprise-certification-approve" data-user-id="${escapeHTML(item.userId)}" type="button">通过</button>`);
+    actions.push(`<button class="ghost" data-action="enterprise-certification-reject" data-user-id="${escapeHTML(item.userId)}" type="button">驳回</button>`);
+  }
+  return actions.join("");
+}
+
+async function reviewEnterpriseCertification(userID, approve, remark) {
+  return apiPost(`/api/admin/enterprise-certifications/${userID}/review`, { approve, remark });
+}
+
+async function showEnterpriseCertificationDetail(userID) {
+  if (!userID) return;
+  const item = await apiGet(`/api/admin/enterprise-certifications/${userID}`);
+  openAdminDrawer({
+    title: "企业认证详情",
+    subtitle: userText(item.userId),
+    body: `<div class="row-actions"><span class="${badgeClass(item.status)}">${statusLabel(item.status)}</span></div><div class="detail-grid">
+      ${detailCell("用户", userText(item.userId))}
+      ${detailCell("企业名称", item.companyName || "-")}
+      ${detailCell("统一社会信用代码", item.unifiedSocialCreditCode || "-")}
+      ${detailCell("法定代表人", item.legalPerson || "-")}
+      ${detailCell("营业执照材料", item.businessLicenseFileId ? `<button class="ghost" data-action="download-application-file" data-id="${escapeHTML(item.businessLicenseFileId)}" type="button">查看材料</button>` : "-")}
+      ${detailCell("对公账户材料", item.publicAccountFileId ? `<button class="ghost" data-action="download-application-file" data-id="${escapeHTML(item.publicAccountFileId)}" type="button">查看材料</button>` : "-")}
+      ${detailCell("审核备注", item.reviewRemark || item.rejectReason || "-")}
+      ${detailCell("提交时间", formatTime(item.createdAt))}
+    </div>`,
+  });
 }
 
 function identityActions(item) {

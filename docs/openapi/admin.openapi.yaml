@@ -1095,6 +1095,60 @@ paths:
           description: Resource not found
         "422":
           description: Request validation failed
+  /api/admin/enterprise-certifications:
+    get:
+      summary: List enterprise certifications for manual review
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/admin/enterprise-certifications/{userId}:
+    get:
+      summary: Get enterprise certification detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "404":
+          description: Resource not found
+  /api/admin/enterprise-certifications/{userId}/review:
+    post:
+      summary: Review enterprise certification
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approve]
+              properties:
+                approve: { type: boolean }
+                remark: { type: string }
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+        "422":
+          description: Request validation failed
   /api/admin/identity-verifications/{userId}:
     get:
       summary: Admin frontend integration endpoint

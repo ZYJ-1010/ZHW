@@ -5,26 +5,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
 var (
-	ErrExpertForbidden          = errors.New("expert role forbidden")
-	ErrGuideForbidden           = errors.New("guide role forbidden")
-	ErrInvalidProfile           = errors.New("invalid profile")
-	ErrInvalidRoleApplication   = errors.New("invalid role application")
-	ErrDuplicateRoleApplication = errors.New("duplicate role application")
-	ErrRoleAlreadyActive        = errors.New("role already active")
-	ErrRoleApplicationCooldown  = errors.New("role application reapply cooldown")
-	ErrRoleApplicationNotFound  = errors.New("role application not found")
-	ErrRoleApplicationReviewed  = errors.New("role application already reviewed")
-	ErrWaitingGuideCondition    = errors.New("waiting guide condition")
-	ErrWaitingGuidePayment      = errors.New("waiting guide payment")
+	ErrExpertForbidden                 = errors.New("expert role forbidden")
+	ErrGuideForbidden                  = errors.New("guide role forbidden")
+	ErrInvalidProfile                  = errors.New("invalid profile")
+	ErrInvalidRoleApplication          = errors.New("invalid role application")
+	ErrDuplicateRoleApplication        = errors.New("duplicate role application")
+	ErrRoleAlreadyActive               = errors.New("role already active")
+	ErrRoleApplicationCooldown         = errors.New("role application reapply cooldown")
+	ErrRoleApplicationNotFound         = errors.New("role application not found")
+	ErrRoleApplicationReviewed         = errors.New("role application already reviewed")
+	ErrWaitingGuideCondition           = errors.New("waiting guide condition")
+	ErrWaitingGuidePayment             = errors.New("waiting guide payment")
+	ErrEnterpriseCertificationNotFound = errors.New("enterprise certification not found")
+	ErrEnterpriseCertificationPending  = errors.New("enterprise certification already pending")
+	ErrInvalidEnterpriseCertification  = errors.New("invalid enterprise certification")
 )
 
 const roleApplicationReapplyCooldown = 7 * 24 * time.Hour
+
+var unifiedSocialCreditCodePattern = regexp.MustCompile(`^[0-9A-Z]{18}$`)
 
 type ExpertSkillProfile struct {
 	UserID       int64     `json:"userId"`
@@ -84,6 +90,35 @@ type GuideQualificationRule struct {
 type RoleSnapshot struct {
 	Roles         []string          `json:"roles"`
 	RoleStatusMap map[string]string `json:"roleStatusMap"`
+}
+
+type EnterpriseCertification struct {
+	ID                      int64     `json:"id"`
+	UserID                  int64     `json:"userId"`
+	CompanyName             string    `json:"companyName"`
+	UnifiedSocialCreditCode string    `json:"unifiedSocialCreditCode"`
+	LegalPerson             string    `json:"legalPerson"`
+	BusinessLicenseFileID   int64     `json:"businessLicenseFileId"`
+	PublicAccountFileID     int64     `json:"publicAccountFileId"`
+	Status                  string    `json:"status"`
+	RejectReason            string    `json:"rejectReason,omitempty"`
+	ReviewAdminID           int64     `json:"reviewAdminId,omitempty"`
+	ReviewRemark            string    `json:"reviewRemark,omitempty"`
+	CreatedAt               time.Time `json:"createdAt"`
+	UpdatedAt               time.Time `json:"updatedAt"`
+}
+
+type SubmitEnterpriseCertificationRequest struct {
+	CompanyName             string `json:"companyName"`
+	UnifiedSocialCreditCode string `json:"unifiedSocialCreditCode"`
+	LegalPerson             string `json:"legalPerson"`
+	BusinessLicenseFileID   int64  `json:"businessLicenseFileId"`
+	PublicAccountFileID     int64  `json:"publicAccountFileId"`
+}
+
+type ReviewEnterpriseCertificationRequest struct {
+	Approve bool   `json:"approve"`
+	Remark  string `json:"remark"`
 }
 
 type ExpertSkillRequest struct {
@@ -153,6 +188,13 @@ type Repository interface {
 	ListSystemManagementConfigs(ctx context.Context, key string) ([]SystemManagementConfigItem, error)
 }
 
+type enterpriseRepository interface {
+	SaveEnterpriseCertification(ctx context.Context, item EnterpriseCertification) (EnterpriseCertification, error)
+	FindEnterpriseCertification(ctx context.Context, userID int64) (EnterpriseCertification, bool, error)
+	ListEnterpriseCertifications(ctx context.Context, status string) ([]EnterpriseCertification, error)
+	ReviewEnterpriseCertification(ctx context.Context, item EnterpriseCertification) (EnterpriseCertification, error)
+}
+
 type reviewedRoleApplicationRepository interface {
 	SaveReviewedRoleApplication(ctx context.Context, app RoleApplication) (RoleApplication, error)
 }
@@ -168,6 +210,7 @@ type Service struct {
 	rules      map[int64]GuideQualificationRule
 	skills     map[int64]ExpertSkillProfile
 	resources  map[int64]GuideResourceProfile
+	enterprise map[int64]EnterpriseCertification
 	system     map[int64]map[string]interface{}
 	repo       Repository
 }
@@ -187,6 +230,7 @@ func NewServiceWithRepository(repo Repository) *Service {
 		rules:      make(map[int64]GuideQualificationRule),
 		skills:     make(map[int64]ExpertSkillProfile),
 		resources:  make(map[int64]GuideResourceProfile),
+		enterprise: make(map[int64]EnterpriseCertification),
 		system:     make(map[int64]map[string]interface{}),
 		repo:       repo,
 	}
@@ -205,6 +249,99 @@ func (s *Service) GrantRole(userID int64, roleCode string) {
 	case "guide":
 		s.guides[userID] = true
 	}
+}
+
+func (s *Service) EnterpriseCertification(userID int64) (EnterpriseCertification, bool) {
+	if userID <= 0 {
+		return EnterpriseCertification{}, false
+	}
+	if repository, ok := s.repo.(enterpriseRepository); ok {
+		item, found, err := repository.FindEnterpriseCertification(context.Background(), userID)
+		return item, err == nil && found
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	item, ok := s.enterprise[userID]
+	return item, ok
+}
+
+func (s *Service) SubmitEnterpriseCertification(userID int64, req SubmitEnterpriseCertificationRequest) (EnterpriseCertification, error) {
+	req.CompanyName = strings.TrimSpace(req.CompanyName)
+	req.UnifiedSocialCreditCode = strings.ToUpper(strings.TrimSpace(req.UnifiedSocialCreditCode))
+	req.LegalPerson = strings.TrimSpace(req.LegalPerson)
+	if userID <= 0 || len([]rune(req.CompanyName)) < 2 || len([]rune(req.CompanyName)) > 100 ||
+		!unifiedSocialCreditCodePattern.MatchString(req.UnifiedSocialCreditCode) || req.LegalPerson == "" || len([]rune(req.LegalPerson)) > 50 ||
+		req.BusinessLicenseFileID <= 0 || req.PublicAccountFileID <= 0 {
+		return EnterpriseCertification{}, ErrInvalidEnterpriseCertification
+	}
+	if item, ok := s.EnterpriseCertification(userID); ok && item.Status == "pending" {
+		return EnterpriseCertification{}, ErrEnterpriseCertificationPending
+	}
+	now := time.Now()
+	item := EnterpriseCertification{
+		UserID: userID, CompanyName: req.CompanyName, UnifiedSocialCreditCode: req.UnifiedSocialCreditCode,
+		LegalPerson: req.LegalPerson, BusinessLicenseFileID: req.BusinessLicenseFileID,
+		PublicAccountFileID: req.PublicAccountFileID, Status: "pending", CreatedAt: now, UpdatedAt: now,
+	}
+	if repository, ok := s.repo.(enterpriseRepository); ok {
+		saved, err := repository.SaveEnterpriseCertification(context.Background(), item)
+		return saved, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item.ID = int64(len(s.enterprise) + 1)
+	s.enterprise[userID] = item
+	return item, nil
+}
+
+func (s *Service) ReviewEnterpriseCertification(adminID int64, userID int64, req ReviewEnterpriseCertificationRequest) (EnterpriseCertification, error) {
+	req.Remark = strings.TrimSpace(req.Remark)
+	if adminID <= 0 || userID <= 0 || (!req.Approve && req.Remark == "") || len(req.Remark) > 500 {
+		return EnterpriseCertification{}, ErrInvalidEnterpriseCertification
+	}
+	item, ok := s.EnterpriseCertification(userID)
+	if !ok {
+		return EnterpriseCertification{}, ErrEnterpriseCertificationNotFound
+	}
+	if item.Status != "pending" {
+		return EnterpriseCertification{}, ErrInvalidEnterpriseCertification
+	}
+	item.ReviewAdminID = adminID
+	item.ReviewRemark = req.Remark
+	item.RejectReason = ""
+	item.Status = "approved"
+	if !req.Approve {
+		item.Status = "rejected"
+		item.RejectReason = req.Remark
+	}
+	item.UpdatedAt = time.Now()
+	if repository, ok := s.repo.(enterpriseRepository); ok {
+		return repository.ReviewEnterpriseCertification(context.Background(), item)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.enterprise[userID] = item
+	return item, nil
+}
+
+func (s *Service) AllEnterpriseCertifications(status string) []EnterpriseCertification {
+	status = strings.TrimSpace(status)
+	if repository, ok := s.repo.(enterpriseRepository); ok {
+		items, err := repository.ListEnterpriseCertifications(context.Background(), status)
+		if err == nil {
+			return items
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]EnterpriseCertification, 0, len(s.enterprise))
+	for _, item := range s.enterprise {
+		if status != "" && item.Status != status {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items
 }
 
 func (s *Service) IsGuide(userID int64) bool {
@@ -269,15 +406,6 @@ func (s *Service) SubmitRoleApplication(userID int64, req SubmitRoleApplicationR
 		}
 	} else if s.hasRole(userID, req.RoleCode) {
 		return RoleApplication{}, ErrRoleAlreadyActive
-	}
-	if req.RoleCode == "guide" {
-		qualification, err := s.GuideQualification(userID)
-		if err != nil {
-			return RoleApplication{}, err
-		}
-		if !qualification.ConditionMet {
-			return RoleApplication{}, ErrWaitingGuideCondition
-		}
 	}
 	if s.repo != nil {
 		items, err := s.repo.ListRoleApplicationsByUser(context.Background(), userID)

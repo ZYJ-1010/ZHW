@@ -2138,6 +2138,36 @@ paths:
           description: Unified response payload
         "422":
           description: Unified response payload
+  /api/app/enterprise-certification:
+    get:
+      summary: Query my enterprise certification
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    post:
+      summary: Submit enterprise certification for manual review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [companyName, unifiedSocialCreditCode, legalPerson, businessLicenseFileId, publicAccountFileId]
+              properties:
+                companyName: { type: string }
+                unifiedSocialCreditCode: { type: string }
+                legalPerson: { type: string }
+                businessLicenseFileId: { type: integer }
+                publicAccountFileId: { type: integer }
+      responses:
+        "200":
+          description: Unified response payload
+        "409":
+          description: Pending certification already exists
     put:
       summary: Frontend integration endpoint
       security:

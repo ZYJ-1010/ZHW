@@ -25,6 +25,75 @@ on conflict (user_id, role_code) do update set status = 'active'
 	return err
 }
 
+func (r *SQLRepository) SaveEnterpriseCertification(ctx context.Context, item EnterpriseCertification) (EnterpriseCertification, error) {
+	return scanEnterpriseCertification(r.db.QueryRowContext(ctx, `
+insert into enterprise_certifications (user_id, company_name, unified_social_credit_code, legal_person, business_license_file_id, public_account_file_id, status, reject_reason, review_admin_id, review_remark, created_at, updated_at)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+returning id, user_id, company_name, unified_social_credit_code, legal_person, business_license_file_id, public_account_file_id, status, reject_reason, review_admin_id, review_remark, created_at, updated_at
+`, item.UserID, item.CompanyName, item.UnifiedSocialCreditCode, item.LegalPerson, item.BusinessLicenseFileID, item.PublicAccountFileID, item.Status, nullString(item.RejectReason), nullInt64(item.ReviewAdminID), nullString(item.ReviewRemark), item.CreatedAt, item.UpdatedAt))
+}
+
+func (r *SQLRepository) FindEnterpriseCertification(ctx context.Context, userID int64) (EnterpriseCertification, bool, error) {
+	item, err := scanEnterpriseCertification(r.db.QueryRowContext(ctx, enterpriseCertificationSelect()+` where user_id = $1 order by id desc limit 1`, userID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return EnterpriseCertification{}, false, nil
+	}
+	if err != nil {
+		return EnterpriseCertification{}, false, err
+	}
+	return item, true, nil
+}
+
+func (r *SQLRepository) ListEnterpriseCertifications(ctx context.Context, status string) ([]EnterpriseCertification, error) {
+	query := enterpriseCertificationSelect()
+	args := []any{}
+	if status != "" {
+		query += " where status = $1"
+		args = append(args, status)
+	}
+	query += " order by updated_at desc, id desc"
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]EnterpriseCertification, 0)
+	for rows.Next() {
+		item, err := scanEnterpriseCertification(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r *SQLRepository) ReviewEnterpriseCertification(ctx context.Context, item EnterpriseCertification) (EnterpriseCertification, error) {
+	return scanEnterpriseCertification(r.db.QueryRowContext(ctx, `
+update enterprise_certifications
+set status = $2, reject_reason = $3, review_admin_id = $4, review_remark = $5, updated_at = $6
+where user_id = $1 and status = 'pending'
+returning id, user_id, company_name, unified_social_credit_code, legal_person, business_license_file_id, public_account_file_id, status, reject_reason, review_admin_id, review_remark, created_at, updated_at
+`, item.UserID, item.Status, nullString(item.RejectReason), nullInt64(item.ReviewAdminID), nullString(item.ReviewRemark), item.UpdatedAt))
+}
+
+func enterpriseCertificationSelect() string {
+	return `select id, user_id, company_name, unified_social_credit_code, legal_person, business_license_file_id, public_account_file_id, status, reject_reason, review_admin_id, review_remark, created_at, updated_at from enterprise_certifications`
+}
+
+func scanEnterpriseCertification(row interface{ Scan(dest ...any) error }) (EnterpriseCertification, error) {
+	var item EnterpriseCertification
+	var rejectReason, reviewRemark sql.NullString
+	var reviewAdminID sql.NullInt64
+	if err := row.Scan(&item.ID, &item.UserID, &item.CompanyName, &item.UnifiedSocialCreditCode, &item.LegalPerson, &item.BusinessLicenseFileID, &item.PublicAccountFileID, &item.Status, &rejectReason, &reviewAdminID, &reviewRemark, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		return EnterpriseCertification{}, err
+	}
+	item.RejectReason = rejectReason.String
+	item.ReviewRemark = reviewRemark.String
+	item.ReviewAdminID = reviewAdminID.Int64
+	return item, nil
+}
+
 func (r *SQLRepository) HasRole(ctx context.Context, userID int64, roleCode string) (bool, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `

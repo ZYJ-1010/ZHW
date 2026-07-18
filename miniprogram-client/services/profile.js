@@ -356,6 +356,14 @@ async function saveSystemProfileInfo(payload = {}) {
   return result.data
 }
 
+async function submitEnterpriseCertification(payload = {}) {
+  const result = await profileApi.submitEnterpriseCertification(payload)
+  if (result.code !== 0) {
+    throw new Error(result.message || '企业认证提交失败')
+  }
+  return result.data
+}
+
 async function restartRealname(payload = {}) {
   const code = String(payload.code || '').trim()
   const encryptedData = String(payload.encryptedData || '').trim()
@@ -630,6 +638,7 @@ module.exports = {
   getInviteMemberDetail,
   getSystemProfileInfo,
   saveSystemProfileInfo,
+  submitEnterpriseCertification,
   restartRealname,
   getSystemSkillConfig,
   getSystemServiceCaseDetail,

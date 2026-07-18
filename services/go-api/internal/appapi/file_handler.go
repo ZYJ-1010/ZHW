@@ -190,6 +190,8 @@ func adminFilePermission(file files.File) (string, bool) {
 	switch file.BizType {
 	case "realname_material":
 		return "identity:read", true
+	case "enterprise_material":
+		return "identity:read", true
 	case "report_attachment":
 		return "report:view", true
 	case "game_application":

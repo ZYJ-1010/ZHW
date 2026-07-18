@@ -421,6 +421,7 @@
     <template id="audits-template">
       <div class="section-tabs">
         <button class="active" data-tab-group="audits" data-tab-target="#audit-identities-panel" type="button">认证记录</button>
+        <button data-tab-group="audits" data-tab-target="#audit-enterprise-panel" type="button">企业认证</button>
         <button data-tab-group="audits" data-tab-target="#audit-avatars-panel" type="button">头像审核</button>
         <button data-tab-group="audits" data-tab-target="#audit-roles-panel" type="button">行家/领路人申请</button>
       </div>
@@ -434,6 +435,16 @@
             <button class="ghost" data-action="reload-identities" type="button">刷新</button>
           </div>
           <div id="identity-list" class="stack-list"></div>
+        </section>
+        <section id="audit-enterprise-panel" class="panel hidden" data-tab-panel-group="audits">
+          <div class="panel-head">
+            <div>
+              <h2>企业认证审核</h2>
+              <p>用户提交营业执照和对公账户证明后，由后台人工审核。</p>
+            </div>
+            <button class="ghost" data-action="reload-enterprise-certifications" type="button">刷新</button>
+          </div>
+          <div id="enterprise-certification-list" class="stack-list"></div>
         </section>
         <section id="audit-avatars-panel" class="panel hidden" data-tab-panel-group="audits">
           <div class="panel-head">

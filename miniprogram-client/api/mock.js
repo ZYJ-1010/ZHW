@@ -1299,6 +1299,20 @@ function saveSystemProfileInfo(data = {}) {
   return wait(ok(mockSystemProfileInfoState))
 }
 
+function submitMockEnterpriseCertification(data = {}) {
+  if (!data.companyName || !data.unifiedSocialCreditCode || !data.legalPerson || !data.businessLicenseFileId || !data.publicAccountFileId) {
+    return wait(fail(40001, '企业认证材料不完整'))
+  }
+  const base = defaultSystemProfileInfo()
+  mockSystemProfileInfoState = Object.assign({}, buildSystemProfileInfo(), {
+    certifications: (base.certifications || []).map((item) => item.key === 'enterprise'
+      ? Object.assign({}, item, { status: '审核中', statusClass: 'pending', desc: '材料已提交，等待后台审核' })
+      : item),
+    enterpriseCertification: Object.assign({}, data, { status: 'pending' })
+  })
+  return wait(ok(mockSystemProfileInfoState.enterpriseCertification))
+}
+
 function buildSystemSkillConfig() {
   return JSON.parse(JSON.stringify(mockSystemSkillConfigState))
 }
@@ -3362,6 +3376,15 @@ function handleRequest(options) {
 
   if (method === 'GET' && url === '/api/app/profile/system-management/profile-info') {
     return wait(ok(buildSystemProfileInfo()))
+  }
+
+  if (method === 'GET' && url === '/api/app/enterprise-certification') {
+    const item = mockSystemProfileInfoState && mockSystemProfileInfoState.enterpriseCertification
+    return wait(ok(item || { status: 'none', items: [] }))
+  }
+
+  if (method === 'POST' && url === '/api/app/enterprise-certification') {
+    return submitMockEnterpriseCertification(options.data || {})
   }
 
   if (method === 'GET' && url === '/api/app/profile/settings') {

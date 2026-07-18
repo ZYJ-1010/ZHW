@@ -599,13 +599,6 @@ func (s *Server) submitRoleApplication(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	if req.RoleCode == "guide" {
-		met := true
-		if _, err := s.profiles.UpdateGuideQualification(userID, profiles.UpdateGuideQualificationRequest{ConditionMet: &met}); err != nil {
-			writeProfileError(w, err)
-			return
-		}
-	}
 	app, err := s.profiles.SubmitRoleApplication(userID, req)
 	if err != nil {
 		writeProfileError(w, err)
@@ -662,11 +655,6 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.validateRoleApplicationEligibility(userID, "guide", req.AbilityDescription); err != nil {
-		writeProfileError(w, err)
-		return
-	}
-	met := true
-	if _, err := s.profiles.UpdateGuideQualification(userID, profiles.UpdateGuideQualificationRequest{ConditionMet: &met}); err != nil {
 		writeProfileError(w, err)
 		return
 	}

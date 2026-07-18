@@ -116,6 +116,14 @@ function saveSystemProfileInfo(data) {
   return request.put('/api/app/profile/system-management/profile-info', data)
 }
 
+function getEnterpriseCertification() {
+  return request.get('/api/app/enterprise-certification')
+}
+
+function submitEnterpriseCertification(data) {
+  return request.post('/api/app/enterprise-certification', data)
+}
+
 function restartRealname(data) {
   return request.post('/api/app/identity/realname/restart', data)
 }
@@ -209,7 +217,9 @@ module.exports = {
   getInviteIncome,
   getInviteMemberDetail,
   getSystemProfileInfo,
-  saveSystemProfileInfo,
+	saveSystemProfileInfo,
+	getEnterpriseCertification,
+	submitEnterpriseCertification,
   restartRealname,
   getSystemSkillConfig,
   getSystemServiceCaseDetail,
