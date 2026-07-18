@@ -15,6 +15,7 @@ import (
 
 	"zhw-mini/services/go-api/internal/auth"
 	"zhw-mini/services/go-api/internal/identity"
+	"zhw-mini/services/go-api/internal/im"
 	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/users"
 )
@@ -100,6 +101,21 @@ func TestIMWebSocketFlow(t *testing.T) {
 	historyBody := getJSON(t, mux, "/api/app/games/1/chat/messages", playerToken, http.StatusOK)
 	if !bytes.Contains(historyBody, []byte("hello websocket")) || !bytes.Contains(historyBody, []byte(`"fileId":`+strconv.FormatInt(uploadResp.Data.Upload.FileID, 10))) {
 		t.Fatalf("expected websocket messages persisted in history: %s", string(historyBody))
+	}
+}
+
+func TestWebSocketVoiceFileOwnershipValidation(t *testing.T) {
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	app := newTestAppServer(authService, identity.NewService())
+	file, err := app.files.CreateGeneratedFile("chat_file", 1, "voice.amr", "audio/amr", 128)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.validateChatMessageFileForSocket(im.SendRequest{MessageType: "voice", FileID: file.ID}, 1); err != nil {
+		t.Fatalf("voice file belonging to game was rejected: %v", err)
+	}
+	if err := app.validateChatMessageFileForSocket(im.SendRequest{MessageType: "voice", FileID: file.ID}, 2); err != im.ErrForbidden {
+		t.Fatalf("voice file from another game error = %v, want forbidden", err)
 	}
 }
 

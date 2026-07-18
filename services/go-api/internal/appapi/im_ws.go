@@ -208,7 +208,7 @@ func (c *imSocketClient) handleText(payload []byte) {
 }
 
 func (s *Server) validateChatMessageFileForSocket(req im.SendRequest, gameID int64) error {
-	if req.MessageType != "image" && req.MessageType != "file" {
+	if req.MessageType != "image" && req.MessageType != "file" && req.MessageType != "voice" {
 		return nil
 	}
 	file, err := s.files.Get(req.FileID)
