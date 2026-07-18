@@ -316,6 +316,10 @@ type approvalGameRepository interface {
 	UpdateGameAfterApproval(ctx context.Context, game Game, expectedCurrentPlayers int) (Game, error)
 }
 
+type exitAtomicRepository interface {
+	ExitGame(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string) (Game, error)
+}
+
 type memberRoleRepository interface {
 	ListMemberRoles(ctx context.Context, gameID int64) ([]MemberRole, error)
 }
@@ -1989,6 +1993,30 @@ func canInviteGuide(game Game, userID int64) bool {
 }
 
 func (s *Service) Exit(userID int64, gameID int64) (ExitResult, error) {
+	if atomicRepo, ok := s.repo.(exitAtomicRepository); ok {
+		game, err := s.Get(gameID)
+		if err != nil {
+			return ExitResult{}, err
+		}
+		if !s.IsMember(gameID, userID) {
+			return ExitResult{}, ErrForbidden
+		}
+		reason := exitReason(game.Status)
+		memberStatus := exitMemberStatus(game.Status)
+		updated, err := atomicRepo.ExitGame(context.Background(), gameID, userID, memberStatus, reason)
+		if err != nil {
+			return ExitResult{}, err
+		}
+		s.mu.Lock()
+		delete(s.members[gameID], userID)
+		if s.memberRoles[gameID] != nil {
+			delete(s.memberRoles[gameID], userID)
+		}
+		s.games[gameID] = updated
+		s.mu.Unlock()
+		creditDeduct := reason == "quit_after_confirm" || reason == "quit_after_started"
+		return ExitResult{Game: updated, GameID: gameID, UserID: userID, Reason: reason, CreditDeduct: creditDeduct, CreditDeducted: creditDeduct, MemberStatus: memberStatus}, nil
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	game, ok, err := s.gameLocked(gameID)

@@ -124,6 +124,42 @@ where id = $1 and status = 'recruiting' and current_players = $5
 	return r.GetGame(ctx, game.ID)
 }
 
+func (r *SQLRepository) ExitGame(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string) (Game, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Game{}, err
+	}
+	defer tx.Rollback()
+	var currentPlayers int
+	var status string
+	if err := tx.QueryRowContext(ctx, `select current_players, status from games where id = $1 for update`, gameID).Scan(&currentPlayers, &status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Game{}, ErrGameNotFound
+		}
+		return Game{}, err
+	}
+	result, err := tx.ExecContext(ctx, `
+update game_members set status = $3, quit_reason = $4
+where game_id = $1 and user_id = $2 and status = 'active'
+`, gameID, userID, memberStatus, nullString(reason))
+	if err != nil {
+		return Game{}, err
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return Game{}, ErrForbidden
+	}
+	if currentPlayers > 0 {
+		currentPlayers--
+	}
+	if _, err := tx.ExecContext(ctx, `update games set current_players = $2, updated_at = now() where id = $1`, gameID, currentPlayers); err != nil {
+		return Game{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Game{}, err
+	}
+	return r.GetGame(ctx, gameID)
+}
+
 func (r *SQLRepository) GetGame(ctx context.Context, gameID int64) (Game, error) {
 	game, err := scanGame(r.db.QueryRowContext(ctx, `
 select id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
