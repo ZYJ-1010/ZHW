@@ -37,6 +37,7 @@ import (
 	"zhw-mini/services/go-api/internal/revenue"
 	"zhw-mini/services/go-api/internal/reviews"
 	"zhw-mini/services/go-api/internal/systemconfig"
+	"zhw-mini/services/go-api/internal/tasks"
 	"zhw-mini/services/go-api/internal/teams"
 	"zhw-mini/services/go-api/internal/users"
 )
@@ -126,6 +127,7 @@ type Server struct {
 	delivery             *delivery.Service
 	aidata               *aidata.Service
 	systemConfig         *systemconfig.Service
+	tasks                *tasks.Service
 	imSocketHub          *imSocketHub
 	idempotency          *idempotencyStore
 	cfg                  config.Config
@@ -151,7 +153,7 @@ func New(authService *auth.Service, identityService identityService, gameService
 	reviewService := reviews.NewService(gameService)
 	revenueService := revenue.NewService(reviewService)
 	pointsService := points.NewService()
-	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
+	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), tasks: tasks.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
 	server.imSocketHub = newIMSocketHub(server)
 	return server
 }
@@ -233,6 +235,12 @@ func (s *Server) UseSystemConfigRepository(repository systemconfig.Repository) {
 	}
 }
 
+func (s *Server) UseTaskRepository(repository tasks.Repository) {
+	if repository != nil {
+		s.tasks = tasks.NewServiceWithRepository(repository)
+	}
+}
+
 func (s *Server) UseRepositories(behaviorRepo audit.BehaviorRepository, operationRepo audit.OperationRepository, orderRepo orders.Repository, reportRepo reports.Repository, notificationRepo notifications.Repository, fileRepo files.Repository, reviewRepo reviews.Repository, revenueRepo revenue.Repository, pointRepo points.Repository, redemptionRepo redemption.Repository, connectionRepo connections.Repository, profileRepo profiles.Repository, lbsRepo lbs.Repository, memberReportRepo memberreports.Repository, membershipRepo membership.Repository, teamRepo teams.Repository) {
 	if behaviorRepo != nil || operationRepo != nil {
 		s.audit = audit.NewServiceWithRepositories(behaviorRepo, operationRepo)
@@ -304,6 +312,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/app/auth/issue-token-after-identity", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.issueTokenAfterIdentity)))
 	handle("GET /api/app/home", s.AppAuthMiddleware(s.appHome))
 	handle("GET /api/app/newbie-tasks", s.AppAuthMiddleware(s.newbieTasks))
+	handle("POST /api/app/newbie-tasks/", s.AppAuthMiddleware(s.completeTask))
 	handle("GET /api/app/users/me", s.AppAuthMiddleware(s.currentUser))
 	handle("GET /api/app/users/me/summary", s.AppAuthMiddleware(s.currentUserSummary))
 	handle("GET /api/app/profile/home", s.AppAuthMiddleware(s.profileHome))

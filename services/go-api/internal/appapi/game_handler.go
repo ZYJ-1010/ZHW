@@ -1751,6 +1751,21 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 	activityItems := []map[string]interface{}{
 		{"code": "activity_complete_game", "title": "完成一局并提交评价", "completed": stats.Completed > 0 && len(reviewIntents) > 0, "current": stats.Completed, "required": 1},
 	}
+	completedCodes := map[string]bool{}
+	if s.tasks != nil {
+		completedCodes = s.tasks.CompletedCodes(userID)
+	}
+	for _, collection := range [][]map[string]interface{}{items, dailyItems, activityItems} {
+		for _, item := range collection {
+			code, _ := item["code"].(string)
+			if completedCodes[code] {
+				item["completed"] = true
+			}
+			if done, _ := item["completed"].(bool); done && s.tasks != nil {
+				_, _ = s.tasks.MarkCompleted(userID, code)
+			}
+		}
+	}
 	httpx.OK(w, map[string]interface{}{
 		"items":     items,
 		"completed": completed,

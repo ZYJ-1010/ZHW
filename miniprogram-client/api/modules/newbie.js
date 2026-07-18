@@ -4,6 +4,11 @@ function getNewbieTasks() {
   return request.get('/api/app/newbie-tasks')
 }
 
+function completeTask(code) {
+  return request.post(`/api/app/newbie-tasks/${encodeURIComponent(code)}/complete`, {})
+}
+
 module.exports = {
-  getNewbieTasks
+  getNewbieTasks,
+  completeTask
 }
