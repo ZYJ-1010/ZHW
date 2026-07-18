@@ -302,7 +302,7 @@ func (s *Server) createIMMessageNotifications(senderID int64, message im.Message
 		if memberID <= 0 || memberID == senderID {
 			continue
 		}
-		s.notices.Create(notifications.CreateRequest{
+		s.notices.CreateOrUpdateRoomMessage(notifications.CreateRequest{
 			UserID:     memberID,
 			NotifyType: "im_message",
 			Title:      "收到局内消息",

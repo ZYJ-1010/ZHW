@@ -215,6 +215,52 @@ func (s *Service) Create(req CreateRequest) Notification {
 	return notification
 }
 
+// CreateOrUpdateRoomMessage keeps one unread notification per user and game
+// room. A later message refreshes that notification instead of adding another
+// item to the message center.
+func (s *Service) CreateOrUpdateRoomMessage(req CreateRequest) Notification {
+	if req.NotifyType == "" {
+		req.NotifyType = "im_message"
+	}
+	if req.BizType == "" || req.BizID <= 0 {
+		return s.Create(req)
+	}
+	if s.repo != nil {
+		if items, err := s.repo.ListNotifications(context.Background(), req.UserID); err == nil {
+			for _, item := range items {
+				if item.Status != "unread" || item.NotifyType != req.NotifyType || item.BizType != req.BizType || item.BizID != req.BizID {
+					continue
+				}
+				item.Title = req.Title
+				item.Content = req.Content
+				item.CreatedAt = time.Now()
+				if saved, saveErr := s.repo.UpdateNotification(context.Background(), item); saveErr == nil {
+					s.mu.Lock()
+					s.notifications[saved.ID] = saved
+					s.mu.Unlock()
+					return saved
+				}
+				break
+			}
+		}
+	} else {
+		s.mu.Lock()
+		for id, item := range s.notifications {
+			if item.UserID != req.UserID || item.Status != "unread" || item.NotifyType != req.NotifyType || item.BizType != req.BizType || item.BizID != req.BizID {
+				continue
+			}
+			item.Title = req.Title
+			item.Content = req.Content
+			item.CreatedAt = time.Now()
+			s.notifications[id] = item
+			s.mu.Unlock()
+			return item
+		}
+		s.mu.Unlock()
+	}
+	return s.Create(req)
+}
+
 func (s *Service) List(userID int64) []Notification {
 	if s.repo != nil {
 		if items, err := s.repo.ListNotifications(context.Background(), userID); err == nil {

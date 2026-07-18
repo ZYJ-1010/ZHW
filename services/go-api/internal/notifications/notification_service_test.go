@@ -139,6 +139,23 @@ func TestSendPendingWechatTasksHonorsLimit(t *testing.T) {
 	}
 }
 
+func TestCreateOrUpdateRoomMessageAggregatesUnreadRoomNotification(t *testing.T) {
+	service := NewService()
+	first := service.CreateOrUpdateRoomMessage(CreateRequest{
+		UserID: 2, NotifyType: "im_message", Title: "收到局内消息", Content: "甲：第一条", BizType: "game", BizID: 9,
+	})
+	second := service.CreateOrUpdateRoomMessage(CreateRequest{
+		UserID: 2, NotifyType: "im_message", Title: "收到局内消息", Content: "乙：第二条", BizType: "game", BizID: 9,
+	})
+	if first.ID == 0 || second.ID != first.ID {
+		t.Fatalf("expected same unread room notification, first=%+v second=%+v", first, second)
+	}
+	items := service.List(2)
+	if len(items) != 1 || items[0].Content != "乙：第二条" {
+		t.Fatalf("expected latest content in one notification, got %+v", items)
+	}
+}
+
 func TestServiceUsesRepositoryWhenConfigured(t *testing.T) {
 	repo := &fakeNotificationRepository{
 		notifications: map[int64]Notification{
