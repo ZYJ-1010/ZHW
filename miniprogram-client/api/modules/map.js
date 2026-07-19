@@ -1,7 +1,17 @@
 const request = require('../request')
 
+// 地图打卡、盲盒路线和挑战属于二期能力；一期不应向不存在的后端路由发起请求。
+// 保留方法名是为了兼容已有页面，调用时返回明确的禁用错误，由页面统一展示空态/提示。
+const PHASE_TWO_DISABLED_MESSAGE = '地图玩法将在后续版本开放'
+
+function phaseTwoDisabled() {
+  const error = new Error(PHASE_TWO_DISABLED_MESSAGE)
+  error.code = 'FEATURE_DISABLED'
+  return Promise.reject(error)
+}
+
 function getMyCity(params) {
-  return request.get('/api/app/map/my-city', params || {})
+  return phaseTwoDisabled()
 }
 
 function getIndexConfig(params) {
@@ -9,23 +19,23 @@ function getIndexConfig(params) {
 }
 
 function getPlayPage(params) {
-  return request.get('/api/app/map/play-pages', params || {})
+  return phaseTwoDisabled()
 }
 
 function submitCheckin(data) {
-  return request.post('/api/app/map/checkins', data || {})
+  return phaseTwoDisabled()
 }
 
 function createBlindRoute(data) {
-  return request.post('/api/app/map/blind-routes', data || {})
+  return phaseTwoDisabled()
 }
 
 function completeBlindRoute(routeId, data) {
-  return request.post(`/api/app/map/blind-routes/${encodeURIComponent(routeId)}/complete`, data || {})
+  return phaseTwoDisabled()
 }
 
 function createChallenge(data) {
-  return request.post('/api/app/map/challenges', data || {})
+  return phaseTwoDisabled()
 }
 
 module.exports = {

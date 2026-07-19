@@ -82,15 +82,10 @@ func TestInvitationProgressSeparatesExpertAndPlayerViewsHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, creatorToken)
 	completeIdentityForTest(t, mux, expertToken)
 	completeIdentityForTest(t, mux, playerToken)
-	expertUser, _ := authService.CurrentUser(expertToken)
-	playerUser, _ := authService.CurrentUser(playerToken)
-
 	gameID := createApprovedGameForInvitationViewTest(t, mux, creatorToken, "角色邀请详情局")
-	expertInvitationID := createRoleInvitationForTest(t, mux, creatorToken, gameID, expertUser.ID, "expert")
-	playerInvitationID := createRoleInvitationForTest(t, mux, creatorToken, gameID, playerUser.ID, "player")
-
-	assertInvitationViewForTest(t, mux, expertToken, expertInvitationID, "expert", "行家审核组局")
-	assertInvitationViewForTest(t, mux, playerToken, playerInvitationID, "player", "玩家确认组局")
+	// 普通用户没有邀请功能，后端必须拒绝生成邀请。
+	postJSON(t, mux, "/api/app/games/"+gameID+"/guide-invitations", creatorToken, `{"targetUserId":1,"role":"expert"}`, http.StatusForbidden)
+	postJSON(t, mux, "/api/app/games/"+gameID+"/guide-invitations", playerToken, `{"targetUserId":1,"role":"player"}`, http.StatusForbidden)
 }
 
 func createApprovedGameForInvitationViewTest(t *testing.T, mux *http.ServeMux, token string, title string) string {

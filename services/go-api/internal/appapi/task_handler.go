@@ -17,10 +17,32 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "任务编号无效")
 		return
 	}
+	// 任务必须来自后台启用的任务规则，不能通过任意编码伪造完成记录。
+	operationRules := s.currentOperationRules()
+	var rule *taskRuleDTO
+	for index := range operationRules.Tasks.Items {
+		candidate := &operationRules.Tasks.Items[index]
+		if candidate.Code == code {
+			rule = candidate
+			break
+		}
+	}
+	if rule == nil || !rule.Enabled {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "任务不存在或已关闭")
+		return
+	}
 	progress, err := s.tasks.MarkCompleted(userID, code)
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "任务完成记录失败")
 		return
 	}
-	httpx.OK(w, progress)
+	profile := s.reviews.AwardTaskReward(userID, rule.Code, rule.RewardPoints, rule.RewardExperience)
+	httpx.OK(w, map[string]interface{}{
+		"progress":         progress,
+		"taskCode":         rule.Code,
+		"category":         rule.Category,
+		"rewardPoints":     rule.RewardPoints,
+		"rewardExperience": rule.RewardExperience,
+		"growthProfile":    profile,
+	})
 }

@@ -1800,7 +1800,14 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 				item["completed"] = true
 			}
 			if done, _ := item["completed"].(bool); done && s.tasks != nil {
-				_, _ = s.tasks.MarkCompleted(userID, code)
+				if _, err := s.tasks.MarkCompleted(userID, code); err == nil {
+					for _, rule := range rules.Tasks.Items {
+						if rule.Code == code && rule.Enabled {
+							s.reviews.AwardTaskReward(userID, rule.Code, rule.RewardPoints, rule.RewardExperience)
+							break
+						}
+					}
+				}
 			}
 		}
 	}

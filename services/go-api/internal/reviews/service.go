@@ -319,6 +319,21 @@ func (s *Service) AwardCompletedGame(gameID int64) []GrowthProfile {
 	return profiles
 }
 
+// AwardTaskReward 发放后台配置的任务奖励。以任务足迹作为幂等键，避免
+// 页面重复提交导致积分和经验重复增加。
+func (s *Service) AwardTaskReward(userID int64, taskCode string, points int, experience int) GrowthProfile {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if userID <= 0 || taskCode == "" {
+		return GrowthProfile{}
+	}
+	action := "task:" + taskCode
+	if s.hasFootprintLocked(userID, 0, action) {
+		return s.profileLocked(userID)
+	}
+	return s.addExperienceOnlyLocked(userID, experience, points, 0, action)
+}
+
 func (s *Service) Todos(userID int64) ([]Todo, error) {
 	if s.repo != nil {
 		return s.todosFromRepository(userID)

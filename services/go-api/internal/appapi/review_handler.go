@@ -20,6 +20,7 @@ import (
 type reviewService interface {
 	MarkGameReviewable(gameID int64)
 	AwardCompletedGame(gameID int64) []reviews.GrowthProfile
+	AwardTaskReward(userID int64, taskCode string, points int, experience int) reviews.GrowthProfile
 	Todos(userID int64) ([]reviews.Todo, error)
 	Submit(userID int64, req reviews.SubmitRequest) (reviews.Review, reviews.GrowthProfile, error)
 	SubmitWithPoints(userID int64, req reviews.SubmitRequest, rewardPoints int) (reviews.Review, reviews.GrowthProfile, error)
