@@ -235,6 +235,13 @@ func (s *Server) adminOperationRules(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存运营规则失败")
 			return
 		}
+		if limiter, ok := s.games.(interface {
+			SetPlayerLimits(int, int)
+			SetDailyCreateLimit(int)
+		}); ok {
+			limiter.SetPlayerLimits(config.Game.MinPlayers, config.Game.MaxPlayers)
+			limiter.SetDailyCreateLimit(config.Game.DailyCreateLimit)
+		}
 		s.recordOperation(r, "operation_rules:update", "system_config", operationRulesConfigKey, map[string]interface{}{"taskCount": len(config.Tasks.Items)})
 		httpx.OK(w, map[string]interface{}{"config": config})
 	default:

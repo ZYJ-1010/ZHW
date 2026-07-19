@@ -122,6 +122,14 @@ func TestCreateAllowsOnlyFreeGameFromApp(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsNonPhaseOnePrimaryCategory(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	_, err := service.Create(1, CreateRequest{Title: "自定义局", GameType: "free", PrimaryCategory: "custom", MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != ErrInvalidGameInput {
+		t.Fatalf("expected invalid primary category to be rejected, got %v", err)
+	}
+}
+
 func TestCreateFromAppIgnoresMainGuideUserID(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	game, err := service.Create(1, CreateRequest{Title: "app free", GameType: "free", MainGuideUserID: 2, MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})

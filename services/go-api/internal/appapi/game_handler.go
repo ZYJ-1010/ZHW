@@ -677,16 +677,30 @@ func (s *Server) adminGameConditionRuleConfig(w http.ResponseWriter, r *http.Req
 func (s *Server) currentGameCategoryConfig() gameCategoryConfigDTO {
 	var stored gameCategoryConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameCategoryConfigKey, &stored) && len(stored.PrimaryCategories) > 0 {
-		return cloneGameCategoryConfig(stored)
+		config := cloneGameCategoryConfig(stored)
+		s.applyOperationGameLimits(&config)
+		return config
 	}
 	s.gameCategoryConfigMu.RLock()
 	if len(s.gameCategoryConfig.PrimaryCategories) > 0 {
 		config := cloneGameCategoryConfig(s.gameCategoryConfig)
 		s.gameCategoryConfigMu.RUnlock()
+		s.applyOperationGameLimits(&config)
 		return config
 	}
 	s.gameCategoryConfigMu.RUnlock()
-	return cloneGameCategoryConfig(defaultGameCategoryConfig())
+	config := cloneGameCategoryConfig(defaultGameCategoryConfig())
+	s.applyOperationGameLimits(&config)
+	return config
+}
+
+func (s *Server) applyOperationGameLimits(config *gameCategoryConfigDTO) {
+	if config == nil {
+		return
+	}
+	rules := s.currentOperationRules()
+	config.CreateForm.Capacity.Min = rules.Game.MinPlayers
+	config.CreateForm.Capacity.Max = rules.Game.MaxPlayers
 }
 
 func (s *Server) currentGameApplicationConfig() gameApplicationConfigDTO {

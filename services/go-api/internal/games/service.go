@@ -903,6 +903,9 @@ func validateCreateRequestWithLimits(req CreateRequest, minPlayers, maxPlayers i
 	if req.MinPlayers < minPlayers || req.MaxPlayers > maxPlayers || req.MinPlayers > req.MaxPlayers {
 		return ErrInvalidPlayers
 	}
+	if req.PrimaryCategory != "" && !validPrimaryCategory(req.PrimaryCategory) {
+		return ErrInvalidGameInput
+	}
 	if req.Title == "" || len(req.Title) > 80 || len(req.CityCode) > 32 || len(req.CityName) > 64 || len(req.Address) > 255 {
 		return ErrInvalidGameInput
 	}
@@ -928,6 +931,17 @@ func validateCreateRequestWithLimits(req CreateRequest, minPlayers, maxPlayers i
 		return ErrInvalidGameInput
 	}
 	return nil
+}
+
+// validPrimaryCategory is the一期四种局类型口径。费用/收费方式仍由 GameType
+// 单独表达，不能通过自定义分类绕过一级局类型约束。
+func validPrimaryCategory(value string) bool {
+	switch strings.TrimSpace(value) {
+	case "social", "task", "explore", "growth":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Service) validateCreateRequest(req CreateRequest) error {
