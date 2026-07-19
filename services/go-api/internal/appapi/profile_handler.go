@@ -819,7 +819,8 @@ func (s *Server) syncGuideRuleToOperationRules(rule profiles.GuideQualificationR
 		config.Roles.GuideCreditScore = rule.MinCreditScore
 	}
 	// 一期关闭会员购买条件，仍保留字段供后续版本启用。
-	config.Roles.MembershipRequired = rule.PaymentRequired
+	// 一期没有会员购买，角色申请不能通过旧资格规则重新打开会员门槛。
+	config.Roles.MembershipRequired = false
 	_ = s.systemConfig.Set(operationRulesConfigKey, config)
 }
 

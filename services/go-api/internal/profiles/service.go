@@ -1155,7 +1155,8 @@ func applyGuideRuleUpdate(rule GuideQualificationRule, req UpdateGuideQualificat
 		rule.MinCompletedGames = *req.MinCompletedGames
 	}
 	if req.PaymentRequired != nil {
-		rule.PaymentRequired = *req.PaymentRequired
+		// 一期关闭会员购买条件，保留字段仅用于历史数据兼容。
+		rule.PaymentRequired = false
 	}
 	if status != "" {
 		rule.Status = status

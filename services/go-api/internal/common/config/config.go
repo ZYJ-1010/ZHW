@@ -249,7 +249,7 @@ func (c Config) ReadinessReport() ReadinessReport {
 		readinessItem("database", production, c.Database.URL != "" && c.Database.Driver != "", "DATABASE_URL and DATABASE_DRIVER are configured"),
 		readinessItem("jwt_secret", production, !isPlaceholderSecret(c.JWTSecret), "JWT_SECRET is configured with a non-placeholder value"),
 		readinessItem("wechat_login", production, c.Wechat.AppID != "" && !isPlaceholderSecret(c.Wechat.AppSecret), "WECHAT_APP_ID and WECHAT_APP_SECRET are configured"),
-		readinessItem("wechat_url_link", production, isHTTPSURL(c.Wechat.URLLinkBaseURL), "WECHAT_URL_LINK_BASE_URL is HTTPS for invite link entry"),
+		readinessItem("wechat_url_link", false, isHTTPSURL(c.Wechat.URLLinkBaseURL), "WECHAT_URL_LINK_BASE_URL 上线后用于邀请链接；一期可使用手动邀请码"),
 		readinessItem("sms", production, isHTTPSURL(c.SMS.HTTPEndpoint) && !isPlaceholderSecret(c.SMS.HTTPSecret), "SMS_HTTP_ENDPOINT is HTTPS and SMS_HTTP_SECRET is configured"),
 		readinessItem("faceid", production, isHTTPSURL(c.FaceID.HTTPEndpoint) && !isPlaceholderSecret(c.FaceID.HTTPSecret), "FACEID_HTTP_ENDPOINT is HTTPS and FACEID_HTTP_SECRET is configured"),
 		readinessItem("faceid_callback", production && c.FaceID.CallbackRequireSignature, !c.FaceID.CallbackRequireSignature || !isPlaceholderSecret(c.FaceID.CallbackSecret), "TENCENT_FACEID_CALLBACK_SECRET is configured when callback signature is required"),
@@ -259,7 +259,7 @@ func (c Config) ReadinessReport() ReadinessReport {
 		}),
 		readinessItem("storage_urls", production, isHTTPSURL(c.Storage.UploadBaseURL) && isHTTPSURL(c.Storage.DownloadBaseURL), "STORAGE_UPLOAD_BASE_URL and STORAGE_DOWNLOAD_BASE_URL are HTTPS"),
 		readinessItem("storage_secret", production && storageProviderNeedsSecret(c.Storage.Provider), storageSecretReady(c.Storage), "storage provider secret is configured"),
-		readinessItem("openim", production, c.OpenIM.Enabled && c.OpenIM.APIAddr != "" && !isPlaceholderSecret(c.OpenIM.Secret), "OPENIM_API_ADDR and OPENIM_SECRET are configured"),
+		readinessItem("openim", false, c.OpenIM.Enabled && c.OpenIM.APIAddr != "" && !isPlaceholderSecret(c.OpenIM.Secret), "OpenIM 为二期能力；一期使用本地消息链路"),
 		readinessItem("funds_service", false, strings.TrimSpace(c.FundsService.Addr) != "", "FUNDS_SERVICE_ADDR is configured for revenue integration"),
 	)
 	for _, item := range report.Items {

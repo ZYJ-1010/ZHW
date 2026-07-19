@@ -339,6 +339,8 @@ async function renderDashboard() {
       if (!button) return;
       const count = view === "audits"
         ? Number(counts.identity || 0) + Number(counts.enterprise || 0) + Number(counts.avatars || 0) + Number(counts.roles || 0)
+        : view === "games"
+          ? Number(counts.games || 0) + Number(counts.gameApplications || 0)
         : Number(counts[key] || 0);
       button.classList.toggle("has-pending-dot", count > 0);
       button.setAttribute("data-pending-count", String(count));
@@ -3454,18 +3456,12 @@ function ensureGuideRulePanel() {
         </div>
         <button id="guide-rule-refresh" class="ghost" type="button">刷新</button>
       </div>
-      <form id="guide-rule-form" class="form-grid compact-grid hidden">
+      <form id="guide-rule-form" class="form-grid compact-grid">
         <label>规则<input name="ruleId" inputmode="numeric" required placeholder="从规则列表选择" /></label>
         <label>最低邀请数<input name="minInviteCount" inputmode="numeric" placeholder="不填则不变" /></label>
         <label>最低信用分<input name="minCreditScore" inputmode="numeric" placeholder="0-100，不填则不变" /></label>
         <label>最低完成局数<input name="minCompletedGames" inputmode="numeric" placeholder="不填则不变" /></label>
-        <label>是否需要付费
-          <select name="paymentRequired">
-            <option value="">不变</option>
-            <option value="true">是</option>
-            <option value="false">否</option>
-          </select>
-        </label>
+        <label>会员条件<input value="一期固定关闭" disabled /></label>
         <label>状态
           <select name="status">
             <option value="">不变</option>
@@ -4187,7 +4183,6 @@ function fillGuideRuleForm(ruleID) {
   setFormValue(form, "minInviteCount", rule.minInviteCount ?? "");
   setFormValue(form, "minCreditScore", rule.minCreditScore ?? "");
   setFormValue(form, "minCompletedGames", rule.minCompletedGames ?? "");
-  setFormValue(form, "paymentRequired", String(Boolean(rule.paymentRequired)));
   setFormValue(form, "status", rule.status || "");
 }
 
@@ -4204,7 +4199,6 @@ async function updateGuideRule(event) {
   addOptionalNumber(payload, "minInviteCount", data.minInviteCount);
   addOptionalNumber(payload, "minCreditScore", data.minCreditScore);
   addOptionalNumber(payload, "minCompletedGames", data.minCompletedGames);
-  if (data.paymentRequired) payload.paymentRequired = data.paymentRequired === "true";
   if (data.status) payload.status = data.status;
   if (!Number.isFinite(ruleID) || ruleID <= 0) {
     toast("请输入有效的规则编号", true);

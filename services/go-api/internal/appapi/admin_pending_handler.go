@@ -12,9 +12,16 @@ import (
 // counts and never changes their state.
 func (s *Server) adminPendingCounts(w http.ResponseWriter, r *http.Request) {
 	counts := map[string]int{}
+	seenApplications := map[int64]bool{}
 	for _, game := range s.games.List() {
 		if game.Status == "pending_audit" {
 			counts["games"]++
+		}
+		for _, application := range s.games.ApplicationsForCreator(game.CreatorUserID) {
+			if application.Status == "pending" && !seenApplications[application.ID] {
+				seenApplications[application.ID] = true
+				counts["gameApplications"]++
+			}
 		}
 	}
 	for _, record := range s.identity.AllRecords() {

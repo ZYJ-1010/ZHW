@@ -222,8 +222,8 @@ func TestReadinessReportAllowsCompleteProductionConfig(t *testing.T) {
 	if !report.Ready {
 		t.Fatalf("expected complete production config to be ready: %+v", report.Items)
 	}
-	if !hasReadinessStatus(report, "openim", "ok", true) || !hasReadinessStatus(report, "faceid_callback", "ok", true) {
-		t.Fatalf("expected critical items ok: %+v", report.Items)
+	if !hasReadinessStatus(report, "openim", "ok", false) || !hasReadinessStatus(report, "faceid_callback", "ok", true) || !hasReadinessStatus(report, "wechat_url_link", "warn", false) {
+		t.Fatalf("expected phase-one readiness items: %+v", report.Items)
 	}
 }
 

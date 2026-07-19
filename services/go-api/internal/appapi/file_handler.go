@@ -25,10 +25,6 @@ func (s *Server) createUploadToken(w http.ResponseWriter, r *http.Request) {
 	if req.BizType == "" {
 		req.BizType = "chat_file"
 	}
-	if req.BizType == "chat_file" && !s.identity.IsVerified(userID) {
-		httpx.Error(w, http.StatusForbidden, 40341, "strong identity required")
-		return
-	}
 	if (req.BizType == "chat_file" || req.BizType == "delivery_proof") && !s.gamesMember(req.ObjectID, userID) {
 		httpx.Error(w, http.StatusForbidden, 40331, "file upload requires game membership")
 		return
