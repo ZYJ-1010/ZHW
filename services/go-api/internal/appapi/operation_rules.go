@@ -153,6 +153,8 @@ func normalizeOperationRules(config operationRulesDTO) operationRulesDTO {
 	if config.Roles.GuideCreditScore <= 0 {
 		config.Roles.GuideCreditScore = defaults.Roles.GuideCreditScore
 	}
+	// 一期没有会员购买，角色申请不能被运营配置重新打开会员门槛。
+	config.Roles.MembershipRequired = false
 	if config.Condition.CreditMinScore <= 0 {
 		config.Condition.CreditMinScore = defaults.Condition.CreditMinScore
 	}
@@ -184,12 +186,16 @@ func normalizeOperationRules(config operationRulesDTO) operationRulesDTO {
 	if config.Invite.MaxPerGame <= 0 {
 		config.Invite.MaxPerGame = defaults.Invite.MaxPerGame
 	}
+	// 玩家没有邀请能力，邀请入口仅由行家、领路人使用。
+	config.Invite.PlayerEnabled = false
 	if config.Revenue.PendingTimeoutHours <= 0 {
 		config.Revenue.PendingTimeoutHours = defaults.Revenue.PendingTimeoutHours
 	}
 	if len(config.Revenue.AllowedStatuses) == 0 {
 		config.Revenue.AllowedStatuses = defaults.Revenue.AllowedStatuses
 	}
+	// 一期只保留分润数据结构，任何后台配置都不能启用真实分润。
+	config.Revenue.Enabled = false
 	if config.State.AuditTimeoutHours <= 0 {
 		config.State.AuditTimeoutHours = defaults.State.AuditTimeoutHours
 	}

@@ -112,11 +112,11 @@ func NewServiceWithRepository(repo Repository) *Service {
 func reviewExportTemplate() Template {
 	return Template{
 		Code:        "reviews_default",
-		Name:        "reviews export",
+		Name:        "评价报表",
 		ExportType:  "reviews",
 		FileName:    "reviews-export.csv",
 		Columns:     []string{"review_id", "game_id", "reviewer_user_id", "target_user_id", "score", "tags", "again_intent", "created_at"},
-		Description: "Export review tags and again intent for analytics.",
+		Description: "导出评价标签、再玩意向和评价时间，供运营分析使用。",
 		Enabled:     true,
 	}
 }

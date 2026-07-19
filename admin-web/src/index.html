@@ -71,9 +71,9 @@
           <section class="nav-section">
             <button class="nav-section-toggle" data-nav-group="growth" type="button">交易与增长</button>
             <div class="nav-section-items" data-nav-items="growth">
-              <button data-view="revenue">分润结算</button>
+              <button data-view="revenue">分润预留</button>
               <button data-view="redemption">积分兑换</button>
-              <button data-view="members">会员团队</button>
+              <button data-view="members">会员预留</button>
               <button data-view="profiles">画像关系</button>
               <button data-view="growth">评价成长</button>
             </div>
@@ -495,11 +495,15 @@
     </template>
 
     <template id="revenue-template">
-      <div class="section-tabs" role="tablist" aria-label="分润结算模块">
+      <div class="section-tabs" role="tablist" aria-label="分润预留模块">
         <button class="active" data-tab-group="revenue" data-tab-target="#revenue-plan-panel" type="button">方案规则</button>
         <button data-tab-group="revenue" data-tab-target="#revenue-calc-panel" type="button">分润试算</button>
         <button data-tab-group="revenue" data-tab-target="#revenue-records-panel" type="button">分润记录</button>
         <button data-tab-group="revenue" data-tab-target="#revenue-settlements-panel" type="button">线下结算</button>
+      </div>
+      <div class="phase-one-banner" role="status">
+        <strong>一期未启用真实分润</strong>
+        <span>仅保留方案、记录和接口结构供后续版本核对；本页不可创建方案、试算、生成记录或结算。</span>
       </div>
       <div id="revenue-plan-panel" data-tab-panel-group="revenue">
       <section class="panel">
@@ -510,7 +514,7 @@
         </div>
         <form id="revenue-template-form" class="form-grid">
           <label>方案名称<input name="name" maxlength="64" value="默认方案" /></label>
-          <label>局类型
+          <label>局类别
             <select id="revenue-template-type-select" name="gameType">
               <option value="free">普通局</option>
               <option value="standard">标准局</option>
@@ -524,7 +528,7 @@
           <label>平台服务费比例<input name="platformBps" inputmode="decimal" value="10" placeholder="例如：10" /></label>
           <label>发起人收益比例<input name="creatorBps" inputmode="decimal" value="30" placeholder="例如：30" /></label>
           <label>参与人分配比例<input name="memberBps" inputmode="decimal" value="60" placeholder="例如：60" /></label>
-          <div class="form-note">比例按百分比填写，普通局可配置为 0；收费局、押金局、条件局由后台提前配置。</div>
+          <div class="form-note">一期不启用真实支付或分润；此处仅保留后续版本所需字段结构。</div>
           <button class="primary" type="submit">保存方案</button>
         </form>
       </section>
@@ -706,9 +710,13 @@
     </template>
 
     <template id="members-template">
-      <div class="section-tabs" role="tablist" aria-label="会员团队模块">
+      <div class="section-tabs" role="tablist" aria-label="会员预留模块">
         <button class="active" data-tab-group="members" data-tab-target="#members-teams-panel" type="button">团队列表</button>
         <button data-tab-group="members" data-tab-target="#members-reports-panel" type="button">会员报表</button>
+      </div>
+      <div class="phase-one-banner" role="status">
+        <strong>一期未启用会员购买</strong>
+        <span>会员等级与成长等级相互独立；本页仅保留团队和历史报表查看能力。</span>
       </div>
         <section id="members-teams-panel" class="panel" data-tab-panel-group="members">
           <div class="panel-head">
@@ -1409,8 +1417,27 @@
           </div>
           <button id="game-application-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="game-application-form" class="form-grid hidden" aria-hidden="true">
-          <textarea id="game-application-config-json" name="configJson" rows="9" spellcheck="false"></textarea>
+        <form id="game-application-form" class="form-grid config-form">
+          <label>申请协议标题<input name="agreementTitle" required maxlength="64" /></label>
+          <label>推荐提示<input name="recommendationHint" maxlength="120" /></label>
+          <label class="wide-field">申请协议内容<textarea name="agreementText" rows="3" maxlength="1000"></textarea></label>
+          <label>最少自我介绍字数<input name="minIntroLength" type="number" min="0" max="500" required /></label>
+          <label>最多自我介绍字数<input name="maxIntroLength" type="number" min="0" max="500" required /></label>
+          <label>最多申请留言字数<input name="maxMessageLength" type="number" min="0" max="500" required /></label>
+          <label>最多上传材料数<input name="maxUploadCount" type="number" min="0" max="9" required /></label>
+          <label class="checkbox-field"><input name="requireIntro" type="checkbox" />要求填写自我介绍</label>
+          <label class="checkbox-field"><input name="requireAgreement" type="checkbox" />要求确认协议</label>
+          <label class="checkbox-field"><input name="uploadRequired" type="checkbox" />要求上传材料</label>
+          <label class="checkbox-field"><input name="allowDuplicateApply" type="checkbox" />允许重复申请</label>
+          <label class="checkbox-field"><input name="searchEnabled" type="checkbox" />开放小程序搜索</label>
+          <div class="phase-one-banner config-fixed-note">
+            <strong>一期固定口径</strong>
+            <span>普通玩家申请入局不强制实名认证；仅行家、领路人申请身份时必须完成实名认证。</span>
+          </div>
+          <details class="advanced-config">
+            <summary>高级配置：上传类型、页面文案与审核页字段</summary>
+            <textarea id="game-application-config-json" name="configJson" rows="9" spellcheck="false"></textarea>
+          </details>
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="game-application-config-panel" class="detail-grid"></div>
@@ -1424,8 +1451,26 @@
           </div>
           <button id="game-audit-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="game-audit-form" class="form-grid hidden" aria-hidden="true">
-          <textarea id="game-audit-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
+        <form id="game-audit-form" class="form-grid config-form">
+          <label>批量审核上限<input name="batchAuditMaxCount" type="number" min="1" max="200" required /></label>
+          <label>入局审核方式
+            <select name="applicationAuditMode">
+              <option value="creator_or_main_guide">发起人或主领路人</option>
+              <option value="creator_only">仅发起人</option>
+              <option value="main_guide_only">仅主领路人</option>
+              <option value="admin_only">仅后台</option>
+            </select>
+          </label>
+          <label class="checkbox-field"><input name="autoApproveFreeGames" type="checkbox" />普通局自动审核</label>
+          <label class="checkbox-field"><input name="allowUserResubmitAfterReject" type="checkbox" />驳回后允许重新提交</label>
+          <div class="phase-one-banner config-fixed-note">
+            <strong>审核说明</strong>
+            <span>局和入局申请驳回时均可填写原因，并通过消息通知申请人；原因不强制填写。</span>
+          </div>
+          <details class="advanced-config">
+            <summary>高级配置：需人工审核的局类别、审核角色与版本</summary>
+            <textarea id="game-audit-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
+          </details>
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="game-audit-config-panel" class="detail-grid"></div>
@@ -1513,12 +1558,31 @@
         <div class="panel-head">
           <div>
             <h2>运营约束规则</h2>
-            <p>统一维护任务、角色门槛、组局、邀请、信用限制、积分有效期和状态超时。</p>
+            <p>优先维护一期真实生效的角色、组局、邀请和地图约束；会员与分润条件一期固定关闭。</p>
           </div>
           <button id="operation-rules-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="operation-rules-form" class="form-grid" aria-hidden="false">
-          <textarea id="operation-rules-config-json" name="configJson" rows="18" spellcheck="false"></textarea>
+        <form id="operation-rules-form" class="form-grid operation-rules-grid">
+          <label>行家发起局门槛<input name="expertCreatedGames" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>行家最低信用分<input name="expertCreditScore" required inputmode="numeric" type="number" min="1" max="100" /></label>
+          <label>领路人参与局门槛<input name="guideParticipatedGames" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>领路人邀请完成数<input name="guideInvitedCompleted" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>领路人最低信用分<input name="guideCreditScore" required inputmode="numeric" type="number" min="1" max="100" /></label>
+          <label>最少成局人数<input name="minPlayers" required inputmode="numeric" type="number" min="2" max="100" /></label>
+          <label>最多成局人数<input name="maxPlayers" required inputmode="numeric" type="number" min="2" max="100" /></label>
+          <label>每日创建上限<input name="dailyCreateLimit" required inputmode="numeric" type="number" min="1" max="100" /></label>
+          <label>邀请有效期（分钟）<input name="inviteTimeoutMinutes" required inputmode="numeric" type="number" min="1" max="43200" /></label>
+          <label>单局邀请上限<input name="inviteMaxPerGame" required inputmode="numeric" type="number" min="1" max="1000" /></label>
+          <label>附近局默认半径（米）<input name="defaultRadiusMeters" required inputmode="numeric" type="number" min="100" max="100000" /></label>
+          <label>附近局最大半径（米）<input name="maxRadiusMeters" required inputmode="numeric" type="number" min="100" max="100000" /></label>
+          <div class="phase-one-banner operation-rules-note">
+            <strong>一期固定口径</strong>
+            <span>会员购买条件、真实分润、每日任务和活动任务不在此页启用；新手任务奖励请通过高级配置维护。</span>
+          </div>
+          <details class="advanced-config">
+            <summary>高级配置：新手任务、信用阈值、积分有效期与状态超时</summary>
+            <textarea id="operation-rules-config-json" name="configJson" rows="18" spellcheck="false"></textarea>
+          </details>
           <button class="primary" type="submit">保存运营约束</button>
         </form>
         <div id="operation-rules-config-panel" class="detail-grid"></div>

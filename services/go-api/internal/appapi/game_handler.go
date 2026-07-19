@@ -706,7 +706,9 @@ func (s *Server) applyOperationGameLimits(config *gameCategoryConfigDTO) {
 func (s *Server) currentGameApplicationConfig() gameApplicationConfigDTO {
 	var stored gameApplicationConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameApplicationConfigKey, &stored) && strings.TrimSpace(stored.AgreementTitle) != "" {
-		return mergeGameApplicationConfigDefaults(stored)
+		config := mergeGameApplicationConfigDefaults(stored)
+		config.RequireRealname = false
+		return config
 	}
 	return defaultGameApplicationConfig()
 }
@@ -714,7 +716,9 @@ func (s *Server) currentGameApplicationConfig() gameApplicationConfigDTO {
 func (s *Server) currentGameAuditConfig() gameAuditConfigDTO {
 	var stored gameAuditConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameAuditConfigKey, &stored) && strings.TrimSpace(stored.ApplicationAuditMode) != "" {
-		return cloneGameAuditConfig(stored)
+		config := cloneGameAuditConfig(stored)
+		config.RequiredRejectReason = false
+		return config
 	}
 	return defaultGameAuditConfig()
 }
@@ -1054,7 +1058,7 @@ func defaultGameApplicationConfig() gameApplicationConfigDTO {
 	return gameApplicationConfigDTO{
 		AgreementTitle:      "入局申请须知",
 		AgreementText:       "申请入局前请确认本人已完成实名，了解局的主题、地点、时间和成员规则。申请通过后请按约参与，临时退出可能影响信用分。",
-		RequireRealname:     true,
+		RequireRealname:     false,
 		RequireIntro:        true,
 		RequireAgreement:    true,
 		AllowDuplicateApply: false,
@@ -1239,7 +1243,7 @@ func defaultGameAuditConfig() gameAuditConfigDTO {
 	return gameAuditConfigDTO{
 		AutoApproveFreeGames:         false,
 		RequireManualAuditTypes:      []string{"free", "standard", "public_welfare", "aa", "crowdfund", "deposit", "condition"},
-		RequiredRejectReason:         true,
+		RequiredRejectReason:         false,
 		AllowUserResubmitAfterReject: true,
 		BatchAuditMaxCount:           50,
 		ApplicationAuditMode:         "creator_or_main_guide",
@@ -1363,6 +1367,8 @@ func normalizeGameApplicationConfig(req gameApplicationConfigDTO) (gameApplicati
 	config.Texts = mergeStringMap(defaults.Texts, config.Texts)
 	config.AuditPage = mergeGameApplicationAuditPageConfig(defaults.AuditPage, config.AuditPage)
 	config.Version = strings.TrimSpace(config.Version)
+	// 一期普通玩家申请入局不强制实名；实名是行家、领路人身份申请的前置条件。
+	config.RequireRealname = false
 	if config.AgreementTitle == "" {
 		return gameApplicationConfigDTO{}, errors.New("agreementTitle required")
 	}
@@ -1399,6 +1405,8 @@ func normalizeGameAuditConfig(req gameAuditConfigDTO) (gameAuditConfigDTO, error
 	config.ApplicationAuditMode = strings.TrimSpace(config.ApplicationAuditMode)
 	config.ReviewerRoles = normalizeStringList(config.ReviewerRoles, 16)
 	config.Version = strings.TrimSpace(config.Version)
+	// 审核人可填写驳回原因并通知申请人，但一期不把它设为提交拦截条件。
+	config.RequiredRejectReason = false
 	for _, gameType := range config.RequireManualAuditTypes {
 		if !validConfigGameType(gameType) {
 			return gameAuditConfigDTO{}, errors.New("unsupported audit game type: " + gameType)

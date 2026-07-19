@@ -2066,6 +2066,9 @@ func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 	if applicationResp.Data.Version != "application-test" || applicationResp.Data.MaxUploadCount != 2 || len(applicationResp.Data.AllowedUploadTypes) != 2 {
 		t.Fatalf("expected app application config from admin update: %s", string(applicationBody))
 	}
+	if applicationResp.Data.RequireRealname {
+		t.Fatalf("phase one must not force realname for ordinary game applications: %s", string(applicationBody))
+	}
 	if applicationResp.Data.MaxMessageLength != 120 || applicationResp.Data.Texts["submitText"] == "" || applicationResp.Data.Texts["introPlaceholder"] == "" {
 		t.Fatalf("expected application page texts and message length defaults: %s", string(applicationBody))
 	}
@@ -2098,6 +2101,9 @@ func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 	}
 	if auditResp.Data.Config.Version != "audit-test" || auditResp.Data.Config.ApplicationAuditMode != "admin_only" || auditResp.Data.Config.BatchAuditMaxCount != 20 {
 		t.Fatalf("expected admin audit config from update: %s", string(auditBody))
+	}
+	if auditResp.Data.Config.RequiredRejectReason {
+		t.Fatalf("phase one reject reason must remain optional: %s", string(auditBody))
 	}
 
 	conditionPayload := `{

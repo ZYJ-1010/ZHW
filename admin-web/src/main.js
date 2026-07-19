@@ -67,6 +67,7 @@
 const DEFAULT_PAGE_SIZE = 10;
 const GAME_MAP_SEARCH_COOLDOWN_MS = 3000;
 const NAV_COLLAPSE_STORAGE_KEY = "zhw_admin_collapsed_nav_groups";
+const PHASE_ONE_REVENUE_ENABLED = false;
 
 let gameMapSearchCooldownTimer = 0;
 
@@ -76,9 +77,9 @@ const views = {
   invites: { title: "邀请管理", crumb: "邀请码 / 关系 / 入口" },
   games: { title: "组局管理", crumb: "组局 / 开局 / 审核" },
   audits: { title: "角色审核", crumb: "认证记录 / 行家领路人申请" },
-  revenue: { title: "分润结算", crumb: "分润 / 规则 / 结算" },
+  revenue: { title: "分润预留", crumb: "一期预留 / 分润接口" },
   redemption: { title: "积分兑换", crumb: "积分 / 兑换 / 订单" },
-  members: { title: "会员团队", crumb: "会员 / 团队 / 报表" },
+  members: { title: "会员预留", crumb: "一期预留 / 团队与报表" },
   profiles: { title: "画像关系", crumb: "用户画像 / 人脉 / 资源" },
   growth: { title: "评价成长", crumb: "评价 / 信用 / 足迹" },
   reports: { title: "举报申诉", crumb: "投诉 / 证据 / 处理" },
@@ -1850,6 +1851,7 @@ async function renderRevenue() {
   $("#revenue-rule-form").addEventListener("submit", upsertRevenueRule);
   $("#revenue-calc-form").addEventListener("click", onRevenueCalcClick);
   $("#revenue-records-table").addEventListener("click", onRevenueRecordClick);
+  applyPhaseOneRevenueGuard();
   await loadGameTypeOptionsForRevenue();
   const tasks = [];
   if (can("revenue:template:view")) {
@@ -1871,6 +1873,21 @@ async function renderRevenue() {
   await Promise.all(tasks);
 }
 
+function applyPhaseOneRevenueGuard() {
+  if (PHASE_ONE_REVENUE_ENABLED) return;
+  const root = $("#view-root");
+  if (!root) return;
+  root.querySelectorAll("#revenue-template-form input, #revenue-template-form select, #revenue-template-form button, #revenue-rule-form input, #revenue-rule-form select, #revenue-rule-form button, #revenue-calc-form input, #revenue-calc-form select, #revenue-calc-form button").forEach((element) => {
+    element.disabled = true;
+  });
+}
+
+function revenuePhaseOneDisabled() {
+  if (PHASE_ONE_REVENUE_ENABLED) return false;
+  toast("一期未启用真实分润，本操作暂不可执行", true);
+  return true;
+}
+
 async function loadGameTypeOptionsForRevenue() {
   if (state.gameTypeOptions && state.gameTypeOptions.length) {
     renderGameTypeSelect("#revenue-template-type-select", state.gameTypeOptions, false);
@@ -1884,6 +1901,7 @@ async function loadGameTypeOptionsForRevenue() {
 
 async function createRevenueTemplate(event) {
   event.preventDefault();
+  if (revenuePhaseOneDisabled()) return;
   if (!can("revenue:template:update")) {
     toast("当前账号没有维护分润方案权限", true);
     return;
@@ -1912,6 +1930,7 @@ async function createRevenueTemplate(event) {
 
 async function upsertRevenueRule(event) {
   event.preventDefault();
+  if (revenuePhaseOneDisabled()) return;
   if (!can("revenue:template:update")) {
     toast("当前账号没有维护分润规则权限", true);
     return;
@@ -1976,6 +1995,7 @@ async function loadRevenueRules(templateId = numberOrZero(getFormValue($("#reven
 async function onRevenueCalcClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
+  if (revenuePhaseOneDisabled()) return;
   const payload = revenueCalcPayload();
   try {
     if (button.dataset.action === "revenue-preview") {
@@ -3611,6 +3631,16 @@ async function loadGameApplicationConfig() {
   }
   const data = await apiGet("/api/admin/games/application-config");
   state.gameApplicationConfig = data.config || data;
+  const form = $("#game-application-form");
+  if (form) {
+    ["agreementTitle", "agreementText", "recommendationHint", "minIntroLength", "maxIntroLength", "maxMessageLength", "maxUploadCount"].forEach((field) => {
+      setFormValue(form, field, state.gameApplicationConfig[field] ?? "");
+    });
+    ["requireIntro", "requireAgreement", "uploadRequired", "allowDuplicateApply", "searchEnabled"].forEach((field) => {
+      const input = form.elements.namedItem(field);
+      if (input) input.checked = Boolean(state.gameApplicationConfig[field]);
+    });
+  }
   const textarea = $("#game-application-config-json");
   if (textarea) textarea.value = JSON.stringify(state.gameApplicationConfig, null, 2);
   renderGameApplicationConfig();
@@ -3620,7 +3650,7 @@ function renderGameApplicationConfig() {
   const config = state.gameApplicationConfig || {};
   $("#game-application-config-panel").innerHTML = [
     detailCell("入局协议", config.agreementTitle || "-"),
-    detailCell("要求实名", yesNo(config.requireRealname)),
+    detailCell("普通玩家实名", config.requireRealname ? "异常开启" : "不强制"),
     detailCell("要求确认协议", yesNo(config.requireAgreement)),
     detailCell("允许重复申请", yesNo(config.allowDuplicateApply)),
     detailCell("最多上传材料", `${config.maxUploadCount ?? 0} 份`),
@@ -3630,14 +3660,54 @@ function renderGameApplicationConfig() {
 
 async function saveGameApplicationConfig(event) {
   event.preventDefault();
-  await saveJSONSystemConfig({
-    form: event.currentTarget,
-    endpoint: "/api/admin/games/application-config",
-    stateKey: "gameApplicationConfig",
-    textareaSelector: "#game-application-config-json",
-    render: renderGameApplicationConfig,
-    successMessage: "入局申请规则已保存",
-  });
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  let payload = JSON.parse(JSON.stringify(state.gameApplicationConfig || {}));
+  const raw = String(new FormData(form).get("configJson") || "").trim();
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch (error) {
+      toast("高级配置格式不正确", true);
+      return;
+    }
+  }
+  const values = new FormData(form);
+  const minIntroLength = Number(values.get("minIntroLength"));
+  const maxIntroLength = Number(values.get("maxIntroLength"));
+  const maxMessageLength = Number(values.get("maxMessageLength"));
+  const maxUploadCount = Number(values.get("maxUploadCount"));
+  if (![minIntroLength, maxIntroLength, maxMessageLength, maxUploadCount].every(Number.isInteger) || minIntroLength < 0 || maxIntroLength < minIntroLength || maxMessageLength < 0 || maxUploadCount < 0) {
+    toast("请填写有效的入局申请规则", true);
+    return;
+  }
+  payload = {
+    ...payload,
+    agreementTitle: String(values.get("agreementTitle") || "").trim(),
+    agreementText: String(values.get("agreementText") || "").trim(),
+    recommendationHint: String(values.get("recommendationHint") || "").trim(),
+    minIntroLength,
+    maxIntroLength,
+    maxMessageLength,
+    maxUploadCount,
+    requireIntro: values.get("requireIntro") === "on",
+    requireAgreement: values.get("requireAgreement") === "on",
+    uploadRequired: values.get("uploadRequired") === "on",
+    allowDuplicateApply: values.get("allowDuplicateApply") === "on",
+    searchEnabled: values.get("searchEnabled") === "on",
+    requireRealname: false,
+  };
+  try {
+    const data = await apiPut("/api/admin/games/application-config", payload);
+    state.gameApplicationConfig = data.config || data;
+    await loadGameApplicationConfig();
+    toast("入局申请规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function loadGameAuditConfig() {
@@ -3647,6 +3717,15 @@ async function loadGameAuditConfig() {
   }
   const data = await apiGet("/api/admin/games/audit-config");
   state.gameAuditConfig = data.config || data;
+  const form = $("#game-audit-form");
+  if (form) {
+    setFormValue(form, "batchAuditMaxCount", state.gameAuditConfig.batchAuditMaxCount ?? "");
+    setFormValue(form, "applicationAuditMode", state.gameAuditConfig.applicationAuditMode || "creator_or_main_guide");
+    ["autoApproveFreeGames", "allowUserResubmitAfterReject"].forEach((field) => {
+      const input = form.elements.namedItem(field);
+      if (input) input.checked = Boolean(state.gameAuditConfig[field]);
+    });
+  }
   const textarea = $("#game-audit-config-json");
   if (textarea) textarea.value = JSON.stringify(state.gameAuditConfig, null, 2);
   renderGameAuditConfig();
@@ -3657,7 +3736,7 @@ function renderGameAuditConfig() {
   $("#game-audit-config-panel").innerHTML = [
     detailCell("普通局自动审核", yesNo(config.autoApproveFreeGames)),
     detailCell("需人工审核局类别", compactList((config.requireManualAuditTypes || []).map(gameTypeLabel)) || "无"),
-    detailCell("驳回必须填写原因", yesNo(config.requiredRejectReason)),
+    detailCell("驳回原因", config.requiredRejectReason ? "必填（需调整）" : "可填写，非必填"),
     detailCell("入局审核模式", applicationAuditModeLabel(config.applicationAuditMode)),
     detailCell("批量审核上限", `${config.batchAuditMaxCount ?? 0} 条`),
   ].join("");
@@ -3665,14 +3744,43 @@ function renderGameAuditConfig() {
 
 async function saveGameAuditConfig(event) {
   event.preventDefault();
-  await saveJSONSystemConfig({
-    form: event.currentTarget,
-    endpoint: "/api/admin/games/audit-config",
-    stateKey: "gameAuditConfig",
-    textareaSelector: "#game-audit-config-json",
-    render: renderGameAuditConfig,
-    successMessage: "组局审核规则已保存",
-  });
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  let payload = JSON.parse(JSON.stringify(state.gameAuditConfig || {}));
+  const raw = String(new FormData(form).get("configJson") || "").trim();
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch (error) {
+      toast("高级配置格式不正确", true);
+      return;
+    }
+  }
+  const values = new FormData(form);
+  const batchAuditMaxCount = Number(values.get("batchAuditMaxCount"));
+  if (!Number.isInteger(batchAuditMaxCount) || batchAuditMaxCount < 1 || batchAuditMaxCount > 200) {
+    toast("批量审核上限应为 1 至 200", true);
+    return;
+  }
+  payload = {
+    ...payload,
+    batchAuditMaxCount,
+    applicationAuditMode: String(values.get("applicationAuditMode") || "creator_or_main_guide"),
+    autoApproveFreeGames: values.get("autoApproveFreeGames") === "on",
+    allowUserResubmitAfterReject: values.get("allowUserResubmitAfterReject") === "on",
+    requiredRejectReason: false,
+  };
+  try {
+    const data = await apiPut("/api/admin/games/audit-config", payload);
+    state.gameAuditConfig = data.config || data;
+    await loadGameAuditConfig();
+    toast("组局审核规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function loadConditionRuleConfig() {
@@ -3860,6 +3968,27 @@ async function loadOperationRules() {
   }
   const data = await apiGet("/api/admin/operation-rules");
   state.operationRules = data.config || data;
+  const form = $("#operation-rules-form");
+  if (form) {
+    const roles = state.operationRules.roles || {};
+    const game = state.operationRules.game || {};
+    const invite = state.operationRules.invite || {};
+    const map = state.operationRules.map || {};
+    [
+      ["expertCreatedGames", roles.expertCreatedGames],
+      ["expertCreditScore", roles.expertCreditScore],
+      ["guideParticipatedGames", roles.guideParticipatedGames],
+      ["guideInvitedCompleted", roles.guideInvitedCompleted],
+      ["guideCreditScore", roles.guideCreditScore],
+      ["minPlayers", game.minPlayers],
+      ["maxPlayers", game.maxPlayers],
+      ["dailyCreateLimit", game.dailyCreateLimit],
+      ["inviteTimeoutMinutes", invite.timeoutMinutes],
+      ["inviteMaxPerGame", invite.maxPerGame],
+      ["defaultRadiusMeters", map.defaultRadiusMeters],
+      ["maxRadiusMeters", map.maxRadiusMeters],
+    ].forEach(([field, value]) => setFormValue(form, field, value ?? ""));
+  }
   const textarea = $("#operation-rules-config-json");
   if (textarea) textarea.value = JSON.stringify(state.operationRules, null, 2);
   renderOperationRules();
@@ -3885,14 +4014,56 @@ function renderOperationRules() {
 
 async function saveOperationRules(event) {
   event.preventDefault();
-  await saveJSONSystemConfig({
-    form: event.currentTarget,
-    endpoint: "/api/admin/operation-rules",
-    stateKey: "operationRules",
-    textareaSelector: "#operation-rules-config-json",
-    render: renderOperationRules,
-    successMessage: "运营约束规则已保存",
-  });
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  let payload = JSON.parse(JSON.stringify(state.operationRules || {}));
+  const raw = String(new FormData(form).get("configJson") || "").trim();
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch (error) {
+      toast("高级配置格式不正确", true);
+      return;
+    }
+  }
+  const values = Object.fromEntries(new FormData(form).entries());
+  const fields = [
+    "expertCreatedGames", "expertCreditScore", "guideParticipatedGames", "guideInvitedCompleted", "guideCreditScore",
+    "minPlayers", "maxPlayers", "dailyCreateLimit", "inviteTimeoutMinutes", "inviteMaxPerGame", "defaultRadiusMeters", "maxRadiusMeters",
+  ];
+  const numbers = {};
+  for (const field of fields) {
+    const value = Number(values[field]);
+    if (!Number.isInteger(value) || value <= 0) {
+      toast("请填写有效的运营约束数值", true);
+      return;
+    }
+    numbers[field] = value;
+  }
+  if (numbers.minPlayers > numbers.maxPlayers) {
+    toast("最少成局人数不能大于最多成局人数", true);
+    return;
+  }
+  if (numbers.defaultRadiusMeters > numbers.maxRadiusMeters) {
+    toast("默认附近局半径不能大于最大半径", true);
+    return;
+  }
+  payload.roles = { ...(payload.roles || {}), expertCreatedGames: numbers.expertCreatedGames, expertCreditScore: numbers.expertCreditScore, guideParticipatedGames: numbers.guideParticipatedGames, guideInvitedCompleted: numbers.guideInvitedCompleted, guideCreditScore: numbers.guideCreditScore, membershipRequired: false };
+  payload.game = { ...(payload.game || {}), minPlayers: numbers.minPlayers, maxPlayers: numbers.maxPlayers, dailyCreateLimit: numbers.dailyCreateLimit };
+  payload.invite = { ...(payload.invite || {}), timeoutMinutes: numbers.inviteTimeoutMinutes, maxPerGame: numbers.inviteMaxPerGame, playerEnabled: false };
+  payload.map = { ...(payload.map || {}), defaultRadiusMeters: numbers.defaultRadiusMeters, maxRadiusMeters: numbers.maxRadiusMeters };
+  payload.revenue = { ...(payload.revenue || {}), enabled: false };
+  try {
+    const data = await apiPut("/api/admin/operation-rules", payload);
+    state.operationRules = data.config || data;
+    await loadOperationRules();
+    toast("运营约束规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function loadCreditDeductionRules() {
@@ -5495,7 +5666,7 @@ function renderDashboardPermissionScope() {
   const menus = state.permissionTree?.menus || [];
   target.innerHTML = menus.length
     ? menus.map((item) => stackItem({
-      title: item.name || views[item.code]?.title || item.code,
+      title: views[item.code]?.title || item.name || item.code,
       badge: "active",
       meta: [`菜单：${views[item.code]?.crumb || item.code}`, `权限点：${compactList(item.permissions || [], 5)}`],
     })).join("")
