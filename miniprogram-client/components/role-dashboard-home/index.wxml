@@ -386,7 +386,7 @@
       <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-ranking-panel">
         <view class="player-panel-head player-ranking-head">
           <view>
-            <text class="player-panel-icon">{{rankingSection.icon}}</text>
+            <image class="player-ranking-trophy" src="/pages/game/assets/icons/trophy-white.svg" mode="aspectFit" />
             <text class="player-panel-title">{{rankingSection.title}}</text>
             <text wx:if="{{rankingSection.desc}}" class="player-ranking-desc">{{rankingSection.desc}}</text>
           </view>

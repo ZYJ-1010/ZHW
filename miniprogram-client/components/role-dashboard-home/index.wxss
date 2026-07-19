@@ -258,10 +258,12 @@ page {
   min-width: 0;
 }
 
-.player-ranking-head .player-panel-icon {
-  margin-right: 0;
-  font-size: 34rpx;
-  line-height: 44rpx;
+.player-ranking-trophy {
+  flex: 0 0 auto;
+  width: 34rpx;
+  height: 34rpx;
+  margin-right: 8rpx;
+  filter: sepia(1) saturate(4) hue-rotate(2deg) brightness(1.1);
 }
 
 .player-ranking-head .player-panel-title {
