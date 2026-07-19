@@ -20,7 +20,7 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 	items := s.connections.My(userID)
 	relations, _ := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
 	items = s.inviteConnections(userID, items, relations)
-	income := s.revenue.IncomeSummary(userID)
+	income := s.phaseOneIncomeSummary(userID)
 	inviteCode, _ := s.auth.InviteCodeForUser(userID)
 	s.recordBehavior(userID, "view_profile_invite_overview", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
@@ -55,7 +55,7 @@ func (s *Server) profileInviteNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items := s.inviteConnectionsForUser(userID)
-	income := s.revenue.IncomeSummary(userID)
+	income := s.phaseOneIncomeSummary(userID)
 	s.recordBehavior(userID, "view_profile_invite_network", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"summary": []map[string]interface{}{
@@ -134,8 +134,11 @@ func (s *Server) profileInviteIncome(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	summary := s.revenue.IncomeSummary(userID)
-	logs := s.revenue.IncomeLogs(userID, "")
+	summary := s.phaseOneIncomeSummary(userID)
+	logs := []revenue.IncomeLog{}
+	if s.currentOperationRules().Revenue.Enabled {
+		logs = s.revenue.IncomeLogs(userID, "")
+	}
 	s.recordBehavior(userID, "view_profile_invite_income", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"trendSeries": inviteIncomeTrendSeries(summary),
@@ -175,6 +178,7 @@ func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Reques
 	}
 	name := s.displayName(matched.ConnectedUserID, "成员")
 	invitedGames := s.invitedGames(matched.ConnectedUserID)
+	completedGameCount := countCompletedInvitedGames(invitedGames)
 	s.recordBehavior(userID, "view_profile_invite_member", "profile_invite_member", matched.ConnectedUserID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"memberId": strconv.FormatInt(matched.ConnectedUserID, 10),
@@ -184,14 +188,14 @@ func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Reques
 			"level":  "一级成员",
 		},
 		"stats": []map[string]interface{}{
-			{"value": strconv.Itoa(maxInt(1, matched.StrengthScore)), "label": "总邀约"},
-			{"value": strconv.Itoa(maxInt(0, matched.StrengthScore/2)), "label": "成功转化"},
-			{"value": conversionRateText(maxInt(0, matched.StrengthScore/2), maxInt(1, matched.StrengthScore)), "label": "转化率"},
+			{"value": strconv.Itoa(len(invitedGames)), "label": "参与组局"},
+			{"value": strconv.Itoa(completedGameCount), "label": "完成组局"},
+			{"value": conversionRateText(completedGameCount, len(invitedGames)), "label": "完成率"},
 		},
 		"income": []map[string]interface{}{
-			{"label": "直接贡献收益", "value": moneyYuanText(int64(matched.StrengthScore) * 1000)},
-			{"label": "团队贡献收益", "value": moneyYuanText(int64(matched.StrengthScore) * 600)},
-			{"label": "合计贡献", "value": moneyYuanText(int64(matched.StrengthScore) * 1600), "highlight": true},
+			{"label": "直接贡献收益", "value": "一期未启用"},
+			{"label": "团队贡献收益", "value": "一期未启用"},
+			{"label": "合计贡献", "value": "一期未启用", "highlight": true},
 		},
 		"activities": []map[string]interface{}{
 			{"icon": "🎯", "title": "邀请关系建立", "time": matched.CreatedAt.Format("01-02 15:04"), "amount": "+"},
@@ -199,7 +203,7 @@ func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Reques
 		},
 		"games":              invitedGames,
 		"gameCount":          len(invitedGames),
-		"completedGameCount": countCompletedInvitedGames(invitedGames),
+		"completedGameCount": completedGameCount,
 	})
 }
 
