@@ -437,7 +437,7 @@ async function showUserDetail(id) {
     </div>
     ${technicalDetails("技术识别信息", [
       detailCell("微信标识", user.openId || "-"),
-      detailCell("用户", user.id || "-"),
+      detailCell("用户 ID", user.id || "-"),
     ].join(""))}
     ${can("invite_code:manage") ? `
     <div class="sub-panel">
@@ -7066,7 +7066,7 @@ function userText(userID) {
   if (userID === undefined || userID === null || userID === "") return "-";
   const id = Number(userID);
   const cached = Number.isFinite(id) ? state.userDisplayMap.get(id) : null;
-  if (cached?.nickname) return cached.nickname;
+  if (cached?.nickname) return `用户 ${userID} - ${cached.nickname}`;
   return `用户 ${userID}`;
 }
 
