@@ -137,6 +137,15 @@ type SensitiveWordRequest struct {
 	Status string `json:"status"`
 }
 
+// SensitiveWordStore persists the moderation dictionary independently from
+// the IM room/message repository. This keeps word changes effective after a
+// process restart and allows the app layer to reuse the existing system
+// configuration repository.
+type SensitiveWordStore interface {
+	LoadSensitiveWords(ctx context.Context) ([]SensitiveWord, error)
+	SaveSensitiveWords(ctx context.Context, words []SensitiveWord) error
+}
+
 type UpdateSensitiveWordRequest struct {
 	Status string `json:"status"`
 }
@@ -177,6 +186,7 @@ type Service struct {
 	privateMessagesByConversation map[int64][]PrivateMessage
 	webhookEvents                 []WebhookEvent
 	sensitiveWords                []SensitiveWord
+	sensitiveWordStore            SensitiveWordStore
 	riskLogs                      []ContentRiskLog
 	members                       GameMemberChecker
 	openim                        *OpenIMClient
@@ -217,6 +227,33 @@ func NewServiceWithOpenIM(members GameMemberChecker, cfg OpenIMConfig) *Service 
 
 func (s *Service) UseRepository(repo Repository) {
 	s.repo = repo
+}
+
+func (s *Service) UseSensitiveWordStore(store SensitiveWordStore) error {
+	if store == nil {
+		return nil
+	}
+	words, err := store.LoadSensitiveWords(context.Background())
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sensitiveWordStore = store
+	if len(words) == 0 {
+		return nil
+	}
+	s.sensitiveWords = normalizeSensitiveWords(words)
+	maxID := int64(0)
+	for _, word := range s.sensitiveWords {
+		if word.ID > maxID {
+			maxID = word.ID
+		}
+	}
+	if maxID >= s.nextSensitiveID {
+		s.nextSensitiveID = maxID + 1
+	}
+	return nil
 }
 
 func (s *Service) EnsureRoom(gameID int64) Room {
@@ -1052,6 +1089,11 @@ func (s *Service) CreateSensitiveWord(req SensitiveWordRequest) (SensitiveWord, 
 	}
 	s.nextSensitiveID++
 	s.sensitiveWords = append(s.sensitiveWords, word)
+	if err := s.persistSensitiveWordsLocked(); err != nil {
+		s.nextSensitiveID--
+		s.sensitiveWords = s.sensitiveWords[:len(s.sensitiveWords)-1]
+		return SensitiveWord{}, err
+	}
 	return word, nil
 }
 
@@ -1075,12 +1117,44 @@ func (s *Service) UpdateSensitiveWord(wordID int64, req UpdateSensitiveWordReque
 	defer s.mu.Unlock()
 	for index, item := range s.sensitiveWords {
 		if item.ID == wordID {
+			previous := item
 			item.Status = req.Status
 			s.sensitiveWords[index] = item
+			if err := s.persistSensitiveWordsLocked(); err != nil {
+				s.sensitiveWords[index] = previous
+				return SensitiveWord{}, err
+			}
 			return item, nil
 		}
 	}
 	return SensitiveWord{}, ErrMessageNotFound
+}
+
+func normalizeSensitiveWords(words []SensitiveWord) []SensitiveWord {
+	result := make([]SensitiveWord, 0, len(words))
+	seen := make(map[string]bool, len(words))
+	for _, word := range words {
+		word.Word = strings.TrimSpace(word.Word)
+		if word.Word == "" || seen[word.Word] || !validSensitiveWordAction(word.Action) || !validSensitiveWordStatus(word.Status) {
+			continue
+		}
+		if word.Level == "" {
+			word.Level = "medium"
+		}
+		seen[word.Word] = true
+		result = append(result, word)
+	}
+	return result
+}
+
+// persistSensitiveWordsLocked must be called while s.mu is held. The
+// dictionary is small and the store write is deliberately synchronous so an
+// admin success response always means the new rule is durable.
+func (s *Service) persistSensitiveWordsLocked() error {
+	if s.sensitiveWordStore == nil {
+		return nil
+	}
+	return s.sensitiveWordStore.SaveSensitiveWords(context.Background(), append([]SensitiveWord(nil), s.sensitiveWords...))
 }
 
 func (s *Service) ContentRiskLogs() []ContentRiskLog {

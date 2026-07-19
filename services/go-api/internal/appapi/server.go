@@ -24,6 +24,7 @@ import (
 	"zhw-mini/services/go-api/internal/files"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/identity"
+	"zhw-mini/services/go-api/internal/im"
 	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/lbs"
 	"zhw-mini/services/go-api/internal/memberreports"
@@ -155,6 +156,7 @@ func New(authService *auth.Service, identityService identityService, gameService
 	pointsService := points.NewService()
 	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), tasks: tasks.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
 	reviewService.SetGrowthRulesProvider(server.systemConfig)
+	server.bindSensitiveWordStore()
 	server.imSocketHub = newIMSocketHub(server)
 	return server
 }
@@ -237,11 +239,41 @@ func (s *Server) UseAIDataRepository(repository aidata.Repository) {
 func (s *Server) UseSystemConfigRepository(repository systemconfig.Repository) {
 	if repository != nil {
 		s.systemConfig = systemconfig.NewServiceWithRepository(repository)
+		s.bindSensitiveWordStore()
 		if reviewService, ok := s.reviews.(*reviews.Service); ok {
 			reviewService.SetGrowthRulesProvider(s.systemConfig)
 		}
 		s.ensureDefaultSystemConfigs()
 	}
+}
+
+type sensitiveWordStoreAdapter struct {
+	config *systemconfig.Service
+}
+
+func (a sensitiveWordStoreAdapter) LoadSensitiveWords(ctx context.Context) ([]im.SensitiveWord, error) {
+	var words []im.SensitiveWord
+	if a.config == nil || !a.config.Get("content.sensitive_words", &words) {
+		return nil, nil
+	}
+	return words, nil
+}
+
+func (a sensitiveWordStoreAdapter) SaveSensitiveWords(ctx context.Context, words []im.SensitiveWord) error {
+	if a.config == nil {
+		return nil
+	}
+	return a.config.Set("content.sensitive_words", words)
+}
+
+func (s *Server) bindSensitiveWordStore() {
+	service, ok := s.im.(interface {
+		UseSensitiveWordStore(im.SensitiveWordStore) error
+	})
+	if !ok || s.systemConfig == nil {
+		return
+	}
+	_ = service.UseSensitiveWordStore(sensitiveWordStoreAdapter{config: s.systemConfig})
 }
 
 func (s *Server) UseTaskRepository(repository tasks.Repository) {

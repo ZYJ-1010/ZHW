@@ -1,6 +1,51 @@
 package im
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
+
+type memorySensitiveWordStore struct {
+	words []SensitiveWord
+}
+
+func (s *memorySensitiveWordStore) LoadSensitiveWords(context.Context) ([]SensitiveWord, error) {
+	return append([]SensitiveWord(nil), s.words...), nil
+}
+
+func (s *memorySensitiveWordStore) SaveSensitiveWords(_ context.Context, words []SensitiveWord) error {
+	s.words = append([]SensitiveWord(nil), words...)
+	return nil
+}
+
+func TestSensitiveWordsPersistAcrossServiceRestart(t *testing.T) {
+	store := &memorySensitiveWordStore{}
+	first := NewService(&readonlyGameState{members: []int64{1}})
+	if err := first.UseSensitiveWordStore(store); err != nil {
+		t.Fatal(err)
+	}
+	created, err := first.CreateSensitiveWord(SensitiveWordRequest{Word: "持久化词"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(store.words) != 2 {
+		t.Fatalf("expected default and created words to be stored, got %d", len(store.words))
+	}
+	if _, err := first.UpdateSensitiveWord(created.ID, UpdateSensitiveWordRequest{Status: "disabled"}); err != nil {
+		t.Fatal(err)
+	}
+
+	second := NewService(&readonlyGameState{members: []int64{1}})
+	if err := second.UseSensitiveWordStore(store); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := second.CheckSensitiveWords("命中持久化词"); ok {
+		t.Fatal("disabled persisted word must not block messages")
+	}
+	if _, ok := second.CheckSensitiveWords("敏感词"); !ok {
+		t.Fatal("persisted dictionary should replace the in-memory default")
+	}
+}
 
 func TestVoiceMessageUsesFileAttachment(t *testing.T) {
 	state := &readonlyGameState{members: []int64{1, 2}}
