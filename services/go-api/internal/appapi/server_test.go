@@ -3320,6 +3320,7 @@ func TestInvitationPairCreatesRoleSpecificSuccessNotificationsHTTP(t *testing.T)
 	completeIdentityForTest(t, mux, playerToken)
 	expertToken := loginForTestWithCode(t, mux, "success-notice-expert")
 	completeIdentityForTest(t, mux, expertToken)
+	server.profiles.GrantRole(1, "guide")
 	server.profiles.GrantRole(3, "expert")
 
 	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"success notice game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2030-01-01 10:00","endAt":"2030-01-01 12:00"}`, http.StatusOK)
