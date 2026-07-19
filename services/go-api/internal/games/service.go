@@ -174,6 +174,27 @@ type ExitResult struct {
 	MemberStatus   string `json:"memberStatus"`
 }
 
+// ExitWithCredit records the credit-log linkage immediately after the member
+// exit. Callers should pre-create the credit log and compensate it on error;
+// this method keeps the linkage step in the games service for every backend
+// caller instead of leaving it to an HTTP handler only.
+func (s *Service) ExitWithCredit(userID int64, gameID int64, creditLogID int64) (ExitResult, error) {
+	result, err := s.Exit(userID, gameID)
+	if err != nil {
+		return ExitResult{}, err
+	}
+	if result.CreditDeduct {
+		if creditLogID <= 0 {
+			return ExitResult{}, ErrInvalidGameInput
+		}
+		if err := s.RecordExitCredit(gameID, userID, creditLogID); err != nil {
+			return ExitResult{}, err
+		}
+		result.CreditLogID = creditLogID
+	}
+	return result, nil
+}
+
 type ProgressFeedback struct {
 	ID        int64     `json:"id"`
 	GameID    int64     `json:"gameId"`

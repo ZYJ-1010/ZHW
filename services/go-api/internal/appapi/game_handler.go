@@ -39,6 +39,7 @@ type gameService interface {
 	ManualStartWithReason(userID int64, gameID int64, startReason string) (games.Game, error)
 	RequestCompletion(userID int64, gameID int64) (games.Game, error)
 	Exit(userID int64, gameID int64) (games.ExitResult, error)
+	ExitWithCredit(userID int64, gameID int64, creditLogID int64) (games.ExitResult, error)
 	CancelService(gameID int64, reason string) (games.Game, error)
 	RecordExitCredit(gameID int64, userID int64, creditLogID int64) error
 	ConfirmService(userID int64, gameID int64, note string, fileIDs ...int64) (games.ServiceConfirm, []games.ServiceConfirmItem, games.Game, error)
@@ -5084,24 +5085,41 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.games.Exit(userID, id)
+	game, err := s.games.Get(id)
 	if err != nil {
 		writeGameError(w, err)
 		return
 	}
-	if result.CreditDeduct {
-		credit := s.reviews.DeductCredit(userID, id, result.Reason)
-		result.CreditLogID = credit.ID
-		if err := s.games.RecordExitCredit(id, userID, credit.ID); err != nil {
-			writeGameError(w, err)
-			return
+	if !s.games.IsMember(id, userID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "not a game member")
+		return
+	}
+	var credit reviews.CreditLog
+	if game.Status == "pending_confirm" || game.Status == "in_progress" || game.Status == "pending_review" || game.Status == "completed" {
+		credit = s.reviews.DeductCredit(userID, id, exitCreditReason(game.Status))
+	}
+	result, err := s.games.ExitWithCredit(userID, id, credit.ID)
+	if err != nil {
+		if credit.ID > 0 && credit.ChangeValue < 0 {
+			s.reviews.RestoreCredit(userID, id, "exit_rollback", -credit.ChangeValue)
 		}
+		writeGameError(w, err)
+		return
+	}
+	if result.CreditDeduct {
 		s.createExitNotifications(result, credit.ChangeValue)
 		httpx.OK(w, map[string]interface{}{"game": result.Game, "exit": result, "credit": credit})
 		return
 	}
 	s.createExitNotifications(result, 0)
 	httpx.OK(w, map[string]interface{}{"game": result.Game, "exit": result})
+}
+
+func exitCreditReason(status string) string {
+	if status == "pending_confirm" {
+		return "quit_after_confirm"
+	}
+	return "quit_after_started"
 }
 
 func (s *Server) createExitNotifications(result games.ExitResult, creditChange int) {
