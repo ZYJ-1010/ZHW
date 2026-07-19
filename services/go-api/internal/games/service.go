@@ -511,6 +511,8 @@ type Service struct {
 	identity          IdentityChecker
 	roomEnsurer       RoomEnsurer
 	dailyCreateLimit  int
+	minGamePlayers    int
+	maxGamePlayers    int
 }
 
 func NewService(identity IdentityChecker) *Service {
@@ -551,7 +553,24 @@ func NewServiceWithRepositories(identity IdentityChecker, repo Repository, favor
 		favoriteRepo:      favoriteRepo,
 		identity:          identity,
 		dailyCreateLimit:  3,
+		minGamePlayers:    MinGamePlayers,
+		maxGamePlayers:    MaxGamePlayers,
 	}
+}
+
+// SetPlayerLimits makes the same player-count constraint available to every
+// caller of the games service, including background jobs and admin flows.
+func (s *Service) SetPlayerLimits(minPlayers, maxPlayers int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if minPlayers <= 0 {
+		minPlayers = MinGamePlayers
+	}
+	if maxPlayers < minPlayers {
+		maxPlayers = MaxGamePlayers
+	}
+	s.minGamePlayers = minPlayers
+	s.maxGamePlayers = maxPlayers
 }
 
 func (s *Service) SetDailyCreateLimit(limit int) {
@@ -620,7 +639,7 @@ func (s *Service) Create(userID int64, req CreateRequest) (Game, error) {
 	if req.GameType != "" && req.GameType != "free" {
 		return Game{}, ErrInvalidGameType
 	}
-	if err := validateCreateRequest(req); err != nil {
+	if err := s.validateCreateRequest(req); err != nil {
 		return Game{}, err
 	}
 
@@ -665,7 +684,7 @@ func (s *Service) CreateFromAdmin(req CreateRequest) (Game, error) {
 	if !validAdminGameType(gameType) {
 		return Game{}, ErrInvalidGameType
 	}
-	if err := validateCreateRequest(req); err != nil {
+	if err := s.validateCreateRequest(req); err != nil {
 		return Game{}, err
 	}
 	if !validAdminSignupTimeRange(req.SignupStartAt, req.SignupEndAt, req.StartAt) {
@@ -760,7 +779,11 @@ func signupWindowError(game Game, now time.Time) error {
 }
 
 func validateCreateRequest(req CreateRequest) error {
-	if req.MinPlayers < MinGamePlayers || req.MaxPlayers > MaxGamePlayers || req.MinPlayers > req.MaxPlayers {
+	return validateCreateRequestWithLimits(req, MinGamePlayers, MaxGamePlayers)
+}
+
+func validateCreateRequestWithLimits(req CreateRequest, minPlayers, maxPlayers int) error {
+	if req.MinPlayers < minPlayers || req.MaxPlayers > maxPlayers || req.MinPlayers > req.MaxPlayers {
 		return ErrInvalidPlayers
 	}
 	if req.Title == "" || len(req.Title) > 80 || len(req.CityCode) > 32 || len(req.CityName) > 64 || len(req.Address) > 255 {
@@ -788,6 +811,13 @@ func validateCreateRequest(req CreateRequest) error {
 		return ErrInvalidGameInput
 	}
 	return nil
+}
+
+func (s *Service) validateCreateRequest(req CreateRequest) error {
+	s.mu.RLock()
+	minPlayers, maxPlayers := s.minGamePlayers, s.maxGamePlayers
+	s.mu.RUnlock()
+	return validateCreateRequestWithLimits(req, minPlayers, maxPlayers)
 }
 
 func validAdminGameType(value string) bool {

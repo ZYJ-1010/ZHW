@@ -36,6 +36,17 @@ func TestCreateAllowsPlayerWithoutVerifiedIdentity(t *testing.T) {
 	}
 }
 
+func TestCreateUsesConfiguredPlayerLimits(t *testing.T) {
+	service := NewService(fakeIdentity{verified: false})
+	service.SetPlayerLimits(4, 6)
+	if _, err := service.Create(1, CreateRequest{Title: "配置人数局", GameType: "free", MinPlayers: 5, MaxPlayers: 6, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"}); err != nil {
+		t.Fatalf("expected configured min player limit to allow request, got %v", err)
+	}
+	if _, err := service.Create(2, CreateRequest{Title: "超出人数局", GameType: "free", MinPlayers: 4, MaxPlayers: 7, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"}); err != ErrInvalidPlayers {
+		t.Fatalf("expected configured max player limit to reject request, got %v", err)
+	}
+}
+
 func TestReviewApplicationCreatesRoomWhenGameBecomesFull(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	ensurer := &recordingRoomEnsurer{}

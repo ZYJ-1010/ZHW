@@ -163,10 +163,12 @@ func (s *Server) Configure(cfg config.Config) {
 	s.cfg = cfg
 	s.productionMode = appAPIProductionEnv(cfg.AppEnv)
 	s.files.RequirePublicBaseURLs(s.productionMode)
-	if cfg.AppLimits.DailyGameLimit > 0 {
-		if service, ok := s.games.(*games.Service); ok {
+	if service, ok := s.games.(*games.Service); ok {
+		if cfg.AppLimits.DailyGameLimit > 0 {
 			service.SetDailyCreateLimit(cfg.AppLimits.DailyGameLimit)
 		}
+		rules := s.currentOperationRules()
+		service.SetPlayerLimits(rules.Game.MinPlayers, rules.Game.MaxPlayers)
 	}
 	if cfg.LBS.DefaultRadiusMeter > 0 {
 		s.nearbyDefaultRadiusMeter = cfg.LBS.DefaultRadiusMeter
