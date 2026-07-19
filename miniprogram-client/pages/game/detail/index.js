@@ -186,16 +186,21 @@ function buildOrganizer(game = {}, display = {}) {
   }
 }
 
-function normalizePrimaryAction(detailDisplay = {}, game = {}, statusText = '') {
+function normalizePrimaryAction(detailDisplay = {}, game = {}, statusText = '', relation = {}) {
   const source = detailDisplay.primaryAction || {}
+  const relationReason = String(relation.applyDisabledReason || relation.ApplyDisabledReason || '').trim()
 
   if (source.text) {
+    const sourceText = String(source.text)
+    const shouldUseRelationReason = source.disabled === true && relationReason &&
+      ['等待开局', '等待报名', '状态处理中', '招募中'].indexOf(sourceText) !== -1
     return {
-      text: String(source.text),
+      text: shouldUseRelationReason ? relationReason : sourceText,
       disabled: source.disabled === true,
       action: String(source.action || 'none'),
       route: String(source.route || ''),
-      confirmText: String(source.confirmText || '')
+      confirmText: String(source.confirmText || ''),
+      disabledReason: String(source.disabledReason || (shouldUseRelationReason ? relationReason : '') || '')
     }
   }
 
@@ -290,7 +295,7 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
   const categoryText = String(game.primaryCategoryText || game.secondaryCategoryText || '').trim()
   const createdAtText = formatCreatedAt(game.createdAt)
   const bottomTools = buildBottomTools(relation, game)
-  const primaryAction = normalizePrimaryAction(detailDisplay, game, statusText)
+  const primaryAction = normalizePrimaryAction(detailDisplay, game, statusText, relation)
 
   return {
     event: Object.assign({}, fallbackEvent, {

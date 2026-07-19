@@ -119,11 +119,12 @@ type GameDetailOrganizerDTO struct {
 }
 
 type GameDetailPrimaryActionDTO struct {
-	Text        string `json:"text"`
-	Disabled    bool   `json:"disabled"`
-	Action      string `json:"action"`
-	Route       string `json:"route,omitempty"`
-	ConfirmText string `json:"confirmText,omitempty"`
+	Text           string `json:"text"`
+	Disabled       bool   `json:"disabled"`
+	Action         string `json:"action"`
+	Route          string `json:"route,omitempty"`
+	ConfirmText    string `json:"confirmText,omitempty"`
+	DisabledReason string `json:"disabledReason,omitempty"`
 }
 
 type GameMyRelationDTO struct {
@@ -2761,7 +2762,7 @@ func organizerRating(items []reviews.Review, organizerUserID int64) (string, int
 func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendingCount int, reviewed bool) GameDetailPrimaryActionDTO {
 	gameID := strconv.FormatInt(game.ID, 10)
 	disabled := func(text string) GameDetailPrimaryActionDTO {
-		return GameDetailPrimaryActionDTO{Text: text, Disabled: true, Action: "none"}
+		return GameDetailPrimaryActionDTO{Text: text, Disabled: true, Action: "none", DisabledReason: text}
 	}
 	action := func(text string, action string, route string) GameDetailPrimaryActionDTO {
 		return GameDetailPrimaryActionDTO{Text: text, Action: action, Route: route}
@@ -2809,8 +2810,14 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 		if relation.IsMember {
 			return action("进入组局", "collaboration", "/pages/game/collaboration/index?gameId="+gameID)
 		}
+		if relation.ApplyDisabledReason != "" {
+			return disabled(relation.ApplyDisabledReason)
+		}
 		return disabled("进行中")
 	case "pending_confirm":
+		if relation.ApplyDisabledReason != "" {
+			return disabled(relation.ApplyDisabledReason)
+		}
 		return disabled("已结束")
 	case "pending_review":
 		if relation.CanReview {
@@ -2819,9 +2826,20 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 		if reviewed {
 			return disabled("已评价")
 		}
+		if relation.ApplyDisabledReason != "" {
+			return disabled(relation.ApplyDisabledReason)
+		}
 		return disabled("待评价")
 	case "completed":
+		if relation.ApplyDisabledReason != "" {
+			return disabled(relation.ApplyDisabledReason)
+		}
 		return disabled("已完成")
+	case "canceled", "cancelled":
+		if relation.ApplyDisabledReason != "" {
+			return disabled(relation.ApplyDisabledReason)
+		}
+		return disabled("本局已取消")
 	case "draft":
 		return disabled("草稿")
 	default:
@@ -3882,7 +3900,14 @@ func (s *Server) buildGameRelation(userID int64, game games.Game) GameMyRelation
 		relation.CanApply = false
 		relation.ApplyDisabledReason = "该局已满员"
 	} else if game.Status == "recruiting" && !isMember && !signupOpen {
-		relation.ApplyDisabledReason = "不在报名时间内"
+		switch games.SignupWindowStateAt(game, time.Now()) {
+		case "not_started":
+			relation.ApplyDisabledReason = "报名尚未开始"
+		case "ended":
+			relation.ApplyDisabledReason = "报名已截止"
+		default:
+			relation.ApplyDisabledReason = "当前不在报名时间内"
+		}
 	}
 	// ApplicationsForUser 在内存实现中来自 map，不能依赖遍历顺序；取该局
 	// 最新的一条申请，避免旧的 rejected/pending 记录覆盖当前状态。
@@ -3903,6 +3928,20 @@ func (s *Server) buildGameRelation(userID int64, game games.Game) GameMyRelation
 		if latest.Status == "pending" {
 			relation.CanApply = false
 			relation.ApplyDisabledReason = "报名审核中"
+		}
+	}
+	if !relation.IsMember && !relation.IsCreator && relation.ApplyDisabledReason == "" {
+		switch game.Status {
+		case "in_progress":
+			relation.ApplyDisabledReason = "组局进行中，暂不可报名"
+		case "pending_confirm", "pending_review", "completed":
+			relation.ApplyDisabledReason = "本局已结束，暂不可报名"
+		case "canceled", "cancelled":
+			relation.ApplyDisabledReason = "本局已取消，暂不可报名"
+		case "pending_audit":
+			relation.ApplyDisabledReason = "组局尚在后台审核，暂不可报名"
+		case "draft":
+			relation.ApplyDisabledReason = "草稿局不可报名"
 		}
 	}
 	return relation

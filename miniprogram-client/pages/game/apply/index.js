@@ -106,7 +106,12 @@ Page({
       }
       if (relation.canApply !== true) {
         const action = detail.detailDisplay && detail.detailDisplay.primaryAction || {}
-        throw new Error(action.disabledReason || action.text || '当前账号不具备本局申请资格')
+        throw new Error(
+          relation.applyDisabledReason ||
+          action.disabledReason ||
+          action.text ||
+          '当前账号不具备本局申请资格'
+        )
       }
       this.setData({ eligibilityLoading: false, eligibilityReady: true, eligibilityError: '' })
     } catch (error) {

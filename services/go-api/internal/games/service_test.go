@@ -476,6 +476,19 @@ func TestSignupWindowUsesShanghaiLocalTime(t *testing.T) {
 	}
 }
 
+func TestSignupWindowStateAtDistinguishesBeforeAndAfterDeadline(t *testing.T) {
+	game := Game{SignupStartAt: "2026-07-15 22:00", SignupEndAt: "2026-07-15 23:00"}
+	if state := SignupWindowStateAt(game, time.Date(2026, 7, 15, 13, 59, 0, 0, time.UTC)); state != "not_started" {
+		t.Fatalf("expected not_started, got %q", state)
+	}
+	if state := SignupWindowStateAt(game, time.Date(2026, 7, 15, 14, 30, 0, 0, time.UTC)); state != "open" {
+		t.Fatalf("expected open, got %q", state)
+	}
+	if state := SignupWindowStateAt(game, time.Date(2026, 7, 15, 15, 1, 0, 0, time.UTC)); state != "ended" {
+		t.Fatalf("expected ended, got %q", state)
+	}
+}
+
 func TestApplicationCanBeRejectedMoreThanOnce(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	game, err := service.Create(1, CreateRequest{Title: "repeat reject", GameType: "free", MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})

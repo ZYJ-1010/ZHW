@@ -830,11 +830,21 @@ func CanApplyWithinSignupWindow(game Game, now time.Time) bool {
 	return signupWindowError(game, now) == nil
 }
 
-func signupWindowError(game Game, now time.Time) error {
+// SignupWindowStateAt returns the current signup-window state. Missing or
+// invalid boundaries are treated as open to preserve the legacy behaviour;
+// callers can use the explicit states to present a precise reason to users.
+func SignupWindowStateAt(game Game, now time.Time) string {
 	if signupStartAt, ok := parseAppGameTime(game.SignupStartAt); ok && now.Before(signupStartAt) {
-		return ErrSignupClosed
+		return "not_started"
 	}
 	if signupEndAt, ok := parseAppGameTime(game.SignupEndAt); ok && now.After(signupEndAt) {
+		return "ended"
+	}
+	return "open"
+}
+
+func signupWindowError(game Game, now time.Time) error {
+	if SignupWindowStateAt(game, now) != "open" {
 		return ErrSignupClosed
 	}
 	return nil

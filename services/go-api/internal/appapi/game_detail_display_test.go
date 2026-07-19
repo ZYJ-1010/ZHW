@@ -127,11 +127,12 @@ func TestGameDetailPrimaryActionByStatusAndRelation(t *testing.T) {
 		{name: "full member waits", status: "full", relation: GameMyRelationDTO{IsMember: true}, text: "等待开局", action: "none", disabled: true},
 		{name: "full guest", status: "full", text: "已满员", action: "none", disabled: true},
 		{name: "member enters collaboration", status: "in_progress", relation: GameMyRelationDTO{IsMember: true}, text: "进入组局", action: "collaboration", routePart: "collaboration"},
-		{name: "guest sees in progress", status: "in_progress", text: "进行中", action: "none", disabled: true},
+		{name: "guest sees in progress", status: "in_progress", relation: GameMyRelationDTO{ApplyDisabledReason: "组局进行中，暂不可报名"}, text: "组局进行中，暂不可报名", action: "none", disabled: true},
 		{name: "ended while confirmation pending", status: "pending_confirm", relation: GameMyRelationDTO{IsMember: true, CanConfirm: true}, text: "已结束", action: "none", disabled: true},
 		{name: "member reviews", status: "pending_review", relation: GameMyRelationDTO{IsMember: true, CanReview: true}, text: "去评价", action: "review", routePart: "review"},
 		{name: "member reviewed", status: "pending_review", relation: GameMyRelationDTO{IsMember: true}, reviewed: true, text: "已评价", action: "none", disabled: true},
 		{name: "completed", status: "completed", text: "已完成", action: "none", disabled: true},
+		{name: "canceled", status: "canceled", relation: GameMyRelationDTO{ApplyDisabledReason: "本局已取消，暂不可报名"}, text: "本局已取消，暂不可报名", action: "none", disabled: true},
 		{name: "draft", status: "draft", text: "草稿", action: "none", disabled: true},
 	}
 
@@ -140,6 +141,9 @@ func TestGameDetailPrimaryActionByStatusAndRelation(t *testing.T) {
 			result := gameDetailPrimaryAction(games.Game{ID: 42, Status: test.status, GameType: "free", CurrentPlayers: test.current, MaxPlayers: test.max}, test.relation, test.pendingCount, test.reviewed)
 			if result.Text != test.text || result.Action != test.action || result.Disabled != test.disabled {
 				t.Fatalf("unexpected action: %+v", result)
+			}
+			if test.disabled && result.DisabledReason == "" {
+				t.Fatalf("disabled action must include a reason: %+v", result)
 			}
 			if test.routePart != "" && !strings.Contains(result.Route, test.routePart) {
 				t.Fatalf("route %q must contain %q", result.Route, test.routePart)
