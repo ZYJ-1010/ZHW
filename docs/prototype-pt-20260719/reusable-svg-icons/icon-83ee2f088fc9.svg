@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+                <defs>
+
+                    <linearGradient id="sphereGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1"></stop>
+                        <stop offset="50%" style="stop-color:#00f2fe;stop-opacity:0.8"></stop>
+                        <stop offset="100%" style="stop-color:#0066ff;stop-opacity:0.6"></stop>
+                    </linearGradient>
+
+                    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ff00cc;stop-opacity:1"></stop>
+                        <stop offset="100%" style="stop-color:#3333ff;stop-opacity:1"></stop>
+                    </linearGradient>
+
+                    <linearGradient id="gridGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:rgba(100,200,255,0.8)"></stop>
+                        <stop offset="100%" style="stop-color:rgba(100,200,255,0.2)"></stop>
+                    </linearGradient>
+
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"></feGaussianBlur>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"></feMergeNode>
+                            <feMergeNode in="SourceGraphic"></feMergeNode>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+
+                <circle cx="100" cy="100" r="95" fill="none" stroke="url(#ringGradient)" stroke-width="0.5" opacity="0.3" class="glow-ring" filter="url(#glow)"></circle>
+
+
+                <circle cx="100" cy="100" r="90" fill="none" stroke="url(#ringGradient)" stroke-width="2" opacity="0.6" class="glow-ring"></circle>
+
+
+                <g class="glow-ring">
+                    <circle cx="100" cy="10" r="3" fill="#ff00cc" filter="url(#glow)"></circle>
+                    <circle cx="190" cy="100" r="2" fill="#00f2fe" filter="url(#glow)"></circle>
+                    <circle cx="100" cy="190" r="2" fill="#ff00cc" filter="url(#glow)"></circle>
+                    <circle cx="10" cy="100" r="3" fill="#00f2fe" filter="url(#glow)"></circle>
+                </g>
+
+
+                <g class="inner-sphere" transform-origin="center">
+                    <circle cx="100" cy="100" r="60" fill="url(#sphereGradient)" opacity="0.15" stroke="#4facfe" stroke-width="1"></circle>
+
+
+                    <ellipse cx="100" cy="100" rx="60" ry="20" fill="none" stroke="url(#gridGradient)" stroke-width="0.8" class="grid-line"></ellipse>
+                    <ellipse cx="100" cy="100" rx="20" ry="60" fill="none" stroke="url(#gridGradient)" stroke-width="0.8" class="grid-line"></ellipse>
+                    <line x1="40" y1="100" x2="160" y2="100" stroke="url(#gridGradient)" stroke-width="0.5" opacity="0.6"></line>
+                    <line x1="100" y1="40" x2="100" y2="160" stroke="url(#gridGradient)" stroke-width="0.5" opacity="0.6"></line>
+                </g>
+
+
+                <ellipse cx="100" cy="100" rx="80" ry="25" fill="none" stroke="#00f2fe" stroke-width="1.5" opacity="0.7" transform="rotate(45 100 100)" class="orbit-ring" filter="url(#glow)"></ellipse>
+
+
+                <g class="floating-cube" transform="translate(140, 60)">
+                    <rect x="-8" y="-8" width="16" height="16" fill="none" stroke="#ff00cc" stroke-width="1.5" opacity="0.9" transform="rotate(45)" filter="url(#glow)"></rect>
+                    <rect x="-4" y="-4" width="8" height="8" fill="#ff00cc" opacity="0.6" transform="rotate(45)"></rect>
+                </g>
+
+                <g class="floating-cube" transform="translate(60, 140)">
+                    <polygon points="0,-10 8.6,5 -8.6,5" fill="none" stroke="#00f2fe" stroke-width="1.5" opacity="0.9" filter="url(#glow)"></polygon>
+                    <circle cx="0" cy="0" r="3" fill="#00f2fe" opacity="0.6"></circle>
+                </g>
+
+
+                <line x1="100" y1="100" x2="140" y2="60" stroke="rgba(255,0,204,0.4)" stroke-width="0.8" stroke-dasharray="3,3" class="grid-line"></line>
+                <line x1="100" y1="100" x2="60" y2="140" stroke="rgba(0,242,254,0.4)" stroke-width="0.8" stroke-dasharray="3,3" class="grid-line"></line>
+</svg>
