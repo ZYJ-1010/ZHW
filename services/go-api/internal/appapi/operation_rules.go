@@ -2,7 +2,9 @@ package appapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/revenue"
@@ -223,6 +225,10 @@ func (s *Server) adminOperationRules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		config := normalizeOperationRules(req)
+		if err := validateTaskRules(config.Tasks.Items); err != nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, err.Error())
+			return
+		}
 		if config.Game.MinPlayers < 2 || config.Game.MaxPlayers > 100 || config.Game.MinPlayers > config.Game.MaxPlayers {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "组局人数范围无效")
 			return
@@ -247,4 +253,22 @@ func (s *Server) adminOperationRules(w http.ResponseWriter, r *http.Request) {
 	default:
 		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
 	}
+}
+
+func validateTaskRules(items []taskRuleDTO) error {
+	seen := make(map[string]bool, len(items))
+	for _, item := range items {
+		code := strings.TrimSpace(item.Code)
+		if code == "" || len(code) > 100 || seen[code] {
+			return fmt.Errorf("任务编码为空、过长或重复")
+		}
+		if item.Category != "newbie" && item.Category != "daily" && item.Category != "activity" {
+			return fmt.Errorf("任务分类仅支持 newbie、daily、activity")
+		}
+		if strings.TrimSpace(item.Title) == "" || len([]rune(item.Title)) > 80 || item.Required <= 0 || item.RewardPoints < 0 || item.RewardExperience < 0 {
+			return fmt.Errorf("任务规则参数无效")
+		}
+		seen[code] = true
+	}
+	return nil
 }

@@ -1767,12 +1767,24 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	rules := s.currentOperationRules()
+	dailyJoinedToday := false
+	today := time.Now().In(appDisplayLocation)
+	for _, game := range s.games.List() {
+		if game.CreatedAt.IsZero() || game.CreatedAt.In(appDisplayLocation).Format("2006-01-02") != today.Format("2006-01-02") {
+			continue
+		}
+		if s.games.IsMember(game.ID, userID) {
+			dailyJoinedToday = true
+			break
+		}
+	}
 	completion := map[string]bool{
 		"complete_identity":   record.Status == "verified",
 		"apply_role":          hasRoleApplication || hasApprovedRole,
 		"join_or_create_game": stats.Participated > 0,
 		"complete_game":       stats.Completed > 0,
 		"submit_review":       len(reviewIntents) > 0,
+		"daily_join_game":     dailyJoinedToday,
 	}
 	items := make([]map[string]interface{}, 0)
 	dailyItems := make([]map[string]interface{}, 0)
@@ -1781,7 +1793,7 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		if !rule.Enabled {
 			continue
 		}
-		item := map[string]interface{}{"code": rule.Code, "title": rule.Title, "completed": completion[rule.Code], "required": rule.Required, "rewardPoints": rule.RewardPoints, "rewardExperience": rule.RewardExperience}
+		item := map[string]interface{}{"code": rule.Code, "title": rule.Title, "completed": completion[rule.Code], "required": rule.Required, "rewardPoints": rule.RewardPoints, "rewardExperience": rule.RewardExperience, "claimStatus": "available"}
 		switch rule.Category {
 		case "daily":
 			dailyItems = append(dailyItems, item)
@@ -1821,6 +1833,7 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 			}
 			if isCompleted {
 				item["completed"] = true
+				item["claimStatus"] = "claimed"
 			}
 			if done, _ := item["completed"].(bool); done && s.tasks != nil {
 				var markErr error

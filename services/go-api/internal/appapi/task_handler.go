@@ -47,6 +47,7 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 	profile := s.reviews.AwardTaskReward(userID, rule.Code, rule.RewardPoints, rule.RewardExperience)
 	httpx.OK(w, map[string]interface{}{
 		"progress":         progress,
+		"claimStatus":      "claimed",
 		"taskCode":         rule.Code,
 		"category":         rule.Category,
 		"rewardPoints":     rule.RewardPoints,
