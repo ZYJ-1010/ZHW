@@ -1321,7 +1321,8 @@ Page({
 
     this.setData({
       isHomePreview: true,
-      loading: false,
+    loading: false,
+    applyConfigUnavailable: false,
       applyShellLayout: getApplyShellLayoutStyles(),
       previewWindowWidth,
       homePreviewSingle: single,
@@ -1414,8 +1415,19 @@ Page({
         ? normalizeGuideApplyConfig(applyGuideQualificationToConfig(remoteConfig, roleInfo))
         : normalizeExpertApplyConfig(remoteConfig)
       this.applyExpertApplyConfig(config, roleType)
+      this.setData({ applyConfigUnavailable: false })
     } catch (error) {
       this.applyExpertApplyConfig(fallbackConfig, roleType)
+      this.setData({
+        applyConfigUnavailable: true,
+        'currentHomePreview.primary': '重新加载条件',
+        'currentHomePreview.reviewHint': '申请条件加载失败，请重新加载后再填写资料',
+        homePreviewPages: (this.data.homePreviewPages || []).map((page) => (
+          page && (page.mode === 'expertApplyForm' || page.mode === 'expertApplyOverview')
+            ? Object.assign({}, page, { primary: '重新加载条件', reviewHint: '申请条件加载失败，请重新加载后再填写资料' })
+            : page
+        ))
+      })
       toast.info(error.message || '网络异常，请重试')
     }
   },
@@ -1576,6 +1588,10 @@ Page({
   },
 
   handleExpertApplyPrimaryTap() {
+    if (this.data.applyConfigUnavailable) {
+      this.loadExpertApplyConfig()
+      return
+    }
     const currentHomePreview = this.data.currentHomePreview || {}
 
     if (currentHomePreview.mode === 'expertApplyOverview') {

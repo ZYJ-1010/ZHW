@@ -351,7 +351,7 @@
             <view wx:if="{{expertApplyNoticeVisible}}" class="home-expert-submit-notice">
               <text wx:for="{{expertApplyNoticeLines}}" wx:key="*this">{{item}}</text>
             </view>
-            <view class="home-expert-primary {{expertApplySubmitting ? 'disabled' : ''}}" catchtap="handleExpertApplyPrimaryTap">{{expertApplySubmitting ? '提交中...' : currentHomePreview.primary}}</view>
+            <view class="home-expert-primary {{expertApplySubmitting || applyConfigUnavailable ? 'disabled' : ''}}" catchtap="handleExpertApplyPrimaryTap">{{expertApplySubmitting ? '提交中...' : currentHomePreview.primary}}</view>
           </scroll-view>
   </home-apply-shell>
 </view>
