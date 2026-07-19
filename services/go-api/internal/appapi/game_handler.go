@@ -2398,6 +2398,7 @@ func isPublicJoinableGame(game games.Game, now time.Time) bool {
 func (s *Server) adminGames(w http.ResponseWriter, r *http.Request) {
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	gameType := strings.TrimSpace(r.URL.Query().Get("gameType"))
+	primaryCategory := strings.TrimSpace(r.URL.Query().Get("primaryCategory"))
 	cityCode := strings.TrimSpace(r.URL.Query().Get("cityCode"))
 	keyword := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("keyword")))
 	allItems := s.games.List()
@@ -2409,6 +2410,9 @@ func (s *Server) adminGames(w http.ResponseWriter, r *http.Request) {
 		if gameType != "" && game.GameType != gameType {
 			continue
 		}
+		if primaryCategory != "" && game.PrimaryCategory != primaryCategory {
+			continue
+		}
 		if cityCode != "" && game.CityCode != cityCode {
 			continue
 		}
@@ -2418,12 +2422,13 @@ func (s *Server) adminGames(w http.ResponseWriter, r *http.Request) {
 		items = append(items, game)
 	}
 	httpx.OK(w, map[string]interface{}{
-		"items":    items,
-		"total":    len(items),
-		"status":   status,
-		"gameType": gameType,
-		"cityCode": cityCode,
-		"keyword":  keyword,
+		"items":           items,
+		"total":           len(items),
+		"status":          status,
+		"gameType":        gameType,
+		"primaryCategory": primaryCategory,
+		"cityCode":        cityCode,
+		"keyword":         keyword,
 	})
 }
 

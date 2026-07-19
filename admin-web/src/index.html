@@ -127,7 +127,7 @@
         <article class="metric-card">
           <span>组局数</span>
           <strong data-field="gameCount">0</strong>
-          <small>普通局、标准局、条件局</small>
+          <small>局类型与局类别分别统计</small>
         </article>
         <article class="metric-card">
           <span>待审局</span>
@@ -142,7 +142,7 @@
       </div>
       <div class="split">
         <section class="panel">
-          <div class="panel-head"><h2>局型分布</h2></div>
+          <div class="panel-head"><h2>局类别分布</h2></div>
           <div id="game-type-bars" class="bars"></div>
         </section>
         <section class="panel">
@@ -320,7 +320,15 @@
             </label>
             <span id="game-creator-hint" class="muted">选择后将使用该用户编号创建局</span>
           </div>
-          <label>局型
+          <label>局类型
+            <select id="game-create-category-select" name="primaryCategory">
+              <option value="task">任务局</option>
+              <option value="explore">探索局</option>
+              <option value="growth">成长局</option>
+              <option value="social">社交局</option>
+            </select>
+          </label>
+          <label>局类别
             <select id="game-create-type-select" name="gameType">
               <option value="free">普通局</option>
               <option value="standard">标准局</option>
@@ -364,13 +372,20 @@
         <div class="panel-head panel-head-compact">
           <div>
             <h2>组局列表</h2>
-            <p>按关键词、局型和状态筛选；批量审核只处理当前筛选结果中的待审核局。</p>
+            <p>局类型表达主题方向，局类别表达组织规则；两者可分别筛选。</p>
           </div>
         </div>
         <form id="game-filter-form" class="filters filter-strip">
           <input name="keyword" placeholder="标题 / 城市" />
+          <select id="game-filter-category-select" name="primaryCategory">
+            <option value="">全部局类型</option>
+            <option value="task">任务局</option>
+            <option value="explore">探索局</option>
+            <option value="growth">成长局</option>
+            <option value="social">社交局</option>
+          </select>
           <select id="game-filter-type-select" name="gameType">
-            <option value="">全部局型</option>
+            <option value="">全部局类别</option>
             <option value="free">普通局</option>
             <option value="standard">标准局</option>
             <option value="public_welfare">公益局</option>
@@ -404,7 +419,8 @@
               <tr>
                 <th>组局</th>
                 <th>标题</th>
-                <th>局型</th>
+                <th>局类型</th>
+                <th>局类别</th>
                 <th>创建方式</th>
                 <th>状态</th>
                 <th>人数</th>

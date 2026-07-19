@@ -122,6 +122,13 @@ const DEFAULT_GAME_TYPE_OPTIONS = [
   { key: "condition", name: "条件局", selectable: true },
 ];
 
+const DEFAULT_PRIMARY_CATEGORY_OPTIONS = [
+  { key: "task", name: "任务局" },
+  { key: "explore", name: "探索局" },
+  { key: "growth", name: "成长局" },
+  { key: "social", name: "社交局" },
+];
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -924,10 +931,17 @@ async function loadGameTypeOptionsForGames() {
     const data = await apiGet("/api/admin/games/category-config");
     const config = data.config || data;
     const options = mergeGameTypeOptions(config.typeFilters);
-    if (!options.length) return;
-    state.gameTypeOptions = options;
-    renderGameTypeSelect("#game-create-type-select", options, false);
-    renderGameTypeSelect("#game-filter-type-select", options, true);
+    const categories = mergePrimaryCategoryOptions(config.primaryCategories);
+    if (options.length) {
+      state.gameTypeOptions = options;
+      renderGameTypeSelect("#game-create-type-select", options, false);
+      renderGameTypeSelect("#game-filter-type-select", options, true);
+    }
+    if (categories.length) {
+      state.primaryCategoryOptions = categories;
+      renderPrimaryCategorySelect("#game-create-category-select", categories, false);
+      renderPrimaryCategorySelect("#game-filter-category-select", categories, true);
+    }
   } catch (error) {
     state.gameTypeOptions = state.gameTypeOptions || [];
   }
@@ -957,13 +971,40 @@ function mergeGameTypeOptions(items = []) {
   return [...merged.values()];
 }
 
+function mergePrimaryCategoryOptions(items = []) {
+  const merged = new Map(DEFAULT_PRIMARY_CATEGORY_OPTIONS.map((item) => [item.key, { ...item }]));
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (!item || item.visible === false || !item.key) return;
+    const preset = merged.get(item.key);
+    merged.set(item.key, {
+      key: String(item.key),
+      name: String(item.name || preset?.name || item.key),
+      order: Number(item.order || 0),
+    });
+  });
+  return [...merged.values()].sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
+}
+
 function renderGameTypeSelect(selector, options, includeAll) {
   const select = $(selector);
   if (!select) return;
   const current = select.value;
   const rows = [];
-  if (includeAll) rows.push(`<option value="">全部局型</option>`);
+  if (includeAll) rows.push(`<option value="">全部局类别</option>`);
   rows.push(...options.map((item) => `<option value="${escapeHTML(item.key)}" ${item.selectable ? "" : "disabled"}>${escapeHTML(item.name)}</option>`));
+  select.innerHTML = rows.join("");
+  if ([...select.options].some((option) => option.value === current)) {
+    select.value = current;
+  }
+}
+
+function renderPrimaryCategorySelect(selector, options, includeAll) {
+  const select = $(selector);
+  if (!select) return;
+  const current = select.value;
+  const rows = [];
+  if (includeAll) rows.push(`<option value="">全部局类型</option>`);
+  rows.push(...options.map((item) => `<option value="${escapeHTML(item.key)}">${escapeHTML(item.name)}</option>`));
   select.innerHTML = rows.join("");
   if ([...select.options].some((option) => option.value === current)) {
     select.value = current;
@@ -1070,7 +1111,7 @@ async function loadGames(formData) {
   const data = await apiGet(`/api/admin/games${querySuffix(formData)}`);
   state.games = data.items || [];
   pruneGameAuditSelection();
-  renderPaginatedTable("#games-table", state.games, "games", gameRow, 8, "暂无组局");
+  renderPaginatedTable("#games-table", state.games, "games", gameRow, 9, "暂无组局");
   updateGameAuditSelectionUI();
   await loadGameApplications();
 }
@@ -1180,6 +1221,8 @@ async function createAdminGame(event) {
   const payload = {
     title: data.title.trim(),
     creatorUserId,
+    primaryCategory: String(data.primaryCategory || "").trim(),
+    primaryCategoryText: primaryCategoryLabel(data.primaryCategory),
     gameType: data.gameType,
     coverImage: String(data.coverImage || "").trim(),
     cityCode: data.cityCode.trim(),
@@ -1455,8 +1498,8 @@ async function renderAudits() {
         await loadRoles();
       }
       if (button.dataset.action === "role-reject") {
-        const reason = askRejectReason("请输入角色申请驳回原因");
-        if (!reason) return;
+        const reason = askOptionalRejectReason("请输入角色申请驳回原因");
+        if (reason == null) return;
         await reviewRoleApplication(button.dataset.id, false, reason);
         toast("角色申请已驳回");
         await loadRoles();
@@ -5312,6 +5355,7 @@ function gameRow(game) {
     <tr>
       <td>${escapeHTML(game.id ? `局 ${game.id}` : "-")}</td>
       <td>${escapeHTML(game.title)}</td>
+      <td>${escapeHTML(primaryCategoryLabel(game.primaryCategory, game.primaryCategoryText))}</td>
       <td>${gameTypeLabel(game.gameType)}</td>
       <td>${escapeHTML(sourceLabel(game.gameSource))}</td>
       <td><span class="${badgeClass(game.status)}">${statusLabel(game.status)}</span></td>
@@ -6405,6 +6449,11 @@ function askRejectReason(title = "请输入驳回原因") {
   return reason;
 }
 
+function askOptionalRejectReason(title = "请输入驳回原因") {
+  const value = window.prompt(`${title}（可选，留空表示未填写原因）`);
+  return value == null ? null : String(value).trim();
+}
+
 function toast(message, isError = false) {
   const el = $("#toast");
   el.textContent = humanMessage(message);
@@ -6595,6 +6644,17 @@ function gameTypeLabel(value) {
     deposit: "押金局",
     condition: "条件局",
   }[value] || adminDisplayValue(value || "-");
+}
+
+function primaryCategoryLabel(value, fallback = "") {
+  const option = (state.primaryCategoryOptions || []).find((item) => item.key === value);
+  if (option) return option.name;
+  return {
+    task: "任务局",
+    explore: "探索局",
+    growth: "成长局",
+    social: "社交局",
+  }[value] || fallback || "未分类";
 }
 
 function roleLabel(value) {
