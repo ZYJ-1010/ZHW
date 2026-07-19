@@ -743,20 +743,21 @@ func (s *Server) adminRoleApplications(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) adminRoleApplicationPayload(application profiles.RoleApplication, codeByID map[int64]string) map[string]interface{} {
 	payload := map[string]interface{}{
-		"id":                 application.ID,
-		"userId":             application.UserID,
-		"roleCode":           application.RoleCode,
-		"status":             application.Status,
-		"reason":             application.Reason,
-		"abilityDescription": application.AbilityDescription,
-		"proofFileIds":       application.ProofFileIDs,
-		"rejectReason":       application.RejectReason,
-		"reviewAdminId":      application.ReviewAdminID,
-		"reviewRemark":       application.ReviewRemark,
-		"certNo":             application.CertificateNo,
-		"certifiedAt":        application.CertifiedAt,
-		"createdAt":          application.CreatedAt,
-		"updatedAt":          application.UpdatedAt,
+		"id":                  application.ID,
+		"userId":              application.UserID,
+		"roleCode":            application.RoleCode,
+		"status":              application.Status,
+		"reason":              application.Reason,
+		"abilityDescription":  application.AbilityDescription,
+		"proofFileIds":        application.ProofFileIDs,
+		"eligibilitySnapshot": application.EligibilitySnapshot,
+		"rejectReason":        application.RejectReason,
+		"reviewAdminId":       application.ReviewAdminID,
+		"reviewRemark":        application.ReviewRemark,
+		"certNo":              application.CertificateNo,
+		"certifiedAt":         application.CertifiedAt,
+		"createdAt":           application.CreatedAt,
+		"updatedAt":           application.UpdatedAt,
 	}
 	if relation, ok, err := s.auth.InviteRelationForUser(application.UserID); err == nil && ok {
 		payload["inviteRelation"] = relation
