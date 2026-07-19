@@ -652,6 +652,15 @@ func (s *Service) RestoreCredit(userID int64, gameID int64, reason string, amoun
 	return log
 }
 
+// CreditDeductionValue exposes the configured deduction without mutating any
+// state. The exit coordinator uses it to pass the rule into the single SQL
+// transaction that also updates membership and game capacity.
+func (s *Service) CreditDeductionValue(reason string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.creditDeductionValueLocked(reason)
+}
+
 func (s *Service) creditDeductionValueLocked(reason string) int {
 	if s.repo != nil {
 		change, ok, err := s.repo.CreditDeductionValue(context.Background(), reason)

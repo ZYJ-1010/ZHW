@@ -5134,8 +5134,35 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "not a game member")
 		return
 	}
+	if atomic, ok := s.games.(interface {
+		ExitWithCreditMutation(userID int64, gameID int64, memberStatus string, reason string, mutation games.ExitCreditMutation) (games.ExitCreditResult, error)
+	}); ok && gameNeedsExitCredit(game.Status) {
+		reason := exitCreditReason(game.Status)
+		changeValue := s.reviews.CreditDeductionValue(reason)
+		atomicResult, err := atomic.ExitWithCreditMutation(userID, id, games.ExitMemberStatusForGame(game.Status), reason, games.ExitCreditMutation{
+			ChangeValue: changeValue,
+			Reason:      reason,
+		})
+		if err != nil {
+			writeGameError(w, err)
+			return
+		}
+		credit := reviews.CreditLog{
+			ID:          atomicResult.CreditLogID,
+			UserID:      userID,
+			GameID:      id,
+			ChangeValue: atomicResult.ChangeValue,
+			BeforeScore: atomicResult.BeforeScore,
+			AfterScore:  atomicResult.AfterScore,
+			Reason:      reason,
+			CreatedAt:   atomicResult.CreatedAt,
+		}
+		s.createExitNotifications(atomicResult.ExitResult, credit.ChangeValue)
+		httpx.OK(w, map[string]interface{}{"game": atomicResult.Game, "exit": atomicResult.ExitResult, "credit": credit})
+		return
+	}
 	var credit reviews.CreditLog
-	if game.Status == "pending_confirm" || game.Status == "in_progress" || game.Status == "pending_review" || game.Status == "completed" {
+	if gameNeedsExitCredit(game.Status) {
 		credit = s.reviews.DeductCredit(userID, id, exitCreditReason(game.Status))
 	}
 	result, err := s.games.ExitWithCredit(userID, id, credit.ID)
@@ -5154,6 +5181,10 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 	}
 	s.createExitNotifications(result, 0)
 	httpx.OK(w, map[string]interface{}{"game": result.Game, "exit": result})
+}
+
+func gameNeedsExitCredit(status string) bool {
+	return status == "pending_confirm" || status == "in_progress" || status == "pending_review" || status == "completed"
 }
 
 func exitCreditReason(status string) string {

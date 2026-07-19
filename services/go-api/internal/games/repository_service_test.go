@@ -76,6 +76,25 @@ func TestGameRepositoryPersistsCoreFlow(t *testing.T) {
 	}
 }
 
+func TestExitWithCreditMutationUsesAtomicRepositoryCapability(t *testing.T) {
+	repo := newFakeGameRepository()
+	service := NewServiceWithRepositories(fakeIdentity{verified: true}, repo, nil)
+	game, err := service.Create(1, CreateRequest{Title: "atomic exit", GameType: "free", MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.ExitWithCreditMutation(1, game.ID, "quit_after_started", "quit_after_started", ExitCreditMutation{ChangeValue: -10, Reason: "quit_after_started"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ChangeValue != -10 || result.BeforeScore != 100 || result.AfterScore != 90 || result.CreditLogID == 0 {
+		t.Fatalf("unexpected atomic credit result: %+v", result)
+	}
+	if result.Game.CurrentPlayers != 0 || service.IsMember(game.ID, 1) {
+		t.Fatalf("atomic exit did not update membership and capacity: %+v", result)
+	}
+}
+
 type fakeGameRepository struct {
 	nextGameID         int64
 	nextApplicationID  int64
@@ -166,6 +185,29 @@ func (r *fakeGameRepository) DeleteMember(ctx context.Context, gameID int64, use
 func (r *fakeGameRepository) UpdateMemberExitCredit(ctx context.Context, gameID int64, userID int64, creditDeducted bool, creditLogID int64) error {
 	r.updatedExitCredit = true
 	return nil
+}
+
+func (r *fakeGameRepository) ExitGameWithCredit(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string, mutation ExitCreditMutation) (ExitCreditResult, error) {
+	game, ok := r.games[gameID]
+	if !ok {
+		return ExitCreditResult{}, ErrGameNotFound
+	}
+	if !r.members[gameID][userID] {
+		return ExitCreditResult{}, ErrForbidden
+	}
+	delete(r.members[gameID], userID)
+	if game.CurrentPlayers > 0 {
+		game.CurrentPlayers--
+	}
+	r.games[gameID] = game
+	return ExitCreditResult{
+		ExitResult:  ExitResult{Game: game, GameID: gameID, UserID: userID, Reason: reason, CreditDeduct: true, CreditDeducted: true, CreditLogID: 1, MemberStatus: memberStatus},
+		CreditLogID: 1,
+		BeforeScore: 100,
+		AfterScore:  100 + mutation.ChangeValue,
+		ChangeValue: mutation.ChangeValue,
+		CreatedAt:   time.Now(),
+	}, nil
 }
 
 func (r *fakeGameRepository) ListMembers(ctx context.Context, gameID int64) ([]int64, error) {

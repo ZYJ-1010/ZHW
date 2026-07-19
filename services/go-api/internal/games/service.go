@@ -174,6 +174,24 @@ type ExitResult struct {
 	MemberStatus   string `json:"memberStatus"`
 }
 
+// ExitCreditMutation is the domain-neutral input used by the SQL exit
+// transaction. The credit rule is resolved by the reviews service, while the
+// games repository commits the credit ledger together with membership and
+// capacity changes.
+type ExitCreditMutation struct {
+	ChangeValue int
+	Reason      string
+}
+
+type ExitCreditResult struct {
+	ExitResult
+	CreditLogID int64
+	BeforeScore int
+	AfterScore  int
+	ChangeValue int
+	CreatedAt   time.Time
+}
+
 // ExitWithCredit records the credit-log linkage immediately after the member
 // exit. Callers should pre-create the credit log and compensate it on error;
 // this method keeps the linkage step in the games service for every backend
@@ -192,6 +210,29 @@ func (s *Service) ExitWithCredit(userID int64, gameID int64, creditLogID int64) 
 		}
 		result.CreditLogID = creditLogID
 	}
+	return result, nil
+}
+
+// ExitWithCreditMutation uses one repository transaction when the production
+// SQL repository is available. The in-memory test implementation keeps using
+// the legacy Exit path; production callers only enter this method when the
+// atomic repository capability is present.
+func (s *Service) ExitWithCreditMutation(userID int64, gameID int64, memberStatus string, reason string, mutation ExitCreditMutation) (ExitCreditResult, error) {
+	atomicRepo, ok := s.repo.(exitCreditAtomicRepository)
+	if !ok {
+		return ExitCreditResult{}, ErrInvalidGameInput
+	}
+	result, err := atomicRepo.ExitGameWithCredit(context.Background(), gameID, userID, memberStatus, reason, mutation)
+	if err != nil {
+		return ExitCreditResult{}, err
+	}
+	s.mu.Lock()
+	delete(s.members[gameID], userID)
+	if s.memberRoles[gameID] != nil {
+		delete(s.memberRoles[gameID], userID)
+	}
+	s.games[gameID] = result.Game
+	s.mu.Unlock()
 	return result, nil
 }
 
@@ -381,6 +422,10 @@ type approvalGameRepository interface {
 
 type exitAtomicRepository interface {
 	ExitGame(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string) (Game, error)
+}
+
+type exitCreditAtomicRepository interface {
+	ExitGameWithCredit(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string, mutation ExitCreditMutation) (ExitCreditResult, error)
 }
 
 type memberRoleRepository interface {
@@ -3123,6 +3168,10 @@ func exitMemberStatus(status string) string {
 	default:
 		return "quit_before_confirm"
 	}
+}
+
+func ExitMemberStatusForGame(status string) string {
+	return exitMemberStatus(status)
 }
 
 func (s *Service) ApplicationsForUser(userID int64) []Application {

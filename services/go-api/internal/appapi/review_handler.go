@@ -31,6 +31,7 @@ type reviewService interface {
 	Footprints(userID int64) []reviews.Footprint
 	AllFootprints() []reviews.Footprint
 	DeductCredit(userID int64, gameID int64, reason string) reviews.CreditLog
+	CreditDeductionValue(reason string) int
 	RestoreCredit(userID int64, gameID int64, reason string, amount int) reviews.CreditLog
 	TraceByUser(userID int64) reviews.Trace
 	TraceByGame(gameID int64) reviews.Trace

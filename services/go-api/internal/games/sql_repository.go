@@ -174,6 +174,129 @@ where game_id = $1 and user_id = $2 and status = 'active'
 	return r.GetGame(ctx, gameID)
 }
 
+// ExitGameWithCredit commits the member exit, capacity decrement, daily
+// credit score and credit ledger in one PostgreSQL transaction. The game row
+// and the user's daily score are both locked before any mutation is applied.
+func (r *SQLRepository) ExitGameWithCredit(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string, mutation ExitCreditMutation) (ExitCreditResult, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ExitCreditResult{}, err
+	}
+	defer tx.Rollback()
+	if memberStatus == "" {
+		memberStatus = "quit"
+	}
+	if reason == "" {
+		reason = "quit_after_started"
+	}
+	now := time.Now()
+	scoreDate := now.Format("2006-01-02")
+	var currentPlayers int
+	var ignoredStatus string
+	if err := tx.QueryRowContext(ctx, `select current_players, status from games where id = $1 for update`, gameID).Scan(&currentPlayers, &ignoredStatus); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ExitCreditResult{}, ErrGameNotFound
+		}
+		return ExitCreditResult{}, err
+	}
+	var currentMemberStatus string
+	if err := tx.QueryRowContext(ctx, `select status from game_members where game_id = $1 and user_id = $2 for update`, gameID, userID).Scan(&currentMemberStatus); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ExitCreditResult{}, ErrForbidden
+		}
+		return ExitCreditResult{}, err
+	}
+	if currentMemberStatus != "active" {
+		return ExitCreditResult{}, ErrForbidden
+	}
+	if mutation.Reason != "" {
+		reason = mutation.Reason
+	}
+	if mutation.ChangeValue > 0 {
+		mutation.ChangeValue = 0
+	}
+	var beforeScore int
+	if err := tx.QueryRowContext(ctx, `
+insert into daily_credit_scores (user_id, score_date, current_score, created_at, updated_at)
+values ($1,$2,100,now(),now())
+on conflict (user_id, score_date) do update set current_score = daily_credit_scores.current_score
+returning current_score
+`, userID, scoreDate).Scan(&beforeScore); err != nil {
+		return ExitCreditResult{}, err
+	}
+	// The INSERT ... RETURNING above locks the conflicting row for the
+	// statement; explicitly lock it again for clarity and concurrent updates.
+	if err := tx.QueryRowContext(ctx, `select current_score from daily_credit_scores where user_id = $1 and score_date = $2 for update`, userID, scoreDate).Scan(&beforeScore); err != nil {
+		return ExitCreditResult{}, err
+	}
+	afterScore := beforeScore + mutation.ChangeValue
+	if afterScore < 0 {
+		afterScore = 0
+	}
+	if _, err := tx.ExecContext(ctx, `
+update daily_credit_scores set current_score = $3, updated_at = now()
+where user_id = $1 and score_date = $2
+`, userID, scoreDate, afterScore); err != nil {
+		return ExitCreditResult{}, err
+	}
+	var creditLogID int64
+	if err := tx.QueryRowContext(ctx, `
+insert into credit_logs (user_id, game_id, change_value, before_score, after_score, reason, created_at)
+values ($1,$2,$3,$4,$5,$6,$7)
+returning id
+`, userID, nullInt64(gameID), afterScore-beforeScore, beforeScore, afterScore, reason, now).Scan(&creditLogID); err != nil {
+		return ExitCreditResult{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+insert into user_footprints (user_id, game_id, action, created_at)
+values ($1,$2,'credit_deducted',$3)
+`, userID, nullInt64(gameID), now); err != nil {
+		return ExitCreditResult{}, err
+	}
+	result, err := tx.ExecContext(ctx, `
+update game_members
+set status = $3, quit_reason = $4, credit_deducted = true, credit_log_id = $5
+where game_id = $1 and user_id = $2 and status = 'active'
+`, gameID, userID, memberStatus, reason, creditLogID)
+	if err != nil {
+		return ExitCreditResult{}, err
+	}
+	if affected, _ := result.RowsAffected(); affected != 1 {
+		return ExitCreditResult{}, ErrForbidden
+	}
+	if currentPlayers > 0 {
+		currentPlayers--
+	}
+	if _, err := tx.ExecContext(ctx, `update games set current_players = $2, updated_at = now() where id = $1`, gameID, currentPlayers); err != nil {
+		return ExitCreditResult{}, err
+	}
+	game, err := scanGame(tx.QueryRowContext(ctx, gameSelectSQL()+` where id = $1`, gameID))
+	if err != nil {
+		return ExitCreditResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ExitCreditResult{}, err
+	}
+	return ExitCreditResult{
+		ExitResult:  ExitResult{Game: game, GameID: gameID, UserID: userID, Reason: reason, CreditDeduct: true, CreditDeducted: true, CreditLogID: creditLogID, MemberStatus: memberStatus},
+		CreditLogID: creditLogID,
+		BeforeScore: beforeScore,
+		AfterScore:  afterScore,
+		ChangeValue: afterScore - beforeScore,
+		CreatedAt:   now,
+	}, nil
+}
+
+func gameSelectSQL() string {
+	return `select id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
+  cover_image, description, highlights, notice, audience, participation, price, profit_template,
+  start_at, end_at, signup_start_at, signup_end_at, tags, completion_rules,
+  primary_category, primary_category_text, secondary_category, secondary_category_text, type,
+  min_players, max_players, current_players, city_code, city_name, address,
+  longitude, latitude, created_at, reject_reason, start_reason, started_by_user_id, started_at
+from games`
+}
+
 func (r *SQLRepository) GetGame(ctx context.Context, gameID int64) (Game, error) {
 	game, err := scanGame(r.db.QueryRowContext(ctx, `
 select id, creator_user_id, main_guide_user_id, title, game_type, game_source, status,
