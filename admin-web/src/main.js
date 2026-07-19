@@ -3517,10 +3517,10 @@ function renderGameCategoryConfig() {
   const config = state.gameCategoryConfig || {};
   $("#game-category-config-panel").innerHTML = [
     detailCell("首页分类", `${(config.primaryCategories || []).length} 类`),
-    detailCell("局型筛选", mergeGameTypeOptions(config.typeFilters).map((item) => item.name).join("、")),
+    detailCell("局类别筛选", mergeGameTypeOptions(config.typeFilters).map((item) => item.name).join("、")),
     detailCell("位置筛选", `${(config.locationFilters || []).length} 项`),
     detailCell("默认分类", categoryName(config.primaryCategories, config.defaultPrimaryCategory)),
-    detailCell("默认局型", gameTypeLabel(config.defaultType)),
+    detailCell("默认局类别", gameTypeLabel(config.defaultType)),
   ].join("");
 }
 
@@ -3656,7 +3656,7 @@ function renderGameAuditConfig() {
   const config = state.gameAuditConfig || {};
   $("#game-audit-config-panel").innerHTML = [
     detailCell("普通局自动审核", yesNo(config.autoApproveFreeGames)),
-    detailCell("需人工审核局型", compactList((config.requireManualAuditTypes || []).map(gameTypeLabel)) || "无"),
+    detailCell("需人工审核局类别", compactList((config.requireManualAuditTypes || []).map(gameTypeLabel)) || "无"),
     detailCell("驳回必须填写原因", yesNo(config.requiredRejectReason)),
     detailCell("入局审核模式", applicationAuditModeLabel(config.applicationAuditMode)),
     detailCell("批量审核上限", `${config.batchAuditMaxCount ?? 0} 条`),

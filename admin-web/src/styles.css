@@ -144,6 +144,10 @@ button {
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
   border-right: 1px solid var(--line);
   background: var(--surface);
   padding: calc(var(--space) * 2);
@@ -258,15 +262,24 @@ nav button[data-view]:hover,
 
 .workspace {
   min-width: 0;
-  padding: calc(var(--space) * 3);
+  max-width: 1760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: calc(var(--space) * 3) calc(var(--space) * 4);
 }
 
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: calc(var(--space) * 2);
   margin-bottom: calc(var(--space) * 3);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--canvas) 94%, transparent);
+  padding: calc(var(--space) * 2) 0;
 }
 
 .topbar h1 {
@@ -370,7 +383,7 @@ nav button[data-view]:hover,
   justify-content: flex-start;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--line);
-  padding-bottom: var(--space);
+  padding: 0 0 var(--space);
 }
 
 .section-tabs button {
@@ -394,6 +407,20 @@ nav button[data-view]:hover,
   padding: 0 10px;
 }
 
+.system-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space);
+}
+
+.system-tabs button {
+  width: 100%;
+  text-align: center;
+}
+
 .panel,
 .metric-card {
   border: 1px solid var(--line);
@@ -402,7 +429,8 @@ nav button[data-view]:hover,
 }
 
 .panel {
-  padding: calc(var(--space) * 2);
+  padding: calc(var(--space) * 2.5);
+  box-shadow: 0 1px 2px rgba(23, 27, 34, 0.025);
 }
 
 .panel-head {
@@ -504,13 +532,17 @@ nav button[data-view]:hover,
 }
 
 .filter-strip {
-  grid-template-columns: minmax(180px, 1.3fr) minmax(140px, 0.9fr) minmax(140px, 0.9fr) 96px minmax(132px, auto);
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
   align-items: center;
   margin-bottom: calc(var(--space) * 2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-2);
   padding: var(--space);
+}
+
+.filter-strip > input {
+  min-width: min(260px, 100%);
 }
 
 .filter-strip input,
@@ -1176,8 +1208,20 @@ tbody tr:hover {
   }
 
   .sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  .workspace {
+    padding: calc(var(--space) * 2.5);
+  }
+
+  .topbar {
+    position: static;
+    background: transparent;
   }
 
   nav {
@@ -1202,5 +1246,16 @@ tbody tr:hover {
 
   .admin-drawer {
     width: 100vw;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1180px) {
+  .metric-grid,
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace {
+    padding: calc(var(--space) * 3);
   }
 }
