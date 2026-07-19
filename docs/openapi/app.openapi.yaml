@@ -2821,6 +2821,17 @@ paths:
         "200":
           description: Unified response payload
 
+  /api/app/identity/realname/restart:
+    post:
+      summary: Restart real-name verification
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Identity operation forbidden
+
 components:
   securitySchemes:
     bearerAuth:

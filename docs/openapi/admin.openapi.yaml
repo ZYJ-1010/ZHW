@@ -1843,6 +1843,59 @@ paths:
         "200":
           description: Unified response payload
 
+  /api/admin/roles/grant:
+    post:
+      summary: Grant an expert or guide role by user id
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
+  /api/admin/growth/reward-rules:
+    get:
+      summary: Read growth and points reward rules
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    put:
+      summary: Update growth and points reward rules
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "422":
+          description: Invalid configuration
+  /api/admin/operation-rules:
+    get:
+      summary: Read unified operation rules
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    put:
+      summary: Update unified operation rules
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "422":
+          description: Invalid configuration
+  /api/admin/avatar-audits:
+    get:
+      summary: List avatar audit records
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+
   /health:
     get:
       summary: 服务健康检查

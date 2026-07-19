@@ -1348,7 +1348,11 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 
 	record := s.identity.Status(resp.User.ID)
 	resp.IdentityBindStatus = string(record.Status)
-	resp.RequiresIdentityBinding = !s.identity.IsVerified(resp.User.ID)
+	// Players may use the basic invite, browse and join flows without strong
+	// identity. Only users operating an active expert/guide role are gated by
+	// real-name verification; role application endpoints still validate the
+	// requirement server-side.
+	resp.RequiresIdentityBinding = s.requiresRoleIdentity(resp.User.ID) && !s.identity.IsVerified(resp.User.ID)
 	if !resp.RequiresIdentityBinding {
 		session, err := s.auth.IssueAppToken(resp.User.ID)
 		if err != nil {
@@ -1380,6 +1384,17 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		InviteBindingStatus:     resp.InviteBindingStatus,
 		InviteBindingMessage:    resp.InviteBindingMessage,
 	})
+}
+
+func (s *Server) requiresRoleIdentity(userID int64) bool {
+	snapshot := s.profiles.RoleSnapshot(userID)
+	for _, role := range []string{"expert", "guide", "main_guide"} {
+		status := snapshot.RoleStatusMap[role]
+		if status == "active" || status == "approved" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) phoneLogin(w http.ResponseWriter, r *http.Request) {

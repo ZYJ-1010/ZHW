@@ -80,7 +80,7 @@ func main() {
 		AdminUserID: cfg.OpenIM.AdminUserID,
 		Enabled:     cfg.OpenIM.Enabled,
 	})
-	gameService.UseRoomEnsurer(imService)
+	gameService.UseRoomEnsurer(roomEnsurerAdapter{service: imService})
 	if db != nil {
 		imService.UseRepository(im.NewSQLRepository(db))
 	}
@@ -121,6 +121,16 @@ func main() {
 	handler := httpx.AccessLog(httpx.RequestID(mux), nil)
 	if err := http.ListenAndServe(cfg.HTTPAddr, handler); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// roomEnsurerAdapter keeps the games package independent from the IM return
+// type. The games lifecycle only needs the side effect of ensuring a room.
+type roomEnsurerAdapter struct{ service *im.Service }
+
+func (a roomEnsurerAdapter) EnsureRoom(gameID int64) {
+	if a.service != nil {
+		_ = a.service.EnsureRoom(gameID)
 	}
 }
 
