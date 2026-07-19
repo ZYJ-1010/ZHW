@@ -52,16 +52,16 @@ func TestCreateRejectsPlayersOutsideFiveToEight(t *testing.T) {
 func TestReviewApplicationRejectsMemberAboveMaxPlayers(t *testing.T) {
 	service := newVerifiedGameService()
 	game := mustCreateRecruitingGame(t, service)
-	mustApproveMembers(t, service, game.ID, 2, 3, 4, 5, 6, 7, 8)
+	mustApproveMembers(t, service, game.ID, 2, 3, 4, 5)
 
 	fullGame, err := service.Get(game.ID)
 	if err != nil {
 		t.Fatalf("get full game failed: %v", err)
 	}
-	if fullGame.CurrentPlayers != MaxGamePlayers || fullGame.Status != "full" {
-		t.Fatalf("expected full game at max players, got %+v", fullGame)
+	if fullGame.CurrentPlayers != game.MinPlayers || fullGame.Status != "full" {
+		t.Fatalf("expected auto-formed game at min players, got %+v", fullGame)
 	}
-	if app, err := service.Apply(9, game.ID, ApplyRequest{Reason: "join"}); err != ErrGameNotRecruiting {
+	if app, err := service.Apply(6, game.ID, ApplyRequest{Reason: "join"}); err != ErrGameNotRecruiting {
 		t.Fatalf("expected ErrGameNotRecruiting after full game closes recruiting, got app=%+v err=%v", app, err)
 	}
 }

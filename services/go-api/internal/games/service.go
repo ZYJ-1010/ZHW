@@ -1438,8 +1438,8 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		}
 		s.memberRoles[game.ID][app.UserID] = memberRole
 		game.CurrentPlayers++
-		if game.CurrentPlayers >= game.MaxPlayers {
-			if err := s.transitionStatusLocked(&game, StatusFull, operatorUserID, "达到人数上限"); err != nil {
+		if game.CurrentPlayers >= game.MinPlayers {
+			if err := s.transitionStatusLocked(&game, StatusFull, operatorUserID, "达到成团人数"); err != nil {
 				return Application{}, err
 			}
 		}

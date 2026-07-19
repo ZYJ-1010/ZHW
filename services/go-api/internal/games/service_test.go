@@ -72,6 +72,35 @@ func TestReviewApplicationCreatesRoomWhenGameBecomesFull(t *testing.T) {
 	}
 }
 
+func TestReviewApplicationAutoFormsAtMinimumPlayers(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	ensurer := &recordingRoomEnsurer{}
+	service.UseRoomEnsurer(ensurer)
+	game, err := service.Create(1, CreateRequest{Title: "达到人数自动成团", GameType: "free", MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []int64{2, 3, 4, 5} {
+		app, applyErr := service.Apply(userID, game.ID, ApplyRequest{Reason: "join"})
+		if applyErr != nil {
+			t.Fatal(applyErr)
+		}
+		if _, reviewErr := service.ReviewApplication(1, app.ID, true); reviewErr != nil {
+			t.Fatal(reviewErr)
+		}
+	}
+	formed, err := service.Get(game.ID)
+	if err != nil || formed.Status != StatusFull || formed.CurrentPlayers != formed.MinPlayers {
+		t.Fatalf("expected auto formed game at minimum players, got %+v err=%v", formed, err)
+	}
+	if len(ensurer.gameIDs) != 1 || ensurer.gameIDs[0] != game.ID {
+		t.Fatalf("expected one room ensure after auto formation, got %+v", ensurer.gameIDs)
+	}
+}
+
 func TestCreateRequiresValidGameTime(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	base := CreateRequest{Title: "测试局", GameType: "free", MinPlayers: 5, MaxPlayers: 8}
