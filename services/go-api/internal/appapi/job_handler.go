@@ -16,6 +16,9 @@ func (s *Server) runReviewRemindJob(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		for _, userID := range s.games.Members(game.ID) {
+			if s.hasUnreadJobNotification(userID, "review_remind", game.ID) {
+				continue
+			}
 			todos, err := s.reviews.Todos(userID)
 			if err != nil {
 				continue
@@ -51,6 +54,9 @@ func (s *Server) runProgressFeedbackRemindJob(w http.ResponseWriter, r *http.Req
 		if game.Status != "in_progress" && game.Status != "pending_confirm" {
 			continue
 		}
+		if s.hasUnreadJobNotification(game.CreatorUserID, "progress_feedback_remind", game.ID) {
+			continue
+		}
 		s.notices.Create(notifications.CreateRequest{
 			UserID:     game.CreatorUserID,
 			NotifyType: "progress_feedback_remind",
@@ -67,6 +73,15 @@ func (s *Server) runProgressFeedbackRemindJob(w http.ResponseWriter, r *http.Req
 		created++
 	}
 	httpx.OK(w, map[string]interface{}{"created": created})
+}
+
+func (s *Server) hasUnreadJobNotification(userID int64, notifyType string, bizID int64) bool {
+	for _, item := range s.notices.List(userID) {
+		if item.NotifyType == notifyType && item.BizID == bizID && item.Status == "unread" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
