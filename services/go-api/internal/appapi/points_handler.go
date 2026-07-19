@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/notifications"
 	"zhw-mini/services/go-api/internal/points"
 	"zhw-mini/services/go-api/internal/redemption"
 )
@@ -382,6 +383,13 @@ func (s *Server) reviewAdminRedemptionOrder(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		writeRedemptionError(w, err)
 		return
+	}
+	if order.Status == "rejected" {
+		s.notices.Create(notifications.CreateRequest{
+			UserID: order.UserID, NotifyType: "redemption_order_rejected", Title: "兑换订单未通过",
+			Content: "你的兑换订单未通过审核。原因：" + order.ReviewReason,
+			BizType: "redemption_order", BizID: order.ID,
+		})
 	}
 	s.recordOperation(r, "redemption:order:review", "redemption_order", strconv.FormatInt(order.ID, 10), map[string]interface{}{"status": order.Status, "reason": order.ReviewReason})
 	httpx.OK(w, order)

@@ -1417,7 +1417,9 @@ async function renderAudits() {
         await loadIdentities();
       }
       if (button.dataset.action === "identity-reject") {
-        await reviewIdentityVerification(button.dataset.userId, false, "姓名或身份证号需要重新核对");
+        const reason = askRejectReason("请输入实名认证驳回原因");
+        if (!reason) return;
+        await reviewIdentityVerification(button.dataset.userId, false, reason);
         toast("实名认证已驳回");
         await loadIdentities();
       }
@@ -1427,7 +1429,9 @@ async function renderAudits() {
         await loadEnterpriseCertifications();
       }
       if (button.dataset.action === "enterprise-certification-reject") {
-        await reviewEnterpriseCertification(button.dataset.userId, false, "企业认证材料需要重新核对");
+        const reason = askRejectReason("请输入企业认证驳回原因");
+        if (!reason) return;
+        await reviewEnterpriseCertification(button.dataset.userId, false, reason);
         toast("企业认证已驳回");
         await loadEnterpriseCertifications();
       }
@@ -1438,7 +1442,9 @@ async function renderAudits() {
         await loadAvatarAudits();
       }
       if (button.dataset.action === "avatar-reject") {
-        await reviewAvatarAudit(button.dataset.userId, false, "头像不符合平台展示规范");
+        const reason = askRejectReason("请输入头像驳回原因");
+        if (!reason) return;
+        await reviewAvatarAudit(button.dataset.userId, false, reason);
         toast("头像已驳回");
         await loadAvatarAudits();
       }
@@ -1449,7 +1455,9 @@ async function renderAudits() {
         await loadRoles();
       }
       if (button.dataset.action === "role-reject") {
-        await reviewRoleApplication(button.dataset.id, false, "后台驳回：材料不完整");
+        const reason = askRejectReason("请输入角色申请驳回原因");
+        if (!reason) return;
+        await reviewRoleApplication(button.dataset.id, false, reason);
         toast("角色申请已驳回");
         await loadRoles();
       }
@@ -1731,7 +1739,9 @@ function showAvatarAuditDetail(userID) {
     button.addEventListener("click", async () => {
       const approve = button.dataset.action === "avatar-approve";
       try {
-        await reviewAvatarAudit(button.dataset.userId, approve, approve ? "后台审核通过" : "头像不符合平台展示规范");
+        const reason = approve ? "后台审核通过" : askRejectReason("请输入头像驳回原因");
+        if (!reason) return;
+        await reviewAvatarAudit(button.dataset.userId, approve, reason);
         toast(approve ? "头像已通过" : "头像已驳回");
         closeAdminDrawer();
         await loadAvatarAudits();
@@ -2177,9 +2187,14 @@ async function onRedemptionOrderClick(event) {
     return;
   }
   const approve = button.dataset.action === "redemption-order-approve";
-  const payload = button.dataset.status
-    ? { status: button.dataset.status, reason: button.dataset.reason || "admin review" }
-    : { approve, reason: approve ? "admin approve" : "admin reject" };
+  let payload;
+  if (button.dataset.status) {
+    payload = { status: button.dataset.status, reason: button.dataset.reason || "后台处理" };
+  } else {
+    const reason = approve ? "后台审核通过" : askRejectReason("请输入兑换订单驳回原因");
+    if (!reason) return;
+    payload = { approve, reason };
+  }
   try {
     await apiPost(`/api/admin/redemption/orders/${button.dataset.id}/review`, payload);
     toast("兑换订单已处理");
@@ -2548,7 +2563,9 @@ async function onReportsTableClick(event) {
       await loadReports();
     }
     if (button.dataset.action === "credit-appeal-reject") {
-      await apiPost(`/api/admin/reports/${button.dataset.id}/handle`, { result: "信用申诉驳回，维持原处理结果", outcome: "appeal_rejected" });
+      const reason = askRejectReason("请输入信用申诉驳回原因");
+      if (!reason) return;
+      await apiPost(`/api/admin/reports/${button.dataset.id}/handle`, { result: reason, outcome: "appeal_rejected" });
       toast("信用申诉已驳回");
       await loadReports();
     }
@@ -6263,6 +6280,16 @@ function renderNoAccess(selector, message) {
   if (element) {
     element.innerHTML = emptyBlock(humanMessage(message || "无权限访问"));
   }
+}
+
+function askRejectReason(title = "请输入驳回原因") {
+  const value = window.prompt(title);
+  const reason = String(value || "").trim();
+  if (!reason) {
+    toast("拒绝必须填写原因", true);
+    return "";
+  }
+  return reason;
 }
 
 function toast(message, isError = false) {

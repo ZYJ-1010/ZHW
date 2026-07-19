@@ -403,6 +403,8 @@ func (s *Server) reviewIdentityVerification(w http.ResponseWriter, r *http.Reque
 			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "identity record not found")
 		case errors.Is(err, identity.ErrRealnameRequired):
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "identity material missing")
+		case errors.Is(err, identity.ErrReviewReasonRequired):
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
 		default:
 			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "review identity failed")
 		}

@@ -4384,6 +4384,7 @@ func TestSystemProfileAvatarUsesOwnedFileAndReturnsURL(t *testing.T) {
 	if !strings.Contains(string(listBody), `"status":"pending"`) {
 		t.Fatalf("expected pending avatar audit in admin list: %s", string(listBody))
 	}
+	postAdminJSON(t, mux, "/api/admin/avatar-audits/"+strconv.FormatInt(userID, 10)+"/review", adminToken, `{"approve":false,"reason":""}`, http.StatusUnprocessableEntity)
 	postAdminJSON(t, mux, "/api/admin/avatar-audits/"+strconv.FormatInt(userID, 10)+"/review", adminToken, `{"approve":true,"reason":"ok"}`, http.StatusOK)
 
 	homeBody = getJSON(t, mux, "/api/app/profile/home", token, http.StatusOK)

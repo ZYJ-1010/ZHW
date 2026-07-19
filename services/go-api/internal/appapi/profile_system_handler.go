@@ -227,6 +227,11 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	reason := strings.TrimSpace(firstNonEmpty(req.Reason, req.Remark))
+	if !req.Approve && reason == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
+		return
+	}
 	payload := s.profiles.SystemManagementConfig(userID, "profile-info", s.defaultSystemProfileInfo(userID))
 	personal, ok := objectField(payload, "personalInfo")
 	if !ok {
@@ -257,7 +262,7 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 	} else {
 		personal["avatarAuditStatus"] = "rejected"
 		personal["avatarAuditText"] = "已驳回"
-		personal["avatarAuditReason"] = strings.TrimSpace(firstNonEmpty(req.Reason, req.Remark))
+		personal["avatarAuditReason"] = reason
 		personal["rejectedAvatarFileId"] = pendingFileID
 		personal["rejectedAvatarUrl"] = avatarURL
 	}
@@ -265,9 +270,19 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 	delete(personal, "pendingAvatarUrl")
 	payload["personalInfo"] = personal
 	saved := s.profiles.SaveSystemManagementConfig(userID, "profile-info", payload)
+	notifyTitle := "头像审核已通过"
+	notifyContent := "你的头像已通过审核，已更新为正式头像。"
+	notifyType := "avatar_review_approved"
+	if !req.Approve {
+		notifyTitle = "头像审核未通过"
+		notifyContent = "你的头像未通过审核。原因：" + reason
+		notifyType = "avatar_review_rejected"
+	}
+	s.notices.Create(notifications.CreateRequest{UserID: userID, NotifyType: notifyType, Title: notifyTitle, Content: notifyContent, BizType: "avatar_audit", BizID: userID})
 	s.recordOperation(r, "avatar:review", "user", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"approve": req.Approve,
 		"fileId":  pendingFileID,
+		"reason":  reason,
 	})
 	httpx.OK(w, s.withCurrentProfileAvatar(userID, saved))
 }

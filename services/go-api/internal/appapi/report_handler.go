@@ -367,6 +367,10 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 	}
 	var req reports.HandleRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
+	if reportHandleReasonRequired(req.Outcome) && strings.TrimSpace(req.Result) == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
+		return
+	}
 	req.AdminID = parseInt64Header(r, "X-Admin-ID")
 	before, _ := s.reports.Get(reportID)
 	report, err := s.reports.Handle(reportID, req)
@@ -394,7 +398,7 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		UserID:      report.ReporterUserID,
 		NotifyType:  "report_handled",
 		Title:       "举报申诉已处理",
-		Content:     "你的举报申诉已有处理结果，请进入小程序查看。",
+		Content:     reportNotificationContent(report),
 		BizType:     "report",
 		BizID:       report.ID,
 		NeedWechat:  true,
@@ -672,6 +676,10 @@ func (s *Server) batchHandleReports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.AdminID = adminID
+	if req.Action == "handle" && reportHandleReasonRequired(req.Outcome) && strings.TrimSpace(req.Result) == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
+		return
+	}
 	if req.HandlerAdminID <= 0 {
 		req.HandlerAdminID = adminID
 	}
@@ -693,6 +701,9 @@ func (s *Server) batchHandleReports(w http.ResponseWriter, r *http.Request) {
 			result.Status = report.Status
 			success++
 			s.recordOperation(r, "report:batch_"+req.Action, "report", strconv.FormatInt(reportID, 10), map[string]interface{}{"status": report.Status, "adminId": req.AdminID})
+			if req.Action == "handle" {
+				s.notices.Create(notifications.CreateRequest{UserID: report.ReporterUserID, NotifyType: "report_handled", Title: "举报申诉已处理", Content: reportNotificationContent(report), BizType: "report", BizID: report.ID})
+			}
 		}
 		results = append(results, result)
 	}
@@ -702,6 +713,23 @@ func (s *Server) batchHandleReports(w http.ResponseWriter, r *http.Request) {
 		"failed":  len(results) - success,
 		"total":   len(results),
 	})
+}
+
+func reportHandleReasonRequired(outcome string) bool {
+	switch strings.TrimSpace(outcome) {
+	case "appeal_rejected", "malicious":
+		return true
+	default:
+		return false
+	}
+}
+
+func reportNotificationContent(report reports.Report) string {
+	content := "你的举报申诉已有处理结果，请进入小程序查看。"
+	if strings.TrimSpace(report.HandleResult) != "" {
+		content += "处理说明：" + strings.TrimSpace(report.HandleResult)
+	}
+	return content
 }
 
 func reportBatchActionPermission(action string) (string, bool) {

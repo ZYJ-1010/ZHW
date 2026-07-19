@@ -106,6 +106,9 @@ func TestManualRealnameReviewFlow(t *testing.T) {
 	if service.IsVerified(userID) {
 		t.Fatal("pending manual realname must not be treated as verified")
 	}
+	if _, err := service.ReviewManualRealname(userID, false, " "); err != ErrReviewReasonRequired {
+		t.Fatalf("expected rejected review to require a reason, got %v", err)
+	}
 
 	record, err = service.ReviewManualRealname(userID, false, "retry")
 	if err != nil {

@@ -64,6 +64,9 @@ func TestHandleAndCloseReportUpdateStatus(t *testing.T) {
 	if assigned.Status != "assigned" || assigned.HandlerAdminID != 99 || assigned.HandleResult != "" || assigned.HandledAt != "" {
 		t.Fatalf("expected assigned report, got %+v", assigned)
 	}
+	if _, err := service.Handle(report.ID, HandleRequest{AdminID: 99, Outcome: "appeal_rejected"}); err != ErrInvalidReport {
+		t.Fatalf("expected rejected appeal to require a reason, got %v", err)
+	}
 
 	handled, err := service.Handle(report.ID, HandleRequest{AdminID: 99, Result: "notified"})
 	if err != nil {

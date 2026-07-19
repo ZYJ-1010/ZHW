@@ -23,18 +23,19 @@ import (
 )
 
 var (
-	ErrPhoneRequired     = errors.New("phone required")
-	ErrCodeInvalid       = errors.New("sms code invalid")
-	ErrPhoneNotVerified  = errors.New("phone not verified")
-	ErrFaceIDNotStarted  = errors.New("faceid not started")
-	ErrRealnameRequired  = errors.New("realname required")
-	ErrPhoneInvalid      = errors.New("phone invalid")
-	ErrIDCardInvalid     = errors.New("id card invalid")
-	ErrSMSRateLimited    = errors.New("sms code send rate limited")
-	ErrSMSDailyLimited   = errors.New("sms code send daily limited")
-	ErrSMSSendFailed     = errors.New("sms code send failed")
-	ErrFaceIDStartFailed = errors.New("faceid start failed")
-	ErrRecordNotFound    = errors.New("identity record not found")
+	ErrPhoneRequired        = errors.New("phone required")
+	ErrCodeInvalid          = errors.New("sms code invalid")
+	ErrPhoneNotVerified     = errors.New("phone not verified")
+	ErrFaceIDNotStarted     = errors.New("faceid not started")
+	ErrRealnameRequired     = errors.New("realname required")
+	ErrPhoneInvalid         = errors.New("phone invalid")
+	ErrIDCardInvalid        = errors.New("id card invalid")
+	ErrSMSRateLimited       = errors.New("sms code send rate limited")
+	ErrSMSDailyLimited      = errors.New("sms code send daily limited")
+	ErrSMSSendFailed        = errors.New("sms code send failed")
+	ErrFaceIDStartFailed    = errors.New("faceid start failed")
+	ErrRecordNotFound       = errors.New("identity record not found")
+	ErrReviewReasonRequired = errors.New("review reason required")
 )
 
 const (
@@ -345,6 +346,9 @@ func (s *Service) SubmitManualRealname(userID int64, realName string, idCard str
 
 func (s *Service) ReviewManualRealname(userID int64, approve bool, reason string) (Record, error) {
 	reason = strings.TrimSpace(reason)
+	if !approve && reason == "" {
+		return Record{}, ErrReviewReasonRequired
+	}
 	s.mu.Lock()
 	record, ok := s.records[userID]
 	if !ok && s.repo != nil {
@@ -374,9 +378,6 @@ func (s *Service) ReviewManualRealname(userID int64, approve bool, reason string
 		record.FailureReason = ""
 	} else {
 		record.Status = StatusRejected
-		if reason == "" {
-			reason = "后台审核未通过"
-		}
 		record.FailureReason = reason
 	}
 	record.UpdatedAt = now()

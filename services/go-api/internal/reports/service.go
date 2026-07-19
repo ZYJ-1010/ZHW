@@ -445,6 +445,9 @@ func (s *Service) Handle(reportID int64, req HandleRequest) (Report, error) {
 	if len(req.Result) > 500 || req.Outcome == "invalid" || req.RewardPoints < 0 || req.CreditDeduct < 0 {
 		return Report{}, ErrInvalidReport
 	}
+	if (req.Outcome == "appeal_rejected" || req.Outcome == "malicious") && strings.TrimSpace(req.Result) == "" {
+		return Report{}, ErrInvalidReport
+	}
 	if s.repo != nil {
 		report, err := s.Get(reportID)
 		if err != nil {
