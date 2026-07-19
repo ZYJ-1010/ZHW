@@ -1896,6 +1896,15 @@ paths:
         "200":
           description: Unified response payload
 
+  /api/admin/pending-counts:
+    get:
+      summary: Read unified admin work-queue counts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+
   /health:
     get:
       summary: 服务健康检查

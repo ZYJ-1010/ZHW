@@ -566,6 +566,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/admin/content-risk/logs", s.requireAdminPermission("content:risk_log:view", s.adminContentRiskLogs))
 	handle("GET /api/admin/system/readiness", s.requireAdminPermission("system_config:read", s.adminSystemReadiness))
 	handle("GET /api/admin/dashboard", s.requireAdminPermission("analytics:funnel:view", s.adminDashboard))
+	handle("GET /api/admin/pending-counts", s.requireAdminPermission("analytics:funnel:view", s.adminPendingCounts))
 	handle("GET /api/admin/analytics/funnel", s.requireAdminPermission("analytics:funnel:view", s.adminFunnel))
 	handle("GET /api/admin/analytics/retention", s.requireAdminPermission("analytics:retention:view", s.adminRetention))
 	handle("GET /api/admin/behavior/events", s.requireAdminPermission("data:behavior:read", s.adminBehaviorEvents))

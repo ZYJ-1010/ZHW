@@ -318,6 +318,28 @@ async function renderDashboard() {
     gamesNavButton.setAttribute("data-pending-count", String(pendingGames));
   }
   setField("imRoomCount", state.imRooms.length);
+  try {
+    const pending = await apiGet("/api/admin/pending-counts");
+    const counts = pending.counts || {};
+    const navMap = {
+      games: "games",
+      reports: "reports",
+      redemption: "redemption",
+      audits: "audits",
+    };
+    Object.entries(navMap).forEach(([key, view]) => {
+      const button = document.querySelector(`#main-nav button[data-view="${view}"]`);
+      if (!button) return;
+      const count = view === "audits"
+        ? Number(counts.identity || 0) + Number(counts.enterprise || 0) + Number(counts.avatars || 0) + Number(counts.roles || 0)
+        : Number(counts[key] || 0);
+      button.classList.toggle("has-pending-dot", count > 0);
+      button.setAttribute("data-pending-count", String(count));
+    });
+  } catch (error) {
+    // Dashboard still renders when the optional aggregated counter permission
+    // is unavailable; individual module pages remain the source of truth.
+  }
   renderGameTypeBars(state.games);
   renderDashboardStatusBars(state.games);
   renderDashboardWorkQueue(state.games, state.imRooms);
