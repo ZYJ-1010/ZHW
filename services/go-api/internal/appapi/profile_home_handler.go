@@ -36,7 +36,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 	conns := s.connections.My(userID)
 	inviteRelations, _ := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
 	invitedConns := connectionsForInvitees(conns, inviteRelations)
-	income := s.revenue.IncomeSummary(userID)
+	income := s.phaseOneIncomeSummary(userID)
 	points := s.points.Summary(userID)
 	membership := s.membership.My(userID)
 	inProgressGameCount := countInProgressUserGames(userID, s.games.List(), s.games.IsMember)
@@ -54,6 +54,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 	avatarFileID, avatarURL := s.currentUserAvatar(userID)
 
 	serviceSections := s.profileHomeSections(reviewTodoCount, reportMessageCount, len(inviteRelations), inProgressGameCount, managedServiceCount)
+	revenueEnabled := s.currentOperationRules().Revenue.Enabled
 	if roles := s.profiles.RoleSnapshot(userID).RoleStatusMap; roles["expert"] != "approved" && roles["expert"] != "active" && roles["guide"] != "approved" && roles["guide"] != "active" {
 		for _, section := range serviceSections {
 			items, _ := section["items"].([]map[string]interface{})
@@ -64,6 +65,17 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 					item["disabledReason"] = "仅行家或领路人可使用邀请功能"
 				}
 			}
+		}
+	}
+
+	assetItems := []map[string]interface{}{
+		{"key": "totalDealAmount", "label": "总成交额", "value": moneyYuanText(income.TotalCent)},
+		{"key": "withdrawable", "label": "可提现", "value": moneyYuanText(income.SettledCent), "tone": "green"},
+		{"key": "pendingSettlement", "label": "待结算", "value": moneyYuanText(income.PendingCent), "tone": "orange"},
+	}
+	if !revenueEnabled {
+		for index := range assetItems {
+			assetItems[index]["label"] = assetItems[index]["label"].(string) + "（未启用）"
 		}
 	}
 
@@ -87,11 +99,7 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 			{"key": "dealAmount", "label": "成交总额", "value": moneyYuanText(income.TotalCent)},
 			{"key": "credit", "label": "信用度", "value": strconv.Itoa(current.Growth.CreditScore)},
 		},
-		"assets": []map[string]interface{}{
-			{"key": "totalDealAmount", "label": "总成交额", "value": moneyYuanText(income.TotalCent)},
-			{"key": "withdrawable", "label": "可提现", "value": moneyYuanText(income.SettledCent), "tone": "green"},
-			{"key": "pendingSettlement", "label": "待结算", "value": moneyYuanText(income.PendingCent), "tone": "orange"},
-		},
+		"assets": assetItems,
 		"assetSummary": map[string]interface{}{
 			"totalDealAmountCent":   income.TotalCent,
 			"withdrawableCent":      income.SettledCent,
@@ -99,9 +107,9 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 			"points":                points.AvailablePoints,
 		},
 		"vipBanner": map[string]interface{}{
-			"text":       "升级会员，认证您的角色",
-			"actionText": "增购会员 >",
-			"route":      "/pages/profile/member/index",
+			"text":       "会员等级一期未启用",
+			"actionText": "查看角色条件 >",
+			"route":      "/pages/role/apply/index",
 		},
 		"serviceSections": serviceSections,
 		"badges": map[string]interface{}{

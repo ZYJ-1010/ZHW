@@ -87,10 +87,29 @@ func (s *Server) profileAssets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) buildProfileAssetsPayload(userID int64, orders []redemption.Order, reviewTodoCount int) map[string]interface{} {
-	income := s.revenue.IncomeSummary(userID)
+	income := s.phaseOneIncomeSummary(userID)
 	pointSummary := s.points.Summary(userID)
 	totalAssetCent := income.SettledCent + income.PendingCent
 	config := s.currentProfileAssetManageConfig()
+	if !s.currentOperationRules().Revenue.Enabled {
+		config.OverviewLabel = "资产（分润一期未启用）"
+		for index, item := range config.AssetStats {
+			switch item.Key {
+			case "totalDealAmount", "withdrawable", "pendingSettlement":
+				config.AssetStats[index].Label = item.Label + "（未启用）"
+			}
+		}
+		for index, item := range config.QuickActions {
+			if item.Key == "withdraw" || item.Key == "recharge" {
+				config.QuickActions[index].Enabled = false
+				config.QuickActions[index].DisabledReason = "一期未启用真实支付和分润"
+			}
+		}
+	}
+	incomeLogs := []revenue.IncomeLog{}
+	if s.currentOperationRules().Revenue.Enabled {
+		incomeLogs = s.revenue.IncomeLogs(userID, "")
+	}
 
 	return map[string]interface{}{
 		"overview": map[string]interface{}{
@@ -105,7 +124,7 @@ func (s *Server) buildProfileAssetsPayload(userID int64, orders []redemption.Ord
 		"menuItems":      profileAssetMenuItems(config.MenuItems, config.BankCards, 0),
 		"orderStatuses":  profileAssetOrderStatuses(config.OrderStatuses, orders, reviewTodoCount),
 		"recentOrders":   profileAssetRecentOrders(orders, 3),
-		"balanceRecords": profileAssetBalanceRecords(s.revenue.IncomeLogs(userID, ""), s.points.Logs(userID), 5),
+		"balanceRecords": profileAssetBalanceRecords(incomeLogs, s.points.Logs(userID), 5),
 		"bankCards": map[string]interface{}{
 			"count":        0,
 			"summaryText":  config.BankCards.UnboundText,

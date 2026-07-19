@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/revenue"
 )
 
 const operationRulesConfigKey = "operation.rules"
@@ -56,6 +57,7 @@ type operationRulesDTO struct {
 		PlayerEnabled  bool `json:"playerEnabled"`
 	} `json:"invite"`
 	Revenue struct {
+		Enabled             bool     `json:"enabled"`
 		AllowedStatuses     []string `json:"allowedStatuses"`
 		PendingTimeoutHours int      `json:"pendingTimeoutHours"`
 		RefundEnabled       bool     `json:"refundEnabled"`
@@ -101,6 +103,7 @@ func defaultOperationRules() operationRulesDTO {
 	}{InitialScore: 100, ExcellentThreshold: 95, RestrictedThreshold: 80, SuspendedThreshold: 60, MaxScore: 100}
 	config.Game.MinPlayers, config.Game.MaxPlayers, config.Game.DailyCreateLimit = 5, 8, 3
 	config.Invite.TimeoutMinutes, config.Invite.MaxPerGame, config.Invite.PlayerEnabled = 1440, 1, false
+	config.Revenue.Enabled = false
 	config.Revenue.AllowedStatuses = []string{"pending", "processing", "succeeded", "failed", "refunded", "disputed", "reversed"}
 	config.Revenue.PendingTimeoutHours, config.Revenue.RefundEnabled, config.Revenue.DisputeEnabled = 24, true, true
 	config.State.AuditTimeoutHours, config.State.RecruitingTimeoutHours, config.State.ReviewTimeoutHours, config.State.AutoCloseEnabled = 24, 72, 168, true
@@ -119,6 +122,13 @@ func (s *Server) currentOperationRules() operationRulesDTO {
 		}
 	}
 	return config
+}
+
+func (s *Server) phaseOneIncomeSummary(userID int64) revenue.IncomeSummary {
+	if !s.currentOperationRules().Revenue.Enabled {
+		return revenue.IncomeSummary{UserID: userID}
+	}
+	return s.revenue.IncomeSummary(userID)
 }
 
 func normalizeOperationRules(config operationRulesDTO) operationRulesDTO {

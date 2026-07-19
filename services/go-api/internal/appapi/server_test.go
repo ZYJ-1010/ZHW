@@ -8328,7 +8328,7 @@ func TestProfileAssetsHTTP(t *testing.T) {
 	if resp.Data.Overview.Value == "" || len(resp.Data.AssetStats) != 3 || len(resp.Data.OrderStatuses) != 5 || len(resp.Data.FAQLinks) == 0 {
 		t.Fatalf("expected profile assets aggregate: %s", string(body))
 	}
-	if resp.Data.Overview.Label != "总资产（元）" || resp.Data.ConfigVersion == "" {
+	if !strings.Contains(resp.Data.Overview.Label, "未启用") || resp.Data.ConfigVersion == "" {
 		t.Fatalf("expected profile asset manage config fields: %s", string(body))
 	}
 	if len(resp.Data.RecentOrders) != 1 || resp.Data.BankCards.SummaryText == "" {
