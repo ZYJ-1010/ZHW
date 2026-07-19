@@ -603,6 +603,8 @@ func (s *Server) submitRoleApplication(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
+	eligibility, _ := s.roleApplyEligibility(userID, req.RoleCode)
+	req.EligibilitySnapshot = roleEligibilitySnapshot(eligibility)
 	app, err := s.profiles.SubmitRoleApplication(userID, req)
 	if err != nil {
 		writeProfileError(w, err)
@@ -666,7 +668,8 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	app, err := s.profiles.SubmitRoleApplication(userID, profiles.SubmitRoleApplicationRequest{RoleCode: "guide", Reason: req.Reason, AbilityDescription: req.AbilityDescription, ProofFileIDs: req.ProofFileIDs})
+	eligibility, _ := s.roleApplyEligibility(userID, "guide")
+	app, err := s.profiles.SubmitRoleApplication(userID, profiles.SubmitRoleApplicationRequest{RoleCode: "guide", Reason: req.Reason, AbilityDescription: req.AbilityDescription, ProofFileIDs: req.ProofFileIDs, EligibilitySnapshot: roleEligibilitySnapshot(eligibility)})
 	if err != nil {
 		writeProfileError(w, err)
 		return

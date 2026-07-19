@@ -53,6 +53,19 @@ func TestSubmitRoleApplicationKeepsExpertAndGuideStateSeparate(t *testing.T) {
 	}
 }
 
+func TestSubmitRoleApplicationStoresEligibilitySnapshot(t *testing.T) {
+	service := NewService()
+	app, err := service.SubmitRoleApplication(30, SubmitRoleApplicationRequest{
+		RoleCode: "expert", Reason: "申请", EligibilitySnapshot: map[string]interface{}{"credit_score": 100},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.EligibilitySnapshot["credit_score"] != 100.0 && app.EligibilitySnapshot["credit_score"] != 100 {
+		t.Fatalf("expected eligibility snapshot, got %+v", app.EligibilitySnapshot)
+	}
+}
+
 func TestRepositoryBackedProfilesRequireRolesAndPersist(t *testing.T) {
 	service := NewServiceWithRepository(newFakeProfileRepository())
 

@@ -3,6 +3,7 @@ package appapi
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"zhw-mini/services/go-api/internal/invites"
 )
@@ -22,6 +23,21 @@ type roleApplyEligibility struct {
 	Eligible     bool                   `json:"eligible"`
 	BaseEligible bool                   `json:"baseEligible"`
 	Requirements []roleApplyRequirement `json:"requirements"`
+}
+
+func roleEligibilitySnapshot(value roleApplyEligibility) map[string]interface{} {
+	items := make([]map[string]interface{}, 0, len(value.Requirements))
+	for _, item := range value.Requirements {
+		items = append(items, map[string]interface{}{
+			"key": item.Key, "title": item.Title, "met": item.Met,
+			"required": item.Required, "current": item.Current,
+		})
+	}
+	return map[string]interface{}{
+		"roleCode": value.RoleCode, "eligible": value.Eligible,
+		"baseEligible": value.BaseEligible, "requirements": items,
+		"capturedAt": time.Now().Format(time.RFC3339),
+	}
 }
 
 type roleApplicationRequirementsError struct {

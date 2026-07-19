@@ -52,20 +52,21 @@ type GuideResourceProfile struct {
 }
 
 type RoleApplication struct {
-	ID                 int64     `json:"id"`
-	UserID             int64     `json:"userId"`
-	RoleCode           string    `json:"roleCode"`
-	Status             string    `json:"status"`
-	Reason             string    `json:"reason,omitempty"`
-	AbilityDescription string    `json:"abilityDescription,omitempty"`
-	ProofFileIDs       []int64   `json:"proofFileIds,omitempty"`
-	RejectReason       string    `json:"rejectReason,omitempty"`
-	ReviewAdminID      int64     `json:"reviewAdminId,omitempty"`
-	ReviewRemark       string    `json:"reviewRemark,omitempty"`
-	CertificateNo      string    `json:"certNo,omitempty"`
-	CertifiedAt        string    `json:"certifiedAt,omitempty"`
-	CreatedAt          time.Time `json:"createdAt"`
-	UpdatedAt          time.Time `json:"updatedAt"`
+	ID                  int64                  `json:"id"`
+	UserID              int64                  `json:"userId"`
+	RoleCode            string                 `json:"roleCode"`
+	Status              string                 `json:"status"`
+	Reason              string                 `json:"reason,omitempty"`
+	AbilityDescription  string                 `json:"abilityDescription,omitempty"`
+	EligibilitySnapshot map[string]interface{} `json:"eligibilitySnapshot,omitempty"`
+	ProofFileIDs        []int64                `json:"proofFileIds,omitempty"`
+	RejectReason        string                 `json:"rejectReason,omitempty"`
+	ReviewAdminID       int64                  `json:"reviewAdminId,omitempty"`
+	ReviewRemark        string                 `json:"reviewRemark,omitempty"`
+	CertificateNo       string                 `json:"certNo,omitempty"`
+	CertifiedAt         string                 `json:"certifiedAt,omitempty"`
+	CreatedAt           time.Time              `json:"createdAt"`
+	UpdatedAt           time.Time              `json:"updatedAt"`
 }
 
 type GuideQualification struct {
@@ -135,10 +136,11 @@ type GuideResourceRequest struct {
 }
 
 type SubmitRoleApplicationRequest struct {
-	RoleCode           string  `json:"roleCode"`
-	Reason             string  `json:"reason"`
-	AbilityDescription string  `json:"abilityDescription"`
-	ProofFileIDs       []int64 `json:"proofFileIds"`
+	RoleCode            string                 `json:"roleCode"`
+	Reason              string                 `json:"reason"`
+	AbilityDescription  string                 `json:"abilityDescription"`
+	ProofFileIDs        []int64                `json:"proofFileIds"`
+	EligibilitySnapshot map[string]interface{} `json:"eligibilitySnapshot,omitempty"`
 }
 
 type ReviewRoleApplicationRequest struct {
@@ -213,6 +215,17 @@ type Service struct {
 	enterprise map[int64]EnterpriseCertification
 	system     map[int64]map[string]interface{}
 	repo       Repository
+}
+
+func cloneMap(input map[string]interface{}) map[string]interface{} {
+	if len(input) == 0 {
+		return nil
+	}
+	result := make(map[string]interface{}, len(input))
+	for key, value := range input {
+		result[key] = value
+	}
+	return result
 }
 
 func NewService() *Service {
@@ -420,14 +433,15 @@ func (s *Service) SubmitRoleApplication(userID int64, req SubmitRoleApplicationR
 			return RoleApplication{}, ErrRoleApplicationCooldown
 		}
 		return s.repo.SaveRoleApplication(context.Background(), RoleApplication{
-			UserID:             userID,
-			RoleCode:           req.RoleCode,
-			Status:             "pending",
-			Reason:             req.Reason,
-			AbilityDescription: req.AbilityDescription,
-			ProofFileIDs:       append([]int64(nil), req.ProofFileIDs...),
-			CreatedAt:          now,
-			UpdatedAt:          now,
+			UserID:              userID,
+			RoleCode:            req.RoleCode,
+			Status:              "pending",
+			Reason:              req.Reason,
+			AbilityDescription:  req.AbilityDescription,
+			ProofFileIDs:        append([]int64(nil), req.ProofFileIDs...),
+			EligibilitySnapshot: cloneMap(req.EligibilitySnapshot),
+			CreatedAt:           now,
+			UpdatedAt:           now,
 		})
 	}
 	s.mu.Lock()
@@ -441,15 +455,16 @@ func (s *Service) SubmitRoleApplication(userID int64, req SubmitRoleApplicationR
 		return RoleApplication{}, ErrRoleApplicationCooldown
 	}
 	app := RoleApplication{
-		ID:                 s.nextAppID,
-		UserID:             userID,
-		RoleCode:           req.RoleCode,
-		Status:             "pending",
-		Reason:             req.Reason,
-		AbilityDescription: req.AbilityDescription,
-		ProofFileIDs:       append([]int64(nil), req.ProofFileIDs...),
-		CreatedAt:          now,
-		UpdatedAt:          now,
+		ID:                  s.nextAppID,
+		UserID:              userID,
+		RoleCode:            req.RoleCode,
+		Status:              "pending",
+		Reason:              req.Reason,
+		AbilityDescription:  req.AbilityDescription,
+		ProofFileIDs:        append([]int64(nil), req.ProofFileIDs...),
+		EligibilitySnapshot: cloneMap(req.EligibilitySnapshot),
+		CreatedAt:           now,
+		UpdatedAt:           now,
 	}
 	s.nextAppID++
 	s.apps[app.ID] = app

@@ -104,16 +104,21 @@ select exists(select 1 from user_roles where user_id = $1 and role_code = $2 and
 
 func (r *SQLRepository) SaveRoleApplication(ctx context.Context, app RoleApplication) (RoleApplication, error) {
 	proofFileIDs, _ := json.Marshal(app.ProofFileIDs)
+	eligibilitySnapshot, _ := json.Marshal(app.EligibilitySnapshot)
 	return scanRoleApplication(r.db.QueryRowContext(ctx, `
-insert into role_applications (user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-returning id, user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at
-`, app.UserID, app.RoleCode, app.Status, app.Reason, nullString(app.AbilityDescription), string(proofFileIDs), nullString(app.RejectReason), nullInt64(app.ReviewAdminID), nullString(app.ReviewRemark), nullString(app.CertificateNo), nullTimeString(app.CertifiedAt), app.CreatedAt, app.UpdatedAt))
+insert into role_applications (user_id, role_code, status, reason, ability_description, proof_file_ids, eligibility_snapshot, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+returning `+roleApplicationSelect()+`
+`, app.UserID, app.RoleCode, app.Status, app.Reason, nullString(app.AbilityDescription), string(proofFileIDs), string(eligibilitySnapshot), nullString(app.RejectReason), nullInt64(app.ReviewAdminID), nullString(app.ReviewRemark), nullString(app.CertificateNo), nullTimeString(app.CertifiedAt), app.CreatedAt, app.UpdatedAt))
+}
+
+func roleApplicationSelect() string {
+	return `id, user_id, role_code, status, reason, ability_description, proof_file_ids, eligibility_snapshot, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at`
 }
 
 func (r *SQLRepository) ListRoleApplications(ctx context.Context) ([]RoleApplication, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select id, user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at
+	select `+roleApplicationSelect()+`
 from role_applications
 order by id desc
 `)
@@ -126,7 +131,7 @@ order by id desc
 
 func (r *SQLRepository) ListRoleApplicationsByUser(ctx context.Context, userID int64) ([]RoleApplication, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select id, user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at
+	select `+roleApplicationSelect()+`
 from role_applications
 where user_id = $1
 order by id desc
@@ -140,7 +145,7 @@ order by id desc
 
 func (r *SQLRepository) FindRoleApplication(ctx context.Context, applicationID int64) (RoleApplication, bool, error) {
 	app, err := scanRoleApplication(r.db.QueryRowContext(ctx, `
-select id, user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at
+	select `+roleApplicationSelect()+`
 from role_applications
 where id = $1
 `, applicationID))
@@ -158,7 +163,7 @@ func (r *SQLRepository) UpdateRoleApplication(ctx context.Context, app RoleAppli
 update role_applications
 set status = $2, reject_reason = $3, review_admin_id = $4, review_remark = $5, certificate_no = $6, certified_at = $7, updated_at = $8
 where id = $1
-returning id, user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at
+returning `+roleApplicationSelect()+`
 `, app.ID, app.Status, nullString(app.RejectReason), nullInt64(app.ReviewAdminID), nullString(app.ReviewRemark), nullString(app.CertificateNo), nullTimeString(app.CertifiedAt), app.UpdatedAt))
 }
 
@@ -173,7 +178,7 @@ func (r *SQLRepository) SaveReviewedRoleApplication(ctx context.Context, app Rol
 update role_applications
 set status = $2, reject_reason = $3, review_admin_id = $4, review_remark = $5, certificate_no = $6, certified_at = $7, updated_at = $8
 where id = $1
-returning id, user_id, role_code, status, reason, ability_description, proof_file_ids, reject_reason, review_admin_id, review_remark, certificate_no, certified_at, created_at, updated_at
+returning `+roleApplicationSelect()+`
 `, app.ID, app.Status, nullString(app.RejectReason), nullInt64(app.ReviewAdminID), nullString(app.ReviewRemark), nullString(app.CertificateNo), nullTimeString(app.CertifiedAt), app.UpdatedAt))
 	if err != nil {
 		return RoleApplication{}, err
@@ -524,17 +529,19 @@ func scanRoleApplication(row interface {
 	var reason sql.NullString
 	var abilityDescription sql.NullString
 	var proofFileIDs []byte
+	var eligibilitySnapshot []byte
 	var rejectReason sql.NullString
 	var reviewAdminID sql.NullInt64
 	var reviewRemark sql.NullString
 	var certificateNo sql.NullString
 	var certifiedAt sql.NullTime
-	if err := row.Scan(&app.ID, &app.UserID, &app.RoleCode, &app.Status, &reason, &abilityDescription, &proofFileIDs, &rejectReason, &reviewAdminID, &reviewRemark, &certificateNo, &certifiedAt, &app.CreatedAt, &app.UpdatedAt); err != nil {
+	if err := row.Scan(&app.ID, &app.UserID, &app.RoleCode, &app.Status, &reason, &abilityDescription, &proofFileIDs, &eligibilitySnapshot, &rejectReason, &reviewAdminID, &reviewRemark, &certificateNo, &certifiedAt, &app.CreatedAt, &app.UpdatedAt); err != nil {
 		return RoleApplication{}, err
 	}
 	app.Reason = reason.String
 	app.AbilityDescription = abilityDescription.String
 	_ = json.Unmarshal(proofFileIDs, &app.ProofFileIDs)
+	_ = json.Unmarshal(eligibilitySnapshot, &app.EligibilitySnapshot)
 	app.RejectReason = rejectReason.String
 	if reviewAdminID.Valid {
 		app.ReviewAdminID = reviewAdminID.Int64
