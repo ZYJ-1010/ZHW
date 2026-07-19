@@ -1761,8 +1761,16 @@ function showRoleApplicationDetail(applicationID) {
   const snapshot = item.eligibilitySnapshot || {};
   const snapshotItems = Array.isArray(snapshot.requirements) ? snapshot.requirements : [];
   const snapshotText = snapshotItems.length
-    ? snapshotItems.map((entry) => `${entry.title || entry.key}: ${entry.met ? "已满足" : `未满足（${entry.current || 0}/${entry.required || 0}）`}`).join("；")
+    ? snapshotItems.map((entry) => {
+      const current = entry.current ?? "-";
+      const required = entry.required ?? "-";
+      const progress = entry.current !== undefined || entry.required !== undefined ? `（${current}/${required}）` : "";
+      return `${entry.title || entry.key}: ${entry.met ? "已满足" : "未满足"}${progress}`;
+    }).join("；")
     : "未记录（历史申请）";
+  const snapshotSummary = snapshotItems.length
+    ? `${snapshot.eligible ? "可提交" : "条件未全满足"}；基础条件${snapshot.baseEligible ? "已满足" : "未满足"}${snapshot.capturedAt ? `；采集时间：${formatTime(snapshot.capturedAt)}` : ""}`
+    : "历史申请未保存资格快照";
   openAdminDrawer({
     title: "角色申请详情",
     subtitle: `${roleLabel(item.roleCode)}申请`,
@@ -1780,7 +1788,7 @@ function showRoleApplicationDetail(applicationID) {
       ${detailCell("处理状态", statusLabel(item.status))}
       ${detailCell("申请说明", item.reason || "-")}
       ${detailCell("能力说明", item.abilityDescription || "-")}
-      ${detailCell("提交时资格快照", snapshotText)}
+      ${detailCell("提交时资格快照", `${snapshotSummary}；${snapshotText}`)}
       ${detailCell("证明材料", (item.proofFileIds || []).length ? `${item.proofFileIds.length} 份材料` : "-")}
       ${detailCell("审核人", adminUserText(item.reviewAdminId))}
       ${detailCell("审核备注", item.reviewRemark || item.rejectReason || "-")}

@@ -791,8 +791,30 @@ func (s *Server) routeAdminGuideQualificationRulePut(w http.ResponseWriter, r *h
 		writeProfileError(w, err)
 		return
 	}
+	// 角色申请统一从 operation.rules 读取门槛；保留旧的领路人资格规则入口时，
+	// 同步更新同一份运营规则，避免后台改了规则但申请校验仍使用旧值。
+	s.syncGuideRuleToOperationRules(rule)
 	s.recordOperation(r, "guide_qualification_rule:update", "guide_qualification_rule", strconv.FormatInt(rule.ID, 10), map[string]interface{}{"status": rule.Status})
 	httpx.OK(w, rule)
+}
+
+func (s *Server) syncGuideRuleToOperationRules(rule profiles.GuideQualificationRule) {
+	if s.systemConfig == nil || strings.TrimSpace(rule.Status) == "disabled" {
+		return
+	}
+	config := s.currentOperationRules()
+	if rule.MinCompletedGames > 0 {
+		config.Roles.GuideParticipatedGames = rule.MinCompletedGames
+	}
+	if rule.MinInviteCount >= 0 {
+		config.Roles.GuideInvitedCompleted = rule.MinInviteCount
+	}
+	if rule.MinCreditScore > 0 {
+		config.Roles.GuideCreditScore = rule.MinCreditScore
+	}
+	// 一期关闭会员购买条件，仍保留字段供后续版本启用。
+	config.Roles.MembershipRequired = rule.PaymentRequired
+	_ = s.systemConfig.Set(operationRulesConfigKey, config)
 }
 
 func (s *Server) routeAdminRoleApplicationPost(w http.ResponseWriter, r *http.Request) {

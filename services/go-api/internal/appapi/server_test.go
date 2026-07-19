@@ -8642,6 +8642,10 @@ func TestRoleApplicationAndGuideQualificationHTTP(t *testing.T) {
 		t.Fatalf("expected guide qualification rules: %s", string(rulesBody))
 	}
 	putJSON(t, mux, "/api/admin/guides/qualification-rules/1", adminToken, `{"minCreditScore":80,"paymentRequired":true}`, http.StatusOK)
+	rulesSyncBody := getAdminJSONWithPermission(t, mux, "/api/admin/operation-rules", "system_config:read", http.StatusOK)
+	if !strings.Contains(string(rulesSyncBody), `"guideCreditScore":80`) || !strings.Contains(string(rulesSyncBody), `"membershipRequired":true`) {
+		t.Fatalf("expected guide qualification update to sync operation rules: %s", string(rulesSyncBody))
+	}
 
 	reviewBody := postAdminJSONWithPermission(t, mux, "/api/admin/audits/role-applications/1/review", "role:update", `{"approve":true,"remark":"ok"}`, http.StatusOK)
 	var reviewResp struct {
