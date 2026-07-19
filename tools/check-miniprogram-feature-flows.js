@@ -51,7 +51,14 @@ function routeToPattern(route) {
 
 function loadAppPages() {
   const app = JSON.parse(read(path.join(miniRoot, 'app.json')))
-  return new Set(app.pages || [])
+  const pages = new Set(app.pages || [])
+  for (const subPackage of app.subPackages || app.subpackages || []) {
+    const root = String(subPackage.root || '').replace(/\/$/, '')
+    for (const page of subPackage.pages || []) {
+      pages.add(`${root}/${String(page).replace(/^\//, '')}`)
+    }
+  }
+  return pages
 }
 
 function loadBackendRoutes() {
@@ -132,7 +139,7 @@ const featureFlows = [
   },
   {
     name: 'role-application',
-    pages: ['pages/role/apply/index', 'pages/role/status/index', 'pages/home-other/index'],
+    pages: ['pages/role/apply/index', 'pages/role/status/index', 'pages/role/flow/index'],
     frontend: ['services/role.js', 'api/modules/role.js'],
     tokens: ['submitRoleApplication', 'getExpertApplyConfig', 'getGuideApplyConfig', 'getMyRoleApplications'],
     apiRoutes: [
@@ -209,7 +216,7 @@ const featureFlows = [
       'pages/profile/system-management/report-appeals/index',
       'pages/profile/system-management/credit-appeal/index'
     ],
-    frontend: ['services/profile.js', 'services/report.js', 'api/modules/profile.js', 'api/modules/report.js'],
+    frontend: ['services/profile.js', 'pages/profile/services/report.js', 'api/modules/profile.js'],
     tokens: ['getCreditCenter', 'createReport', 'submitCreditAppeal', 'withdrawAppeal'],
     apiRoutes: [
       { method: 'GET', path: '/api/app/profile/credit-center' },
@@ -250,23 +257,11 @@ const featureFlows = [
   },
   {
     name: 'map-basic-and-play-pages',
-    pages: [
-      'pages/map/index',
-      'pages/map/my-city/index',
-      'pages/map/city-atlas/index',
-      'pages/map/real-checkin/index',
-      'pages/map/blind-route/index',
-      'pages/map/footprint-heatmap/index',
-      'pages/map/friend-city/index'
-    ],
+    pages: ['pages/map/index'],
     frontend: ['services/map.js', 'services/location.js', 'api/modules/map.js', 'api/modules/location.js'],
-    tokens: ['getIndexConfig', 'getMyCity', 'getPlayPage', 'submitCheckin', 'createBlindRoute', 'getNearbyGames'],
+    tokens: ['getIndexConfig', 'getNearbyGames'],
     apiRoutes: [
       { method: 'GET', path: '/api/app/map/index-config' },
-      { method: 'GET', path: '/api/app/map/my-city' },
-      { method: 'GET', path: '/api/app/map/play-pages' },
-      { method: 'POST', path: '/api/app/map/checkins' },
-      { method: 'POST', path: '/api/app/map/blind-routes' },
       { method: 'GET', path: '/api/app/games/nearby' }
     ]
   }
