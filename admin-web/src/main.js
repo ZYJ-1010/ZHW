@@ -4852,7 +4852,7 @@ async function api(path, options = {}, requireAuth = true) {
 function userRow(user) {
   return `
     <tr>
-      <td>${escapeHTML(userText(user.id))}</td>
+      <td>${escapeHTML(user.id || "-")}</td>
       <td>${escapeHTML(wechatBindingText(user.openId))}</td>
       <td>${escapeHTML(user.nickname || userText(user.id))}</td>
       <td>${escapeHTML(inviterLabel(user.inviter || { id: user.inviterUserId, nickname: user.inviterNickname }, user.inviteRelation))}</td>
