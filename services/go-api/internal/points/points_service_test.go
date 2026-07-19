@@ -1,6 +1,9 @@
 package points
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestGrantAndDeductCreatePointLogs(t *testing.T) {
 	service := NewService()
@@ -27,5 +30,21 @@ func TestDeductRejectsInsufficientPoints(t *testing.T) {
 
 	if _, _, err := service.Deduct(1, 1, "redemption", 1, "redeem"); err != ErrInsufficientPoints {
 		t.Fatalf("expected ErrInsufficientPoints, got %v", err)
+	}
+}
+
+func TestExpireIsIdempotentAndCreatesAuditLog(t *testing.T) {
+	service := NewService()
+	if _, _, err := service.Grant(1, 40, "review", 1, "old reward"); err != nil {
+		t.Fatal(err)
+	}
+	service.logs[0].CreatedAt = time.Now().Add(-48 * time.Hour)
+	account, log, err := service.Expire(1, time.Now().Add(-24*time.Hour))
+	if err != nil || account.AvailablePoints != 0 || log.ChangeValue != -40 || log.BizType != "points_expire" {
+		t.Fatalf("expected expiry log, account=%+v log=%+v err=%v", account, log, err)
+	}
+	account, log, err = service.Expire(1, time.Now().Add(-24*time.Hour))
+	if err != nil || account.AvailablePoints != 0 || log.ID != 0 {
+		t.Fatalf("expected idempotent second expiry, account=%+v log=%+v err=%v", account, log, err)
 	}
 }

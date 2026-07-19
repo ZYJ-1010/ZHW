@@ -612,6 +612,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/internal/notifications/wechat-tasks/", s.routeWechatTaskPost)
 	handle("POST /api/internal/jobs/review-remind", s.runReviewRemindJob)
 	handle("POST /api/internal/jobs/progress-feedback-remind", s.runProgressFeedbackRemindJob)
+	handle("POST /api/internal/jobs/points-expire", s.runPointsExpireJob)
 	handle("POST /api/internal/reports/export-runner", s.requireAdminPermission("report_export:create", s.runExportTasks))
 	handle("POST /api/app/games/applications/", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.reviewApplication)))
 	handle("POST /api/app/game-applications/", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeGameApplicationPost)))

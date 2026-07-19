@@ -2,9 +2,11 @@ package appapi
 
 import (
 	"net/http"
+	"time"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/notifications"
+	"zhw-mini/services/go-api/internal/users"
 )
 
 func (s *Server) runReviewRemindJob(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +67,29 @@ func (s *Server) runProgressFeedbackRemindJob(w http.ResponseWriter, r *http.Req
 		created++
 	}
 	httpx.OK(w, map[string]interface{}{"created": created})
+}
+
+func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
+	rules := s.currentOperationRules()
+	if !rules.Points.ExpireEnabled || rules.Points.ExpireDays <= 0 {
+		httpx.OK(w, map[string]interface{}{"enabled": false, "expiredCount": 0, "items": []interface{}{}})
+		return
+	}
+	cutoff := time.Now().Add(-time.Duration(rules.Points.ExpireDays) * 24 * time.Hour)
+	items := make([]map[string]interface{}, 0)
+	usersList, err := s.auth.AdminUsers(users.Filter{})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+		return
+	}
+	for _, user := range usersList {
+		account, log, expireErr := s.points.Expire(user.ID, cutoff)
+		if expireErr != nil || log.ID == 0 {
+			continue
+		}
+		items = append(items, map[string]interface{}{"userId": user.ID, "expiredPoints": -log.ChangeValue, "account": account, "log": log})
+	}
+	httpx.OK(w, map[string]interface{}{"enabled": true, "cutoff": cutoff, "expiredCount": len(items), "items": items})
 }
 
 func (s *Server) archiveExpiredIMRooms(w http.ResponseWriter, r *http.Request) {

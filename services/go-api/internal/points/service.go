@@ -140,6 +140,35 @@ func (s *Service) Deduct(userID int64, value int, bizType string, bizID int64, r
 	return account, log, nil
 }
 
+// Expire removes points earned before cutoff. Expiry is idempotent: previous
+// points_expire logs are excluded from the next calculation, so a scheduled
+// job can safely run repeatedly.
+func (s *Service) Expire(userID int64, cutoff time.Time) (Account, Log, error) {
+	if userID <= 0 {
+		return Account{}, Log{}, ErrInvalidPoints
+	}
+	logs := s.Logs(userID)
+	eligible, expired := 0, 0
+	for _, item := range logs {
+		if item.BizType == "points_expire" && item.ChangeValue < 0 {
+			expired += -item.ChangeValue
+			continue
+		}
+		if item.ChangeValue > 0 && item.CreatedAt.Before(cutoff) {
+			eligible += item.ChangeValue
+		}
+	}
+	amount := eligible - expired
+	account := s.Summary(userID)
+	if amount <= 0 || account.AvailablePoints <= 0 {
+		return account, Log{}, nil
+	}
+	if amount > account.AvailablePoints {
+		amount = account.AvailablePoints
+	}
+	return s.Deduct(userID, amount, "points_expire", 0, "积分到期扣减")
+}
+
 func (s *Service) ensureLocked(userID int64) Account {
 	if account, ok := s.accounts[userID]; ok {
 		return account
