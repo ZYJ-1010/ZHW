@@ -510,7 +510,7 @@ func applyItemUpdate(item Item, req UpdateItemRequest) (Item, error) {
 
 func applyOrderReview(order Order, adminID int64, req ReviewOrderRequest) (Order, string, error) {
 	req.Reason = strings.TrimSpace(req.Reason)
-	if order.Status != "pending" && order.Status != "approved" {
+	if order.Status != "pending" && order.Status != "approved" && order.Status != "shipping" {
 		return Order{}, "", ErrInvalidStatus
 	}
 	targetStatus := req.Status
@@ -521,13 +521,16 @@ func applyOrderReview(order Order, adminID int64, req ReviewOrderRequest) (Order
 			targetStatus = "rejected"
 		}
 	}
-	if targetStatus != "approved" && targetStatus != "rejected" && targetStatus != "fulfilled" {
+	if targetStatus != "approved" && targetStatus != "rejected" && targetStatus != "shipping" && targetStatus != "fulfilled" {
 		return Order{}, "", ErrInvalidStatus
 	}
 	if req.Reason == "" {
 		return Order{}, "", ErrInvalidOrder
 	}
-	if targetStatus == "fulfilled" && order.Status != "approved" {
+	if targetStatus == "shipping" && order.Status != "approved" {
+		return Order{}, "", ErrInvalidStatus
+	}
+	if targetStatus == "fulfilled" && order.Status != "approved" && order.Status != "shipping" {
 		return Order{}, "", ErrInvalidStatus
 	}
 	order.Status = targetStatus

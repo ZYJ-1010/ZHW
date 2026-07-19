@@ -405,6 +405,9 @@ func buildAppRedemptionOrderDTO(order redemption.Order, config redemptionOrderPa
 	if order.Status == "approved" || order.Status == "fulfilled" {
 		actions = append(actions, map[string]interface{}{"key": "logistics", "label": redemptionOrderActionLabel(config, "logistics"), "type": "ghost"})
 	}
+	if order.Status == "shipping" {
+		actions = append(actions, map[string]interface{}{"key": "logistics", "label": redemptionOrderActionLabel(config, "logistics"), "type": "ghost"})
+	}
 	createdAt := order.CreatedAt.Format("2006-01-02 15:04:05")
 	return appRedemptionOrderDTO{
 		ID:          order.ID,
@@ -462,6 +465,8 @@ func appRedemptionStatus(status string) (string, string, string) {
 		return "pending", "\u5f85\u5ba1\u6838", "orange"
 	case "approved":
 		return "approved", "\u5f85\u53d1\u653e", "blue"
+	case "shipping":
+		return "shipping", "\u914d\u9001\u4e2d", "blue"
 	case "fulfilled":
 		return "fulfilled", "\u5df2\u5b8c\u6210", "success"
 	case "rejected":
@@ -485,7 +490,7 @@ func matchAppRedemptionStatus(query string, status string) bool {
 	case "pending_ship", "pendingship":
 		return status == "approved"
 	case "shipping", "delivering":
-		return status == "approved"
+		return status == "shipping" || status == "approved"
 	case "completed", "complete":
 		return status == "fulfilled"
 	case "cancelled", "canceled":
@@ -506,6 +511,8 @@ func (s *Server) buildRedemptionLogisticsDTO(order redemption.Order) map[string]
 	switch order.Status {
 	case "approved":
 		timeline = append([]map[string]interface{}{{"id": "approved", "desc": "\u8ba2\u5355\u5df2\u5ba1\u6838\u901a\u8fc7\uff0c\u7b49\u5f85\u540e\u53f0\u53d1\u653e", "time": updatedAt, "active": true}}, timeline...)
+	case "shipping":
+		timeline = append([]map[string]interface{}{{"id": "shipping", "desc": "\u5151\u6362\u6743\u76ca\u914d\u9001\u4e2d", "time": updatedAt, "active": true}}, timeline...)
 	case "fulfilled":
 		timeline = append([]map[string]interface{}{{"id": "fulfilled", "desc": "\u5151\u6362\u6743\u76ca\u5df2\u5b8c\u6210\u53d1\u653e", "time": updatedAt, "active": true}}, timeline...)
 	case "rejected":

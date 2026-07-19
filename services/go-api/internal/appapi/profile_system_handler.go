@@ -71,12 +71,49 @@ func (s *Server) saveSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	payload = mergeObjectMap(s.defaultSystemProfileInfo(userID), payload)
+	payload = normalizeSystemProfilePayload(payload)
 	// certifications 的状态只允许由后端认证记录生成，不能接受客户端伪造。
 	payload["certifications"] = s.profileCertificationSummary(userID)
 	payload = s.withCurrentProfileAvatar(userID, payload)
 	saved := s.profiles.SaveSystemManagementConfig(userID, "profile-info", payload)
 	s.recordBehavior(userID, "update_system_profile_info", "profile", userID, map[string]interface{}{"sections": len(saved)})
 	httpx.OK(w, s.withCurrentProfileAvatar(userID, saved))
+}
+
+// normalizeSystemProfilePayload keeps the legacy profile mirror and the newer
+// personalInfo/enterpriseInfo sections consistent for all clients.
+func normalizeSystemProfilePayload(payload map[string]interface{}) map[string]interface{} {
+	result := cloneObjectMap(payload)
+	profile, _ := objectField(result, "profile")
+	personal, _ := objectField(result, "personalInfo")
+	enterprise, _ := objectField(result, "enterpriseInfo")
+	if profile == nil {
+		profile = map[string]interface{}{}
+	}
+	if personal == nil {
+		personal = map[string]interface{}{}
+	}
+	if enterprise == nil {
+		enterprise = map[string]interface{}{}
+	}
+	for _, key := range []string{"name", "phoneMasked", "contactVisibility", "hobby", "avatarText", "avatarFileId", "avatarUrl", "pendingAvatarFileId", "pendingAvatarUrl", "avatarAuditStatus", "avatarAuditText", "avatarAuditReason"} {
+		if value, ok := personal[key]; ok {
+			profile[key] = value
+		} else if value, ok := profile[key]; ok {
+			personal[key] = value
+		}
+	}
+	for _, key := range []string{"company", "jobTitle", "businessCountText", "resources", "publicBusinessInfo"} {
+		if value, ok := enterprise[key]; ok {
+			profile[key] = value
+		} else if value, ok := profile[key]; ok {
+			enterprise[key] = value
+		}
+	}
+	result["profile"] = profile
+	result["personalInfo"] = personal
+	result["enterpriseInfo"] = enterprise
+	return result
 }
 
 func (s *Server) avatarURLForOwnedFile(w http.ResponseWriter, userID int64, avatarFileID int64) (string, bool) {

@@ -4808,7 +4808,10 @@ function redemptionOrderRow(item) {
     actions.push(`<button class="ghost" data-action="redemption-order-reject" data-id="${item.id}" type="button">驳回</button>`);
   }
   if (item.status === "approved") {
-    actions.push(`<button class="ghost" data-action="redemption-order-fulfill" data-id="${item.id}" data-status="fulfilled" data-reason="admin fulfilled" type="button">履约</button>`);
+    actions.push(`<button class="ghost" data-action="redemption-order-shipping" data-id="${item.id}" data-status="shipping" data-reason="后台已发货" type="button">发货</button>`);
+  }
+  if (item.status === "shipping") {
+    actions.push(`<button class="ghost" data-action="redemption-order-fulfill" data-id="${item.id}" data-status="fulfilled" data-reason="后台已完成履约" type="button">完成履约</button>`);
   }
   return `
     <tr>
