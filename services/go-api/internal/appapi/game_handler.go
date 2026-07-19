@@ -1790,17 +1790,29 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	completedCodes := map[string]bool{}
+	dailyCompletedCodes := map[string]bool{}
 	if s.tasks != nil {
 		completedCodes = s.tasks.CompletedCodes(userID)
+		dailyCompletedCodes = s.tasks.CompletedCodesForDate(userID, time.Now())
 	}
-	for _, collection := range [][]map[string]interface{}{items, dailyItems, activityItems} {
+	for collectionIndex, collection := range [][]map[string]interface{}{items, dailyItems, activityItems} {
 		for _, item := range collection {
 			code, _ := item["code"].(string)
-			if completedCodes[code] {
+			isCompleted := completedCodes[code]
+			if collectionIndex == 1 {
+				isCompleted = dailyCompletedCodes[code]
+			}
+			if isCompleted {
 				item["completed"] = true
 			}
 			if done, _ := item["completed"].(bool); done && s.tasks != nil {
-				if _, err := s.tasks.MarkCompleted(userID, code); err == nil {
+				var markErr error
+				if collectionIndex == 1 {
+					_, markErr = s.tasks.MarkCompletedForDate(userID, code, time.Now())
+				} else {
+					_, markErr = s.tasks.MarkCompleted(userID, code)
+				}
+				if markErr == nil {
 					for _, rule := range rules.Tasks.Items {
 						if rule.Code == code && rule.Enabled {
 							s.reviews.AwardTaskReward(userID, rule.Code, rule.RewardPoints, rule.RewardExperience)

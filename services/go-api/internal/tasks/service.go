@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -39,6 +40,18 @@ func NewServiceWithRepository(repo Repository) *Service {
 func progressKey(userID int64, code string) string { return strconv.FormatInt(userID, 10) + ":" + code }
 
 func (s *Service) MarkCompleted(userID int64, code string) (Progress, error) {
+	return s.markCompleted(userID, code)
+}
+
+func (s *Service) MarkCompletedForDate(userID int64, code string, date time.Time) (Progress, error) {
+	day := date.Format("2006-01-02")
+	if day == "" {
+		return Progress{}, ErrTaskNotFound
+	}
+	return s.markCompleted(userID, code+"@"+day)
+}
+
+func (s *Service) markCompleted(userID int64, code string) (Progress, error) {
 	if userID <= 0 || code == "" {
 		return Progress{}, ErrTaskNotFound
 	}
@@ -73,6 +86,17 @@ func (s *Service) CompletedCodes(userID int64) map[string]bool {
 	}
 	for _, item := range items {
 		result[item.TaskCode] = true
+	}
+	return result
+}
+
+func (s *Service) CompletedCodesForDate(userID int64, date time.Time) map[string]bool {
+	day := date.Format("2006-01-02")
+	result := make(map[string]bool)
+	for code := range s.CompletedCodes(userID) {
+		if strings.HasSuffix(code, "@"+day) {
+			result[strings.TrimSuffix(code, "@"+day)] = true
+		}
 	}
 	return result
 }

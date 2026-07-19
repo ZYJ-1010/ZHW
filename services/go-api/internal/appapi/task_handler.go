@@ -3,8 +3,10 @@ package appapi
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/tasks"
 )
 
 func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +33,13 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "任务不存在或已关闭")
 		return
 	}
-	progress, err := s.tasks.MarkCompleted(userID, code)
+	var progress tasks.Progress
+	var err error
+	if rule.Category == "daily" {
+		progress, err = s.tasks.MarkCompletedForDate(userID, code, time.Now())
+	} else {
+		progress, err = s.tasks.MarkCompleted(userID, code)
+	}
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "任务完成记录失败")
 		return
