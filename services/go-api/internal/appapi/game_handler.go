@@ -3464,6 +3464,17 @@ func collaborationDayText(startedAt time.Time, now time.Time) string {
 }
 
 func collaborationProgress(game games.Game) map[string]interface{} {
+	if game.Status == "cancelled" || game.Status == "canceled" {
+		return map[string]interface{}{
+			"percent": 0,
+			"title":   "组局已取消",
+			"tasks": []map[string]interface{}{
+				{"key": "group_success", "title": "组局已取消", "desc": "本局已取消，协作流程已结束", "state": "cancelled"},
+				{"key": "service_active", "title": "已停止", "desc": "不会再产生新的进度反馈", "state": "cancelled"},
+				{"key": "service_done", "title": "已结束", "desc": "组局取消后无需继续确认或评价", "state": "cancelled"},
+			},
+		}
+	}
 	percent := collaborationProgressPercent(game.Status)
 	return map[string]interface{}{
 		"percent": percent,

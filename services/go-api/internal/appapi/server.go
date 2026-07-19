@@ -640,6 +640,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/admin/revenue/records/", s.routeRevenueRecordPost)
 	handle("POST /api/internal/openim/webhooks", s.openIMWebhook)
 	handle("POST /api/internal/im/archive-expired-rooms", s.archiveExpiredIMRooms)
+	handle("POST /api/internal/im/retry-failed-rooms", s.retryFailedIMRooms)
 	handle("POST /api/internal/ai/content-risk/check-placeholder", s.aiContentRiskPlaceholder)
 	handle("POST /api/internal/pay/callback-placeholder", s.paymentCallbackPlaceholder)
 	handle("POST /api/funds/profit-sharing/orders", s.profitSharingOrderPlaceholder)

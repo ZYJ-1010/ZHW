@@ -1803,6 +1803,16 @@ paths:
           description: Unified response payload
         "403":
           description: Missing admin permission
+  /api/internal/im/retry-failed-rooms:
+    post:
+      summary: Retry failed IM room creation job
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "403":
+          description: Missing admin permission
   /api/internal/ai/content-risk/check-placeholder:
     post:
       summary: AI content risk placeholder

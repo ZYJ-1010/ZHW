@@ -2340,6 +2340,12 @@ func (s *Service) CancelService(gameID int64, reason string) (Game, error) {
 		game = saved
 	}
 	s.games[gameID] = game
+	// 取消后的协作页不应继续读取进程内的旧进度，历史里程碑/打卡仍由
+	// progress repository 保留供后台审计。
+	delete(s.progressFeedbacks, gameID)
+	delete(s.milestones, gameID)
+	delete(s.checkins, gameID)
+	delete(s.retrospectives, gameID)
 	return game, nil
 }
 

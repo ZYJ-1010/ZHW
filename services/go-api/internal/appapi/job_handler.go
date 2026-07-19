@@ -132,6 +132,28 @@ func (s *Server) archiveExpiredIMRooms(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// retryFailedIMRooms gives create_failed rooms a bounded, repeatable recovery
+// path for the internal scheduler. 管理员仍可通过后台单房间重试。
+func (s *Server) retryFailedIMRooms(w http.ResponseWriter, r *http.Request) {
+	items := make([]map[string]interface{}, 0)
+	for _, room := range s.im.AdminRooms() {
+		if room.Status != "create_failed" || room.ID <= 0 {
+			continue
+		}
+		updated, err := s.im.AdminRetryCreateRoom(room.ID)
+		item := map[string]interface{}{"roomId": room.ID, "gameId": room.GameID}
+		if err != nil {
+			item["success"] = false
+			item["error"] = err.Error()
+		} else {
+			item["success"] = true
+			item["room"] = updated
+		}
+		items = append(items, item)
+	}
+	httpx.OK(w, map[string]interface{}{"retriedCount": len(items), "items": items})
+}
+
 func imArchiveCandidateStatus(status string) bool {
 	return status == "pending_review" || status == "completed"
 }

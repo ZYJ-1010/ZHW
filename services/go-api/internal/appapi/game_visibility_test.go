@@ -27,3 +27,10 @@ func TestHomeGameCategoryTextUsesPrimaryCategory(t *testing.T) {
 		t.Fatalf("expected primary category text, got %q", got)
 	}
 }
+
+func TestCollaborationProgressForCanceledGameIsTerminal(t *testing.T) {
+	progress := collaborationProgress(games.Game{Status: "canceled"})
+	if progress["percent"] != 0 || progress["title"] != "组局已取消" {
+		t.Fatalf("expected canceled collaboration progress, got %+v", progress)
+	}
+}
