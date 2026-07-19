@@ -94,12 +94,15 @@ func (s *Server) adminProfileUsers(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
 		return
 	}
+	_, allowSensitive := s.admins.HasPermission(s.adminToken(r), "profile:sensitive:read")
 	identityByUser := make(map[int64]adminProfileUserIdentity)
 	for _, record := range s.identity.AllRecords() {
 		item := adminProfileUserIdentity{IDCardMasked: record.IDCardMasked}
-		if plain, err := s.identity.RevealRecord(record); err == nil {
-			item.PhoneFull = strings.TrimSpace(plain.Phone)
-			item.IDCardFull = strings.TrimSpace(plain.IDCard)
+		if allowSensitive {
+			if plain, err := s.identity.RevealRecord(record); err == nil {
+				item.PhoneFull = strings.TrimSpace(plain.Phone)
+				item.IDCardFull = strings.TrimSpace(plain.IDCard)
+			}
 		}
 		identityByUser[record.UserID] = item
 	}
@@ -110,17 +113,20 @@ func (s *Server) adminProfileUsers(w http.ResponseWriter, r *http.Request) {
 		if len(matchFields) == 0 {
 			continue
 		}
-		matches = append(matches, map[string]interface{}{
+		result := map[string]interface{}{
 			"id":             user.ID,
 			"nickname":       user.Nickname,
 			"phoneMasked":    user.PhoneMasked,
-			"phoneFull":      identityInfo.PhoneFull,
 			"idCardMasked":   identityInfo.IDCardMasked,
-			"idCardFull":     identityInfo.IDCardFull,
 			"realnameStatus": user.RealnameStatus,
 			"status":         user.Status,
 			"matchFields":    matchFields,
-		})
+		}
+		if allowSensitive {
+			result["phoneFull"] = identityInfo.PhoneFull
+			result["idCardFull"] = identityInfo.IDCardFull
+		}
+		matches = append(matches, result)
 		if len(matches) >= 20 {
 			break
 		}

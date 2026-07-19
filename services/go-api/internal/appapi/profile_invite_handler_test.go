@@ -13,8 +13,8 @@ import (
 )
 
 func TestInviteIncomeTrendSeriesDoesNotGenerateSyntheticValues(t *testing.T) {
-	if got := inviteIncomeTrendSeries(nil); len(got) != 0 {
-		t.Fatalf("expected empty trend without real logs, got %#v", got)
+	if got := inviteIncomeTrendSeries(nil); len(got) != 1 || got[0]["amount"] != int64(0) {
+		t.Fatalf("expected a zero current-month point without real logs, got %#v", got)
 	}
 	created := time.Date(2026, 7, 19, 12, 0, 0, 0, time.Local)
 	got := inviteIncomeTrendSeries([]revenue.IncomeLog{

@@ -56,6 +56,19 @@ func TestBuiltinRolePermissionBoundaries(t *testing.T) {
 			t.Fatalf("data analyst must not have %s: %+v", forbidden, analyst.Permissions)
 		}
 	}
+	if hasPermission(analyst.Permissions, "identity:sensitive:read") || hasPermission(analyst.Permissions, "profile:sensitive:read") {
+		t.Fatalf("data analyst must not have sensitive identity/profile permissions: %+v", analyst.Permissions)
+	}
+
+	userManager, err := service.Login(LoginRequest{Username: "user_manager", Password: "admin123"})
+	if err != nil {
+		t.Fatalf("expected user manager login success: %v", err)
+	}
+	for _, required := range []string{"identity:read", "identity:sensitive:read", "profile:read", "profile:sensitive:read"} {
+		if !hasPermission(userManager.Permissions, required) {
+			t.Fatalf("user manager must have %s: %+v", required, userManager.Permissions)
+		}
+	}
 
 	operator, err := service.Login(LoginRequest{Username: "operator", Password: "admin123"})
 	if err != nil {

@@ -1655,18 +1655,18 @@ async function reviewIdentityVerification(userID, approve, reason) {
 }
 
 function identityNameForAdmin(item) {
-  return item?.realNameFull || item?.realNameMasked || item?.realname || "-";
+  return (can("identity:sensitive:read") && item?.realNameFull) || item?.realNameMasked || item?.realname || "-";
 }
 
 function identityPhoneForAdmin(item) {
-  if (item?.phoneFull) return item.phoneFull;
-  if (item?.phone) return item.phone;
+  if (can("identity:sensitive:read") && item?.phoneFull) return item.phoneFull;
+  if (can("identity:sensitive:read") && item?.phone) return item.phone;
   if (item?.phoneMasked) return item.phoneMasked;
   return "-";
 }
 
 function identityIDCardForAdmin(item) {
-  if (item?.idCardFull) return item.idCardFull;
+  if (can("identity:sensitive:read") && item?.idCardFull) return item.idCardFull;
   if (item?.idCardMasked) return `${item.idCardMasked}（旧记录仅保留脱敏信息）`;
   return "-";
 }

@@ -475,7 +475,7 @@ func countInviteRecordsByStatus(records []map[string]interface{}, status string)
 
 func inviteIncomeTrendSeries(logs []revenue.IncomeLog) []map[string]interface{} {
 	if len(logs) == 0 {
-		return []map[string]interface{}{}
+		return []map[string]interface{}{{"month": time.Now().Format("1月"), "amount": int64(0)}}
 	}
 	monthly := make(map[string]int64)
 	order := make([]string, 0, len(logs))

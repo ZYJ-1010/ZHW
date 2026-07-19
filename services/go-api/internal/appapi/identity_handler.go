@@ -356,7 +356,7 @@ func (s *Server) adminIdentityVerifications(w http.ResponseWriter, r *http.Reque
 		if userID > 0 && item.UserID != userID {
 			continue
 		}
-		filtered = append(filtered, s.adminIdentityPayload(item))
+		filtered = append(filtered, s.adminIdentityPayloadForRequest(r, item))
 	}
 	httpx.OK(w, map[string]interface{}{"items": filtered})
 }
@@ -370,7 +370,7 @@ func (s *Server) adminIdentityVerificationDetail(w http.ResponseWriter, r *http.
 	s.recordOperation(r, "identity:verification:view", "identity_verification", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"status": record.Status,
 	})
-	httpx.OK(w, s.adminIdentityPayload(record))
+	httpx.OK(w, s.adminIdentityPayloadForRequest(r, record))
 }
 
 func (s *Server) routeAdminIdentityVerificationPost(w http.ResponseWriter, r *http.Request) {
@@ -437,10 +437,15 @@ func (s *Server) reviewIdentityVerification(w http.ResponseWriter, r *http.Reque
 		"status": status,
 		"reason": reason,
 	})
-	httpx.OK(w, s.adminIdentityPayload(record))
+	httpx.OK(w, s.adminIdentityPayloadForRequest(r, record))
 }
 
-func (s *Server) adminIdentityPayload(record identity.Record) map[string]interface{} {
+func (s *Server) adminIdentityPayloadForRequest(r *http.Request, record identity.Record) map[string]interface{} {
+	_, allowSensitive := s.admins.HasPermission(s.adminToken(r), "identity:sensitive:read")
+	return s.adminIdentityPayload(record, allowSensitive)
+}
+
+func (s *Server) adminIdentityPayload(record identity.Record, allowSensitive bool) map[string]interface{} {
 	payload := map[string]interface{}{
 		"userId":                    record.UserID,
 		"status":                    record.Status,
@@ -458,7 +463,7 @@ func (s *Server) adminIdentityPayload(record identity.Record) map[string]interfa
 		"realNameFullAvailable":     false,
 	}
 	plain, err := s.identity.RevealRecord(record)
-	if err == nil {
+	if allowSensitive && err == nil {
 		if strings.TrimSpace(plain.Phone) != "" {
 			payload["phone"] = plain.Phone
 			payload["phoneFull"] = plain.Phone
