@@ -1346,6 +1346,7 @@
         <button data-tab-group="system" data-tab-target="#system-role-benefit-panel" type="button">角色权益</button>
         <button data-tab-group="system" data-tab-target="#system-review-complete-panel" type="button">评价完成</button>
         <button data-tab-group="system" data-tab-target="#system-growth-rules-panel" type="button">成长积分</button>
+        <button data-tab-group="system" data-tab-target="#system-achievement-panel" type="button">成就配置</button>
         <button data-tab-group="system" data-tab-target="#system-operation-rules-panel" type="button">运营约束</button>
         <button data-tab-group="system" data-tab-target="#system-credit-panel" type="button">信用规则</button>
         <button data-tab-group="system" data-tab-target="#system-profit-panel" type="button">押金规则</button>
@@ -1469,6 +1470,20 @@
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="growth-rules-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-achievement-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>成就配置</h2>
+            <p>维护成就目录、状态和适用角色；留空角色表示所有角色可见。</p>
+          </div>
+          <button id="achievement-config-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="achievement-config-form" class="form-grid hidden" aria-hidden="true">
+          <textarea id="achievement-config-json" name="configJson" rows="14" spellcheck="false"></textarea>
+          <button class="primary" type="submit">保存成就配置</button>
+        </form>
+        <div id="achievement-config-panel" class="detail-grid"></div>
       </section>
       <section id="system-operation-rules-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">

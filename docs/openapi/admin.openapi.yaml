@@ -1880,6 +1880,23 @@ paths:
           description: Unified response payload
         "422":
           description: Invalid configuration
+  /api/admin/growth/achievement-config:
+    get:
+      summary: Read role-aware achievement configuration
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+    put:
+      summary: Update role-aware achievement configuration
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unified response payload
+        "422":
+          description: Invalid configuration
   /api/admin/operation-rules:
     get:
       summary: Read unified operation rules

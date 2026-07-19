@@ -135,19 +135,20 @@ type growthAchievementFilterDTO struct {
 }
 
 type growthAchievementItemDTO struct {
-	ID              string `json:"id"`
-	Code            string `json:"code"`
-	Title           string `json:"title"`
-	Desc            string `json:"desc,omitempty"`
-	Icon            string `json:"icon,omitempty"`
-	Tone            string `json:"tone,omitempty"`
-	Category        string `json:"category,omitempty"`
-	StatusText      string `json:"statusText,omitempty"`
-	ProgressPercent int    `json:"progressPercent,omitempty"`
-	Unlocked        bool   `json:"unlocked"`
-	Order           int    `json:"order,omitempty"`
-	Visible         bool   `json:"visible"`
-	AchievedAt      string `json:"achievedAt,omitempty"`
+	ID              string   `json:"id"`
+	Code            string   `json:"code"`
+	Title           string   `json:"title"`
+	Desc            string   `json:"desc,omitempty"`
+	Icon            string   `json:"icon,omitempty"`
+	Tone            string   `json:"tone,omitempty"`
+	Category        string   `json:"category,omitempty"`
+	Roles           []string `json:"roles,omitempty"`
+	StatusText      string   `json:"statusText,omitempty"`
+	ProgressPercent int      `json:"progressPercent,omitempty"`
+	Unlocked        bool     `json:"unlocked"`
+	Order           int      `json:"order,omitempty"`
+	Visible         bool     `json:"visible"`
+	AchievedAt      string   `json:"achievedAt,omitempty"`
 }
 
 type growthAchievementSeasonDTO struct {
@@ -168,6 +169,32 @@ type growthAchievementConfigDTO struct {
 
 func (s *Server) reviewCompleteConfig(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, s.currentReviewCompleteConfig())
+}
+
+func (s *Server) adminGrowthAchievementConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		httpx.OK(w, map[string]interface{}{"config": s.currentGrowthAchievementConfig()})
+	case http.MethodPut:
+		var req growthAchievementConfigDTO
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "成就配置格式错误")
+			return
+		}
+		config := normalizeGrowthAchievementConfig(req)
+		if len(config.Catalog) > 200 || len(config.Locked) > 200 {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "成就配置数量超限")
+			return
+		}
+		if s.systemConfig == nil || s.systemConfig.Set(growthAchievementConfigKey, config) != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存成就配置失败")
+			return
+		}
+		s.recordOperation(r, "achievement_config:update", "system_config", growthAchievementConfigKey, map[string]interface{}{"catalogCount": len(config.Catalog), "lockedCount": len(config.Locked)})
+		httpx.OK(w, map[string]interface{}{"config": config})
+	default:
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+	}
 }
 
 func (s *Server) adminReviewCompleteConfig(w http.ResponseWriter, r *http.Request) {
@@ -592,6 +619,7 @@ func normalizeGrowthAchievementItems(items []growthAchievementItemDTO, unlocked 
 		if item.Category == "" {
 			item.Category = "city"
 		}
+		item.Roles = normalizeAchievementRoles(item.Roles)
 		if item.StatusText == "" {
 			if unlocked {
 				item.StatusText = "已解锁"
@@ -609,9 +637,30 @@ func normalizeGrowthAchievementItems(items []growthAchievementItemDTO, unlocked 
 	return result
 }
 
+func normalizeAchievementRoles(items []string) []string {
+	result := make([]string, 0, len(items))
+	seen := make(map[string]bool, len(items))
+	for _, value := range items {
+		role := strings.ToLower(strings.TrimSpace(value))
+		if role != "player" && role != "expert" && role != "guide" || seen[role] {
+			continue
+		}
+		seen[role] = true
+		result = append(result, role)
+	}
+	return result
+}
+
 func achievementDTOs(trace reviews.Trace, config growthAchievementConfigDTO) []growthAchievementItemDTO {
+	return achievementDTOsForRole(trace, config, "")
+}
+
+func achievementDTOsForRole(trace reviews.Trace, config growthAchievementConfigDTO, role string) []growthAchievementItemDTO {
 	catalog := make(map[string]growthAchievementItemDTO)
 	for _, item := range config.Catalog {
+		if !achievementVisibleForRole(item, role) {
+			continue
+		}
 		catalog[item.Code] = item
 	}
 	result := make([]growthAchievementItemDTO, 0, len(trace.Achievements))
@@ -641,6 +690,19 @@ func achievementDTOs(trace reviews.Trace, config growthAchievementConfigDTO) []g
 	}
 	sort.SliceStable(result, func(i, j int) bool { return result[i].Order < result[j].Order })
 	return result
+}
+
+func achievementVisibleForRole(item growthAchievementItemDTO, role string) bool {
+	if len(item.Roles) == 0 || strings.TrimSpace(role) == "" {
+		return true
+	}
+	role = strings.ToLower(strings.TrimSpace(role))
+	for _, allowed := range item.Roles {
+		if strings.ToLower(strings.TrimSpace(allowed)) == role {
+			return true
+		}
+	}
+	return false
 }
 
 func defaultCreditDeductionRules() []reviews.CreditDeductionRule {
@@ -1053,7 +1115,20 @@ func (s *Server) reviewProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	trace := s.reviews.TraceByUser(userID)
 	achievementConfig := s.currentGrowthAchievementConfig()
-	achievements := achievementDTOs(trace, achievementConfig)
+	role := "player"
+	roles := s.profiles.RoleSnapshot(userID).Roles
+	for _, candidate := range []string{"expert", "guide"} {
+		for _, current := range roles {
+			if current == candidate {
+				role = candidate
+				break
+			}
+		}
+		if role == candidate {
+			break
+		}
+	}
+	achievements := achievementDTOsForRole(trace, achievementConfig, role)
 	httpx.OK(w, map[string]interface{}{
 		"profile":           trace.Profile,
 		"footprints":        trace.Footprints,

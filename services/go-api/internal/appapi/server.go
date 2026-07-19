@@ -548,6 +548,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("PUT /api/admin/reviews/complete-config", s.requireAdminPermission("system_config:update", s.adminReviewCompleteConfig))
 	handle("GET /api/admin/growth/reward-rules", s.requireAdminPermission("system_config:read", s.adminGrowthRewardRules))
 	handle("PUT /api/admin/growth/reward-rules", s.requireAdminPermission("system_config:update", s.adminGrowthRewardRules))
+	handle("GET /api/admin/growth/achievement-config", s.requireAdminPermission("system_config:read", s.adminGrowthAchievementConfig))
+	handle("PUT /api/admin/growth/achievement-config", s.requireAdminPermission("system_config:update", s.adminGrowthAchievementConfig))
 	handle("GET /api/admin/operation-rules", s.requireAdminPermission("system_config:read", s.adminOperationRules))
 	handle("PUT /api/admin/operation-rules", s.requireAdminPermission("system_config:update", s.adminOperationRules))
 	handle("GET /api/admin/credit-deduction-rules", s.requireAdminPermission("system_config:read", s.adminCreditDeductionRules))

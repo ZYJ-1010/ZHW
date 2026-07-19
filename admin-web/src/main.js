@@ -3270,6 +3270,8 @@ async function renderSystem() {
   $("#review-complete-form").addEventListener("submit", saveReviewCompleteConfig);
   $("#growth-rules-refresh").addEventListener("click", loadGrowthRewardRules);
   $("#growth-rules-form").addEventListener("submit", saveGrowthRewardRules);
+  $("#achievement-config-refresh").addEventListener("click", loadAchievementConfig);
+  $("#achievement-config-form").addEventListener("submit", saveAchievementConfig);
   $("#operation-rules-refresh").addEventListener("click", loadOperationRules);
   $("#operation-rules-form").addEventListener("submit", saveOperationRules);
   $("#credit-rule-refresh").addEventListener("click", loadCreditDeductionRules);
@@ -3293,6 +3295,7 @@ async function renderSystem() {
     tasks.push(loadRoleBenefitConfig());
     tasks.push(loadReviewCompleteConfig());
     tasks.push(loadGrowthRewardRules());
+    tasks.push(loadAchievementConfig());
     tasks.push(loadOperationRules());
     tasks.push(loadCreditDeductionRules());
     tasks.push(loadProfitTemplateConfig());
@@ -3305,6 +3308,7 @@ async function renderSystem() {
     renderNoAccess("#role-benefit-config-panel", "缺少 system_config:read");
     renderNoAccess("#review-complete-config-panel", "缺少 system_config:read");
     renderNoAccess("#growth-rules-config-panel", "缺少 system_config:read");
+    renderNoAccess("#achievement-config-panel", "缺少 system_config:read");
     renderNoAccess("#operation-rules-config-panel", "缺少 system_config:read");
     renderNoAccess("#credit-rule-config-panel", "缺少 system_config:read");
   }
@@ -3329,6 +3333,43 @@ async function renderSystem() {
     renderNoAccess("#ai-export-config-panel", "缺少 ai:data:read");
   }
   await Promise.all(tasks);
+}
+
+async function loadAchievementConfig() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#achievement-config-panel", "缺少 system_config:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/growth/achievement-config");
+  state.achievementConfig = data.config || data;
+  const textarea = $("#achievement-config-json");
+  if (textarea) textarea.value = JSON.stringify(state.achievementConfig, null, 2);
+  renderAchievementConfig();
+}
+
+function renderAchievementConfig() {
+  const config = state.achievementConfig || {};
+  const catalog = Array.isArray(config.catalog) ? config.catalog : [];
+  const locked = Array.isArray(config.locked) ? config.locked : [];
+  const roleCount = catalog.filter((item) => Array.isArray(item.roles) && item.roles.length).length;
+  $("#achievement-config-panel").innerHTML = [
+    detailCell("已解锁目录", `${catalog.length} 项`),
+    detailCell("进行中目录", `${locked.length} 项`),
+    detailCell("角色专属成就", `${roleCount} 项`),
+    detailCell("当前版本", config.version || "-"),
+  ].join("");
+}
+
+async function saveAchievementConfig(event) {
+  event.preventDefault();
+  await saveJSONSystemConfig({
+    form: event.currentTarget,
+    endpoint: "/api/admin/growth/achievement-config",
+    stateKey: "achievementConfig",
+    textareaSelector: "#achievement-config-json",
+    render: renderAchievementConfig,
+    successMessage: "成就配置已保存",
+  });
 }
 
 function ensureGuideRulePanel() {
