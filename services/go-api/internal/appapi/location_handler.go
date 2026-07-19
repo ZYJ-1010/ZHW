@@ -123,9 +123,13 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 	if radius <= 0 {
 		radius = 5000
 	}
+	maxRadius := s.currentOperationRules().Map.MaxRadiusMeters
+	if maxRadius <= 0 {
+		maxRadius = 50000
+	}
 	if raw := nearbyRadiusQuery(r); raw != "" {
 		parsed, err := strconv.ParseFloat(raw, 64)
-		if err != nil || parsed <= 0 || parsed > 50000 || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		if err != nil || parsed <= 0 || parsed > float64(maxRadius) || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "附近半径参数错误")
 			return
 		}

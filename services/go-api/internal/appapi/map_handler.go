@@ -75,9 +75,17 @@ func (s *Server) mapIndexConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) currentMapIndexConfig() mapIndexConfigDTO {
 	var stored mapIndexConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(mapIndexConfigKey, &stored) && len(stored.MapFilters) > 0 {
-		return normalizeMapIndexConfig(stored)
+		config := normalizeMapIndexConfig(stored)
+		if radius := s.currentOperationRules().Map.DefaultRadiusMeters; radius > 0 {
+			config.DefaultRadiusMeters = radius
+		}
+		return config
 	}
-	return defaultMapIndexConfig()
+	config := defaultMapIndexConfig()
+	if radius := s.currentOperationRules().Map.DefaultRadiusMeters; radius > 0 {
+		config.DefaultRadiusMeters = radius
+	}
+	return config
 }
 
 func normalizeMapIndexConfig(config mapIndexConfigDTO) mapIndexConfigDTO {

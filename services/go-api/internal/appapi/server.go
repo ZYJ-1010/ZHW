@@ -170,6 +170,9 @@ func (s *Server) Configure(cfg config.Config) {
 		rules := s.currentOperationRules()
 		service.SetPlayerLimits(rules.Game.MinPlayers, rules.Game.MaxPlayers)
 	}
+	if radius := s.currentOperationRules().Map.DefaultRadiusMeters; radius > 0 {
+		s.nearbyDefaultRadiusMeter = float64(radius)
+	}
 	if cfg.LBS.DefaultRadiusMeter > 0 {
 		s.nearbyDefaultRadiusMeter = cfg.LBS.DefaultRadiusMeter
 	}
