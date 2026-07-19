@@ -117,7 +117,9 @@ function main() {
 
   fs.mkdirSync(outDir, { recursive: true })
   const iconDir = path.join(outDir, 'reusable-svg-icons')
+  const uploadedSvgDir = path.join(outDir, 'reusable-upload-svg')
   fs.mkdirSync(iconDir, { recursive: true })
+  fs.mkdirSync(uploadedSvgDir, { recursive: true })
   const uniqueIcons = new Map()
   for (const icon of icons.values()) {
     const hash = crypto.createHash('sha1').update(`${icon.viewBox || ''}\n${icon.svg}`).digest('hex').slice(0, 12)
@@ -144,6 +146,27 @@ function main() {
     note: '只记录图片引用关系；头像、用户图片、榜单和局封面等演示数据不复制到业务项目。',
     images: [...imageReferences.values()]
   }, null, 2))
+  const uploadedSvgRoot = path.join(source, 'uploads7/images')
+  const uploadedSvgManifest = { sourceRoot: 'uploads7/images', reusable: [], excludedDemoAvatarInitials: [] }
+  function scanDirectory(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name)
+      if (entry.isDirectory()) scanDirectory(fullPath)
+      else if (entry.name.toLowerCase().endsWith('.svg')) {
+        const svg = fs.readFileSync(fullPath, 'utf8')
+        const sourcePath = path.relative(source, fullPath)
+        if (/<text\b/.test(svg)) {
+          uploadedSvgManifest.excludedDemoAvatarInitials.push(sourcePath)
+          continue
+        }
+        const file = `upload-${crypto.createHash('sha1').update(sourcePath).digest('hex').slice(0, 12)}.svg`
+        fs.writeFileSync(path.join(uploadedSvgDir, file), svg.replace(/[ \t]+$/gm, ''))
+        uploadedSvgManifest.reusable.push({ file: `reusable-upload-svg/${file}`, sourcePath })
+      }
+    }
+  }
+  if (fs.existsSync(uploadedSvgRoot)) scanDirectory(uploadedSvgRoot)
+  fs.writeFileSync(path.join(outDir, 'uploaded-svg-manifest.json'), JSON.stringify(uploadedSvgManifest, null, 2))
   const lines = [
     '# 墨刀原型 PT 标注总目录',
     '',
@@ -152,6 +175,7 @@ function main() {
     `- 已解析页面画布：${screens.length} 个（与导出包记录的 106 个画布相比，另有一个无页面标识的元节点）`,
     `- 完整元素 PT、文字样式、原始填充/边框/阴影、图片和 SVG 引用：\`all-screens-pt.json\``,
     `- 可复用 SVG 图标：\`reusable-svg-icons/\`（${uniqueIcons.size} 个去重文件）及 \`reusable-svg-icons.json\``,
+    `- 导出包内另有 ${uploadedSvgManifest.reusable.length} 个非演示上传 SVG：\`reusable-upload-svg/\`；${uploadedSvgManifest.excludedDemoAvatarInitials.length} 个带姓名缩写的演示头像已排除，详见 \`uploaded-svg-manifest.json\`。`,
     `- 图片引用清单：\`image-reference-manifest.json\`；演示头像、封面和业务数据不复制。`,
     '',
     '## 使用规则',

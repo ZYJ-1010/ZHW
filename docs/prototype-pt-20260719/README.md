@@ -5,6 +5,7 @@
 - 已解析页面画布：105 个（与导出包记录的 106 个画布相比，另有一个无页面标识的元节点）
 - 完整元素 PT、文字样式、原始填充/边框/阴影、图片和 SVG 引用：`all-screens-pt.json`
 - 可复用 SVG 图标：`reusable-svg-icons/`（73 个去重文件）及 `reusable-svg-icons.json`
+- 导出包内另有 21 个非演示上传 SVG：`reusable-upload-svg/`；67 个带姓名缩写的演示头像已排除，详见 `uploaded-svg-manifest.json`。
 - 图片引用清单：`image-reference-manifest.json`；演示头像、封面和业务数据不复制。
 
 ## 使用规则
