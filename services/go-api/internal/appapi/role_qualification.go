@@ -70,6 +70,8 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 			roleApplyCountRequirement("credit_score", fmt.Sprintf("信用分 ≥ %d 分", rules.GuideCreditScore), growth.CreditScore, rules.GuideCreditScore),
 			roleApplyRequirement{Key: "plan", Title: "提交领路计划书", Text: "提交申请时填写计划书", Met: false, Checked: false},
 		)
+		// 后台明确标记的领路人资格是运营白名单，不参与普通条件计算。
+		// 这是单独的人工开通路径，不再作为条件配置来源。
 		if qualification, err := s.profiles.GuideQualification(userID); err == nil && qualification.ConditionMet {
 			for index, item := range requirements {
 				if item.Key == "plan" {
