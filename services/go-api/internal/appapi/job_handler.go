@@ -2,6 +2,7 @@ package appapi
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
@@ -103,6 +104,11 @@ func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		items = append(items, map[string]interface{}{"userId": user.ID, "expiredPoints": -log.ChangeValue, "account": account, "log": log})
+		s.notices.Create(notifications.CreateRequest{
+			UserID: user.ID, NotifyType: "points_expired", Title: "积分到期提醒",
+			Content: "本次有 " + strconv.Itoa(-log.ChangeValue) + " 积分到期扣减，剩余积分 " + strconv.Itoa(account.AvailablePoints) + "。",
+			BizType: "points", BizID: log.ID,
+		})
 	}
 	httpx.OK(w, map[string]interface{}{"enabled": true, "cutoff": cutoff, "expiredCount": len(items), "items": items})
 }

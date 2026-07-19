@@ -1100,6 +1100,8 @@ func notificationTypeLabel(notifyType string) string {
 		return "\u7533\u8bc9\u901a\u77e5"
 	case "identity_review", "enterprise_certification_reviewed", "avatar_review_approved", "avatar_review_rejected", "role_application_approved", "role_application_rejected", "redemption_order_rejected":
 		return "\u5ba1\u6838\u901a\u77e5"
+	case "points_expired":
+		return "\u79ef\u5206\u901a\u77e5"
 	default:
 		return "\u7cfb\u7edf\u901a\u77e5"
 	}
