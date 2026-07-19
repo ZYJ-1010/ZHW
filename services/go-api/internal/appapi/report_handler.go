@@ -437,10 +437,13 @@ func (s *Server) applyReportHandleOutcome(report *reports.Report, req reports.Ha
 			report.CreditChange = credit.ChangeValue
 			report.CreditTargetUserID = report.ReporterUserID
 		}
+	case "appeal_approved":
+		s.restoreReportRevenue(report)
 	}
 }
 
 func (s *Server) applyCreditAppealHandleOutcome(report *reports.Report, req reports.HandleRequest) {
+	s.restoreReportRevenue(report)
 	report.CreditTargetUserID = report.TargetUserID
 	if report.HandleOutcome != "appeal_approved" || report.CreditLogID <= 0 || report.TargetUserID <= 0 {
 		return
@@ -454,6 +457,16 @@ func (s *Server) applyCreditAppealHandleOutcome(report *reports.Report, req repo
 	}
 	credit := s.reviews.RestoreCredit(report.TargetUserID, report.GameID, "appeal_passed", amount)
 	report.CreditChange = credit.ChangeValue
+}
+
+func (s *Server) restoreReportRevenue(report *reports.Report) {
+	if report == nil || report.RevenueRecordID <= 0 {
+		return
+	}
+	if restored, changed, err := s.revenue.RestoreFrozenByGame(report.GameID, "appeal_approved"); err == nil && changed {
+		report.RevenueFrozen = restored.Status == "frozen"
+		report.RevenueFreezeNote = "appeal_approved"
+	}
 }
 
 func (s *Server) creditAppealRestoreAmount(userID int64, creditLogID int64) int {

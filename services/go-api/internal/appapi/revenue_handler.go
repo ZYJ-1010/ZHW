@@ -22,6 +22,7 @@ type revenueService interface {
 	Record(id int64) (revenue.Record, error)
 	Freeze(recordID int64, reason string) (revenue.Record, error)
 	FreezeByGame(gameID int64, reason string) (revenue.Record, bool, error)
+	RestoreFrozenByGame(gameID int64, reason string) (revenue.Record, bool, error)
 	Settle(recordID int64, method string, proofNo string) (revenue.Record, revenue.Settlement, error)
 	Settlements() []revenue.Settlement
 	IncomeAccount(userID int64) revenue.IncomeAccount

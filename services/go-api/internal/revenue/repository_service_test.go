@@ -53,6 +53,10 @@ func TestServiceUsesRepositoryForRevenueFlow(t *testing.T) {
 	if _, _, err := service.Settle(record.ID, "offline", "P001"); err != ErrRecordFrozen {
 		t.Fatalf("expected frozen record block settlement, got %v", err)
 	}
+	restored, changed, err := service.RestoreFrozenByGame(record.GameID, "appeal_approved")
+	if err != nil || !changed || restored.Status != "pending_settlement" {
+		t.Fatalf("expected frozen record restored after appeal, changed=%v record=%+v err=%v", changed, restored, err)
+	}
 
 	record2, err := service.Generate(CalculateRequest{GameID: 2, AmountCent: 10000, TemplateID: template.ID, CreatorID: 10, MemberIDs: []int64{10, 20}})
 	if err != nil {
@@ -65,7 +69,7 @@ func TestServiceUsesRepositoryForRevenueFlow(t *testing.T) {
 	if settled.Status != "settled" || settlement.ID == 0 || !repo.savedSettlement {
 		t.Fatalf("expected settlement persisted, record=%+v settlement=%+v repo=%+v", settled, settlement, repo)
 	}
-	if len(repo.incomeLogs) != 8 {
+	if len(repo.incomeLogs) != 10 {
 		t.Fatalf("expected generated and settled income logs, got %+v", repo.incomeLogs)
 	}
 	if summary := service.IncomeSummary(20); summary.TotalCent == 0 || summary.SettledCent == 0 {

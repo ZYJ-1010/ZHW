@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -533,6 +534,50 @@ func (s *Service) FreezeByGame(gameID int64, reason string) (Record, bool, error
 	s.records[recordID] = record
 	s.syncIncomeAccountsForItemsLocked(record.Items)
 	s.appendIncomeLogsForRecordLocked(record, "record_frozen")
+	return record, true, nil
+}
+
+// RestoreFrozenByGame reopens a frozen revenue record after an appeal is
+// approved. It is idempotent and keeps the freeze/unfreeze trail in income
+// logs for reconciliation.
+func (s *Service) RestoreFrozenByGame(gameID int64, reason string) (Record, bool, error) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "appeal_approved"
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var record Record
+	var ok bool
+	if recordID, found := s.recordsByGame[gameID]; found {
+		record, ok = s.records[recordID]
+	}
+	if !ok && s.repo != nil {
+		saved, found, err := s.repo.FindRecordByGame(context.Background(), gameID)
+		if err != nil || !found {
+			return Record{}, false, err
+		}
+		record, ok = saved, true
+	}
+	if !ok {
+		return Record{}, false, nil
+	}
+	if record.Status != "frozen" {
+		return record, false, nil
+	}
+	record.Status = "pending_settlement"
+	record.FrozenReason = ""
+	if s.repo != nil {
+		saved, err := s.repo.UpdateRecord(context.Background(), record)
+		if err != nil {
+			return Record{}, false, err
+		}
+		record = saved
+	}
+	s.records[record.ID] = record
+	s.recordsByGame[gameID] = record.ID
+	s.syncIncomeAccountsForItemsLocked(record.Items)
+	s.appendIncomeLogsForRecordLocked(record, "record_unfrozen:"+reason)
 	return record, true, nil
 }
 
