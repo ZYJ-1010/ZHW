@@ -47,6 +47,21 @@ func TestSensitiveWordsPersistAcrossServiceRestart(t *testing.T) {
 	}
 }
 
+func TestGroupIMSendUsesSensitiveWordDictionary(t *testing.T) {
+	store := &memorySensitiveWordStore{}
+	service := NewService(&readonlyGameState{members: []int64{1}, roomReady: true})
+	if err := service.UseSensitiveWordStore(store); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CreateSensitiveWord(SensitiveWordRequest{Word: "群聊拦截词", Action: "block", Status: "active"}); err != nil {
+		t.Fatal(err)
+	}
+	service.EnsureRoom(99)
+	if _, err := service.Send(1, 99, SendRequest{MessageType: "text", Content: "这里有群聊拦截词"}); err != ErrSensitive {
+		t.Fatalf("group IM should reject sensitive content, got %v", err)
+	}
+}
+
 func TestVoiceMessageUsesFileAttachment(t *testing.T) {
 	state := &readonlyGameState{members: []int64{1, 2}}
 	service := NewService(state)

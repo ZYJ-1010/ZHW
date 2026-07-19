@@ -31,6 +31,33 @@ function connectGameSocket(gameId, handlers = {}) {
   }
 
   let opened = false
+  let requestSequence = 0
+  const pendingRequests = new Map()
+
+  function rejectPending(error) {
+    pendingRequests.forEach((pending) => {
+      clearTimeout(pending.timer)
+      pending.reject(error)
+    })
+    pendingRequests.clear()
+  }
+
+  function settleRequest(payload) {
+    const requestId = payload && payload.requestId
+    if (!requestId || !pendingRequests.has(requestId)) {
+      return
+    }
+    const pending = pendingRequests.get(requestId)
+    pendingRequests.delete(requestId)
+    clearTimeout(pending.timer)
+    if (payload.type === 'error') {
+      const error = new Error(payload.message || 'IM 消息发送失败')
+      error.code = payload.code
+      pending.reject(error)
+      return
+    }
+    pending.resolve(payload.data)
+  }
   const task = wx.connectSocket({
     url,
     header: {
@@ -57,6 +84,8 @@ function connectGameSocket(gameId, handlers = {}) {
       return
     }
 
+    settleRequest(payload)
+
     if (payload.type === 'message' && typeof handlers.onMessage === 'function') {
       handlers.onMessage(payload.data)
       return
@@ -74,6 +103,7 @@ function connectGameSocket(gameId, handlers = {}) {
 
   task.onClose((event) => {
     opened = false
+    rejectPending(new Error('IM 连接已断开'))
     if (typeof handlers.onClose === 'function') {
       handlers.onClose(event)
     }
@@ -81,6 +111,7 @@ function connectGameSocket(gameId, handlers = {}) {
 
   task.onError((event) => {
     opened = false
+    rejectPending(new Error('IM 连接失败'))
     if (typeof handlers.onError === 'function') {
       handlers.onError(event)
     }
@@ -96,17 +127,30 @@ function connectGameSocket(gameId, handlers = {}) {
           reject(new Error('socket not connected'))
           return
         }
+        requestSequence += 1
+        const requestId = `im-${Date.now()}-${requestSequence}`
+        const timer = setTimeout(() => {
+          pendingRequests.delete(requestId)
+          reject(new Error('IM 消息发送超时'))
+        }, 10000)
+        pendingRequests.set(requestId, { resolve, reject, timer })
         task.send({
           data: JSON.stringify({
             type: 'send_message',
+            requestId,
             payload: message
           }),
-          success: resolve,
-          fail: reject
+          success: () => {},
+          fail: (error) => {
+            pendingRequests.delete(requestId)
+            clearTimeout(timer)
+            reject(error)
+          }
         })
       })
     },
     close() {
+      rejectPending(new Error('IM 连接已关闭'))
       if (opened) {
         task.close({})
       }

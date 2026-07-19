@@ -470,7 +470,12 @@ Page({
         this.setData({ socketConnected: true })
       },
       onMessage: (message) => this.appendSocketMessage(message),
-      onError: () => {
+      onError: (error) => {
+        // 敏感词拒绝是单条消息业务错误，连接本身仍然有效；发送 Promise
+        // 会把 45101 返回给 onSendTap，由失败消息气泡展示具体原因。
+        if (error && Number(error.code) === 45101) {
+          return
+        }
         this.setData({ socketConnected: false })
       },
       onClose: () => {
