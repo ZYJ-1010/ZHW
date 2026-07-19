@@ -3790,6 +3790,15 @@ async function loadConditionRuleConfig() {
   }
   const data = await apiGet("/api/admin/games/condition-rule-config");
   state.conditionRuleConfig = data.config || data;
+  const form = $("#condition-rule-form");
+  if (form) {
+    setFormValue(form, "defaultVisibility", state.conditionRuleConfig.defaultVisibility || "approved_users");
+    setFormValue(form, "version", state.conditionRuleConfig.version || "");
+    ["enabled", "visibleInMiniProgram", "adminOnlyCreate", "reviewRequired"].forEach((field) => {
+      const input = form.elements.namedItem(field);
+      if (input) input.checked = Boolean(state.conditionRuleConfig[field]);
+    });
+  }
   const textarea = $("#condition-rule-config-json");
   if (textarea) textarea.value = JSON.stringify(state.conditionRuleConfig, null, 2);
   renderConditionRuleConfig();
@@ -3803,20 +3812,46 @@ function renderConditionRuleConfig() {
     detailCell("仅后台可创建", yesNo(config.adminOnlyCreate)),
     detailCell("条件项数量", `${(config.ruleItems || []).length} 项`),
     detailCell("默认可见性", visibilityLabel(config.defaultVisibility)),
-    detailCell("需要支付能力", yesNo(config.paymentRequired)),
+    detailCell("支付能力", config.paymentRequired ? "异常开启" : "一期关闭"),
   ].join("");
 }
 
 async function saveConditionRuleConfig(event) {
   event.preventDefault();
-  await saveJSONSystemConfig({
-    form: event.currentTarget,
-    endpoint: "/api/admin/games/condition-rule-config",
-    stateKey: "conditionRuleConfig",
-    textareaSelector: "#condition-rule-config-json",
-    render: renderConditionRuleConfig,
-    successMessage: "条件局规则已保存",
-  });
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  let payload = JSON.parse(JSON.stringify(state.conditionRuleConfig || {}));
+  const raw = String(new FormData(form).get("configJson") || "").trim();
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch (error) {
+      toast("高级配置格式不正确", true);
+      return;
+    }
+  }
+  const values = new FormData(form);
+  payload = {
+    ...payload,
+    defaultVisibility: String(values.get("defaultVisibility") || "approved_users"),
+    version: String(values.get("version") || "").trim(),
+    enabled: values.get("enabled") === "on",
+    visibleInMiniProgram: values.get("visibleInMiniProgram") === "on",
+    adminOnlyCreate: values.get("adminOnlyCreate") === "on",
+    reviewRequired: values.get("reviewRequired") === "on",
+    paymentRequired: false,
+  };
+  try {
+    const data = await apiPut("/api/admin/games/condition-rule-config", payload);
+    state.conditionRuleConfig = data.config || data;
+    await loadConditionRuleConfig();
+    toast("条件局规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function loadRoleBenefitConfig() {

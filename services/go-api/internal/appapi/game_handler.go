@@ -726,7 +726,9 @@ func (s *Server) currentGameAuditConfig() gameAuditConfigDTO {
 func (s *Server) currentGameConditionRuleConfig() gameConditionRuleConfigDTO {
 	var stored gameConditionRuleConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameConditionRuleConfigKey, &stored) && len(stored.RuleItems) > 0 {
-		return cloneGameConditionRuleConfig(stored)
+		config := cloneGameConditionRuleConfig(stored)
+		config.PaymentRequired = false
+		return config
 	}
 	return defaultGameConditionRuleConfig()
 }
@@ -1439,6 +1441,8 @@ func normalizeGameConditionRuleConfig(req gameConditionRuleConfigDTO) (gameCondi
 	config.DefaultVisibility = strings.TrimSpace(config.DefaultVisibility)
 	config.Version = strings.TrimSpace(config.Version)
 	config.RuleItems = normalizeConditionRuleItems(config.RuleItems)
+	// 一期没有支付与押金能力，条件局仅使用资格与可见性规则。
+	config.PaymentRequired = false
 	if len(config.RuleItems) == 0 {
 		return gameConditionRuleConfigDTO{}, errors.New("ruleItems required")
 	}

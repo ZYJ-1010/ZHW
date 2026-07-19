@@ -2126,6 +2126,9 @@ func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 	if err := json.Unmarshal(conditionBody, &conditionResp); err != nil {
 		t.Fatal(err)
 	}
+	if conditionResp.Data.PaymentRequired {
+		t.Fatalf("phase one condition games must not enable payment: %s", string(conditionBody))
+	}
 	if conditionResp.Data.Version != "condition-test" || conditionResp.Data.DefaultVisibility != "invite_only" || len(conditionResp.Data.RuleItems) != 1 {
 		t.Fatalf("expected app condition config from admin update: %s", string(conditionBody))
 	}

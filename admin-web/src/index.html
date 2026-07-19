@@ -1484,8 +1484,28 @@
           </div>
           <button id="condition-rule-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="condition-rule-form" class="form-grid hidden" aria-hidden="true">
-          <textarea id="condition-rule-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+        <form id="condition-rule-form" class="form-grid config-form">
+          <label>默认可见范围
+            <select name="defaultVisibility">
+              <option value="approved_users">仅审核通过用户</option>
+              <option value="all_users">所有用户</option>
+              <option value="invite_only">仅受邀用户</option>
+              <option value="hidden">隐藏</option>
+            </select>
+          </label>
+          <label>规则版本<input name="version" maxlength="32" /></label>
+          <label class="checkbox-field"><input name="enabled" type="checkbox" />启用条件局能力</label>
+          <label class="checkbox-field"><input name="visibleInMiniProgram" type="checkbox" />在小程序展示条件局</label>
+          <label class="checkbox-field"><input name="adminOnlyCreate" type="checkbox" />仅后台创建条件局</label>
+          <label class="checkbox-field"><input name="reviewRequired" type="checkbox" />条件局需要人工审核</label>
+          <div class="phase-one-banner config-fixed-note">
+            <strong>一期固定口径</strong>
+            <span>一期未启用支付，条件局不得配置付款或押金能力；条件项可在高级配置中维护。</span>
+          </div>
+          <details class="advanced-config">
+            <summary>高级配置：条件项（实名、信用分、资料完整度）</summary>
+            <textarea id="condition-rule-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+          </details>
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="condition-rule-config-panel" class="detail-grid"></div>
