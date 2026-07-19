@@ -21,6 +21,7 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 	relations, _ := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
 	items = s.inviteConnections(userID, items, relations)
 	income := s.phaseOneIncomeSummary(userID)
+	revenueEnabled := s.currentOperationRules().Revenue.Enabled
 	inviteCode, _ := s.auth.InviteCodeForUser(userID)
 	s.recordBehavior(userID, "view_profile_invite_overview", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
@@ -33,7 +34,7 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 			{"value": strconv.Itoa(len(relations)), "label": "总邀约数", "trend": "▲", "tone": "up"},
 			{"value": strconv.Itoa(countStrongConnections(items)), "label": "成功转化", "trend": "▲", "tone": "up"},
 			{"value": conversionRateText(countStrongConnections(items), len(relations)), "label": "转化率", "trend": "▲", "tone": "up"},
-			{"value": moneyYuanText(income.TotalCent), "label": "分润收益", "trend": "▲", "tone": "up"},
+			{"value": incomeDisplayText(revenueEnabled, income.TotalCent), "label": "分润收益", "trend": "▲", "tone": "up"},
 		},
 		"actions": []map[string]interface{}{
 			{"key": "share_card", "icon": "🔗", "label": "分享邀请码", "inviteCode": inviteCode},
@@ -44,7 +45,7 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 		"trends": []map[string]interface{}{
 			{"label": "本周新增邀约", "value": "+" + strconv.Itoa(len(relations)), "tone": "cyan"},
 			{"label": "本周新增转化", "value": "+" + strconv.Itoa(countStrongConnections(items)), "tone": "green"},
-			{"label": "本周分润", "value": moneyYuanText(income.SettledCent), "tone": "cyan"},
+			{"label": "本周分润", "value": incomeDisplayText(revenueEnabled, income.SettledCent), "tone": "cyan"},
 		},
 	})
 }
@@ -56,15 +57,19 @@ func (s *Server) profileInviteNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 	items := s.inviteConnectionsForUser(userID)
 	income := s.phaseOneIncomeSummary(userID)
+	revenueEnabled := s.currentOperationRules().Revenue.Enabled
 	s.recordBehavior(userID, "view_profile_invite_network", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"summary": []map[string]interface{}{
 			{"value": strconv.Itoa(len(items)), "label": "已服务\n位玩家"},
-			{"value": moneyYuanText(income.SettledCent), "label": "本周收益"},
+			{"value": incomeDisplayText(revenueEnabled, income.SettledCent), "label": "本周收益"},
 		},
-		"networkNodes": inviteNetworkNodes(items),
-		"avatars":      inviteAvatarList(s, items),
-		"members":      s.inviteMembers(items),
+		"networkNodes":       inviteNetworkNodes(s, items),
+		"networkNodeDetails": s.inviteNetworkNodeDetails(items),
+		"networkEdges":       s.inviteNetworkEdges(userID, items),
+		"invitedGameSummary": s.invitedGameSummary(items),
+		"avatars":            inviteAvatarList(s, items),
+		"members":            s.inviteMembers(items),
 	})
 }
 
@@ -135,16 +140,17 @@ func (s *Server) profileInviteIncome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	summary := s.phaseOneIncomeSummary(userID)
+	revenueEnabled := s.currentOperationRules().Revenue.Enabled
 	logs := []revenue.IncomeLog{}
 	if s.currentOperationRules().Revenue.Enabled {
 		logs = s.revenue.IncomeLogs(userID, "")
 	}
 	s.recordBehavior(userID, "view_profile_invite_income", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
-		"trendSeries": inviteIncomeTrendSeries(summary),
+		"trendSeries": inviteIncomeTrendSeries(logs),
 		"metrics": []map[string]interface{}{
-			{"label": "本月分润", "value": moneyYuanText(summary.SettledCent), "desc": "已结算收益"},
-			{"label": "累计分润", "value": moneyYuanText(summary.TotalCent), "desc": "含待结算收益"},
+			{"label": "本月分润", "value": incomeDisplayText(revenueEnabled, summary.SettledCent), "desc": "已结算收益"},
+			{"label": "累计分润", "value": incomeDisplayText(revenueEnabled, summary.TotalCent), "desc": "含待结算收益"},
 			{"label": "活跃成员", "value": strconv.Itoa(len(s.inviteConnectionsForUser(userID))), "desc": "当前关系数"},
 			{"label": "产生分润局数", "value": strconv.Itoa(len(logs)), "desc": "累计流水"},
 		},
@@ -276,15 +282,16 @@ func (s *Server) inviteMembers(items []connections.Connection) []map[string]inte
 	for _, item := range items {
 		name := s.displayName(item.ConnectedUserID, "成员")
 		games := s.invitedGames(item.ConnectedUserID)
+		completed := countCompletedInvitedGames(games)
 		members = append(members, map[string]interface{}{
 			"id":                 strconv.FormatInt(item.ConnectedUserID, 10),
 			"avatar":             avatarTextForName(name, item.ConnectedUserID),
 			"name":               name,
-			"desc":               "邀约 " + strconv.Itoa(maxInt(1, item.StrengthScore)) + " · 转化 " + strconv.Itoa(maxInt(0, item.StrengthScore/2)) + " · 活跃 " + strconv.Itoa(maxInt(1, item.StrengthScore)) + "天",
+			"desc":               "邀约 1 · 转化 " + strconv.Itoa(completed) + " · 参与 " + strconv.Itoa(len(games)) + "局",
 			"direct":             "+",
-			"team":               "贡献 " + moneyYuanText(int64(item.StrengthScore)*1600),
+			"team":               s.inviteContributionText(item.ConnectedUserID),
 			"gameCount":          len(games),
-			"completedGameCount": countCompletedInvitedGames(games),
+			"completedGameCount": completed,
 			"games":              games,
 		})
 	}
@@ -299,7 +306,7 @@ func (s *Server) inviteRecords(items []connections.Connection) []map[string]inte
 		status := "progress"
 		statusText := "进行中"
 		statusClass := "blue"
-		if countCompletedInvitedGames(invitedGames) > 0 || item.StrengthScore >= 3 {
+		if countCompletedInvitedGames(invitedGames) > 0 {
 			status = "completed"
 			statusText = "已完成"
 			statusClass = "green"
@@ -317,7 +324,7 @@ func (s *Server) inviteRecords(items []connections.Connection) []map[string]inte
 			"playerAvatar": "我",
 			"player":       "我",
 			"title":        "邀请关系服务",
-			"budget":       "你的奖励：" + moneyYuanText(int64(item.StrengthScore)*1000),
+			"budget":       "你的奖励：" + s.inviteContributionText(item.ConnectedUserID),
 			"income":       incomeStatusText(status),
 			"route":        "/pages/profile/service-center/invite/member-detail/index?memberId=" + strconv.FormatInt(item.ConnectedUserID, 10),
 			"steps": []map[string]interface{}{
@@ -342,21 +349,95 @@ func (s *Server) inviteRankingMembers(items []connections.Connection) []map[stri
 			"avatar":             avatarTextForName(name, item.ConnectedUserID),
 			"name":               name,
 			"level":              "一级成员",
-			"activeDays":         maxInt(1, item.StrengthScore),
-			"inviteCount":        maxInt(1, item.StrengthScore),
-			"profitContribution": moneyYuanText(int64(item.StrengthScore) * 1600),
+			"activeDays":         s.invitedActiveDays(item.ConnectedUserID),
+			"inviteCount":        s.inviteCountForUser(item.ConnectedUserID),
+			"profitContribution": s.inviteContributionText(item.ConnectedUserID),
 		})
 	}
 	return members
 }
 
-func inviteNetworkNodes(items []connections.Connection) []string {
-	count := maxInt(1, len(items))
-	nodes := make([]string, 0, count)
-	for i := 1; i <= count && i <= 8; i++ {
-		nodes = append(nodes, strconv.Itoa(i))
+func inviteNetworkNodes(s *Server, items []connections.Connection) []string {
+	nodes := make([]string, 0, minInt(8, len(items)))
+	for i, item := range items {
+		if i >= 8 {
+			break
+		}
+		name := s.displayName(item.ConnectedUserID, "成员")
+		nodes = append(nodes, avatarTextForName(name, item.ConnectedUserID))
 	}
 	return nodes
+}
+
+func (s *Server) inviteNetworkNodeDetails(items []connections.Connection) []map[string]interface{} {
+	details := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		name := s.displayName(item.ConnectedUserID, "成员")
+		games := s.invitedGames(item.ConnectedUserID)
+		details = append(details, map[string]interface{}{
+			"id":                 strconv.FormatInt(item.ConnectedUserID, 10),
+			"userId":             item.ConnectedUserID,
+			"name":               name,
+			"avatar":             avatarTextForName(name, item.ConnectedUserID),
+			"relation":           "direct_invitee",
+			"level":              1,
+			"gameCount":          len(games),
+			"completedGameCount": countCompletedInvitedGames(games),
+		})
+	}
+	return details
+}
+
+func (s *Server) inviteNetworkEdges(userID int64, items []connections.Connection) []map[string]interface{} {
+	edges := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		edges = append(edges, map[string]interface{}{
+			"source":   strconv.FormatInt(userID, 10),
+			"target":   strconv.FormatInt(item.ConnectedUserID, 10),
+			"relation": "invite",
+		})
+	}
+	return edges
+}
+
+func (s *Server) invitedGameSummary(items []connections.Connection) []map[string]interface{} {
+	result := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		games := s.invitedGames(item.ConnectedUserID)
+		result = append(result, map[string]interface{}{
+			"memberId":           strconv.FormatInt(item.ConnectedUserID, 10),
+			"gameCount":          len(games),
+			"completedGameCount": countCompletedInvitedGames(games),
+			"games":              games,
+		})
+	}
+	return result
+}
+
+func (s *Server) inviteCountForUser(userID int64) int {
+	if userID <= 0 || s.auth == nil {
+		return 0
+	}
+	relations, _ := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
+	return len(relations)
+}
+
+func (s *Server) invitedActiveDays(userID int64) int {
+	games := s.invitedGames(userID)
+	seen := make(map[string]struct{}, len(games))
+	for _, game := range games {
+		if value, ok := game["createdAt"].(string); ok && len(value) >= 10 {
+			seen[value[:10]] = struct{}{}
+		}
+	}
+	return len(seen)
+}
+
+func (s *Server) inviteContributionText(userID int64) string {
+	if !s.currentOperationRules().Revenue.Enabled {
+		return "一期未启用"
+	}
+	return "按实际结算"
 }
 
 func inviteAvatarList(s *Server, items []connections.Connection) []string {
@@ -392,19 +473,25 @@ func countInviteRecordsByStatus(records []map[string]interface{}, status string)
 	return count
 }
 
-func inviteIncomeTrendSeries(summary revenue.IncomeSummary) []map[string]interface{} {
-	base := summary.TotalCent / 100
-	if base == 0 {
-		base = 1
+func inviteIncomeTrendSeries(logs []revenue.IncomeLog) []map[string]interface{} {
+	if len(logs) == 0 {
+		return []map[string]interface{}{}
 	}
-	return []map[string]interface{}{
-		{"month": "1月", "amount": maxInt64(1, base/6)},
-		{"month": "2月", "amount": maxInt64(1, base/5)},
-		{"month": "3月", "amount": maxInt64(1, base/4)},
-		{"month": "4月", "amount": maxInt64(1, base/3)},
-		{"month": "5月", "amount": maxInt64(1, base/2)},
-		{"month": "6月", "amount": maxInt64(1, base)},
+	monthly := make(map[string]int64)
+	order := make([]string, 0, len(logs))
+	for _, log := range logs {
+		month := log.CreatedAt.Format("2006-01")
+		if _, ok := monthly[month]; !ok {
+			order = append(order, month)
+		}
+		monthly[month] += log.AmountCent
 	}
+	result := make([]map[string]interface{}, 0, len(order))
+	for _, month := range order {
+		parsed, _ := time.Parse("2006-01", month)
+		result = append(result, map[string]interface{}{"month": parsed.Format("1月"), "amount": monthly[month]})
+	}
+	return result
 }
 
 func inviteIncomeFlows(logs []revenue.IncomeLog) []map[string]interface{} {
@@ -438,6 +525,13 @@ func moneyYuanText(cent int64) string {
 	return "¥" + strconv.FormatFloat(float64(cent)/100, 'f', 2, 64)
 }
 
+func incomeDisplayText(enabled bool, cent int64) string {
+	if !enabled {
+		return "一期未启用"
+	}
+	return moneyYuanText(cent)
+}
+
 func incomeStatusText(status string) string {
 	if status == "completed" {
 		return "已到账"
@@ -451,11 +545,4 @@ func defaultString(value string, fallback string) string {
 		return fallback
 	}
 	return value
-}
-
-func maxInt64(a int64, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
 }

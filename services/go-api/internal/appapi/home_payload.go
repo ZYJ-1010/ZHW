@@ -308,13 +308,17 @@ func (s *Server) homeRoleNetwork(userID int64, conns []connections.Connection, p
 		incomeCent = totalCent
 	}
 	items := s.homeGuideIndustryItems(userID, relationCount)
+	incomeText := "一期未启用"
+	if s.currentOperationRules().Revenue.Enabled {
+		incomeText = moneyYuanText(incomeCent)
+	}
 	return map[string]interface{}{
 		"title":        "我的关系领域",
 		"status":       "实时连接中",
 		"hubTitle":     s.displayName(userID, "领路人"),
 		"hubDesc":      "领路人",
 		"summary":      "已连接 " + strconv.Itoa(relationCount) + " 位玩家",
-		"income":       "本周收益 " + moneyYuanText(incomeCent),
+		"income":       "本周收益 " + incomeText,
 		"location":     "核心区",
 		"locationText": "核心区",
 		"items":        items,
