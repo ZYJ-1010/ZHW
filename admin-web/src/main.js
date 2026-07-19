@@ -1473,8 +1473,16 @@ async function grantRoleFromAdmin(event) {
     return;
   }
   try {
-    const result = await apiPost("/api/admin/roles/grant", { userIds, roleCode: data.roleCode });
-    toast(`已开通 ${result.total || userIds.length} 个身份`);
+    const result = await apiPost("/api/admin/roles/grant", { userIds, roleCode: data.roleCode, reason: data.reason || "一期白名单开通" });
+    const success = Number(result.success || 0);
+    const alreadyActive = Number(result.alreadyActive || 0);
+    const failed = Number(result.failed || 0);
+    const failedItems = (result.items || []).filter((item) => item.status === "failed");
+    const failureText = failedItems.map((item) => `${item.userId}：${item.reason || "开通失败"}`).join("；");
+    const receipt = `批次 ${result.batchId || "-"}：成功 ${success}，已开通 ${alreadyActive}，失败 ${failed}`;
+    const receiptNode = $("#role-grant-result");
+    if (receiptNode) receiptNode.textContent = failureText ? `${receipt}。${failureText}` : receipt;
+    toast(failed ? `${receipt}，请查看结果回执` : receipt);
     form.reset();
     await loadRoles();
   } catch (error) {

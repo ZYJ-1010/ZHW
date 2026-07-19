@@ -53,6 +53,21 @@ func TestSubmitRoleApplicationKeepsExpertAndGuideStateSeparate(t *testing.T) {
 	}
 }
 
+func TestGrantRoleWhitelistReconcilesGuideState(t *testing.T) {
+	repo := newFakeProfileRepository()
+	service := NewServiceWithRepository(repo)
+	if err := service.GrantRoleWhitelist(20, "guide", 7, "一期白名单开通"); err != nil {
+		t.Fatal(err)
+	}
+	if !service.IsGuide(20) {
+		t.Fatal("guide role should be active")
+	}
+	qualification, err := service.GuideQualification(20)
+	if err != nil || !qualification.ConditionMet || !qualification.PaymentMet || qualification.GuideOpenStatus != "opened" {
+		t.Fatalf("guide qualification was not reconciled: %+v, err=%v", qualification, err)
+	}
+}
+
 func TestSubmitRoleApplicationStoresEligibilitySnapshot(t *testing.T) {
 	service := NewService()
 	app, err := service.SubmitRoleApplication(30, SubmitRoleApplicationRequest{

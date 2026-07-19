@@ -25,6 +25,40 @@ on conflict (user_id, role_code) do update set status = 'active'
 	return err
 }
 
+func (r *SQLRepository) GrantRoleWhitelist(ctx context.Context, userID int64, roleCode string, adminID int64, reason string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `
+insert into user_roles (user_id, role_code, status, created_at)
+values ($1,$2,'active',now())
+on conflict (user_id, role_code) do update set status = 'active'
+`, userID, roleCode); err != nil {
+		return err
+	}
+	if roleCode == "guide" {
+		if _, err := tx.ExecContext(ctx, `
+insert into guide_qualification_records (user_id, condition_met, payment_met, guide_open_status, updated_at)
+values ($1,true,true,'opened',now())
+on conflict (user_id) do update set condition_met = true, payment_met = true, guide_open_status = 'opened', updated_at = now()
+`, userID); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `
+update role_applications
+set status = 'approved', review_admin_id = $3, review_remark = $4,
+    certificate_no = coalesce(certificate_no, 'ZHW-WL-' || id::text || '-' || extract(year from now())::text),
+    certified_at = coalesce(certified_at, now()), updated_at = now()
+where user_id = $1 and role_code = $2 and status = 'pending'
+`, userID, roleCode, nullInt64(adminID), reason); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (r *SQLRepository) SaveEnterpriseCertification(ctx context.Context, item EnterpriseCertification) (EnterpriseCertification, error) {
 	return scanEnterpriseCertification(r.db.QueryRowContext(ctx, `
 insert into enterprise_certifications (user_id, company_name, unified_social_credit_code, legal_person, business_license_file_id, public_account_file_id, status, reject_reason, review_admin_id, review_remark, created_at, updated_at)

@@ -1,8 +1,11 @@
 package appapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"zhw-mini/services/go-api/internal/auth"
@@ -40,5 +43,41 @@ func TestRoleHomeRequiresActiveBackendRole(t *testing.T) {
 		if response.Data.Hero.RoleType != roleType {
 			t.Fatalf("expected %s home, got %s: %s", roleType, response.Data.Hero.RoleType, string(body))
 		}
+	}
+}
+
+func TestAdminGrantRoleRequiresRealnameAndReconcilesGuide(t *testing.T) {
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	server := newTestAppServer(authService, identity.NewService())
+	mux := http.NewServeMux()
+	server.Register(mux)
+	token := loginForTestWithCode(t, mux, "role-grant-realname-user")
+	userID := currentUserIDForTest(t, mux, token)
+
+	grant := func() (int, map[string]interface{}) {
+		request := httptest.NewRequest(http.MethodPost, "/api/admin/roles/grant", bytes.NewBufferString(`{"userIds":[`+strconv.FormatInt(userID, 10)+`],"roleCode":"guide"}`))
+		response := httptest.NewRecorder()
+		server.adminGrantRole(response, request)
+		var payload map[string]interface{}
+		_ = json.Unmarshal(response.Body.Bytes(), &payload)
+		return response.Code, payload
+	}
+	if code, payload := grant(); code != http.StatusOK || payload["data"] == nil {
+		t.Fatalf("expected per-item realname rejection response, code=%d payload=%v", code, payload)
+	}
+	if server.profiles.IsGuide(userID) {
+		t.Fatal("unverified user must not receive guide role")
+	}
+
+	completeIdentityForTest(t, mux, token)
+	if code, payload := grant(); code != http.StatusOK || payload["data"] == nil {
+		t.Fatalf("expected verified grant response, code=%d payload=%v", code, payload)
+	}
+	if !server.profiles.IsGuide(userID) {
+		t.Fatal("verified user should receive guide role")
+	}
+	qualification, err := server.profiles.GuideQualification(userID)
+	if err != nil || qualification.GuideOpenStatus != "opened" {
+		t.Fatalf("guide qualification not opened: %+v err=%v", qualification, err)
 	}
 }

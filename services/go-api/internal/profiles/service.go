@@ -190,6 +190,10 @@ type Repository interface {
 	ListSystemManagementConfigs(ctx context.Context, key string) ([]SystemManagementConfigItem, error)
 }
 
+type roleWhitelistRepository interface {
+	GrantRoleWhitelist(ctx context.Context, userID int64, roleCode string, adminID int64, reason string) error
+}
+
 type enterpriseRepository interface {
 	SaveEnterpriseCertification(ctx context.Context, item EnterpriseCertification) (EnterpriseCertification, error)
 	FindEnterpriseCertification(ctx context.Context, userID int64) (EnterpriseCertification, bool, error)
@@ -262,6 +266,68 @@ func (s *Service) GrantRole(userID int64, roleCode string) {
 	case "guide":
 		s.guides[userID] = true
 	}
+}
+
+// GrantRoleWhitelist is the一期运营开通路径. It still requires the caller
+// to verify real-name status at the app layer, while atomically reconciling
+// the role, guide qualification and any pending application in storage.
+func (s *Service) GrantRoleWhitelist(userID int64, roleCode string, adminID int64, reason string) error {
+	roleCode = strings.ToLower(strings.TrimSpace(roleCode))
+	if userID <= 0 || (roleCode != "expert" && roleCode != "guide") {
+		return ErrInvalidRoleApplication
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "后台白名单开通"
+	}
+	if s.repo != nil {
+		if repository, ok := s.repo.(roleWhitelistRepository); ok {
+			return repository.GrantRoleWhitelist(context.Background(), userID, roleCode, adminID, reason)
+		}
+		if err := s.repo.GrantRole(context.Background(), userID, roleCode); err != nil {
+			return err
+		}
+		if roleCode == "guide" {
+			qualification, _ := s.GuideQualification(userID)
+			qualification.UserID = userID
+			qualification.ConditionMet = true
+			qualification.PaymentMet = true
+			qualification.GuideOpenStatus = "opened"
+			qualification.UpdatedAt = time.Now()
+			_, err := s.repo.SaveGuideQualification(context.Background(), qualification)
+			return err
+		}
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if roleCode == "expert" {
+		s.experts[userID] = true
+	} else {
+		s.guides[userID] = true
+		qualification := s.guideQual[userID]
+		qualification.UserID = userID
+		qualification.ConditionMet = true
+		qualification.PaymentMet = true
+		qualification.GuideOpenStatus = "opened"
+		qualification.UpdatedAt = time.Now()
+		s.guideQual[userID] = qualification
+	}
+	for id, application := range s.apps {
+		if application.UserID != userID || application.RoleCode != roleCode || application.Status != "pending" {
+			continue
+		}
+		application.Status = "approved"
+		application.ReviewAdminID = adminID
+		application.ReviewRemark = reason
+		application.UpdatedAt = time.Now()
+		if application.CertificateNo == "" {
+			application.CertificateNo = fmt.Sprintf("ZHW-WL-%05d-%d", application.ID, application.UpdatedAt.Year())
+		}
+		application.CertifiedAt = application.UpdatedAt.Format(time.RFC3339)
+		s.apps[id] = application
+	}
+	return nil
 }
 
 func (s *Service) EnterpriseCertification(userID int64) (EnterpriseCertification, bool) {

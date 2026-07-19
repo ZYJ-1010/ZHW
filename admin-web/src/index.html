@@ -469,8 +469,10 @@
             <label>直接赋予身份
               <select name="roleCode"><option value="expert">行家</option><option value="guide">领路人</option></select>
             </label>
+            <label>开通原因<input name="reason" placeholder="例如：一期白名单开通" /></label>
             <button class="ghost" type="submit">白名单开通</button>
           </form>
+          <div id="role-grant-result" class="hint" aria-live="polite"></div>
           <div id="role-list" class="stack-list"></div>
         </section>
       </div>
