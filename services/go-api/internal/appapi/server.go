@@ -175,9 +175,6 @@ func (s *Server) Configure(cfg config.Config) {
 	if radius := s.currentOperationRules().Map.DefaultRadiusMeters; radius > 0 {
 		s.nearbyDefaultRadiusMeter = float64(radius)
 	}
-	if cfg.LBS.DefaultRadiusMeter > 0 {
-		s.nearbyDefaultRadiusMeter = cfg.LBS.DefaultRadiusMeter
-	}
 	if cfg.TencentMap.Enabled && strings.TrimSpace(cfg.TencentMap.KeyServer) != "" {
 		timeoutMS := cfg.TencentMap.RequestTimeoutMS
 		if timeoutMS <= 0 {
@@ -279,6 +276,12 @@ func (s *Server) bindSensitiveWordStore() {
 func (s *Server) UseTaskRepository(repository tasks.Repository) {
 	if repository != nil {
 		s.tasks = tasks.NewServiceWithRepository(repository)
+	}
+}
+
+func (s *Server) UseExportRepository(repository exports.Repository) {
+	if repository != nil {
+		s.exports = exports.NewServiceWithRepository(repository)
 	}
 }
 
@@ -615,7 +618,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/admin/behavior-logs", s.requireAdminPermission("analytics:timeline:view", s.adminBehaviorLogs))
 	handle("GET /api/admin/operation-logs", s.adminOperationLogs)
 	handle("GET /api/admin/export-tasks", s.requireAdminPermission("report_export:create", s.adminExportTasks))
-	handle("GET /api/admin/export-tasks/", s.requireAdminPermission("report_export:create", s.adminExportTaskDownloadURL))
+	handle("GET /api/admin/export-tasks/", s.requireAdminPermission("report_export:create", s.routeAdminExportTaskGet))
 	handle("GET /api/admin/notifications/wechat-tasks", s.requireAdminPermission("notification:wechat:view", s.adminWechatSubscribeTasks))
 	handle("GET /api/admin/notifications/wechat-templates", s.requireAdminPermission("notification:wechat:view", s.adminWechatSubscribeTemplates))
 	handle("GET /api/admin/reports", s.requireAdminPermission("report:view", s.adminReports))

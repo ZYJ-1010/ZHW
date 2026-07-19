@@ -312,7 +312,16 @@
                     <text>📋</text>
                     <text>{{currentHomePreview.requirementsTitle}}</text>
                   </view>
-                  <view wx:for="{{currentHomePreview.requirements}}" wx:for-item="requirement" wx:key="title" class="home-expert-requirement">
+                  <view
+                    wx:for="{{currentHomePreview.requirements}}"
+                    wx:for-item="requirement"
+                    wx:key="title"
+                    class="home-expert-requirement {{requirement.checked ? '' : 'actionable'}}"
+                    data-key="{{requirement.key}}"
+                    data-title="{{requirement.title}}"
+                    data-checked="{{requirement.checked}}"
+                    catchtap="handleExpertApplyRequirementTap"
+                  >
                     <view class="home-expert-status-dot {{requirement.checked ? 'checked' : 'failed'}}">
                       <text>{{requirement.checked ? '✓' : '❌'}}</text>
                     </view>

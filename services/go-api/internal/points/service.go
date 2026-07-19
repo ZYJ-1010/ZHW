@@ -40,6 +40,13 @@ type Repository interface {
 	AddLog(ctx context.Context, log Log) (Log, error)
 }
 
+// atomicRepository is implemented by the PostgreSQL adapter. It keeps the
+// balance and its ledger entry in one transaction.
+type atomicRepository interface {
+	ApplyChange(ctx context.Context, userID int64, changeValue int, bizType string, bizID int64, reason string) (Account, Log, error)
+	ApplyChangeOnce(ctx context.Context, userID int64, changeValue int, bizType string, bizID int64, reason string) (Account, Log, bool, error)
+}
+
 type Service struct {
 	mu       sync.RWMutex
 	nextID   int64
@@ -119,6 +126,33 @@ func (s *Service) Grant(userID int64, value int, bizType string, bizID int64, re
 	return account, log, nil
 }
 
+// GrantOnce is used for automatic business rewards. The same user, business
+// type and business id can only create one reward ledger record, including in
+// a multi-instance deployment.
+func (s *Service) GrantOnce(userID int64, value int, bizType string, bizID int64, reason string) (Account, Log, bool, error) {
+	if value <= 0 || bizID <= 0 || bizType == "" {
+		return Account{}, Log{}, false, ErrInvalidPoints
+	}
+	if repository, ok := s.repo.(atomicRepository); ok {
+		return repository.ApplyChangeOnce(context.Background(), userID, value, bizType, bizID, reason)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, item := range s.logs {
+		if item.UserID == userID && item.BizType == bizType && item.BizID == bizID {
+			return s.ensureLocked(userID), item, false, nil
+		}
+	}
+	account := s.ensureLocked(userID)
+	before := account.AvailablePoints
+	account.AvailablePoints += value
+	account.TotalEarnedPoints += value
+	account.UpdatedAt = time.Now()
+	s.accounts[userID] = account
+	log := s.appendLogLocked(userID, value, before, account.AvailablePoints, bizType, bizID, reason)
+	return account, log, true, nil
+}
+
 func (s *Service) Deduct(userID int64, value int, bizType string, bizID int64, reason string) (Account, Log, error) {
 	if value <= 0 {
 		return Account{}, Log{}, ErrInvalidPoints
@@ -196,6 +230,9 @@ func (s *Service) appendLogLocked(userID int64, changeValue int, before int, aft
 }
 
 func (s *Service) applyRepositoryChange(userID int64, changeValue int, bizType string, bizID int64, reason string) (Account, Log, error) {
+	if repository, ok := s.repo.(atomicRepository); ok {
+		return repository.ApplyChange(context.Background(), userID, changeValue, bizType, bizID, reason)
+	}
 	account, ok, err := s.repo.GetAccount(context.Background(), userID)
 	if err != nil {
 		return Account{}, Log{}, err

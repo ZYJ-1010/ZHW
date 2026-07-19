@@ -1,8 +1,11 @@
 package appapi
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,7 +13,6 @@ import (
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/exports"
-	"zhw-mini/services/go-api/internal/files"
 )
 
 func (s *Server) adminExportTemplates(w http.ResponseWriter, r *http.Request) {
@@ -84,29 +86,40 @@ func (s *Server) adminExportTaskDownloadURL(w http.ResponseWriter, r *http.Reque
 		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export file not ready")
 		return
 	}
-	url, err := s.files.DownloadURL(fileID)
+	file, err := s.files.Get(fileID)
 	if err != nil {
-		if errors.Is(err, files.ErrFileExpired) {
-			httpx.Error(w, http.StatusGone, httpx.CodeConflict, "export file expired")
-			return
-		}
-		if errors.Is(err, files.ErrStorageNotConfigured) {
-			httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "storage base url not configured")
-			return
-		}
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "export file not found")
+		return
+	}
+	if expiresAt, ok := parseExportFileExpiry(file.ExpiresAt); ok && time.Now().After(expiresAt) {
+		httpx.Error(w, http.StatusGone, httpx.CodeConflict, "export file expired")
+		return
+	}
+	if _, err := s.exports.FileContent(fileID); err != nil {
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export content not ready")
 		return
 	}
 	s.recordOperation(r, "export:download_url", "export_task", strconv.FormatInt(taskID, 10), map[string]interface{}{
 		"fileId": fileID,
 	})
-	httpx.OK(w, url)
+	httpx.OK(w, map[string]interface{}{
+		"downloadUrl": "/api/admin/export-tasks/" + strconv.FormatInt(taskID, 10) + "/download",
+		"fileName":    file.FileName,
+		"fileId":      fileID,
+	})
 }
 
 func (s *Server) runExportTasks(w http.ResponseWriter, r *http.Request) {
 	results, err := s.exports.RunPending(20, func(task exports.Task, template exports.Template) (int64, string, error) {
-		file, err := s.files.CreateGeneratedFileWithTTL("export_file", task.ID, template.FileName, "text/csv", int64(len(template.Columns)*16), 24*time.Hour)
+		content, err := s.exportCSV(task, template)
 		if err != nil {
+			return 0, "", err
+		}
+		file, err := s.files.CreateGeneratedFileWithTTL("export_file", task.ID, template.FileName, "text/csv", int64(len(content)), 24*time.Hour)
+		if err != nil {
+			return 0, "", err
+		}
+		if err := s.exports.SaveFileContent(file.ID, content); err != nil {
 			return 0, "", err
 		}
 		return file.ID, file.StorageKey, nil
@@ -122,6 +135,103 @@ func (s *Server) runExportTasks(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	httpx.OK(w, map[string]interface{}{"items": results, "processed": len(results)})
+}
+
+func (s *Server) routeAdminExportTaskGet(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "/download-url") {
+		s.adminExportTaskDownloadURL(w, r)
+		return
+	}
+	if strings.HasSuffix(r.URL.Path, "/download") {
+		s.adminExportTaskDownload(w, r)
+		return
+	}
+	http.NotFound(w, r)
+}
+
+func (s *Server) adminExportTaskDownload(w http.ResponseWriter, r *http.Request) {
+	taskID, err := pathID(r.URL.Path, "/api/admin/export-tasks/", "/download")
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid task id")
+		return
+	}
+	fileID, err := s.exports.ReadyFileID(taskID)
+	if err != nil {
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export file not ready")
+		return
+	}
+	file, err := s.files.Get(fileID)
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "export file not found")
+		return
+	}
+	if expiresAt, ok := parseExportFileExpiry(file.ExpiresAt); ok && time.Now().After(expiresAt) {
+		httpx.Error(w, http.StatusGone, httpx.CodeConflict, "export file expired")
+		return
+	}
+	content, err := s.exports.FileContent(fileID)
+	if err != nil {
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export content not ready")
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+safeExportFileName(file.FileName)+`"`)
+	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
+	_, _ = w.Write(content)
+	s.recordOperation(r, "export:download", "export_task", strconv.FormatInt(taskID, 10), map[string]interface{}{"fileId": fileID})
+}
+
+func (s *Server) exportCSV(task exports.Task, template exports.Template) ([]byte, error) {
+	buffer := bytes.NewBuffer(nil)
+	// Excel on Windows recognises UTF-8 correctly with BOM.
+	buffer.Write([]byte{0xEF, 0xBB, 0xBF})
+	writer := csv.NewWriter(buffer)
+	if err := writer.Write(template.Columns); err != nil {
+		return nil, err
+	}
+	switch template.ExportType {
+	case "reports":
+		for _, item := range s.reports.List() {
+			if err := writer.Write([]string{strconv.FormatInt(item.ID, 10), strconv.FormatInt(item.GameID, 10), strconv.FormatInt(item.ReporterUserID, 10), item.ReportType, item.Status, item.CreatedAt.Format(time.RFC3339)}); err != nil {
+				return nil, err
+			}
+		}
+	case "operation_logs":
+		for _, item := range s.audit.OperationLogs() {
+			if err := writer.Write([]string{strconv.FormatInt(item.ID, 10), strconv.FormatInt(item.AdminUserID, 10), item.Action, item.TargetType, item.TargetID, item.CreatedAt.Format(time.RFC3339)}); err != nil {
+				return nil, err
+			}
+		}
+	case "reviews":
+		for _, item := range s.reviews.AllReviews() {
+			if err := writer.Write([]string{strconv.FormatInt(item.ID, 10), strconv.FormatInt(item.GameID, 10), strconv.FormatInt(item.ReviewerUserID, 10), strconv.FormatInt(item.TargetUserID, 10), strconv.Itoa(item.Score), strings.Join(item.Tags, "|"), item.AgainIntent, item.CreatedAt.Format(time.RFC3339)}); err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unsupported export type: %s", template.ExportType)
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func parseExportFileExpiry(value string) (time.Time, bool) {
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}, false
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	return parsed, err == nil
+}
+
+func safeExportFileName(value string) string {
+	value = strings.ReplaceAll(strings.TrimSpace(value), `"`, "")
+	if value == "" {
+		return "export.csv"
+	}
+	return value
 }
 
 func pathID(path string, prefix string, suffix string) (int64, error) {

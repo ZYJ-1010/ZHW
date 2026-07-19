@@ -675,11 +675,23 @@ paths:
             type: integer
       responses:
         "200":
-          description: 导出完成后返回临时下载地址，并写 export:download_url 操作日志
+          description: 导出完成后返回后台授权下载地址，并写 export:download_url 操作日志
         "409":
           description: 导出文件尚未生成
-        "503":
-          description: 生产环境未配置 HTTPS 下载地址
+  /api/admin/export-tasks/{taskId}/download:
+    get:
+      summary: 下载导出 CSV 文件
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 返回 UTF-8 CSV 文件，需携带 report_export:create 权限
+        "409":
+          description: 导出文件或内容尚未生成
   /api/internal/reports/export-runner:
     post:
       summary: 内部执行报表导出任务

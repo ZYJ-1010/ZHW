@@ -119,7 +119,10 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	radius := s.nearbyDefaultRadiusMeter
+	radius := float64(s.currentOperationRules().Map.DefaultRadiusMeters)
+	if radius <= 0 {
+		radius = s.nearbyDefaultRadiusMeter
+	}
 	if radius <= 0 {
 		radius = 5000
 	}
@@ -155,6 +158,9 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 	s.recordBehavior(userID, "browse_games", "game", 0, map[string]interface{}{"scope": "nearby", "radiusMeter": radius, "count": len(result)})
 	httpx.OK(w, map[string]interface{}{
 		"items":              result,
+		"total":              len(result),
+		"radiusMeters":       radius,
+		"center":             map[string]float64{"longitude": location.Longitude, "latitude": location.Latitude},
 		"onlinePlayers":      onlinePlayers,
 		"offlinePlayers":     offlinePlayers,
 		"onlinePlayerCount":  len(onlinePlayers),

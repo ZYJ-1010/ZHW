@@ -314,13 +314,16 @@ func (s *Service) AwardCompletedGame(gameID int64) []GrowthProfile {
 			continue
 		}
 		rules := s.growthRulesLocked()
-		profiles = append(profiles, s.addExperienceOnlyLocked(userID, rules.CompletedGameExperience, rules.CompletedGamePoints, gameID, "completed_game"))
+		// 积分由 points.Service 作为唯一账本发放；成长档案这里只记录经验和
+		// 完成足迹，避免出现“成长积分”和“积分账户”两套余额。
+		profiles = append(profiles, s.addExperienceOnlyLocked(userID, rules.CompletedGameExperience, 0, gameID, "completed_game"))
 	}
 	return profiles
 }
 
-// AwardTaskReward 发放后台配置的任务奖励。以任务足迹作为幂等键，避免
-// 页面重复提交导致积分和经验重复增加。
+// AwardTaskReward records task experience and the completion footprint. Actual
+// redeemable points are written by points.Service, which is the single points
+// ledger used by the user asset centre.
 func (s *Service) AwardTaskReward(userID int64, taskCode string, points int, experience int) GrowthProfile {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -331,7 +334,7 @@ func (s *Service) AwardTaskReward(userID int64, taskCode string, points int, exp
 	if s.hasFootprintLocked(userID, 0, action) {
 		return s.profileLocked(userID)
 	}
-	return s.addExperienceOnlyLocked(userID, experience, points, 0, action)
+	return s.addExperienceOnlyLocked(userID, experience, 0, 0, action)
 }
 
 func (s *Service) Todos(userID int64) ([]Todo, error) {

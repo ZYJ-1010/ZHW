@@ -94,6 +94,9 @@ func (s *Server) gamePaymentPreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) guidePaymentPrecreatePlaceholder(w http.ResponseWriter, r *http.Request) {
+	if s.phaseOneRevenueDisabled(w) {
+		return
+	}
 	userID, ok := s.requireIdentityUser(w, r)
 	if !ok {
 		return
@@ -114,6 +117,9 @@ func (s *Server) guidePaymentPrecreatePlaceholder(w http.ResponseWriter, r *http
 }
 
 func (s *Server) paymentCallbackPlaceholder(w http.ResponseWriter, r *http.Request) {
+	if s.phaseOneRevenueDisabled(w) {
+		return
+	}
 	var req orders.CallbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
@@ -128,6 +134,9 @@ func (s *Server) paymentCallbackPlaceholder(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) profitSharingOrderPlaceholder(w http.ResponseWriter, r *http.Request) {
+	if s.phaseOneRevenueDisabled(w) {
+		return
+	}
 	var req orders.ProfitSharingOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
@@ -142,6 +151,9 @@ func (s *Server) profitSharingOrderPlaceholder(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) profitSharingOrderQueryPlaceholder(w http.ResponseWriter, r *http.Request) {
+	if s.phaseOneRevenueDisabled(w) {
+		return
+	}
 	outOrderNo := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/funds/profit-sharing/orders/"), "/")
 	result, err := s.orders.ProfitSharingPlaceholder(outOrderNo)
 	if err != nil {
@@ -152,6 +164,9 @@ func (s *Server) profitSharingOrderQueryPlaceholder(w http.ResponseWriter, r *ht
 }
 
 func (s *Server) profitSharingReturnPlaceholder(w http.ResponseWriter, r *http.Request) {
+	if s.phaseOneRevenueDisabled(w) {
+		return
+	}
 	var req orders.ProfitSharingReturnRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
@@ -163,6 +178,14 @@ func (s *Server) profitSharingReturnPlaceholder(w http.ResponseWriter, r *http.R
 		return
 	}
 	httpx.OK(w, result)
+}
+
+func (s *Server) phaseOneRevenueDisabled(w http.ResponseWriter) bool {
+	if s.currentOperationRules().Revenue.Enabled {
+		return false
+	}
+	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "一期未启用支付、提现或分润")
+	return true
 }
 
 func writeOrderError(w http.ResponseWriter, err error) {

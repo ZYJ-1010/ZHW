@@ -798,7 +798,7 @@ func (s *Server) serviceConfirm(w http.ResponseWriter, r *http.Request) {
 	s.recordBehavior(userID, "service_confirm_attempt", "game", gameID, attemptExtra)
 	if game.Status == "pending_review" && !wasReviewable {
 		s.reviews.MarkGameReviewable(gameID)
-		s.reviews.AwardCompletedGame(gameID)
+		s.awardCompletedGameRewards(gameID)
 		s.createCoGameConnections(gameID)
 		s.createReviewRemindNotifications(gameID, userID)
 	} else if game.Status == "pending_confirm" {
@@ -917,7 +917,7 @@ func (s *Server) serviceConfirmItem(w http.ResponseWriter, r *http.Request) {
 	}
 	if game.Status == "pending_review" && !wasReviewable {
 		s.reviews.MarkGameReviewable(gameID)
-		s.reviews.AwardCompletedGame(gameID)
+		s.awardCompletedGameRewards(gameID)
 		s.createCoGameConnections(gameID)
 		s.createReviewRemindNotifications(gameID, userID)
 	}

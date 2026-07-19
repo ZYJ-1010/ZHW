@@ -453,6 +453,15 @@ Page({
         this.setMapCenter(this.locationCenter, this.data.radiusMeters, {
           locationStatusText: '已获取当前位置'
         })
+        // 只有用户主动打开地图并授权后才保存 GPS；首页和附近局接口会复用
+        // 这条最近定位，不会把默认城市坐标误当成用户位置。
+        locationService.saveCurrentLocation({
+          latitude,
+          longitude,
+          accuracyMeter: Number(result.accuracy || result.horizontalAccuracy || 0)
+        }).catch((error) => {
+          console.warn('save current location failed', error)
+        })
         this.loadNearbyGames(this.locationCenter, this.data.radiusMeters)
       },
       fail: () => {
@@ -468,7 +477,16 @@ Page({
     this.setMapCenter(fallbackLocation, this.data.radiusMeters, {
       locationStatusText: statusText
     })
-    this.loadNearbyGames(fallbackLocation, this.data.radiusMeters)
+    this.setData({
+      nearbyItems: [],
+      nearbyPlayers: [],
+      markers: [],
+      selectedMarkerId: 0,
+      selectedPlace: null,
+      selectedPlayer: null,
+      nearbyCountText: '请授权定位后查看附近组局',
+      loadingNearby: false
+    })
   },
 
   setMapCenter(center, radiusMeters, extraData = {}) {

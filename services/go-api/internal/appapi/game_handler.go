@@ -1835,7 +1835,7 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 				item["completed"] = true
 				item["claimStatus"] = "claimed"
 			}
-			if done, _ := item["completed"].(bool); done && s.tasks != nil {
+			if done, _ := item["completed"].(bool); done && s.tasks != nil && !isCompleted {
 				var markErr error
 				if collectionIndex == 1 {
 					_, markErr = s.tasks.MarkCompletedForDate(userID, code, time.Now())
@@ -1845,7 +1845,8 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 				if markErr == nil {
 					for _, rule := range rules.Tasks.Items {
 						if rule.Code == code && rule.Enabled {
-							s.reviews.AwardTaskReward(userID, rule.Code, rule.RewardPoints, rule.RewardExperience)
+							s.awardNewbieTaskReward(userID, rule)
+							item["claimStatus"] = "claimed"
 							break
 						}
 					}
@@ -2907,7 +2908,7 @@ func (s *Server) gameSuccessDetail(w http.ResponseWriter, r *http.Request) {
 		game = updatedGame
 		if !currentGameReviewable(s.games, game.ID) {
 			s.reviews.MarkGameReviewable(game.ID)
-			s.reviews.AwardCompletedGame(game.ID)
+			s.awardCompletedGameRewards(game.ID)
 			s.createCoGameConnections(game.ID)
 		}
 	}
@@ -3363,7 +3364,7 @@ func (s *Server) requestGameCompletion(w http.ResponseWriter, r *http.Request) {
 	directReview := game.Status == "pending_review"
 	if directReview && !wasReviewable {
 		s.reviews.MarkGameReviewable(gameID)
-		s.reviews.AwardCompletedGame(gameID)
+		s.awardCompletedGameRewards(gameID)
 		s.createCoGameConnections(gameID)
 	}
 	if !alreadyRequested {

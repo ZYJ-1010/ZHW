@@ -364,12 +364,25 @@ function normalizeExpertRequirements(requirements) {
       }
 
       return {
+        key: trimText(item.key) || inferRequirementKey(title),
         title: title || status,
         status,
         checked: isExpertRequirementChecked(item, status)
       }
     })
     .filter(Boolean)
+}
+
+function inferRequirementKey(title = '') {
+  const text = trimText(title)
+  if (/实名/.test(text)) return 'realname'
+  if (/企业|资质/.test(text)) return 'enterprise'
+  if (/发起.*组局/.test(text)) return 'created_games'
+  if (/参与.*组局/.test(text)) return 'participated_games'
+  if (/邀请.*完成/.test(text)) return 'invited_completed_game'
+  if (/信用/.test(text)) return 'credit_score'
+  if (/计划书/.test(text)) return 'plan'
+  return ''
 }
 
 function resolveApplyRequirements(requirements, fallbackRequirements) {
@@ -1585,6 +1598,32 @@ Page({
 
   handleExpertApplyPlanTap() {
     this.showExpertApplyForm()
+  },
+
+  handleExpertApplyRequirementTap(event = {}) {
+    const dataset = (event.currentTarget && event.currentTarget.dataset) || {}
+    if (dataset.checked === true || dataset.checked === 'true') {
+      return
+    }
+    const key = trimText(dataset.key) || inferRequirementKey(dataset.title)
+    const routes = {
+      realname: '/pages/login/realname/index',
+      enterprise: '/pages/profile/system-management/profile-info/index',
+      created_games: `/${ROUTES.gameCreate}`,
+      participated_games: `/${ROUTES.gameHall}`,
+      invited_completed_game: `/${ROUTES.relationNetwork}`,
+      credit_score: '/pages/profile/credit-center/index'
+    }
+    if (key === 'plan') {
+      this.showExpertApplyForm()
+      return
+    }
+    const route = routes[key]
+    if (!route) {
+      toast.info('请先完成该申请条件')
+      return
+    }
+    navigateShellRoute(route, { currentRoute: ROUTES.roleFlow })
   },
 
   handleExpertApplyPrimaryTap() {

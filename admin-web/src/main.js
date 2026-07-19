@@ -2773,16 +2773,42 @@ async function onExportTaskClick(event) {
       await showExportTaskDetail(button.dataset.id);
     }
     if (button.dataset.action === "export-download") {
-      const url = await apiGet(`/api/admin/export-tasks/${button.dataset.id}/download-url`);
-      const text = exportDownloadText(url);
-      if (navigator.clipboard?.writeText && text && text !== "-") {
-        await navigator.clipboard.writeText(text).catch(() => {});
-      }
-      toast("导出文件已准备");
+      await downloadExportTask(button.dataset.id);
+      toast("导出文件已下载");
     }
   } catch (error) {
     toast(error.message, true);
   }
+}
+
+async function downloadExportTask(taskID) {
+  const headers = {};
+  if (state.token) {
+    headers.Authorization = `Bearer ${state.token}`;
+    const id = adminID();
+    if (id > 0) headers["X-Admin-ID"] = String(id);
+  }
+  const response = await fetch(`/api/admin/export-tasks/${encodeURIComponent(taskID)}/download`, { headers });
+  if (!response.ok) {
+    let message = response.statusText || "导出文件下载失败";
+    try {
+      const payload = await response.json();
+      message = payload.message || message;
+    } catch (error) {}
+    throw new Error(message);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const matched = disposition.match(/filename="?([^";]+)"?/i);
+  const name = matched ? decodeURIComponent(matched[1]) : `export-${taskID}.csv`;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 async function renderAnalytics() {

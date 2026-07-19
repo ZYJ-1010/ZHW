@@ -48,3 +48,15 @@ func TestExpireIsIdempotentAndCreatesAuditLog(t *testing.T) {
 		t.Fatalf("expected idempotent second expiry, account=%+v log=%+v err=%v", account, log, err)
 	}
 }
+
+func TestGrantOnceWritesOnlyOneAutomaticReward(t *testing.T) {
+	service := NewService()
+	firstAccount, firstLog, created, err := service.GrantOnce(7, 15, "completed_game_reward", 99, "完成组局奖励")
+	if err != nil || !created || firstAccount.AvailablePoints != 15 || firstLog.ID == 0 {
+		t.Fatalf("expected first automatic reward, account=%+v log=%+v created=%v err=%v", firstAccount, firstLog, created, err)
+	}
+	secondAccount, secondLog, created, err := service.GrantOnce(7, 15, "completed_game_reward", 99, "完成组局奖励")
+	if err != nil || created || secondAccount.AvailablePoints != 15 || secondLog.ID != firstLog.ID {
+		t.Fatalf("expected idempotent automatic reward, account=%+v log=%+v created=%v err=%v", secondAccount, secondLog, created, err)
+	}
+}

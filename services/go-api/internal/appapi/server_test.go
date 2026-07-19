@@ -95,7 +95,12 @@ func TestAppBusinessRoutesRequireTokenMiddleware(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
 	server := newTestAppServer(authService, identityService)
-	server.Configure(config.Config{LBS: config.LBSConfig{DefaultRadiusMeter: 1}})
+	rules := server.currentOperationRules()
+	rules.Map.DefaultRadiusMeters = 1
+	if err := server.systemConfig.Set(operationRulesConfigKey, rules); err != nil {
+		t.Fatal(err)
+	}
+	server.Configure(config.Config{})
 	server.Register(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/app/games", nil)
@@ -9715,7 +9720,12 @@ func TestLocationAndNearbyGamesFlow(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
 	server := newTestAppServer(authService, identityService)
-	server.Configure(config.Config{LBS: config.LBSConfig{DefaultRadiusMeter: 1}})
+	rules := server.currentOperationRules()
+	rules.Map.DefaultRadiusMeters = 1
+	if err := server.systemConfig.Set(operationRulesConfigKey, rules); err != nil {
+		t.Fatal(err)
+	}
+	server.Configure(config.Config{})
 	server.Register(mux)
 
 	token := loginForTestWithCode(t, mux, "loc-user")
@@ -10480,6 +10490,14 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 	}
 	if downloadResp.Data.FileID == 0 || downloadResp.Data.DownloadURL == "" {
 		t.Fatalf("expected export download url: %s", downloadRec.Body.String())
+	}
+	downloadContentReq := httptest.NewRequest(http.MethodGet, "/api/admin/export-tasks/1/download", nil)
+	downloadContentReq.Header.Set("X-Admin-ID", "88")
+	downloadContentReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
+	downloadContentRec := httptest.NewRecorder()
+	mux.ServeHTTP(downloadContentRec, downloadContentReq)
+	if downloadContentRec.Code != http.StatusOK || !strings.Contains(downloadContentRec.Body.String(), "report_id") {
+		t.Fatalf("expected downloadable CSV content, got %d: %q", downloadContentRec.Code, downloadContentRec.Body.String())
 	}
 
 	operatorToken := adminLoginForTestAs(t, mux, "operator", "admin123")

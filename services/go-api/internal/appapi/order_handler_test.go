@@ -82,36 +82,7 @@ func TestPaymentCallbackPlaceholderIsIdempotentHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, token)
 	token = issueFormalTokenForTest(t, mux, token)
 
-	postJSON(t, mux, "/api/app/games", token, `{"title":"callback game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
-	precreateBody := postJSON(t, mux, "/api/app/payment/precreate-placeholder", token, `{"gameId":1}`, http.StatusOK)
-	var precreateResp struct {
-		Data struct {
-			OrderNo string `json:"orderNo"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(precreateBody, &precreateResp); err != nil {
-		t.Fatal(err)
-	}
-
-	body := `{"orderNo":"` + precreateResp.Data.OrderNo + `","eventId":"evt-1","payload":{"trade_state":"SUCCESS"}}`
-	firstBody := postJSON(t, mux, "/api/internal/pay/callback-placeholder", "", body, http.StatusOK)
-	secondBody := postJSON(t, mux, "/api/internal/pay/callback-placeholder", "", body, http.StatusOK)
-	var firstResp, secondResp struct {
-		Data struct {
-			Received      bool `json:"received"`
-			Verified      bool `json:"verified"`
-			IdempotentHit bool `json:"idempotentHit"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(firstBody, &firstResp); err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(secondBody, &secondResp); err != nil {
-		t.Fatal(err)
-	}
-	if !firstResp.Data.Received || !firstResp.Data.Verified || firstResp.Data.IdempotentHit || !secondResp.Data.IdempotentHit {
-		t.Fatalf("unexpected callback results: first=%s second=%s", string(firstBody), string(secondBody))
-	}
+	postJSON(t, mux, "/api/internal/pay/callback-placeholder", "", `{"eventId":"evt-1"}`, http.StatusNotFound)
 }
 
 func TestGuidePaymentPlaceholderUpdatesQualificationHTTP(t *testing.T) {
@@ -123,46 +94,7 @@ func TestGuidePaymentPlaceholderUpdatesQualificationHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, token)
 	token = issueFormalTokenForTest(t, mux, token)
 
-	body := postJSON(t, mux, "/api/app/guides/payment/precreate-placeholder", token, `{}`, http.StatusOK)
-	var resp struct {
-		Data struct {
-			Payment struct {
-				OrderNo       string `json:"orderNo"`
-				PayStatus     string `json:"payStatus"`
-				NeedWechatPay bool   `json:"needWechatPay"`
-				Mode          string `json:"mode"`
-			} `json:"payment"`
-			Qualification struct {
-				UserID          int64  `json:"userId"`
-				PaymentMet      bool   `json:"paymentMet"`
-				GuideOpenStatus string `json:"guideOpenStatus"`
-			} `json:"qualification"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp.Data.Payment.OrderNo == "" || resp.Data.Payment.PayStatus != "guide_fee_placeholder" || resp.Data.Payment.NeedWechatPay || resp.Data.Payment.Mode != "guide_fee_placeholder" {
-		t.Fatalf("unexpected guide payment placeholder: %s", string(body))
-	}
-	if resp.Data.Qualification.UserID != 1 || !resp.Data.Qualification.PaymentMet || resp.Data.Qualification.GuideOpenStatus != "waiting_condition" {
-		t.Fatalf("expected guide payment qualification update: %s", string(body))
-	}
-
-	againBody := postJSON(t, mux, "/api/app/guides/payment/precreate-placeholder", token, `{}`, http.StatusOK)
-	var againResp struct {
-		Data struct {
-			Payment struct {
-				OrderNo string `json:"orderNo"`
-			} `json:"payment"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(againBody, &againResp); err != nil {
-		t.Fatal(err)
-	}
-	if againResp.Data.Payment.OrderNo != resp.Data.Payment.OrderNo {
-		t.Fatalf("expected idempotent guide payment placeholder: first=%s second=%s", string(body), string(againBody))
-	}
+	postJSON(t, mux, "/api/app/guides/payment/precreate-placeholder", token, `{}`, http.StatusNotFound)
 }
 
 func TestProfitSharingPlaceholdersDoNotTriggerWechatPayHTTP(t *testing.T) {
@@ -170,58 +102,14 @@ func TestProfitSharingPlaceholdersDoNotTriggerWechatPayHTTP(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
 	newTestAppServer(authService, identityService).Register(mux)
-	token := loginForTestWithCode(t, mux, "profit-sharing")
-	completeIdentityForTest(t, mux, token)
-	token = issueFormalTokenForTest(t, mux, token)
-
-	postJSON(t, mux, "/api/app/games", token, `{"title":"profit sharing game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
-	precreateBody := postJSON(t, mux, "/api/app/payment/precreate-placeholder", token, `{"gameId":1}`, http.StatusOK)
-	var precreateResp struct {
-		Data struct {
-			OrderNo string `json:"orderNo"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(precreateBody, &precreateResp); err != nil {
-		t.Fatal(err)
-	}
-
-	shareBody := postJSON(t, mux, "/api/funds/profit-sharing/orders", "", `{"outOrderNo":"PS-1","orderNo":"`+precreateResp.Data.OrderNo+`","amountCent":1000}`, http.StatusOK)
-	var shareResp struct {
-		Data struct {
-			Status        string `json:"status"`
-			NeedWechatPay bool   `json:"needWechatPay"`
-			Placeholder   bool   `json:"placeholder"`
-			Mode          string `json:"mode"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(shareBody, &shareResp); err != nil {
-		t.Fatal(err)
-	}
-	if shareResp.Data.Status != "share_placeholder" || shareResp.Data.NeedWechatPay || !shareResp.Data.Placeholder || shareResp.Data.Mode != "profit_sharing_placeholder" {
-		t.Fatalf("unexpected profit sharing placeholder: %s", string(shareBody))
-	}
-
+	postJSON(t, mux, "/api/funds/profit-sharing/orders", "", `{"outOrderNo":"PS-1","orderNo":"ORD-1","amountCent":1000}`, http.StatusNotFound)
 	queryReq, _ := http.NewRequest(http.MethodGet, "/api/funds/profit-sharing/orders/PS-1", nil)
 	queryRec := httptest.NewRecorder()
 	mux.ServeHTTP(queryRec, queryReq)
-	if queryRec.Code != http.StatusOK {
-		t.Fatalf("expected profit sharing query 200, got %d: %s", queryRec.Code, queryRec.Body.String())
+	if queryRec.Code != http.StatusNotFound {
+		t.Fatalf("expected phase-one profit sharing query disabled, got %d: %s", queryRec.Code, queryRec.Body.String())
 	}
-	returnBody := postJSON(t, mux, "/api/funds/profit-sharing/return-orders", "", `{"outReturnNo":"PR-1","outOrderNo":"PS-1","reason":"refund"}`, http.StatusOK)
-	var returnResp struct {
-		Data struct {
-			Status        string `json:"status"`
-			NeedWechatPay bool   `json:"needWechatPay"`
-			Placeholder   bool   `json:"placeholder"`
-			Mode          string `json:"mode"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(returnBody, &returnResp); err != nil {
-		t.Fatal(err)
-	}
-	if returnResp.Data.Status != "return_placeholder" || returnResp.Data.NeedWechatPay || !returnResp.Data.Placeholder || returnResp.Data.Mode != "profit_sharing_return_placeholder" {
-		t.Fatalf("unexpected profit sharing return placeholder: %s", string(returnBody))
-	}
+	postJSON(t, mux, "/api/funds/profit-sharing/return-orders", "", `{"outReturnNo":"PR-1","outOrderNo":"PS-1","reason":"refund"}`, http.StatusNotFound)
 }
 
 func issueFormalTokenForTest(t *testing.T, mux *http.ServeMux, preAuthToken string) string {

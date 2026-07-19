@@ -1,6 +1,7 @@
 package exports
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -52,14 +53,32 @@ type RunResult struct {
 	Columns     []string `json:"columns"`
 }
 
+// Repository persists export tasks and the generated CSV bytes. Export files
+// are kept separately from the generic files metadata so a task can be
+// downloaded reliably even when object storage is not configured.
+type Repository interface {
+	CreateTask(ctx context.Context, task Task) (Task, error)
+	ListTasks(ctx context.Context) ([]Task, error)
+	GetTask(ctx context.Context, taskID int64) (Task, bool, error)
+	UpdateTask(ctx context.Context, task Task) (Task, error)
+	SaveContent(ctx context.Context, fileID int64, content []byte) error
+	LoadContent(ctx context.Context, fileID int64) ([]byte, bool, error)
+}
+
 type Service struct {
 	mu        sync.RWMutex
 	nextID    int64
 	templates []Template
 	tasks     map[int64]Task
+	contents  map[int64][]byte
+	repo      Repository
 }
 
 func NewService() *Service {
+	return NewServiceWithRepository(nil)
+}
+
+func NewServiceWithRepository(repo Repository) *Service {
 	service := &Service{
 		nextID: 1,
 		templates: []Template{
@@ -82,7 +101,9 @@ func NewService() *Service {
 				Enabled:     true,
 			},
 		},
-		tasks: make(map[int64]Task),
+		tasks:    make(map[int64]Task),
+		contents: make(map[int64][]byte),
+		repo:     repo,
 	}
 	service.templates = append(service.templates, reviewExportTemplate())
 	return service
@@ -116,7 +137,6 @@ func (s *Service) Create(adminID int64, req CreateRequest) (Task, error) {
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	task := Task{
 		ID:           s.nextID,
 		TaskNo:       fmt.Sprintf("EXP%06d", s.nextID),
@@ -129,10 +149,27 @@ func (s *Service) Create(adminID int64, req CreateRequest) (Task, error) {
 	}
 	s.nextID++
 	s.tasks[task.ID] = task
+	s.mu.Unlock()
+	if s.repo != nil {
+		// The database owns the final id. A time-based task number keeps the
+		// unique key independent from a process-local counter.
+		task.ID = 0
+		task.TaskNo = fmt.Sprintf("EXP%d", time.Now().UnixNano())
+		saved, err := s.repo.CreateTask(context.Background(), task)
+		if err != nil {
+			return Task{}, err
+		}
+		return saved, nil
+	}
 	return task, nil
 }
 
 func (s *Service) Tasks() []Task {
+	if s.repo != nil {
+		if items, err := s.repo.ListTasks(context.Background()); err == nil {
+			return items
+		}
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]Task, 0, len(s.tasks))
@@ -143,6 +180,16 @@ func (s *Service) Tasks() []Task {
 }
 
 func (s *Service) Get(taskID int64) (Task, error) {
+	if s.repo != nil {
+		task, ok, err := s.repo.GetTask(context.Background(), taskID)
+		if err != nil {
+			return Task{}, err
+		}
+		if !ok {
+			return Task{}, ErrTaskNotFound
+		}
+		return task, nil
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	task, ok := s.tasks[taskID]
@@ -187,7 +234,59 @@ func (s *Service) ReadyFileID(taskID int64) (int64, error) {
 	return task.FileID, nil
 }
 
+func (s *Service) SaveFileContent(fileID int64, content []byte) error {
+	if fileID <= 0 || len(content) == 0 {
+		return ErrInvalidRequest
+	}
+	if s.repo != nil {
+		return s.repo.SaveContent(context.Background(), fileID, content)
+	}
+	s.mu.Lock()
+	s.contents[fileID] = append([]byte(nil), content...)
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *Service) FileContent(fileID int64) ([]byte, error) {
+	if fileID <= 0 {
+		return nil, ErrTaskNotReady
+	}
+	if s.repo != nil {
+		content, ok, err := s.repo.LoadContent(context.Background(), fileID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrTaskNotReady
+		}
+		return content, nil
+	}
+	s.mu.RLock()
+	content, ok := s.contents[fileID]
+	s.mu.RUnlock()
+	if !ok {
+		return nil, ErrTaskNotReady
+	}
+	return append([]byte(nil), content...), nil
+}
+
 func (s *Service) pendingTasks(limit int) []Task {
+	if s.repo != nil {
+		items, err := s.repo.ListTasks(context.Background())
+		if err != nil {
+			return nil
+		}
+		result := make([]Task, 0, limit)
+		for _, task := range items {
+			if task.Status == "pending" {
+				result = append(result, task)
+				if len(result) >= limit {
+					break
+				}
+			}
+		}
+		return result
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]Task, 0)
@@ -203,6 +302,21 @@ func (s *Service) pendingTasks(limit int) []Task {
 }
 
 func (s *Service) markDone(taskID int64, fileID int64) Task {
+	if s.repo != nil {
+		task, err := s.Get(taskID)
+		if err != nil {
+			return Task{}
+		}
+		task.Status = "done"
+		task.FileID = fileID
+		task.FailReason = ""
+		task.FinishedAt = time.Now().Format(time.RFC3339)
+		saved, err := s.repo.UpdateTask(context.Background(), task)
+		if err != nil {
+			return Task{}
+		}
+		return saved
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	task := s.tasks[taskID]
@@ -214,6 +328,17 @@ func (s *Service) markDone(taskID int64, fileID int64) Task {
 }
 
 func (s *Service) markFailed(taskID int64, reason string) {
+	if s.repo != nil {
+		task, err := s.Get(taskID)
+		if err != nil {
+			return
+		}
+		task.Status = "failed"
+		task.FailReason = reason
+		task.FinishedAt = time.Now().Format(time.RFC3339)
+		_, _ = s.repo.UpdateTask(context.Background(), task)
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	task := s.tasks[taskID]

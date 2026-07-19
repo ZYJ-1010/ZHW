@@ -758,6 +758,14 @@
   box-sizing: border-box;
 }
 
+.home-expert-requirement.actionable {
+  cursor: pointer;
+}
+
+.home-expert-requirement.actionable:active {
+  opacity: 0.72;
+}
+
 .home-expert-requirement + .home-expert-requirement {
   margin-top: 0;
 }
@@ -953,4 +961,3 @@
 .home-expert-primary.disabled {
   opacity: 0.68;
 }
-

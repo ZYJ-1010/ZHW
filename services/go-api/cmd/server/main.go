@@ -15,6 +15,7 @@ import (
 	"zhw-mini/services/go-api/internal/common/config"
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/connections"
+	"zhw-mini/services/go-api/internal/exports"
 	"zhw-mini/services/go-api/internal/files"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/identity"
@@ -87,6 +88,7 @@ func main() {
 	appServer := appapi.New(authService, identityService, gameService, lbsService, imService)
 	if db != nil {
 		appServer.UseTaskRepository(tasks.NewSQLRepository(db))
+		appServer.UseExportRepository(exports.NewSQLRepository(db))
 	}
 	appServer.UseFaceIDCallbackVerifier(cfg.FaceID.CallbackSecret, cfg.FaceID.CallbackRequireSignature)
 	appServer.UseAdminRepository(adminRepository(db))
