@@ -716,9 +716,7 @@ func (s *Server) currentGameApplicationConfig() gameApplicationConfigDTO {
 func (s *Server) currentGameAuditConfig() gameAuditConfigDTO {
 	var stored gameAuditConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameAuditConfigKey, &stored) && strings.TrimSpace(stored.ApplicationAuditMode) != "" {
-		config := cloneGameAuditConfig(stored)
-		config.RequiredRejectReason = false
-		return config
+		return cloneGameAuditConfig(stored)
 	}
 	return defaultGameAuditConfig()
 }
@@ -1245,7 +1243,7 @@ func defaultGameAuditConfig() gameAuditConfigDTO {
 	return gameAuditConfigDTO{
 		AutoApproveFreeGames:         false,
 		RequireManualAuditTypes:      []string{"free", "standard", "public_welfare", "aa", "crowdfund", "deposit", "condition"},
-		RequiredRejectReason:         false,
+		RequiredRejectReason:         true,
 		AllowUserResubmitAfterReject: true,
 		BatchAuditMaxCount:           50,
 		ApplicationAuditMode:         "creator_or_main_guide",
@@ -1407,8 +1405,6 @@ func normalizeGameAuditConfig(req gameAuditConfigDTO) (gameAuditConfigDTO, error
 	config.ApplicationAuditMode = strings.TrimSpace(config.ApplicationAuditMode)
 	config.ReviewerRoles = normalizeStringList(config.ReviewerRoles, 16)
 	config.Version = strings.TrimSpace(config.Version)
-	// 审核人可填写驳回原因并通知申请人，但一期不把它设为提交拦截条件。
-	config.RequiredRejectReason = false
 	for _, gameType := range config.RequireManualAuditTypes {
 		if !validConfigGameType(gameType) {
 			return gameAuditConfigDTO{}, errors.New("unsupported audit game type: " + gameType)

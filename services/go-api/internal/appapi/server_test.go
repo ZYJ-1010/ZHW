@@ -2102,9 +2102,6 @@ func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 	if auditResp.Data.Config.Version != "audit-test" || auditResp.Data.Config.ApplicationAuditMode != "admin_only" || auditResp.Data.Config.BatchAuditMaxCount != 20 {
 		t.Fatalf("expected admin audit config from update: %s", string(auditBody))
 	}
-	if auditResp.Data.Config.RequiredRejectReason {
-		t.Fatalf("phase one reject reason must remain optional: %s", string(auditBody))
-	}
 
 	conditionPayload := `{
 		"enabled":true,

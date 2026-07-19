@@ -3736,7 +3736,7 @@ function renderGameAuditConfig() {
   $("#game-audit-config-panel").innerHTML = [
     detailCell("普通局自动审核", yesNo(config.autoApproveFreeGames)),
     detailCell("需人工审核局类别", compactList((config.requireManualAuditTypes || []).map(gameTypeLabel)) || "无"),
-    detailCell("驳回原因", config.requiredRejectReason ? "必填（需调整）" : "可填写，非必填"),
+    detailCell("局和入局申请驳回原因", config.requiredRejectReason ? "必填并通知申请人" : "未启用（需调整）"),
     detailCell("入局审核模式", applicationAuditModeLabel(config.applicationAuditMode)),
     detailCell("批量审核上限", `${config.batchAuditMaxCount ?? 0} 条`),
   ].join("");
@@ -3771,7 +3771,7 @@ async function saveGameAuditConfig(event) {
     applicationAuditMode: String(values.get("applicationAuditMode") || "creator_or_main_guide"),
     autoApproveFreeGames: values.get("autoApproveFreeGames") === "on",
     allowUserResubmitAfterReject: values.get("allowUserResubmitAfterReject") === "on",
-    requiredRejectReason: false,
+    requiredRejectReason: true,
   };
   try {
     const data = await apiPut("/api/admin/games/audit-config", payload);
