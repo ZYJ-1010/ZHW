@@ -195,6 +195,47 @@ func (s *Service) ExitWithCredit(userID int64, gameID int64, creditLogID int64) 
 	return result, nil
 }
 
+// RestoreMemberAfterExit compensates a failed credit-link step. It is used by
+// the application layer only after ExitWithCredit has already removed the
+// member, so the visible member count and membership record are restored too.
+func (s *Service) RestoreMemberAfterExit(userID int64, gameID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	game, ok, err := s.gameLocked(gameID)
+	if err != nil || !ok {
+		return ErrGameNotFound
+	}
+	if s.members[gameID] == nil {
+		s.members[gameID] = make(map[int64]bool)
+	}
+	if s.members[gameID][userID] {
+		return nil
+	}
+	if game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers {
+		return ErrFull
+	}
+	if s.repo != nil {
+		if err := s.repo.AddMember(context.Background(), gameID, userID, "member"); err != nil {
+			return err
+		}
+	}
+	s.members[gameID][userID] = true
+	if s.memberRoles[gameID] == nil {
+		s.memberRoles[gameID] = make(map[int64]string)
+	}
+	s.memberRoles[gameID][userID] = "member"
+	game.CurrentPlayers++
+	if s.repo != nil {
+		saved, err := s.repo.UpdateGame(context.Background(), game)
+		if err != nil {
+			return err
+		}
+		game = saved
+	}
+	s.games[gameID] = game
+	return nil
+}
+
 type ProgressFeedback struct {
 	ID        int64     `json:"id"`
 	GameID    int64     `json:"gameId"`

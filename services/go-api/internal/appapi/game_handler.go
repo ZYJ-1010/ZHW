@@ -40,6 +40,7 @@ type gameService interface {
 	RequestCompletion(userID int64, gameID int64) (games.Game, error)
 	Exit(userID int64, gameID int64) (games.ExitResult, error)
 	ExitWithCredit(userID int64, gameID int64, creditLogID int64) (games.ExitResult, error)
+	RestoreMemberAfterExit(userID int64, gameID int64) error
 	CancelService(gameID int64, reason string) (games.Game, error)
 	RecordExitCredit(gameID int64, userID int64, creditLogID int64) error
 	ConfirmService(userID int64, gameID int64, note string, fileIDs ...int64) (games.ServiceConfirm, []games.ServiceConfirmItem, games.Game, error)
@@ -5102,6 +5103,7 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if credit.ID > 0 && credit.ChangeValue < 0 {
 			s.reviews.RestoreCredit(userID, id, "exit_rollback", -credit.ChangeValue)
+			_ = s.games.RestoreMemberAfterExit(userID, id)
 		}
 		writeGameError(w, err)
 		return
