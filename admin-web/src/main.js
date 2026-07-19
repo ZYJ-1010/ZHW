@@ -4109,7 +4109,15 @@ async function loadCreditDeductionRules() {
   const data = await apiGet("/api/admin/credit-deduction-rules");
   state.creditDeductionRules = data.items || [];
   const textarea = $("#credit-rule-config-json");
-  if (textarea) textarea.value = JSON.stringify({ items: state.creditDeductionRules }, null, 2);
+  if (textarea) {
+    textarea.value = JSON.stringify({ items: state.creditDeductionRules }, null, 2);
+    textarea.dataset.advancedEdited = "false";
+  }
+  const form = $("#credit-rule-form");
+  if (form && !form.dataset.advancedListenerBound) {
+    textarea?.addEventListener("input", () => { textarea.dataset.advancedEdited = "true"; });
+    form.dataset.advancedListenerBound = "true";
+  }
   renderCreditDeductionRules();
 }
 
@@ -4122,20 +4130,80 @@ function renderCreditDeductionRules() {
     detailCell("已停用", `${items.length - enabledCount} 条`),
     detailCell("低分评价扣分", items.find((item) => item.ruleCode === "low_review")?.changeValue ?? "-"),
   ].join("");
+  const editor = $("#credit-rule-editor");
+  if (editor) {
+    editor.innerHTML = items.length
+      ? items.map((item) => `
+        <article class="rule-editor-row" data-rule-code="${escapeHTML(item.ruleCode)}">
+          <strong>${escapeHTML(creditRuleLabel(item.ruleCode))}</strong>
+          <span class="muted">${escapeHTML(item.description || "-")}</span>
+          <label>扣分<input name="changeValue" type="number" min="-100" max="-1" value="${escapeHTML(item.changeValue)}" required /></label>
+          <label class="checkbox-field"><input name="enabled" type="checkbox" ${item.enabled ? "checked" : ""} />启用</label>
+        </article>
+      `).join("")
+      : emptyBlock("暂无信用扣分规则");
+  }
+}
+
+function creditRuleLabel(ruleCode) {
+  return {
+    quit_after_confirm: "确认服务后退出",
+    quit_after_started: "开局后退出",
+    player_cancel_service: "玩家取消服务",
+    expert_cancel_service: "行家取消服务",
+    low_review: "收到低分评价",
+    report_confirmed: "举报核实成立",
+    malicious_report: "恶意举报",
+  }[ruleCode] || ruleCode;
 }
 
 async function saveCreditDeductionRules(event) {
   event.preventDefault();
-  await saveJSONSystemConfig({
-    form: event.currentTarget,
-    endpoint: "/api/admin/credit-deduction-rules",
-    stateKey: "creditDeductionRules",
-    textareaSelector: "#credit-rule-config-json",
-    render: renderCreditDeductionRules,
-    successMessage: "信用扣分规则已保存",
-    pickState: (data) => data.items || [],
-    normalizePayload: (payload) => Array.isArray(payload) ? { items: payload } : payload,
-  });
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  const textarea = $("#credit-rule-config-json");
+  let payload;
+  if (textarea?.dataset.advancedEdited === "true") {
+    try {
+      const parsed = JSON.parse(textarea.value || "{}");
+      payload = Array.isArray(parsed) ? { items: parsed } : parsed;
+    } catch (error) {
+      toast("高级配置格式不正确", true);
+      return;
+    }
+  } else {
+    const source = new Map((state.creditDeductionRules || []).map((item) => [item.ruleCode, item]));
+    const items = [...form.querySelectorAll(".rule-editor-row[data-rule-code]")].map((row) => {
+      const ruleCode = row.dataset.ruleCode;
+      const sourceItem = source.get(ruleCode) || {};
+      return {
+        ...sourceItem,
+        ruleCode,
+        changeValue: Number(row.querySelector('[name="changeValue"]')?.value),
+        enabled: Boolean(row.querySelector('[name="enabled"]')?.checked),
+      };
+    });
+    if (!items.length || items.some((item) => !Number.isInteger(item.changeValue) || item.changeValue > -1 || item.changeValue < -100)) {
+      toast("每项扣分应为 -1 至 -100 的整数", true);
+      return;
+    }
+    payload = { items };
+  }
+  if (!Array.isArray(payload?.items) || !payload.items.length) {
+    toast("至少保留一条信用扣分规则", true);
+    return;
+  }
+  try {
+    const data = await apiPut("/api/admin/credit-deduction-rules", payload);
+    state.creditDeductionRules = data.items || [];
+    await loadCreditDeductionRules();
+    toast("信用扣分规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function saveJSONSystemConfig({ form, endpoint, stateKey, textareaSelector, render, successMessage, pickState, normalizePayload }) {

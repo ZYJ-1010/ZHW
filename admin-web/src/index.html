@@ -1615,8 +1615,12 @@
           </div>
           <button id="credit-rule-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="credit-rule-form" class="form-grid hidden" aria-hidden="true">
-          <textarea id="credit-rule-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
+        <form id="credit-rule-form" class="form-grid config-form">
+          <div id="credit-rule-editor" class="rule-editor wide-field" aria-live="polite"></div>
+          <details class="advanced-config">
+            <summary>高级配置：完整规则 JSON（仅在需要新增特殊规则时编辑）</summary>
+            <textarea id="credit-rule-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
+          </details>
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="credit-rule-config-panel" class="detail-grid"></div>
