@@ -1438,10 +1438,13 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		}
 		s.memberRoles[game.ID][app.UserID] = memberRole
 		game.CurrentPlayers++
-		if game.CurrentPlayers >= game.MinPlayers {
-			if err := s.transitionStatusLocked(&game, StatusFull, operatorUserID, "达到成团人数"); err != nil {
+		if game.CurrentPlayers >= game.MaxPlayers {
+			if err := s.transitionStatusLocked(&game, StatusInProgress, 0, "达到人数上限自动开局"); err != nil {
 				return Application{}, err
 			}
+			game.StartReason = "达到人数上限自动开局"
+			game.StartedByUserID = 0
+			game.StartedAt = time.Now().Format(time.RFC3339)
 		}
 		s.games[game.ID] = game
 		if s.repo != nil {
@@ -1479,7 +1482,7 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 		}
 	}
 	s.applications[app.ID] = app
-	if approve && game.Status == "full" {
+	if approve && (game.Status == "full" || game.Status == "in_progress") {
 		ensureRoomGameID = game.ID
 	}
 	return app, nil

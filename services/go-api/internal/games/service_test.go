@@ -72,7 +72,7 @@ func TestReviewApplicationCreatesRoomWhenGameBecomesFull(t *testing.T) {
 	}
 }
 
-func TestReviewApplicationAutoFormsAtMinimumPlayers(t *testing.T) {
+func TestReviewApplicationKeepsRecruitingAtMinimumPlayers(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	ensurer := &recordingRoomEnsurer{}
 	service.UseRoomEnsurer(ensurer)
@@ -93,11 +93,11 @@ func TestReviewApplicationAutoFormsAtMinimumPlayers(t *testing.T) {
 		}
 	}
 	formed, err := service.Get(game.ID)
-	if err != nil || formed.Status != StatusFull || formed.CurrentPlayers != formed.MinPlayers {
-		t.Fatalf("expected auto formed game at minimum players, got %+v err=%v", formed, err)
+	if err != nil || formed.Status != StatusRecruiting || formed.CurrentPlayers != formed.MinPlayers {
+		t.Fatalf("expected recruiting game at minimum players, got %+v err=%v", formed, err)
 	}
-	if len(ensurer.gameIDs) != 1 || ensurer.gameIDs[0] != game.ID {
-		t.Fatalf("expected one room ensure after auto formation, got %+v", ensurer.gameIDs)
+	if len(ensurer.gameIDs) != 0 {
+		t.Fatalf("room should not be created before automatic max-player start, got %+v", ensurer.gameIDs)
 	}
 }
 
@@ -452,8 +452,8 @@ func TestRejectedApplicationsDoNotConsumePlayerCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if full.CurrentPlayers != 5 || full.Status != "full" {
-		t.Fatalf("only approved members should fill the game: %+v", full)
+	if full.CurrentPlayers != 5 || full.Status != "in_progress" || full.StartReason != "达到人数上限自动开局" {
+		t.Fatalf("only approved members should trigger automatic start: %+v", full)
 	}
 	if _, err = service.Apply(6, game.ID, ApplyRequest{Reason: "too late"}); err != ErrGameNotRecruiting {
 		t.Fatalf("full game should reject new applications, got %v", err)
