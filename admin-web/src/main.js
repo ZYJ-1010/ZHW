@@ -3581,6 +3581,8 @@ async function loadHomeDisplayConfig() {
   }
   const data = await apiGet("/api/admin/home/display-config");
   state.homeDisplayConfig = data.config || data;
+  const form = $("#home-display-form");
+  if (form) setFormValue(form, "onlineSuffix", state.homeDisplayConfig.onlineSuffix || "人在线");
   const textarea = $("#home-display-config-json");
   if (textarea) textarea.value = JSON.stringify(state.homeDisplayConfig, null, 2);
   renderHomeDisplayConfig();
@@ -3589,7 +3591,7 @@ async function loadHomeDisplayConfig() {
 function renderHomeDisplayConfig() {
   const config = state.homeDisplayConfig || {};
   $("#home-display-config-panel").innerHTML = [
-    detailCell("在线人数基数", config.onlineBaseCount ?? 0),
+    detailCell("在线人数来源", "真实活跃会话"),
     detailCell("在线人数后缀", config.onlineSuffix || "-"),
   ].join("");
 }
@@ -3600,18 +3602,12 @@ async function saveHomeDisplayConfig(event) {
     toast("缺少 system_config:update", true);
     return;
   }
-  const raw = String(new FormData(event.currentTarget).get("configJson") || "").trim();
-  if (!raw) {
-    toast("配置数据不能为空", true);
+  const onlineSuffix = String(new FormData(event.currentTarget).get("onlineSuffix") || "").trim();
+  if (!onlineSuffix || [...onlineSuffix].length > 12) {
+    toast("在线人数后缀应为 1 至 12 个字符", true);
     return;
   }
-  let payload;
-  try {
-    payload = JSON.parse(raw);
-  } catch (error) {
-    toast("配置数据格式不正确", true);
-    return;
-  }
+  const payload = { ...(state.homeDisplayConfig || {}), onlineBaseCount: 0, onlineSuffix };
   try {
     const data = await apiPut("/api/admin/home/display-config", payload);
     state.homeDisplayConfig = data.config || data;

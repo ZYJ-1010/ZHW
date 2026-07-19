@@ -1402,8 +1402,12 @@
           </div>
           <button id="home-display-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="home-display-form" class="form-grid hidden" aria-hidden="true">
-          <textarea id="home-display-config-json" name="configJson" rows="6" spellcheck="false"></textarea>
+        <form id="home-display-form" class="form-grid config-form">
+          <label>在线人数后缀<input name="onlineSuffix" maxlength="12" required placeholder="例如：人在线" /></label>
+          <div class="phase-one-banner config-fixed-note">
+            <strong>实时数据说明</strong>
+            <span>首页在线人数由后端真实活跃会话统计，不支持后台手工垫数；这里只维护展示后缀。</span>
+          </div>
           <button class="primary" type="submit">保存展示</button>
         </form>
         <div id="home-display-config-panel" class="detail-grid"></div>
