@@ -2363,7 +2363,7 @@ func publicGames(items []games.Game) []games.Game {
 	result := make([]games.Game, 0, len(items))
 	now := time.Now()
 	for _, game := range items {
-		if isPublicGameStatus(game.Status) && games.CanApplyWithinSignupWindow(game, now) {
+		if isPublicJoinableGame(game, now) {
 			result = append(result, game)
 		}
 	}
@@ -2372,6 +2372,13 @@ func publicGames(items []games.Game) []games.Game {
 
 func isPublicGameStatus(status string) bool {
 	return status == "recruiting"
+}
+
+func isPublicJoinableGame(game games.Game, now time.Time) bool {
+	if !isPublicGameStatus(game.Status) || !games.CanApplyWithinSignupWindow(game, now) {
+		return false
+	}
+	return game.MaxPlayers <= 0 || game.CurrentPlayers < game.MaxPlayers
 }
 
 func (s *Server) adminGames(w http.ResponseWriter, r *http.Request) {

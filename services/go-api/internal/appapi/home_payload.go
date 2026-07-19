@@ -518,7 +518,7 @@ func (s *Server) homeGameCards(items []games.Game, scope string, limit int) []ma
 			"route":         "pages/game/detail/index?id=" + strconv.FormatInt(game.ID, 10),
 			"scope":         scope,
 			"title":         game.Title,
-			"typeText":      homeGameTypeText(game.GameType),
+			"typeText":      homeGameCategoryText(game),
 			"statusText":    homeGameStatusText(game.Status),
 			"coverSrc":      homeGameCover(game, index),
 			"priceText":     homeGamePriceText(game.GameType),
@@ -556,6 +556,24 @@ func homeGameTypeText(gameType string) string {
 		return "\u516c\u76ca\u5c40"
 	default:
 		return "\u666e\u901a\u5c40"
+	}
+}
+
+func homeGameCategoryText(game games.Game) string {
+	if text := strings.TrimSpace(game.PrimaryCategoryText); text != "" {
+		return text
+	}
+	switch strings.TrimSpace(game.PrimaryCategory) {
+	case "social":
+		return "社交局"
+	case "task":
+		return "任务局"
+	case "explore":
+		return "探索局"
+	case "growth":
+		return "成长局"
+	default:
+		return homeGameTypeText(game.GameType)
 	}
 }
 
