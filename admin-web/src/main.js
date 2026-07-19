@@ -1718,6 +1718,11 @@ function showRoleApplicationDetail(applicationID) {
   const inviteRelation = item.inviteRelation || {};
   const inviter = item.inviter || {};
   const inviteCode = item.inviteCode || inviteRelation.inviteCode || (inviteRelation.inviteCodeId ? `邀请码 ${inviteRelation.inviteCodeId}` : "-");
+  const snapshot = item.eligibilitySnapshot || {};
+  const snapshotItems = Array.isArray(snapshot.requirements) ? snapshot.requirements : [];
+  const snapshotText = snapshotItems.length
+    ? snapshotItems.map((entry) => `${entry.title || entry.key}: ${entry.met ? "已满足" : `未满足（${entry.current || 0}/${entry.required || 0}）`}`).join("；")
+    : "未记录（历史申请）";
   openAdminDrawer({
     title: "角色申请详情",
     subtitle: `${roleLabel(item.roleCode)}申请`,
@@ -1735,6 +1740,7 @@ function showRoleApplicationDetail(applicationID) {
       ${detailCell("处理状态", statusLabel(item.status))}
       ${detailCell("申请说明", item.reason || "-")}
       ${detailCell("能力说明", item.abilityDescription || "-")}
+      ${detailCell("提交时资格快照", snapshotText)}
       ${detailCell("证明材料", (item.proofFileIds || []).length ? `${item.proofFileIds.length} 份材料` : "-")}
       ${detailCell("审核人", adminUserText(item.reviewAdminId))}
       ${detailCell("审核备注", item.reviewRemark || item.rejectReason || "-")}
