@@ -380,7 +380,8 @@ func normalizeReplayQuickActions(items []replayQuickActionDTO) []replayQuickActi
 		"system_recommend": true,
 		"create":           true,
 	}
-	result := make([]replayQuickActionDTO, 0, len(items))
+	result := make([]replayQuickActionDTO, 0, 3)
+	seenRoutes := make(map[string]bool, 3)
 	for _, item := range items {
 		item.ID = strings.TrimSpace(item.ID)
 		item.Theme = strings.TrimSpace(item.Theme)
@@ -388,6 +389,9 @@ func normalizeReplayQuickActions(items []replayQuickActionDTO) []replayQuickActi
 		item.Desc = strings.TrimSpace(item.Desc)
 		item.Route = strings.TrimSpace(item.Route)
 		if item.ID == "" || item.Title == "" || !allowedRoutes[item.Route] {
+			continue
+		}
+		if seenRoutes[item.Route] {
 			continue
 		}
 		if !item.Visible && item.Order != 0 {
@@ -398,6 +402,7 @@ func normalizeReplayQuickActions(items []replayQuickActionDTO) []replayQuickActi
 		}
 		item.Visible = item.Visible || item.Order == 0
 		result = append(result, item)
+		seenRoutes[item.Route] = true
 	}
 	if len(result) == 0 {
 		return defaultReplayQuickActions()
@@ -405,6 +410,21 @@ func normalizeReplayQuickActions(items []replayQuickActionDTO) []replayQuickActi
 	sort.SliceStable(result, func(i, j int) bool {
 		return result[i].Order < result[j].Order
 	})
+	// 一期固定提供三个入口；后台隐藏或误配某一项时，用默认文案补齐，
+	// 避免用户只看到一张卡片或把流程误判为没有下一步。
+	for _, fallback := range defaultReplayQuickActions() {
+		if len(result) >= 3 {
+			break
+		}
+		if seenRoutes[fallback.Route] {
+			continue
+		}
+		result = append(result, fallback)
+		seenRoutes[fallback.Route] = true
+	}
+	if len(result) > 3 {
+		result = result[:3]
+	}
 	return result
 }
 

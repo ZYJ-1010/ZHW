@@ -678,8 +678,8 @@ func TestReplayContextReadsQuickActionsFromSystemConfigHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &resp); err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Data.QuickActions) != 2 || resp.Data.QuickActions[0].ID != "same-friends" || resp.Data.QuickActions[0].Title != "数据库再来一局" || resp.Data.QuickActions[1].Route != "create" {
-		t.Fatalf("expected replay quick actions from system config: %s", string(body))
+	if len(resp.Data.QuickActions) != 3 || resp.Data.QuickActions[0].ID != "same-friends" || resp.Data.QuickActions[0].Title != "数据库再来一局" || resp.Data.QuickActions[1].Route != "create" || resp.Data.QuickActions[2].Route != "system_recommend" {
+		t.Fatalf("expected exactly three replay quick actions with fallback: %s", string(body))
 	}
 	if len(resp.Data.QuickMessages) != 2 || resp.Data.QuickMessages[0] != "数据库置顶句" {
 		t.Fatalf("expected replay quick messages from system config: %s", string(body))
