@@ -1466,9 +1466,17 @@
           <button id="growth-rules-refresh" class="ghost" type="button">刷新</button>
         </div>
         <form id="growth-rules-form" class="form-grid">
-          <textarea id="growth-rules-config-json" name="configJson" rows="10" spellcheck="false"></textarea>
+          <label>完成一局经验<input name="completedGameExperience" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>完成一局积分<input name="completedGamePoints" required inputmode="numeric" type="number" min="0" max="100000" /></label>
+          <label>提交评价经验<input name="submittedReviewExperience" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>收到评价经验<input name="receivedReviewExperience" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>提交评价积分<input name="submittedReviewPoints" required inputmode="numeric" type="number" min="0" max="100000" /></label>
+          <label>升级所需经验<input name="experiencePerLevel" required inputmode="numeric" type="number" min="1" max="1000000" /></label>
+          <label>初始成长等级<input name="initialLevel" required inputmode="numeric" type="number" min="1" max="10000" /></label>
+          <label>信用分上限<input name="creditScoreCap" required inputmode="numeric" type="number" min="100" max="100000" /></label>
           <button class="primary" type="submit">保存规则</button>
         </form>
+        <p class="muted">新手任务的经验奖励在“运营规则 → 新手任务”中按任务单独设置；信用分初始值统一固定为 100。</p>
         <div id="growth-rules-config-panel" class="detail-grid"></div>
       </section>
       <section id="system-achievement-panel" class="panel hidden" data-tab-panel-group="system">

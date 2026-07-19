@@ -25,6 +25,24 @@ func TestServiceReadsAndWritesRepository(t *testing.T) {
 	}
 }
 
+func TestServiceConfigurationSurvivesServiceRecreation(t *testing.T) {
+	repository := &fakeRepository{values: map[string]json.RawMessage{}}
+	firstService := NewServiceWithRepository(repository)
+	if err := firstService.Set("growth.reward_rules", map[string]int{"experiencePerLevel": 240}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 新建服务实例模拟 API 重启。配置必须从持久化仓库恢复，而不能依赖内存缓存。
+	secondService := NewServiceWithRepository(repository)
+	var restored map[string]int
+	if !secondService.Get("growth.reward_rules", &restored) {
+		t.Fatal("expected persisted growth rules after service recreation")
+	}
+	if restored["experiencePerLevel"] != 240 {
+		t.Fatalf("expected persisted experience per level, got %#v", restored)
+	}
+}
+
 type fakeRepository struct {
 	values map[string]json.RawMessage
 }

@@ -3748,8 +3748,19 @@ async function loadGrowthRewardRules() {
   }
   const data = await apiGet("/api/admin/growth/reward-rules");
   state.growthRewardRules = data.config || data;
-  const textarea = $("#growth-rules-config-json");
-  if (textarea) textarea.value = JSON.stringify(state.growthRewardRules, null, 2);
+  const form = $("#growth-rules-form");
+  if (form) {
+    [
+      "completedGameExperience",
+      "completedGamePoints",
+      "submittedReviewExperience",
+      "receivedReviewExperience",
+      "submittedReviewPoints",
+      "experiencePerLevel",
+      "initialLevel",
+      "creditScoreCap",
+    ].forEach((field) => setFormValue(form, field, state.growthRewardRules[field] ?? ""));
+  }
   renderGrowthRewardRules();
 }
 
@@ -3769,14 +3780,38 @@ function renderGrowthRewardRules() {
 
 async function saveGrowthRewardRules(event) {
   event.preventDefault();
-  await saveJSONSystemConfig({
-    form: event.currentTarget,
-    endpoint: "/api/admin/growth/reward-rules",
-    stateKey: "growthRewardRules",
-    textareaSelector: "#growth-rules-config-json",
-    render: renderGrowthRewardRules,
-    successMessage: "成长等级与积分规则已保存",
-  });
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  const payload = {};
+  const fields = [
+    "completedGameExperience",
+    "completedGamePoints",
+    "submittedReviewExperience",
+    "receivedReviewExperience",
+    "submittedReviewPoints",
+    "experiencePerLevel",
+    "initialLevel",
+    "creditScoreCap",
+  ];
+  for (const field of fields) {
+    const value = Number(new FormData(form).get(field));
+    if (!Number.isInteger(value)) {
+      toast("请填写有效的成长等级与积分规则", true);
+      return;
+    }
+    payload[field] = value;
+  }
+  try {
+    const data = await apiPut("/api/admin/growth/reward-rules", payload);
+    state.growthRewardRules = data.config || data;
+    await loadGrowthRewardRules();
+    toast("成长等级与积分规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function loadOperationRules() {

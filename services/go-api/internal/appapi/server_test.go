@@ -1993,6 +1993,44 @@ func TestAdminGameCategoryConfigFeedsAppHTTP(t *testing.T) {
 	putJSON(t, mux, "/api/admin/games/category-config", adminToken, invalidPayload, http.StatusUnprocessableEntity)
 }
 
+func TestAdminGrowthRewardRulesSaveAndReadBack(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
+	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
+
+	payload := `{
+		"completedGameExperience": 36,
+		"completedGamePoints": 18,
+		"submittedReviewExperience": 12,
+		"receivedReviewExperience": 16,
+		"submittedReviewPoints": 6,
+		"experiencePerLevel": 80,
+		"initialLevel": 2,
+		"creditScoreCap": 160
+	}`
+	putJSON(t, mux, "/api/admin/growth/reward-rules", adminToken, payload, http.StatusOK)
+
+	body := getJSON(t, mux, "/api/admin/growth/reward-rules", adminToken, http.StatusOK)
+	var got struct {
+		Data struct {
+			Config reviews.GrowthRules `json:"config"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Data.Config.CompletedGameExperience != 36 || got.Data.Config.SubmittedReviewExperience != 12 || got.Data.Config.ReceivedReviewExperience != 16 || got.Data.Config.ExperiencePerLevel != 80 {
+		t.Fatalf("expected saved experience rules to read back, got %#v", got.Data.Config)
+	}
+	if runtimeRules := server.reviews.GrowthRules(); runtimeRules != got.Data.Config {
+		t.Fatalf("expected runtime rewards to use saved config, got %#v", runtimeRules)
+	}
+	putJSON(t, mux, "/api/admin/growth/reward-rules", adminToken, `{"completedGameExperience":0}`, http.StatusUnprocessableEntity)
+}
+
 func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
