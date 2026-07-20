@@ -10,23 +10,34 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
+	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/users"
 )
 
 var (
-	ErrInviteRequired     = errors.New("invite required")
-	ErrInvalidInvite      = errors.New("invalid invite")
-	ErrInviteAlreadyBound = errors.New("invite already bound")
-	ErrWechatCodeInvalid  = errors.New("wechat code invalid")
-	ErrPhoneRequired      = errors.New("phone required")
-	ErrPhoneInvalid       = errors.New("phone invalid")
-	ErrPhoneCodeInvalid   = errors.New("phone code invalid")
+	ErrInviteRequired      = errors.New("invite required")
+	ErrInvalidInvite       = errors.New("invalid invite")
+	ErrInviteAlreadyBound  = errors.New("invite already bound")
+	ErrWechatCodeInvalid   = errors.New("wechat code invalid")
+	ErrPhoneRequired       = errors.New("phone required")
+	ErrPhoneInvalid        = errors.New("phone invalid")
+	ErrPhoneCodeInvalid    = errors.New("phone code invalid")
+	ErrPhoneCodeRateLimit  = errors.New("phone code send rate limited")
+	ErrPhoneCodeDailyLimit = errors.New("phone code daily limit exceeded")
+	ErrPhoneCodeSendFailed = errors.New("phone code send failed")
 )
 
 const temporaryPhoneCode = "000000"
+
+const (
+	phoneCodeResendInterval = 60 * time.Second
+	phoneCodeExpiry         = 5 * time.Minute
+	phoneCodeDailyLimit     = 5
+)
 
 const (
 	InviteBindingStatusAlreadyBound = "already_bound"
@@ -67,12 +78,22 @@ type LoginResponse struct {
 	InviteBindingMessage    string            `json:"inviteBindingMessage,omitempty"`
 }
 
+type phoneCodeState struct {
+	code     string
+	sentAt   time.Time
+	dayKey   string
+	dayCount int
+}
+
 type Service struct {
 	users             *users.Store
 	invites           *invites.Store
 	tokens            *TokenStore
 	resolver          WechatCodeResolver
 	phoneLookupSecret string
+	phoneSMSSender    identity.SMSSender
+	phoneCodeMu       sync.Mutex
+	phoneCodes        map[string]phoneCodeState
 }
 
 func NewService(userStore *users.Store, inviteStore *invites.Store, tokenStore *TokenStore) *Service {
@@ -82,6 +103,8 @@ func NewService(userStore *users.Store, inviteStore *invites.Store, tokenStore *
 		tokens:            tokenStore,
 		resolver:          MockWechatCodeResolver{},
 		phoneLookupSecret: "local-phone-lookup-secret",
+		phoneSMSSender:    identity.LocalSMSSender{},
+		phoneCodes:        make(map[string]phoneCodeState),
 	}
 }
 
@@ -97,6 +120,81 @@ func (s *Service) UsePhoneLookupSecret(secret string) {
 	if secret != "" {
 		s.phoneLookupSecret = secret
 	}
+}
+
+func (s *Service) UsePhoneSMSSender(sender identity.SMSSender) {
+	if sender != nil {
+		s.phoneSMSSender = sender
+	}
+}
+
+func (s *Service) SendPhoneCode(ctx context.Context, phone string, scene string) (identity.SMSDispatchResult, error) {
+	phone = strings.TrimSpace(phone)
+	if !validMainlandPhone(phone) {
+		return identity.SMSDispatchResult{}, ErrPhoneInvalid
+	}
+	phoneKey := s.phoneLookupHash(phone)
+	nowTime := time.Now()
+	s.phoneCodeMu.Lock()
+	state := s.phoneCodes[phoneKey]
+	if !state.sentAt.IsZero() && nowTime.Sub(state.sentAt) < phoneCodeResendInterval {
+		s.phoneCodeMu.Unlock()
+		return identity.SMSDispatchResult{}, ErrPhoneCodeRateLimit
+	}
+	dayKey := nowTime.Format("20060102")
+	if state.dayKey != dayKey {
+		state.dayKey = dayKey
+		state.dayCount = 0
+	}
+	if state.dayCount >= phoneCodeDailyLimit {
+		s.phoneCodeMu.Unlock()
+		return identity.SMSDispatchResult{}, ErrPhoneCodeDailyLimit
+	}
+	sender := s.phoneSMSSender
+	state.code = sender.GenerateCode()
+	state.sentAt = nowTime
+	state.dayCount++
+	s.phoneCodes[phoneKey] = state
+	s.phoneCodeMu.Unlock()
+
+	result, err := sender.Send(ctx, identity.SMSDispatchRequest{
+		Phone:       phone,
+		PhoneMasked: maskPhone(phone),
+		Scene:       strings.TrimSpace(scene),
+		Code:        state.code,
+		ExpiresAt:   nowTime.Add(phoneCodeExpiry),
+	})
+	if err != nil {
+		return identity.SMSDispatchResult{}, ErrPhoneCodeSendFailed
+	}
+	return result, nil
+}
+
+func (s *Service) VerifyPhoneCode(phone string, code string) error {
+	phone = strings.TrimSpace(phone)
+	code = strings.TrimSpace(code)
+	if !validMainlandPhone(phone) {
+		return ErrPhoneInvalid
+	}
+	phoneKey := s.phoneLookupHash(phone)
+	s.phoneCodeMu.Lock()
+	defer s.phoneCodeMu.Unlock()
+	state, ok := s.phoneCodes[phoneKey]
+	allowTemporaryCode := false
+	if sender, ok := s.phoneSMSSender.(interface{ AllowsTemporaryCode() bool }); ok {
+		allowTemporaryCode = sender.AllowsTemporaryCode()
+	}
+	if !ok || state.sentAt.IsZero() || time.Since(state.sentAt) > phoneCodeExpiry {
+		if allowTemporaryCode && code == temporaryPhoneCode {
+			return nil
+		}
+		return ErrPhoneCodeInvalid
+	}
+	if state.code != code && !(allowTemporaryCode && code == temporaryPhoneCode) {
+		return ErrPhoneCodeInvalid
+	}
+	delete(s.phoneCodes, phoneKey)
+	return nil
 }
 
 func (s *Service) InvitePrecheck(req InvitePrecheckRequest) (invites.PrecheckResult, error) {
@@ -316,7 +414,7 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 	if !validMainlandPhone(phone) {
 		return LoginResponse{}, ErrPhoneInvalid
 	}
-	if code != temporaryPhoneCode {
+	if err := s.VerifyPhoneCode(phone, code); err != nil {
 		return LoginResponse{}, ErrPhoneCodeInvalid
 	}
 

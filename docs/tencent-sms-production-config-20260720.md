@@ -22,7 +22,7 @@
 | --- | --- | --- |
 | SecretId | 仅生产服务器 `deploy/env.prod` | 使用具备短信发送最小权限的 CAM 子账号密钥；不记录明文 |
 | SecretKey | 仅生产服务器 `deploy/env.prod` | 不得提交到 Git 或文档 |
-| App Key | 仅生产服务器 `deploy/env.prod`（如直连方案实际需要） | 视腾讯云 SDK 接入方案决定；不记录明文 |
+| App Key | 不使用 | 当前后端使用腾讯云 API 3.0 官方 SDK，仅使用 CAM `SecretId`、`SecretKey` |
 | 签名精确内容 | 本文件“签名”行及生产环境变量 | 必须与腾讯云审核通过的签名完全一致 |
 | 短信发送权限 | CAM 子账号策略 | 仅授予腾讯云短信发送所需权限 |
 
@@ -31,11 +31,12 @@
 腾讯云 SMS 的验证码发送请求需同时传入以下内容，无需在腾讯云控制台把签名或模板绑定到 SDK AppID：
 
 ```text
-SmsSdkAppId      = 1401152633
-SignName         = 已审核签名内容
-TemplateId       = 2686636
-TemplateParamSet = [验证码]
-PhoneNumberSet   = [+86手机号]
+TENCENT_SMS_SDK_APP_ID   = 1401152633
+TENCENT_SMS_SIGN_NAME    = 佩合国际文化传播宁波
+TENCENT_SMS_TEMPLATE_ID  = 2686636
+TENCENT_SMS_REGION       = ap-guangzhou
+TENCENT_SMS_SECRET_ID    = 仅 env.prod 保存
+TENCENT_SMS_SECRET_KEY   = 仅 env.prod 保存
 ```
 
 ## 上线前检查
@@ -43,7 +44,7 @@ PhoneNumberSet   = [+86手机号]
 - [ ] 腾讯云签名状态为“可用 / 正常”。
 - [ ] 模板 `2686636` 状态为“已审核生效”。
 - [ ] 已创建具备最小短信发送权限的 CAM 子账号密钥。
-- [ ] 后端已完成腾讯云 SMS 直连实现；当前 `SMS_HTTP_ENDPOINT` 占位 HTTP 网关不能直接使用腾讯云控制台数据。
+- [x] 后端已完成腾讯云 SMS 直连；登录/注册与实名认证均使用同一腾讯云发送器。
 - [ ] `SecretId`、`SecretKey` 仅写入服务器 `/opt/zhw-mini/deploy/env.prod`。
 - [ ] 使用测试手机号完成一次真实验证码发送与校验。
 - [ ] 不在日志、前端响应、数据库或 Git 中输出验证码和密钥。

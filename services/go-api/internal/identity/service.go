@@ -278,6 +278,19 @@ func (s *Service) VerifySMSCode(userID int64, code string) (Record, error) {
 	return record, s.persistRecord(record)
 }
 
+// MarkSMSVerified records a successful code validation already performed by
+// the unauthenticated phone-login flow for the same user.
+func (s *Service) MarkSMSVerified(userID int64) (Record, error) {
+	s.mu.Lock()
+	record := s.ensureLocked(userID)
+	record.SMSVerified = true
+	record.Status = StatusSMSVerified
+	record.UpdatedAt = now()
+	s.records[userID] = record
+	s.mu.Unlock()
+	return record, s.persistRecord(record)
+}
+
 func (s *Service) VerifyPhone(userID int64, realName string, idCard string) (Record, error) {
 	realName = strings.TrimSpace(realName)
 	idCard = strings.ToUpper(strings.TrimSpace(idCard))

@@ -63,17 +63,22 @@ func main() {
 		identityDataKey = cfg.JWTSecret
 	}
 	identityService.UseDataEncryptionKey(identityDataKey)
+	var smsSender identity.SMSSender
 	if cfg.SMS.TencentEnabled() {
-		identityService.UseSMSSender(identity.NewTencentSMSSender(identity.TencentSMSConfig{
+		smsSender = identity.NewTencentSMSSender(identity.TencentSMSConfig{
 			SecretID:   cfg.SMS.TencentSecretID,
 			SecretKey:  cfg.SMS.TencentSecretKey,
 			SDKAppID:   cfg.SMS.TencentSDKAppID,
 			SignName:   cfg.SMS.TencentSignName,
 			TemplateID: cfg.SMS.TencentTemplateID,
 			Region:     cfg.SMS.TencentRegion,
-		}))
+		})
 	} else if cfg.SMS.HTTPGatewayEnabled() {
-		identityService.UseSMSSender(identity.NewHTTPSMSSender(cfg.SMS.HTTPEndpoint, cfg.SMS.HTTPSecret))
+		smsSender = identity.NewHTTPSMSSender(cfg.SMS.HTTPEndpoint, cfg.SMS.HTTPSecret)
+	}
+	if smsSender != nil {
+		identityService.UseSMSSender(smsSender)
+		authService.UsePhoneSMSSender(smsSender)
 	}
 	if cfg.FaceID.HTTPEndpoint != "" {
 		identityService.UseFaceIDStarter(identity.NewHTTPFaceIDStarter(cfg.FaceID.HTTPEndpoint, cfg.FaceID.HTTPSecret))

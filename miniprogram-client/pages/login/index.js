@@ -941,19 +941,6 @@ Page({
       return
     }
 
-    const inviteContext = this.resolveInviteContext()
-    if (inviteContext) {
-      this.setData({
-        verifyCode: TEST_CODE,
-        codeDigits: this.getCodeDigits(TEST_CODE),
-        isCodeComplete: true,
-        canResend: true,
-        resendSeconds: INITIAL_RESEND_SECONDS
-      })
-      toast.success('验证码暂用 000000')
-      return
-    }
-
     this.setData({
       isSendingCode: true,
       canResend: false,
@@ -1220,14 +1207,7 @@ Page({
       return
     }
 
-    this.setData({
-      verifyCode: TEST_CODE,
-      codeDigits: this.getCodeDigits(TEST_CODE),
-      isCodeComplete: true,
-      canResend: true,
-      resendSeconds: INITIAL_RESEND_SECONDS
-    })
-    toast.success('验证码暂用 000000')
+    await this.sendCodeForPhone(this.data.phone)
   },
 
   async resendCode() {

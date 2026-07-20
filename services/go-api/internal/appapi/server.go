@@ -374,8 +374,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/app/profile/credit-center", s.AppAuthMiddleware(s.profileCreditCenter))
 	handle("PUT /api/app/users/me/profile", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateCurrentUserProfile)))
 	handle("POST /api/app/identity/phone/bind", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.bindPhone)))
-	handle("POST /api/app/sms/send-code", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.sendSMSCode)))
-	handle("POST /api/app/sms/verify-code", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.verifySMSCode)))
+	handle("POST /api/app/sms/send-code", s.sendSMSCode)
+	handle("POST /api/app/sms/verify-code", s.verifySMSCode)
 	handle("POST /api/app/identity/phone/verify", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.verifyPhone)))
 	handle("POST /api/app/identity/realname/restart", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.restartRealname)))
 	handle("POST /api/app/identity/faceid/detect-auth", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.startFaceID)))
@@ -1489,7 +1489,7 @@ func (s *Server) phoneLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
 		return
 	}
-	record, err = s.identity.VerifySMSCode(resp.User.ID, req.Code)
+	record, err = s.identity.MarkSMSVerified(resp.User.ID)
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid sms code")
 		return

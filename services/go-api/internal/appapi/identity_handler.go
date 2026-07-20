@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"zhw-mini/services/go-api/internal/auth"
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/notifications"
@@ -24,6 +25,7 @@ type identityService interface {
 	RestartRealname(userID int64, phone string) (identity.Record, error)
 	SendSMSCode(userID int64) (identity.SMSDispatchResult, error)
 	VerifySMSCode(userID int64, code string) (identity.Record, error)
+	MarkSMSVerified(userID int64) (identity.Record, error)
 	VerifyPhone(userID int64, realName string, idCard string) (identity.Record, error)
 	SubmitManualRealname(userID int64, realName string, idCard string) (identity.Record, error)
 	ReviewManualRealname(userID int64, approve bool, reason string) (identity.Record, error)
@@ -151,6 +153,30 @@ func (s *Server) wechatPhoneNumber(ctx context.Context, code string) (string, er
 }
 
 func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Phone string `json:"phone"`
+		Scene string `json:"scene"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
+	if strings.TrimSpace(req.Phone) != "" {
+		result, err := s.auth.SendPhoneCode(r.Context(), req.Phone, req.Scene)
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrPhoneInvalid):
+				httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
+			case errors.Is(err, auth.ErrPhoneCodeRateLimit), errors.Is(err, auth.ErrPhoneCodeDailyLimit):
+				httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "sms code send too frequently")
+			default:
+				httpx.Error(w, http.StatusBadGateway, httpx.CodeSystemError, "sms code send failed")
+			}
+			return
+		}
+		httpx.OK(w, smsDispatchPayload(result))
+		return
+	}
 	userID, ok := s.requireIdentityUser(w, r)
 	if !ok {
 		return
@@ -168,6 +194,10 @@ func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "sms code send failed")
 		return
 	}
+	httpx.OK(w, smsDispatchPayload(result))
+}
+
+func smsDispatchPayload(result identity.SMSDispatchResult) map[string]string {
 	data := map[string]string{
 		"provider": result.Provider,
 		"message":  "sms code sent",
@@ -179,19 +209,28 @@ func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {
 		data["mockCode"] = result.MockCode
 		data["message"] = "本地环境固定验证码为 000000"
 	}
-	httpx.OK(w, data)
+	return data
 }
 
 func (s *Server) verifySMSCode(w http.ResponseWriter, r *http.Request) {
-	userID, ok := s.requireIdentityUser(w, r)
-	if !ok {
-		return
-	}
 	var req struct {
-		Code string `json:"code"`
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
+	if strings.TrimSpace(req.Phone) != "" {
+		if err := s.auth.VerifyPhoneCode(req.Phone, req.Code); err != nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "短信验证码错误")
+			return
+		}
+		httpx.OK(w, map[string]string{"message": "sms code verified"})
+		return
+	}
+	userID, ok := s.requireIdentityUser(w, r)
+	if !ok {
 		return
 	}
 	record, err := s.identity.VerifySMSCode(userID, req.Code)
