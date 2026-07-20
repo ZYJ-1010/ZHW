@@ -24,6 +24,10 @@ function getGameCollaboration(gameId, params) {
   return request.get(`/api/app/games/${gameId}/collaboration`, params)
 }
 
+function createProgressFeedback(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/progress-feedbacks`, data)
+}
+
 function requestGameCompletion(gameId) {
   return request.post(`/api/app/games/${gameId}/completion-request`, {})
 }
@@ -98,6 +102,10 @@ function getProfitTemplates(params) {
 
 function getCategoryConfig(params) {
   return request.get('/api/app/games/category-config', params)
+}
+
+function getCreateTemplateConfig(params) {
+  return request.get('/api/app/games/create-template-config', params)
 }
 
 function getApplicationConfig(params) {
@@ -203,6 +211,7 @@ module.exports = {
   getGameSuccessDetail,
   getGameGuideSuccessDetail,
   getGameCollaboration,
+  createProgressFeedback,
   requestGameCompletion,
   createGuideFollowUp,
   createGame,
@@ -222,6 +231,7 @@ module.exports = {
   favoriteGame,
   getProfitTemplates,
   getCategoryConfig,
+  getCreateTemplateConfig,
   getApplicationConfig,
   getConditionRuleConfig,
   getCancelConfig,

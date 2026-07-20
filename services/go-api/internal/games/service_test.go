@@ -36,6 +36,18 @@ func TestCreateAllowsPlayerWithoutVerifiedIdentity(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsMoreThanThreeTags(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	_, err := service.Create(1, CreateRequest{
+		Title: "标签上限测试", GameType: "free", MinPlayers: 5, MaxPlayers: 8,
+		StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00",
+		Tags: []string{"a", "b", "c", "d"},
+	})
+	if err != ErrInvalidGameInput {
+		t.Fatalf("expected too many tags to be rejected, got %v", err)
+	}
+}
+
 func TestCreateUsesConfiguredPlayerLimits(t *testing.T) {
 	service := NewService(fakeIdentity{verified: false})
 	service.SetPlayerLimits(4, 6)

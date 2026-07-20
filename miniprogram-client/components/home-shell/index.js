@@ -310,6 +310,13 @@ Component({
     handleNavTap(event) {
       const { key } = event.currentTarget.dataset
 
+      // 地图与元宇宙属于二期能力。一期所有底部导航页统一只提示，
+      // 不再把点击事件交给各页面，避免部分页面仍跳转到预留页面。
+      if (key === 'map' || key === 'metaverse') {
+        toast.info(key === 'map' ? '地图玩法暂未开放' : '元宇宙玩法暂未开放')
+        return
+      }
+
       if (key === 'up' || key === 'down') {
         this.triggerEvent('navtap', { key })
         if (this.properties.navAutoNavigate) {
@@ -335,11 +342,6 @@ Component({
       }
 
       this.triggerEvent('navtap', { key })
-
-      if (key === 'map') {
-        toast.info('地图玩法暂未开放')
-        return
-      }
 
       if (this.properties.navAutoNavigate) {
         if (navigateShellKey(key, {

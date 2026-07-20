@@ -2813,6 +2813,17 @@ Component({
       const datasetTitle = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.title
       const detail = event && event.detail || {}
       const detailRoute = detail.route || (detail.item && detail.item.route)
+
+      const rawRoute = String(datasetRoute || detailRoute || '').replace(/^\/+/, '')
+      const rawTitle = String(datasetTitle || '').trim()
+      if (rawRoute === ROUTES.metaverse || rawTitle.indexOf('元宇宙') !== -1) {
+        wx.showToast({ title: '元宇宙玩法暂未开放', icon: 'none' })
+        return
+      }
+      if (rawRoute === ROUTES.map || rawTitle.indexOf('地图') !== -1 || rawTitle.indexOf('地球') !== -1) {
+        wx.showToast({ title: '地图玩法暂未开放', icon: 'none' })
+        return
+      }
       const route = this.resolveHomeActionRoute(datasetRoute || detailRoute, datasetTitle)
 
       if (route) {
@@ -2824,16 +2835,6 @@ Component({
 
       if (detail.item) {
         this.navigateToGameCardRoute(ROUTES.gameDetail, detail.item, 'id')
-        return
-      }
-
-      if (String(datasetTitle || '').indexOf('元宇宙') !== -1) {
-        wx.showToast({ title: '元宇宙玩法暂未开放', icon: 'none' })
-        return
-      }
-
-      if (String(datasetTitle || '').indexOf('地球') !== -1) {
-        wx.showToast({ title: '地图玩法暂未开放', icon: 'none' })
         return
       }
 

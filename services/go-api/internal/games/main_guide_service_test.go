@@ -84,3 +84,20 @@ func TestInvitedMainGuideCanManageProgress(t *testing.T) {
 		t.Fatalf("expected main guide progress feedback, got %+v", feedback)
 	}
 }
+
+func TestAcceptedExpertCanManageProgressButNotEndGame(t *testing.T) {
+	service := newVerifiedGameService()
+	game, members := mustCreateStartedGame(t, service)
+	expertID := members[1]
+	service.mu.Lock()
+	service.memberRoles[game.ID][expertID] = "expert"
+	service.mu.Unlock()
+
+	feedback, err := service.AddProgressFeedback(expertID, game.ID, ProgressFeedbackRequest{Progress: 35, Content: "行家更新进度"})
+	if err != nil || feedback.Progress != 35 {
+		t.Fatalf("expert should manage progress, feedback=%+v err=%v", feedback, err)
+	}
+	if _, err := service.RequestCompletion(expertID, game.ID); err != ErrForbidden {
+		t.Fatalf("expert must not end game, got %v", err)
+	}
+}

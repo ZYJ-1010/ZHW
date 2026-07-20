@@ -29,6 +29,14 @@ const LOCATION_SEARCH_COOLDOWN_MS = 3000
 const EMPTY_DEPOSIT_RULE_TEXT = ''
 const EMPTY_DEPOSIT_NOTICE_TEXT = ''
 const EMPTY_GAME_TYPES = []
+const EMPTY_CREATE_TEMPLATES = []
+const MAX_SELECTED_TAGS = 3
+// 一期只保留收费局入口的视觉与交互提示；实际创建始终为免费局。
+// 不依赖后台临时配置，避免配置遗漏时收费局入口消失。
+const PHASE_ONE_FEE_TYPES = [
+  { key: 'free', name: '免费局', active: false },
+  { key: 'paid', name: '收费局', active: false }
+]
 const EMPTY_PROFIT_TEMPLATES = []
 const CREATE_PREVIEW_STORAGE_KEY = 'game_create_preview_v1'
 const CREATE_PREVIEW_ACTION_KEY = 'game_create_preview_action_v1'
@@ -305,6 +313,13 @@ function normalizeGameTypes(data) {
     .map((item) => ({
       key: String(item.key || '').trim(),
       name: String(item.name || item.key || '').trim(),
+      tags: (Array.isArray(item.tags) ? item.tags : [])
+        .map((tag) => ({
+          key: String(tag.key || '').trim(),
+          name: String(tag.name || tag.label || tag.key || '').trim(),
+          active: Boolean(tag.active)
+        }))
+        .filter((tag) => tag.key && tag.name),
       children: (Array.isArray(item.children) ? item.children : [])
         .filter((child) => child && child.visible !== false && child.key)
         .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
@@ -330,6 +345,9 @@ function normalizeCreateFormConfig(data = {}) {
     }))
     .filter((item) => item.key && item.name)
 
+  const configuredFeeTypes = normalizeOptions(source.feeTypes)
+  const feeTypeNames = new Map(configuredFeeTypes.map((item) => [item.key, item.name]))
+
   return {
     capacity: {
       min: Number(capacity.min || 0),
@@ -339,13 +357,38 @@ function normalizeCreateFormConfig(data = {}) {
     participationModes: normalizeOptions(source.participationModes),
     tags: normalizeOptions(source.tags),
     completionRules: normalizeOptions(source.completionRules),
-    feeTypes: normalizeOptions(source.feeTypes)
+    // 收费局一期不可创建，但入口需要稳定保留；只接受这两个一级选项，
+    // 避免后台的分润/押金等二期配置直接进入小程序表单。
+    feeTypes: PHASE_ONE_FEE_TYPES.map((item) => ({
+      ...item,
+      name: feeTypeNames.get(item.key) || item.name
+    }))
   }
 }
 
-function getSelectedCategory(gameTypes = [], primaryKey = '') {
+function normalizeCreateTemplates(data = {}) {
+  const items = Array.isArray(data.items) ? data.items : []
+  return items
+    .filter((item) => item && item.visible !== false && item.key && item.name)
+    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
+    .map((item) => ({
+      key: String(item.key || '').trim(),
+      name: String(item.name || '').trim(),
+      description: String(item.description || '').trim(),
+      primaryCategory: String(item.primaryCategory || '').trim(),
+      secondaryCategory: String(item.secondaryCategory || '').trim(),
+      participation: String(item.participation || '').trim(),
+      capacity: Number(item.capacity || 0),
+      tags: Array.isArray(item.tags) ? item.tags.map((value) => String(value || '').trim()).filter(Boolean) : [],
+      completionRules: Array.isArray(item.completionRules) ? item.completionRules.map((value) => String(value || '').trim()).filter(Boolean) : []
+    }))
+    .filter((item) => item.key && item.name && item.primaryCategory && item.secondaryCategory)
+}
+
+function getSelectedCategory(gameTypes = [], primaryKey = '', secondaryKey = '') {
   const primary = gameTypes.find((item) => item.key === primaryKey) || gameTypes[0] || {}
-  const secondary = Array.isArray(primary.children) && primary.children.length ? primary.children[0] : {}
+  const secondary = (Array.isArray(primary.children) ? primary.children : []).find((item) => item.key === secondaryKey)
+    || (Array.isArray(primary.children) && primary.children.length ? primary.children[0] : {})
 
   return { primary, secondary }
 }
@@ -521,9 +564,12 @@ Page({
       audience: '',
       feeType: '',
       price: '',
-      profitTemplate: ''
+      profitTemplate: '',
+      createTemplate: ''
     },
     gameTypes: EMPTY_GAME_TYPES,
+    createTemplates: EMPTY_CREATE_TEMPLATES,
+    secondaryCategories: [],
     scheduleFields: [
       { key: 'gameTime', label: '局时间', required: true, value: '', hint: '必填：请选择开始和结束日期+时间' },
       { key: 'signupTime', label: '报名时间', required: true, value: '', hint: '展开日期面板，选择报名开始和结束日期+时间' },
@@ -563,6 +609,7 @@ Page({
     })
     this.syncPublishState()
     this.loadCategoryConfig()
+    this.loadCreateTemplates()
     this.loadConditionRuleConfig()
     this.loadProfitTemplates()
   },
@@ -618,7 +665,15 @@ Page({
     this.setData({
       draftId: draft.id,
       coverImage: String(draft.coverImage || '').trim(),
-      form: { ...this.data.form, ...draft.form },
+      // 历史草稿可能来自收费局尚未关闭前；一期恢复草稿时统一回退为免费局，
+      // 不展示局费、分润或押金配置，也不会把收费数据提交给后端。
+      form: {
+        ...this.data.form,
+        ...draft.form,
+        feeType: 'free',
+        price: '',
+        profitTemplate: ''
+      },
       themeLength: Math.min(String(draft.form.theme || '').length, THEME_MAX_LENGTH),
       introLength: Math.min(String(draft.form.intro || '').length, INTRO_MAX_LENGTH),
       highlightsLength: Math.min(String(draft.form.highlights || '').length, HIGHLIGHTS_MAX_LENGTH),
@@ -661,7 +716,7 @@ Page({
       return
     }
 
-    const activeTags = new Set(Array.isArray(draft.activeTags) ? draft.activeTags : [])
+    const activeTags = new Set((Array.isArray(draft.activeTags) ? draft.activeTags : []).slice(0, MAX_SELECTED_TAGS))
     const activeCompletionRules = new Set(Array.isArray(draft.activeCompletionRules) ? draft.activeCompletionRules : [])
     this.setData({
       tags: (this.data.tags || []).map((item) => ({ ...item, active: activeTags.has(item.key) })),
@@ -689,14 +744,16 @@ Page({
       const createForm = normalizeCreateFormConfig(data)
       const currentType = String(this.data.form && this.data.form.type || '').trim()
       const defaultType = String(data && data.defaultPrimaryCategory || '').trim()
-      const selected = getSelectedCategory(gameTypes, currentType || defaultType)
+      const currentSecondaryCategory = String(this.data.form && this.data.form.secondaryCategory || '').trim()
+      const selected = getSelectedCategory(gameTypes, currentType || defaultType, currentSecondaryCategory)
       const nextData = {
         gameTypes,
         createForm,
         capacityMin: createForm.capacity.min,
         capacityMax: createForm.capacity.max,
         participationModes: createForm.participationModes,
-        tags: createForm.tags,
+        tags: selected.primary && selected.primary.tags && selected.primary.tags.length ? selected.primary.tags : createForm.tags,
+        secondaryCategories: selected.primary && selected.primary.children ? selected.primary.children : [],
         completionRules: createForm.completionRules,
         feeTypes: createForm.feeTypes
       }
@@ -710,9 +767,11 @@ Page({
       if (!this.data.form.participation && createForm.participationModes[0]) {
         nextData['form.participation'] = createForm.participationModes[0].key
       }
-      if (!this.data.form.feeType && createForm.feeTypes[0]) {
+      if (this.data.form.feeType !== 'free' && createForm.feeTypes[0]) {
         const freeFeeType = createForm.feeTypes.find((item) => item && item.key === 'free')
         nextData['form.feeType'] = (freeFeeType || createForm.feeTypes[0]).key
+        nextData['form.price'] = ''
+        nextData['form.profitTemplate'] = ''
       }
 
       if (selected.secondary && selected.secondary.key) {
@@ -734,11 +793,21 @@ Page({
         capacityMax: 0,
         participationModes: [],
         tags: [],
+        secondaryCategories: [],
         completionRules: [],
         feeTypes: []
       })
       this.syncPublishState()
       toast.info(error.message || '组局类型配置加载失败')
+    })
+  },
+
+  loadCreateTemplates() {
+    gameService.getCreateTemplateConfig().then((data) => {
+      this.setData({ createTemplates: normalizeCreateTemplates(data) })
+    }).catch(() => {
+      // 模板是辅助填表能力；接口暂不可用时仍允许用户正常创建局。
+      this.setData({ createTemplates: EMPTY_CREATE_TEMPLATES })
     })
   },
 
@@ -926,9 +995,63 @@ Page({
   },
 
   selectType(event) {
+    const key = String(event.currentTarget.dataset.key || '').trim()
+    const selected = getSelectedCategory(this.data.gameTypes || EMPTY_GAME_TYPES, key)
+    const tags = selected.primary && selected.primary.tags && selected.primary.tags.length
+      ? selected.primary.tags
+      : (this.data.createForm.tags || [])
+
     this.setData({
-      'form.type': event.currentTarget.dataset.key
+      'form.type': selected.primary.key || key,
+      'form.secondaryCategory': selected.secondary.key || '',
+      secondaryCategories: selected.primary.children || [],
+      tags: tags.map((item) => ({ ...item, active: false }))
     }, () => this.syncPublishState())
+  },
+
+  selectCreateTemplate(event) {
+    const key = String(event.currentTarget.dataset.key || '').trim()
+    const template = (this.data.createTemplates || []).find((item) => item.key === key)
+    if (!template) {
+      return
+    }
+    const selected = getSelectedCategory(this.data.gameTypes || EMPTY_GAME_TYPES, template.primaryCategory, template.secondaryCategory)
+    if (!selected.primary || !selected.secondary) {
+      toast.info('该模板引用的局分类已停用，请联系管理员维护模板')
+      return
+    }
+    const categoryTags = selected.primary.tags && selected.primary.tags.length
+      ? selected.primary.tags
+      : (this.data.createForm.tags || [])
+    const tagSet = new Set(template.tags || [])
+    const ruleSet = new Set(template.completionRules || [])
+    const capacity = Number(template.capacity || 0)
+    const nextData = {
+      'form.createTemplate': template.key,
+      'form.type': selected.primary.key,
+      'form.secondaryCategory': selected.secondary.key,
+      secondaryCategories: selected.primary.children || [],
+      tags: categoryTags.map((item) => ({ ...item, active: tagSet.has(item.key) || tagSet.has(item.name) })),
+      completionRules: (this.data.completionRules || []).map((item) => ({ ...item, active: ruleSet.has(item.key) || ruleSet.has(item.name) }))
+    }
+    if (capacity >= Number(this.data.capacityMin || 0) && capacity <= Number(this.data.capacityMax || 0)) {
+      nextData['form.capacity'] = capacity
+    }
+    if (template.participation && (this.data.participationModes || []).some((item) => item.key === template.participation)) {
+      nextData['form.participation'] = template.participation
+    }
+    this.setData(nextData, () => this.syncPublishState())
+  },
+
+  selectSecondaryCategory(event) {
+    const key = String(event.currentTarget.dataset.key || '').trim()
+    const selected = getSelectedCategory(this.data.gameTypes || EMPTY_GAME_TYPES, this.data.form.type, key)
+    if (!selected.secondary || !selected.secondary.key) {
+      return
+    }
+    this.setData({
+      'form.secondaryCategory': selected.secondary.key
+    })
   },
 
   chooseSchedule(event) {
@@ -1316,7 +1439,16 @@ Page({
 
   toggleTag(event) {
     const index = Number(event.currentTarget.dataset.index)
-    const tags = this.data.tags.map((item, itemIndex) => ({
+    const current = this.data.tags || []
+    const target = current[index]
+    if (!target) {
+      return
+    }
+    if (!target.active && current.filter((item) => item && item.active).length >= MAX_SELECTED_TAGS) {
+      toast.info(`标签最多选择${MAX_SELECTED_TAGS}个`)
+      return
+    }
+    const tags = current.map((item, itemIndex) => ({
       ...item,
       active: itemIndex === index ? !item.active : item.active
     }))
@@ -1562,6 +1694,10 @@ Page({
 
   selectFeeType(event) {
     const feeType = event.currentTarget.dataset.key
+    if (feeType && feeType !== 'free') {
+      toast.info('收费局暂未开放')
+      return
+    }
     const nextData = {
       'form.feeType': feeType
     }
@@ -1623,7 +1759,7 @@ Page({
       activeCompletionRules: activeOptionKeys(this.data.completionRules),
       tagLabels: (this.data.tags || []).filter((item) => item.active).map((item) => item.name),
       completionRuleLabels: (this.data.completionRules || []).filter((item) => item.active).map((item) => item.name),
-      typeText: String((getSelectedCategory(this.data.gameTypes || EMPTY_GAME_TYPES, form.type).primary || {}).name || '').trim(),
+      typeText: String((getSelectedCategory(this.data.gameTypes || EMPTY_GAME_TYPES, form.type, form.secondaryCategory).primary || {}).name || '').trim(),
       participationText: String(((this.data.participationModes || []).find((item) => item.key === form.participation) || {}).name || '').trim(),
       feeTypeText: String(((this.data.feeTypes || []).find((item) => item.key === form.feeType) || {}).name || '').trim()
     }
@@ -1789,13 +1925,13 @@ Page({
       return null
     }
 
-    const selected = getSelectedCategory(gameTypes, form.type)
+    const selected = getSelectedCategory(gameTypes, form.type, form.secondaryCategory)
     const primary = selected.primary || {}
     const secondary = selected.secondary || {}
 
     return {
       title,
-      gameType: form.feeType === 'paid' ? 'paid' : 'free',
+      gameType: 'free',
       coverImage: this.data.coverImage || '',
       description: String(form.intro || '').trim(),
       highlights: String(form.highlights || '').trim(),
@@ -1812,9 +1948,9 @@ Page({
       primaryCategoryText: primary.name || '',
       secondaryCategory: form.secondaryCategory || secondary.key || '',
       secondaryCategoryText: secondary.name || '',
-      type: form.feeType || 'free',
-      price: form.feeType === 'paid' ? Number(form.price || 0) : 0,
-      profitTemplate: this.shouldRequireProfitTemplate(form.feeType) ? form.profitTemplate : '',
+      type: 'free',
+      price: 0,
+      profitTemplate: '',
       minPlayers,
       maxPlayers,
       cityCode: locationInfo.cityCode || '',

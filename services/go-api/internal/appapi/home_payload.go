@@ -612,10 +612,16 @@ func homeGamePriceText(gameType string) string {
 }
 
 func homeGameActionText(status string) string {
-	if status == "recruiting" {
-		return "\u52a0\u5165"
+	switch status {
+	case "recruiting":
+		return "\u62db\u52df\u4e2d"
+	case "full":
+		return "\u5df2\u6ee1\u5458"
+	case "in_progress":
+		return "\u5df2\u5f00\u5c40"
+	default:
+		return homeGameStatusText(status)
 	}
-	return "\u67e5\u770b"
 }
 
 func homeGameCover(game games.Game, index int) string {

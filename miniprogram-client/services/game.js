@@ -60,6 +60,16 @@ async function getGameCollaboration(gameId, params) {
   return result.data
 }
 
+async function createProgressFeedback(gameId, data) {
+  const result = await gameApi.createProgressFeedback(gameId, data)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '更新局进度失败')
+  }
+
+  return result.data
+}
+
 async function requestGameCompletion(gameId) {
   const result = await gameApi.requestGameCompletion(gameId)
 
@@ -221,6 +231,16 @@ async function getCategoryConfig(params) {
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取组局分类配置失败')
+  }
+
+  return result.data
+}
+
+async function getCreateTemplateConfig(params) {
+  const result = await gameApi.getCreateTemplateConfig(params)
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取组局模板失败')
   }
 
   return result.data
@@ -501,6 +521,7 @@ module.exports = {
   getGameSuccessDetail,
   getGameGuideSuccessDetail,
   getGameCollaboration,
+  createProgressFeedback,
   requestGameCompletion,
   createGuideFollowUp,
   createGame,
@@ -519,6 +540,7 @@ module.exports = {
   getSystemRecommendations,
   getProfitTemplates,
   getCategoryConfig,
+  getCreateTemplateConfig,
   getApplicationConfig,
   getConditionRuleConfig,
   applyGame,

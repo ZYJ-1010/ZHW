@@ -440,6 +440,7 @@
         <button data-tab-group="audits" data-tab-target="#audit-enterprise-panel" type="button">企业认证</button>
         <button data-tab-group="audits" data-tab-target="#audit-avatars-panel" type="button">头像审核</button>
         <button data-tab-group="audits" data-tab-target="#audit-roles-panel" type="button">行家/领路人申请</button>
+        <button data-tab-group="audits" data-tab-target="#audit-role-whitelist-panel" type="button">身份白名单</button>
       </div>
       <div class="view-root">
         <section id="audit-identities-panel" class="panel" data-tab-panel-group="audits">
@@ -480,16 +481,29 @@
             </div>
             <button class="ghost" data-action="reload-roles" type="button">刷新</button>
           </div>
-          <form id="role-grant-form" class="form-grid compact-grid">
-            <label>用户 ID（可批量）<input name="userIds" placeholder="例如：12,15,18" required /></label>
+          <div id="role-list" class="stack-list"></div>
+        </section>
+        <section id="audit-role-whitelist-panel" class="panel hidden" data-tab-panel-group="audits">
+          <div class="panel-head">
+            <div>
+              <h2>行家/领路人身份白名单</h2>
+              <p>仅已完成实名认证的用户可开通；白名单覆盖普通申请条件，并会同步身份、资格状态、通知和操作日志。</p>
+            </div>
+          </div>
+          <form id="role-grant-form" class="form-grid config-form">
+            <label class="wide-field">用户 ID（可批量）<textarea name="userIds" rows="4" required placeholder="每行一个用户 ID，也可使用逗号分隔，例如：12,15,18"></textarea></label>
             <label>直接赋予身份
               <select name="roleCode"><option value="expert">行家</option><option value="guide">领路人</option></select>
             </label>
-            <label>开通原因<input name="reason" placeholder="例如：一期白名单开通" /></label>
-            <button class="ghost" type="submit">白名单开通</button>
+            <label>开通原因<input name="reason" maxlength="200" placeholder="例如：一期运营白名单开通" /></label>
+            <div class="phase-one-banner config-fixed-note">
+              <strong>开通规则</strong>
+              <span>系统逐个校验用户存在且实名认证已通过；失败项不会影响同批其它用户，并返回逐条结果。</span>
+            </div>
+            <button class="primary" type="submit">提交白名单开通</button>
           </form>
           <div id="role-grant-result" class="hint" aria-live="polite"></div>
-          <div id="role-list" class="stack-list"></div>
+          <div id="role-grant-result-list" class="stack-list"></div>
         </section>
       </div>
     </template>
@@ -1363,6 +1377,7 @@
     <template id="system-template">
       <div class="section-tabs system-tabs" role="tablist" aria-label="系统配置模块">
         <button class="active" data-tab-group="system" data-tab-target="#system-game-category-panel" type="button">局类型</button>
+        <button data-tab-group="system" data-tab-target="#system-game-create-template-panel" type="button">局模板</button>
         <button data-tab-group="system" data-tab-target="#system-home-display-panel" type="button">首页展示</button>
         <button data-tab-group="system" data-tab-target="#system-application-panel" type="button">入局规则</button>
         <button data-tab-group="system" data-tab-target="#system-audit-panel" type="button">审核规则</button>
@@ -1392,6 +1407,25 @@
           <button class="primary" type="submit">保存规则</button>
         </form>
         <div id="game-category-config-panel" class="detail-grid"></div>
+      </section>
+
+      <section id="system-game-create-template-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>创建局模板</h2>
+            <p>维护创建页的辅助填表模板。模板仅提供局分类、标签、人数和参与方式，用户仍需填写真实局信息。</p>
+          </div>
+          <button id="game-create-template-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="game-create-template-form" class="form-grid config-form">
+          <label class="wide">模板配置 JSON<textarea id="game-create-template-config-json" name="configJson" rows="16" spellcheck="false" required></textarea></label>
+          <div class="phase-one-banner config-fixed-note">
+            <strong>配置校验</strong>
+            <span>每个模板必须绑定已启用的一级分类和小类别；保存后会立即影响小程序创建页。</span>
+          </div>
+          <button class="primary" type="submit">保存局模板</button>
+        </form>
+        <div id="game-create-template-config-panel" class="detail-grid"></div>
       </section>
 
       <section id="system-home-display-panel" class="panel hidden" data-tab-panel-group="system">

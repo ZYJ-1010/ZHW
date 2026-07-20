@@ -36,6 +36,13 @@
             </view>
           </view>
 
+          <view wx:if="{{actions.canManageProgress}}" class="progress-editor">
+            <text class="progress-editor-title">行家/领路人进度更新</text>
+            <input class="progress-editor-number" type="number" value="{{progressInput}}" placeholder="0 - 100" maxlength="3" bindinput="onProgressInput" />
+            <textarea class="progress-editor-note" value="{{progressNote}}" placeholder="填写本次推进说明" maxlength="500" auto-height bindinput="onProgressNoteInput"></textarea>
+            <button class="progress-editor-submit" loading="{{progressSaving}}" disabled="{{progressSaving}}" bindtap="submitProgress">更新进度</button>
+          </view>
+
           <view class="task-list">
             <view wx:for="{{tasks}}" wx:key="id" class="task-item task-item--{{item.state}}">
               <view class="task-dot task-dot--{{item.state}}">

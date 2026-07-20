@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -187,13 +188,14 @@ type ServiceConfirmDTO struct {
 }
 
 type gameCategoryOptionDTO struct {
-	Key        string                  `json:"key"`
-	Name       string                  `json:"name"`
-	Icon       string                  `json:"icon,omitempty"`
-	Visible    bool                    `json:"visible"`
-	Order      int                     `json:"order"`
-	Children   []gameCategoryOptionDTO `json:"children,omitempty"`
-	Selectable bool                    `json:"selectable,omitempty"`
+	Key        string                    `json:"key"`
+	Name       string                    `json:"name"`
+	Icon       string                    `json:"icon,omitempty"`
+	Visible    bool                      `json:"visible"`
+	Order      int                       `json:"order"`
+	Children   []gameCategoryOptionDTO   `json:"children,omitempty"`
+	Tags       []gameCreateFormOptionDTO `json:"tags,omitempty"`
+	Selectable bool                      `json:"selectable,omitempty"`
 }
 
 type gameCategoryConfigDTO struct {
@@ -236,7 +238,30 @@ type gameCreateFormConfigDTO struct {
 	FeeTypes            []gameCreateFormOptionDTO   `json:"feeTypes"`
 }
 
+// gameCreateTemplateDTO is an operation-maintained starting point for the
+// creation form. It deliberately stores only form defaults, never a real
+// user's title, location, media or other business data.
+type gameCreateTemplateDTO struct {
+	Key               string   `json:"key"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description,omitempty"`
+	PrimaryCategory   string   `json:"primaryCategory"`
+	SecondaryCategory string   `json:"secondaryCategory"`
+	Participation     string   `json:"participation,omitempty"`
+	Capacity          int      `json:"capacity,omitempty"`
+	Tags              []string `json:"tags,omitempty"`
+	CompletionRules   []string `json:"completionRules,omitempty"`
+	Visible           bool     `json:"visible"`
+	Order             int      `json:"order"`
+}
+
+type gameCreateTemplateConfigDTO struct {
+	Items   []gameCreateTemplateDTO `json:"items"`
+	Version string                  `json:"version"`
+}
+
 const gameCategoryConfigKey = "game.category_config"
+const gameCreateTemplateConfigKey = "game.create_template_config"
 const gameApplicationConfigKey = "game.application_config"
 const gameAuditConfigKey = "game.audit_config"
 const gameConditionRuleConfigKey = "game.condition_rule_config"
@@ -422,6 +447,10 @@ func (s *Server) gameCategoryConfigHandler(w http.ResponseWriter, r *http.Reques
 	httpx.OK(w, s.currentGameCategoryConfig())
 }
 
+func (s *Server) gameCreateTemplateConfigHandler(w http.ResponseWriter, r *http.Request) {
+	httpx.OK(w, s.currentGameCreateTemplateConfig())
+}
+
 func (s *Server) gameApplicationConfig(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, s.currentGameApplicationConfig())
 }
@@ -444,10 +473,12 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			Order:   10,
 			Children: []gameCategoryOptionDTO{
 				categoryChild("meal", "饭局", 10),
-				categoryChild("board_game", "桌游局", 20),
-				categoryChild("friend", "交友局", 30),
-				categoryChild("walk", "同城散步局", 40),
+				categoryChild("dibai", "地白局", 20),
+				categoryChild("board_game", "桌游局", 30),
+				categoryChild("friend", "交友局", 40),
+				categoryChild("walk", "同城散步局", 50),
 			},
+			Tags: categoryTags("轻松社交", "同城搭子", "桌游", "美食"),
 		},
 		{
 			Key:     "task",
@@ -460,7 +491,9 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 				categoryChild("project", "做项目", 20),
 				categoryChild("brainstorm", "头脑风暴", 30),
 				categoryChild("cowork", "组队共创", 40),
+				categoryChild("extension", "扩展方案", 50),
 			},
+			Tags: categoryTags("找搭子", "项目协作", "创业", "资源对接"),
 		},
 		{
 			Key:     "explore",
@@ -469,11 +502,13 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			Visible: true,
 			Order:   30,
 			Children: []gameCategoryOptionDTO{
-				categoryChild("city_explore", "城市探索", 10),
+				categoryChild("city_store", "城市探店", 10),
 				categoryChild("route_blind_box", "路线盲盒", 20),
 				categoryChild("checkin_challenge", "打卡挑战", 30),
-				categoryChild("night_walk", "夜游/徒步/骑行", 40),
+				categoryChild("city_story", "城市故事采集", 40),
+				categoryChild("night_walk", "夜游/徒步/骑行", 50),
 			},
+			Tags: categoryTags("城市探索", "户外", "打卡", "周末"),
 		},
 		{
 			Key:     "growth",
@@ -488,6 +523,7 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 				categoryChild("deposit_checkin", "押金局", 40),
 				categoryChild("study", "学习共修局", 50),
 			},
+			Tags: categoryTags("学习", "健康", "习惯养成", "自我提升"),
 		},
 	}
 	return gameCategoryConfigDTO{
@@ -516,7 +552,7 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 		DefaultSecondaryCategory: "project",
 		DefaultType:              "free",
 		CreateForm:               defaultGameCreateFormConfig(),
-		Version:                  "2026-06-30",
+		Version:                  "2026-07-20-category-v2",
 	}
 }
 
@@ -548,8 +584,110 @@ func defaultGameCreateFormConfig() gameCreateFormConfigDTO {
 	}
 }
 
+func defaultGameCreateTemplateConfig() gameCreateTemplateConfigDTO {
+	return gameCreateTemplateConfigDTO{
+		Items: []gameCreateTemplateDTO{
+			{Key: "social_board_game", Name: "同城桌游", Description: "适合线下轻松社交", PrimaryCategory: "social", SecondaryCategory: "board_game", Participation: "offline", Capacity: 5, Tags: []string{"同城搭子", "桌游"}, CompletionRules: []string{"time", "manual"}, Visible: true, Order: 10},
+			{Key: "task_cocreation", Name: "项目共创", Description: "适合共同推进一个明确目标", PrimaryCategory: "task", SecondaryCategory: "cowork", Participation: "hybrid", Capacity: 5, Tags: []string{"项目协作", "资源对接"}, CompletionRules: []string{"goal", "manual"}, Visible: true, Order: 20},
+			{Key: "explore_weekend", Name: "周末探索", Description: "适合城市探索和线下打卡", PrimaryCategory: "explore", SecondaryCategory: "city_store", Participation: "offline", Capacity: 5, Tags: []string{"城市探索", "周末"}, CompletionRules: []string{"time", "capacity"}, Visible: true, Order: 30},
+			{Key: "growth_reading", Name: "读书共修", Description: "适合学习、习惯养成和共同复盘", PrimaryCategory: "growth", SecondaryCategory: "reading", Participation: "hybrid", Capacity: 5, Tags: []string{"学习", "习惯养成"}, CompletionRules: []string{"time", "goal"}, Visible: true, Order: 40},
+		},
+		Version: "2026-07-20-create-templates-v1",
+	}
+}
+
+func (s *Server) currentGameCreateTemplateConfig() gameCreateTemplateConfigDTO {
+	categoryConfig := s.currentGameCategoryConfig()
+	var stored gameCreateTemplateConfigDTO
+	if s.systemConfig != nil && s.systemConfig.Get(gameCreateTemplateConfigKey, &stored) {
+		if config, err := normalizeGameCreateTemplateConfig(stored, categoryConfig); err == nil {
+			return config
+		}
+	}
+	defaults := defaultGameCreateTemplateConfig()
+	if config, err := normalizeGameCreateTemplateConfig(defaults, categoryConfig); err == nil {
+		return config
+	}
+	// 分类已被运营替换、但模板尚未同步维护时，宁可不展示模板，也不能
+	// 返回指向无效分类的按钮。
+	return gameCreateTemplateConfigDTO{Items: []gameCreateTemplateDTO{}, Version: defaults.Version}
+}
+
+func normalizeGameCreateTemplateConfig(req gameCreateTemplateConfigDTO, categoryConfig gameCategoryConfigDTO) (gameCreateTemplateConfigDTO, error) {
+	seen := map[string]bool{}
+	primaryChildren := map[string]map[string]bool{}
+	for _, primary := range categoryConfig.PrimaryCategories {
+		children := map[string]bool{}
+		for _, child := range primary.Children {
+			children[strings.TrimSpace(child.Key)] = true
+		}
+		primaryChildren[strings.TrimSpace(primary.Key)] = children
+	}
+	items := make([]gameCreateTemplateDTO, 0, len(req.Items))
+	for _, item := range req.Items {
+		item.Key = strings.TrimSpace(item.Key)
+		item.Name = strings.TrimSpace(item.Name)
+		item.Description = strings.TrimSpace(item.Description)
+		item.PrimaryCategory = strings.TrimSpace(item.PrimaryCategory)
+		item.SecondaryCategory = strings.TrimSpace(item.SecondaryCategory)
+		item.Participation = strings.TrimSpace(item.Participation)
+		if item.Key == "" || item.Name == "" || seen[item.Key] {
+			return gameCreateTemplateConfigDTO{}, errors.New("template key and name must be unique")
+		}
+		if _, ok := primaryChildren[item.PrimaryCategory]; !ok {
+			return gameCreateTemplateConfigDTO{}, errors.New("template primaryCategory not found: " + item.PrimaryCategory)
+		}
+		if item.SecondaryCategory == "" || !primaryChildren[item.PrimaryCategory][item.SecondaryCategory] {
+			return gameCreateTemplateConfigDTO{}, errors.New("template secondaryCategory not found: " + item.SecondaryCategory)
+		}
+		if item.Participation != "" && item.Participation != "online" && item.Participation != "offline" && item.Participation != "hybrid" {
+			return gameCreateTemplateConfigDTO{}, errors.New("template participation invalid")
+		}
+		minCapacity := categoryConfig.CreateForm.Capacity.Min
+		maxCapacity := categoryConfig.CreateForm.Capacity.Max
+		if item.Capacity < 0 || item.Capacity > maxCapacity || (item.Capacity > 0 && item.Capacity < minCapacity) {
+			return gameCreateTemplateConfigDTO{}, errors.New("template capacity invalid")
+		}
+		item.Tags = cleanStringSlice(item.Tags)
+		item.CompletionRules = cleanStringSlice(item.CompletionRules)
+		seen[item.Key] = true
+		items = append(items, item)
+	}
+	sort.SliceStable(items, func(i, j int) bool { return items[i].Order < items[j].Order })
+	version := strings.TrimSpace(req.Version)
+	if version == "" {
+		version = "2026-07-20-create-templates-v1"
+	}
+	return gameCreateTemplateConfigDTO{Items: items, Version: version}, nil
+}
+
+func cleanStringSlice(values []string) []string {
+	seen := map[string]bool{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		result = append(result, value)
+	}
+	return result
+}
+
 func categoryChild(key string, name string, order int) gameCategoryOptionDTO {
 	return gameCategoryOptionDTO{Key: key, Name: name, Visible: true, Order: order, Selectable: true}
+}
+
+func categoryTags(names ...string) []gameCreateFormOptionDTO {
+	items := make([]gameCreateFormOptionDTO, 0, len(names))
+	for _, name := range names {
+		key := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "_"))
+		if key != "" {
+			items = append(items, gameCreateFormOptionDTO{Key: key, Name: name})
+		}
+	}
+	return items
 }
 
 func (s *Server) adminGameCategoryConfig(w http.ResponseWriter, r *http.Request) {
@@ -578,6 +716,35 @@ func (s *Server) adminGameCategoryConfig(w http.ResponseWriter, r *http.Request)
 			"version":              config.Version,
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentGameCategoryConfig()})
+	default:
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+	}
+}
+
+func (s *Server) adminGameCreateTemplateConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		httpx.OK(w, map[string]interface{}{"config": s.currentGameCreateTemplateConfig()})
+	case http.MethodPut:
+		var req gameCreateTemplateConfigDTO
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid create template config")
+			return
+		}
+		config, err := normalizeGameCreateTemplateConfig(req, s.currentGameCategoryConfig())
+		if err != nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, err.Error())
+			return
+		}
+		if err := s.systemConfig.Set(gameCreateTemplateConfigKey, config); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save create template config failed")
+			return
+		}
+		s.recordOperation(r, "game_create_template_config:update", "system_config", gameCreateTemplateConfigKey, map[string]interface{}{
+			"templateCount": len(config.Items),
+			"version":       config.Version,
+		})
+		httpx.OK(w, map[string]interface{}{"config": s.currentGameCreateTemplateConfig()})
 	default:
 		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
 	}
@@ -676,7 +843,7 @@ func (s *Server) adminGameConditionRuleConfig(w http.ResponseWriter, r *http.Req
 func (s *Server) currentGameCategoryConfig() gameCategoryConfigDTO {
 	var stored gameCategoryConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameCategoryConfigKey, &stored) && len(stored.PrimaryCategories) > 0 {
-		config := cloneGameCategoryConfig(stored)
+		config := cloneGameCategoryConfig(upgradeLegacyGameCategoryConfig(stored))
 		s.applyOperationGameLimits(&config)
 		return config
 	}
@@ -691,6 +858,48 @@ func (s *Server) currentGameCategoryConfig() gameCategoryConfigDTO {
 	config := cloneGameCategoryConfig(defaultGameCategoryConfig())
 	s.applyOperationGameLimits(&config)
 	return config
+}
+
+// upgradeLegacyGameCategoryConfig keeps the operational settings already
+// configured in the backend, while upgrading the old two-level taxonomy to
+// the four primary categories and their required child categories.
+func upgradeLegacyGameCategoryConfig(stored gameCategoryConfigDTO) gameCategoryConfigDTO {
+	if strings.TrimSpace(stored.Version) == "2026-07-20-category-v2" && hasRequiredPrimaryCategories(stored.PrimaryCategories) {
+		return stored
+	}
+	defaults := defaultGameCategoryConfig()
+	if len(stored.TypeFilters) > 0 {
+		defaults.TypeFilters = stored.TypeFilters
+	}
+	if len(stored.LocationFilters) > 0 {
+		defaults.LocationFilters = stored.LocationFilters
+	}
+	if len(stored.SortOptions) > 0 {
+		defaults.SortOptions = stored.SortOptions
+	}
+	if len(stored.EventActions) > 0 {
+		defaults.EventActions = stored.EventActions
+	}
+	if len(stored.CreateForm.ParticipationModes) > 0 || len(stored.CreateForm.Tags) > 0 || len(stored.CreateForm.CompletionRules) > 0 || len(stored.CreateForm.FeeTypes) > 0 {
+		defaults.CreateForm = stored.CreateForm
+	}
+	return defaults
+}
+
+func hasRequiredPrimaryCategories(items []gameCategoryOptionDTO) bool {
+	required := map[string]bool{"social": false, "task": false, "explore": false, "growth": false}
+	for _, item := range items {
+		key := strings.TrimSpace(item.Key)
+		if _, ok := required[key]; ok {
+			required[key] = true
+		}
+	}
+	for _, present := range required {
+		if !present {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) applyOperationGameLimits(config *gameCategoryConfigDTO) {
@@ -753,6 +962,10 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	var stored gameCategoryConfigDTO
 	if !s.systemConfig.Get(gameCategoryConfigKey, &stored) || len(stored.PrimaryCategories) == 0 {
 		_ = s.systemConfig.Set(gameCategoryConfigKey, defaultGameCategoryConfig())
+	}
+	var templateStored gameCreateTemplateConfigDTO
+	if !s.systemConfig.Get(gameCreateTemplateConfigKey, &templateStored) {
+		_ = s.systemConfig.Set(gameCreateTemplateConfigKey, defaultGameCreateTemplateConfig())
 	}
 	var homeStored homeDisplayConfigDTO
 	if !s.systemConfig.Get(homeDisplayConfigKey, &homeStored) {
@@ -1001,6 +1214,7 @@ func normalizeCategoryOptions(items []gameCategoryOptionDTO, selectable bool) []
 		item.Key = key
 		item.Name = name
 		item.Icon = strings.TrimSpace(item.Icon)
+		item.Tags = normalizeCreateFormOptions(item.Tags, nil)
 		if selectable && !item.Selectable {
 			item.Selectable = true
 		}
@@ -1049,6 +1263,7 @@ func cloneGameCategoryOptions(items []gameCategoryOptionDTO) []gameCategoryOptio
 	for i, item := range items {
 		result[i] = item
 		result[i].Children = cloneGameCategoryOptions(item.Children)
+		result[i].Tags = append([]gameCreateFormOptionDTO(nil), item.Tags...)
 	}
 	return result
 }
@@ -2392,14 +2607,37 @@ func publicGames(items []games.Game) []games.Game {
 }
 
 func isPublicGameStatus(status string) bool {
-	return status == "recruiting"
+	return status == "recruiting" || status == "full" || status == "in_progress"
 }
 
 func isPublicJoinableGame(game games.Game, now time.Time) bool {
-	if !isPublicGameStatus(game.Status) || !games.CanApplyWithinSignupWindow(game, now) {
+	if !isPublicGameStatus(game.Status) {
+		return false
+	}
+	// 达到人数上限后会自动开局，因此新流程里的满员局状态为
+	// in_progress；旧数据可能仍保留 full。两种状态都只在当天保留为
+	// 状态展示卡片，次日从首页移除，且不再允许报名。
+	if game.Status == "full" {
+		return sameAppDay(game.CreatedAt, now)
+	}
+	if game.Status == "in_progress" {
+		if game.CurrentPlayers < game.MaxPlayers || game.MaxPlayers <= 0 {
+			return false
+		}
+		startedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(game.StartedAt))
+		return err == nil && sameAppDay(startedAt, now)
+	}
+	if !games.CanApplyWithinSignupWindow(game, now) {
 		return false
 	}
 	return game.MaxPlayers <= 0 || game.CurrentPlayers < game.MaxPlayers
+}
+
+func sameAppDay(left time.Time, right time.Time) bool {
+	if left.IsZero() || right.IsZero() {
+		return false
+	}
+	return left.In(appDisplayLocation).Format("2006-01-02") == right.In(appDisplayLocation).Format("2006-01-02")
 }
 
 func (s *Server) adminGames(w http.ResponseWriter, r *http.Request) {
@@ -3338,6 +3576,7 @@ func (s *Server) gameCollaboration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	messages, _ := s.im.Messages(userID, game.ID)
+	feedbacks, _ := s.games.ProgressFeedbacks(userID, game.ID)
 	now := time.Now()
 	httpx.OK(w, map[string]interface{}{
 		"gameId":        game.ID,
@@ -3345,11 +3584,11 @@ func (s *Server) gameCollaboration(w http.ResponseWriter, r *http.Request) {
 		"status":        game.Status,
 		"statusText":    homeGameStatusText(game.Status),
 		"dayText":       collaborationDayText(game.CreatedAt, now),
-		"progress":      collaborationProgress(game),
+		"progress":      collaborationProgressWithFeedback(game, feedbacks),
 		"members":       s.collaborationMembers(userID, game),
 		"membersText":   s.collaborationMembersText(game),
 		"messages":      s.collaborationMessages(messages),
-		"actions":       collaborationActions(game, userID),
+		"actions":       s.collaborationActions(game, userID),
 		"currentUserId": userID,
 		"serverTime":    now.Format(time.RFC3339),
 	})
@@ -3513,6 +3752,20 @@ func collaborationProgress(game games.Game) map[string]interface{} {
 	}
 }
 
+func collaborationProgressWithFeedback(game games.Game, feedbacks []games.ProgressFeedback) map[string]interface{} {
+	progress := collaborationProgress(game)
+	if len(feedbacks) == 0 || (game.Status != "in_progress" && game.Status != "pending_confirm") {
+		return progress
+	}
+	latest := feedbacks[len(feedbacks)-1]
+	if latest.Progress < 0 || latest.Progress > 100 {
+		return progress
+	}
+	progress["percent"] = latest.Progress
+	progress["title"] = "进度 " + strconv.Itoa(latest.Progress) + "%"
+	return progress
+}
+
 func collaborationProgressPercent(status string) int {
 	switch status {
 	case "completed":
@@ -3631,16 +3884,19 @@ func (s *Server) collaborationMessages(messages []im.Message) []map[string]inter
 	return items
 }
 
-func collaborationActions(game games.Game, userID int64) map[string]interface{} {
+func (s *Server) collaborationActions(game games.Game, userID int64) map[string]interface{} {
+	memberRoles := gameMemberRoleMap(s.games.MemberRoles(game.ID))
 	canManage := game.CreatorUserID == userID || game.MainGuideUserID == userID
+	canManageProgress := canManage || memberRoles[userID] == "expert"
 	canEnd := canManage && game.Status == "in_progress"
 	return map[string]interface{}{
-		"canManageMembers": canManage,
-		"canEndGame":       canEnd,
-		"completionMode":   map[bool]string{true: "direct_review", false: "ordered_confirm"}[game.GameSource == "admin"],
-		"manageRoute":      "pages/game/participants/index?gameId=" + strconv.FormatInt(game.ID, 10),
-		"endConfirmRoute":  "pages/game/collaboration/index?gameId=" + strconv.FormatInt(game.ID, 10),
-		"reviewRoute":      "pages/game/review/index?gameId=" + strconv.FormatInt(game.ID, 10),
+		"canManageMembers":  canManage,
+		"canManageProgress": canManageProgress,
+		"canEndGame":        canEnd,
+		"completionMode":    map[bool]string{true: "direct_review", false: "ordered_confirm"}[game.GameSource == "admin"],
+		"manageRoute":       "pages/game/participants/index?gameId=" + strconv.FormatInt(game.ID, 10),
+		"endConfirmRoute":   "pages/game/collaboration/index?gameId=" + strconv.FormatInt(game.ID, 10),
+		"reviewRoute":       "pages/game/review/index?gameId=" + strconv.FormatInt(game.ID, 10),
 	}
 }
 

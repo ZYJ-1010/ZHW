@@ -2,10 +2,32 @@ package appapi
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 )
+
+// adminPendingCountsAuthorized intentionally accepts any administrator who
+// owns at least one queue. The older implementation required analytics access,
+// causing audit/game operators to miss the red-dot work reminders that they
+// were actually responsible for.
+func (s *Server) adminPendingCountsAuthorized(w http.ResponseWriter, r *http.Request) {
+	permissions := []string{
+		"game:read", "game:update_status", "identity:read", "identity:update",
+		"role:view", "role:update", "report:view", "report:handle", "redemption:manage",
+	}
+	for _, permission := range permissions {
+		if adminID, ok := s.admins.HasPermission(s.adminToken(r), permission); ok {
+			if r.Header.Get("X-Admin-ID") == "" {
+				r.Header.Set("X-Admin-ID", strconv.FormatInt(adminID, 10))
+			}
+			s.adminPendingCounts(w, r)
+			return
+		}
+	}
+	httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "缺少后台接口权限")
+}
 
 // adminPendingCounts exposes one source for the admin work-queue red dots.
 // Individual modules still own their records; this endpoint only aggregates

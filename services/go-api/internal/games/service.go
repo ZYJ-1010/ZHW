@@ -833,7 +833,9 @@ func normalizeCreateRequest(req CreateRequest) CreateRequest {
 	req.EndAt = strings.TrimSpace(req.EndAt)
 	req.SignupStartAt = strings.TrimSpace(req.SignupStartAt)
 	req.SignupEndAt = strings.TrimSpace(req.SignupEndAt)
-	req.Tags = cleanStringList(req.Tags, 20)
+	// 一期创建局标签最多三个。前端限制只用于交互，服务层同样限制，
+	// 防止绕过小程序直接提交过多标签。
+	req.Tags = cleanStringList(req.Tags, 4)
 	req.CompletionRules = cleanStringList(req.CompletionRules, 20)
 	req.PrimaryCategory = strings.TrimSpace(req.PrimaryCategory)
 	req.PrimaryCategoryText = strings.TrimSpace(req.PrimaryCategoryText)
@@ -921,7 +923,7 @@ func validateCreateRequestWithLimits(req CreateRequest, minPlayers, maxPlayers i
 	if len(req.StartAt) > 32 || len(req.EndAt) > 32 || len(req.SignupStartAt) > 32 || len(req.SignupEndAt) > 32 {
 		return ErrInvalidGameInput
 	}
-	if req.Price < 0 || len(req.Tags) > 20 || len(req.CompletionRules) > 20 {
+	if req.Price < 0 || len(req.Tags) > 3 || len(req.CompletionRules) > 20 {
 		return ErrInvalidGameInput
 	}
 	if req.MainGuideUserID < 0 {
@@ -2202,8 +2204,22 @@ func matchingPlayerInvitation(candidate Invitation, expertInvitation Invitation,
 	return true
 }
 
-func canManageGameProgress(game Game, userID int64) bool {
-	return game.CreatorUserID == userID || (game.MainGuideUserID > 0 && game.MainGuideUserID == userID)
+func memberRoleMap(items []MemberRole) map[int64]string {
+	roles := make(map[int64]string, len(items))
+	for _, item := range items {
+		roles[item.UserID] = normalizeMemberRole(item.Role)
+	}
+	return roles
+}
+
+// The creator and main guide coordinate the whole game. An accepted expert
+// may maintain delivery progress and milestones, but remains unable to use
+// creator-only controls such as ending the game.
+func canManageGameProgress(game Game, userID int64, memberRoles map[int64]string) bool {
+	if game.CreatorUserID == userID || (game.MainGuideUserID > 0 && game.MainGuideUserID == userID) {
+		return true
+	}
+	return normalizeMemberRole(memberRoles[userID]) == "expert"
 }
 
 func canInviteGuide(game Game, userID int64) bool {
@@ -2354,13 +2370,14 @@ func (s *Service) AddProgressFeedback(userID int64, gameID int64, req ProgressFe
 	if req.Progress < 0 || req.Progress > 100 || len(req.Content) > 500 || !validFileIDs(req.FileIDs, 9) {
 		return ProgressFeedback{}, ErrInvalidProgress
 	}
+	memberRoles := memberRoleMap(s.MemberRoles(gameID))
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	game, ok := s.games[gameID]
 	if !ok {
 		return ProgressFeedback{}, ErrGameNotFound
 	}
-	if !canManageGameProgress(game, userID) {
+	if !canManageGameProgress(game, userID, memberRoles) {
 		return ProgressFeedback{}, ErrForbidden
 	}
 	if game.Status != "in_progress" && game.Status != "pending_confirm" {
@@ -2404,6 +2421,7 @@ func (s *Service) CreateMilestone(userID int64, gameID int64, req MilestoneReque
 	if req.Title == "" || len(req.Title) > 80 {
 		return Milestone{}, ErrInvalidMilestone
 	}
+	memberRoles := memberRoleMap(s.MemberRoles(gameID))
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	game, ok, err := s.gameLocked(gameID)
@@ -2413,7 +2431,7 @@ func (s *Service) CreateMilestone(userID int64, gameID int64, req MilestoneReque
 	if !ok {
 		return Milestone{}, ErrGameNotFound
 	}
-	if !canManageGameProgress(game, userID) {
+	if !canManageGameProgress(game, userID, memberRoles) {
 		return Milestone{}, ErrForbidden
 	}
 	item := Milestone{
@@ -2444,6 +2462,7 @@ func (s *Service) UpdateMilestone(userID int64, gameID int64, milestoneID int64,
 	if len(req.Title) > 80 {
 		return Milestone{}, ErrInvalidMilestone
 	}
+	memberRoles := memberRoleMap(s.MemberRoles(gameID))
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	game, ok, err := s.gameLocked(gameID)
@@ -2453,7 +2472,7 @@ func (s *Service) UpdateMilestone(userID int64, gameID int64, milestoneID int64,
 	if !ok {
 		return Milestone{}, ErrGameNotFound
 	}
-	if !canManageGameProgress(game, userID) {
+	if !canManageGameProgress(game, userID, memberRoles) {
 		return Milestone{}, ErrForbidden
 	}
 	items := s.milestones[gameID]

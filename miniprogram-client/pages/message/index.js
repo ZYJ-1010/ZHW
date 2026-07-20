@@ -363,7 +363,9 @@ Page({
     this.markMessageReadLocally(card.id)
 
     try {
-      await messageService.markNotificationRead(card.id)
+      // 局 IM 卡片是按房间聚合生成的展示卡；其 id 不是通知表主键。
+      // 后端返回 notificationId 后必须优先用它，才能真正清除未读红点。
+      await messageService.markNotificationRead(card.notificationId || card.id)
     } catch (error) {
       console.warn('[message] mark notification read failed', error)
     }

@@ -2,20 +2,22 @@ package appapi
 
 import (
 	"testing"
+	"time"
 
 	"zhw-mini/services/go-api/internal/games"
 )
 
-func TestPublicGamesOnlyReturnsRecruitingGames(t *testing.T) {
+func TestPublicGamesKeepsSameDayFullOrAutoStartedCards(t *testing.T) {
+	now := time.Now()
 	items := publicGames([]games.Game{
 		{ID: 1, Status: "recruiting"},
-		{ID: 2, Status: "full"},
-		{ID: 3, Status: "in_progress"},
+		{ID: 2, Status: "full", CreatedAt: now},
+		{ID: 3, Status: "in_progress", CurrentPlayers: 5, MaxPlayers: 5, StartedAt: now.Format(time.RFC3339)},
 		{ID: 4, Status: "pending_confirm"},
 		{ID: 5, Status: "completed"},
 	})
-	if len(items) != 1 || items[0].ID != 1 {
-		t.Fatalf("public games = %+v, want recruiting game only", items)
+	if len(items) != 3 || items[0].ID != 1 || items[1].ID != 2 || items[2].ID != 3 {
+		t.Fatalf("public games = %+v, want recruiting and same-day full cards", items)
 	}
 }
 

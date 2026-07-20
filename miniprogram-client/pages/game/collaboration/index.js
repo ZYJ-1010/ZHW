@@ -36,6 +36,9 @@ Page({
     title: '局内协作',
     subtitle: '',
     progressPercent: 0,
+    progressInput: '',
+    progressNote: '',
+    progressSaving: false,
     members: [],
     membersText: '',
     tasks: [],
@@ -95,6 +98,7 @@ Page({
         messages: [],
         actions: {
           canManageMembers: false,
+          canManageProgress: false,
           canEndGame: false,
           showFooter: false,
           manageText: '成员管理',
@@ -161,6 +165,46 @@ Page({
     }
 
     navigateShellRoute(`/${ROUTES.imRoom}?gameId=${encodeURIComponent(gameId)}`)
+  },
+
+  onProgressInput(event) {
+    this.setData({ progressInput: String(event.detail.value || '').replace(/[^0-9]/g, '').slice(0, 3) })
+  },
+
+  onProgressNoteInput(event) {
+    this.setData({ progressNote: String(event.detail.value || '').slice(0, 500) })
+  },
+
+  async submitProgress() {
+    const actions = this.data.actions || {}
+    if (!actions.canManageProgress || !this.data.gameId || this.data.progressSaving) {
+      return
+    }
+    const progress = Number(this.data.progressInput)
+    const content = String(this.data.progressNote || '').trim()
+    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+      wx.showToast({ title: '请输入 0 到 100 的进度', icon: 'none' })
+      return
+    }
+    if (!content) {
+      wx.showToast({ title: '请填写进度说明', icon: 'none' })
+      return
+    }
+    if (progress < Number(this.data.progressPercent || 0)) {
+      wx.showToast({ title: '进度不能低于当前进度', icon: 'none' })
+      return
+    }
+    this.setData({ progressSaving: true })
+    try {
+      await gameService.createProgressFeedback(this.data.gameId, { progress, content })
+      wx.showToast({ title: '进度已更新', icon: 'success' })
+      this.setData({ progressInput: '', progressNote: '' })
+      await this.loadCollaboration(this.data.gameId)
+    } catch (error) {
+      wx.showToast({ title: error && error.message ? error.message : '更新进度失败', icon: 'none' })
+    } finally {
+      this.setData({ progressSaving: false })
+    }
   },
 
   async handleEndSession() {
@@ -250,6 +294,7 @@ function normalizeCollaboration(data = {}, fallbackGameId = '') {
     messages,
     actions: normalizeActions(Object.assign({
       canManageMembers: false,
+      canManageProgress: false,
       canEndGame: false,
       showFooter: false,
       manageText: '成员管理',
@@ -263,6 +308,7 @@ function normalizeCollaboration(data = {}, fallbackGameId = '') {
 function normalizeActions(actions = {}) {
   const normalized = Object.assign({}, actions, {
     canManageMembers: Boolean(actions.canManageMembers),
+    canManageProgress: Boolean(actions.canManageProgress),
     canEndGame: Boolean(actions.canEndGame)
   })
   normalized.showFooter = Boolean(normalized.canManageMembers || normalized.canEndGame)

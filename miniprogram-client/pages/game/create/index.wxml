@@ -51,7 +51,22 @@
             maxlength="{{themeMaxLength}}"
             bindinput="onThemeInput"
           />
-          <text class="field-count">{{themeLength}}/{{themeMaxLength}}</text>
+        </view>
+
+        <view class="form-field">
+          <view wx:if="{{createTemplates.length}}" class="field-heading">
+            <text class="field-label">局模板</text>
+            <text class="field-hint">可选，选择后自动填入分类、标签和人数</text>
+          </view>
+          <view wx:if="{{createTemplates.length}}" class="chip-row template-row">
+            <button
+              wx:for="{{createTemplates}}"
+              wx:key="key"
+              class="option-chip template-chip {{form.createTemplate === item.key ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="selectCreateTemplate"
+            >{{item.name}}</button>
+          </view>
         </view>
 
         <view class="form-field">
@@ -326,7 +341,10 @@
         <view class="divider"></view>
 
         <view class="form-field">
-          <text class="field-label">标签</text>
+          <view class="field-heading">
+            <text class="field-label">标签</text>
+            <text class="field-hint">最多选择 3 个</text>
+          </view>
           <view class="tag-row">
             <button
               wx:for="{{tags}}"
@@ -353,9 +371,9 @@
             maxlength="{{introMaxLength}}"
             placeholder="请输入局介绍"
             placeholder-class="control-placeholder"
+            auto-height
             bindinput="onIntroInput"
           ></textarea>
-          <text class="field-count">{{introLength}}/{{introMaxLength}}</text>
         </view>
 
         <view class="form-field">
@@ -370,9 +388,9 @@
             maxlength="{{highlightsMaxLength}}"
             placeholder="请输入亮点"
             placeholder-class="control-placeholder"
+            auto-height
             bindinput="onHighlightsInput"
           ></textarea>
-          <text class="field-count">{{highlightsLength}}/{{highlightsMaxLength}}</text>
         </view>
 
         <view class="form-field">
@@ -386,6 +404,7 @@
             value="{{form.description}}"
             placeholder="请输入局描述"
             placeholder-class="control-placeholder"
+            auto-height
             bindinput="onDescriptionInput"
           ></textarea>
           <view class="description-media-actions">
@@ -420,7 +439,6 @@
             placeholder-class="control-placeholder"
             bindinput="onNoticeInput"
           />
-          <text class="field-count">{{noticeLength}}/{{noticeMaxLength}}</text>
         </view>
 
         <view class="form-field">
@@ -434,7 +452,6 @@
             placeholder-class="control-placeholder"
             bindinput="onAudienceInput"
           />
-          <text class="field-count">{{audienceLength}}/{{audienceMaxLength}}</text>
         </view>
 
         <view class="form-field">

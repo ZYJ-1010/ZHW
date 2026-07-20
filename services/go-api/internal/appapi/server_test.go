@@ -1905,7 +1905,7 @@ func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 	if err := json.Unmarshal(configBody, &config); err != nil {
 		t.Fatal(err)
 	}
-	if len(config.Data.PrimaryCategories) == 0 || config.Data.DefaultPrimaryCategory == "" || config.Data.DefaultSecondaryCategory == "" {
+	if len(config.Data.PrimaryCategories) != 4 || config.Data.DefaultPrimaryCategory == "" || config.Data.DefaultSecondaryCategory == "" {
 		t.Fatalf("unexpected category config: %s", string(configBody))
 	}
 	if config.Data.CreateForm.Capacity.Min != 5 || config.Data.CreateForm.Capacity.Max != 8 || len(config.Data.CreateForm.ParticipationModes) == 0 || len(config.Data.CreateForm.FeeTypes) == 0 {
@@ -1933,6 +1933,27 @@ func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 	}
 	if created.Data.PrimaryCategory != "task" || created.Data.SecondaryCategory != "project" || created.Data.Type != "free" {
 		t.Fatalf("expected category fields in create response: %s", string(body))
+	}
+}
+
+func TestGameCreateTemplateConfigFeedsMiniProgramHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
+	appToken := loginForTest(t, mux)
+
+	defaultBody := getJSON(t, mux, "/api/app/games/create-template-config", appToken, http.StatusOK)
+	if !bytes.Contains(defaultBody, []byte(`"key":"social_board_game"`)) {
+		t.Fatalf("expected default create templates: %s", string(defaultBody))
+	}
+
+	payload := `{"items":[{"key":"custom_growth","name":"后台成长模板","primaryCategory":"growth","secondaryCategory":"reading","participation":"hybrid","capacity":5,"tags":["学习"],"completionRules":["goal"],"visible":true,"order":10}],"version":"template-test"}`
+	putJSON(t, mux, "/api/admin/games/create-template-config", adminToken, payload, http.StatusOK)
+	body := getJSON(t, mux, "/api/app/games/create-template-config", appToken, http.StatusOK)
+	if !bytes.Contains(body, []byte(`"key":"custom_growth"`)) || !bytes.Contains(body, []byte(`"version":"template-test"`)) {
+		t.Fatalf("expected app create templates from admin update: %s", string(body))
 	}
 }
 
@@ -1978,11 +1999,11 @@ func TestAdminGameCategoryConfigFeedsAppHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Data.Version != "admin-test" || got.Data.DefaultPrimaryCategory != "custom_admin" || len(got.Data.PrimaryCategories) != 1 {
-		t.Fatalf("expected app category config from admin update: %s", string(body))
+	if got.Data.Version != "2026-07-20-category-v2" || got.Data.DefaultPrimaryCategory != "task" || len(got.Data.PrimaryCategories) != 4 {
+		t.Fatalf("expected legacy category config to upgrade to the four fixed primary categories: %s", string(body))
 	}
-	if got.Data.PrimaryCategories[0].Key != "custom_admin" || got.Data.PrimaryCategories[0].Children[0].Key != "custom_child" {
-		t.Fatalf("expected custom category tree: %s", string(body))
+	if got.Data.PrimaryCategories[0].Key != "social" || got.Data.PrimaryCategories[1].Key != "task" || got.Data.PrimaryCategories[2].Key != "explore" || got.Data.PrimaryCategories[3].Key != "growth" {
+		t.Fatalf("expected social/task/explore/growth category tree: %s", string(body))
 	}
 
 	invalidPayload := `{

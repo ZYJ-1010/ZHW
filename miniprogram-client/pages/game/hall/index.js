@@ -222,7 +222,9 @@ function normalizeHallGame(game = {}, eventActions = []) {
     official: Boolean(game.official || game.isOfficial || game.featured || game.isFeatured),
     location: locationParts.join(' · '),
     time: game.createdAt ? `发布 ${formatHallDate(game.createdAt)}` : '',
-    action: currentPlayers >= maxPlayers ? '已满员' : '加入',
+    action: game.status === 'in_progress'
+      ? '已开局'
+      : (currentPlayers >= maxPlayers || game.status === 'full' ? '已满员' : '招募中'),
     joinedText: `${currentPlayers}位玩家已入局`,
     playerAvatars: normalizePlayerAvatars(game),
     actions: eventActions

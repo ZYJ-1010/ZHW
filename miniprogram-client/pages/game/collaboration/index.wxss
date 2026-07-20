@@ -398,6 +398,54 @@ page {
   line-height: 38rpx;
 }
 
+.progress-editor {
+  display: grid;
+  grid-template-columns: 150rpx 1fr;
+  gap: 14rpx;
+  margin-top: 26rpx;
+  padding: 20rpx;
+  border: 1rpx solid rgba(117, 184, 255, 0.28);
+  border-radius: 14rpx;
+  background: rgba(40, 49, 75, 0.52);
+}
+
+.progress-editor-title {
+  grid-column: 1 / -1;
+  color: #d8e9ff;
+  font-size: 24rpx;
+}
+
+.progress-editor-number,
+.progress-editor-note {
+  width: 100%;
+  min-height: 64rpx;
+  padding: 14rpx;
+  border-radius: 10rpx;
+  box-sizing: border-box;
+  color: #f7fbff;
+  background: #262c42;
+  font-size: 24rpx;
+}
+
+.progress-editor-note {
+  grid-column: 1 / -1;
+  min-height: 92rpx;
+}
+
+.progress-editor-submit {
+  grid-column: 1 / -1;
+  height: 64rpx;
+  margin: 0;
+  border-radius: 10rpx;
+  color: #ffffff;
+  background: #4a91e8;
+  font-size: 24rpx;
+}
+
+.progress-editor-submit::after {
+  border: 0;
+}
+
 .collab-footer {
   position: absolute;
   left: 2rpx;

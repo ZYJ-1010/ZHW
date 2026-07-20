@@ -53,6 +53,7 @@
   identities: [],
   avatarAudits: [],
   roleApplications: [],
+  gameCreateTemplateConfig: null,
   gameApplicationConfig: null,
   gameAuditConfig: null,
   conditionRuleConfig: null,
@@ -68,8 +69,10 @@ const DEFAULT_PAGE_SIZE = 10;
 const GAME_MAP_SEARCH_COOLDOWN_MS = 3000;
 const NAV_COLLAPSE_STORAGE_KEY = "zhw_admin_collapsed_nav_groups";
 const PHASE_ONE_REVENUE_ENABLED = false;
+const PENDING_REFRESH_INTERVAL_MS = 30000;
 
 let gameMapSearchCooldownTimer = 0;
+let pendingRefreshTimer = 0;
 
 const views = {
   dashboard: { title: "运营工作台", crumb: "总览" },
@@ -199,6 +202,9 @@ async function boot() {
     ensureAllowedView();
     setActiveNav();
     restoreNavGroups();
+    window.clearInterval(pendingRefreshTimer);
+    pendingRefreshTimer = window.setInterval(() => { void refreshPendingIndicators(); }, PENDING_REFRESH_INTERVAL_MS);
+    await refreshPendingIndicators();
     await loadView(state.view);
   } catch (error) {
     setAPIStatus(false);
@@ -257,6 +263,8 @@ function logout() {
   state.admin = null;
   state.permissions = [];
   state.userDisplayMap.clear();
+  window.clearInterval(pendingRefreshTimer);
+  pendingRefreshTimer = 0;
   localStorage.removeItem("zhw_admin_token");
   showLogin();
 }
@@ -284,6 +292,7 @@ async function loadView(view) {
   const root = $("#view-root");
   root.innerHTML = template(`${view}-template`);
   await ensureUserDisplayCache();
+  void refreshPendingIndicators();
   if (view === "dashboard") await renderDashboard();
   if (view === "users") await renderUsers();
   if (view === "invites") await renderInvites();
@@ -303,6 +312,29 @@ async function loadView(view) {
   if (view === "im") await renderIM();
   if (view === "logs") await renderLogs();
   polishAdminFragment(root);
+}
+
+async function refreshPendingIndicators() {
+  if (!state.token) return;
+  try {
+    const pending = await apiGet("/api/admin/pending-counts");
+    const counts = pending.counts || {};
+    const navCounts = {
+      games: Number(counts.games || 0) + Number(counts.gameApplications || 0),
+      reports: Number(counts.reports || 0),
+      redemption: Number(counts.redemption || 0),
+      audits: Number(counts.identity || 0) + Number(counts.enterprise || 0) + Number(counts.avatars || 0) + Number(counts.roles || 0),
+    };
+    Object.entries(navCounts).forEach(([view, count]) => {
+      const button = document.querySelector(`#main-nav button[data-view="${view}"]`);
+      if (!button) return;
+      button.classList.toggle("has-pending-dot", count > 0);
+      button.setAttribute("data-pending-count", String(count));
+      button.setAttribute("aria-label", count > 0 ? `${button.textContent.trim()}，${count} 项待处理` : button.textContent.trim());
+    });
+  } catch (error) {
+    // 红点刷新失败不会中断当前页面；下一个周期会继续重试。
+  }
 }
 
 async function renderDashboard() {
@@ -326,30 +358,6 @@ async function renderDashboard() {
     gamesNavButton.setAttribute("data-pending-count", String(pendingGames));
   }
   setField("imRoomCount", state.imRooms.length);
-  try {
-    const pending = await apiGet("/api/admin/pending-counts");
-    const counts = pending.counts || {};
-    const navMap = {
-      games: "games",
-      reports: "reports",
-      redemption: "redemption",
-      audits: "audits",
-    };
-    Object.entries(navMap).forEach(([key, view]) => {
-      const button = document.querySelector(`#main-nav button[data-view="${view}"]`);
-      if (!button) return;
-      const count = view === "audits"
-        ? Number(counts.identity || 0) + Number(counts.enterprise || 0) + Number(counts.avatars || 0) + Number(counts.roles || 0)
-        : view === "games"
-          ? Number(counts.games || 0) + Number(counts.gameApplications || 0)
-        : Number(counts[key] || 0);
-      button.classList.toggle("has-pending-dot", count > 0);
-      button.setAttribute("data-pending-count", String(count));
-    });
-  } catch (error) {
-    // Dashboard still renders when the optional aggregated counter permission
-    // is unavailable; individual module pages remain the source of truth.
-  }
   renderGameTypeBars(state.games);
   renderDashboardStatusBars(state.games);
   renderDashboardWorkQueue(state.games, state.imRooms);
@@ -1536,6 +1544,21 @@ async function grantRoleFromAdmin(event) {
     const receipt = `批次 ${result.batchId || "-"}：成功 ${success}，已开通 ${alreadyActive}，失败 ${failed}`;
     const receiptNode = $("#role-grant-result");
     if (receiptNode) receiptNode.textContent = failureText ? `${receipt}。${failureText}` : receipt;
+    const resultList = $("#role-grant-result-list");
+    if (resultList) {
+      const items = Array.isArray(result.items) ? result.items : [];
+      resultList.innerHTML = items.length
+        ? items.map((item) => stackItem({
+          title: `用户 ${item.userId || "-"}${item.nickname ? ` · ${item.nickname}` : ""}`,
+          badge: item.status === "approved" || item.status === "already_active" ? "active" : "rejected",
+          meta: [
+            `身份：${item.roleCode === "guide" ? "领路人" : "行家"}`,
+            `结果：${item.status === "already_active" ? "已开通" : (item.status === "approved" ? "开通成功" : "开通失败")}`,
+            item.reason ? `说明：${item.reason}` : ""
+          ].filter(Boolean)
+        })).join("")
+        : emptyBlock("本批次暂无结果");
+    }
     toast(failed ? `${receipt}，请查看结果回执` : receipt);
     form.reset();
     await loadRoles();
@@ -3347,6 +3370,8 @@ async function renderSystem() {
   bindSectionTabs($("#view-root"));
   $("#game-category-refresh").addEventListener("click", loadGameCategoryConfig);
   $("#game-category-form").addEventListener("submit", saveGameCategoryConfig);
+  $("#game-create-template-refresh").addEventListener("click", loadGameCreateTemplateConfig);
+  $("#game-create-template-form").addEventListener("submit", saveGameCreateTemplateConfig);
   $("#home-display-refresh").addEventListener("click", loadHomeDisplayConfig);
   $("#home-display-form").addEventListener("submit", saveHomeDisplayConfig);
   $("#game-application-refresh").addEventListener("click", loadGameApplicationConfig);
@@ -3379,6 +3404,7 @@ async function renderSystem() {
   const tasks = [];
   if (can("system_config:read")) {
     tasks.push(loadGameCategoryConfig());
+    tasks.push(loadGameCreateTemplateConfig());
     tasks.push(loadHomeDisplayConfig());
     tasks.push(loadGameApplicationConfig());
     tasks.push(loadGameAuditConfig());
@@ -3392,6 +3418,7 @@ async function renderSystem() {
     tasks.push(loadProfitTemplateConfig());
   } else {
     renderNoAccess("#game-category-config-panel", "缺少 system_config:read");
+    renderNoAccess("#game-create-template-config-panel", "缺少 system_config:read");
     renderNoAccess("#home-display-config-panel", "缺少 system_config:read");
     renderNoAccess("#game-application-config-panel", "缺少 system_config:read");
     renderNoAccess("#game-audit-config-panel", "缺少 system_config:read");
@@ -3571,6 +3598,58 @@ async function saveGameCategoryConfig(event) {
     toast("局类型与筛选规则已保存");
   } catch (error) {
     toast(error instanceof SyntaxError ? "高级筛选格式不正确，请清空后重试" : error.message, true);
+  }
+}
+
+async function loadGameCreateTemplateConfig() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#game-create-template-config-panel", "缺少 system_config:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/games/create-template-config");
+  state.gameCreateTemplateConfig = data.config || data;
+  const textarea = $("#game-create-template-config-json");
+  if (textarea) textarea.value = JSON.stringify(state.gameCreateTemplateConfig, null, 2);
+  renderGameCreateTemplateConfig();
+}
+
+function renderGameCreateTemplateConfig() {
+  const config = state.gameCreateTemplateConfig || {};
+  const items = Array.isArray(config.items) ? config.items : [];
+  $("#game-create-template-config-panel").innerHTML = [
+    detailCell("可用模板", `${items.filter((item) => item && item.visible !== false).length} 个`),
+    detailCell("模板总数", `${items.length} 个`),
+    detailCell("配置版本", config.version || "-"),
+  ].join("");
+}
+
+async function saveGameCreateTemplateConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const raw = String(new FormData(event.currentTarget).get("configJson") || "").trim();
+  if (!raw) {
+    toast("局模板配置不能为空", true);
+    return;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch (error) {
+    toast("局模板配置格式不正确", true);
+    return;
+  }
+  try {
+    const data = await apiPut("/api/admin/games/create-template-config", payload);
+    state.gameCreateTemplateConfig = data.config || data;
+    const textarea = $("#game-create-template-config-json");
+    if (textarea) textarea.value = JSON.stringify(state.gameCreateTemplateConfig, null, 2);
+    renderGameCreateTemplateConfig();
+    toast("局模板已保存，小程序创建页会读取最新配置");
+  } catch (error) {
+    toast(error.message || "局模板保存失败", true);
   }
 }
 

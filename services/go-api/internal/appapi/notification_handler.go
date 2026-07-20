@@ -368,7 +368,7 @@ func (s *Server) messageCenterSections(userID int64, config map[string]interface
 
 func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []notifications.Notification) []map[string]interface{} {
 	cards := make([]map[string]interface{}, 0, 2)
-	unreadRooms := unreadIMRoomSet(noticeItems)
+	unreadRoomNotificationIDs := unreadIMRoomNotificationIDs(noticeItems)
 	for _, room := range s.im.AdminRooms() {
 		if !s.games.IsMember(room.GameID, userID) {
 			continue
@@ -403,6 +403,7 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []
 				break
 			}
 		}
+		notificationID := unreadRoomNotificationIDs[room.GameID]
 		cards = append(cards, map[string]interface{}{
 			"id":             "im-room-" + strconv.FormatInt(room.GameID, 10),
 			"routeKey":       "im_room",
@@ -416,7 +417,8 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []
 			"tagText":        "成员" + strconv.Itoa(memberCount) + "人",
 			"tagTone":        "green",
 			"metaText":       imRoomStatusText(room.Status),
-			"unread":         unreadRooms[room.GameID],
+			"unread":         notificationID > 0,
+			"notificationId": notificationID,
 			"_sortTimestamp": latestAt.UnixNano(),
 		})
 	}
@@ -458,11 +460,24 @@ func countUnreadIMRooms(items []notifications.Notification) int {
 
 func unreadIMRoomSet(items []notifications.Notification) map[int64]bool {
 	seen := map[int64]bool{}
+	for gameID := range unreadIMRoomNotificationIDs(items) {
+		seen[gameID] = true
+	}
+	return seen
+}
+
+// unreadIMRoomNotificationIDs provides the persisted notification ID for the
+// synthetic room card. The card itself has a stable UI ID, but marking it read
+// must use the real notification record so the message-center red dot clears.
+func unreadIMRoomNotificationIDs(items []notifications.Notification) map[int64]int64 {
+	seen := map[int64]int64{}
 	for _, item := range items {
 		if item.NotifyType != "im_message" || item.Status != "unread" || item.BizType != "game" || item.BizID <= 0 {
 			continue
 		}
-		seen[item.BizID] = true
+		if seen[item.BizID] == 0 || item.ID > seen[item.BizID] {
+			seen[item.BizID] = item.ID
+		}
 	}
 	return seen
 }
