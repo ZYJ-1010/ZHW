@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+type fixedSMSSender struct{}
+
+func (fixedSMSSender) GenerateCode() string { return "123456" }
+
+func (fixedSMSSender) Send(_ context.Context, _ SMSDispatchRequest) (SMSDispatchResult, error) {
+	return SMSDispatchResult{Provider: "test"}, nil
+}
+
 func TestRealNameInitialsUsesFirstTwoChineseCharacters(t *testing.T) {
 	cases := map[string]string{"张三": "ZS", "王小明": "WX", "欧阳娜娜": "OY"}
 	for name, want := range cases {
@@ -85,6 +93,23 @@ func TestIdentityFlow(t *testing.T) {
 	}
 	if record.Status != StatusVerified {
 		t.Fatalf("expected verified, got %s", record.Status)
+	}
+}
+
+func TestRealSMSSenderDoesNotAllowTemporaryBypassCode(t *testing.T) {
+	service := NewService()
+	service.UseSMSSender(fixedSMSSender{})
+	if _, err := service.BindPhone(11, "13800138000"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SendSMSCode(11); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.VerifySMSCode(11, temporarySMSCode); err != ErrCodeInvalid {
+		t.Fatalf("temporary code must be rejected for non-local sender, got %v", err)
+	}
+	if _, err := service.VerifySMSCode(11, "123456"); err != nil {
+		t.Fatalf("actual provider code must verify: %v", err)
 	}
 }
 

@@ -10,7 +10,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -225,8 +227,13 @@ func (s *Service) SendSMSCode(userID int64) (SMSDispatchResult, error) {
 	state.dayCount++
 	s.smsCodes[userID] = state
 	s.mu.Unlock()
+	plainIdentity, err := s.RevealRecord(record)
+	if err != nil || !validMainlandPhone(plainIdentity.Phone) {
+		return SMSDispatchResult{}, ErrPhoneInvalid
+	}
 	result, err := s.smsSender.Send(context.Background(), SMSDispatchRequest{
 		UserID:      userID,
+		Phone:       plainIdentity.Phone,
 		PhoneMasked: record.PhoneMasked,
 		Scene:       "strong_identity",
 		Code:        state.code,
@@ -254,7 +261,11 @@ func (s *Service) SendSMSCode(userID int64) (SMSDispatchResult, error) {
 func (s *Service) VerifySMSCode(userID int64, code string) (Record, error) {
 	code = strings.TrimSpace(code)
 	s.mu.Lock()
-	if s.smsCodes[userID].code != code && code != temporarySMSCode {
+	allowTemporaryCode := false
+	if sender, ok := s.smsSender.(interface{ AllowsTemporaryCode() bool }); ok {
+		allowTemporaryCode = sender.AllowsTemporaryCode()
+	}
+	if s.smsCodes[userID].code != code && !(allowTemporaryCode && code == temporarySMSCode) {
 		s.mu.Unlock()
 		return Record{}, ErrCodeInvalid
 	}
@@ -691,6 +702,7 @@ func hashValue(value string) string {
 
 type SMSDispatchRequest struct {
 	UserID      int64
+	Phone       string
 	PhoneMasked string
 	Scene       string
 	Code        string
@@ -718,6 +730,16 @@ func (LocalSMSSender) Send(_ context.Context, req SMSDispatchRequest) (SMSDispat
 	return SMSDispatchResult{Provider: "local", MockCode: req.Code}, nil
 }
 
+func (LocalSMSSender) AllowsTemporaryCode() bool { return true }
+
+func generateSMSCode() string {
+	value, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "100000"
+	}
+	return fmt.Sprintf("%06d", value.Int64())
+}
+
 type HTTPSMSSender struct {
 	Endpoint string
 	Secret   string
@@ -733,7 +755,7 @@ func NewHTTPSMSSender(endpoint string, secret string) *HTTPSMSSender {
 }
 
 func (s *HTTPSMSSender) GenerateCode() string {
-	return temporarySMSCode
+	return generateSMSCode()
 }
 
 func (s *HTTPSMSSender) Send(ctx context.Context, req SMSDispatchRequest) (SMSDispatchResult, error) {

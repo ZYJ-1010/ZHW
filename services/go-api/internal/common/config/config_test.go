@@ -44,6 +44,28 @@ func TestValidateProductionAllowsSecureEnvironmentSecrets(t *testing.T) {
 	}
 }
 
+func TestValidateProductionAllowsTencentSMSDirectConfig(t *testing.T) {
+	cfg := Config{
+		AppEnv:    "prod",
+		JWTSecret: "jwt-prod-32-random-bytes-value",
+		Database:  DatabaseConfig{URL: "postgres://user:strong-pass@db/app"},
+		Wechat:    WechatConfig{AppID: "wx-prod-appid", AppSecret: "wechat-prod-32-random-bytes-value"},
+		SMS: SMSConfig{
+			TencentSecretID:   "AKID-test-value",
+			TencentSecretKey:  "tencent-sms-test-key-value",
+			TencentSDKAppID:   "1401152633",
+			TencentSignName:   "测试签名",
+			TencentTemplateID: "2686636",
+		},
+		FaceID:  FaceIDConfig{HTTPEndpoint: "https://faceid.example.com/detect-auth", HTTPSecret: "faceid-http-32-random-bytes-value", CallbackRequireSignature: true, CallbackSecret: "faceid-prod-32-random-bytes-value"},
+		Storage: StorageConfig{UploadBaseURL: "https://upload.example.com", DownloadBaseURL: "https://download.example.com"},
+	}
+
+	if err := cfg.ValidateProduction(); err != nil {
+		t.Fatalf("expected Tencent SMS direct config to pass: %v", err)
+	}
+}
+
 func TestValidateProductionRequiresTencentMapServerKeyWhenEnabled(t *testing.T) {
 	cfg := Config{
 		AppEnv:    "prod",
@@ -271,6 +293,12 @@ func TestLoadReadsBusinessLimits(t *testing.T) {
 	t.Setenv("WECHAT_URL_LINK_BASE_URL", "https://wxaurl.example.com/invite")
 	t.Setenv("SMS_HTTP_ENDPOINT", "https://sms.example.com/send")
 	t.Setenv("SMS_HTTP_SECRET", "sms-secret")
+	t.Setenv("TENCENT_SMS_SECRET_ID", "AKID-load-test")
+	t.Setenv("TENCENT_SMS_SECRET_KEY", "tencent-sms-load-key")
+	t.Setenv("TENCENT_SMS_SDK_APP_ID", "1401152633")
+	t.Setenv("TENCENT_SMS_SIGN_NAME", "测试签名")
+	t.Setenv("TENCENT_SMS_TEMPLATE_ID", "2686636")
+	t.Setenv("TENCENT_SMS_REGION", "ap-guangzhou")
 	t.Setenv("FACEID_HTTP_ENDPOINT", "https://faceid.example.com/detect-auth")
 	t.Setenv("FACEID_HTTP_SECRET", "faceid-secret")
 	t.Setenv("TENCENT_MAP_KEY_SERVER", "server-map-key")
@@ -310,6 +338,9 @@ func TestLoadReadsBusinessLimits(t *testing.T) {
 	}
 	if cfg.Storage.COSSecretID != "AKID-load-test" || cfg.Storage.COSSecretKey != "cos-load-secret" {
 		t.Fatalf("expected COS config from env, got %+v", cfg.Storage)
+	}
+	if !cfg.SMS.TencentEnabled() || cfg.SMS.TencentSDKAppID != "1401152633" || cfg.SMS.TencentRegion != "ap-guangzhou" {
+		t.Fatalf("expected Tencent SMS config from env, got %+v", cfg.SMS)
 	}
 }
 

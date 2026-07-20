@@ -56,8 +56,27 @@ type WechatConfig struct {
 }
 
 type SMSConfig struct {
-	HTTPEndpoint string
-	HTTPSecret   string
+	HTTPEndpoint      string
+	HTTPSecret        string
+	TencentSecretID   string
+	TencentSecretKey  string
+	TencentSDKAppID   string
+	TencentSignName   string
+	TencentTemplateID string
+	TencentRegion     string
+}
+
+// TencentEnabled 表示短信由本服务直接调用腾讯云 SMS，而非经由历史 HTTP 网关转发。
+func (c SMSConfig) TencentEnabled() bool {
+	return !isPlaceholderSecret(c.TencentSecretID) &&
+		!isPlaceholderSecret(c.TencentSecretKey) &&
+		strings.TrimSpace(c.TencentSDKAppID) != "" &&
+		strings.TrimSpace(c.TencentSignName) != "" &&
+		strings.TrimSpace(c.TencentTemplateID) != ""
+}
+
+func (c SMSConfig) HTTPGatewayEnabled() bool {
+	return isHTTPSURL(c.HTTPEndpoint) && !isPlaceholderSecret(c.HTTPSecret)
 }
 
 type FaceIDConfig struct {
@@ -135,8 +154,17 @@ func Load() Config {
 		MiniProgramEnvVersion: strings.TrimSpace(os.Getenv("WECHAT_MINIPROGRAM_ENV_VERSION")),
 	}
 	sms := SMSConfig{
-		HTTPEndpoint: strings.TrimSpace(os.Getenv("SMS_HTTP_ENDPOINT")),
-		HTTPSecret:   strings.TrimSpace(os.Getenv("SMS_HTTP_SECRET")),
+		HTTPEndpoint:      strings.TrimSpace(os.Getenv("SMS_HTTP_ENDPOINT")),
+		HTTPSecret:        strings.TrimSpace(os.Getenv("SMS_HTTP_SECRET")),
+		TencentSecretID:   strings.TrimSpace(os.Getenv("TENCENT_SMS_SECRET_ID")),
+		TencentSecretKey:  strings.TrimSpace(os.Getenv("TENCENT_SMS_SECRET_KEY")),
+		TencentSDKAppID:   strings.TrimSpace(os.Getenv("TENCENT_SMS_SDK_APP_ID")),
+		TencentSignName:   strings.TrimSpace(os.Getenv("TENCENT_SMS_SIGN_NAME")),
+		TencentTemplateID: strings.TrimSpace(os.Getenv("TENCENT_SMS_TEMPLATE_ID")),
+		TencentRegion:     strings.TrimSpace(os.Getenv("TENCENT_SMS_REGION")),
+	}
+	if sms.TencentRegion == "" {
+		sms.TencentRegion = "ap-guangzhou"
 	}
 	faceID := FaceIDConfig{
 		HTTPEndpoint:   strings.TrimSpace(os.Getenv("FACEID_HTTP_ENDPOINT")),
@@ -206,8 +234,8 @@ func (c Config) ValidateProduction() error {
 	if c.Wechat.AppID == "" || isPlaceholderSecret(c.Wechat.AppSecret) {
 		return errors.New("WECHAT_APP_ID and WECHAT_APP_SECRET must be set in production")
 	}
-	if !isHTTPSURL(c.SMS.HTTPEndpoint) || isPlaceholderSecret(c.SMS.HTTPSecret) {
-		return errors.New("SMS_HTTP_ENDPOINT and SMS_HTTP_SECRET must be set from secure values in production")
+	if !c.SMS.TencentEnabled() && !c.SMS.HTTPGatewayEnabled() {
+		return errors.New("Tencent SMS credentials or SMS_HTTP_ENDPOINT and SMS_HTTP_SECRET must be set in production")
 	}
 	if !isHTTPSURL(c.FaceID.HTTPEndpoint) || isPlaceholderSecret(c.FaceID.HTTPSecret) {
 		return errors.New("FACEID_HTTP_ENDPOINT and FACEID_HTTP_SECRET must be set from secure values in production")
@@ -250,7 +278,7 @@ func (c Config) ReadinessReport() ReadinessReport {
 		readinessItem("jwt_secret", production, !isPlaceholderSecret(c.JWTSecret), "JWT_SECRET is configured with a non-placeholder value"),
 		readinessItem("wechat_login", production, c.Wechat.AppID != "" && !isPlaceholderSecret(c.Wechat.AppSecret), "WECHAT_APP_ID and WECHAT_APP_SECRET are configured"),
 		readinessItem("wechat_url_link", false, isHTTPSURL(c.Wechat.URLLinkBaseURL), "WECHAT_URL_LINK_BASE_URL 上线后用于邀请链接；一期可使用手动邀请码"),
-		readinessItem("sms", production, isHTTPSURL(c.SMS.HTTPEndpoint) && !isPlaceholderSecret(c.SMS.HTTPSecret), "SMS_HTTP_ENDPOINT is HTTPS and SMS_HTTP_SECRET is configured"),
+		readinessItem("sms", production, c.SMS.TencentEnabled() || c.SMS.HTTPGatewayEnabled(), "Tencent SMS direct credentials or SMS HTTP gateway is configured"),
 		readinessItem("faceid", production, isHTTPSURL(c.FaceID.HTTPEndpoint) && !isPlaceholderSecret(c.FaceID.HTTPSecret), "FACEID_HTTP_ENDPOINT is HTTPS and FACEID_HTTP_SECRET is configured"),
 		readinessItem("faceid_callback", production && c.FaceID.CallbackRequireSignature, !c.FaceID.CallbackRequireSignature || !isPlaceholderSecret(c.FaceID.CallbackSecret), "TENCENT_FACEID_CALLBACK_SECRET is configured when callback signature is required"),
 		readinessItemWithDetails("tencent_map_server_key", c.TencentMap.Enabled, !isPlaceholderSecret(c.TencentMap.KeyServer) && isHTTPSURL(c.TencentMap.APIBase), "TENCENT_MAP_KEY_SERVER is server-side only; mini program frontend does not bind AppID", map[string]string{

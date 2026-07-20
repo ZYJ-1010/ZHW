@@ -12,6 +12,7 @@ func TestHTTPSMSSenderSendsCodeWithoutReturningMockCode(t *testing.T) {
 	var gotSecret string
 	var gotPayload struct {
 		UserID      int64  `json:"userId"`
+		Phone       string `json:"phone"`
 		PhoneMasked string `json:"phoneMasked"`
 		Scene       string `json:"scene"`
 		Code        string `json:"code"`
@@ -41,10 +42,10 @@ func TestHTTPSMSSenderSendsCodeWithoutReturningMockCode(t *testing.T) {
 	if result.Provider != "http" || result.MessageID != "msg-1" || result.MockCode != "" {
 		t.Fatalf("unexpected dispatch result: %+v", result)
 	}
-	if gotSecret != "sms-secret" || gotPayload.UserID != 7 || gotPayload.Code != "000000" || gotPayload.PhoneMasked != "138****8000" {
+	if gotSecret != "sms-secret" || gotPayload.UserID != 7 || len(gotPayload.Code) != 6 || gotPayload.PhoneMasked != "138****8000" || gotPayload.Phone != "" {
 		t.Fatalf("unexpected sms request secret=%s payload=%+v", gotSecret, gotPayload)
 	}
-	if _, err := service.VerifySMSCode(7, "000000"); err != nil {
+	if _, err := service.VerifySMSCode(7, gotPayload.Code); err != nil {
 		t.Fatalf("expected generated code to verify: %v", err)
 	}
 }

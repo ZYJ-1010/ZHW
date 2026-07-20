@@ -63,8 +63,18 @@ func main() {
 		identityDataKey = cfg.JWTSecret
 	}
 	identityService.UseDataEncryptionKey(identityDataKey)
-	// 腾讯云短信审核通过前，体验版统一使用固定验证码 000000。
-	// 恢复真实短信时，再接回 NewHTTPSMSSender。
+	if cfg.SMS.TencentEnabled() {
+		identityService.UseSMSSender(identity.NewTencentSMSSender(identity.TencentSMSConfig{
+			SecretID:   cfg.SMS.TencentSecretID,
+			SecretKey:  cfg.SMS.TencentSecretKey,
+			SDKAppID:   cfg.SMS.TencentSDKAppID,
+			SignName:   cfg.SMS.TencentSignName,
+			TemplateID: cfg.SMS.TencentTemplateID,
+			Region:     cfg.SMS.TencentRegion,
+		}))
+	} else if cfg.SMS.HTTPGatewayEnabled() {
+		identityService.UseSMSSender(identity.NewHTTPSMSSender(cfg.SMS.HTTPEndpoint, cfg.SMS.HTTPSecret))
+	}
 	if cfg.FaceID.HTTPEndpoint != "" {
 		identityService.UseFaceIDStarter(identity.NewHTTPFaceIDStarter(cfg.FaceID.HTTPEndpoint, cfg.FaceID.HTTPSecret))
 	}
