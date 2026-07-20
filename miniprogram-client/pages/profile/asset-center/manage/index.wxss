@@ -4,7 +4,7 @@ page {
 
 .asset-manage-page {
   min-height: 100%;
-  padding: 50rpx 56rpx 76rpx;
+  padding: 50rpx 48rpx 76rpx;
   box-sizing: border-box;
   color: #1f2937;
   font-family: "Noto Sans SC", "PingFang SC", sans-serif;

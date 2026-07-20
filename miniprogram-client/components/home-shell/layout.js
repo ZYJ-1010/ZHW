@@ -9,6 +9,7 @@ const HOME_SHELL_FIXED_FRAME_DESIGN = Object.freeze({
   pageTitleLineHeightRpx: 44,
   brandOnlineBottomOffsetRpx: 82,
   dockHeightRpx: 218,
+  dockTopOverlapRpx: 58,
   dockBottomOverflowRpx: 2
 })
 
@@ -37,6 +38,8 @@ function calculateHomeShellFixedFrameLayout(metrics, options = {}) {
       metrics.canvasHeightRpx - dockHeightRpx + design.dockBottomOverflowRpx
     ))
     : metrics.canvasHeightRpx
+  // 内容不能延伸到固定导航之下；否则底部卡片会被导航遮住，且被遮住
+  // 的区域会被导航层截获点击事件。
   const contentBottomRpx = dockVisible
     ? dockTopRpx
     : viewportLayout.roundRpx(Math.max(

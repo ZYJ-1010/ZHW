@@ -2,9 +2,9 @@
   position: relative;
   z-index: 1;
   display: block;
-  width: 682rpx;
+  width: 652rpx;
   min-height: 214rpx;
-  margin: 28rpx 0 0 11rpx;
+  margin: 28rpx auto 0;
   padding: 0 0 88rpx;
   box-sizing: border-box;
   border-top: 0;
@@ -16,8 +16,8 @@
 .action-buttons {
   display: flex;
   width: 100%;
-  height: 86rpx;
-  gap: 18rpx;
+  height: 104rpx;
+  gap: 20rpx;
 }
 
 .detail-action {
@@ -27,7 +27,7 @@
   align-items: center;
   justify-content: center;
   gap: 10rpx;
-  height: 86rpx;
+  height: 104rpx;
   min-width: 0;
   margin: 0;
   padding: 0 20rpx;

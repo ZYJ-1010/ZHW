@@ -28,12 +28,12 @@
     </view>
 
     <view class="quick-grid">
-      <view class="quick-card quick-hot">
+      <view class="quick-card quick-hot" bindtap="goLogin">
         <text class="quick-icon">1</text>
         <text class="quick-title">发起组局</text>
         <text class="quick-desc">创建你的第一局</text>
       </view>
-      <view class="quick-card">
+      <view class="quick-card" bindtap="goLogin">
         <text class="quick-icon">2</text>
         <text class="quick-title">局前大厅</text>
         <text class="quick-desc">准备加入一局</text>

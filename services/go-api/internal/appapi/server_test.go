@@ -389,6 +389,8 @@ func TestCreateInviteEntryHTTP(t *testing.T) {
 	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "entry-owner")
 	completeIdentityForTest(t, mux, token)
+	// 玩家不能生成用于邀请新人注册的个人邀请码、二维码或海报。
+	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link","title":"邀请你加入真好玩"}`, http.StatusForbidden)
 	server.profiles.GrantRole(currentUserIDForTest(t, mux, token), "guide")
 	postJSON(t, mux, "/api/app/games", token, `{"title":"周末城市探索","gameType":"free","minPlayers":5,"maxPlayers":8,"cityName":"杭州","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 
@@ -1909,8 +1911,13 @@ func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 	if config.Data.CreateForm.Capacity.Min != 5 || config.Data.CreateForm.Capacity.Max != 8 || len(config.Data.CreateForm.ParticipationModes) == 0 || len(config.Data.CreateForm.FeeTypes) == 0 {
 		t.Fatalf("expected create form config for mini program: %s", string(configBody))
 	}
-	if len(config.Data.SortOptions) != 5 || len(config.Data.EventActions) != 4 {
+	if len(config.Data.SortOptions) != 4 || len(config.Data.EventActions) != 4 {
 		t.Fatalf("expected hall sort and event action config: %s", string(configBody))
+	}
+	for _, option := range config.Data.SortOptions {
+		if option.Key == "comprehensive" || option.SortKey == "" {
+			t.Fatalf("sort options must be independent, concrete sort conditions: %s", string(configBody))
+		}
 	}
 
 	body := postJSON(t, mux, "/api/app/games", token, `{"title":"category game","gameType":"free","primaryCategory":"task","primaryCategoryText":"Task","secondaryCategory":"project","secondaryCategoryText":"Project","type":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
@@ -8692,8 +8699,9 @@ func TestRoleApplicationAndGuideQualificationHTTP(t *testing.T) {
 	}
 	putJSON(t, mux, "/api/admin/guides/qualification-rules/1", adminToken, `{"minCreditScore":80,"paymentRequired":true}`, http.StatusOK)
 	rulesSyncBody := getAdminJSONWithPermission(t, mux, "/api/admin/operation-rules", "system_config:read", http.StatusOK)
-	if !strings.Contains(string(rulesSyncBody), `"guideCreditScore":80`) || !strings.Contains(string(rulesSyncBody), `"membershipRequired":true`) {
-		t.Fatalf("expected guide qualification update to sync operation rules: %s", string(rulesSyncBody))
+	// 一期未开放会员购买，会员等级条件必须持续关闭；资格配置更新只同步信用分。
+	if !strings.Contains(string(rulesSyncBody), `"guideCreditScore":80`) || !strings.Contains(string(rulesSyncBody), `"membershipRequired":false`) {
+		t.Fatalf("expected guide qualification update to keep phase-one membership rule disabled: %s", string(rulesSyncBody))
 	}
 
 	reviewBody := postAdminJSONWithPermission(t, mux, "/api/admin/audits/role-applications/1/review", "role:update", `{"approve":true,"remark":"ok"}`, http.StatusOK)

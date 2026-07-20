@@ -174,6 +174,17 @@ Component({
       this.triggerEvent('apply', {
         roleType: normalizeRoleType(this.properties.targetRole)
       })
+    },
+
+    handleRoleSelectTap(event = {}) {
+      const roleType = normalizeRoleType(event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.role)
+
+      // 玩家身份是默认身份，无需进入角色申请资料流。
+      if (roleType === 'player') {
+        return
+      }
+
+      this.triggerEvent('rolechange', { roleType })
     }
   }
 })

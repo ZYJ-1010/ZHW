@@ -4,7 +4,7 @@ page {
 
 .message-center-page {
   min-height: 100%;
-  padding: 24rpx 24rpx 52rpx;
+  padding: 24rpx 27rpx 52rpx;
   box-sizing: border-box;
   background: #000000;
   color: #ffffff;
@@ -222,6 +222,9 @@ page {
   position: relative;
   display: flex;
   align-items: flex-start;
+  width: 654rpx;
+  margin-right: auto;
+  margin-left: auto;
   padding: 28rpx;
   border-radius: 28rpx;
   color: #1f2937;

@@ -20,7 +20,7 @@ page {
 
 .profile-home-page {
   min-height: 100%;
-  padding: 15rpx 24rpx 44rpx;
+  padding: 15rpx 48rpx 44rpx;
   box-sizing: border-box;
   background: #000000;
 }

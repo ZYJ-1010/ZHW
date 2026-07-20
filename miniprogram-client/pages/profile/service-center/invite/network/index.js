@@ -4,7 +4,7 @@ const { navigateShellRoute } = require('../../../../../utils/shell-nav')
 Page({
   data: {
     summary: [
-      { value: '0', label: '已服务\n位玩家' },
+      { value: '0', label: '已服务' },
       { value: '¥0', label: '本周收益' }
     ],
     networkNodes: [],
@@ -21,7 +21,12 @@ Page({
     try {
       const result = await profileService.getInviteNetwork()
 
-      this.setData(result || {})
+      const payload = result || {}
+      this.setData({
+        ...payload,
+        // 关系网概览只展示可读的头像数量，剩余人数由 +N 表达，避免挤压成员说明。
+        avatars: Array.isArray(payload.avatars) ? payload.avatars.slice(0, 4) : []
+      })
     } catch (error) {
       console.warn('get invite network failed', error)
       this.setData({

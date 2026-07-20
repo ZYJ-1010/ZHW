@@ -11,7 +11,8 @@ page {
 .game-apply-page {
   min-height: 100%;
   box-sizing: border-box;
-  padding: 34rpx 34rpx 72rpx;
+  /* 原型主内容区为 335pt：375pt 画布左右各保留 20pt。 */
+  padding: 34rpx 40rpx 72rpx;
   color: #f6f7fb;
   background: #111216;
   font-family: "Noto Sans SC", "PingFang SC", sans-serif;

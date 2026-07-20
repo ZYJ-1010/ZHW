@@ -52,16 +52,16 @@
     <view class="home-shell-dock" style="{{shellDockStyle}}">
       <view class="home-shell-dpad">
         <view class="home-shell-dpad-key up" data-key="up" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
-          <view class="home-shell-dpad-arrow"></view>
+          <text class="home-shell-dpad-arrow">▲</text>
         </view>
         <view class="home-shell-dpad-key left" data-key="left" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
-          <view class="home-shell-dpad-arrow"></view>
+          <text class="home-shell-dpad-arrow">◀</text>
         </view>
         <view class="home-shell-dpad-key right" data-key="right" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
-          <view class="home-shell-dpad-arrow"></view>
+          <text class="home-shell-dpad-arrow">▶</text>
         </view>
         <view class="home-shell-dpad-key down" data-key="down" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">
-          <view class="home-shell-dpad-arrow"></view>
+          <text class="home-shell-dpad-arrow">▼</text>
         </view>
       </view>
       <button class="home-shell-nav-button home-shell-home-key" data-key="home" bindtap="handleNavTap">

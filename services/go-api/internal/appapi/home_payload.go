@@ -631,8 +631,8 @@ func homeGameCover(game games.Game, index int) string {
 
 func (s *Server) homeRankingSection() map[string]interface{} {
 	return map[string]interface{}{
-		"icon":     "\u2605",
-		"title":    "\u73a9\u9738\u699c",
+		"icon":     "\U0001f3c6",
+		"title":    "\u672c\u5468\u73a9\u9738\u699c",
 		"desc":     "\u6309\u53c2\u4e0e\u5c40\u6570\u3001\u5b8c\u6210\u5c40\u6570\u548c\u7ecf\u9a8c\u503c\u7efc\u5408\u6392\u5e8f",
 		"moreText": "\u67e5\u770b\u5168\u90e8\u699c\u5355",
 		"route":    "pages/home/ranking/index",

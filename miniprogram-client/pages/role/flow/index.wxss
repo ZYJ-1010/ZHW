@@ -271,7 +271,7 @@
 
 .home-expert-apply-main {
   flex: 1;
-  padding: 24rpx 30rpx 36rpx;
+  padding: 24rpx 32rpx 36rpx;
   box-sizing: border-box;
 }
 
@@ -322,7 +322,7 @@
 }
 
 .home-expert-apply-panel {
-  padding: 30rpx 28rpx 32rpx;
+  padding: 30rpx 32rpx 32rpx;
 }
 
 .home-expert-overview-shell {

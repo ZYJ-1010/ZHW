@@ -6,7 +6,7 @@ page {
 
 .blind-route-page {
   min-height: 100%;
-  padding: 34rpx 28rpx 56rpx;
+  padding: 34rpx 42rpx 56rpx;
   box-sizing: border-box;
   color: #ffffff;
   background:

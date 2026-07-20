@@ -1,0 +1,33 @@
+@import "../detail/index.wxss";
+
+/* 预览复用正式局详情的布局；只移除分享、详情工具和参与者区域。 */
+.preview-nav .detail-nav-title {
+  left: 156rpx;
+  right: 156rpx;
+}
+
+.preview-stats-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preview-stats-row .stats-item {
+  min-width: 0;
+}
+
+.preview-stats-row .stats-value {
+  margin-left: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-media-note {
+  display: block;
+  margin-top: 14rpx;
+  color: #6b7280;
+  font-size: 22rpx;
+}
+
+.preview-publish-button {
+  background: #e61e40;
+}

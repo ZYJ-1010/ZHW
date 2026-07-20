@@ -20,7 +20,7 @@ page {
 
 .game-payment-page {
   min-height: 100%;
-  padding: 40rpx 36rpx 72rpx;
+  padding: 40rpx 40rpx 72rpx;
   box-sizing: border-box;
   color: #f6f7fb;
   font-family: "Noto Sans SC", "PingFang SC", sans-serif;

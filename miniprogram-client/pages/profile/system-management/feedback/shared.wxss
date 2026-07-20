@@ -4,7 +4,7 @@ page {
 
 .feedback-page {
   min-height: 100%;
-  padding: 28rpx 30rpx 160rpx;
+  padding: 28rpx 32rpx 160rpx;
   box-sizing: border-box;
   color: #f7f9ff;
   background: #080d19;

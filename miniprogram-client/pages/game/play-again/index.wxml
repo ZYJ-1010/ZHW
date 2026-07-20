@@ -6,26 +6,6 @@
 >
   <view class="play-again-stage">
     <view class="game-backdrop">
-      <view class="mock-header">
-        <view class="mock-game-logo"></view>
-        <view class="mock-game-title"></view>
-        <view class="mock-header-actions">
-          <view></view>
-          <view></view>
-        </view>
-      </view>
-      <view class="mock-game-screen">
-        <view class="mock-game-orbit">
-          <view class="mock-game-core"></view>
-        </view>
-      </view>
-      <view class="mock-controller">
-        <view class="mock-stick"></view>
-        <view class="mock-button-pair">
-          <view></view>
-          <view></view>
-        </view>
-      </view>
     </view>
 
     <view class="dim-layer"></view>

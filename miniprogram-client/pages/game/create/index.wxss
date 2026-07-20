@@ -26,7 +26,7 @@ page {
 .create-title,
 .block-title,
 .form-panel {
-  width: 620rpx;
+  width: 662rpx;
   max-width: 100%;
   margin-left: auto;
   margin-right: auto;
@@ -38,13 +38,48 @@ page {
 
 .create-title {
   display: block;
-  margin-top: 0;
-  margin-bottom: 42rpx;
+  margin: 0;
   color: #28e2c8;
   font-size: 36rpx;
   font-weight: 700;
   line-height: 50rpx;
   text-align: center;
+}
+
+.create-title-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 662rpx;
+  max-width: 100%;
+  min-height: 50rpx;
+  margin: 0 auto 42rpx;
+}
+
+.draft-box-button {
+  position: absolute;
+  /* 标题居中时，操作入口对齐页面右侧安全边距，而不是表单内容右边。 */
+  right: -124rpx;
+  top: 50%;
+  width: 84rpx;
+  min-width: 0;
+  height: 50rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #72f7e3;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 50rpx;
+  box-sizing: border-box;
+  transform: translateY(-50%);
+}
+
+.draft-box-button::after {
+  border: 0;
 }
 
 .cover-hint {

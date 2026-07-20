@@ -10,7 +10,7 @@ page {
 
 .achievement-page {
   min-height: 100%;
-  padding: 45rpx 20rpx 74rpx;
+  padding: 45rpx 42rpx 74rpx;
   box-sizing: border-box;
   color: #ffffff;
   background: #000000;

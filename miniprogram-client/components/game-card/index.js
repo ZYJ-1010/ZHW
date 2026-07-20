@@ -6,6 +6,10 @@ Component({
       observer(item) {
         this.syncTagTone(item)
       }
+    },
+    variant: {
+      type: String,
+      value: ''
     }
   },
 

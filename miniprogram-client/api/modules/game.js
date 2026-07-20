@@ -36,6 +36,26 @@ function createGame(data) {
   return request.post('/api/app/games', data)
 }
 
+function getGameDrafts() {
+  return request.get('/api/app/game-drafts')
+}
+
+function getGameDraft(draftId) {
+  return request.get(`/api/app/game-drafts/${draftId}`)
+}
+
+function createGameDraft(data) {
+  return request.post('/api/app/game-drafts', data)
+}
+
+function updateGameDraft(draftId, data) {
+  return request.put(`/api/app/game-drafts/${draftId}`, data)
+}
+
+function deleteGameDraft(draftId) {
+  return request.del(`/api/app/game-drafts/${draftId}`)
+}
+
 function startGame(gameId) {
   return request.post(`/api/app/games/${gameId}/manual-start`, {})
 }
@@ -186,6 +206,11 @@ module.exports = {
   requestGameCompletion,
   createGuideFollowUp,
   createGame,
+  getGameDrafts,
+  getGameDraft,
+  createGameDraft,
+  updateGameDraft,
+  deleteGameDraft,
   startGame,
   createInviteEntry,
   confirmService,

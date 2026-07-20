@@ -506,7 +506,6 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			{Key: "nearby", Name: "附近(50km)", Visible: true, Order: 10, Selectable: true},
 		},
 		SortOptions: []gameHallSortOptionDTO{
-			{Key: "comprehensive", Name: "综合排序", SortKey: "", SortOrder: "asc"},
 			{Key: "latest", Name: "最新发布", SortKey: "time", SortOrder: "desc"},
 			{Key: "hot", Name: "热度最高", SortKey: "hot", SortOrder: "desc"},
 			{Key: "distance", Name: "距离最近", SortKey: "distance", SortOrder: "asc"},

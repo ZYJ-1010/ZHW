@@ -18,10 +18,10 @@ const RELATION_TABS = [
 const FALLBACK_NETWORK_HOME = {
   onlineText: '在线',
   header: {
-    title: '星巴克(镇海万科店)',
-    titleIcon: '📍',
-    statusText: '营业中',
-    address: '宁波市镇海区庄市大道1088号万科广场1F'
+    title: '关系网',
+    titleIcon: '🌐',
+    statusText: '',
+    address: ''
   },
   tabs: RELATION_TABS,
   activeTab: 'network'
@@ -40,8 +40,8 @@ function normalizeNetworkHome(data) {
     header: {
       title: header.title || header.name || fallbackHeader.title,
       titleIcon: header.titleIcon || header.icon || fallbackHeader.titleIcon,
-      statusText: header.statusText || header.businessStatusText || fallbackHeader.statusText,
-      address: header.address || header.addressText || fallbackHeader.address
+      statusText: header.statusText || header.businessStatusText || '',
+      address: header.address || header.addressText || ''
     },
     relationTabs: tabs.map((item) => ({
       key: item.key || item.id || 'network',

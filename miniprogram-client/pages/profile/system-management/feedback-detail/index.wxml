@@ -26,7 +26,7 @@
       <image wx:if="{{feedbackImage}}" class="summary-image" src="{{feedbackImage}}" mode="aspectFill"></image>
     </view>
 
-    <text class="date-divider">2026-06-14</text>
+    <text wx:if="{{recordDateLabel}}" class="date-divider">{{recordDateLabel}}</text>
 
     <view class="message-list">
       <view
@@ -43,7 +43,6 @@
       </view>
     </view>
 
-    <text class="date-divider today">今天</text>
     </block>
   </view>
 

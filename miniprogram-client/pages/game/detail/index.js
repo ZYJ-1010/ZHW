@@ -383,7 +383,7 @@ Page({
     tags: [],
     organizer: {
       name: '',
-      avatarSrc: 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-01.png',
+      avatarSrc: '',
       avatarText: '',
       role: '',
       summary: '',
@@ -391,11 +391,11 @@ Page({
       ratingCount: 0,
       ratingVisible: false
     },
-    introduction: '??????',
+    introduction: '暂无组局介绍',
     highlights: [],
     schedule: [],
     detailImages: [],
-    noticeLead: '???????????',
+    noticeLead: '请按平台规则参与组局。',
     noticeBullets: [],
     audience: '',
     participants: []

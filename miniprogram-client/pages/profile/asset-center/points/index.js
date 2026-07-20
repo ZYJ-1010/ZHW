@@ -60,7 +60,7 @@ function normalizePointLog(log = {}) {
     id: String(log.id || `${bizType || 'points'}-${log.createdAt || Date.now()}`),
     title: pointBizTitle(log),
     desc: descParts.length ? descParts.join(' · ') : '平台积分流水',
-    time: formatTime(log.createdAt) || '刚刚',
+    time: formatTime(log.createdAt),
     points: `${isIncome ? '+' : ''}${formatNumber(changeValue)}`,
     changeValue,
     tone: isIncome ? 'plus' : 'minus',

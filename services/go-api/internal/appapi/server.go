@@ -22,6 +22,7 @@ import (
 	"zhw-mini/services/go-api/internal/delivery"
 	"zhw-mini/services/go-api/internal/exports"
 	"zhw-mini/services/go-api/internal/files"
+	"zhw-mini/services/go-api/internal/gamedrafts"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/im"
@@ -106,6 +107,7 @@ type Server struct {
 	auth                 *auth.Service
 	identity             identityService
 	games                gameService
+	gameDrafts           *gamedrafts.Service
 	lbs                  lbsService
 	mapProvider          lbs.MapProvider
 	im                   imService
@@ -154,7 +156,7 @@ func New(authService *auth.Service, identityService identityService, gameService
 	reviewService := reviews.NewService(gameService)
 	revenueService := revenue.NewService(reviewService)
 	pointsService := points.NewService()
-	server := &Server{auth: authService, identity: identityService, games: gameService, lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), tasks: tasks.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
+	server := &Server{auth: authService, identity: identityService, games: gameService, gameDrafts: gamedrafts.NewService(), lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), tasks: tasks.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
 	reviewService.SetGrowthRulesProvider(server.systemConfig)
 	server.bindSensitiveWordStore()
 	server.imSocketHub = newIMSocketHub(server)
@@ -279,6 +281,12 @@ func (s *Server) UseTaskRepository(repository tasks.Repository) {
 	}
 }
 
+func (s *Server) UseGameDraftRepository(repository gamedrafts.Repository) {
+	if repository != nil {
+		s.gameDrafts = gamedrafts.NewServiceWithRepository(repository)
+	}
+}
+
 func (s *Server) UseExportRepository(repository exports.Repository) {
 	if repository != nil {
 		s.exports = exports.NewServiceWithRepository(repository)
@@ -376,6 +384,11 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/app/identity/status", s.AppAuthMiddleware(s.identityStatus))
 	handle("GET /api/app/im/ws", s.imSocket)
 	handle("POST /api/app/games", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createGame)))
+	handle("GET /api/app/game-drafts", s.AppAuthMiddleware(s.listGameDrafts))
+	handle("POST /api/app/game-drafts", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createGameDraft)))
+	handle("GET /api/app/game-drafts/", s.AppAuthMiddleware(s.getGameDraft))
+	handle("PUT /api/app/game-drafts/", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateGameDraft)))
+	handle("DELETE /api/app/game-drafts/", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.deleteGameDraft)))
 	handle("GET /api/app/games", s.AppAuthMiddleware(s.listGames))
 	handle("GET /api/app/games/my/manage", s.AppAuthMiddleware(s.myManagedGames))
 	handle("GET /api/app/games/player/manage", s.AppAuthMiddleware(s.myPlayerGames))

@@ -16,7 +16,7 @@
           />
           <view class="entry-brand__online">
             <view class="entry-brand__online-dot"></view>
-            <text class="entry-brand__online-text">{{onlineText || '在线0人'}}</text>
+            <text class="entry-brand__online-text">{{onlineText || '在线'}}</text>
           </view>
         </view>
       </view>

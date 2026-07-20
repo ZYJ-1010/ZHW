@@ -18,7 +18,10 @@
     enable-back-to-top
   >
     <view class="create-page">
-      <text class="create-title">发起组局</text>
+      <view class="create-title-row">
+        <text class="create-title">发起组局</text>
+        <button class="draft-box-button" bindtap="openDraftBox">草稿箱</button>
+      </view>
 
       <view class="cover-section">
         <view class="section-heading">
@@ -518,7 +521,7 @@
 
       <view class="action-row">
         <button class="secondary-action" bindtap="saveDraft">保存草稿</button>
-        <button class="secondary-action" bindtap="previewSubmit">浏览提交</button>
+        <button class="secondary-action" bindtap="previewSubmit">预览</button>
         <button class="primary-action {{publishDisabled ? 'disabled' : ''}}" bindtap="publishGame">发布并同步到地球网</button>
       </view>
     </view>

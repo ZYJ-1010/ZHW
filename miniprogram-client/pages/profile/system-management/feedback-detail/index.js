@@ -4,6 +4,18 @@ const fileService = require('../../../../services/file')
 
 const ASSET_BASE = '/pages/profile/system-management/feedback/assets'
 
+function formatDateLabel(record = {}) {
+  const source = record.createdAt || record.time || record.date || ''
+  const text = String(source).trim()
+
+  if (!text) {
+    return ''
+  }
+
+  const match = text.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ''
+}
+
 Page({
   data: {
     icons: {
@@ -18,6 +30,7 @@ Page({
       content: '',
       time: ''
     },
+    recordDateLabel: '',
     replyContent: '',
     evidenceImages: [],
     sending: false,
@@ -65,8 +78,10 @@ Page({
     try {
       const data = await profileService.getSystemFeedbackDetail(recordId)
 
+      const record = data.record || this.data.record
       this.setData({
-        record: data.record || this.data.record,
+        record,
+        recordDateLabel: formatDateLabel(record),
         messages: Array.isArray(data.messages) ? data.messages : [],
         loadError: ''
       })

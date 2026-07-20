@@ -49,7 +49,7 @@ page {
 }
 
 .score-section {
-  padding: 18rpx 24rpx 0;
+  padding: 18rpx 48rpx 0;
   background: #f5f5f9;
 }
 
@@ -214,7 +214,8 @@ page {
 .status-tabs {
   display: flex;
   gap: 12rpx;
-  margin: 0 26rpx 24rpx;
+  width: 654rpx;
+  margin: 0 auto 24rpx;
 }
 
 .status-tab {
@@ -247,7 +248,10 @@ page {
 }
 
 .review-list {
-  padding: 0 26rpx;
+  width: 654rpx;
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .review-card {
@@ -550,7 +554,8 @@ page {
 }
 
 .stats-card {
-  margin: 32rpx 26rpx 0;
+  width: 654rpx;
+  margin: 32rpx auto 0;
   padding: 28rpx 26rpx 32rpx;
   border: 2rpx solid #dcfce7;
   border-radius: 28rpx;

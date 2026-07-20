@@ -2303,4 +2303,14 @@ Page({
     this.enterHomePreview('expertApplyOverview', this.data.homePreviewSingle, roleType)
   },
 
+  handleRoleComparisonRoleChange(event = {}) {
+    const roleType = normalizeComparisonRoleType(event.detail && event.detail.roleType)
+
+    this.setData({
+      roleComparisonRoleType: roleType
+    }, () => {
+      this.loadRoleComparisonApplyStatus()
+    })
+  },
+
 })

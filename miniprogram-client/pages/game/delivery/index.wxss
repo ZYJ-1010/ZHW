@@ -121,7 +121,7 @@ page {
   display: flex;
   align-items: center;
   flex-direction: column;
-  width: 686rpx;
+  width: 654rpx;
   min-height: 250rpx;
   margin: 0 auto;
   padding: 42rpx 28rpx 38rpx;
@@ -217,7 +217,7 @@ page {
 }
 
 .card {
-  width: 686rpx;
+  width: 654rpx;
   margin: 28rpx auto 0;
   padding: 30rpx;
   border: 2rpx solid #f0f2f5;
@@ -406,7 +406,7 @@ page {
 }
 
 .notice-card {
-  width: 686rpx;
+  width: 654rpx;
   margin: 28rpx auto 0;
   padding: 28rpx 30rpx;
   border: 2rpx solid #dcfce7;
@@ -820,7 +820,7 @@ page {
 .security-row {
   display: flex;
   align-items: flex-start;
-  width: 686rpx;
+  width: 654rpx;
   margin: 28rpx auto 0;
   padding: 0 16rpx;
   box-sizing: border-box;
@@ -868,7 +868,7 @@ page {
   bottom: 0;
   z-index: 5;
   width: 750rpx;
-  padding: 24rpx 32rpx 34rpx;
+  padding: 24rpx 48rpx 34rpx;
   border-top: 2rpx solid #e5e7eb;
   box-sizing: border-box;
   background: #ffffff;
@@ -879,8 +879,8 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 686rpx;
-  height: 88rpx;
+  width: 654rpx;
+  height: 104rpx;
   margin: 0;
   padding: 0;
   border: 0;
@@ -888,7 +888,7 @@ page {
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 600;
-  line-height: 88rpx;
+  line-height: 104rpx;
 }
 
 .submit-button::after {

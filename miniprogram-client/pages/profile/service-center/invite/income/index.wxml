@@ -1,4 +1,4 @@
-<profile-white-shell title="收益明细" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff" right-text="⋮" right-color="#7f8da3">
+<profile-white-shell title="收益明细" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff">
   <view class="invite-page income-page dark-page">
     <view class="income-panel trend-panel">
       <view class="income-section-title">

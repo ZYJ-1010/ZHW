@@ -95,7 +95,7 @@
       </view>
 
       <view wx:if="{{entries.length}}" class="player-action-grid role-action-grid">
-        <view wx:for="{{entries}}" wx:key="title" data-route="{{item.route}}" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
+        <view wx:for="{{entries}}" wx:key="title" data-route="{{item.route}}" data-title="{{item.title}}" class="player-action-card {{item.theme}}" bindtap="handleActionTap">
           <view class="player-action-icon">
             <view wx:if="{{item.routeIcon}}" class="player-lobby-icon">
               <view class="player-lobby-icon-group">
@@ -182,7 +182,7 @@
         </view>
       </view>
 
-      <view wx:if="{{currentRoleType === 'expert'}}" class="role-skill-panel">
+      <view wx:if="{{currentRoleType === 'expert'}}" class="role-skill-panel role-expert-skill-panel">
         <view class="role-skill-head">
           <text class="role-skill-mark">🎯</text>
           <text class="role-skill-heading">行家技能树</text>
@@ -191,37 +191,23 @@
           <view class="role-skill-line left"></view>
           <view class="role-skill-line top"></view>
           <view class="role-skill-line bottom"></view>
-
           <view class="role-skill-node-wrap start {{skills[0].locked ? 'locked' : ''}}">
-            <view class="role-skill-node {{skills[0].locked ? 'locked' : 'unlocked'}} {{skills[0].tone}}" style="{{skills[0].nodeStyle}}">
-              <text>{{skills[0].icon}}</text>
-            </view>
+            <view class="role-skill-node {{skills[0].locked ? 'locked' : 'unlocked'}} {{skills[0].tone}}" style="{{skills[0].nodeStyle}}"><text>{{skills[0].icon}}</text></view>
             <text class="role-skill-node-label">{{skills[0].title}}</text>
           </view>
-
           <view class="role-skill-node-wrap middle {{skills[1].locked ? 'locked' : ''}}">
-            <view class="role-skill-node {{skills[1].locked ? 'locked' : 'unlocked'}} {{skills[1].tone}}" style="{{skills[1].nodeStyle}}">
-              <text>{{skills[1].icon}}</text>
-            </view>
+            <view class="role-skill-node {{skills[1].locked ? 'locked' : 'unlocked'}} {{skills[1].tone}}" style="{{skills[1].nodeStyle}}"><text>{{skills[1].icon}}</text></view>
             <text class="role-skill-node-label">{{skills[1].title}}</text>
           </view>
-
-          <view class="role-skill-node-wrap locked top">
-            <view class="role-skill-node locked">
-              <text>🔒</text>
-            </view>
-          </view>
-
+          <view class="role-skill-node-wrap locked top"><view class="role-skill-node locked"><text>🔒</text></view></view>
           <view class="role-skill-node-wrap bottom {{skills[2].locked ? 'locked' : ''}}">
-            <view class="role-skill-node {{skills[2].locked ? 'locked' : 'unlocked'}} {{skills[2].tone}}" style="{{skills[2].nodeStyle}}">
-              <text>{{skills[2].icon}}</text>
-            </view>
+            <view class="role-skill-node {{skills[2].locked ? 'locked' : 'unlocked'}} {{skills[2].tone}}" style="{{skills[2].nodeStyle}}"><text>{{skills[2].icon}}</text></view>
             <text class="role-skill-node-label">{{skills[2].title}}</text>
           </view>
         </view>
       </view>
 
-      <view class="player-world-card" data-route="{{onlineCard.route}}" bindtap="handleActionTap">
+      <view class="player-world-card" data-route="{{onlineCard.route}}" data-title="{{onlineCard.title}}" bindtap="handleActionTap">
         <view>
           <text class="player-world-title">{{onlineCard.title}}</text>
           <text class="player-world-desc">{{onlineCard.desc}}</text>
@@ -230,10 +216,7 @@
           </view>
         </view>
         <view class="player-world-globe">
-          <view class="player-world-map-track">
-            <image class="player-world-map-image" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/earth-map-texture.png" mode="scaleToFill" />
-            <image class="player-world-map-image" src="https://static.haowan.net.cn/miniprogram/pages/home/player/assets/earth-map-texture.png" mode="scaleToFill" />
-          </view>
+          <text class="player-world-globe-icon">🌍</text>
         </view>
       </view>
 
@@ -372,6 +355,7 @@
           <block wx:for="{{friendGames}}" wx:key="id">
             <game-card
               item="{{item}}"
+              variant="compact"
               bind:cardtap="handleActionTap"
               bind:cardaction="handleGameCardAction"
             />
@@ -386,7 +370,7 @@
       <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-ranking-panel">
         <view class="player-panel-head player-ranking-head">
           <view>
-            <image class="player-ranking-trophy" src="/pages/game/assets/icons/trophy-white.svg" mode="aspectFit" />
+            <text class="player-ranking-trophy">🏆</text>
             <text class="player-panel-title">{{rankingSection.title}}</text>
             <text wx:if="{{rankingSection.desc}}" class="player-ranking-desc">{{rankingSection.desc}}</text>
           </view>
@@ -472,7 +456,7 @@
         </view>
       </view>
 
-      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-metaverse-card" data-route="{{metaverse.route}}" bindtap="handleActionTap">
+      <view wx:if="{{currentRoleType === 'player' || currentRoleType === 'expert' || currentRoleType === 'guide'}}" class="player-metaverse-card" data-route="{{metaverse.route}}" data-title="{{metaverse.title}}" bindtap="handleActionTap">
         <view class="player-metaverse-copy">
           <view class="player-metaverse-heading">
             <view class="player-metaverse-dot"></view>

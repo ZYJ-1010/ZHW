@@ -106,8 +106,8 @@
 }
 
 .renew-action .primary-btn {
-  height: 84rpx;
+  height: 104rpx;
   border-radius: 24rpx;
   font-size: 28rpx;
-  line-height: 84rpx;
+  line-height: 104rpx;
 }

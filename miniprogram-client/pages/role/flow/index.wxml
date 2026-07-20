@@ -5,6 +5,7 @@
     target-role="{{roleComparisonRoleType}}"
     return-to="{{roleComparisonReturnTo}}"
     bindapply="handleRoleCompareApplyTap"
+    bindrolechange="handleRoleComparisonRoleChange"
   ></role-comparison-home>
 
   <home-apply-shell

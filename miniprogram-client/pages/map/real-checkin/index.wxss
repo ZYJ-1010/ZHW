@@ -6,7 +6,7 @@ page {
 
 .real-checkin-page {
   min-height: 100%;
-  padding: 18rpx 18rpx 56rpx;
+  padding: 18rpx 42rpx 56rpx;
   box-sizing: border-box;
   color: #ffffff;
   background: #000000;
@@ -15,7 +15,9 @@ page {
 
 .real-checkin-target {
   position: relative;
-  min-height: 610rpx;
+  width: 682rpx;
+  min-height: 800rpx;
+  margin-left: -8rpx;
   padding: 32rpx 30rpx;
   box-sizing: border-box;
   background: #172231;
@@ -103,8 +105,8 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 250rpx;
-  height: 250rpx;
+  width: 256rpx;
+  height: 256rpx;
   margin: 150rpx auto 0;
 }
 
@@ -242,6 +244,14 @@ page {
   border-radius: 24rpx;
   box-sizing: border-box;
   background: #111827;
+}
+
+.real-checkin-unlock-card {
+  min-height: 236rpx;
+}
+
+.real-checkin-story-card {
+  min-height: 458rpx;
 }
 
 .real-checkin-unlock-icon {

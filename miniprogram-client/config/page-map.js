@@ -22,7 +22,7 @@ const PAGE_GROUPS = [
     title: '角色申请与审核状态',
     priority: 'P0',
     batch: '第 2 批：角色与组局基础',
-    route: '/pages/role/apply/index',
+    route: '/pages/role/flow/index?mode=roleComparison&single=1',
     screens: ['申请行家操作页', '申请领路人操作页', '审核进度页', '审核通过页', '审核驳回页', '申请状态提示页', '申请进度查看页']
   },
   {

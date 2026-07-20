@@ -4,7 +4,7 @@ page {
 
 .skill-config-page {
   min-height: 100%;
-  padding: 28rpx 32rpx 74rpx;
+  padding: 28rpx 34rpx 74rpx;
   box-sizing: border-box;
   color: #e8edf8;
   background: #070b14;

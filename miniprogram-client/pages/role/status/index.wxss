@@ -103,7 +103,7 @@ page {
   --glow: rgba(255, 127, 24, 0.34);
   --cert-border: rgba(255, 255, 255, 0.14);
   min-height: 100%;
-  padding: 40rpx 30rpx 190rpx;
+  padding: 40rpx 32rpx 190rpx;
   box-sizing: border-box;
 }
 
@@ -140,7 +140,7 @@ page {
 
 /* 母版整屏比例：在常见微信机型中完整显示礼包、三宫格和主按钮。 */
 .approved-copy-page {
-  padding: 24rpx 30rpx 156rpx;
+  padding: 24rpx 32rpx 156rpx;
 }
 
 .approved-copy-status-icon {
@@ -260,7 +260,7 @@ page {
 
 .role-status-content {
   min-height: calc(100vh - 96rpx);
-  padding: 0 40rpx 180rpx;
+  padding: 0 32rpx 180rpx;
   box-sizing: border-box;
 }
 

@@ -1123,7 +1123,7 @@ Page({
     }
 
     if (task.type === 'role_apply') {
-      navigateShellRoute(ROUTES.roleApply)
+      navigateShellRoute(`/${ROUTES.roleFlow}?mode=roleComparison&single=1&returnTo=${encodeURIComponent(`/${ROUTES.playerHome}`)}`)
       return
     }
 

@@ -10,7 +10,7 @@ Page({
     loadError: '',
     loadErrorActionText: '',
     loadErrorAuthExpired: false,
-    onlineText: '在线0人',
+    onlineText: '在线',
     user: {
       nickname: '未登录',
       memberLevel: '',

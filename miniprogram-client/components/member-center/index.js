@@ -9,10 +9,10 @@ const COMMON_RULES = {
 }
 
 const COMMON_RADAR_PEOPLE = [
-  { id: 'me', className: 'me', avatarUrl: 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-me.png', text: '我' },
-  { id: 'expert', className: 'expert', avatarUrl: 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-01.png', text: '行' },
-  { id: 'guide', className: 'guide', avatarUrl: 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-02.png', text: '领' },
-  { id: 'player', className: 'player', avatarUrl: 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-03.png', text: '玩' },
+  { id: 'me', className: 'me', avatarUrl: '', text: '我' },
+  { id: 'expert', className: 'expert', avatarUrl: '', text: '行' },
+  { id: 'guide', className: 'guide', avatarUrl: '', text: '领' },
+  { id: 'player', className: 'player', avatarUrl: '', text: '玩' },
   { id: 'nearby', className: 'nearby', avatarUrl: '', text: '局' },
   { id: 'friend', className: 'friend', avatarUrl: '', text: '友' },
   { id: 'resource', className: 'resource', avatarUrl: '', text: '资' }
@@ -191,7 +191,7 @@ Component({
     },
 
     handleUnlockRole() {
-      navigateShellRoute('/pages/role/apply/index')
+      navigateShellRoute('/pages/role/flow/index?mode=roleComparison&single=1&returnTo=%2Fpages%2Fprofile%2Fmember%2Findex')
     },
 
     handleOpenMember() {

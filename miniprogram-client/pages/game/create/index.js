@@ -30,6 +30,8 @@ const EMPTY_DEPOSIT_RULE_TEXT = ''
 const EMPTY_DEPOSIT_NOTICE_TEXT = ''
 const EMPTY_GAME_TYPES = []
 const EMPTY_PROFIT_TEMPLATES = []
+const CREATE_PREVIEW_STORAGE_KEY = 'game_create_preview_v1'
+const CREATE_PREVIEW_ACTION_KEY = 'game_create_preview_action_v1'
 const EMPTY_CONDITION_RULE_CONFIG = {
   enabled: false,
   visibleInMiniProgram: false,
@@ -47,6 +49,7 @@ const EMPTY_CREATE_FORM = {
   completionRules: [],
   feeTypes: []
 }
+
 function padNumber(value) {
   return String(value).padStart(2, '0')
 }
@@ -448,6 +451,8 @@ Page({
     defaultGameCover: DEFAULT_GAME_COVER,
     coverImage: '',
     coverFile: null,
+    draftId: '',
+    draftCount: 0,
     publishDisabled: true,
     showProfitTemplate: false,
     themeMaxLength: THEME_MAX_LENGTH,
@@ -536,7 +541,8 @@ Page({
     depositNoticeText: EMPTY_DEPOSIT_NOTICE_TEXT
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    this.restoreRequestedDraft(options.draftId)
     const theme = String((this.data.form && this.data.form.theme) || '')
     const intro = String((this.data.form && this.data.form.intro) || '')
     const highlights = String((this.data.form && this.data.form.highlights) || '')
@@ -559,6 +565,122 @@ Page({
     this.loadCategoryConfig()
     this.loadConditionRuleConfig()
     this.loadProfitTemplates()
+  },
+
+  onShow() {
+    this.loadDraftCount()
+    this.handlePreviewPublishAction()
+  },
+
+  async loadDraftCount() {
+    try {
+      const data = await gameService.getGameDrafts()
+      const items = Array.isArray(data && data.items) ? data.items : []
+      this.setData({ draftCount: items.length })
+    } catch (error) {
+      // 草稿箱入口保持可用，具体错误在用户点击保存或打开草稿箱时提示。
+    }
+  },
+
+  async restoreRequestedDraft(draftId) {
+    const normalizedDraftId = String(draftId || '').trim()
+    if (!normalizedDraftId) {
+      return
+    }
+
+    let record
+    try {
+      record = await gameService.getGameDraft(normalizedDraftId)
+    } catch (error) {
+      toast.info(error.message || '草稿不存在或已删除')
+      return
+    }
+    const payload = record && record.payload
+    const draft = payload && typeof payload === 'object'
+      ? { ...payload, id: record.id, title: record.title, savedAt: record.updatedAt }
+      : null
+    if (!draft || !draft.form) {
+      toast.info('草稿内容异常，无法继续编辑')
+      return
+    }
+
+    const timeDraft = draft.timeDraft || getInitialTimeDraft()
+    const signupTimeDraft = draft.signupTimeDraft || getInitialSignupTimeDraft()
+    const locationInfo = draft.locationInfo || {}
+    const gameTimeConfirmed = draft.gameTimeConfirmed === true
+    const signupTimeConfirmed = draft.signupTimeConfirmed === true
+    const startTimestamp = getDraftTimestamp(timeDraft.startDate, timeDraft.startTime)
+    const endTimestamp = getDraftTimestamp(timeDraft.endDate, timeDraft.endTime)
+    const signupStartTimestamp = getDraftTimestamp(signupTimeDraft.startDate, signupTimeDraft.startTime)
+    const signupEndTimestamp = getDraftTimestamp(signupTimeDraft.endDate, signupTimeDraft.endTime)
+
+    this.pendingDraftSelections = draft
+    this.setData({
+      draftId: draft.id,
+      coverImage: String(draft.coverImage || '').trim(),
+      form: { ...this.data.form, ...draft.form },
+      themeLength: Math.min(String(draft.form.theme || '').length, THEME_MAX_LENGTH),
+      introLength: Math.min(String(draft.form.intro || '').length, INTRO_MAX_LENGTH),
+      highlightsLength: Math.min(String(draft.form.highlights || '').length, HIGHLIGHTS_MAX_LENGTH),
+      noticeLength: Math.min(String(draft.form.notice || '').length, NOTICE_MAX_LENGTH),
+      audienceLength: Math.min(String(draft.form.audience || '').length, AUDIENCE_MAX_LENGTH),
+      timeDraft,
+      signupTimeDraft,
+      gameTimeConfirmed,
+      signupTimeConfirmed,
+      locationInfo,
+      descriptionMedia: Array.isArray(draft.descriptionMedia) ? draft.descriptionMedia : [],
+      gameTimeSummary: gameTimeConfirmed ? {
+        startText: `${timeDraft.startDate} ${timeDraft.startTime}`,
+        endText: `${timeDraft.endDate} ${timeDraft.endTime}`,
+        durationText: getDurationText(startTimestamp, endTimestamp)
+      } : this.data.gameTimeSummary,
+      signupTimeSummary: signupTimeConfirmed ? {
+        startText: `${signupTimeDraft.startDate} ${signupTimeDraft.startTime}`,
+        endText: `${signupTimeDraft.endDate} ${signupTimeDraft.endTime}`,
+        durationText: getDurationText(signupStartTimestamp, signupEndTimestamp)
+      } : this.data.signupTimeSummary
+    })
+
+    if (gameTimeConfirmed) {
+      this.updateScheduleField('gameTime', getTimeDraftText(timeDraft))
+    }
+    if (signupTimeConfirmed) {
+      this.updateScheduleField('signupTime', getTimeDraftText(signupTimeDraft))
+    }
+    this.updateScheduleField('location', String(locationInfo.name || locationInfo.address || '').trim())
+    this.setData(buildLocationMapState(locationInfo))
+    if (Array.isArray(this.data.gameTypes) && this.data.gameTypes.length) {
+      this.applyPendingDraftSelections()
+    }
+  },
+
+  applyPendingDraftSelections() {
+    const draft = this.pendingDraftSelections
+    if (!draft) {
+      return
+    }
+
+    const activeTags = new Set(Array.isArray(draft.activeTags) ? draft.activeTags : [])
+    const activeCompletionRules = new Set(Array.isArray(draft.activeCompletionRules) ? draft.activeCompletionRules : [])
+    this.setData({
+      tags: (this.data.tags || []).map((item) => ({ ...item, active: activeTags.has(item.key) })),
+      completionRules: (this.data.completionRules || []).map((item) => ({ ...item, active: activeCompletionRules.has(item.key) }))
+    }, () => this.syncPublishState())
+    this.pendingDraftSelections = null
+  },
+
+  handlePreviewPublishAction() {
+    try {
+      const action = wx.getStorageSync(CREATE_PREVIEW_ACTION_KEY)
+      if (!action || action.type !== 'publish') {
+        return
+      }
+      wx.removeStorageSync(CREATE_PREVIEW_ACTION_KEY)
+      setTimeout(() => this.publishGame(), 0)
+    } catch (error) {
+      // 预览操作标记读取失败时不影响创建页继续编辑。
+    }
   },
 
   loadCategoryConfig() {
@@ -598,6 +720,7 @@ Page({
       }
 
       this.setData(nextData)
+      this.applyPendingDraftSelections()
       this.initGameLocation()
       if (nextData['form.feeType']) {
         this.loadProfitTemplates(nextData['form.feeType'])
@@ -1017,6 +1140,12 @@ Page({
   },
 
   initGameLocation() {
+    const savedLocation = this.data.locationInfo || {}
+    if (String(savedLocation.name || savedLocation.address || '').trim() ||
+      (typeof savedLocation.latitude === 'number' && typeof savedLocation.longitude === 'number')) {
+      return
+    }
+
     if (!wx.getLocation) {
       return
     }
@@ -1475,18 +1604,67 @@ Page({
     }, () => this.syncPublishState())
   },
 
-  saveDraft() {
-    toast.info('草稿已在本页保留，正式发布后同步后台审核')
+  buildDraftSnapshot() {
+    const form = this.data.form || {}
+    const title = String(form.theme || '').trim()
+
+    return {
+      title: title || '未命名组局',
+      savedAt: Date.now(),
+      coverImage: String(this.data.coverImage || '').trim(),
+      form: { ...form },
+      timeDraft: { ...(this.data.timeDraft || {}) },
+      signupTimeDraft: { ...(this.data.signupTimeDraft || {}) },
+      gameTimeConfirmed: this.data.gameTimeConfirmed === true,
+      signupTimeConfirmed: this.data.signupTimeConfirmed === true,
+      locationInfo: { ...(this.data.locationInfo || {}) },
+      descriptionMedia: Array.isArray(this.data.descriptionMedia) ? this.data.descriptionMedia.slice() : [],
+      activeTags: activeOptionKeys(this.data.tags),
+      activeCompletionRules: activeOptionKeys(this.data.completionRules),
+      tagLabels: (this.data.tags || []).filter((item) => item.active).map((item) => item.name),
+      completionRuleLabels: (this.data.completionRules || []).filter((item) => item.active).map((item) => item.name),
+      typeText: String((getSelectedCategory(this.data.gameTypes || EMPTY_GAME_TYPES, form.type).primary || {}).name || '').trim(),
+      participationText: String(((this.data.participationModes || []).find((item) => item.key === form.participation) || {}).name || '').trim(),
+      feeTypeText: String(((this.data.feeTypes || []).find((item) => item.key === form.feeType) || {}).name || '').trim()
+    }
+  },
+
+  async saveDraft() {
+    const snapshot = this.buildDraftSnapshot()
+    try {
+      const saved = await gameService.saveGameDraft({
+        id: this.data.draftId,
+        title: snapshot.title,
+        payload: snapshot
+      })
+      this.setData({ draftId: saved.id })
+      await this.loadDraftCount()
+      toast.success('已保存到服务器草稿箱')
+    } catch (error) {
+      toast.info(error.message || '草稿保存失败，请稍后重试')
+      return
+    }
   },
 
   previewSubmit() {
-    const missing = this.getPublishMissingFields()
-    if (missing.length) {
-      toast.info(this.getPublishBlockedMessage(missing))
-      return
+    const preview = this.buildDraftSnapshot()
+
+    try {
+      wx.setStorageSync(CREATE_PREVIEW_STORAGE_KEY, preview)
+      navigateShellRoute(`/${ROUTES.gameCreatePreview}`, {
+        currentRoute: ROUTES.gameCreate,
+        reuseExisting: false
+      })
+    } catch (error) {
+      toast.info('预览打开失败，请稍后重试')
     }
-    const payload = this.buildCreateGamePayload()
-    toast.info(payload ? '预览通过，可发布' : '表单状态异常，请重新确认局类型、人数和局时间')
+  },
+
+  openDraftBox() {
+    navigateShellRoute(`/${ROUTES.gameCreateDrafts}`, {
+      currentRoute: ROUTES.gameCreate,
+      reuseExisting: false
+    })
   },
 
   async publishGame() {

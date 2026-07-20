@@ -1,0 +1,79 @@
+<view class="detail-page" wx:if="{{preview}}">
+  <view class="detail-nav preview-nav">
+    <view class="detail-nav-back" bindtap="onBack"><view class="detail-nav-back-icon"></view></view>
+    <text class="detail-nav-title">局详情预览</text>
+  </view>
+
+  <scroll-view class="detail-scroll preview-scroll" scroll-y enhanced show-scrollbar="false">
+    <view class="detail-content">
+      <image class="cover-image" src="{{preview.coverImage}}" mode="aspectFill" />
+      <view class="detail-stack">
+        <view class="event-card">
+          <text class="event-title">{{preview.title}}</text>
+          <view class="event-info-list">
+            <view class="event-info-line"><text>{{preview.time}}</text></view>
+            <view class="event-info-line"><text>报名：{{preview.signupTime}}</text></view>
+            <view class="event-info-line"><text>{{preview.location}}</text></view>
+          </view>
+          <view class="event-meta-row">
+            <view class="event-meta-list">
+              <view class="event-meta-item"><text>{{preview.type}}</text></view>
+              <view class="event-meta-item"><text>{{preview.fee}}</text></view>
+            </view>
+          </view>
+          <view class="stats-row preview-stats-row">
+            <view class="stats-item"><text class="stats-label">人数</text><text class="stats-value">{{preview.capacity}}</text></view>
+            <view class="stats-item"><text class="stats-label">参与方式</text><text class="stats-value">{{preview.participation}}</text></view>
+          </view>
+        </view>
+
+        <view wx:if="{{preview.tags.length}}" class="tag-row">
+          <view wx:for="{{preview.tags}}" wx:key="*this" class="tag-pill blue">{{item}}</view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">局介绍</text>
+          <view class="plain-card compact-text-card"><text>{{preview.introduction}}</text></view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">亮点</text>
+          <view class="plain-card highlight-card compact-text-card">
+            <block wx:if="{{preview.highlights.length}}">
+              <view wx:for="{{preview.highlights}}" wx:key="*this" class="number-row"><text class="number-index">{{index + 1}}.</text><text>{{item}}</text></view>
+            </block>
+            <text wx:else>亮点待填写</text>
+          </view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">局详情</text>
+          <view class="plain-card compact-text-card"><text>{{preview.description}}</text></view>
+          <view wx:if="{{preview.images.length}}" class="detail-image-grid">
+            <image wx:for="{{preview.images}}" wx:key="*this" class="detail-image" src="{{item}}" mode="aspectFill" />
+          </view>
+          <text wx:if="{{preview.videoCount}}" class="preview-media-note">已选择 {{preview.videoCount}} 个视频</text>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">局须知</text>
+          <view class="plain-card notice-card compact-text-card"><text>{{preview.notice}}</text></view>
+        </view>
+
+        <view class="detail-section">
+          <text class="section-title">受众群体</text>
+          <view class="plain-card compact-text-card"><text>{{preview.audience}}</text></view>
+        </view>
+
+        <view wx:if="{{preview.completionRules.length}}" class="detail-section">
+          <text class="section-title">完成规则</text>
+          <view class="plain-card compact-text-card">
+            <view wx:for="{{preview.completionRules}}" wx:key="*this" class="number-row"><text class="number-index">{{index + 1}}.</text><text>{{item}}</text></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="bottom-action-bar without-tools"><view class="enroll-button preview-publish-button" bindtap="publish">发布</view></view>
+</view>

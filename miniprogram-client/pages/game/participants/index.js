@@ -59,7 +59,7 @@ function normalizeMember(item = {}, index = 0) {
     id: userId || `member-${index + 1}`,
     userId,
     name: item.name || item.nickname || '后台未返回',
-    avatarSrc: item.avatarSrc || item.avatarUrl || 'https://static.haowan.net.cn/miniprogram/pages/home/player/assets/ranking-avatar-01.png',
+    avatarSrc: item.avatarSrc || item.avatarUrl || '',
     avatarText,
     role,
     roleClass,

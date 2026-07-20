@@ -27,7 +27,7 @@ page {
 
 .recommend-page {
   min-height: 100%;
-  padding: 24rpx 30rpx 184rpx;
+  padding: 24rpx 48rpx 184rpx;
   box-sizing: border-box;
 }
 
@@ -420,6 +420,7 @@ page {
   bottom: 0;
   z-index: 9;
   display: flex;
+  justify-content: center;
   gap: 24rpx;
   padding: 24rpx 30rpx calc(28rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
@@ -432,7 +433,7 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
+  height: 96rpx;
   margin: 0;
   padding: 0 20rpx;
   border-radius: 999rpx;
@@ -443,13 +444,13 @@ page {
 }
 
 .action-button.cancel {
-  flex: 1;
+  flex: 0 0 200rpx;
   color: #4b5563;
   background: #f9fafb;
 }
 
 .action-button.primary {
-  flex: 2;
+  flex: 0 0 430rpx;
   color: #ffffff;
   background: #3b82f6;
   box-shadow: 0 14rpx 30rpx rgba(59, 130, 246, 0.22);

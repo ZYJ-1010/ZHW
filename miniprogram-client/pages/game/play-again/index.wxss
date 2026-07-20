@@ -22,154 +22,6 @@ page {
   background: linear-gradient(180deg, #061522 0%, #05070c 57%, #061a2b 100%);
 }
 
-.mock-header {
-  position: absolute;
-  left: 34rpx;
-  right: 34rpx;
-  top: 34rpx;
-  display: flex;
-  align-items: center;
-  height: 68rpx;
-  opacity: 0.58;
-}
-
-.mock-game-logo {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 14rpx;
-  background: linear-gradient(135deg, #11d3ff 0%, #3468ff 100%);
-}
-
-.mock-game-title {
-  width: 160rpx;
-  height: 20rpx;
-  margin-left: 18rpx;
-  border-radius: 999rpx;
-  background: #64748b;
-}
-
-.mock-header-actions {
-  display: flex;
-  gap: 20rpx;
-  margin-left: auto;
-}
-
-.mock-header-actions view {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 50%;
-  background: #475569;
-}
-
-.mock-game-screen {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 120rpx;
-  bottom: 302rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 44%, rgba(49, 211, 255, 0.32) 0%, rgba(49, 211, 255, 0.12) 22%, transparent 54%),
-    linear-gradient(180deg, #020617 0%, #02040a 100%);
-}
-
-.mock-game-screen::before,
-.mock-game-screen::after {
-  position: absolute;
-  width: 560rpx;
-  height: 2rpx;
-  background: rgba(148, 163, 184, 0.16);
-  content: '';
-}
-
-.mock-game-screen::before {
-  transform: rotate(24deg);
-}
-
-.mock-game-screen::after {
-  transform: rotate(-24deg);
-}
-
-.mock-game-orbit {
-  position: relative;
-  width: 270rpx;
-  height: 270rpx;
-  border: 2rpx solid rgba(20, 184, 166, 0.42);
-  border-radius: 50%;
-}
-
-.mock-game-orbit::before,
-.mock-game-orbit::after {
-  position: absolute;
-  left: 36rpx;
-  right: 36rpx;
-  top: 36rpx;
-  bottom: 36rpx;
-  border: 2rpx solid rgba(59, 130, 246, 0.35);
-  border-radius: 50%;
-  content: '';
-}
-
-.mock-game-orbit::after {
-  left: 78rpx;
-  right: 78rpx;
-  top: 78rpx;
-  bottom: 78rpx;
-  border-color: rgba(236, 72, 153, 0.32);
-}
-
-.mock-game-core {
-  position: absolute;
-  left: 104rpx;
-  top: 104rpx;
-  width: 62rpx;
-  height: 62rpx;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #fef08a 0%, #fb7185 100%);
-  box-shadow: 0 0 34rpx rgba(251, 113, 133, 0.48);
-}
-
-.mock-controller {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 318rpx;
-  border-radius: 52rpx 52rpx 0 0;
-  background: linear-gradient(180deg, #0879d1 0%, #005b9d 100%);
-}
-
-.mock-stick {
-  position: absolute;
-  left: 50%;
-  top: 54rpx;
-  width: 138rpx;
-  height: 138rpx;
-  margin-left: -69rpx;
-  border: 8rpx solid #334155;
-  border-radius: 50%;
-  background: #020617;
-  box-shadow: inset 0 0 20rpx rgba(0, 0, 0, 0.82), 0 16rpx 24rpx rgba(0, 0, 0, 0.22);
-}
-
-.mock-button-pair {
-  position: absolute;
-  right: 54rpx;
-  top: 78rpx;
-  display: flex;
-  gap: 18rpx;
-}
-
-.mock-button-pair view {
-  width: 58rpx;
-  height: 58rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
-}
-
 .dim-layer {
   position: absolute;
   left: 0;
@@ -181,12 +33,12 @@ page {
 
 .recommend-panel {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 18rpx;
+  right: 18rpx;
   bottom: 0;
   box-sizing: border-box;
   height: 66.6667%;
-  padding: 16rpx 34rpx 34rpx;
+  padding: 16rpx 40rpx 34rpx;
   border-radius: 46rpx 46rpx 0 0;
   background: #ffffff;
   box-shadow: 0 -12rpx 40rpx rgba(0, 0, 0, 0.18);
@@ -241,8 +93,8 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48rpx;
-  height: 48rpx;
+  width: 64rpx;
+  height: 56rpx;
   margin: 0;
   padding: 0;
   border-radius: 0;
@@ -255,8 +107,8 @@ page {
 
 .close-icon {
   display: block;
-  width: 42rpx;
-  height: 42rpx;
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .option-list {

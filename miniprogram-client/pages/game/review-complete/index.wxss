@@ -11,7 +11,7 @@ page {
 .review-complete-page {
   box-sizing: border-box;
   min-height: 100%;
-  padding: 24rpx 25rpx 28rpx;
+  padding: 24rpx 48rpx 28rpx;
   color: #111827;
   background: #f7f9fc;
   font-family: "Noto Sans SC", "PingFang SC", sans-serif;
@@ -217,7 +217,7 @@ page {
 }
 
 .play-again-card {
-  padding: 22rpx 28rpx 20rpx;
+  padding: 22rpx 40rpx 20rpx;
   background: #f0f9eb;
 }
 
@@ -238,7 +238,7 @@ page {
   align-items: center;
   flex-direction: column;
   box-sizing: border-box;
-  min-height: 118rpx;
+  min-height: 212rpx;
   padding: 14rpx 10rpx 12rpx;
   border: 2rpx solid transparent;
   border-radius: 24rpx;

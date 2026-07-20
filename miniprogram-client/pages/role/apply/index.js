@@ -1,6 +1,20 @@
 const roleService = require('../../../services/role')
 const toast = require('../../../utils/toast')
 
+function normalizeRoleType(value) {
+  const roleType = String(value || '').trim().toLowerCase()
+
+  if (roleType === 'expert' || roleType === 'master' || roleType === '行家') {
+    return 'expert'
+  }
+
+  if (roleType === 'guide' || roleType === 'leader' || roleType === '领路人') {
+    return 'guide'
+  }
+
+  return ''
+}
+
 function normalizePageConfig(config = {}) {
   return {
     pageTitle: config.pageTitle || '',
@@ -23,8 +37,20 @@ Page({
     applications: []
   },
 
-  onLoad() {
-    this.loadApplications()
+  onLoad(options = {}) {
+    // 旧路由仍可能被收藏、任务或历史消息命中。统一进入新版申请流，
+    // 保证所有行家/领路人申请都先展示条件页，再进入资料填写页。
+    const roleType = normalizeRoleType(options.roleType || options.role)
+    const target = roleType
+      ? `/pages/role/flow/index?mode=${roleType === 'expert' ? 'expertApplyOverview' : 'roleApplyOverview'}&single=1&roleType=${roleType}`
+      : '/pages/role/flow/index?mode=roleComparison&single=1'
+
+    wx.redirectTo({
+      url: target,
+      fail: () => {
+        wx.reLaunch({ url: target })
+      }
+    })
   },
 
   async loadApplications() {

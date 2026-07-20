@@ -1,18 +1,18 @@
 <profile-white-shell title="我的邀请" background="#ffffff">
   <view class="profile-page is-white">
     <view class="profile-tabs invite-role-tabs">
-      <view wx:for="{{roleTabs}}" wx:key="label" class="profile-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+      <view wx:for="{{roleTabs}}" wx:key="key" class="profile-tab {{item.active ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleRoleTap">{{item.label}}</view>
     </view>
 
     <view class="profile-filter-tabs">
-      <view wx:for="{{filters}}" wx:key="label" class="profile-filter-tab {{item.active ? 'active' : ''}}">{{item.label}}</view>
+      <view wx:for="{{filters}}" wx:key="key" class="profile-filter-tab {{item.active ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleFilterTap">{{item.label}}</view>
     </view>
 
-    <view class="profile-warning">
+    <view wx:if="{{timeoutWarning}}" class="profile-warning">
       <view class="profile-dot"></view>
       <view>
-        <text class="profile-warning-title">超时预警</text>
-        <text class="profile-warning-desc">有1个组局超过15天无进展</text>
+        <text class="profile-warning-title">{{timeoutWarning.title}}</text>
+        <text class="profile-warning-desc">{{timeoutWarning.text}}</text>
       </view>
     </view>
 

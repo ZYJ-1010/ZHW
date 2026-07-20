@@ -756,7 +756,7 @@ page {
 }
 
 .audit-detail-action-layer .action-buttons {
-  height: 86rpx;
+  height: 104rpx;
 }
 
 .audit-detail-action-layer .action-tip {

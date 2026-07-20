@@ -22,6 +22,8 @@
         "hall/index",
         "hall-greet/index",
         "create/index",
+        "create-drafts/index",
+        "create-preview/index",
         "detail/index",
         "participants/index",
         "manage/index",

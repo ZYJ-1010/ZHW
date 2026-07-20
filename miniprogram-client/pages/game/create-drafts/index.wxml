@@ -1,0 +1,28 @@
+<view class="draft-page">
+  <view class="draft-nav">
+    <view class="back-button" bindtap="onBack"><view class="back-icon"></view></view>
+    <text class="draft-title">草稿箱</text>
+  </view>
+
+  <scroll-view class="draft-scroll" scroll-y enhanced show-scrollbar="false">
+    <view wx:if="{{drafts.length}}" class="draft-list">
+      <view wx:for="{{drafts}}" wx:key="id" class="draft-card">
+        <view class="draft-card-main" data-id="{{item.id}}" bindtap="editDraft">
+          <text class="draft-card-title">{{item.title}}</text>
+          <text class="draft-card-info">{{item.typeText}} · {{item.timeText}}</text>
+          <text class="draft-card-info">{{item.locationText}}</text>
+          <text class="draft-card-time">保存于 {{item.savedAtText}}</text>
+        </view>
+        <view class="draft-card-actions">
+          <button class="draft-delete" data-id="{{item.id}}" bindtap="deleteDraft">删除</button>
+          <button class="draft-edit" data-id="{{item.id}}" bindtap="editDraft">继续编辑</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="empty-state">
+      <text class="empty-title">暂无草稿</text>
+      <text class="empty-desc">在发起组局页点击“保存草稿”后，会保存在这里。</text>
+    </view>
+  </scroll-view>
+</view>

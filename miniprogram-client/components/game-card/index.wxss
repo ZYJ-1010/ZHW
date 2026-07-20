@@ -11,6 +11,17 @@
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.4);
 }
 
+/* 首页“朋友在玩”原型卡：331 × 122pt。 */
+.game-card--compact {
+  height: 244rpx;
+}
+
+.game-card--compact .game-card-avatars,
+.game-card--compact .game-card-joined,
+.game-card--compact .game-card-actions {
+  bottom: 22rpx;
+}
+
 .game-card-cover {
   position: absolute;
   left: 24rpx;

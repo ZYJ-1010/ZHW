@@ -203,16 +203,21 @@
   z-index: 20;
   width: 750rpx;
   height: 218rpx;
+  border-top: 2rpx solid rgba(91, 205, 255, 0.5);
   border-radius: 58rpx 58rpx 0 0;
-  background: #007bd3;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #0a82d1 0%, #0070bc 100%);
+  box-shadow:
+    0 -12rpx 26rpx rgba(0, 0, 0, 0.3),
+    inset 0 2rpx 0 rgba(178, 232, 255, 0.18);
 }
 
 .home-shell-dpad {
   position: absolute;
   left: 68rpx;
   top: 48rpx;
-  width: 120rpx;
-  height: 122rpx;
+  width: 136rpx;
+  height: 128rpx;
 }
 
 .home-shell-dpad-key {
@@ -223,11 +228,11 @@
   width: 40rpx;
   height: 40rpx;
   border-radius: 8rpx;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(89, 184, 238, 0.42);
 }
 
 .home-shell-dpad .up {
-  left: 40rpx;
+  left: 48rpx;
   top: 0;
 }
 
@@ -242,32 +247,16 @@
 }
 
 .home-shell-dpad .down {
-  left: 40rpx;
+  left: 48rpx;
   bottom: 0;
 }
 
 .home-shell-dpad-arrow {
-  width: 14rpx;
-  height: 14rpx;
-  border-top: 4rpx solid rgba(255, 255, 255, 0.92);
-  border-left: 4rpx solid rgba(255, 255, 255, 0.92);
-  box-sizing: border-box;
-}
-
-.home-shell-dpad .up .home-shell-dpad-arrow {
-  transform: translateY(4rpx) rotate(45deg);
-}
-
-.home-shell-dpad .left .home-shell-dpad-arrow {
-  transform: translateX(4rpx) rotate(-45deg);
-}
-
-.home-shell-dpad .right .home-shell-dpad-arrow {
-  transform: translateX(-4rpx) rotate(135deg);
-}
-
-.home-shell-dpad .down .home-shell-dpad-arrow {
-  transform: translateY(-4rpx) rotate(225deg);
+  display: block;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 40rpx;
 }
 
 .home-shell-nav-button {
@@ -294,8 +283,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 110rpx;
-  height: 110rpx;
+  width: 108rpx;
+  height: 108rpx;
   background: transparent;
 }
 
@@ -309,8 +298,8 @@
 
 .home-shell-home-disc {
   position: relative;
-  width: 110rpx;
-  height: 110rpx;
+  width: 108rpx;
+  height: 108rpx;
   box-sizing: border-box;
   border-radius: 50%;
   background: linear-gradient(90deg, #030303 0%, #181818 17%, #565656 50%, #171717 82%, #020202 100%);
@@ -322,8 +311,8 @@
 
 .home-shell-home-disc::before {
   position: absolute;
-  left: 23rpx;
-  top: 23rpx;
+  left: 22rpx;
+  top: 22rpx;
   z-index: 1;
   width: 64rpx;
   height: 64rpx;
@@ -335,8 +324,8 @@
 
 .home-shell-home-disc::after {
   position: absolute;
-  left: 31rpx;
-  top: 31rpx;
+  left: 30rpx;
+  top: 30rpx;
   z-index: 2;
   width: 48rpx;
   height: 48rpx;

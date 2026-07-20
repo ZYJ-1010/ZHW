@@ -87,8 +87,9 @@ page {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 42rpx;
-  padding: 0 18rpx;
+  width: 100rpx;
+  height: 38rpx;
+  padding: 0;
   border: 2rpx solid #313b51;
   border-radius: 999rpx;
   box-sizing: border-box;
@@ -96,7 +97,7 @@ page {
   background: #20283a;
   font-size: 18rpx;
   font-weight: 800;
-  line-height: 42rpx;
+  line-height: 38rpx;
 }
 
 .map-filter-pill + .map-filter-pill {
@@ -112,7 +113,7 @@ page {
 .nearby-map-card {
   position: relative;
   width: 100%;
-  height: 538rpx;
+  height: 1224rpx;
   overflow: hidden;
   background: #dbe5ed;
 }
@@ -371,7 +372,7 @@ page {
 }
 
 .nearby-info-section {
-  padding: 20rpx 22rpx 34rpx;
+  padding: 20rpx 40rpx 34rpx;
   box-sizing: border-box;
   background: #101827;
 }
@@ -413,6 +414,7 @@ page {
 }
 
 .nearby-info-card {
+  min-height: 276rpx;
   padding: 22rpx;
   border: 2rpx solid #34445f;
   border-radius: 14rpx;
@@ -482,7 +484,7 @@ page {
   justify-content: center;
   width: 0;
   min-width: 0;
-  height: 62rpx;
+  height: 92rpx;
   margin: 0;
   padding: 0;
   border: 0;
@@ -491,7 +493,7 @@ page {
   overflow: hidden;
   font-size: 22rpx;
   font-weight: 900;
-  line-height: 62rpx;
+  line-height: 92rpx;
 }
 
 .nearby-info-action + .nearby-info-action {

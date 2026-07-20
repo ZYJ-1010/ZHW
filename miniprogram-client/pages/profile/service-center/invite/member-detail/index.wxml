@@ -1,4 +1,4 @@
-<profile-white-shell title="成员详情查看页" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff" right-text="⋮" right-color="#7f8da3">
+<profile-white-shell title="成员详情查看页" background="#050b14" nav-background="#050b14" title-color="#ffffff" title-weight="400" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff">
   <view class="invite-page member-detail-page dark-page">
     <view class="member-card">
       <view wx:if="{{member.name}}" class="member-hero">

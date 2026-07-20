@@ -6,7 +6,7 @@ page {
 
 .profile-page {
   min-height: 100%;
-  padding: 24rpx 30rpx 72rpx;
+  padding: 24rpx 34rpx 72rpx;
   box-sizing: border-box;
   color: #111827;
   font-family: "Noto Sans SC", "PingFang SC", sans-serif;

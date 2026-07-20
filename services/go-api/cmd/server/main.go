@@ -17,6 +17,7 @@ import (
 	"zhw-mini/services/go-api/internal/connections"
 	"zhw-mini/services/go-api/internal/exports"
 	"zhw-mini/services/go-api/internal/files"
+	"zhw-mini/services/go-api/internal/gamedrafts"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/im"
@@ -89,6 +90,7 @@ func main() {
 	if db != nil {
 		appServer.UseTaskRepository(tasks.NewSQLRepository(db))
 		appServer.UseExportRepository(exports.NewSQLRepository(db))
+		appServer.UseGameDraftRepository(gamedrafts.NewSQLRepository(db))
 	}
 	appServer.UseFaceIDCallbackVerifier(cfg.FaceID.CallbackSecret, cfg.FaceID.CallbackRequireSignature)
 	appServer.UseAdminRepository(adminRepository(db))
@@ -326,6 +328,13 @@ func gameRepository(db *sql.DB) games.Repository {
 		return nil
 	}
 	return games.NewSQLRepository(db)
+}
+
+func gameDraftRepository(db *sql.DB) gamedrafts.Repository {
+	if db == nil {
+		return nil
+	}
+	return gamedrafts.NewSQLRepository(db)
 }
 
 func gameProgressRepository(db *sql.DB) games.ProgressRepository {

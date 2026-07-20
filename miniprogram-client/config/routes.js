@@ -13,6 +13,8 @@ const ROUTES = {
   roleStatus: 'pages/role/status/index',
   gameHall: 'pages/game/hall/index',
   gameCreate: 'pages/game/create/index',
+  gameCreateDrafts: 'pages/game/create-drafts/index',
+  gameCreatePreview: 'pages/game/create-preview/index',
   gameDetail: 'pages/game/detail/index',
   gameParticipants: 'pages/game/participants/index',
   gameManage: 'pages/game/manage/index',

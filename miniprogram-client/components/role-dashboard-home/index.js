@@ -1518,7 +1518,7 @@ Component({
       return {
         section: {
           icon: section.icon || '',
-          title: section.title || section.name || '',
+          title: this.formatRankingTitle(section.title || section.name || ''),
           desc: section.desc || section.description || '',
           moreText: section.moreText || section.moreLabel || section.actionText || '',
           route: section.route || section.moreRoute || section.actionRoute || ROUTES.homeRanking
@@ -1533,6 +1533,13 @@ Component({
         myRank: display.myRank,
         showMyRank: display.showMyRank
       }
+    },
+
+    formatRankingTitle(value) {
+      const title = `${value || ''}`.trim()
+
+      // 兼容已部署接口的旧标题，展示层统一使用原型约定的周期榜单名称。
+      return title === '玩霸榜' ? '本周玩霸榜' : title
     },
 
     formatRankingTabs(tabs, activeKey) {
@@ -2803,9 +2810,10 @@ Component({
 
     handleActionTap(event) {
       const datasetRoute = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.route
+      const datasetTitle = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.title
       const detail = event && event.detail || {}
       const detailRoute = detail.route || (detail.item && detail.item.route)
-      const route = datasetRoute || detailRoute
+      const route = this.resolveHomeActionRoute(datasetRoute || detailRoute, datasetTitle)
 
       if (route) {
         navigateShellRoute(this.appendRoleTypeToGameDetailRoute(route), {
@@ -2819,10 +2827,37 @@ Component({
         return
       }
 
+      if (String(datasetTitle || '').indexOf('元宇宙') !== -1) {
+        wx.showToast({ title: '元宇宙玩法暂未开放', icon: 'none' })
+        return
+      }
+
+      if (String(datasetTitle || '').indexOf('地球') !== -1) {
+        wx.showToast({ title: '地图玩法暂未开放', icon: 'none' })
+        return
+      }
+
       wx.showToast({
         title: '请选择可用入口',
         icon: 'none'
       })
+    },
+
+    resolveHomeActionRoute(route, title) {
+      const normalizedRoute = String(route || '').replace(/^\/+/, '')
+      if (normalizedRoute) {
+        return normalizedRoute
+      }
+
+      const normalizedTitle = String(title || '').trim()
+      const fallbackRoutes = {
+        '发起组局': ROUTES.gameCreate,
+        '局前大厅': ROUTES.gameHall,
+        '我的邀约': 'pages/profile/service-center/invite/overview/index',
+        '查看全部榜单': ROUTES.homeRanking
+      }
+
+      return fallbackRoutes[normalizedTitle] || ''
     },
 
     handleGameCardAction(event) {

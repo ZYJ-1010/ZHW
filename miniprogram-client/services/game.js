@@ -90,6 +90,42 @@ async function createGame(payload) {
   return result.data
 }
 
+async function getGameDrafts() {
+  const result = await gameApi.getGameDrafts()
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取草稿箱失败')
+  }
+  return result.data
+}
+
+async function getGameDraft(draftId) {
+  const result = await gameApi.getGameDraft(draftId)
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取草稿失败')
+  }
+  return result.data
+}
+
+async function saveGameDraft(payload = {}) {
+  const draftId = Number(payload.id || 0)
+  const body = { title: payload.title || '', payload: payload.payload || {} }
+  const result = draftId > 0
+    ? await gameApi.updateGameDraft(draftId, body)
+    : await gameApi.createGameDraft(body)
+  if (result.code !== 0) {
+    throw new Error(result.message || '保存草稿失败')
+  }
+  return result.data
+}
+
+async function deleteGameDraft(draftId) {
+  const result = await gameApi.deleteGameDraft(draftId)
+  if (result.code !== 0) {
+    throw new Error(result.message || '删除草稿失败')
+  }
+  return result.data
+}
+
 async function startGame(gameId) {
   const result = await gameApi.startGame(gameId)
 
@@ -468,6 +504,10 @@ module.exports = {
   requestGameCompletion,
   createGuideFollowUp,
   createGame,
+  getGameDrafts,
+  getGameDraft,
+  saveGameDraft,
+  deleteGameDraft,
   startGame,
   createInviteEntry,
   respondGameInvitation,

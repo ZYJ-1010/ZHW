@@ -23,6 +23,7 @@ Page({
       { key: 'timeout', label: '超时', active: false },
       { key: 'cancelled', label: '已取消', active: false }
     ],
+    timeoutWarning: null,
     records: []
   },
 
@@ -42,14 +43,36 @@ Page({
         activeStatus: result.activeStatus || this.data.activeStatus,
         roleTabs: markActive(result.roleTabs || this.data.roleTabs, result.activeRole || this.data.activeRole),
         filters: markActive(result.filters || this.data.filters, result.activeStatus || this.data.activeStatus),
+        timeoutWarning: result.timeoutWarning && result.timeoutWarning.show ? result.timeoutWarning : null,
         records: Array.isArray(result.records) ? result.records : [],
         emptyText: result.emptyText || this.data.emptyText
       })
     } catch (error) {
       this.setData({
+        timeoutWarning: null,
         records: [],
         emptyText: error.message || '邀约记录加载失败'
       })
     }
+  },
+
+  handleRoleTap(event) {
+    const key = event.currentTarget.dataset.key
+
+    if (!key || key === this.data.activeRole) {
+      return
+    }
+
+    this.setData({ activeRole: key }, () => this.loadRecords())
+  },
+
+  handleFilterTap(event) {
+    const key = event.currentTarget.dataset.key
+
+    if (!key || key === this.data.activeStatus) {
+      return
+    }
+
+    this.setData({ activeStatus: key }, () => this.loadRecords())
   }
 })

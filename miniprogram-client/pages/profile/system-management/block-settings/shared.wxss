@@ -512,15 +512,15 @@ page {
 }
 
 .compact-action {
-  padding: 16rpx 28rpx 24rpx;
+  padding: 16rpx 32rpx 24rpx;
 }
 
 .compact-action .primary-btn,
 .compact-action .secondary-btn {
-  height: 84rpx;
+  height: 104rpx;
   border-radius: 24rpx;
   font-size: 28rpx;
-  line-height: 84rpx;
+  line-height: 104rpx;
 }
 
 .compact-sheet {

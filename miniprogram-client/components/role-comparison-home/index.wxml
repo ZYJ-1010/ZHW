@@ -23,7 +23,13 @@
       </view>
 
       <view class="home-role-cards">
-        <view wx:for="{{displayComparison.roles}}" wx:key="name" class="home-role-card {{item.key}} {{item.active ? 'active' : ''}}">
+        <view
+          wx:for="{{displayComparison.roles}}"
+          wx:key="name"
+          class="home-role-card {{item.key}} {{item.active ? 'active' : ''}}"
+          data-role="{{item.key}}"
+          bindtap="handleRoleSelectTap"
+        >
           <text class="home-role-icon">{{item.icon}}</text>
           <text class="home-role-name">{{item.name}}</text>
           <text class="home-role-level">{{item.level}}</text>

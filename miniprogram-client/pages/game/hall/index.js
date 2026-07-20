@@ -4,6 +4,7 @@ const { ROUTES } = require('../../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
 const HALL_SCROLL_TAP_STEP_RPX = 360
+const DEFAULT_EVENT_ACTIONS = ['分享', '关注', '引荐', '打招呼']
 const HALL_SCROLL_HOLD_STEP_RPX = 72
 const HALL_SCROLL_HOLD_INTERVAL_MS = 80
 const HALL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
@@ -16,13 +17,18 @@ const ADVANCED_LOCATION_OPTIONS = [
 const ADVANCED_CATEGORY_OPTIONS = [
   { key: 'all', name: '全部' }
 ]
-const ADVANCED_SORT_OPTIONS = []
+const SORT_OPTIONS = [
+  { key: 'latest', name: '最新发布', sortKey: 'time', sortOrder: 'desc' },
+  { key: 'hot', name: '热度最高', sortKey: 'hot', sortOrder: 'desc' },
+  { key: 'distance', name: '距离最近', sortKey: 'distance', sortOrder: 'asc' },
+  { key: 'credit', name: '信用优先', sortKey: 'credit', sortOrder: 'desc' }
+]
 const CALENDAR_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_ADVANCED_DRAFT = {
   locationScope: 'all',
   cityName: '',
   categoryKey: 'all',
-  sortMode: 'comprehensive',
+  sortMode: '',
   selectedDate: ''
 }
 const CATEGORY_ICON_MAP = {
@@ -170,7 +176,10 @@ function normalizePlayerAvatars(game = {}) {
 }
 
 function normalizeEventActions(data = {}) {
-  return Array.isArray(data.eventActions) ? data.eventActions.filter(Boolean) : []
+  const actions = Array.isArray(data.eventActions) ? data.eventActions.filter(Boolean) : []
+
+  // 局前大厅的四个卡片操作属于一期固定交互；配置接口短暂失败时仍须可见。
+  return actions.length ? actions : DEFAULT_EVENT_ACTIONS
 }
 
 function normalizeSortOptions(data = {}) {
@@ -181,7 +190,7 @@ function normalizeSortOptions(data = {}) {
     name: String(item.name || item.label || item.key || '').trim(),
     sortKey: String(item.sortKey || '').trim(),
     sortOrder: String(item.sortOrder || 'asc').trim() || 'asc'
-  })).filter((item) => item.key && item.name)
+  })).filter((item) => item.key && item.name && item.key !== 'comprehensive' && item.sortKey)
 }
 
 function normalizeHallGame(game = {}, eventActions = []) {
@@ -232,7 +241,7 @@ function normalizeHallGames(data = {}, eventActions = []) {
   return source.map((item) => normalizeHallGame(item, eventActions)).filter((item) => item.id)
 }
 
-function getAdvancedSortByState(sortKey, sortOrder, sortOptions = ADVANCED_SORT_OPTIONS) {
+function getSortOptionByState(sortKey, sortOrder, sortOptions = SORT_OPTIONS) {
   const matched = sortOptions.find((item) => {
     return item.sortKey === sortKey && item.sortOrder === sortOrder
   })
@@ -240,8 +249,8 @@ function getAdvancedSortByState(sortKey, sortOrder, sortOptions = ADVANCED_SORT_
   return matched ? matched.key : ''
 }
 
-function getAdvancedSortByKey(key, sortOptions = ADVANCED_SORT_OPTIONS) {
-  return sortOptions.find((item) => item.key === key) || sortOptions[0] || { sortKey: '', sortOrder: 'asc' }
+function getSortOptionByKey(key, sortOptions = SORT_OPTIONS) {
+  return sortOptions.find((item) => item.key === key) || null
 }
 
 function getCurrentDateInfo() {
@@ -448,7 +457,7 @@ Page({
     categories: [],
     activeFilter: 'all',
     activeTypeFilter: 'all',
-    eventActions: [],
+    eventActions: DEFAULT_EVENT_ACTIONS,
     activeLocationScope: 'all',
     activeCityName: '',
     selectedDate: '',
@@ -457,10 +466,14 @@ Page({
     sortKey: '',
     sortOrder: 'asc',
     sortArrow: '▶',
-    advancedFilterVisible: false,
+    sortFilterVisible: false,
+    sortFilterText: '排序',
+    sortFilterActive: false,
+    activeSortMode: '',
     advancedLocationOptions: ADVANCED_LOCATION_OPTIONS,
     advancedCategoryOptions: ADVANCED_CATEGORY_OPTIONS,
-    advancedSortOptions: ADVANCED_SORT_OPTIONS,
+    advancedSortOptions: SORT_OPTIONS,
+    sortOptions: SORT_OPTIONS,
     advancedDraft: getAdvancedDraft(),
     calendarWeekdays: CALENDAR_WEEKDAYS,
     calendarYear: getCurrentDateInfo().year,
@@ -506,6 +519,7 @@ Page({
 
       if (sortOptions.length) {
         nextData.advancedSortOptions = sortOptions
+        nextData.sortOptions = sortOptions
       }
 
       if (eventActions.length) {
@@ -612,29 +626,40 @@ Page({
     })
   },
 
-  openAdvancedFilter() {
-    const categoryOptions = this.data.advancedCategoryOptions || ADVANCED_CATEGORY_OPTIONS
-    const categoryKey = categoryOptions.some((item) => item.key === this.data.activeFilter)
-      ? this.data.activeFilter
-      : 'all'
-    const draft = getAdvancedDraft({
-      locationScope: this.data.activeLocationScope,
-      cityName: this.data.activeCityName,
-      categoryKey,
-      sortMode: getAdvancedSortByState(this.data.sortKey, this.data.sortOrder, this.data.advancedSortOptions),
-      selectedDate: this.data.selectedDate
-    })
-
+  openSortFilter() {
     this.setData({
-      advancedFilterVisible: true,
-      advancedDraft: draft
+      sortFilterVisible: true
     })
   },
 
-  closeAdvancedFilter() {
+  closeSortFilter() {
     this.setData({
-      advancedFilterVisible: false
+      sortFilterVisible: false
     })
+  },
+
+  selectSortFilter(event) {
+    const option = getSortOptionByKey(event.currentTarget.dataset.key, this.data.sortOptions || SORT_OPTIONS)
+
+    if (!option) {
+      return
+    }
+
+    this.updateDisplayEvents({
+      sortKey: option.sortKey,
+      sortOrder: option.sortOrder,
+      activeSortMode: option.key
+    })
+    this.closeSortFilter()
+  },
+
+  resetSortFilter() {
+    this.updateDisplayEvents({
+      sortKey: '',
+      sortOrder: 'asc',
+      activeSortMode: ''
+    })
+    this.closeSortFilter()
   },
 
   noop() {},
@@ -706,15 +731,15 @@ Page({
 
   confirmAdvancedFilter() {
     const draft = this.data.advancedDraft
-    const sortOption = getAdvancedSortByKey(draft.sortMode, this.data.advancedSortOptions)
+    const sortOption = getSortOptionByKey(draft.sortMode, this.data.advancedSortOptions)
 
     this.updateDisplayEvents({
       activeFilter: draft.categoryKey || 'all',
       activeLocationScope: draft.locationScope || 'all',
       activeCityName: draft.cityName || '',
       selectedDate: draft.selectedDate || '',
-      sortKey: sortOption.sortKey,
-      sortOrder: sortOption.sortOrder
+      sortKey: sortOption ? sortOption.sortKey : '',
+      sortOrder: sortOption ? sortOption.sortOrder : 'asc'
     })
 
     this.setData({
@@ -730,6 +755,11 @@ Page({
     const selectedDate = nextState.selectedDate == null ? this.data.selectedDate : nextState.selectedDate
     const sortKey = nextState.sortKey == null ? this.data.sortKey : nextState.sortKey
     const sortOrder = nextState.sortOrder || this.data.sortOrder
+    const sortOptions = this.data.sortOptions || SORT_OPTIONS
+    const matchedSortOption = getSortOptionByState(sortKey, sortOrder, sortOptions)
+    const activeSortMode = nextState.activeSortMode == null
+      ? (matchedSortOption ? matchedSortOption.key : '')
+      : nextState.activeSortMode
 
     this.setData({
       activeFilter,
@@ -741,6 +771,9 @@ Page({
       sortKey,
       sortOrder,
       sortArrow: sortKey ? (sortOrder === 'desc' ? '▼' : '▲') : '▶',
+      activeSortMode,
+      sortFilterActive: Boolean(activeSortMode),
+      sortFilterText: matchedSortOption ? matchedSortOption.name : '排序',
       displayEventsList: getDisplayEvents({
         eventsList: this.data.eventsList,
         keyword: this.data.keyword,
@@ -762,6 +795,75 @@ Page({
     navigateShellRoute(`${ROUTES.gameDetail}?id=${id}`, {
       currentRoute: ROUTES.gameHall
     })
+  },
+
+  async onCardAction(event) {
+    const detail = event.detail || {}
+    const item = detail.item || {}
+    const gameId = Number(item.id || 0)
+    const action = String(detail.action || detail.label || '').trim()
+
+    if (!gameId) {
+      toast.info('局信息不存在，请刷新后重试')
+      return
+    }
+
+    if (action === 'primary') {
+      this.onViewDetail({ detail: { item } })
+      return
+    }
+
+    if (action === '分享') {
+      navigateShellRoute(`${ROUTES.gameShare}?id=${gameId}`, {
+        currentRoute: ROUTES.gameHall,
+        reuseExisting: false
+      })
+      return
+    }
+
+    if (action === '关注') {
+      try {
+        await gameService.favoriteGame(gameId)
+        toast.success('已关注该局')
+      } catch (error) {
+        toast.info(error.message || '关注失败，请稍后重试')
+      }
+      return
+    }
+
+    if (action === '引荐') {
+      try {
+        const permission = await gameService.getInvitePermission({ gameId })
+        if (!permission.allowed) {
+          toast.info(permission.reason || '仅局创建者或主领路人可发起引荐')
+          return
+        }
+        navigateShellRoute(`${ROUTES.gameInvite}?gameId=${gameId}`, {
+          currentRoute: ROUTES.gameHall,
+          reuseExisting: false
+        })
+      } catch (error) {
+        toast.info(error.message || '引荐权限校验失败')
+      }
+      return
+    }
+
+    if (action === '打招呼') {
+      try {
+        const gameDetail = await gameService.getGameDetail(gameId)
+        const relation = gameDetail && gameDetail.myRelation ? gameDetail.myRelation : {}
+        if (relation.canEnterIM !== true) {
+          toast.info(relation.isMember === true ? '局还未开' : '仅局内玩家可用，请先报名')
+          return
+        }
+        navigateShellRoute(`${ROUTES.gameGreet}?gameId=${gameId}`, {
+          currentRoute: ROUTES.gameHall,
+          reuseExisting: false
+        })
+      } catch (error) {
+        toast.info(error.message || '局内消息权限校验失败')
+      }
+    }
   },
 
   handleShellNavTap(event) {

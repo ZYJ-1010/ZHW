@@ -61,7 +61,7 @@ func (s *Server) profileInviteNetwork(w http.ResponseWriter, r *http.Request) {
 	s.recordBehavior(userID, "view_profile_invite_network", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"summary": []map[string]interface{}{
-			{"value": strconv.Itoa(len(items)), "label": "已服务\n位玩家"},
+			{"value": strconv.Itoa(len(items)), "label": "已服务"},
 			{"value": incomeDisplayText(revenueEnabled, income.SettledCent), "label": "本周收益"},
 		},
 		"networkNodes":       inviteNetworkNodes(s, items),
@@ -80,6 +80,7 @@ func (s *Server) profileInviteRecords(w http.ResponseWriter, r *http.Request) {
 	}
 	items := s.inviteConnectionsForUser(userID)
 	records := s.inviteRecords(items)
+	timeoutCount := countInviteRecordsByStatus(records, "timeout")
 	role := strings.TrimSpace(r.URL.Query().Get("role"))
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	if role == "" {
@@ -100,12 +101,17 @@ func (s *Server) profileInviteRecords(w http.ResponseWriter, r *http.Request) {
 			{"key": "all", "label": "全部"},
 			{"key": "progress", "label": "进行中(" + strconv.Itoa(countInviteRecordsByStatus(records, "progress")) + ")"},
 			{"key": "completed", "label": "已完成(" + strconv.Itoa(countInviteRecordsByStatus(records, "completed")) + ")"},
-			{"key": "timeout", "label": "超时(0)"},
+			{"key": "timeout", "label": "超时(" + strconv.Itoa(timeoutCount) + ")"},
 			{"key": "cancelled", "label": "已取消(0)"},
 		},
 		"allRecords": records,
 		"records":    filterInviteRecords(records, role, status),
 		"emptyText":  "暂无邀约记录",
+		"timeoutWarning": map[string]interface{}{
+			"show":  timeoutCount > 0,
+			"title": "超时预警",
+			"text":  "有" + strconv.Itoa(timeoutCount) + "个组局超过15天无进展",
+		},
 	})
 }
 
@@ -310,6 +316,10 @@ func (s *Server) inviteRecords(items []connections.Connection) []map[string]inte
 			status = "completed"
 			statusText = "已完成"
 			statusClass = "green"
+		} else if time.Since(item.UpdatedAt) >= 15*24*time.Hour {
+			status = "timeout"
+			statusText = "超时"
+			statusClass = "orange"
 		}
 		records = append(records, map[string]interface{}{
 			"role":         "referred",

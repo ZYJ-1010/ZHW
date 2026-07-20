@@ -116,7 +116,7 @@
                 <view class="record-copy">
                   <text class="record-title">{{item.title}}</text>
                   <text class="record-desc">{{item.desc}}</text>
-                  <text class="record-time">{{item.time}}</text>
+                  <text wx:if="{{item.time}}" class="record-time">{{item.time}}</text>
                 </view>
               </view>
               <text class="record-points {{item.tone}}">{{item.points}}</text>
