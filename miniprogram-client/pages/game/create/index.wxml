@@ -241,30 +241,8 @@
                 <button class="location-map-button" size="mini" catchtap="chooseGameLocation">地图选点</button>
               </view>
             </view>
-            <input
-              class="location-search-input"
-              value="{{locationSearchKeyword}}"
-              placeholder="输入地点关键词"
-              confirm-type="search"
-              bindinput="onLocationSearchInput"
-              bindconfirm="searchLocationByKeyword"
-            />
-            <view wx:if="{{locationSearchResults.length}}" class="time-summary location-summary">
-              <view
-                wx:for="{{locationSearchResults}}"
-                wx:for-item="place"
-                wx:key="id"
-                class="time-summary-item location-summary-item"
-                data-index="{{index}}"
-                bindtap="selectLocationSearchResult"
-              >
-                <text class="time-summary-label">{{place.title}}</text>
-                <text class="time-summary-value location-summary-value">{{place.displayAddress}}</text>
-              </view>
-            </view>
             <view class="time-panel-actions">
               <button class="time-panel-button secondary" bindtap="closeLocationSearchPanel">取消</button>
-              <button class="time-panel-button primary" loading="{{locationSearchLoading}}" disabled="{{locationSearchLoading || locationSearchCooldown}}" bindtap="searchLocationByKeyword">搜索</button>
               <button class="time-panel-button primary" disabled="{{!locationPendingText}}" bindtap="confirmGameLocation">确认地址</button>
             </view>
           </view>

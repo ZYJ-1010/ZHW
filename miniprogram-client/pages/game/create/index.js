@@ -1,7 +1,6 @@
 const toast = require('../../../utils/toast')
 const gameService = require('../../../services/game')
 const fileService = require('../../../services/file')
-const locationService = require('../../../services/location')
 const featureFlags = require('./feature-flags')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
@@ -24,8 +23,6 @@ const INTRO_MAX_LENGTH = 200
 const HIGHLIGHTS_MAX_LENGTH = 100
 const NOTICE_MAX_LENGTH = 100
 const AUDIENCE_MAX_LENGTH = 50
-const LOCATION_SEARCH_RADIUS_METER = 50000
-const LOCATION_SEARCH_COOLDOWN_MS = 3000
 const EMPTY_DEPOSIT_RULE_TEXT = ''
 const EMPTY_DEPOSIT_NOTICE_TEXT = ''
 const EMPTY_GAME_TYPES = []
@@ -391,35 +388,6 @@ function activeOptionKeys(items = []) {
     .filter(Boolean)
 }
 
-function normalizeMapPlace(item = {}) {
-  const longitude = Number(item.longitude)
-  const latitude = Number(item.latitude)
-  const title = String(item.title || item.name || '').trim()
-  const address = String(item.address || '').trim()
-  const cityName = String(item.city || item.cityName || item.district || '').trim()
-
-  if (!title || !Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-    return null
-  }
-
-  return {
-    id: String(item.id || `${title}-${longitude}-${latitude}`),
-    title,
-    address,
-    cityName,
-    cityCode: String(item.cityCode || '').trim(),
-    longitude,
-    latitude,
-    displayAddress: address || cityName || title
-  }
-}
-
-function normalizeMapPlaces(data) {
-  const source = Array.isArray(data && data.items) ? data.items : Array.isArray(data) ? data : []
-
-  return source.map(normalizeMapPlace).filter(Boolean)
-}
-
 function buildLocationMapState(locationInfo = {}) {
   const latitude = Number(locationInfo.latitude)
   const longitude = Number(locationInfo.longitude)
@@ -545,10 +513,6 @@ Page({
     },
     locationPendingText: '',
     locationSearchVisible: false,
-    locationSearchKeyword: '',
-    locationSearchLoading: false,
-    locationSearchCooldown: false,
-    locationSearchResults: [],
     locationMapLatitude: DEFAULT_CREATE_MAP_LATITUDE,
     locationMapLongitude: DEFAULT_CREATE_MAP_LONGITUDE,
     locationMapMarkers: [],
@@ -1083,10 +1047,7 @@ Page({
         if (error.errMsg && error.errMsg.indexOf('cancel') > -1) {
           return
         }
-        // Native map selection depends on the platform map capability. The
-        // keyword search below is backed by the server-side Tencent Map key,
-        // so it remains available when the native picker cannot be opened.
-        toast.info('地图选点暂不可用，可使用下方地点搜索')
+        toast.info('地图选点暂不可用，请稍后重试')
       }
     })
   },
@@ -1098,8 +1059,6 @@ Page({
 
     this.setData({
       locationSearchVisible: true,
-      locationSearchKeyword: '',
-      locationSearchResults: [],
       locationPendingInfo: pendingLocation,
       locationPendingText: locationDisplayText(pendingLocation),
       ...buildLocationMapState(pendingLocation)
@@ -1112,97 +1071,10 @@ Page({
     const mapLocation = hasLocationSelection(committedLocation) ? committedLocation : fallbackLocation
     this.setData({
       locationSearchVisible: false,
-      locationSearchLoading: false,
-      locationSearchKeyword: '',
-      locationSearchResults: [],
       locationPendingInfo: mapLocation,
       locationPendingText: locationDisplayText(mapLocation),
       ...buildLocationMapState(mapLocation)
     })
-  },
-
-  onLocationSearchInput(event) {
-    this.setData({
-      locationSearchKeyword: event.detail.value || ''
-    })
-  },
-
-  async searchLocationByKeyword() {
-    if (this.data.locationSearchLoading || this.data.locationSearchCooldown) {
-      toast.info('请稍后再搜索')
-      return
-    }
-
-    const keyword = String(this.data.locationSearchKeyword || '').trim()
-    const locationInfo = this.data.locationPendingInfo || this.data.locationFallbackInfo || this.data.locationInfo || {}
-    const params = {
-      keyword,
-      page: 1,
-      pageSize: 10
-    }
-
-    if (!keyword) {
-      toast.info('请输入地点关键词')
-      return
-    }
-
-    if (typeof locationInfo.longitude === 'number' && typeof locationInfo.latitude === 'number') {
-      params.longitude = locationInfo.longitude
-      params.latitude = locationInfo.latitude
-      params.radiusMeter = LOCATION_SEARCH_RADIUS_METER
-    } else if (locationInfo.cityName) {
-      params.city = locationInfo.cityName
-    }
-
-    this.setData({
-      locationSearchLoading: true
-    })
-    this.startLocationSearchCooldown()
-
-    try {
-      const data = await locationService.searchMapPlaces(params)
-      const places = normalizeMapPlaces(data)
-
-      this.setData({
-        locationSearchResults: places,
-        locationSearchLoading: false
-      })
-
-      if (!places.length) {
-        toast.info('未找到匹配地点')
-      }
-    } catch (error) {
-      this.setData({
-        locationSearchLoading: false
-      })
-      toast.info(error.message || '地图地点搜索失败')
-    }
-  },
-
-  startLocationSearchCooldown() {
-    if (this.locationSearchCooldownTimer) {
-      clearTimeout(this.locationSearchCooldownTimer)
-    }
-    this.setData({
-      locationSearchCooldown: true
-    })
-    this.locationSearchCooldownTimer = setTimeout(() => {
-      this.locationSearchCooldownTimer = null
-      this.setData({
-        locationSearchCooldown: false
-      })
-    }, LOCATION_SEARCH_COOLDOWN_MS)
-  },
-
-  selectLocationSearchResult(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    const place = this.data.locationSearchResults[index]
-
-    if (!place) {
-      return
-    }
-
-    this.setPendingGameLocation(place)
   },
 
   setPendingGameLocation(place = {}) {
@@ -1221,8 +1093,7 @@ Page({
     this.setData({
       locationPendingInfo: nextLocationInfo,
       locationPendingText: text,
-      ...buildLocationMapState(nextLocationInfo),
-      locationSearchResults: []
+      ...buildLocationMapState(nextLocationInfo)
     })
   },
 
@@ -1230,7 +1101,7 @@ Page({
     const locationInfo = this.data.locationPendingInfo || {}
     const text = locationDisplayText(locationInfo) || '已选择位置'
     if (!hasLocationSelection(locationInfo)) {
-      toast.info('请先在地图上选点或搜索地点')
+      toast.info('请先点击地图选点选择地点')
       return
     }
     this.updateScheduleField('location', text)
@@ -1238,8 +1109,6 @@ Page({
       locationInfo,
       locationPendingText: text,
       locationSearchVisible: false,
-      locationSearchKeyword: '',
-      locationSearchResults: [],
       ...buildLocationMapState(locationInfo)
     })
   },
@@ -1277,7 +1146,7 @@ Page({
       },
       fail: (error = {}) => {
         console.warn('wx.getLocation failed', error)
-        toast.info('定位当前位置失败，请搜索地点')
+        toast.info('定位当前位置失败，请点击地图选点手动选择')
       }
     })
   },
@@ -2095,13 +1964,6 @@ Page({
     this.suppressNextNavTap = false
   },
 
-  clearLocationSearchCooldownTimer() {
-    if (this.locationSearchCooldownTimer) {
-      clearTimeout(this.locationSearchCooldownTimer)
-      this.locationSearchCooldownTimer = null
-    }
-  },
-
   rpxToPx(value) {
     if (!wx.getSystemInfoSync) {
       return value / 2
@@ -2115,6 +1977,5 @@ Page({
 
   onUnload() {
     this.clearCreateScrollTimers()
-    this.clearLocationSearchCooldownTimer()
   }
 })
