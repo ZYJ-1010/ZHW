@@ -1488,19 +1488,46 @@
         <div class="panel-head">
           <div>
             <h2>创建局模板</h2>
-            <p>维护后台运营开局使用的辅助模板。模板仅供后台维护与后续扩展，当前不展示在小程序发起组局页。</p>
+            <p>运营可在此新增、编辑、启停和删除开局模板。模板仅供后台运营维护，当前不展示在小程序发起组局页。</p>
           </div>
           <button id="game-create-template-refresh" class="ghost" type="button">刷新</button>
         </div>
         <form id="game-create-template-form" class="form-grid config-form">
-          <label class="wide">模板配置 JSON<textarea id="game-create-template-config-json" name="configJson" rows="16" spellcheck="false" required></textarea></label>
+          <input name="templateKey" type="hidden" />
+          <label>模板名称<input name="name" maxlength="40" required placeholder="例如：周末桌游" /></label>
+          <label>所属局类型<select id="game-create-template-primary" name="primaryCategory" required></select></label>
+          <label>所属小类别<select id="game-create-template-secondary" name="secondaryCategory" required></select></label>
+          <label>参与方式
+            <select name="participation">
+              <option value="offline">线下</option>
+              <option value="online">线上</option>
+              <option value="hybrid">线上线下</option>
+            </select>
+          </label>
+          <label>建议人数<input name="capacity" type="number" min="5" max="8" value="5" required /></label>
+          <label>排序<input name="order" type="number" min="0" value="10" required /></label>
+          <label>状态
+            <select name="visible"><option value="true">启用</option><option value="false">停用</option></select>
+          </label>
+          <label class="wide">模板说明<textarea name="description" rows="3" maxlength="160" placeholder="说明此模板适用的活动场景"></textarea></label>
+          <label>预设标签<input name="tags" maxlength="120" placeholder="用中文逗号或逗号分隔，例如：同城搭子，桌游" /></label>
+          <label>完成规则<input name="completionRules" maxlength="120" placeholder="例如：时间截止，手动结束" /></label>
           <div class="phase-one-banner config-fixed-note">
             <strong>配置校验</strong>
-            <span>每个模板必须绑定已启用的一级分类和小类别；保存后仅用于后台运营维护。</span>
+            <span>每个模板必须绑定已启用的局类型与小类别。新增或编辑后立即保存至后台。</span>
           </div>
-          <button class="primary" type="submit">保存局模板</button>
+          <div class="row-actions">
+            <button id="game-create-template-submit" class="primary" type="submit">新增模板</button>
+            <button class="ghost" data-action="game-template-cancel-edit" type="button">清空</button>
+          </div>
         </form>
         <div id="game-create-template-config-panel" class="detail-grid"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>模板名称</th><th>局类型</th><th>小类别</th><th>参与方式</th><th>人数</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="game-create-template-table"></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="system-home-display-panel" class="panel hidden" data-tab-panel-group="system">

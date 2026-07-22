@@ -964,6 +964,11 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	var stored gameCategoryConfigDTO
 	if !s.systemConfig.Get(gameCategoryConfigKey, &stored) || len(stored.PrimaryCategories) == 0 {
 		_ = s.systemConfig.Set(gameCategoryConfigKey, defaultGameCategoryConfig())
+	} else {
+		upgraded := upgradeLegacyGameCategoryConfig(stored)
+		if strings.TrimSpace(stored.Version) != strings.TrimSpace(upgraded.Version) || !hasRequiredPrimaryCategories(stored.PrimaryCategories) {
+			_ = s.systemConfig.Set(gameCategoryConfigKey, upgraded)
+		}
 	}
 	var templateStored gameCreateTemplateConfigDTO
 	if !s.systemConfig.Get(gameCreateTemplateConfigKey, &templateStored) {

@@ -55,6 +55,7 @@
   avatarAudits: [],
   roleApplications: [],
   gameCreateTemplateConfig: null,
+  gameCreateTemplateEditingKey: "",
   gameApplicationConfig: null,
   gameAuditConfig: null,
   conditionRuleConfig: null,
@@ -3644,6 +3645,11 @@ async function renderSystem() {
   $("#game-category-form").addEventListener("submit", saveGameCategoryConfig);
   $("#game-create-template-refresh").addEventListener("click", loadGameCreateTemplateConfig);
   $("#game-create-template-form").addEventListener("submit", saveGameCreateTemplateConfig);
+  $("#game-create-template-primary").addEventListener("change", () => {
+    const form = $("#game-create-template-form");
+    if (form && form.elements.secondaryCategory) form.elements.secondaryCategory.value = "";
+    renderGameCreateTemplateForm();
+  });
   $("#home-display-refresh").addEventListener("click", loadHomeDisplayConfig);
   $("#home-display-form").addEventListener("submit", saveHomeDisplayConfig);
   $("#game-application-refresh").addEventListener("click", loadGameApplicationConfig);
@@ -3834,6 +3840,7 @@ async function loadGameCategoryConfig() {
   const textarea = $("#game-category-config-json");
   if (textarea) textarea.value = JSON.stringify(state.gameCategoryConfig, null, 2);
   renderGameCategoryConfig();
+  renderGameCreateTemplateConfig();
 }
 
 function renderGameCategoryConfig() {
@@ -3892,11 +3899,90 @@ async function loadGameCreateTemplateConfig() {
 function renderGameCreateTemplateConfig() {
   const config = state.gameCreateTemplateConfig || {};
   const items = Array.isArray(config.items) ? config.items : [];
-  $("#game-create-template-config-panel").innerHTML = [
+  const panel = $("#game-create-template-config-panel");
+  if (!panel) return;
+  panel.innerHTML = [
     detailCell("可用模板", `${items.filter((item) => item && item.visible !== false).length} 个`),
     detailCell("模板总数", `${items.length} 个`),
     detailCell("配置版本", config.version || "-"),
   ].join("");
+  renderGameCreateTemplateForm();
+  const table = $("#game-create-template-table");
+  if (!table) return;
+  table.innerHTML = items.length ? items.map((item) => `
+    <tr>
+      <td><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.description || "-")}</small></td>
+      <td>${escapeHTML(gameCategoryLabel(item.primaryCategory))}</td>
+      <td>${escapeHTML(gameSecondaryCategoryLabel(item.primaryCategory, item.secondaryCategory))}</td>
+      <td>${escapeHTML(participationLabel(item.participation))}</td>
+      <td>${escapeHTML(item.capacity || "-")}</td>
+      <td><span class="badge ${item.visible === false ? "pending" : "active"}">${item.visible === false ? "停用" : "启用"}</span></td>
+      <td class="row-actions">
+        <button class="ghost" data-action="game-template-edit" data-key="${escapeHTML(item.key)}" type="button">编辑</button>
+        <button class="ghost" data-action="game-template-toggle" data-key="${escapeHTML(item.key)}" type="button">${item.visible === false ? "启用" : "停用"}</button>
+        <button class="ghost danger" data-action="game-template-delete" data-key="${escapeHTML(item.key)}" type="button">删除</button>
+      </td>
+    </tr>
+  `).join("") : emptyRow(7, "暂无局模板");
+}
+
+function gameTemplatePrimaryCategories() {
+  const config = state.gameCategoryConfig || {};
+  const categories = Array.isArray(config.primaryCategories) ? config.primaryCategories : [];
+  return categories.filter((item) => item && item.key && item.visible !== false);
+}
+
+function gameCategoryLabel(key) {
+  const item = gameTemplatePrimaryCategories().find((category) => category.key === key);
+  return item ? item.name : (key || "-");
+}
+
+function gameSecondaryCategoryLabel(primaryKey, secondaryKey) {
+  const primary = gameTemplatePrimaryCategories().find((category) => category.key === primaryKey);
+  const item = primary && Array.isArray(primary.children)
+    ? primary.children.find((child) => child && child.key === secondaryKey)
+    : null;
+  return item ? item.name : (secondaryKey || "-");
+}
+
+function participationLabel(value) {
+  return { online: "线上", offline: "线下", hybrid: "线上线下" }[value] || "未设置";
+}
+
+function splitTemplateValues(value) {
+  return Array.from(new Set(String(value || "").split(/[，,、\n]/).map((item) => item.trim()).filter(Boolean)));
+}
+
+function renderGameCreateTemplateForm() {
+  const form = $("#game-create-template-form");
+  if (!form) return;
+  const categories = gameTemplatePrimaryCategories();
+  const editing = (state.gameCreateTemplateConfig?.items || []).find((item) => item.key === state.gameCreateTemplateEditingKey);
+  const primarySelect = form.elements.primaryCategory;
+  const secondarySelect = form.elements.secondaryCategory;
+  if (!primarySelect || !secondarySelect) return;
+  const selectedPrimary = String(primarySelect.value || editing?.primaryCategory || categories[0]?.key || "");
+  primarySelect.innerHTML = categories.map((item) => `<option value="${escapeHTML(item.key)}">${escapeHTML(item.name)}</option>`).join("");
+  primarySelect.value = categories.some((item) => item.key === selectedPrimary) ? selectedPrimary : (categories[0]?.key || "");
+  const primary = categories.find((item) => item.key === primarySelect.value);
+  const children = Array.isArray(primary?.children) ? primary.children.filter((item) => item && item.key && item.visible !== false) : [];
+  const selectedSecondary = String(secondarySelect.value || editing?.secondaryCategory || children[0]?.key || "");
+  secondarySelect.innerHTML = children.map((item) => `<option value="${escapeHTML(item.key)}">${escapeHTML(item.name)}</option>`).join("");
+  secondarySelect.value = children.some((item) => item.key === selectedSecondary) ? selectedSecondary : (children[0]?.key || "");
+}
+
+function resetGameCreateTemplateForm() {
+  state.gameCreateTemplateEditingKey = "";
+  const form = $("#game-create-template-form");
+  if (!form) return;
+  form.reset();
+  form.elements.templateKey.value = "";
+  form.elements.capacity.value = "5";
+  form.elements.order.value = String(((state.gameCreateTemplateConfig?.items || []).length + 1) * 10);
+  form.elements.visible.value = "true";
+  const submit = $("#game-create-template-submit");
+  if (submit) submit.textContent = "新增模板";
+  renderGameCreateTemplateForm();
 }
 
 async function saveGameCreateTemplateConfig(event) {
@@ -3905,25 +3991,62 @@ async function saveGameCreateTemplateConfig(event) {
     toast("缺少 system_config:update", true);
     return;
   }
-  const raw = String(new FormData(event.currentTarget).get("configJson") || "").trim();
-  if (!raw) {
-    toast("局模板配置不能为空", true);
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const name = String(data.name || "").trim();
+  const primaryCategory = String(data.primaryCategory || "").trim();
+  const secondaryCategory = String(data.secondaryCategory || "").trim();
+  const capacity = Number(data.capacity || 0);
+  if (!name || !primaryCategory || !secondaryCategory || !Number.isInteger(capacity) || capacity <= 0) {
+    toast("请完整填写模板名称、局类型、小类别和建议人数", true);
     return;
   }
-  let payload;
-  try {
-    payload = JSON.parse(raw);
-  } catch (error) {
-    toast("局模板配置格式不正确", true);
+  const config = state.gameCreateTemplateConfig || {};
+  const items = Array.isArray(config.items) ? config.items.slice() : [];
+  const editingKey = String(data.templateKey || state.gameCreateTemplateEditingKey || "").trim();
+  if (items.some((item) => item.key !== editingKey && item.name === name)) {
+    toast("模板名称已存在，请更换名称", true);
     return;
   }
+  const item = {
+    key: editingKey || `template_${Date.now()}`,
+    name,
+    description: String(data.description || "").trim(),
+    primaryCategory,
+    secondaryCategory,
+    participation: String(data.participation || "offline").trim(),
+    capacity,
+    tags: splitTemplateValues(data.tags),
+    completionRules: splitTemplateValues(data.completionRules),
+    visible: String(data.visible) !== "false",
+    order: Number(data.order || 0),
+  };
+  const index = items.findIndex((template) => template.key === item.key);
+  if (index >= 0) items[index] = item;
+  else items.push(item);
   try {
-    const data = await apiPut("/api/admin/games/create-template-config", payload);
-    state.gameCreateTemplateConfig = data.config || data;
-    const textarea = $("#game-create-template-config-json");
-    if (textarea) textarea.value = JSON.stringify(state.gameCreateTemplateConfig, null, 2);
+    const result = await apiPut("/api/admin/games/create-template-config", { items, version: config.version || "2026-07-23-create-templates-v2" });
+    state.gameCreateTemplateConfig = result.config || result;
+    resetGameCreateTemplateForm();
     renderGameCreateTemplateConfig();
-    toast("局模板已保存，当前仅用于后台运营维护");
+    toast(index >= 0 ? "局模板已更新" : "局模板已新增");
+  } catch (error) {
+    toast(error.message || "局模板保存失败", true);
+  }
+}
+
+async function updateGameCreateTemplateItems(items, successText) {
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const config = state.gameCreateTemplateConfig || {};
+  try {
+    const result = await apiPut("/api/admin/games/create-template-config", { items, version: config.version || "2026-07-23-create-templates-v2" });
+    state.gameCreateTemplateConfig = result.config || result;
+    resetGameCreateTemplateForm();
+    renderGameCreateTemplateConfig();
+    toast(successText);
   } catch (error) {
     toast(error.message || "局模板保存失败", true);
   }
@@ -4842,6 +4965,46 @@ async function loadAIExportConfig() {
 async function onSystemActionClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
+  if (button.dataset.action === "game-template-cancel-edit") {
+    resetGameCreateTemplateForm();
+    return;
+  }
+  if (button.dataset.action === "game-template-edit") {
+    const item = (state.gameCreateTemplateConfig?.items || []).find((template) => template.key === button.dataset.key);
+    const form = $("#game-create-template-form");
+    if (!item || !form) return;
+    state.gameCreateTemplateEditingKey = item.key;
+    form.elements.templateKey.value = item.key;
+    form.elements.name.value = item.name || "";
+    form.elements.description.value = item.description || "";
+    form.elements.primaryCategory.value = item.primaryCategory || "";
+    renderGameCreateTemplateForm();
+    form.elements.secondaryCategory.value = item.secondaryCategory || "";
+    form.elements.participation.value = item.participation || "offline";
+    form.elements.capacity.value = item.capacity || 5;
+    form.elements.order.value = item.order || 0;
+    form.elements.visible.value = item.visible === false ? "false" : "true";
+    form.elements.tags.value = (item.tags || []).join("，");
+    form.elements.completionRules.value = (item.completionRules || []).join("，");
+    const submit = $("#game-create-template-submit");
+    if (submit) submit.textContent = "保存修改";
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (["game-template-toggle", "game-template-delete"].includes(button.dataset.action)) {
+    const items = Array.isArray(state.gameCreateTemplateConfig?.items) ? state.gameCreateTemplateConfig.items.slice() : [];
+    const index = items.findIndex((item) => item.key === button.dataset.key);
+    if (index < 0) return;
+    if (button.dataset.action === "game-template-delete") {
+      if (!window.confirm(`确认删除局模板“${items[index].name}”吗？`)) return;
+      items.splice(index, 1);
+      await updateGameCreateTemplateItems(items, "局模板已删除");
+      return;
+    }
+    items[index] = Object.assign({}, items[index], { visible: items[index].visible === false });
+    await updateGameCreateTemplateItems(items, items[index].visible ? "局模板已启用" : "局模板已停用");
+    return;
+  }
   if (button.dataset.action === "guide-rule-load") {
     fillGuideRuleForm(button.dataset.id);
     return;
