@@ -226,14 +226,8 @@
               <text class="time-summary-value">{{signupTimeSummary.durationText}}</text>
             </view>
           </view>
-          <view wx:if="{{item.key === 'location' && item.value}}" class="time-summary location-summary">
-            <view class="time-summary-item location-summary-item">
-              <text class="time-summary-label">组局地址</text>
-              <text class="time-summary-value location-summary-value">{{item.value}}</text>
-            </view>
-          </view>
           <view wx:if="{{item.key === 'location' && locationSearchVisible}}" class="time-panel">
-            <view class="location-map-card" bindtap="chooseGameLocation">
+            <view class="location-map-card">
               <map
                 class="location-map"
                 latitude="{{locationMapLatitude}}"
@@ -243,7 +237,7 @@
                 show-location
               ></map>
               <view class="location-map-footer">
-                <text>{{locationInfo.name || '在地图上选择组局位置'}}</text>
+                <text>{{locationPendingText || '请在地图上选择组局位置'}}</text>
                 <button class="location-map-button" size="mini" catchtap="chooseGameLocation">地图选点</button>
               </view>
             </view>
@@ -271,6 +265,7 @@
             <view class="time-panel-actions">
               <button class="time-panel-button secondary" bindtap="closeLocationSearchPanel">取消</button>
               <button class="time-panel-button primary" loading="{{locationSearchLoading}}" disabled="{{locationSearchLoading || locationSearchCooldown}}" bindtap="searchLocationByKeyword">搜索</button>
+              <button class="time-panel-button primary" disabled="{{!locationPendingText}}" bindtap="confirmGameLocation">确认地址</button>
             </view>
           </view>
         </view>

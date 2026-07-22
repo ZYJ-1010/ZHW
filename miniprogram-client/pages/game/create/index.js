@@ -442,6 +442,16 @@ function buildLocationMapState(locationInfo = {}) {
   }
 }
 
+function locationDisplayText(locationInfo = {}) {
+  return String(locationInfo.name || locationInfo.title || locationInfo.address || '').trim()
+}
+
+function hasLocationSelection(locationInfo = {}) {
+  const latitude = Number(locationInfo.latitude)
+  const longitude = Number(locationInfo.longitude)
+  return Boolean(locationDisplayText(locationInfo)) || (Number.isFinite(latitude) && Number.isFinite(longitude))
+}
+
 function normalizeConditionRuleConfig(data = {}) {
   const ruleItems = Array.isArray(data.ruleItems)
     ? data.ruleItems
@@ -517,6 +527,23 @@ Page({
       latitude: '',
       longitude: ''
     },
+    locationFallbackInfo: {
+      name: '',
+      address: '',
+      cityCode: '',
+      cityName: '',
+      latitude: '',
+      longitude: ''
+    },
+    locationPendingInfo: {
+      name: '',
+      address: '',
+      cityCode: '',
+      cityName: '',
+      latitude: '',
+      longitude: ''
+    },
+    locationPendingText: '',
     locationSearchVisible: false,
     locationSearchKeyword: '',
     locationSearchLoading: false,
@@ -661,6 +688,8 @@ Page({
       gameTimeConfirmed,
       signupTimeConfirmed,
       locationInfo,
+      locationPendingInfo: locationInfo,
+      locationPendingText: locationDisplayText(locationInfo),
       descriptionMedia: Array.isArray(draft.descriptionMedia) ? draft.descriptionMedia : [],
       gameTimeSummary: gameTimeConfirmed ? {
         startText: `${timeDraft.startDate} ${timeDraft.startTime}`,
@@ -1033,7 +1062,7 @@ Page({
 
   chooseGameLocation() {
     const locationOptions = {}
-    const locationInfo = this.data.locationInfo || {}
+    const locationInfo = this.data.locationPendingInfo || this.data.locationInfo || {}
 
     if (typeof locationInfo.latitude === 'number' && typeof locationInfo.longitude === 'number') {
       locationOptions.latitude = locationInfo.latitude
@@ -1043,50 +1072,52 @@ Page({
     wx.chooseLocation({
       ...locationOptions,
       success: (res = {}) => {
-        const name = res.name || ''
-        const address = res.address || ''
-        const text = name || address || '已选择位置'
-
-        this.updateScheduleField('location', text)
-        const nextLocationInfo = {
-          name,
-          address,
+        this.setPendingGameLocation({
+          name: res.name || '',
+          address: res.address || '',
           latitude: typeof res.latitude === 'number' ? res.latitude : '',
           longitude: typeof res.longitude === 'number' ? res.longitude : ''
-        }
-        this.setData({
-          locationInfo: nextLocationInfo,
-          ...buildLocationMapState(nextLocationInfo)
         })
       },
       fail: (error = {}) => {
         if (error.errMsg && error.errMsg.indexOf('cancel') > -1) {
           return
         }
-
-        toast.info('地图选点失败')
+        // Native map selection depends on the platform map capability. The
+        // keyword search below is backed by the server-side Tencent Map key,
+        // so it remains available when the native picker cannot be opened.
+        toast.info('地图选点暂不可用，可使用下方地点搜索')
       }
     })
   },
 
   openLocationSearchPanel() {
-    const locationInfo = this.data.locationInfo || {}
-    const keyword = String(this.data.locationSearchKeyword || locationInfo.name || locationInfo.address || '').trim()
+    const committedLocation = this.data.locationInfo || {}
+    const fallbackLocation = this.data.locationFallbackInfo || {}
+    const pendingLocation = hasLocationSelection(committedLocation) ? committedLocation : fallbackLocation
 
     this.setData({
       locationSearchVisible: true,
-      locationSearchKeyword: keyword
+      locationSearchKeyword: '',
+      locationSearchResults: [],
+      locationPendingInfo: pendingLocation,
+      locationPendingText: locationDisplayText(pendingLocation),
+      ...buildLocationMapState(pendingLocation)
     })
-
-    if (keyword) {
-      this.searchLocationByKeyword()
-    }
   },
 
   closeLocationSearchPanel() {
+    const committedLocation = this.data.locationInfo || {}
+    const fallbackLocation = this.data.locationFallbackInfo || {}
+    const mapLocation = hasLocationSelection(committedLocation) ? committedLocation : fallbackLocation
     this.setData({
       locationSearchVisible: false,
-      locationSearchLoading: false
+      locationSearchLoading: false,
+      locationSearchKeyword: '',
+      locationSearchResults: [],
+      locationPendingInfo: mapLocation,
+      locationPendingText: locationDisplayText(mapLocation),
+      ...buildLocationMapState(mapLocation)
     })
   },
 
@@ -1103,7 +1134,7 @@ Page({
     }
 
     const keyword = String(this.data.locationSearchKeyword || '').trim()
-    const locationInfo = this.data.locationInfo || {}
+    const locationInfo = this.data.locationPendingInfo || this.data.locationFallbackInfo || this.data.locationInfo || {}
     const params = {
       keyword,
       page: 1,
@@ -1171,15 +1202,14 @@ Page({
       return
     }
 
-    this.applyGameLocation(place)
+    this.setPendingGameLocation(place)
   },
 
-  applyGameLocation(place = {}) {
+  setPendingGameLocation(place = {}) {
     const name = place.title || place.name || ''
     const address = place.address || ''
     const text = name || address || '已选择位置'
 
-    this.updateScheduleField('location', text)
     const nextLocationInfo = {
       name,
       address,
@@ -1189,10 +1219,28 @@ Page({
       longitude: typeof place.longitude === 'number' ? place.longitude : ''
     }
     this.setData({
-      locationInfo: nextLocationInfo,
+      locationPendingInfo: nextLocationInfo,
+      locationPendingText: text,
       ...buildLocationMapState(nextLocationInfo),
-      locationSearchVisible: false,
       locationSearchResults: []
+    })
+  },
+
+  confirmGameLocation() {
+    const locationInfo = this.data.locationPendingInfo || {}
+    const text = locationDisplayText(locationInfo) || '已选择位置'
+    if (!hasLocationSelection(locationInfo)) {
+      toast.info('请先在地图上选点或搜索地点')
+      return
+    }
+    this.updateScheduleField('location', text)
+    this.setData({
+      locationInfo,
+      locationPendingText: text,
+      locationSearchVisible: false,
+      locationSearchKeyword: '',
+      locationSearchResults: [],
+      ...buildLocationMapState(locationInfo)
     })
   },
 
@@ -1214,7 +1262,6 @@ Page({
           return
         }
 
-        this.updateScheduleField('location', this.data.createForm.currentLocationText)
         const nextLocationInfo = {
           name: this.data.createForm.currentLocationText,
           address: '',
@@ -1222,7 +1269,9 @@ Page({
           longitude: res.longitude
         }
         this.setData({
-          locationInfo: nextLocationInfo,
+          locationFallbackInfo: nextLocationInfo,
+          locationPendingInfo: nextLocationInfo,
+          locationPendingText: '',
           ...buildLocationMapState(nextLocationInfo)
         })
       },
