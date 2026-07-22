@@ -120,7 +120,7 @@ page {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 88rpx;
+  height: 396rpx;
   margin: 16rpx 0 42rpx;
   padding: 0;
   border: 0;

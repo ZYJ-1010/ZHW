@@ -28,7 +28,7 @@
           <text class="section-title">局封面</text>
           <text class="section-required">{{coverUploadEnabled ? '（必填）' : '（当前使用默认封面）'}}</text>
         </view>
-        <text wx:if="{{coverUploadEnabled}}" class="cover-hint">仅支持 JPG/JPEG、PNG、WEBP，单张不超过 10MB</text>
+        <text wx:if="{{coverUploadEnabled}}" class="cover-hint">选择后裁剪为 5:3 横图，建议不小于 750 × 450，单张不超过 10MB</text>
         <text wx:else class="cover-hint">真实封面上传恢复后，可通过配置开关重新启用</text>
         <view wx:if="{{coverUploadEnabled}}" class="cover-uploader" bindtap="chooseCover">
           <image wx:if="{{coverImage}}" class="cover-preview" src="{{coverImage}}" mode="aspectFill" />

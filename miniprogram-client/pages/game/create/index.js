@@ -11,6 +11,9 @@ const CREATE_SCROLL_HOLD_INTERVAL_MS = 80
 const CREATE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 const COVER_ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'webp']
 const COVER_MAX_SIZE = 10 * 1024 * 1024
+const COVER_CROP_SCALE = 5 / 3
+const COVER_MIN_WIDTH = 750
+const COVER_MIN_HEIGHT = 450
 const DEFAULT_GAME_COVER = 'https://static.haowan.net.cn/miniprogram/components/game-card/assets/game-cover-default.png'
 const DESCRIPTION_ALLOWED_IMAGE_FORMATS = ['jpg', 'jpeg', 'png']
 const DESCRIPTION_ALLOWED_VIDEO_FORMATS = ['mp4', 'mov']
@@ -861,7 +864,7 @@ Page({
         const tempFilePath = file && file.tempFilePath
 
         if (tempFilePath) {
-          this.validateAndSetCoverImage(file)
+          this.cropAndSetCoverImage(file)
         }
       },
       fail: (error = {}) => {
@@ -874,12 +877,58 @@ Page({
     })
   },
 
+  cropAndSetCoverImage(file = {}) {
+    const sourcePath = String(file.tempFilePath || '').trim()
+    if (!sourcePath) {
+      toast.info('图片读取失败，请重新选择')
+      return
+    }
+
+    const continueWithPath = (tempFilePath) => {
+      const croppedFile = { ...file, tempFilePath, size: 0 }
+      if (typeof wx.getFileInfo !== 'function') {
+        this.validateAndSetCoverImage(croppedFile)
+        return
+      }
+      wx.getFileInfo({
+        filePath: tempFilePath,
+        success: (info = {}) => this.validateAndSetCoverImage({ ...croppedFile, size: Number(info.size || 0) }),
+        fail: () => this.validateAndSetCoverImage(croppedFile)
+      })
+    }
+
+    if (typeof wx.cropImage !== 'function') {
+      toast.info('当前微信版本不支持封面裁剪，请升级后重试')
+      return
+    }
+
+    wx.cropImage({
+      src: sourcePath,
+      cropScale: COVER_CROP_SCALE,
+      success: (result = {}) => continueWithPath(String(result.tempFilePath || '').trim()),
+      fail: (error = {}) => {
+        if (String(error.errMsg || '').includes('cancel')) {
+          return
+        }
+        toast.info('封面裁剪失败，请重新选择图片')
+      }
+    })
+  },
+
   validateAndSetCoverImage(file = {}) {
     wx.getImageInfo({
       src: file.tempFilePath,
       success: (imageInfo) => {
         if (!isAllowedCoverFormat(file, imageInfo)) {
           toast.info('封面仅支持 JPG/JPEG、PNG、WEBP')
+          return
+        }
+
+        const width = Number(imageInfo.width || 0)
+        const height = Number(imageInfo.height || 0)
+        const cropRatio = width / height
+        if (width < COVER_MIN_WIDTH || height < COVER_MIN_HEIGHT || Math.abs(cropRatio - COVER_CROP_SCALE) > 0.02) {
+          toast.info('封面需裁剪为 5:3 横图，且不小于 750 × 450')
           return
         }
 
