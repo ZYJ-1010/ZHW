@@ -418,55 +418,6 @@ page {
   white-space: nowrap;
 }
 
-.location-map-card {
-  overflow: hidden;
-  margin-bottom: 18rpx;
-  border-radius: 20rpx;
-  background: #ffffff;
-}
-
-.location-map {
-  display: block;
-  width: 100%;
-  height: 260rpx;
-}
-
-.location-map-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 72rpx;
-  padding: 0 18rpx;
-  box-sizing: border-box;
-  color: #101010;
-  font-size: 22rpx;
-  line-height: 30rpx;
-}
-
-.location-map-footer text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.location-map-button {
-  flex: none;
-  height: 48rpx;
-  margin: 0 0 0 16rpx;
-  padding: 0 20rpx;
-  border-radius: 24rpx;
-  background: #ffb13b;
-  color: #101010;
-  font-size: 20rpx;
-  line-height: 48rpx;
-}
-
-.location-map-button::after {
-  border: 0;
-}
-
 .time-panel-actions {
   display: flex;
   justify-content: flex-end;
@@ -536,21 +487,6 @@ page {
   color: #101010;
   text-align: right;
   white-space: nowrap;
-}
-
-.location-summary-item {
-  align-items: flex-start;
-  min-height: 72rpx;
-  padding-top: 16rpx;
-  padding-bottom: 16rpx;
-}
-
-.location-summary-value {
-  flex: 1;
-  min-width: 0;
-  margin-left: 18rpx;
-  white-space: normal;
-  word-break: break-all;
 }
 
 .capacity-row {

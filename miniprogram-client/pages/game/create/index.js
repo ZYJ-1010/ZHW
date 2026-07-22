@@ -12,8 +12,6 @@ const CREATE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 const COVER_ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'webp']
 const COVER_MAX_SIZE = 10 * 1024 * 1024
 const DEFAULT_GAME_COVER = 'https://static.haowan.net.cn/miniprogram/components/game-card/assets/game-cover-default.png'
-const DEFAULT_CREATE_MAP_LATITUDE = 31.2304
-const DEFAULT_CREATE_MAP_LONGITUDE = 121.4737
 const DESCRIPTION_ALLOWED_IMAGE_FORMATS = ['jpg', 'jpeg', 'png']
 const DESCRIPTION_ALLOWED_VIDEO_FORMATS = ['mp4', 'mov']
 const DESCRIPTION_IMAGE_MAX_COUNT = 9
@@ -388,38 +386,6 @@ function activeOptionKeys(items = []) {
     .filter(Boolean)
 }
 
-function buildLocationMapState(locationInfo = {}) {
-  const latitude = Number(locationInfo.latitude)
-  const longitude = Number(locationInfo.longitude)
-  const hasCoordinate = Number.isFinite(latitude) && Number.isFinite(longitude)
-  const mapLatitude = hasCoordinate ? latitude : DEFAULT_CREATE_MAP_LATITUDE
-  const mapLongitude = hasCoordinate ? longitude : DEFAULT_CREATE_MAP_LONGITUDE
-  const title = String(locationInfo.name || locationInfo.title || '组局位置').trim() || '组局位置'
-
-  return {
-    locationMapLatitude: mapLatitude,
-    locationMapLongitude: mapLongitude,
-    locationMapMarkers: hasCoordinate ? [{
-      id: 1,
-      latitude: mapLatitude,
-      longitude: mapLongitude,
-      title,
-      width: 28,
-      height: 28
-    }] : []
-  }
-}
-
-function locationDisplayText(locationInfo = {}) {
-  return String(locationInfo.name || locationInfo.title || locationInfo.address || '').trim()
-}
-
-function hasLocationSelection(locationInfo = {}) {
-  const latitude = Number(locationInfo.latitude)
-  const longitude = Number(locationInfo.longitude)
-  return Boolean(locationDisplayText(locationInfo)) || (Number.isFinite(latitude) && Number.isFinite(longitude))
-}
-
 function normalizeConditionRuleConfig(data = {}) {
   const ruleItems = Array.isArray(data.ruleItems)
     ? data.ruleItems
@@ -503,19 +469,6 @@ Page({
       latitude: '',
       longitude: ''
     },
-    locationPendingInfo: {
-      name: '',
-      address: '',
-      cityCode: '',
-      cityName: '',
-      latitude: '',
-      longitude: ''
-    },
-    locationPendingText: '',
-    locationSearchVisible: false,
-    locationMapLatitude: DEFAULT_CREATE_MAP_LATITUDE,
-    locationMapLongitude: DEFAULT_CREATE_MAP_LONGITUDE,
-    locationMapMarkers: [],
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -652,8 +605,6 @@ Page({
       gameTimeConfirmed,
       signupTimeConfirmed,
       locationInfo,
-      locationPendingInfo: locationInfo,
-      locationPendingText: locationDisplayText(locationInfo),
       descriptionMedia: Array.isArray(draft.descriptionMedia) ? draft.descriptionMedia : [],
       gameTimeSummary: gameTimeConfirmed ? {
         startText: `${timeDraft.startDate} ${timeDraft.startTime}`,
@@ -674,7 +625,6 @@ Page({
       this.updateScheduleField('signupTime', getTimeDraftText(signupTimeDraft))
     }
     this.updateScheduleField('location', String(locationInfo.name || locationInfo.address || '').trim())
-    this.setData(buildLocationMapState(locationInfo))
     if (Array.isArray(this.data.gameTypes) && this.data.gameTypes.length) {
       this.applyPendingDraftSelections()
     }
@@ -1017,7 +967,7 @@ Page({
         timePanelVisible: false,
         signupTimePanelVisible: false
       })
-      this.openLocationSearchPanel()
+      this.chooseGameLocation()
       return
     }
 
@@ -1026,7 +976,11 @@ Page({
 
   chooseGameLocation() {
     const locationOptions = {}
-    const locationInfo = this.data.locationPendingInfo || this.data.locationInfo || {}
+    const selectedLocation = this.data.locationInfo || {}
+    const fallbackLocation = this.data.locationFallbackInfo || {}
+    const locationInfo = (typeof selectedLocation.latitude === 'number' && typeof selectedLocation.longitude === 'number')
+      ? selectedLocation
+      : fallbackLocation
 
     if (typeof locationInfo.latitude === 'number' && typeof locationInfo.longitude === 'number') {
       locationOptions.latitude = locationInfo.latitude
@@ -1036,12 +990,15 @@ Page({
     wx.chooseLocation({
       ...locationOptions,
       success: (res = {}) => {
-        this.setPendingGameLocation({
+        const nextLocationInfo = {
           name: res.name || '',
           address: res.address || '',
           latitude: typeof res.latitude === 'number' ? res.latitude : '',
           longitude: typeof res.longitude === 'number' ? res.longitude : ''
-        })
+        }
+        const text = String(nextLocationInfo.name || nextLocationInfo.address || '已选择位置').trim()
+        this.updateScheduleField('location', text)
+        this.setData({ locationInfo: nextLocationInfo })
       },
       fail: (error = {}) => {
         if (error.errMsg && error.errMsg.indexOf('cancel') > -1) {
@@ -1049,67 +1006,6 @@ Page({
         }
         toast.info('地图选点暂不可用，请稍后重试')
       }
-    })
-  },
-
-  openLocationSearchPanel() {
-    const committedLocation = this.data.locationInfo || {}
-    const fallbackLocation = this.data.locationFallbackInfo || {}
-    const pendingLocation = hasLocationSelection(committedLocation) ? committedLocation : fallbackLocation
-
-    this.setData({
-      locationSearchVisible: true,
-      locationPendingInfo: pendingLocation,
-      locationPendingText: locationDisplayText(pendingLocation),
-      ...buildLocationMapState(pendingLocation)
-    })
-  },
-
-  closeLocationSearchPanel() {
-    const committedLocation = this.data.locationInfo || {}
-    const fallbackLocation = this.data.locationFallbackInfo || {}
-    const mapLocation = hasLocationSelection(committedLocation) ? committedLocation : fallbackLocation
-    this.setData({
-      locationSearchVisible: false,
-      locationPendingInfo: mapLocation,
-      locationPendingText: locationDisplayText(mapLocation),
-      ...buildLocationMapState(mapLocation)
-    })
-  },
-
-  setPendingGameLocation(place = {}) {
-    const name = place.title || place.name || ''
-    const address = place.address || ''
-    const text = name || address || '已选择位置'
-
-    const nextLocationInfo = {
-      name,
-      address,
-      cityCode: place.cityCode || '',
-      cityName: place.cityName || '',
-      latitude: typeof place.latitude === 'number' ? place.latitude : '',
-      longitude: typeof place.longitude === 'number' ? place.longitude : ''
-    }
-    this.setData({
-      locationPendingInfo: nextLocationInfo,
-      locationPendingText: text,
-      ...buildLocationMapState(nextLocationInfo)
-    })
-  },
-
-  confirmGameLocation() {
-    const locationInfo = this.data.locationPendingInfo || {}
-    const text = locationDisplayText(locationInfo) || '已选择位置'
-    if (!hasLocationSelection(locationInfo)) {
-      toast.info('请先点击地图选点选择地点')
-      return
-    }
-    this.updateScheduleField('location', text)
-    this.setData({
-      locationInfo,
-      locationPendingText: text,
-      locationSearchVisible: false,
-      ...buildLocationMapState(locationInfo)
     })
   },
 
@@ -1139,9 +1035,6 @@ Page({
         }
         this.setData({
           locationFallbackInfo: nextLocationInfo,
-          locationPendingInfo: nextLocationInfo,
-          locationPendingText: '',
-          ...buildLocationMapState(nextLocationInfo)
         })
       },
       fail: (error = {}) => {
