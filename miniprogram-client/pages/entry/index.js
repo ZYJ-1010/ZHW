@@ -139,7 +139,7 @@ Page({
     try {
       const entry = await authService.precheckWechatEntry()
       if (entry.boundWechat) {
-        this.continueToRegisteredLogin()
+        await this.loginBoundWechatAndContinue()
         return
       }
       if (this.data.inviteCode) {
@@ -157,6 +157,32 @@ Page({
       }
     } finally {
       this.setData({ isWechatChecking: false })
+    }
+  },
+
+  async loginBoundWechatAndContinue() {
+    if (this.data.isInviteNavigating) {
+      return
+    }
+    this.setData({ isInviteNavigating: true })
+    try {
+      // The precheck only determines whether this WeChat account is bound.
+      // Obtain a fresh one-time code for the actual session login, then enter
+      // the app directly instead of showing the login screen again.
+      const loginData = await authService.loginByWechat()
+      if (!loginData || !loginData.token) {
+        throw new Error('微信登录凭证无效')
+      }
+      const url = `/${ROUTES.playerHome}`
+      wx.reLaunch({
+        url,
+        fail: () => wx.redirectTo({ url })
+      })
+    } catch (error) {
+      // Keep the existing login page as the recovery path when WeChat's
+      // temporary credential cannot be exchanged, such as a network failure.
+      this.setData({ isInviteNavigating: false })
+      this.continueToRegisteredLogin()
     }
   },
 
