@@ -489,6 +489,14 @@ page {
   white-space: nowrap;
 }
 
+.location-selected-value {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .capacity-row {
   display: flex;
   align-items: center;

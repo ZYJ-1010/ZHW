@@ -84,8 +84,8 @@
               </view>
               <text wx:if="{{!(item.key === 'location' && item.value)}}" class="field-hint">{{item.hint}}</text>
             </view>
-            <view class="select-action {{item.value ? 'selected' : ''}}">
-              <text>{{item.key === 'location' ? (item.value || '请选择') : (item.value && item.key !== 'gameTime' && item.key !== 'signupTime' ? item.value : '请选择')}}</text>
+            <view class="select-action {{item.value && item.key !== 'location' ? 'selected' : ''}}">
+              <text>{{item.key === 'location' ? '请选择' : (item.value && item.key !== 'gameTime' && item.key !== 'signupTime' ? item.value : '请选择')}}</text>
               <text class="chevron">›</text>
             </view>
           </view>
@@ -224,6 +224,12 @@
             <view class="time-summary-item">
               <text class="time-summary-label">报名持续时间</text>
               <text class="time-summary-value">{{signupTimeSummary.durationText}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.key === 'location' && item.value}}" class="time-summary">
+            <view class="time-summary-item location-selected-item">
+              <text class="time-summary-label">已选地址</text>
+              <text class="time-summary-value location-selected-value">{{item.value}}</text>
             </view>
           </view>
         </view>
