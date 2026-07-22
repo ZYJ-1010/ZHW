@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -711,10 +710,7 @@ func passwordHash(password string) (string, error) {
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
-	key, err := pbkdf2.Key(sha256.New, password, salt, 180000, 32)
-	if err != nil {
-		return "", err
-	}
+	key := derivePasswordKey([]byte(password), salt, 180000, 32)
 	return base64.RawStdEncoding.EncodeToString(salt) + ":" + base64.RawStdEncoding.EncodeToString(key), nil
 }
 
@@ -731,11 +727,36 @@ func verifyPassword(encoded string, password string) bool {
 	if err != nil {
 		return false
 	}
-	actual, err := pbkdf2.Key(sha256.New, password, salt, 180000, len(expected))
-	if err != nil {
-		return false
-	}
+	actual := derivePasswordKey([]byte(password), salt, 180000, len(expected))
 	return subtle.ConstantTimeCompare(actual, expected) == 1
+}
+
+// derivePasswordKey implements PBKDF2-HMAC-SHA256 without relying on a Go
+// standard-library package introduced after the production build image's Go 1.22.
+func derivePasswordKey(password, salt []byte, iterations, keyLen int) []byte {
+	if iterations <= 0 || keyLen <= 0 {
+		return nil
+	}
+	hashLen := sha256.Size
+	blockCount := (keyLen + hashLen - 1) / hashLen
+	output := make([]byte, 0, blockCount*hashLen)
+	for block := 1; block <= blockCount; block++ {
+		input := append(append([]byte(nil), salt...), byte(block>>24), byte(block>>16), byte(block>>8), byte(block))
+		mac := hmac.New(sha256.New, password)
+		_, _ = mac.Write(input)
+		u := mac.Sum(nil)
+		t := append([]byte(nil), u...)
+		for round := 1; round < iterations; round++ {
+			mac = hmac.New(sha256.New, password)
+			_, _ = mac.Write(u)
+			u = mac.Sum(nil)
+			for index := range t {
+				t[index] ^= u[index]
+			}
+		}
+		output = append(output, t...)
+	}
+	return output[:keyLen]
 }
 
 func (s *Service) IssueAppToken(userID int64) (Session, error) {
