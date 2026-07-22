@@ -700,7 +700,6 @@ Page({
 
       this.setData(nextData)
       this.applyPendingDraftSelections()
-      this.initGameLocation()
       if (nextData['form.feeType']) {
         this.loadProfitTemplates(nextData['form.feeType'])
       }
@@ -975,12 +974,40 @@ Page({
   },
 
   chooseGameLocation() {
-    const locationOptions = {}
     const selectedLocation = this.data.locationInfo || {}
     const fallbackLocation = this.data.locationFallbackInfo || {}
     const locationInfo = (typeof selectedLocation.latitude === 'number' && typeof selectedLocation.longitude === 'number')
       ? selectedLocation
       : fallbackLocation
+
+    if (typeof locationInfo.latitude === 'number' && typeof locationInfo.longitude === 'number') {
+      this.openNativeGameLocation(locationInfo)
+      return
+    }
+
+    if (!wx.getLocation) {
+      this.openNativeGameLocation()
+      return
+    }
+
+    // Request location only after the user chooses to select an address.
+    // A refusal still falls back to the native map, where manual search works.
+    wx.getLocation({
+      type: 'gcj02',
+      success: (res = {}) => {
+        const currentLocation = {
+          latitude: typeof res.latitude === 'number' ? res.latitude : '',
+          longitude: typeof res.longitude === 'number' ? res.longitude : ''
+        }
+        this.setData({ locationFallbackInfo: currentLocation })
+        this.openNativeGameLocation(currentLocation)
+      },
+      fail: () => this.openNativeGameLocation()
+    })
+  },
+
+  openNativeGameLocation(locationInfo = {}) {
+    const locationOptions = {}
 
     if (typeof locationInfo.latitude === 'number' && typeof locationInfo.longitude === 'number') {
       locationOptions.latitude = locationInfo.latitude
@@ -1005,41 +1032,6 @@ Page({
           return
         }
         toast.info('地图选点暂不可用，请稍后重试')
-      }
-    })
-  },
-
-  initGameLocation() {
-    const savedLocation = this.data.locationInfo || {}
-    if (String(savedLocation.name || savedLocation.address || '').trim() ||
-      (typeof savedLocation.latitude === 'number' && typeof savedLocation.longitude === 'number')) {
-      return
-    }
-
-    if (!wx.getLocation) {
-      return
-    }
-
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res = {}) => {
-        if (typeof res.latitude !== 'number' || typeof res.longitude !== 'number') {
-          return
-        }
-
-        const nextLocationInfo = {
-          name: this.data.createForm.currentLocationText,
-          address: '',
-          latitude: res.latitude,
-          longitude: res.longitude
-        }
-        this.setData({
-          locationFallbackInfo: nextLocationInfo,
-        })
-      },
-      fail: (error = {}) => {
-        console.warn('wx.getLocation failed', error)
-        toast.info('定位当前位置失败，请点击地图选点手动选择')
       }
     })
   },
