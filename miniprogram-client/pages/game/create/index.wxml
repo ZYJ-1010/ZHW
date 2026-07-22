@@ -82,9 +82,9 @@
                 <text class="field-label">{{item.label}}</text>
                 <text wx:if="{{item.required}}" class="field-required">必填</text>
               </view>
-              <text class="field-hint">{{item.hint}}</text>
+              <text wx:if="{{!(item.key === 'location' && item.value)}}" class="field-hint">{{item.hint}}</text>
             </view>
-            <view class="select-action {{item.value && item.key !== 'location' ? 'selected' : ''}}">
+            <view class="select-action {{item.value ? 'selected' : ''}}">
               <text>{{item.key === 'location' ? (item.value || '请选择') : (item.value && item.key !== 'gameTime' && item.key !== 'signupTime' ? item.value : '请选择')}}</text>
               <text class="chevron">›</text>
             </view>
