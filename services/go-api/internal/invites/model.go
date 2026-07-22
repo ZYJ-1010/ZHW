@@ -7,10 +7,12 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var ErrInviteAlreadyBound = errors.New("invite already bound")
 var ErrInvalidEntryType = errors.New("invalid invite entry type")
+var ErrInviteInactive = errors.New("invite inactive")
 
 const (
 	EntryTypePoster = "poster"
@@ -22,23 +24,51 @@ const (
 )
 
 type InviteCode struct {
-	ID                  int64  `json:"id"`
-	Code                string `json:"code"`
-	OwnerID             int64  `json:"ownerUserId"`
-	Status              string `json:"status"`
-	MaxUses             int    `json:"maxUses"`
-	UsedCount           int    `json:"usedCount"`
-	EntryType           string `json:"entryType"`
-	BoundWechatUserID   int64  `json:"boundWechatUserId,omitempty"`
-	BoundWechatOpenID   string `json:"-"`
-	BoundWechatNickname string `json:"boundWechatNickname,omitempty"`
+	ID                     int64     `json:"id"`
+	Code                   string    `json:"code"`
+	OwnerID                int64     `json:"ownerUserId"`
+	OwnerNickname          string    `json:"ownerNickname,omitempty"`
+	OwnerPhoneMasked       string    `json:"ownerPhoneMasked,omitempty"`
+	Status                 string    `json:"status"`
+	DisplayStatus          string    `json:"displayStatus,omitempty"`
+	UseStatus              string    `json:"useStatus,omitempty"`
+	MaxUses                int       `json:"maxUses"`
+	UsedCount              int       `json:"usedCount"`
+	EntryType              string    `json:"entryType"`
+	BoundWechatUserID      int64     `json:"boundWechatUserId,omitempty"`
+	BoundWechatOpenID      string    `json:"-"`
+	BoundWechatNickname    string    `json:"boundWechatNickname,omitempty"`
+	BoundWechatPhoneMasked string    `json:"boundWechatPhoneMasked,omitempty"`
+	ExpiresAt              time.Time `json:"expiresAt,omitempty"`
+	CreatedAt              time.Time `json:"createdAt,omitempty"`
+	UpdatedAt              time.Time `json:"updatedAt,omitempty"`
 }
+
+const (
+	StatusActive    = "active"
+	StatusDisabled  = "disabled"
+	StatusVoided    = "voided"
+	StatusExhausted = "exhausted"
+	StatusExpired   = "expired"
+)
 
 type Relation struct {
 	InviteCodeID  int64  `json:"inviteCodeId"`
 	InviterUserID int64  `json:"inviterUserId"`
 	InviteeUserID int64  `json:"inviteeUserId"`
 	BindSource    string `json:"bindSource"`
+}
+
+type QuotaRequest struct {
+	ID          int64     `json:"id"`
+	OwnerUserID int64     `json:"ownerUserId"`
+	Quantity    int       `json:"quantity"`
+	Reason      string    `json:"reason"`
+	Status      string    `json:"status"`
+	AuditReason string    `json:"auditReason,omitempty"`
+	ReviewedBy  int64     `json:"reviewedBy,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	ReviewedAt  time.Time `json:"reviewedAt,omitempty"`
 }
 
 type PrecheckResult struct {
@@ -57,6 +87,8 @@ type Store struct {
 	relations      map[int64]Relation
 	entryRelations map[string]Relation
 	boundCode      map[int64]int64
+	quotaRequests  map[int64]QuotaRequest
+	nextQuotaID    int64
 	repo           Repository
 }
 
@@ -71,6 +103,8 @@ func NewStoreWithRepository(repo Repository) *Store {
 		relations:      make(map[int64]Relation),
 		entryRelations: make(map[string]Relation),
 		boundCode:      make(map[int64]int64),
+		quotaRequests:  make(map[int64]QuotaRequest),
+		nextQuotaID:    1,
 		repo:           repo,
 	}
 	store.UpsertCode("TEST2026", 0, 100)
@@ -86,6 +120,63 @@ type Repository interface {
 	FindBoundCode(ctx context.Context, inviteCodeID int64) (InviteCode, bool, error)
 	ListCodes(ctx context.Context, filter CodeFilter) ([]InviteCode, error)
 	ListRelations(ctx context.Context, filter RelationFilter) ([]Relation, error)
+	CreateQuotaRequest(ctx context.Context, request QuotaRequest) (QuotaRequest, error)
+	ListQuotaRequests(ctx context.Context, ownerUserID int64, status string) ([]QuotaRequest, error)
+	ReviewQuotaRequest(ctx context.Context, id int64, status string, auditReason string, reviewedBy int64) (QuotaRequest, error)
+	ClearInviteeBindings(ctx context.Context, userID int64) error
+}
+
+func (s *Store) CreateQuotaRequest(ownerUserID int64, quantity int, reason string) (QuotaRequest, error) {
+	if ownerUserID <= 0 || quantity <= 0 || quantity > 1000 {
+		return QuotaRequest{}, errors.New("invalid invite quota request")
+	}
+	request := QuotaRequest{ID: s.nextQuotaID, OwnerUserID: ownerUserID, Quantity: quantity, Reason: strings.TrimSpace(reason), Status: "pending", CreatedAt: time.Now()}
+	if s.repo != nil {
+		created, err := s.repo.CreateQuotaRequest(context.Background(), request)
+		if err != nil {
+			return QuotaRequest{}, err
+		}
+		return created, nil
+	}
+	s.nextQuotaID++
+	s.quotaRequests[request.ID] = request
+	return request, nil
+}
+
+func (s *Store) ListQuotaRequests(ownerUserID int64, status string) ([]QuotaRequest, error) {
+	if s.repo != nil {
+		return s.repo.ListQuotaRequests(context.Background(), ownerUserID, status)
+	}
+	items := make([]QuotaRequest, 0)
+	for _, item := range s.quotaRequests {
+		if ownerUserID > 0 && item.OwnerUserID != ownerUserID {
+			continue
+		}
+		if status != "" && item.Status != status {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (s *Store) ReviewQuotaRequest(id int64, status string, auditReason string, reviewedBy int64) (QuotaRequest, error) {
+	if status != "approved" && status != "rejected" {
+		return QuotaRequest{}, errors.New("invalid invite quota review status")
+	}
+	if s.repo != nil {
+		return s.repo.ReviewQuotaRequest(context.Background(), id, status, auditReason, reviewedBy)
+	}
+	request, ok := s.quotaRequests[id]
+	if !ok {
+		return QuotaRequest{}, errors.New("invite quota request not found")
+	}
+	if request.Status != "pending" {
+		return QuotaRequest{}, errors.New("invite quota request already reviewed")
+	}
+	request.Status, request.AuditReason, request.ReviewedBy, request.ReviewedAt = status, strings.TrimSpace(auditReason), reviewedBy, time.Now()
+	s.quotaRequests[id] = request
+	return request, nil
 }
 
 type CodeFilter struct {
@@ -141,33 +232,73 @@ func (s *Store) FindCode(code string) (InviteCode, bool, error) {
 }
 
 func (s *Store) ListCodes(filter CodeFilter) ([]InviteCode, error) {
+	queryFilter := filter
+	// 使用状态与过期状态由邀请码的绑定关系和有效期共同计算，不能直接
+	// 交给数据库按原始 status 过滤，否则已过期的邀请码会被误显示为正常。
+	queryFilter.Status = ""
+	var items []InviteCode
 	if s.repo != nil {
-		items, err := s.repo.ListCodes(context.Background(), filter)
-		if err == nil {
-			return items, nil
+		storedItems, err := s.repo.ListCodes(context.Background(), queryFilter)
+		if err != nil {
+			return nil, err
 		}
-		return nil, err
+		items = storedItems
+	} else {
+		items = make([]InviteCode, 0, len(s.codes))
+		for _, invite := range s.codes {
+			items = append(items, invite)
+		}
 	}
-	result := make([]InviteCode, 0, len(s.codes))
-	for _, invite := range s.codes {
-		if filter.Status != "" && invite.Status != filter.Status {
-			continue
-		}
-		if filter.EntryType != "" && invite.EntryType != filter.EntryType {
-			continue
-		}
-		if filter.OwnerID > 0 && invite.OwnerID != filter.OwnerID {
-			continue
-		}
-		if invite.MaxUses == 1 {
+
+	result := make([]InviteCode, 0, len(items))
+	for _, invite := range items {
+		if invite.MaxUses == 1 && invite.BoundWechatUserID == 0 {
 			if bound, ok, _ := s.FindBoundCode(invite.ID); ok {
 				invite.BoundWechatUserID = bound.BoundWechatUserID
 				invite.BoundWechatNickname = bound.BoundWechatNickname
+				invite.BoundWechatPhoneMasked = bound.BoundWechatPhoneMasked
 			}
+		}
+		invite = decorateInviteStatus(invite, time.Now())
+		if !matchesCodeFilter(invite, filter) {
+			continue
 		}
 		result = append(result, invite)
 	}
 	return result, nil
+}
+
+func decorateInviteStatus(invite InviteCode, now time.Time) InviteCode {
+	invite.UseStatus = "unused"
+	if invite.UsedCount > 0 || invite.BoundWechatUserID > 0 {
+		invite.UseStatus = "used"
+	}
+	invite.DisplayStatus = invite.Status
+	if invite.Status == StatusActive && inviteExpiredAt(invite, now) {
+		invite.DisplayStatus = StatusExpired
+	}
+	return invite
+}
+
+func matchesCodeFilter(invite InviteCode, filter CodeFilter) bool {
+	if filter.EntryType != "" && invite.EntryType != filter.EntryType {
+		return false
+	}
+	if filter.OwnerID > 0 && invite.OwnerID != filter.OwnerID {
+		return false
+	}
+	status := strings.TrimSpace(filter.Status)
+	if status == "" {
+		return true
+	}
+	if status == "used" || status == "unused" {
+		return invite.UseStatus == status
+	}
+	return invite.DisplayStatus == status
+}
+
+func inviteExpiredAt(invite InviteCode, now time.Time) bool {
+	return !invite.ExpiresAt.IsZero() && !invite.ExpiresAt.After(now)
 }
 
 func (s *Store) Precheck(code string, entryType string) (PrecheckResult, error) {
@@ -188,6 +319,9 @@ func (s *Store) Precheck(code string, entryType string) (PrecheckResult, error) 
 	}
 	if invite.EntryType == "" {
 		invite.EntryType = entryType
+	}
+	if !invite.ExpiresAt.IsZero() && !time.Now().Before(invite.ExpiresAt) {
+		invite.Status = StatusExpired
 	}
 	if entryType != "" && invite.EntryType != entryType {
 		return PrecheckResult{
@@ -213,14 +347,14 @@ func (s *Store) Precheck(code string, entryType string) (PrecheckResult, error) 
 			result.BoundWechat = true
 			result.BoundUserID = bound.BoundWechatUserID
 			result.AuthPageMode = AuthPageModeLogin
-			result.Valid = invite.Status == "active"
+			result.Valid = invite.Status == StatusActive
 			if !result.Valid {
 				result.FailureReason = "inactive"
 			}
 			return result, nil
 		}
 	}
-	result.Valid = invite.Status == "active" && (invite.MaxUses == 0 || invite.UsedCount < invite.MaxUses)
+	result.Valid = invite.Status == StatusActive && (invite.MaxUses == 0 || invite.UsedCount < invite.MaxUses)
 	if !result.Valid {
 		result.FailureReason = "inactive_or_exhausted"
 	}
@@ -276,7 +410,13 @@ func (s *Store) DisableCode(code string) (InviteCode, error) {
 	if !ok {
 		return InviteCode{}, errors.New("invite code not found")
 	}
-	invite.Status = "disabled"
+	if inviteExpiredAt(invite, time.Now()) {
+		return InviteCode{}, errors.New("expired invite code cannot be disabled")
+	}
+	if !inviteEditable(invite) {
+		return InviteCode{}, errors.New("used invite code cannot be disabled")
+	}
+	invite.Status = StatusDisabled
 	if s.repo != nil {
 		updated, err := s.repo.UpsertCode(context.Background(), invite)
 		if err != nil {
@@ -285,6 +425,101 @@ func (s *Store) DisableCode(code string) (InviteCode, error) {
 		s.codes[updated.Code] = updated
 		return updated, nil
 	}
+	s.codes[invite.Code] = invite
+	return invite, nil
+}
+
+// UpdateUnusedCode only changes an invite before it has established a user
+// relationship. Once used, its owner and distribution parameters are frozen.
+func (s *Store) UpdateUnusedCode(code string, ownerID int64, entryType string, expiresAt time.Time) (InviteCode, error) {
+	invite, ok, err := s.FindCode(code)
+	if err != nil {
+		return InviteCode{}, err
+	}
+	if !ok {
+		return InviteCode{}, errors.New("invite code not found")
+	}
+	if inviteExpiredAt(invite, time.Now()) {
+		return InviteCode{}, errors.New("expired invite code cannot be edited")
+	}
+	if !inviteEditable(invite) {
+		return InviteCode{}, errors.New("used invite code cannot be edited")
+	}
+	entryType, valid := ParseEntryType(entryType)
+	if !valid || entryType == "" {
+		return InviteCode{}, ErrInvalidEntryType
+	}
+	if !expiresAt.IsZero() && !expiresAt.After(time.Now()) {
+		return InviteCode{}, errors.New("invite expiry must be in the future")
+	}
+	invite.OwnerID = ownerID
+	invite.EntryType = entryType
+	invite.ExpiresAt = expiresAt
+	if invite.Status == StatusExpired && (expiresAt.IsZero() || expiresAt.After(time.Now())) {
+		invite.Status = StatusActive
+	}
+	return s.saveInvite(invite)
+}
+
+func (s *Store) EnableCode(code string) (InviteCode, error) {
+	invite, ok, err := s.FindCode(code)
+	if err != nil {
+		return InviteCode{}, err
+	}
+	if !ok {
+		return InviteCode{}, errors.New("invite code not found")
+	}
+	if inviteExpiredAt(invite, time.Now()) {
+		return InviteCode{}, errors.New("expired invite code cannot be enabled")
+	}
+	if !inviteEditable(invite) {
+		return InviteCode{}, errors.New("used invite code cannot be enabled")
+	}
+	if !invite.ExpiresAt.IsZero() && !invite.ExpiresAt.After(time.Now()) {
+		return InviteCode{}, errors.New("expired invite code cannot be enabled")
+	}
+	if invite.Status != StatusDisabled {
+		return InviteCode{}, errors.New("invite code cannot be enabled from current status")
+	}
+	invite.Status = StatusActive
+	return s.saveInvite(invite)
+}
+
+func (s *Store) VoidCode(code string) (InviteCode, error) {
+	invite, ok, err := s.FindCode(code)
+	if err != nil {
+		return InviteCode{}, err
+	}
+	if !ok {
+		return InviteCode{}, errors.New("invite code not found")
+	}
+	if inviteExpiredAt(invite, time.Now()) {
+		return InviteCode{}, errors.New("expired invite code cannot be voided")
+	}
+	if !inviteEditable(invite) {
+		return InviteCode{}, errors.New("used invite code cannot be voided")
+	}
+	if invite.Status != StatusActive && invite.Status != StatusDisabled {
+		return InviteCode{}, errors.New("invite code cannot be voided from current status")
+	}
+	invite.Status = StatusVoided
+	return s.saveInvite(invite)
+}
+
+func inviteEditable(invite InviteCode) bool {
+	return invite.UsedCount == 0 && invite.BoundWechatUserID == 0 && invite.Status != StatusVoided && invite.Status != StatusExhausted
+}
+
+func (s *Store) saveInvite(invite InviteCode) (InviteCode, error) {
+	if s.repo != nil {
+		updated, err := s.repo.UpsertCode(context.Background(), invite)
+		if err != nil {
+			return InviteCode{}, err
+		}
+		s.codes[updated.Code] = updated
+		return updated, nil
+	}
+	invite.UpdatedAt = time.Now()
 	s.codes[invite.Code] = invite
 	return invite, nil
 }
@@ -317,6 +552,12 @@ func (s *Store) Bind(invite InviteCode, inviteeUserID int64, source string) (Rel
 		}
 		s.relations[inviteeUserID] = relation
 		return relation, nil
+	}
+	if current, found := s.codes[invite.Code]; found {
+		invite = current
+	}
+	if invite.Status != StatusActive || (!invite.ExpiresAt.IsZero() && !invite.ExpiresAt.After(time.Now())) || (invite.MaxUses > 0 && invite.UsedCount >= invite.MaxUses) {
+		return Relation{}, ErrInviteInactive
 	}
 	key := relationKey(invite.ID, inviteeUserID)
 	if relation, ok := s.entryRelations[key]; ok {
@@ -353,6 +594,34 @@ func (s *Store) Bind(invite InviteCode, inviteeUserID int64, source string) (Rel
 	s.relations[inviteeUserID] = relation
 	s.codes[invite.Code] = invite
 	return relation, nil
+}
+
+// ClearInviteeBindings clears the deleted account's invite relationship but
+// intentionally does not decrease used_count. A consumed invitation cannot be
+// reused after the account is deleted.
+func (s *Store) ClearInviteeBindings(userID int64) error {
+	if userID <= 0 {
+		return nil
+	}
+	if s.repo != nil {
+		if err := s.repo.ClearInviteeBindings(context.Background(), userID); err != nil {
+			return err
+		}
+	}
+	if relation, ok := s.relations[userID]; ok {
+		delete(s.boundCode, relation.InviteCodeID)
+		delete(s.entryRelations, relationKey(relation.InviteCodeID, userID))
+	}
+	delete(s.relations, userID)
+	for key, relation := range s.entryRelations {
+		if relation.InviteeUserID == userID {
+			delete(s.entryRelations, key)
+			if s.boundCode[relation.InviteCodeID] == userID {
+				delete(s.boundCode, relation.InviteCodeID)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Store) SetRelationInviter(inviteeUserID int64, inviterUserID int64, source string) (Relation, error) {

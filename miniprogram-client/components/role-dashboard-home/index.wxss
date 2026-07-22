@@ -1062,7 +1062,7 @@ page {
 }
 
 .player-summary-name {
-  width: 276rpx;
+  max-width: 220rpx;
   overflow: hidden;
   color: #ffffff;
   font-size: 36rpx;
@@ -1070,6 +1070,23 @@ page {
   line-height: 64rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.player-summary-name-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.expert-blue-badge {
+  flex: none;
+  margin-left: 10rpx;
+  padding: 2rpx 9rpx;
+  border-radius: 8rpx;
+  background: #168bff;
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 28rpx;
 }
 
 .player-level-progress {
@@ -2486,8 +2503,8 @@ page {
 
 .role-skill-panel {
   position: relative;
-  height: 302rpx;
-  padding: 24rpx 34rpx 0;
+  min-height: 302rpx;
+  padding: 24rpx 34rpx 26rpx;
   border: 2rpx solid #00a8ff;
   border-radius: 28rpx;
   background:
@@ -2528,12 +2545,11 @@ page {
   line-height: 42rpx;
 }
 
-.role-skill-tree {
-  position: relative;
-  z-index: 1;
-  height: 214rpx;
-  margin-top: 12rpx;
-}
+.role-skill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18rpx 12rpx; margin-top: 24rpx; }
+.role-skill-item { display: flex; min-width: 0; flex-direction: column; align-items: center; text-align: center; }
+.role-skill-item .role-skill-node-label { width: 100%; margin-top: 10rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-skill-empty { display: block; margin: 72rpx 0 48rpx; color: rgba(255, 255, 255, 0.58); font-size: 24rpx; text-align: center; }
+.role-skill-more { display: flex; align-items: center; justify-content: center; width: 220rpx; height: 52rpx; margin: 22rpx auto 0; border: 1rpx solid rgba(100, 255, 56, 0.42); border-radius: 999rpx; color: #aaff8f; font-size: 22rpx; line-height: 52rpx; }
 
 .role-skill-line {
   position: absolute;
@@ -2615,6 +2631,16 @@ page {
 .role-skill-node.blue {
   background: #35c8f5;
   box-shadow: 0 0 18rpx rgba(53, 200, 245, 0.28);
+}
+
+.role-skill-node.cyan {
+  background: #35c8f5;
+  box-shadow: 0 0 18rpx rgba(53, 200, 245, 0.28);
+}
+
+.role-skill-node.purple {
+  background: #8b5cf6;
+  box-shadow: 0 0 18rpx rgba(139, 92, 246, 0.3);
 }
 
 .role-skill-node.locked {
@@ -3506,3 +3532,6 @@ page {
 .player-summary-divider {
   right: 28rpx;
 }
+
+.role-location-guide { margin: 0 30rpx 22rpx; padding: 18rpx; border-radius: 14rpx; color: #d9f4ff; background: rgba(17, 74, 101, .82); font-size: 22rpx; line-height: 32rpx; }
+.role-location-guide view { display:flex; gap:18rpx; margin-top:12rpx; color:#aefee4; font-weight:700; }

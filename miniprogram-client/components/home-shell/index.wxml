@@ -49,6 +49,23 @@
       </view>
     </view>
 
+    <view
+      wx:if="{{floatingTaskVisible}}"
+      class="home-shell-task-float"
+      style="{{floatingTaskStyle}}"
+      role="button"
+      aria-label="进入任务中心"
+      hover-class="home-shell-task-float--pressed"
+      bindtap="handleTaskTap"
+      bindtouchstart="handleTaskTouchStart"
+      catchtouchmove="handleTaskTouchMove"
+      bindtouchend="handleTaskTouchEnd"
+      bindtouchcancel="handleTaskTouchEnd"
+    >
+      <image class="home-shell-task-float__icon" src="/pages/profile/assets/i73@3x.png" mode="aspectFit"></image>
+      <text class="home-shell-task-float__text">任务中心</text>
+    </view>
+
     <view class="home-shell-dock" style="{{shellDockStyle}}">
       <view class="home-shell-dpad">
         <view class="home-shell-dpad-key up" data-key="up" bindtap="handleNavTap" bindlongpress="handleNavLongPress" bindtouchend="handleNavTouchEnd" bindtouchcancel="handleNavTouchEnd">

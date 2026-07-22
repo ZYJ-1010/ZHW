@@ -1,5 +1,7 @@
 const toast = require('../../../utils/toast')
 const gameService = require('../../../services/game')
+const locationService = require('../../../services/location')
+const locationAccess = require('../../../utils/location-access')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
@@ -23,6 +25,7 @@ const SORT_OPTIONS = [
   { key: 'distance', name: '距离最近', sortKey: 'distance', sortOrder: 'asc' },
   { key: 'credit', name: '信用优先', sortKey: 'credit', sortOrder: 'desc' }
 ]
+const NEARBY_RADIUS_OPTIONS = [1000, 3000, 5000, 10000]
 const CALENDAR_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_ADVANCED_DRAFT = {
   locationScope: 'all',
@@ -461,6 +464,9 @@ Page({
     activeTypeFilter: 'all',
     eventActions: DEFAULT_EVENT_ACTIONS,
     activeLocationScope: 'all',
+    nearbyRadiusMeters: 1000,
+    locationGuideVisible: false,
+    locationStatusText: '',
     activeCityName: '',
     selectedDate: '',
     typeFilterText: getTypeFilterLabel('all'),
@@ -606,10 +612,74 @@ Page({
   },
 
   toggleLocationFilter() {
-    this.updateDisplayEvents({
-      sortKey: 'distance',
-      sortOrder: 'asc'
-    })
+    const current = NEARBY_RADIUS_OPTIONS.indexOf(this.data.nearbyRadiusMeters)
+    const nearbyRadiusMeters = NEARBY_RADIUS_OPTIONS[(current + 1) % NEARBY_RADIUS_OPTIONS.length]
+    this.setData({ nearbyRadiusMeters })
+    this.loadNearbyGames()
+  },
+
+  async loadNearbyGames() {
+    this.setData({ loading: true, locationStatusText: '正在获取附近局' })
+    try {
+      const location = await locationAccess.getPreciseLocation()
+      await this.applyNearbyLocation(location, '附近局')
+    } catch (error) {
+      this.setData({ loading: false, locationGuideVisible: true, locationStatusText: '未获取定位，可选择其他方式' })
+    }
+  },
+
+  async applyNearbyLocation(location, label) {
+    try {
+      const data = await locationService.getNearbyGames({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        radiusMeters: this.data.nearbyRadiusMeters
+      })
+      const events = normalizeHallGames(data, this.data.eventActions)
+      this.setData({
+        loading: false,
+        locationGuideVisible: false,
+        locationStatusText: `${label}${this.data.nearbyRadiusMeters / 1000}km`,
+        eventsList: events,
+        sortKey: 'distance',
+        sortOrder: 'asc'
+      })
+      this.updateDisplayEvents({})
+    } catch (error) {
+      this.setData({ loading: false, locationStatusText: error.message || '附近局加载失败' })
+      toast.info(error.message || '附近局加载失败')
+    }
+  },
+
+  async chooseHallManualLocation() {
+    try {
+      const location = await locationAccess.chooseManualLocation()
+      await this.applyNearbyLocation(location, '手动位置附近')
+    } catch (error) { toast.info(error.message || '未选择位置') }
+  },
+
+  async useHallCityFallback() {
+    try {
+      const fallback = await locationAccess.getFallbackLocation()
+      if (fallback.cityCode) {
+        const data = await gameService.getSameCityGames({ cityCode: fallback.cityCode })
+        const events = normalizeHallGames(data, this.data.eventActions)
+        this.setData({ loading: false, locationGuideVisible: false, locationStatusText: `${fallback.cityName || '同城'}推荐`, eventsList: events, sortKey: 'time', sortOrder: 'desc' })
+        this.updateDisplayEvents({})
+        return
+      }
+      await this.applyNearbyLocation(fallback, fallback.message || '默认城市推荐')
+    } catch (error) {
+      this.setData({ loading: false, locationGuideVisible: false, locationStatusText: '按发布时间展示' })
+      this.loadGames()
+    }
+  },
+
+  async handleHallLocationGuideTap(event) {
+    const action = event.currentTarget.dataset.action
+    if (action === 'setting') return locationAccess.showDeniedGuide({ onManual: () => this.chooseHallManualLocation(), onFallback: () => this.useHallCityFallback() })
+    if (action === 'manual') return this.chooseHallManualLocation()
+    if (action === 'city') return this.useHallCityFallback()
   },
 
   toggleTypeFilter() {

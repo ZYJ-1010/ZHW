@@ -631,3 +631,20 @@ page {
   color: #065f46;
   font-weight: 700;
 }
+
+.hall-location-guide {
+  position: fixed;
+  right: 24rpx;
+  bottom: 156rpx;
+  left: 24rpx;
+  z-index: 20;
+  padding: 24rpx;
+  border-radius: 18rpx;
+  background: rgba(9, 27, 47, .97);
+  box-shadow: 0 14rpx 36rpx rgba(0, 0, 0, .2);
+}
+.hall-location-guide-title { display:block; color:#fff; font-size:28rpx; font-weight:700; }
+.hall-location-guide-desc { display:block; margin-top:10rpx; color:#b9cadc; font-size:22rpx; line-height:32rpx; }
+.hall-location-guide-actions { display:flex; gap:12rpx; margin-top:18rpx; }
+.hall-location-guide-actions button { flex:1; margin:0; padding:0 6rpx; border-radius:10rpx; color:#effff9; background:#147b66; font-size:21rpx; line-height:62rpx; }
+.hall-location-guide-actions button::after { border:0; }

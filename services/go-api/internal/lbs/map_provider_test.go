@@ -34,6 +34,17 @@ func newMapClientForTest(t *testing.T, body string) *TencentMapClient {
 	return client
 }
 
+func TestTencentMapClientLocateIP(t *testing.T) {
+	client := newMapClientForTest(t, `{"status":0,"message":"ok","result":{"location":{"lat":30.2741,"lng":120.1551},"ad_info":{"province":"浙江省","city":"杭州市","adcode":"330100","district":"西湖区"}}}`)
+	place, err := client.LocateIP(context.Background(), "127.0.0.1")
+	if err != nil {
+		t.Fatalf("locate ip: %v", err)
+	}
+	if place.City != "杭州市" || place.CityCode != "330100" || place.Longitude != 120.1551 {
+		t.Fatalf("unexpected IP location: %+v", place)
+	}
+}
+
 func TestTencentMapSearchMapsAdCodeToCityCode(t *testing.T) {
 	client := newMapClientForTest(t, `{
 		"status":0,

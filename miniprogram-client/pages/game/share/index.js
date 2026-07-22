@@ -30,13 +30,19 @@ function gameStatusText(status) {
   const map = {
     draft: '草稿',
     pending: '待审核',
+    pending_audit: '待后台审核',
     approved: '已通过',
     recruiting: '招募中',
     full: '已满员',
     in_progress: '进行中',
+    pending_confirm: '待确认',
+    pending_review: '待评价',
     completed: '已完成',
     canceled: '已取消',
-    rejected: '已驳回'
+    rejected: '已驳回',
+    disputed: '争议中',
+    settling: '结算中',
+    closed: '已关闭'
   }
 
   return map[status] || status || ''

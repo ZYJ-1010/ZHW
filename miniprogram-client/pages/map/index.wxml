@@ -88,6 +88,16 @@
 
     </view>
 
+    <view wx:if="{{locationGuideVisible}}" class="location-guide-card">
+      <text class="location-guide-title">未获取当前位置</text>
+      <text class="location-guide-desc">可开启定位查看附近组局，也可手动选点或使用同城推荐。</text>
+      <view class="location-guide-actions">
+        <button data-action="setting" bindtap="handleLocationGuideTap">开启定位</button>
+        <button data-action="manual" bindtap="handleLocationGuideTap">手动选位置</button>
+        <button data-action="city" bindtap="handleLocationGuideTap">同城推荐</button>
+      </view>
+    </view>
+
     <view class="nearby-info-section">
       <view class="nearby-info-title-row">
         <text class="nearby-info-mark">✦</text>

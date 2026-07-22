@@ -28,6 +28,12 @@ type MapProvider interface {
 	Route(ctx context.Context, req MapRouteRequest) (MapRoute, error)
 }
 
+// IPGeoProvider is optional because not every map provider supports IP city
+// lookup. It returns city-level data only and never device coordinates.
+type IPGeoProvider interface {
+	LocateIP(ctx context.Context, ip string) (MapPlace, error)
+}
+
 type MapSearchRequest struct {
 	Keyword     string
 	City        string
@@ -236,6 +242,27 @@ func (c *TencentMapClient) ReverseGeocode(ctx context.Context, req MapReverseGeo
 		District:  resp.Result.AdInfo.District.String(),
 		Longitude: req.Longitude,
 		Latitude:  req.Latitude,
+	}, nil
+}
+
+func (c *TencentMapClient) LocateIP(ctx context.Context, ip string) (MapPlace, error) {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		return MapPlace{}, ErrMapRequestInvalid
+	}
+	values := url.Values{}
+	values.Set("ip", ip)
+	var resp tencentIPLocationResponse
+	if err := c.getJSON(ctx, "/ws/location/v1/ip", values, &resp); err != nil {
+		return MapPlace{}, err
+	}
+	if resp.Status.Int() != 0 {
+		return MapPlace{}, fmt.Errorf("%w: %s", ErrMapProviderFailed, resp.Message.String())
+	}
+	return MapPlace{
+		Title: resp.Result.AdInfo.City.String(), City: resp.Result.AdInfo.City.String(), CityCode: resp.Result.AdInfo.AdCode.String(),
+		Province: resp.Result.AdInfo.Province.String(), District: resp.Result.AdInfo.District.String(),
+		Longitude: resp.Result.Location.Lng.Float64(), Latitude: resp.Result.Location.Lat.Float64(),
 	}, nil
 }
 
@@ -460,6 +487,15 @@ type tencentReverseGeocodeResponse struct {
 	Result  struct {
 		Address tencentString `json:"address"`
 		AdInfo  tencentAdInfo `json:"ad_info"`
+	} `json:"result"`
+}
+
+type tencentIPLocationResponse struct {
+	Status  tencentInt    `json:"status"`
+	Message tencentString `json:"message"`
+	Result  struct {
+		Location tencentLocation `json:"location"`
+		AdInfo   tencentAdInfo   `json:"ad_info"`
 	} `json:"result"`
 }
 

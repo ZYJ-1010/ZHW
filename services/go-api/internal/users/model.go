@@ -24,6 +24,7 @@ type User struct {
 	RealnameStatus string    `json:"realnameStatus"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"createdAt"`
+	PasswordHash   string    `json:"-"`
 }
 
 type Filter struct {
@@ -64,6 +65,75 @@ type Repository interface {
 	UpdatePhoneAuth(ctx context.Context, userID int64, phoneHash string, phoneMasked string) (User, error)
 	UpdateProfile(ctx context.Context, userID int64, nickname string, avatarURL string, avatarFileID int64) (User, error)
 	UpdateRealnameStatus(ctx context.Context, userID int64, status string) (User, error)
+	PasswordHash(ctx context.Context, userID int64) (string, bool, error)
+	UpdatePasswordHash(ctx context.Context, userID int64, passwordHash string) error
+	BindWechat(ctx context.Context, userID int64, openID string) (User, error)
+	DeactivateAndClearLoginBindings(ctx context.Context, userID int64) (User, error)
+}
+
+func (s *Store) UpdatePasswordHash(userID int64, passwordHash string) (User, error) {
+	if userID <= 0 || strings.TrimSpace(passwordHash) == "" {
+		return User{}, ErrInvalidProfile
+	}
+	if s.repo != nil {
+		if err := s.repo.UpdatePasswordHash(context.Background(), userID, passwordHash); err != nil {
+			return User{}, err
+		}
+		user, ok, err := s.repo.FindByID(context.Background(), userID)
+		if err != nil || !ok {
+			return User{}, err
+		}
+		s.byID[user.ID] = user
+		return user, nil
+	}
+	user, ok := s.byID[userID]
+	if !ok {
+		return User{}, ErrInvalidProfile
+	}
+	user.PasswordHash = passwordHash
+	s.byID[userID] = user
+	return user, nil
+}
+
+func (s *Store) PasswordHash(userID int64) (string, bool, error) {
+	if userID <= 0 {
+		return "", false, nil
+	}
+	if s.repo != nil {
+		return s.repo.PasswordHash(context.Background(), userID)
+	}
+	user, ok := s.byID[userID]
+	return user.PasswordHash, user.PasswordHash != "" && ok, nil
+}
+
+func (s *Store) BindWechat(userID int64, openID string) (User, error) {
+	openID = strings.TrimSpace(openID)
+	if userID <= 0 || openID == "" {
+		return User{}, ErrInvalidProfile
+	}
+	if existingID, exists := s.byOpen[openID]; exists && existingID != userID {
+		return User{}, ErrInvalidProfile
+	}
+	if s.repo != nil {
+		user, err := s.repo.BindWechat(context.Background(), userID, openID)
+		if err != nil {
+			return User{}, err
+		}
+		s.byID[user.ID] = user
+		s.byOpen[openID] = user.ID
+		return user, nil
+	}
+	user, ok := s.byID[userID]
+	if !ok {
+		return User{}, ErrInvalidProfile
+	}
+	if user.OpenID != "" && user.OpenID != openID {
+		delete(s.byOpen, user.OpenID)
+	}
+	user.OpenID = openID
+	s.byID[userID] = user
+	s.byOpen[openID] = userID
+	return user, nil
 }
 
 func (s *Store) FindByPhoneHash(phoneHash string) (User, bool, error) {
@@ -225,6 +295,43 @@ func (s *Store) BindPhoneAuth(userID int64, phoneHash string, phoneMasked string
 	s.byID[user.ID] = user
 	s.byPhone[phoneHash] = user.ID
 	return user, nil
+}
+
+// DeleteAccount removes login identifiers and anonymizes basic profile data.
+// The user row remains for audit and historical business records.
+func (s *Store) DeleteAccount(userID int64) error {
+	user, found, err := s.FindByID(userID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrInvalidProfile
+	}
+	if s.repo != nil {
+		user, err = s.repo.DeactivateAndClearLoginBindings(context.Background(), userID)
+		if err != nil {
+			return err
+		}
+	} else {
+		user.OpenID = ""
+		user.PhoneMasked = ""
+		user.Nickname = ""
+		user.AvatarURL = ""
+		user.AvatarFileID = 0
+		user.Status = "deleted"
+	}
+	for openID, id := range s.byOpen {
+		if id == userID {
+			delete(s.byOpen, openID)
+		}
+	}
+	for phoneHash, id := range s.byPhone {
+		if id == userID {
+			delete(s.byPhone, phoneHash)
+		}
+	}
+	s.byID[userID] = user
+	return nil
 }
 
 func normalizeFilter(filter Filter) Filter {

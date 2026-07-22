@@ -15,11 +15,15 @@ const TEST_PASSWORD = 'Test123456'
 const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account', 'wechatAuth']
 const INVITE_REQUIRED_MESSAGE = '小程序需要邀请才可以进入'
 const INVITE_INVALID_MESSAGE = '邀请码无效，请检查邀请链接或联系邀请人'
-const INITIAL_RESEND_SECONDS = 60
+const INITIAL_RESEND_SECONDS = 30
 
 function getInviteErrorMessage(error) {
   const message = String(error && error.message ? error.message : error || '').trim()
   const lowerMessage = message.toLowerCase()
+
+  if (lowerMessage === 'invite expired' || /邀请码已失效/.test(message)) {
+    return '邀请码已失效，请重新获取邀请码'
+  }
 
   if (lowerMessage === 'invite code required' || /邀请码.*(必填|缺失|为空)|需要邀请/.test(message)) {
     return INVITE_REQUIRED_MESSAGE
@@ -38,6 +42,33 @@ function getInviteErrorMessage(error) {
 
 function isInviteError(error) {
   return Boolean(getInviteErrorMessage(error))
+}
+
+function isExpiredInviteError(error) {
+  return /邀请码已失效|invite expired/i.test(String(error && error.message ? error.message : error || ''))
+}
+
+function getSmsSendErrorMessage(error) {
+  const message = String((error && (error.message || error.errMsg)) || '').trim()
+  const lowerMessage = message.toLowerCase()
+
+  if (/验证码发送过于频繁|今日验证码发送次数已达上限|手机号格式不正确/.test(message)) {
+    return message
+  }
+
+  if (/invalid phone|phone invalid|phone required/.test(lowerMessage)) {
+    return '手机号格式不正确'
+  }
+
+  if (/sms.*(rate|daily|too frequent)|too many requests|\b429\b/.test(lowerMessage)) {
+    return '验证码发送过于频繁，请稍后再试'
+  }
+
+  if (/request:fail|network|timeout|failed to connect|connection|gateway|\b5\d\d\b/.test(lowerMessage)) {
+    return '网络异常，请检查网络后重试'
+  }
+
+  return '验证码发送失败，请稍后重试'
 }
 
 function safeDecode(value) {
@@ -360,6 +391,8 @@ Page({
     codeInputFocus: false,
     resendSeconds: INITIAL_RESEND_SECONDS,
     canResend: true,
+    canRequestCode: false,
+    entryFlow: 'register',
     password: '',
     inviteCode: '',
     inviteContext: null,
@@ -395,6 +428,12 @@ Page({
       return
     }
 
+    if (options.flow === 'existing') {
+      this.enterNormalLogin('home')
+      this.setData({ entryFlow: 'existing' })
+      return
+    }
+
     if (this.restoreExistingSessionIfNoInvite(options)) {
       return
     }
@@ -413,7 +452,8 @@ Page({
       inviteService.saveInviteContext(inviteContext)
       this.setData({
         inviteCode: inviteContext.code,
-        inviteContext
+        inviteContext,
+        entryFlow: 'register'
       })
     } else {
       this.enterNormalLogin('home')
@@ -465,8 +505,10 @@ Page({
   },
 
   onPhoneInput(event) {
+    const phone = String(event.detail.value || '').trim()
     this.setData({
-      phone: String(event.detail.value || '').trim()
+      phone,
+      canRequestCode: this.isValidPhone(phone)
     })
   },
 
@@ -540,7 +582,8 @@ Page({
       if (!result || result.status !== 'valid' || !result.invite) {
         return {
           ok: false,
-          message: getInviteErrorMessage(result && result.message) || INVITE_INVALID_MESSAGE
+          message: getInviteErrorMessage(result && result.message) || INVITE_INVALID_MESSAGE,
+          expired: Boolean(result && result.expired)
         }
       }
 
@@ -567,7 +610,8 @@ Page({
     } catch (error) {
       return {
         ok: false,
-        message: getInviteErrorMessage(error) || INVITE_INVALID_MESSAGE
+        message: getInviteErrorMessage(error) || INVITE_INVALID_MESSAGE,
+        expired: isExpiredInviteError(error)
       }
     }
   },
@@ -580,6 +624,21 @@ Page({
       hasWechatLogin: false
     })
     toast.info(message || INVITE_REQUIRED_MESSAGE)
+  },
+
+  showExpiredInviteModal() {
+    inviteService.clearInviteContext()
+    this.setData({
+      loginMode: 'home',
+      inviteContext: null,
+      hasWechatLogin: false
+    })
+    wx.showModal({
+      title: '邀请码已失效',
+      content: '当前邀请码已失效，请重新获取邀请码后再次进入。',
+      showCancel: false,
+      confirmText: '知道了'
+    })
   },
 
   enterNormalLogin(mode = 'home') {
@@ -615,6 +674,8 @@ Page({
       codeInputFocus: false,
       resendSeconds: INITIAL_RESEND_SECONDS,
       canResend: true,
+      canRequestCode: this.isValidPhone(defaults.phone || ''),
+      entryFlow: 'register',
       password: '',
       inviteCode: '',
       inviteContext: null
@@ -644,8 +705,9 @@ Page({
       codeDigits: this.getCodeDigits(verifyCode),
       isCodeComplete: verifyCode.length === 6,
       codeInputFocus: false,
-      resendSeconds: 60,
+      resendSeconds: INITIAL_RESEND_SECONDS,
       canResend: true,
+      canRequestCode: this.isValidPhone(phone),
       password,
       hasWechatLogin: false,
       isLoggingIn: false,
@@ -720,8 +782,9 @@ Page({
       codeDigits: this.getCodeDigits(env.isMock ? TEST_CODE : ''),
       isCodeComplete: env.isMock,
       codeInputFocus: false,
-      resendSeconds: 60,
+      resendSeconds: INITIAL_RESEND_SECONDS,
       canResend: true,
+      canRequestCode: env.isMock,
       password: env.isMock ? TEST_PASSWORD : '',
       inviteCode: optionInviteCode,
       hasWechatLogin: false,
@@ -944,7 +1007,7 @@ Page({
     this.setData({
       isSendingCode: true,
       canResend: false,
-      resendSeconds: 60
+      resendSeconds: INITIAL_RESEND_SECONDS
     })
 
     try {
@@ -955,7 +1018,7 @@ Page({
       toast.success('验证码已发送')
       this.startCodeTimer()
     } catch (error) {
-      toast.info(error.message || '验证码发送失败')
+      toast.info(getSmsSendErrorMessage(error))
       this.setData({
         canResend: true
       })
@@ -1138,12 +1201,6 @@ Page({
       return
     }
 
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info(INVITE_REQUIRED_MESSAGE)
-      return
-    }
-
     if (!this.data.agreed) {
       toast.info('请先同意用户协议和隐私协议')
       return
@@ -1161,12 +1218,6 @@ Page({
         accountMode: 'password',
         agreed: true
       })
-      return
-    }
-
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info(INVITE_REQUIRED_MESSAGE)
       return
     }
 
@@ -1244,7 +1295,7 @@ Page({
       toast.success('验证码已发送')
       this.startCodeTimer()
     } catch (error) {
-      toast.info(error.message || '验证码发送失败')
+      toast.info(getSmsSendErrorMessage(error))
       this.setData({
         canResend: true
       })
@@ -1344,6 +1395,10 @@ Page({
       if (inviteContext) {
         const verified = await this.ensureValidInviteContext(inviteContext)
         if (!verified.ok) {
+          if (verified.expired) {
+            this.showExpiredInviteModal()
+            return
+          }
           this.showInviteError(verified.message)
           return
         }
@@ -1360,9 +1415,14 @@ Page({
       })
       inviteService.clearInviteContext()
       toast.success(loginData.authPageMode === 'register' ? '注册成功' : '登录成功')
+      await this.promptWechatBindAfterLogin(loginData)
       await this.continueAfterLogin(loginData)
     } catch (error) {
       if (isInviteError(error)) {
+        if (isExpiredInviteError(error)) {
+          this.showExpiredInviteModal()
+          return
+        }
         this.showInviteError(getInviteErrorMessage(error))
         return
       }
@@ -1421,9 +1481,7 @@ Page({
     try {
       const loginData = await authService.loginByPassword({
         phone: this.data.phone,
-        password: this.data.password,
-        inviteCode: inviteContext.code,
-        entryType: inviteContext.entryType || ''
+        password: this.data.password
       })
 
       this.setData({
@@ -1431,6 +1489,8 @@ Page({
       })
       inviteService.clearInviteContext()
       toast.success('登录成功')
+      await this.promptWechatBindAfterLogin(loginData)
+      await this.continueAfterLogin(loginData)
     } catch (error) {
       toast.info(error.message || '账号密码登录失败')
     } finally {
@@ -1438,6 +1498,30 @@ Page({
         isPasswordLoggingIn: false
       })
     }
+  },
+
+  async promptWechatBindAfterLogin(loginData) {
+    if (loginData && loginData.boundWechat) return
+    await new Promise((resolve) => {
+      wx.showModal({
+        title: '绑定微信',
+        content: '绑定后可使用微信快捷登录，也可暂不绑定。',
+        confirmText: '去绑定',
+        cancelText: '暂不绑定',
+        success: async (res) => {
+          if (res.confirm) {
+            try {
+              await authService.bindWechatAccount()
+              toast.success('微信已绑定')
+            } catch (error) {
+              toast.info(error.message || '微信绑定失败')
+            }
+          }
+          resolve()
+        },
+        fail: resolve
+      })
+    })
   },
 
   async startWechatAuth() {
@@ -1500,6 +1584,10 @@ Page({
       await this.continueAfterLogin(loginData)
     } catch (error) {
       if (isInviteError(error)) {
+        if (isExpiredInviteError(error)) {
+          this.showExpiredInviteModal()
+          return
+        }
         this.showInviteError(getInviteErrorMessage(error))
         return
       }

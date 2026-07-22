@@ -1,6 +1,8 @@
 const homeService = require('../../services/home')
 const roleService = require('../../services/role')
 const gameService = require('../../services/game')
+const locationService = require('../../services/location')
+const locationAccess = require('../../utils/location-access')
 const { ROUTES } = require('../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
 const { setActiveRole } = require('../../utils/active-role')
@@ -304,6 +306,12 @@ Component({
       deviceBadge: '',
       stats: []
     },
+    blueBadge: {
+      enabled: false,
+      label: '',
+      ruleText: '',
+      contactText: ''
+    },
     roleTags: ROLE_TAGS.map((item) => ({
       ...item,
       active: item.key === 'expert'
@@ -331,10 +339,15 @@ Component({
     mainGames: [],
     mainVisibleGames: [],
     mainEmptyText: '暂无组局',
+    locationGuideVisible: false,
     friendSection: EMPTY_ROLE_HOME.friendSection,
     friendGames: [],
     friendEmptyText: '暂无朋友组局',
     skills: [],
+    allSkills: [],
+    skillsExpanded: false,
+    skillMoreCount: 0,
+    skillPreviewCount: 3,
     review: null,
     recommendation: null,
     network: null,
@@ -429,6 +442,7 @@ Component({
       const roleType = this.normalizeRoleType(roleTypeValue)
       const fallback = this.formatRoleDashboard({}, roleType)
       const rankingState = this.formatRankingState({}, roleType)
+      const skillState = this.buildSkillDisplayState(fallback.skills, fallback.skillPreviewCount, false)
       const roleStatusState = Object.assign({}, DEFAULT_ROLE_STATUS_STATE)
       const mainFilter = fallback.mainTabs.length ? fallback.mainTabs[0].key : 'all'
       const mainVisibleState = this.formatMainVisibleState(fallback.mainGames, mainFilter)
@@ -446,6 +460,7 @@ Component({
         roleAuditPrompt: createEmptyRoleAuditPrompt(),
         hero: this.formatHero({}, fallback, roleType),
         playerCard: this.formatPlayerCard(fallback),
+        blueBadge: { enabled: false, label: '', ruleText: '', contactText: '' },
         roleTags: this.formatRoleTags(roleType, roleStatusState),
         rolePermissionPrompt: this.formatRolePermissionPrompt('', roleStatusState, roleType),
         entries: fallback.entries,
@@ -459,7 +474,7 @@ Component({
         friendSection: fallback.friendSection,
         friendGames: fallback.friendGames,
         friendEmptyText: '暂无朋友组局',
-        skills: fallback.skills,
+        ...skillState,
         review: fallback.review,
         recommendation: fallback.recommendation,
         network: fallback.network,
@@ -524,6 +539,7 @@ Component({
           onlineText: resolveBackendOnlineText(home),
           hero: this.formatHero(hero, dashboard, roleType),
           playerCard: this.formatPlayerCard(dashboard),
+          blueBadge: home.expertBlueBadge || ((home.user || {}).expertBlueBadge) || { enabled: false, label: '', ruleText: '', contactText: '' },
           roleTags: this.formatRoleTags(selectedRole, roleStatusState, roleApplicationList),
           rolePermissionPrompt: this.formatRolePermissionPrompt(selectedRole, roleStatusState, roleType, roleApplicationList),
           roleAuditPrompt: this.formatRoleAuditPrompt(selectedRole, roleStatusState, roleApplicationList, roleStatusConfig),
@@ -538,7 +554,7 @@ Component({
           friendSection: dashboard.friendSection,
           friendGames: dashboard.friendGames,
           friendEmptyText: '暂无朋友组局',
-          skills: dashboard.skills,
+          ...this.buildSkillDisplayState(dashboard.skills, dashboard.skillPreviewCount, false),
           review: dashboard.review,
           recommendation: dashboard.recommendation,
           network: dashboard.network,
@@ -702,6 +718,7 @@ Component({
         friendSection: this.formatFriendSection(home.friendSection),
         friendGames: this.formatGameCards(home.friendGames),
         skills: Array.isArray(home.skills) ? home.skills : [],
+        skillPreviewCount: home.skillDisplay && home.skillDisplay.homePreviewCount,
         review: home.review || null,
         recommendation: home.recommendation || null,
         network: home.network || home.roleNetwork || (roleType === 'guide' ? this.formatGuideNetwork(home) : null)
@@ -744,6 +761,7 @@ Component({
         friendSection: this.formatFriendSection(dashboard.friendSection || source.friendSection),
         friendGames: this.formatGameCards(dashboard.friendGames || source.friendGames),
         skills: this.formatSkills(dashboard.skills, source.skills),
+        skillPreviewCount: Number(dashboard.skillPreviewCount || ((dashboard.skillDisplay || {}).homePreviewCount) || 3),
         review: this.formatReview(dashboard, source),
         recommendation: dashboard.recommendation || source.recommendation,
         network: this.formatNetwork(dashboard.network || source.network)
@@ -751,7 +769,7 @@ Component({
     },
 
     formatSkills(skills) {
-      return (Array.isArray(skills) ? skills : []).slice(0, 3).map((item, index) => {
+      return (Array.isArray(skills) ? skills : []).map((item, index) => {
         const sourceItem = item || {}
         const hasSourceValue = Boolean(sourceItem.title || sourceItem.name || sourceItem.label || sourceItem.icon || sourceItem.iconText || sourceItem.emoji)
         const locked = Boolean(
@@ -770,6 +788,34 @@ Component({
           locked,
           unlocked: !locked
         }
+      })
+    },
+
+    buildSkillDisplayState(skills, previewCount, expanded) {
+      const allSkills = Array.isArray(skills) ? skills : []
+      const safePreviewCount = Math.max(1, Number(previewCount) || 3)
+      const skillsExpanded = Boolean(expanded) && allSkills.length > safePreviewCount
+      const visibleSkills = skillsExpanded ? allSkills : allSkills.slice(0, safePreviewCount)
+      return {
+        allSkills,
+        skills: visibleSkills,
+        skillsExpanded,
+        skillMoreCount: Math.max(0, allSkills.length - safePreviewCount),
+        skillPreviewCount: safePreviewCount
+      }
+    },
+
+    handleSkillMoreTap() {
+      this.setData(this.buildSkillDisplayState(this.data.allSkills, this.data.skillPreviewCount, !this.data.skillsExpanded))
+    },
+
+    handleBlueBadgeTap() {
+      const badge = this.data.blueBadge || {}
+      wx.showModal({
+        title: badge.label || '蓝标认证',
+        content: [badge.ruleText, badge.contactText].filter(Boolean).join('\n'),
+        showCancel: false,
+        confirmText: '我知道了'
       })
     },
 
@@ -2671,6 +2717,10 @@ Component({
 
     handleMainTabTap(event) {
       const key = event.currentTarget.dataset.key || 'all'
+      if (key === 'nearby') {
+        this.loadHomeNearbyGames()
+        return
+      }
       const mainVisibleState = this.formatMainVisibleState(this.data.mainGames, key)
 
       this.setData({
@@ -2682,6 +2732,43 @@ Component({
         mainVisibleGames: mainVisibleState.games,
         mainEmptyText: mainVisibleState.emptyText
       })
+    },
+
+    async loadHomeNearbyGames() {
+      try {
+        const location = await locationAccess.getPreciseLocation()
+        const data = await locationService.getNearbyGames({ latitude: location.latitude, longitude: location.longitude, radiusMeters: 5000 })
+        const nearbyGames = this.formatGameCards(data.items || data.games || [])
+        const cityGames = (this.data.mainGames || []).filter((item) => item.scope === 'city' || (item.scopes || []).indexOf('city') >= 0)
+        const mainGames = this.mergeMainGameGroups([{ scope: 'nearby', items: nearbyGames }, { scope: 'city', items: cityGames }])
+        const mainVisibleState = this.formatMainVisibleState(mainGames, 'nearby')
+        this.setData({ mainGames, mainVisibleGames: mainVisibleState.games, mainEmptyText: mainVisibleState.emptyText, mainFilter: 'nearby', mainTabs: this.data.mainTabs.map((item) => ({ ...item, active: item.key === 'nearby' })), locationGuideVisible: false })
+      } catch (error) {
+        this.setData({ locationGuideVisible: true })
+      }
+    },
+
+    async handleHomeLocationGuideTap(event) {
+      const action = event.currentTarget.dataset.action
+      if (action === 'setting') return locationAccess.showDeniedGuide({ onManual: () => this.loadHomeManualLocation(), onFallback: () => this.loadHomeCityFallback() })
+      if (action === 'manual') return this.loadHomeManualLocation()
+      if (action === 'city') return this.loadHomeCityFallback()
+    },
+
+    async loadHomeManualLocation() {
+      try {
+        const location = await locationAccess.chooseManualLocation()
+        const data = await locationService.getNearbyGames({ latitude: location.latitude, longitude: location.longitude, radiusMeters: 5000 })
+        const mainGames = this.formatGameCards(data.items || data.games || [])
+        const mainVisibleState = this.formatMainVisibleState(mainGames, 'nearby')
+        this.setData({ mainGames, mainVisibleGames: mainVisibleState.games, mainEmptyText: mainVisibleState.emptyText, mainFilter: 'nearby', locationGuideVisible: false })
+      } catch (error) { wx.showToast({ title: error.message || '未选择位置', icon: 'none' }) }
+    },
+
+    async loadHomeCityFallback() {
+      this.setData({ locationGuideVisible: false })
+      const mainVisibleState = this.formatMainVisibleState(this.data.mainGames, 'city')
+      this.setData({ mainFilter: 'city', mainVisibleGames: mainVisibleState.games, mainEmptyText: mainVisibleState.emptyText, mainTabs: this.data.mainTabs.map((item) => ({ ...item, active: item.key === 'city' })) })
     },
 
     handleRoleTagTap(event) {
@@ -2805,6 +2892,12 @@ Component({
       wx.showToast({
         title: '暂无更多评价',
         icon: 'none'
+      })
+    },
+
+    handleTaskCenterTap() {
+      navigateShellRoute(ROUTES.profileTaskCenter, {
+        currentRoute: this.homeRoute()
       })
     },
 

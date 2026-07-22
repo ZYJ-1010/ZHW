@@ -4,6 +4,11 @@ const profileService = require('../../services/profile')
 const toast = require('../../utils/toast')
 const { getHomeShellFixedFrameLayout } = require('./layout')
 const DEFAULT_ONLINE_COUNT = '0'
+const FLOATING_TASK_POSITION_STORAGE_KEY = 'enjoy_home_task_float_position_v1'
+const FLOATING_TASK_WIDTH_RPX = 112
+const FLOATING_TASK_HEIGHT_RPX = 112
+const FLOATING_TASK_MARGIN_RPX = 24
+const FLOATING_TASK_DRAG_THRESHOLD_RPX = 6
 
 function formatOnlineText(value) {
   const match = String(value || '').match(/\d[\d,]*/)
@@ -36,6 +41,7 @@ Component({
     resolvedToolbarActionsVisible: true,
     resolvedToolbarAvatarVisible: true,
     shellAvatarUrl: '',
+    floatingTaskStyle: '',
     shellNavItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },
@@ -156,6 +162,10 @@ Component({
     navAutoNavigate: {
       type: Boolean,
       value: false
+    },
+    floatingTaskVisible: {
+      type: Boolean,
+      value: false
     }
   },
 
@@ -166,10 +176,17 @@ Component({
       })
       this.updateShellVariant()
       this.updateShellLayout()
+      this.restoreFloatingTaskPosition()
       this.loadShellProfile()
     },
     ready() {
       this.updateShellLayout()
+    },
+    detached() {
+      if (this.taskFloatTapSuppressTimer) {
+        clearTimeout(this.taskFloatTapSuppressTimer)
+        this.taskFloatTapSuppressTimer = null
+      }
     }
   },
 
@@ -180,10 +197,148 @@ Component({
     },
     resize() {
       this.updateShellLayout()
+      this.restoreFloatingTaskPosition()
     }
   },
 
   methods: {
+    getFloatingTaskBounds() {
+      const layout = getHomeShellFixedFrameLayout({
+        dockVisible: this.properties.dockVisible !== false,
+        contentBottomGapRpx: Math.max(0, Number(this.properties.contentBottomGap || 0))
+      })
+      const canvasHeight = Number(layout && layout.canvasHeightRpx) || 1626
+      const contentTop = Number(layout && layout.contentTopRpx) || 182
+      const dockTop = Number(layout && layout.dockTopRpx) || (canvasHeight - 218)
+      const minX = FLOATING_TASK_MARGIN_RPX
+      const maxX = Math.max(minX, 750 - FLOATING_TASK_WIDTH_RPX - FLOATING_TASK_MARGIN_RPX)
+      const minY = contentTop + FLOATING_TASK_MARGIN_RPX
+      const maxY = Math.max(minY, dockTop - FLOATING_TASK_HEIGHT_RPX - FLOATING_TASK_MARGIN_RPX)
+
+      return { minX, maxX, minY, maxY }
+    },
+
+    clampFloatingTaskPosition(position = {}) {
+      const bounds = this.getFloatingTaskBounds()
+      const x = Number(position.x)
+      const y = Number(position.y)
+      const fallback = { x: bounds.maxX, y: bounds.maxY }
+
+      return {
+        x: Math.round(Math.min(bounds.maxX, Math.max(bounds.minX, Number.isFinite(x) ? x : fallback.x))),
+        y: Math.round(Math.min(bounds.maxY, Math.max(bounds.minY, Number.isFinite(y) ? y : fallback.y)))
+      }
+    },
+
+    floatingTaskStyleFor(position = {}) {
+      return `left: ${position.x}rpx; top: ${position.y}rpx; right: auto; bottom: auto;`
+    },
+
+    restoreFloatingTaskPosition() {
+      let savedPosition = null
+      try {
+        savedPosition = wx.getStorageSync(FLOATING_TASK_POSITION_STORAGE_KEY)
+      } catch (error) {
+        savedPosition = null
+      }
+
+      const position = this.clampFloatingTaskPosition(savedPosition || this.floatingTaskPosition || {})
+      this.floatingTaskPosition = position
+      this.setData({
+        floatingTaskStyle: this.floatingTaskStyleFor(position)
+      })
+    },
+
+    taskTouchPoint(event) {
+      const touch = (event && event.touches && event.touches[0]) || (event && event.changedTouches && event.changedTouches[0])
+      if (!touch) {
+        return null
+      }
+
+      const windowInfo = this.getWindowInfo() || {}
+      const windowWidth = Number(windowInfo.windowWidth || windowInfo.screenWidth || 0)
+      if (!Number.isFinite(windowWidth) || windowWidth <= 0) {
+        return null
+      }
+
+      return {
+        x: Number(touch.clientX) * 750 / windowWidth,
+        y: Number(touch.clientY) * 750 / windowWidth
+      }
+    },
+
+    handleTaskTouchStart(event) {
+      const point = this.taskTouchPoint(event)
+      if (!point) {
+        return
+      }
+
+      if (!this.floatingTaskPosition) {
+        this.restoreFloatingTaskPosition()
+      }
+
+      this.taskFloatDidDrag = false
+      this.taskFloatDragState = {
+        startX: point.x,
+        startY: point.y,
+        originX: this.floatingTaskPosition.x,
+        originY: this.floatingTaskPosition.y
+      }
+    },
+
+    handleTaskTouchMove(event) {
+      const point = this.taskTouchPoint(event)
+      const drag = this.taskFloatDragState
+      if (!point || !drag) {
+        return
+      }
+
+      const nextPosition = this.clampFloatingTaskPosition({
+        x: drag.originX + point.x - drag.startX,
+        y: drag.originY + point.y - drag.startY
+      })
+      if (Math.abs(nextPosition.x - drag.originX) >= FLOATING_TASK_DRAG_THRESHOLD_RPX || Math.abs(nextPosition.y - drag.originY) >= FLOATING_TASK_DRAG_THRESHOLD_RPX) {
+        this.taskFloatDidDrag = true
+      }
+
+      this.floatingTaskPosition = nextPosition
+      this.setData({
+        floatingTaskStyle: this.floatingTaskStyleFor(nextPosition)
+      })
+    },
+
+    handleTaskTouchEnd() {
+      if (!this.taskFloatDragState) {
+        return
+      }
+
+      this.taskFloatDragState = null
+      if (!this.taskFloatDidDrag) {
+        return
+      }
+
+      try {
+        wx.setStorageSync(FLOATING_TASK_POSITION_STORAGE_KEY, this.floatingTaskPosition)
+      } catch (error) {
+        // 位置保存失败不影响本次拖动和按钮使用。
+      }
+
+      if (this.taskFloatTapSuppressTimer) {
+        clearTimeout(this.taskFloatTapSuppressTimer)
+      }
+      this.taskFloatTapSuppressTimer = setTimeout(() => {
+        this.taskFloatDidDrag = false
+        this.taskFloatTapSuppressTimer = null
+      }, 250)
+    },
+
+    handleTaskTap() {
+      if (this.taskFloatDidDrag) {
+        return
+      }
+      this.triggerEvent('tasktap')
+    },
+
     normalizeStyle(style) {
       const value = style || ''
 

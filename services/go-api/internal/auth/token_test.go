@@ -81,3 +81,12 @@ func (r *recordingSessionRepository) FindSessionByTokenHash(_ context.Context, t
 	session, ok := r.sessions[tokenHash]
 	return session, ok, nil
 }
+
+func (r *recordingSessionRepository) RevokeUserSessions(_ context.Context, userID int64) error {
+	for tokenHash, session := range r.sessions {
+		if session.UserID == userID {
+			delete(r.sessions, tokenHash)
+		}
+	}
+	return nil
+}

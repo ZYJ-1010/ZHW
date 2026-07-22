@@ -45,6 +45,16 @@ func (s *Server) updateExpertSkill(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	// 显性技能由后台配置统一限额。下调上限时保留存量档案，但不允许继续增加。
+	visibleLimit := s.currentExpertSkillDisplayConfig().VisibleSkillLimit
+	existing := s.profiles.AdminExpertSkill(userID)
+	if existingCount := expertExplicitSkillCount(existing.SkillTree, existing.ServiceTags); existingCount > visibleLimit {
+		visibleLimit = existingCount
+	}
+	if expertExplicitSkillCount(req.SkillTree, req.ServiceTags) > visibleLimit {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "显性技能数量超过后台配置上限")
+		return
+	}
 	profile, err := s.profiles.UpdateExpertSkill(userID, req)
 	if err != nil {
 		writeProfileError(w, err)
@@ -52,6 +62,20 @@ func (s *Server) updateExpertSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	s.recordBehavior(userID, "update_expert_skill_profile", "expert_skill_profile", userID, map[string]interface{}{"completeness": profile.Completeness})
 	httpx.OK(w, profile)
+}
+
+func expertExplicitSkillCount(groups ...[]string) int {
+	seen := make(map[string]struct{})
+	for _, group := range groups {
+		for _, raw := range group {
+			value := strings.TrimSpace(raw)
+			if value == "" {
+				continue
+			}
+			seen[value] = struct{}{}
+		}
+	}
+	return len(seen)
 }
 
 func (s *Server) adminExpertSkill(w http.ResponseWriter, r *http.Request) {

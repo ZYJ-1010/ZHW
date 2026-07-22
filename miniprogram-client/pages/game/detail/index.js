@@ -95,7 +95,12 @@ function gameStatusText(status = '') {
     in_progress: '进行中',
     pending_confirm: '已结束',
     pending_review: '待评价',
-    completed: '已完成'
+    completed: '已完成',
+    canceled: '已取消',
+    cancelled: '已取消',
+    disputed: '争议中',
+    settling: '结算中',
+    closed: '已关闭'
   }
 
   return map[status] || status || '招募中'
@@ -154,6 +159,7 @@ function normalizeParticipant(item = {}, index, game = {}) {
 		position: item.position || '后台未返回',
 		topic: item.topic || '后台未返回',
 		primaryTag: item.primaryTag || '后台未返回',
+		blueBadge: item.expertBlueBadge || { enabled: false },
 		tags: Array.isArray(item.tags) ? item.tags : [],
 		location: item.location || '后台未返回',
 		distance: item.distance || ''
@@ -179,6 +185,7 @@ function buildOrganizer(game = {}, display = {}) {
 		avatarSrc: display.avatarUrl || display.avatarSrc || '',
 		avatarText: display.avatarText || '未',
 		role: display.roleLabel || '后台未返回',
+		blueBadge: display.expertBlueBadge || { enabled: false },
     summary: `人数 ${Number(game.currentPlayers || 0)}/${Number(game.maxPlayers || 8)}`,
     rating,
     ratingCount,
@@ -819,6 +826,16 @@ Page({
     }
 
     this.onViewAllParticipants()
+  },
+
+  onOrganizerBlueBadgeTap() {
+    const badge = this.data.organizer && this.data.organizer.blueBadge
+    wx.showModal({
+      title: (badge && badge.label) || '蓝标认证',
+      content: [badge && badge.ruleText, badge && badge.contactText].filter(Boolean).join('\n'),
+      showCancel: false,
+      confirmText: '我知道了'
+    })
   },
 
   handleDetailScroll(event) {

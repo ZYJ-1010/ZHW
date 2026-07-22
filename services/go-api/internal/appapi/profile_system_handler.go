@@ -329,7 +329,7 @@ func (s *Server) getSystemSkillConfig(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.profiles.SystemManagementConfig(userID, "skill-config", s.defaultSystemSkillConfig(userID)))
+	httpx.OK(w, s.systemSkillConfig(userID))
 }
 
 func (s *Server) getSystemServiceCaseDetail(w http.ResponseWriter, r *http.Request) {
@@ -355,33 +355,30 @@ func (s *Server) saveSystemSkillConfig(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
-	payload = mergeObjectMap(s.defaultSystemSkillConfig(userID), payload)
-	if err := validateSystemSkillConfig(payload); err != nil {
+	existing := s.systemSkillConfig(userID)
+	payload = mergeObjectMap(existing, payload)
+	limit := s.currentExpertSkillDisplayConfig().VisibleSkillLimit
+	if err := validateSystemSkillConfig(payload, limit, systemSkillVisibleCount(existing)); err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, err.Error())
 		return
 	}
+	payload = normalizeSystemSkillConfigForDisplay(payload, limit)
 	saved := s.profiles.SaveSystemManagementConfig(userID, "skill-config", payload)
 	s.recordBehavior(userID, "update_system_skill_config", "profile", userID, map[string]interface{}{"activeTab": saved["activeTab"]})
 	httpx.OK(w, saved)
 }
 
-func validateSystemSkillConfig(payload map[string]interface{}) error {
-	if slots, ok := payload["skillSlots"].([]interface{}); ok && len(slots) > 3 {
-		return errors.New("最多配置 3 个技能")
+func validateSystemSkillConfig(payload map[string]interface{}, visibleLimit int, existingVisibleCount int) error {
+	allowedCount := visibleLimit
+	if existingVisibleCount > allowedCount {
+		// 下调上限不会删除存量显性技能；只禁止继续增加，确保存量行家资料可继续编辑。
+		allowedCount = existingVisibleCount
 	}
-	if slots, ok := payload["skillSlots"].([]map[string]interface{}); ok && len(slots) > 3 {
-		return errors.New("最多配置 3 个技能")
+	if len(systemSkillItemList(payload["skillSlots"])) > allowedCount {
+		return errors.New("显性技能数量超过后台配置上限")
 	}
-	groups, ok := payload["skillGroups"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	visible, ok := groups["visible"].([]interface{})
-	if ok && len(visible) > 3 {
-		return errors.New("最多配置 3 个技能")
-	}
-	if visible, ok := groups["visible"].([]map[string]interface{}); ok && len(visible) > 3 {
-		return errors.New("最多配置 3 个技能")
+	if systemSkillVisibleCount(payload) > allowedCount {
+		return errors.New("显性技能数量超过后台配置上限")
 	}
 	return nil
 }
@@ -738,7 +735,50 @@ func (s *Server) getProfileSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.profiles.SystemManagementConfig(userID, "profile-settings", s.defaultProfileSettings(userID)))
+	settings := s.profiles.SystemManagementConfig(userID, "profile-settings", s.defaultProfileSettings(userID))
+	httpx.OK(w, s.normalizeProfileAccountSecurityRows(userID, settings))
+}
+
+func (s *Server) normalizeProfileAccountSecurityRows(userID int64, settings map[string]interface{}) map[string]interface{} {
+	result := cloneObjectMap(settings)
+	sections, _ := result["sections"].([]interface{})
+	if len(sections) == 0 {
+		return s.defaultProfileSettings(userID)
+	}
+	user, _ := s.auth.UserByID(userID)
+	securityRows := map[string]map[string]interface{}{
+		"wechatBind":    {"id": "wechatBind", "label": "绑定微信", "iconKey": "wechatBind", "value": map[bool]string{true: "已绑定", false: "未绑定"}[strings.TrimSpace(user.OpenID) != ""], "arrow": true, "action": "bind_wechat"},
+		"loginPassword": {"id": "loginPassword", "label": "登录密码", "iconKey": "loginPassword", "value": map[bool]string{true: "已设置", false: "未设置"}[s.auth.HasPassword(userID)], "arrow": true, "action": "set_password"},
+	}
+	for index, rawSection := range sections {
+		section, ok := rawSection.(map[string]interface{})
+		if !ok || section["title"] != "账号安全" {
+			continue
+		}
+		rows, _ := section["rows"].([]interface{})
+		found := map[string]bool{}
+		for rowIndex, rawRow := range rows {
+			row, ok := rawRow.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			id, _ := row["id"].(string)
+			if dynamic, exists := securityRows[id]; exists {
+				rows[rowIndex] = dynamic
+				found[id] = true
+			}
+		}
+		for id, dynamic := range securityRows {
+			if !found[id] {
+				rows = append(rows, dynamic)
+			}
+		}
+		section["rows"] = rows
+		sections[index] = section
+		result["sections"] = sections
+		return result
+	}
+	return s.defaultProfileSettings(userID)
 }
 
 func (s *Server) saveProfileSettings(w http.ResponseWriter, r *http.Request) {
@@ -897,13 +937,14 @@ func (s *Server) profileCertificationSummary(userID int64) []map[string]interfac
 }
 
 func (s *Server) defaultSystemSkillConfig(userID int64) map[string]interface{} {
+	displayConfig := s.currentExpertSkillDisplayConfig()
+	visibleLimit := displayConfig.VisibleSkillLimit
 	skillProfile := s.profiles.AdminExpertSkill(userID)
-	tags := append([]string{}, skillProfile.SkillTree...)
-	tags = append(tags, skillProfile.ServiceTags...)
+	tags := uniqueSystemSkillTags(skillProfile.SkillTree, skillProfile.ServiceTags)
 	visible := make([]map[string]interface{}, 0, len(tags))
-	slots := make([]map[string]interface{}, 0, 3)
+	slots := make([]map[string]interface{}, 0, visibleLimit)
 	for index, tag := range tags {
-		if index >= 3 {
+		if index >= visibleLimit {
 			break
 		}
 		id := "skill-" + strconv.Itoa(index+1)
@@ -927,7 +968,7 @@ func (s *Server) defaultSystemSkillConfig(userID int64) map[string]interface{} {
 		visible = append(visible, item)
 		slots = append(slots, map[string]interface{}{"id": id, "title": tag, "iconText": "\u2605", "tone": "blue", "active": index == 0, "empty": false})
 	}
-	for len(slots) < 3 {
+	for len(slots) < visibleLimit {
 		index := len(slots) + 1
 		slots = append(slots, map[string]interface{}{
 			"id":       "empty-" + strconv.Itoa(index),
@@ -936,14 +977,13 @@ func (s *Server) defaultSystemSkillConfig(userID int64) map[string]interface{} {
 			"iconText": "+",
 			"tone":     "gray",
 			"empty":    true,
-			"locked":   index == 3,
 		})
 	}
 	return map[string]interface{}{
 		"activeTab": "visible",
 		"roleSummary": map[string]interface{}{
 			"roleName":        "\u884c\u5bb6",
-			"maxSkillCount":   3,
+			"maxSkillCount":   visibleLimit,
 			"monthlyLimit":    3,
 			"usedCount":       0,
 			"remainingCount":  3,
@@ -968,11 +1008,88 @@ func (s *Server) defaultSystemSkillConfig(userID int64) map[string]interface{} {
 		},
 		"addableSkills": defaultAddableSkills(),
 		"unlockSuggestion": map[string]string{
-			"title":      "\u89e3\u9501\u7b2c\u4e09\u4e2a\u6280\u80fd",
-			"desc":       "\u89e3\u9501\u540e\u53ef\u6dfb\u52a0\u65b0\u7684\u663e\u6027\u6280\u80fd",
-			"actionText": "\u7acb\u5373\u89e3\u9501",
+			"title":      "\u914d\u7f6e\u663e\u6027\u6280\u80fd",
+			"desc":       "\u663e\u6027\u6280\u80fd\u6570\u91cf\u7531\u5e73\u53f0\u8fd0\u8425\u89c4\u5219\u7edf\u4e00\u63a7\u5236",
+			"actionText": "\u53bb\u6dfb\u52a0",
 		},
 	}
+}
+
+func (s *Server) systemSkillConfig(userID int64) map[string]interface{} {
+	config := s.profiles.SystemManagementConfig(userID, "skill-config", s.defaultSystemSkillConfig(userID))
+	return normalizeSystemSkillConfigForDisplay(config, s.currentExpertSkillDisplayConfig().VisibleSkillLimit)
+}
+
+func normalizeSystemSkillConfigForDisplay(config map[string]interface{}, visibleLimit int) map[string]interface{} {
+	result := cloneObjectMap(config)
+	slots := systemSkillItemList(result["skillSlots"])
+	for len(slots) < visibleLimit {
+		index := len(slots) + 1
+		slots = append(slots, map[string]interface{}{
+			"id":       "empty-" + strconv.Itoa(index),
+			"title":    "\u6dfb\u52a0\u6280\u80fd",
+			"iconKey":  "plus",
+			"iconText": "+",
+			"tone":     "gray",
+			"empty":    true,
+		})
+	}
+	result["skillSlots"] = slots
+	roleSummary, _ := result["roleSummary"].(map[string]interface{})
+	if roleSummary == nil {
+		roleSummary = map[string]interface{}{}
+	}
+	roleSummary["roleName"] = "\u884c\u5bb6"
+	roleSummary["maxSkillCount"] = visibleLimit
+	roleSummary["configuredCount"] = configuredSkillCount(slots)
+	result["roleSummary"] = roleSummary
+	return result
+}
+
+func systemSkillItemList(value interface{}) []map[string]interface{} {
+	items := make([]map[string]interface{}, 0)
+	switch list := value.(type) {
+	case []map[string]interface{}:
+		for _, item := range list {
+			items = append(items, cloneObjectMap(item))
+		}
+	case []interface{}:
+		for _, raw := range list {
+			if item, ok := raw.(map[string]interface{}); ok {
+				items = append(items, cloneObjectMap(item))
+			}
+		}
+	}
+	return items
+}
+
+func systemSkillVisibleCount(config map[string]interface{}) int {
+	groups, _ := config["skillGroups"].(map[string]interface{})
+	if groups != nil {
+		if visible := systemSkillItemList(groups["visible"]); len(visible) > 0 {
+			return len(visible)
+		}
+	}
+	return configuredSkillCount(systemSkillItemList(config["skillSlots"]))
+}
+
+func uniqueSystemSkillTags(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	result := make([]string, 0)
+	for _, group := range groups {
+		for _, raw := range group {
+			value := strings.TrimSpace(raw)
+			if value == "" {
+				continue
+			}
+			if _, exists := seen[value]; exists {
+				continue
+			}
+			seen[value] = struct{}{}
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func defaultAddableSkills() []map[string]interface{} {
@@ -1000,8 +1117,9 @@ func (s *Server) defaultProfileSettings(userID int64) map[string]interface{} {
 			{
 				"title": "\u8d26\u53f7\u5b89\u5168",
 				"rows": []map[string]interface{}{
+					{"id": "wechatBind", "label": "\u7ed1\u5b9a\u5fae\u4fe1", "iconKey": "wechatBind", "value": map[bool]string{true: "\u5df2\u7ed1\u5b9a", false: "\u672a\u7ed1\u5b9a"}[strings.TrimSpace(user.OpenID) != ""], "arrow": true, "action": "bind_wechat"},
 					{"id": "payPassword", "label": "\u652f\u4ed8\u5bc6\u7801", "iconKey": "payPassword", "value": "\u4e00\u671f\u672a\u5f00\u653e", "arrow": true, "disabledReason": "\u4e00\u671f\u672a\u63a5\u771f\u5b9e\u652f\u4ed8\uff0c\u652f\u4ed8\u5bc6\u7801\u6682\u672a\u5f00\u653e"},
-					{"id": "loginPassword", "label": "\u767b\u5f55\u5bc6\u7801", "iconKey": "loginPassword", "value": "\u5fae\u4fe1\u767b\u5f55", "arrow": true, "disabledReason": "\u5c0f\u7a0b\u5e8f\u5f53\u524d\u4f7f\u7528\u5fae\u4fe1\u767b\u5f55"},
+					{"id": "loginPassword", "label": "\u767b\u5f55\u5bc6\u7801", "iconKey": "loginPassword", "value": map[bool]string{true: "\u5df2\u8bbe\u7f6e", false: "\u672a\u8bbe\u7f6e"}[s.auth.HasPassword(userID)], "arrow": true, "action": "set_password"},
 					{"id": "phone", "label": "\u66f4\u6362\u624b\u673a\u53f7", "iconKey": "phone", "value": phoneMasked, "arrow": true, "disabledReason": "\u8bf7\u5728\u6211\u7684\u8d44\u6599\u4e2d\u66f4\u65b0\u8054\u7cfb\u65b9\u5f0f"},
 					{"id": "facePay", "label": "\u6307\u7eb9/\u9762\u5bb9\u652f\u4ed8", "iconKey": "facePay", "switch": true, "enabled": true},
 				},

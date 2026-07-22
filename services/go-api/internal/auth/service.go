@@ -3,7 +3,11 @@ package auth
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/pbkdf2"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,19 +26,24 @@ var (
 	ErrInviteRequired      = errors.New("invite required")
 	ErrInvalidInvite       = errors.New("invalid invite")
 	ErrInviteAlreadyBound  = errors.New("invite already bound")
+	ErrInviteExpired       = errors.New("invite expired")
 	ErrWechatCodeInvalid   = errors.New("wechat code invalid")
 	ErrPhoneRequired       = errors.New("phone required")
 	ErrPhoneInvalid        = errors.New("phone invalid")
 	ErrPhoneCodeInvalid    = errors.New("phone code invalid")
+	ErrInviteQuotaExceeded = errors.New("invite quota exhausted")
 	ErrPhoneCodeRateLimit  = errors.New("phone code send rate limited")
 	ErrPhoneCodeDailyLimit = errors.New("phone code daily limit exceeded")
 	ErrPhoneCodeSendFailed = errors.New("phone code send failed")
+	ErrPasswordInvalid     = errors.New("password invalid")
+	ErrPasswordNotSet      = errors.New("password not set")
+	ErrWechatAlreadyBound  = errors.New("wechat already bound")
 )
 
 const temporaryPhoneCode = "000000"
 
 const (
-	phoneCodeResendInterval = 60 * time.Second
+	phoneCodeResendInterval = 30 * time.Second
 	phoneCodeExpiry         = 5 * time.Minute
 	phoneCodeDailyLimit     = 5
 )
@@ -49,10 +58,22 @@ type InvitePrecheckRequest struct {
 	EntryType  string `json:"entryType"`
 }
 
+type PasswordLoginRequest struct {
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
+
 type WechatLoginRequest struct {
 	Code       string `json:"code"`
 	InviteCode string `json:"inviteCode"`
 	EntryType  string `json:"entryType"`
+}
+
+// WechatEntryPrecheckResponse is intentionally limited to routing data. It
+// must not create users, consume invite codes, or issue a login token.
+type WechatEntryPrecheckResponse struct {
+	BoundWechat    bool `json:"boundWechat"`
+	RequiresInvite bool `json:"requiresInvite"`
 }
 
 type PhoneLoginRequest struct {
@@ -83,6 +104,7 @@ type phoneCodeState struct {
 	sentAt   time.Time
 	dayKey   string
 	dayCount int
+	sending  bool
 }
 
 type Service struct {
@@ -137,36 +159,65 @@ func (s *Service) SendPhoneCode(ctx context.Context, phone string, scene string)
 	nowTime := time.Now()
 	s.phoneCodeMu.Lock()
 	state := s.phoneCodes[phoneKey]
+	if state.sending {
+		s.phoneCodeMu.Unlock()
+		return identity.SMSDispatchResult{}, ErrPhoneCodeRateLimit
+	}
 	if !state.sentAt.IsZero() && nowTime.Sub(state.sentAt) < phoneCodeResendInterval {
 		s.phoneCodeMu.Unlock()
 		return identity.SMSDispatchResult{}, ErrPhoneCodeRateLimit
 	}
 	dayKey := nowTime.Format("20060102")
+	dayCount := state.dayCount
 	if state.dayKey != dayKey {
-		state.dayKey = dayKey
-		state.dayCount = 0
+		dayCount = 0
 	}
-	if state.dayCount >= phoneCodeDailyLimit {
+	if dayCount >= phoneCodeDailyLimit {
 		s.phoneCodeMu.Unlock()
 		return identity.SMSDispatchResult{}, ErrPhoneCodeDailyLimit
 	}
 	sender := s.phoneSMSSender
-	state.code = sender.GenerateCode()
-	state.sentAt = nowTime
-	state.dayCount++
-	s.phoneCodes[phoneKey] = state
+	code := sender.GenerateCode()
+	previousState := state
+	inFlightState := state
+	inFlightState.code = code
+	inFlightState.sending = true
+	s.phoneCodes[phoneKey] = inFlightState
 	s.phoneCodeMu.Unlock()
 
 	result, err := sender.Send(ctx, identity.SMSDispatchRequest{
 		Phone:       phone,
 		PhoneMasked: maskPhone(phone),
 		Scene:       strings.TrimSpace(scene),
-		Code:        state.code,
+		Code:        code,
 		ExpiresAt:   nowTime.Add(phoneCodeExpiry),
 	})
 	if err != nil {
+		s.phoneCodeMu.Lock()
+		current, found := s.phoneCodes[phoneKey]
+		if found && current.sending && current.code == code {
+			if previousState.code == "" && previousState.sentAt.IsZero() && previousState.dayCount == 0 {
+				delete(s.phoneCodes, phoneKey)
+			} else {
+				s.phoneCodes[phoneKey] = previousState
+			}
+		}
+		s.phoneCodeMu.Unlock()
 		return identity.SMSDispatchResult{}, ErrPhoneCodeSendFailed
 	}
+
+	s.phoneCodeMu.Lock()
+	confirmedState := previousState
+	if confirmedState.dayKey != dayKey {
+		confirmedState.dayKey = dayKey
+		confirmedState.dayCount = 0
+	}
+	confirmedState.code = code
+	confirmedState.sentAt = nowTime
+	confirmedState.dayCount++
+	confirmedState.sending = false
+	s.phoneCodes[phoneKey] = confirmedState
+	s.phoneCodeMu.Unlock()
 	return result, nil
 }
 
@@ -206,7 +257,22 @@ func (s *Service) InvitePrecheck(req InvitePrecheckRequest) (invites.PrecheckRes
 		return invites.PrecheckResult{}, err
 	}
 	if !result.Valid {
+		if result.FailureReason == "inactive" || result.FailureReason == "inactive_or_exhausted" {
+			return result, ErrInviteExpired
+		}
 		return result, ErrInvalidInvite
+	}
+	if result.BoundWechat && result.BoundUserID > 0 {
+		boundUser, found, findErr := s.users.FindByID(result.BoundUserID)
+		if findErr != nil {
+			return invites.PrecheckResult{}, findErr
+		}
+		if !found || boundUser.Status == "deleted" {
+			result.Valid = false
+			result.AuthPageMode = invites.AuthPageModeRegister
+			result.FailureReason = "account_deleted"
+			return result, ErrInviteExpired
+		}
 	}
 	return result, nil
 }
@@ -217,6 +283,25 @@ func (s *Service) IssueInviteEntry(ownerID int64, entryType string) (invites.Inv
 		return invites.InviteCode{}, invites.ErrInvalidEntryType
 	}
 	return s.invites.IssueEntryCode(ownerID, entryType)
+}
+
+// IssueAssignedInviteEntry consumes an invitation already allocated by the
+// administrator. It deliberately never creates a new code on the C end.
+func (s *Service) IssueAssignedInviteEntry(ownerID int64, entryType string) (invites.InviteCode, error) {
+	entryType, ok := invites.ParseEntryType(entryType)
+	if !ok || strings.TrimSpace(entryType) == "" {
+		return invites.InviteCode{}, invites.ErrInvalidEntryType
+	}
+	items, err := s.AdminInviteCodes(invites.CodeFilter{OwnerID: ownerID, EntryType: entryType})
+	if err != nil {
+		return invites.InviteCode{}, err
+	}
+	for _, item := range items {
+		if item.Status == invites.StatusActive && item.MaxUses == 1 && item.UsedCount == 0 && item.BoundWechatUserID == 0 {
+			return item, nil
+		}
+	}
+	return invites.InviteCode{}, ErrInviteQuotaExceeded
 }
 
 func (s *Service) AdminCreateInviteCode(code string, ownerID int64, maxUses int, entryType string) (invites.InviteCode, error) {
@@ -249,6 +334,30 @@ func (s *Service) AdminDisableInviteCode(code string) (invites.InviteCode, error
 	return s.invites.DisableCode(code)
 }
 
+func (s *Service) AdminEnableInviteCode(code string) (invites.InviteCode, error) {
+	return s.invites.EnableCode(code)
+}
+
+func (s *Service) AdminVoidInviteCode(code string) (invites.InviteCode, error) {
+	return s.invites.VoidCode(code)
+}
+
+func (s *Service) AdminUpdateUnusedInviteCode(code string, ownerID int64, entryType string, expiresAt time.Time) (invites.InviteCode, error) {
+	return s.invites.UpdateUnusedCode(code, ownerID, entryType, expiresAt)
+}
+
+func (s *Service) CreateInviteQuotaRequest(ownerID int64, quantity int, reason string) (invites.QuotaRequest, error) {
+	return s.invites.CreateQuotaRequest(ownerID, quantity, reason)
+}
+
+func (s *Service) InviteQuotaRequests(ownerID int64, status string) ([]invites.QuotaRequest, error) {
+	return s.invites.ListQuotaRequests(ownerID, status)
+}
+
+func (s *Service) ReviewInviteQuotaRequest(id int64, status string, auditReason string, reviewedBy int64) (invites.QuotaRequest, error) {
+	return s.invites.ReviewQuotaRequest(id, status, auditReason, reviewedBy)
+}
+
 func (s *Service) AdminInviteRelations(filter invites.RelationFilter) ([]invites.Relation, error) {
 	return s.invites.ListRelations(filter)
 }
@@ -259,6 +368,25 @@ func (s *Service) InviteRelationForUser(userID int64) (invites.Relation, bool, e
 
 func (s *Service) SetInviteRelationInviter(inviteeUserID int64, inviterUserID int64, source string) (invites.Relation, error) {
 	return s.invites.SetRelationInviter(inviteeUserID, inviterUserID, source)
+}
+
+func (s *Service) WechatEntryPrecheck(code string) (WechatEntryPrecheckResponse, error) {
+	sessionInfo, err := s.resolver.Resolve(context.Background(), strings.TrimSpace(code))
+	if err != nil {
+		return WechatEntryPrecheckResponse{}, err
+	}
+	openID := strings.TrimSpace(sessionInfo.OpenID)
+	if openID == "" {
+		return WechatEntryPrecheckResponse{}, ErrWechatCodeInvalid
+	}
+	_, found, err := s.users.FindByOpenID(openID)
+	if err != nil {
+		return WechatEntryPrecheckResponse{}, err
+	}
+	return WechatEntryPrecheckResponse{
+		BoundWechat:    found,
+		RequiresInvite: !found,
+	}, nil
 }
 
 func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
@@ -291,10 +419,15 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 			return LoginResponse{}, ErrInviteRequired
 		}
 		if !hasExistingRelation {
-			return LoginResponse{}, ErrInviteRequired
+			// An existing WeChat account remains an existing account even when
+			// legacy invite relations have been cleared by operations.
+			return s.boundWechatLoginResponse(user, nil, "", "", "")
 		}
 		entryType = entryTypeFromBindSource(existingRelation.BindSource)
-		return s.boundWechatLoginResponse(user, existingRelation, entryType, "", "")
+		return s.boundWechatLoginResponse(user, &existingRelation, entryType, "", "")
+	}
+	if existed && !hasExistingRelation {
+		return s.boundWechatLoginResponse(user, nil, "", "", "")
 	}
 	if existed && hasExistingRelation {
 		entryType = entryTypeFromBindSource(existingRelation.BindSource)
@@ -308,7 +441,7 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 			status = InviteBindingStatusAlreadyBound
 			message = inviteAlreadyBoundMessage
 		}
-		return s.boundWechatLoginResponse(user, existingRelation, entryType, status, message)
+		return s.boundWechatLoginResponse(user, &existingRelation, entryType, status, message)
 	}
 	precheck, err := s.InvitePrecheck(InvitePrecheckRequest{InviteCode: req.InviteCode, EntryType: entryType})
 	if err != nil {
@@ -331,6 +464,9 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 		if _, err := s.invites.Bind(invite, user.ID, "invite_"+entryType); err != nil {
 			if errors.Is(err, invites.ErrInviteAlreadyBound) {
 				return LoginResponse{}, ErrInviteAlreadyBound
+			}
+			if errors.Is(err, invites.ErrInviteInactive) {
+				return LoginResponse{}, ErrInvalidInvite
 			}
 			return LoginResponse{}, err
 		}
@@ -368,7 +504,7 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 	}, nil
 }
 
-func (s *Service) boundWechatLoginResponse(user users.User, relation invites.Relation, entryType string, bindingStatus string, bindingMessage string) (LoginResponse, error) {
+func (s *Service) boundWechatLoginResponse(user users.User, relation *invites.Relation, entryType string, bindingStatus string, bindingMessage string) (LoginResponse, error) {
 	session, err := s.tokens.IssuePreAuth(user.ID)
 	if err != nil {
 		return LoginResponse{}, err
@@ -377,7 +513,7 @@ func (s *Service) boundWechatLoginResponse(user users.User, relation invites.Rel
 		PreAuthToken:            session.Token,
 		ExpiresAt:               session.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
 		User:                    user,
-		InviteRelation:          &relation,
+		InviteRelation:          relation,
 		NeedProfile:             user.Nickname == "",
 		RequiresIdentityBinding: true,
 		IdentityBindStatus:      "wechat_logged_in",
@@ -455,6 +591,9 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 			if errors.Is(err, invites.ErrInviteAlreadyBound) {
 				return LoginResponse{}, ErrInviteAlreadyBound
 			}
+			if errors.Is(err, invites.ErrInviteInactive) {
+				return LoginResponse{}, ErrInvalidInvite
+			}
 			return LoginResponse{}, err
 		}
 	}
@@ -497,8 +636,125 @@ func (s *Service) BindPhoneAuth(userID int64, phone string) (users.User, error) 
 	return s.users.BindPhoneAuth(userID, s.phoneLookupHash(phone), maskPhone(phone))
 }
 
+func (s *Service) SetPassword(userID int64, password string) (users.User, error) {
+	if userID <= 0 || !validLoginPassword(password) {
+		return users.User{}, ErrPasswordInvalid
+	}
+	hash, err := passwordHash(password)
+	if err != nil {
+		return users.User{}, err
+	}
+	return s.users.UpdatePasswordHash(userID, hash)
+}
+
+func (s *Service) HasPassword(userID int64) bool {
+	_, ok, err := s.users.PasswordHash(userID)
+	return err == nil && ok
+}
+
+func (s *Service) PasswordLogin(req PasswordLoginRequest) (LoginResponse, error) {
+	phone := strings.TrimSpace(req.Phone)
+	if !validMainlandPhone(phone) {
+		return LoginResponse{}, ErrPhoneInvalid
+	}
+	user, found, err := s.users.FindByPhoneHash(s.phoneLookupHash(phone))
+	if err != nil {
+		return LoginResponse{}, err
+	}
+	if !found {
+		return LoginResponse{}, ErrPasswordInvalid
+	}
+	hash, configured, err := s.users.PasswordHash(user.ID)
+	if err != nil {
+		return LoginResponse{}, err
+	}
+	if !configured {
+		return LoginResponse{}, ErrPasswordNotSet
+	}
+	if !verifyPassword(hash, req.Password) {
+		return LoginResponse{}, ErrPasswordInvalid
+	}
+	session, err := s.tokens.IssueApp(user.ID)
+	if err != nil {
+		return LoginResponse{}, err
+	}
+	return LoginResponse{Token: session.Token, ExpiresAt: session.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"), User: user, NeedProfile: user.Nickname == "", IdentityBindStatus: "sms_verified", AuthPageMode: invites.AuthPageModeLogin, BoundWechat: user.OpenID != ""}, nil
+}
+
+func (s *Service) BindWechat(userID int64, code string) (users.User, error) {
+	session, err := s.resolver.Resolve(context.Background(), strings.TrimSpace(code))
+	if err != nil || strings.TrimSpace(session.OpenID) == "" {
+		return users.User{}, ErrWechatCodeInvalid
+	}
+	if owner, found, err := s.users.FindByOpenID(session.OpenID); err != nil {
+		return users.User{}, err
+	} else if found && owner.ID != userID {
+		return users.User{}, ErrWechatAlreadyBound
+	}
+	return s.users.BindWechat(userID, session.OpenID)
+}
+
+func validLoginPassword(value string) bool {
+	if len(value) < 8 || len(value) > 64 {
+		return false
+	}
+	for _, r := range value {
+		if !(r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func passwordHash(password string) (string, error) {
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return "", err
+	}
+	key, err := pbkdf2.Key(sha256.New, password, salt, 180000, 32)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawStdEncoding.EncodeToString(salt) + ":" + base64.RawStdEncoding.EncodeToString(key), nil
+}
+
+func verifyPassword(encoded string, password string) bool {
+	parts := strings.Split(encoded, ":")
+	if len(parts) != 2 || !validLoginPassword(password) {
+		return false
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[0])
+	if err != nil {
+		return false
+	}
+	expected, err := base64.RawStdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	actual, err := pbkdf2.Key(sha256.New, password, salt, 180000, len(expected))
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(actual, expected) == 1
+}
+
 func (s *Service) IssueAppToken(userID int64) (Session, error) {
 	return s.tokens.IssueApp(userID)
+}
+
+// DeleteAccount releases all account login bindings. Invite usage is never
+// restored, so a deleted account must obtain a new invitation to register.
+func (s *Service) DeleteAccount(userID int64) error {
+	if userID <= 0 {
+		return users.ErrInvalidProfile
+	}
+	if err := s.invites.ClearInviteeBindings(userID); err != nil {
+		return err
+	}
+	if err := s.users.DeleteAccount(userID); err != nil {
+		return err
+	}
+	return s.tokens.RevokeUserSessions(userID)
 }
 
 func (s *Service) ActiveAppSessionCount() int {
@@ -517,7 +773,7 @@ func (s *Service) CurrentUser(token string) (users.User, bool) {
 	if err != nil {
 		return users.User{}, false
 	}
-	return user, ok
+	return user, ok && user.Status != "deleted"
 }
 
 func (s *Service) UserByID(userID int64) (users.User, bool) {
@@ -533,11 +789,16 @@ func (s *Service) AdminUsers(filter users.Filter) ([]users.User, error) {
 }
 
 func (s *Service) InviteCodeForUser(userID int64) (string, error) {
-	invite, err := s.invites.EnsureCodeForOwner(userID)
+	items, err := s.invites.ListCodes(invites.CodeFilter{OwnerID: userID})
 	if err != nil {
 		return "", err
 	}
-	return invite.Code, nil
+	for _, invite := range items {
+		if invite.Status == invites.StatusActive && invite.MaxUses == 1 && invite.UsedCount == 0 && invite.BoundWechatUserID == 0 {
+			return invite.Code, nil
+		}
+	}
+	return "", nil
 }
 
 func (s *Service) UpdateProfile(userID int64, nickname string, avatarURL string, avatarFileID int64) (users.User, error) {

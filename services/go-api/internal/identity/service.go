@@ -41,7 +41,7 @@ var (
 )
 
 const (
-	smsResendInterval = 60 * time.Second
+	smsResendInterval = 30 * time.Second
 	smsDailyLimit     = 5
 	temporarySMSCode  = "000000"
 )

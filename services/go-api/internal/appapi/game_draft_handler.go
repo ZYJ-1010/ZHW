@@ -64,6 +64,9 @@ func (s *Server) saveGameDraft(w http.ResponseWriter, r *http.Request, draftID i
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "草稿内容格式错误")
 		return
 	}
+	if s.rejectSensitiveGameContent(w, req.Title) || s.rejectSensitiveDraftPayload(w, req.Payload) {
+		return
+	}
 	draft, err := s.gameDrafts.Save(userID, draftID, req.Title, req.Payload)
 	if err != nil {
 		writeGameDraftError(w, err)

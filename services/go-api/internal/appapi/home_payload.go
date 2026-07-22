@@ -70,9 +70,11 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, re
 		"pointsSummary":      s.points.Summary(userID),
 		"growth":             growth,
 		"notifications":      map[string]interface{}{"unreadCount": unreadNotificationCount(s.notices.List(userID))},
+		"expertBlueBadge":    s.expertBlueBadgeForUser(userID),
 	}
 	if roleType == "expert" {
 		payload["skills"] = s.homeExpertSkills(userID)
+		payload["skillDisplay"] = s.currentExpertSkillDisplayConfig()
 	}
 	if roleType == "guide" {
 		payload["network"] = s.homeRoleNetwork(userID, conns, currentUser.IncomeSummary.PendingCent, currentUser.IncomeSummary.TotalCent)
@@ -285,18 +287,37 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 }
 
 func (s *Server) homeExpertSkills(userID int64) []map[string]interface{} {
-	profile, _ := s.profiles.ExpertSkill(userID)
-	skillNames := append([]string(nil), profile.SkillTree...)
-	items := []map[string]interface{}{
-		{"key": "skill-1", "title": "专业能力", "icon": "✓", "tone": "cyan", "nodeStyle": "color:#03131c;background:#35c8f5;box-shadow:0 0 18rpx rgba(53,200,245,.32);", "locked": true},
-		{"key": "skill-2", "title": "服务能力", "icon": "★", "tone": "green", "nodeStyle": "color:#03131c;background:#64ff38;box-shadow:0 0 18rpx rgba(100,255,56,.3);", "locked": true},
-		{"key": "skill-3", "title": "进阶能力", "icon": "◆", "tone": "purple", "nodeStyle": "color:#fff;background:#8b5cf6;box-shadow:0 0 18rpx rgba(139,92,246,.32);", "locked": true},
-	}
-	for index := range items {
-		if index < len(skillNames) && strings.TrimSpace(skillNames[index]) != "" {
-			items[index]["title"] = strings.TrimSpace(skillNames[index])
-			items[index]["locked"] = false
+	config := s.systemSkillConfig(userID)
+	groups, _ := config["skillGroups"].(map[string]interface{})
+	visible := systemSkillItemList(groups["visible"])
+	limit := s.currentExpertSkillDisplayConfig().VisibleSkillLimit
+	items := make([]map[string]interface{}, 0, minInt(limit, len(visible)))
+	tones := []string{"cyan", "green", "purple", "orange", "blue"}
+	icons := []string{"✓", "★", "◆", "✦", "✚"}
+	for index, skill := range visible {
+		if index >= limit {
+			break
 		}
+		title := strings.TrimSpace(firstNonEmptyString(skill, "title", "name", "label"))
+		if title == "" {
+			continue
+		}
+		tone := strings.TrimSpace(firstNonEmptyString(skill, "tone"))
+		if tone == "" {
+			tone = tones[index%len(tones)]
+		}
+		icon := strings.TrimSpace(firstNonEmptyString(skill, "iconText", "icon"))
+		if icon == "" {
+			icon = icons[index%len(icons)]
+		}
+		items = append(items, map[string]interface{}{
+			"key":       firstNonEmptyString(skill, "id", "key"),
+			"title":     title,
+			"icon":      icon,
+			"tone":      tone,
+			"nodeStyle": firstNonEmptyString(skill, "nodeStyle"),
+			"locked":    false,
+		})
 	}
 	return items
 }
@@ -468,7 +489,9 @@ func (s *Server) homeFriendSection(count int) map[string]interface{} {
 func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit int) []map[string]interface{} {
 	location, ok := s.lbs.Current(userID)
 	if !ok {
-		return s.homeGameCards(visibleGames, "city", limit)
+		// 首页加载不触发设备定位。没有保存定位时只给同城/发布时间
+		// 兜底卡片，真实“附近”查询由用户点击后再发起。
+		return nil
 	}
 	items := make([]games.Game, 0, len(visibleGames))
 	for _, game := range visibleGames {
@@ -597,10 +620,20 @@ func homeGameStatusText(status string) string {
 		return "\u5f85\u8bc4\u4ef7"
 	case "completed":
 		return "\u5df2\u5b8c\u6210"
+	case "rejected":
+		return "\u5ba1\u6838\u672a\u901a\u8fc7"
+	case "canceled", "cancelled":
+		return "\u5df2\u53d6\u6d88"
+	case "disputed":
+		return "\u4e89\u8bae\u4e2d"
+	case "settling":
+		return "\u7ed3\u7b97\u4e2d"
+	case "closed":
+		return "\u5df2\u5173\u95ed"
 	case "draft":
 		return "\u8349\u7a3f"
 	default:
-		return "\u62db\u52df\u4e2d"
+		return "\u72b6\u6001\u5904\u7406\u4e2d"
 	}
 }
 

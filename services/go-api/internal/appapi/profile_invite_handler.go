@@ -1,6 +1,7 @@
 package appapi
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,7 +23,35 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 	items = s.inviteConnections(userID, items, relations)
 	income := s.phaseOneIncomeSummary(userID)
 	revenueEnabled := s.currentOperationRules().Revenue.Enabled
-	inviteCode, _ := s.auth.InviteCodeForUser(userID)
+	inviteCode := ""
+	availableCodes := make(map[string]string)
+	if codes, err := s.auth.AdminInviteCodes(invites.CodeFilter{OwnerID: userID}); err == nil {
+		for _, item := range codes {
+			if item.Status == invites.StatusActive && item.MaxUses == 1 && item.UsedCount == 0 && item.BoundWechatUserID == 0 {
+				entryType := invites.NormalizeEntryType(item.EntryType)
+				if availableCodes[entryType] == "" {
+					availableCodes[entryType] = item.Code
+				}
+			}
+		}
+	}
+	for _, entryType := range []string{invites.EntryTypeLink, invites.EntryTypeQRCode, invites.EntryTypePoster} {
+		if availableCodes[entryType] != "" {
+			inviteCode = availableCodes[entryType]
+			break
+		}
+	}
+	actions := make([]map[string]interface{}, 0, 4)
+	if availableCodes[invites.EntryTypeLink] != "" {
+		actions = append(actions, map[string]interface{}{"key": "share_card", "icon": "🔗", "label": "分享邀请码", "inviteCode": availableCodes[invites.EntryTypeLink]})
+	}
+	if availableCodes[invites.EntryTypeQRCode] != "" {
+		actions = append(actions, map[string]interface{}{"key": "qrcode", "icon": "▦", "label": "二维码", "iconClass": "white", "inviteCode": availableCodes[invites.EntryTypeQRCode]})
+	}
+	if availableCodes[invites.EntryTypePoster] != "" {
+		actions = append(actions, map[string]interface{}{"key": "poster", "icon": "▧", "label": "生成海报", "iconClass": "white", "inviteCode": availableCodes[invites.EntryTypePoster]})
+	}
+	actions = append(actions, map[string]interface{}{"key": "manage_codes", "icon": "⚙", "label": "邀请码管理", "iconClass": "white"})
 	s.recordBehavior(userID, "view_profile_invite_overview", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"profile": map[string]interface{}{
@@ -36,18 +65,83 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 			{"value": conversionRateText(countStrongConnections(items), len(relations)), "label": "转化率", "trend": "▲", "tone": "up"},
 			{"value": incomeDisplayText(revenueEnabled, income.TotalCent), "label": "分润收益", "trend": "▲", "tone": "up"},
 		},
-		"actions": []map[string]interface{}{
-			{"key": "share_card", "icon": "🔗", "label": "分享邀请码", "inviteCode": inviteCode},
-			{"key": "qrcode", "icon": "▦", "label": "二维码", "iconClass": "white", "inviteCode": inviteCode},
-			{"key": "poster", "icon": "▧", "label": "生成海报", "iconClass": "white", "inviteCode": inviteCode},
-		},
-		"tabs": []string{"数据概览", "关系网络", "邀约记录", "贡献排行", "收益明细"},
+		"actions": actions,
+		"tabs":    []string{"数据概览", "关系网络", "邀约记录", "收益明细"},
 		"trends": []map[string]interface{}{
 			{"label": "本周新增邀约", "value": "+" + strconv.Itoa(len(relations)), "tone": "cyan"},
 			{"label": "本周新增转化", "value": "+" + strconv.Itoa(countStrongConnections(items)), "tone": "green"},
 			{"label": "本周分润", "value": incomeDisplayText(revenueEnabled, income.SettledCent), "tone": "cyan"},
 		},
 	})
+}
+
+func (s *Server) profileInviteCodes(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireRoleInviteUser(w, r)
+	if !ok {
+		return
+	}
+	items, err := s.auth.AdminInviteCodes(invites.CodeFilter{OwnerID: userID})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码失败")
+		return
+	}
+	requests, err := s.auth.InviteQuotaRequests(userID, "")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取加量申请失败")
+		return
+	}
+	usedCount, availableCount := 0, 0
+	for _, item := range items {
+		if item.MaxUses != 1 {
+			continue
+		}
+		if item.UsedCount > 0 || item.BoundWechatUserID > 0 {
+			usedCount++
+		} else if item.Status == invites.StatusActive {
+			availableCount++
+		}
+	}
+	httpx.OK(w, map[string]interface{}{
+		"items": items, "requests": requests, "total": len(items),
+		"summary": map[string]int{"total": len(items), "used": usedCount, "available": availableCount, "pendingRequests": len(filterInviteQuotaRequests(requests, "pending"))},
+		"config":  s.inviteCodeConfig(),
+	})
+}
+
+func filterInviteQuotaRequests(items []invites.QuotaRequest, status string) []invites.QuotaRequest {
+	result := make([]invites.QuotaRequest, 0)
+	for _, item := range items {
+		if item.Status == status {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func (s *Server) profileInviteQuotaRequest(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireRoleInviteUser(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Quantity int    `json:"quantity"`
+		Reason   string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
+		return
+	}
+	if req.Quantity > s.inviteCodeConfig().MaxRequestCount {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申请数量超过当前可申请上限")
+		return
+	}
+	request, err := s.auth.CreateInviteQuotaRequest(userID, req.Quantity, req.Reason)
+	if err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申请数量应为 1 至 200 个")
+		return
+	}
+	s.recordBehavior(userID, "create_invite_quota_request", "invite_quota_request", request.ID, map[string]interface{}{"quantity": request.Quantity})
+	httpx.OK(w, request)
 }
 
 func (s *Server) profileInviteNetwork(w http.ResponseWriter, r *http.Request) {
@@ -81,31 +175,21 @@ func (s *Server) profileInviteRecords(w http.ResponseWriter, r *http.Request) {
 	items := s.inviteConnectionsForUser(userID)
 	records := s.inviteRecords(items)
 	timeoutCount := countInviteRecordsByStatus(records, "timeout")
-	role := strings.TrimSpace(r.URL.Query().Get("role"))
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
-	if role == "" {
-		role = "referred"
-	}
 	if status == "" {
 		status = "all"
 	}
-	s.recordBehavior(userID, "view_profile_invite_records", "profile_invite", userID, map[string]interface{}{"role": role, "status": status})
+	s.recordBehavior(userID, "view_profile_invite_records", "profile_invite", userID, map[string]interface{}{"status": status})
 	httpx.OK(w, map[string]interface{}{
-		"activeRole":   role,
 		"activeStatus": status,
-		"roleTabs": []map[string]interface{}{
-			{"key": "referred", "label": "我引荐的", "count": len(records)},
-			{"key": "created", "label": "我发起的", "count": 0},
-		},
 		"filters": []map[string]interface{}{
 			{"key": "all", "label": "全部"},
 			{"key": "progress", "label": "进行中(" + strconv.Itoa(countInviteRecordsByStatus(records, "progress")) + ")"},
 			{"key": "completed", "label": "已完成(" + strconv.Itoa(countInviteRecordsByStatus(records, "completed")) + ")"},
 			{"key": "timeout", "label": "超时(" + strconv.Itoa(timeoutCount) + ")"},
-			{"key": "cancelled", "label": "已取消(0)"},
 		},
 		"allRecords": records,
-		"records":    filterInviteRecords(records, role, status),
+		"records":    filterInviteRecords(records, "", status),
 		"emptyText":  "暂无邀约记录",
 		"timeoutWarning": map[string]interface{}{
 			"show":  timeoutCount > 0,
@@ -116,28 +200,10 @@ func (s *Server) profileInviteRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) profileInviteRanking(w http.ResponseWriter, r *http.Request) {
-	userID, ok := s.requireRoleInviteUser(w, r)
-	if !ok {
+	if _, ok := s.requireRoleInviteUser(w, r); !ok {
 		return
 	}
-	items := s.inviteConnectionsForUser(userID)
-	s.recordBehavior(userID, "view_profile_invite_ranking", "profile_invite", userID, nil)
-	httpx.OK(w, map[string]interface{}{
-		"activePeriodIndex": 0,
-		"activeType":        defaultString(r.URL.Query().Get("type"), "inviteCount"),
-		"periods": []map[string]string{
-			{"key": "week", "label": "本周"},
-			{"key": "month", "label": "本月"},
-			{"key": "quarter", "label": "本季"},
-			{"key": "year", "label": "本年"},
-			{"key": "all", "label": "全部"},
-		},
-		"rankTypes": []map[string]string{
-			{"key": "inviteCount", "label": "邀约数排行"},
-			{"key": "profitContribution", "label": "分润贡献排行"},
-		},
-		"members": s.inviteRankingMembers(items),
-	})
+	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "贡献排行将在二期开放")
 }
 
 func (s *Server) profileInviteIncome(w http.ResponseWriter, r *http.Request) {

@@ -15,7 +15,7 @@ import (
 func (s *Server) adminPendingCountsAuthorized(w http.ResponseWriter, r *http.Request) {
 	permissions := []string{
 		"game:read", "game:update_status", "identity:read", "identity:update",
-		"role:view", "role:update", "report:view", "report:handle", "redemption:manage",
+		"role:view", "role:update", "report:view", "report:handle", "redemption:manage", "invite_code:read", "invite_code:manage",
 	}
 	for _, permission := range permissions {
 		if adminID, ok := s.admins.HasPermission(s.adminToken(r), permission); ok {
@@ -70,6 +70,9 @@ func (s *Server) adminPendingCounts(w http.ResponseWriter, r *http.Request) {
 		if strings.EqualFold(order.Status, "pending") || strings.EqualFold(order.Status, "pending_review") {
 			counts["redemption"]++
 		}
+	}
+	if requests, err := s.auth.InviteQuotaRequests(0, "pending"); err == nil {
+		counts["invites"] = len(requests)
 	}
 	for _, config := range s.profiles.SystemManagementConfigs("profile-info") {
 		personal, ok := objectField(config.Value, "personalInfo")

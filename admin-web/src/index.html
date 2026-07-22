@@ -180,7 +180,10 @@
             <select name="status">
               <option value="">全部账号状态</option>
               <option value="active">正常</option>
+              <option value="unused">未使用</option>
+              <option value="used">已使用</option>
               <option value="disabled">已禁用</option>
+              <option value="expired">已过期</option>
             </select>
             <button class="ghost" type="submit">筛选</button>
           </form>
@@ -203,6 +206,7 @@
           </table>
         </div>
       </section>
+
     </template>
 
     <template id="invites-template">
@@ -210,15 +214,19 @@
         <div class="panel-head">
           <div>
             <h2>创建邀请码</h2>
-            <p>支持小程序卡片、二维码、链接三种入口；创建时需要指定邀请人用户编号，每个邀请码只能使用一次。</p>
+            <p>支持小程序卡片、二维码、链接三种入口；邀请人必须是已生效的行家或领路人，每个邀请码只能使用一次。</p>
           </div>
         </div>
         <form id="invite-create-form" class="form-grid">
           <label>指定邀请码（可选）
             <input name="code" maxlength="32" placeholder="留空则自动生成；批量生成必须留空" />
           </label>
-          <label>邀请人用户编号
-            <input name="ownerUserId" inputmode="numeric" required placeholder="例如：91006" />
+          <label class="user-picker-field">邀请人（用户 ID / 手机号 / 实名姓名）
+            <div class="user-picker" data-invite-owner-picker>
+              <input name="ownerUserText" type="text" autocomplete="off" required placeholder="输入行家或领路人的用户 ID、手机号、实名姓名" data-invite-owner-input />
+              <input name="ownerUserId" type="hidden" data-invite-owner-value />
+              <div class="user-picker-menu" data-invite-owner-menu></div>
+            </div>
           </label>
           <label>邀请入口
             <select name="entryType">
@@ -228,8 +236,19 @@
             </select>
           </label>
           <label>生成数量<input name="batchCount" inputmode="numeric" value="1" placeholder="1-200" /></label>
-          <div class="form-note">单个生成可填写固定邀请码；批量生成时系统自动生成，生成前会校验邀请人是否存在。</div>
+          <label>有效期（可选）<input name="expiresAt" type="datetime-local" /></label>
+          <div class="form-note">输入用户 ID、手机号或实名姓名后，从下拉结果中选择邀请人。仅显示已生效的行家或领路人，普通玩家不可作为邀请人。</div>
           <button class="primary" type="submit">生成邀请码</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div><h2>邀请码规则</h2><p>控制后台批量生成、C 端加量申请和默认有效期。</p></div></div>
+        <form id="invite-config-form" class="form-grid compact-grid">
+          <label>单次批量生成上限<input name="maxBatchCount" inputmode="numeric" required /></label>
+          <label>C 端单次申请上限<input name="maxRequestCount" inputmode="numeric" required /></label>
+          <label>默认有效期（天，0 为长期）<input name="defaultValidDays" inputmode="numeric" required /></label>
+          <button class="primary" type="submit">保存规则</button>
         </form>
       </section>
 
@@ -247,23 +266,36 @@
             </select>
             <select name="status">
               <option value="">全部状态</option>
+              <option value="unused">未使用</option>
+              <option value="used">已使用</option>
               <option value="active">正常</option>
+              <option value="expired">已过期</option>
               <option value="disabled">已禁用</option>
-              <option value="exhausted">已用尽</option>
+              <option value="voided">已作废</option>
             </select>
             <button class="ghost" type="submit">筛选</button>
+            <button id="invite-export-filtered" class="ghost" type="button">导出筛选结果</button>
+            <button id="invite-export-selected" class="ghost" type="button">导出已选</button>
           </form>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th><input id="invite-select-all" type="checkbox" aria-label="全选邀请码" /></th>
                 <th>记录</th>
+                <th>邀请人用户 ID</th>
                 <th>邀请码</th>
+                <th>二维码</th>
+                <th>邀请人</th>
+                <th>邀请码手机号（邀请人）</th>
                 <th>邀请入口</th>
                 <th>状态</th>
                 <th>使用状态</th>
-                <th>使用用户</th>
+                <th>使用用户 ID</th>
+                <th>使用用户名称</th>
+                <th>使用用户手机号</th>
+                <th>有效期</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -298,6 +330,14 @@
           </table>
         </div>
       </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2>邀请码加量申请</h2><p>行家或领路人在小程序提交申请后，由后台审核并按批准数量生成邀请码。</p></div>
+          <form id="invite-quota-filter-form" class="filters"><select name="status"><option value="pending">待审核</option><option value="approved">已通过</option><option value="rejected">已驳回</option><option value="">全部</option></select><button class="ghost" type="submit">筛选</button></form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>申请编号</th><th>申请人</th><th>数量</th><th>申请说明</th><th>状态</th><th>审核说明</th><th>申请时间</th><th>操作</th></tr></thead><tbody id="invite-quota-requests-table"></tbody></table></div>
+      </section>
     </template>
 
     <template id="games-template">
@@ -309,62 +349,87 @@
           </div>
           <button id="open-game-create-drawer" class="primary" type="button">创建新局</button>
         </div>
-        <form id="game-create-form" class="form-grid hidden">
-          <label>主领路人（二期）<input inputmode="numeric" placeholder="暂不接入创建流程" disabled /></label>
-          <label>标题<input name="title" required maxlength="80" placeholder="例如：北京周末条件局" /></label>
-          <div class="field-with-hint">
-            <label>发起人
-              <select id="game-creator-select" name="creatorUserId" required>
-                <option value="">正在加载用户...</option>
-              </select>
-            </label>
-            <span id="game-creator-hint" class="muted">选择后将使用该用户编号创建局</span>
-          </div>
-          <label>局类型
-            <select id="game-create-category-select" name="primaryCategory">
-              <option value="task">任务局</option>
-              <option value="explore">探索局</option>
-              <option value="growth">成长局</option>
-              <option value="social">社交局</option>
-            </select>
-          </label>
-          <label>局类别
-            <select id="game-create-type-select" name="gameType">
-              <option value="free">普通局</option>
-              <option value="standard">标准局</option>
-              <option value="public_welfare">公益局</option>
-              <option value="aa">均摊局</option>
-              <option value="crowdfund">众筹局</option>
-              <option value="deposit">押金局</option>
-              <option value="condition">条件局</option>
-            </select>
-          </label>
-          <div class="span-full cover-upload-field">
-            <label>局封面<input name="coverImage" maxlength="500" placeholder="上传后自动填入 COS/CDN 封面地址，也可手动粘贴" /></label>
-            <div class="cover-upload-actions">
-              <input id="game-cover-file" accept="image/jpeg,image/png,image/webp" type="file" />
-              <button id="game-cover-upload-button" class="ghost" type="button">上传封面</button>
-              <span id="game-cover-upload-status" class="muted">支持 JPG/PNG/WEBP，不超过 10MB</span>
+        <form id="game-create-form" class="form-grid game-create-form hidden">
+          <section class="game-create-section">
+            <div class="game-create-section-head">
+              <h3>基本信息</h3>
+              <p>确定发起人、局类型和局类别后创建免费局。</p>
             </div>
-            <div id="game-cover-preview" class="cover-upload-preview hidden"></div>
+            <div class="game-create-fields">
+              <label class="span-full">标题<input name="title" required maxlength="80" placeholder="例如：北京周末条件局" /></label>
+              <div class="field-with-hint">
+                <label>发起人
+                  <select id="game-creator-select" name="creatorUserId" required>
+                    <option value="">正在加载用户...</option>
+                  </select>
+                </label>
+                <span id="game-creator-hint" class="muted">选择后将使用该用户编号创建局</span>
+              </div>
+              <label>局类型
+                <select id="game-create-category-select" name="primaryCategory">
+                  <option value="task">任务局</option>
+                  <option value="explore">探索局</option>
+                  <option value="growth">成长局</option>
+                  <option value="social">社交局</option>
+                </select>
+              </label>
+              <label>局类别
+                <select id="game-create-type-select" name="gameType">
+                  <option value="free">普通局</option>
+                  <option value="standard">标准局</option>
+                  <option value="public_welfare">公益局</option>
+                  <option value="aa">均摊局</option>
+                  <option value="crowdfund">众筹局</option>
+                  <option value="deposit">押金局</option>
+                  <option value="condition">条件局</option>
+                </select>
+              </label>
+            </div>
+          </section>
+          <section class="game-create-section">
+            <div class="game-create-section-head">
+              <h3>封面与地点</h3>
+              <p>可上传封面，也可使用地图搜索回填地点。</p>
+            </div>
+            <div class="game-create-fields">
+              <div class="span-full cover-upload-field">
+                <label>局封面<input name="coverImage" maxlength="500" placeholder="上传后自动填入 COS/CDN 封面地址，也可手动粘贴" /></label>
+                <div class="cover-upload-actions">
+                  <input id="game-cover-file" accept="image/jpeg,image/png,image/webp" type="file" />
+                  <button id="game-cover-upload-button" class="ghost" type="button">上传封面</button>
+                  <span id="game-cover-upload-status" class="muted">支持 JPG/PNG/WEBP，不超过 10MB</span>
+                </div>
+                <div id="game-cover-preview" class="cover-upload-preview hidden"></div>
+              </div>
+              <label>城市名称<input name="cityName" maxlength="64" placeholder="北京" /></label>
+              <label>详细地址<input name="address" maxlength="255" placeholder="地点门牌或地图地址" /></label>
+              <input name="cityCode" type="hidden" />
+              <input name="longitude" type="hidden" />
+              <input name="latitude" type="hidden" />
+              <div class="map-search-box">
+                <label>地点搜索<input id="game-map-keyword" placeholder="输入地点或地址关键词" /></label>
+                <button id="game-map-search-button" class="ghost" type="button">搜索地点</button>
+                <div id="game-map-results" class="map-search-results"></div>
+              </div>
+            </div>
+          </section>
+          <section class="game-create-section">
+            <div class="game-create-section-head">
+              <h3>时间与人数</h3>
+              <p>报名截止时间不得晚于组局开始时间；每局人数为 5–8 人。</p>
+            </div>
+            <div class="game-create-fields">
+              <label>报名开始时间<input name="signupStartAt" type="datetime-local" required /></label>
+              <label>报名截止时间<input name="signupEndAt" type="datetime-local" required /></label>
+              <label>组局开始时间<input name="startAt" type="datetime-local" required /></label>
+              <label>组局结束时间<input name="endAt" type="datetime-local" required /></label>
+              <label>最少人数<input name="minPlayers" required inputmode="numeric" type="number" min="5" max="8" value="5" /></label>
+              <label>最多人数<input name="maxPlayers" required inputmode="numeric" type="number" min="5" max="8" value="8" /></label>
+            </div>
+          </section>
+          <div class="game-create-actions">
+            <button class="primary" type="submit">创建并开放招募</button>
           </div>
-          <label>城市名称<input name="cityName" maxlength="64" placeholder="北京" /></label>
-          <label>详细地址<input name="address" maxlength="255" placeholder="地点门牌或地图地址" /></label>
-          <label>报名开始时间<input name="signupStartAt" type="datetime-local" required /></label>
-          <label>报名截止时间<input name="signupEndAt" type="datetime-local" required /></label>
-          <label>组局开始时间<input name="startAt" type="datetime-local" required /></label>
-          <label>组局结束时间<input name="endAt" type="datetime-local" required /></label>
-          <input name="cityCode" type="hidden" />
-          <input name="longitude" type="hidden" />
-          <input name="latitude" type="hidden" />
-          <div class="map-search-box">
-            <label>地点搜索<input id="game-map-keyword" placeholder="输入地点或地址关键词" /></label>
-            <button id="game-map-search-button" class="ghost" type="button">搜索地点</button>
-            <div id="game-map-results" class="map-search-results"></div>
-          </div>
-          <label>最少人数<input name="minPlayers" required inputmode="numeric" type="number" min="5" max="8" value="5" /></label>
-          <label>最多人数<input name="maxPlayers" required inputmode="numeric" type="number" min="5" max="8" value="8" /></label>
-          <button class="primary" type="submit">创建并开放招募</button>
         </form>
       </section>
 
@@ -450,6 +515,15 @@
               <p>一期实名认证由用户提交姓名和身份证号，后台人工审核通过后生效。</p>
             </div>
             <button class="ghost" data-action="reload-identities" type="button">刷新</button>
+          </div>
+          <div class="game-audit-toolbar" id="identity-batch-toolbar">
+            <label class="game-audit-select-all">
+              <input id="identity-batch-select-all" type="checkbox" aria-label="全选本页待审核实名认证" />
+              <span>全选本页待审核</span>
+            </label>
+            <span id="identity-batch-summary">当前页没有待审核实名认证</span>
+            <button id="identity-batch-approve" class="ghost" type="button">批量通过已勾选</button>
+            <button id="identity-batch-reject" class="ghost danger" type="button">批量驳回已勾选</button>
           </div>
           <div id="identity-list" class="stack-list"></div>
         </section>
@@ -1383,6 +1457,7 @@
         <button data-tab-group="system" data-tab-target="#system-audit-panel" type="button">审核规则</button>
         <button data-tab-group="system" data-tab-target="#system-condition-panel" type="button">条件局</button>
         <button data-tab-group="system" data-tab-target="#system-role-benefit-panel" type="button">角色权益</button>
+        <button data-tab-group="system" data-tab-target="#system-expert-skill-panel" type="button">行家技能</button>
         <button data-tab-group="system" data-tab-target="#system-review-complete-panel" type="button">评价完成</button>
         <button data-tab-group="system" data-tab-target="#system-growth-rules-panel" type="button">成长积分</button>
         <button data-tab-group="system" data-tab-target="#system-achievement-panel" type="button">成就配置</button>
@@ -1413,7 +1488,7 @@
         <div class="panel-head">
           <div>
             <h2>创建局模板</h2>
-            <p>维护创建页的辅助填表模板。模板仅提供局分类、标签、人数和参与方式，用户仍需填写真实局信息。</p>
+            <p>维护后台运营开局使用的辅助模板。模板仅供后台维护与后续扩展，当前不展示在小程序发起组局页。</p>
           </div>
           <button id="game-create-template-refresh" class="ghost" type="button">刷新</button>
         </div>
@@ -1421,7 +1496,7 @@
           <label class="wide">模板配置 JSON<textarea id="game-create-template-config-json" name="configJson" rows="16" spellcheck="false" required></textarea></label>
           <div class="phase-one-banner config-fixed-note">
             <strong>配置校验</strong>
-            <span>每个模板必须绑定已启用的一级分类和小类别；保存后会立即影响小程序创建页。</span>
+            <span>每个模板必须绑定已启用的一级分类和小类别；保存后仅用于后台运营维护。</span>
           </div>
           <button class="primary" type="submit">保存局模板</button>
         </form>
@@ -1561,6 +1636,22 @@
           <button class="primary" type="submit">保存展示</button>
         </form>
         <div id="role-benefit-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-expert-skill-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>行家显性技能规则</h2>
+            <p>控制行家可自行展示的技能数量；隐性技能继续按系统评估点亮，不受此处限制。</p>
+          </div>
+          <button id="expert-skill-display-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="expert-skill-display-form" class="form-grid compact-grid">
+          <label>显性技能上限<input name="visibleSkillLimit" required inputmode="numeric" type="number" min="1" max="20" /></label>
+          <label>首页默认展示数量<input name="homePreviewCount" required inputmode="numeric" type="number" min="1" max="20" /></label>
+          <button class="primary" type="submit">保存规则</button>
+        </form>
+        <p class="muted">首页超过默认展示数量时自动提供“展开更多/收起”入口。降低上限不会删除已存在的技能，只会阻止继续新增。</p>
+        <div id="expert-skill-display-config-panel" class="detail-grid"></div>
       </section>
       <section id="system-review-complete-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">

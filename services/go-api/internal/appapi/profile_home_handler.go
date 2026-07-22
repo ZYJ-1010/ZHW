@@ -55,17 +55,8 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 
 	serviceSections := s.profileHomeSections(reviewTodoCount, reportMessageCount, len(inviteRelations), inProgressGameCount, managedServiceCount)
 	revenueEnabled := s.currentOperationRules().Revenue.Enabled
-	if roles := s.profiles.RoleSnapshot(userID).RoleStatusMap; roles["expert"] != "approved" && roles["expert"] != "active" && roles["guide"] != "approved" && roles["guide"] != "active" {
-		for _, section := range serviceSections {
-			items, _ := section["items"].([]map[string]interface{})
-			for _, item := range items {
-				if item["key"] == "invite" {
-					item["route"] = ""
-					item["enabled"] = false
-					item["disabledReason"] = "仅行家或领路人可使用邀请功能"
-				}
-			}
-		}
+	if !s.userCanGenerateInvitations(userID) {
+		serviceSections = removeProfileHomeItem(serviceSections, "invite")
 	}
 
 	assetItems := []map[string]interface{}{
@@ -127,6 +118,20 @@ func (s *Server) buildProfileHomePayload(userID int64, user users.User, current 
 			RecentFootprints:        limitedFootprints(s.reviews.Footprints(userID), 5),
 		},
 	}
+}
+
+func removeProfileHomeItem(sections []map[string]interface{}, key string) []map[string]interface{} {
+	for index := range sections {
+		items, _ := sections[index]["items"].([]map[string]interface{})
+		filtered := make([]map[string]interface{}, 0, len(items))
+		for _, item := range items {
+			if item["key"] != key {
+				filtered = append(filtered, item)
+			}
+		}
+		sections[index]["items"] = filtered
+	}
+	return sections
 }
 
 func connectionsForInvitees(items []connections.Connection, relations []invites.Relation) []connections.Connection {

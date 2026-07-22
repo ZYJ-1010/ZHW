@@ -54,22 +54,6 @@
         </view>
 
         <view class="form-field">
-          <view wx:if="{{createTemplates.length}}" class="field-heading">
-            <text class="field-label">局模板</text>
-            <text class="field-hint">可选，选择后自动填入分类、标签和人数</text>
-          </view>
-          <view wx:if="{{createTemplates.length}}" class="chip-row template-row">
-            <button
-              wx:for="{{createTemplates}}"
-              wx:key="key"
-              class="option-chip template-chip {{form.createTemplate === item.key ? 'active' : ''}}"
-              data-key="{{item.key}}"
-              bindtap="selectCreateTemplate"
-            >{{item.name}}</button>
-          </view>
-        </view>
-
-        <view class="form-field">
           <view class="field-heading">
             <text class="field-label">局类型</text>
             <text class="field-required">（必填）</text>
@@ -486,21 +470,18 @@
           </view>
         </view>
 
-        <view class="form-field">
+        <view wx:if="{{form.feeType === 'paid'}}" class="form-field">
           <text class="field-label">局费</text>
-          <view class="price-control {{form.feeType === 'free' ? 'readonly' : ''}}">
-            <block wx:if="{{form.feeType === 'paid'}}">
-              <input
-                class="price-input"
-                type="digit"
-                value="{{form.price}}"
-                placeholder="请输入金额"
-                placeholder-class="control-placeholder"
-                bindinput="onPriceInput"
-              />
-              <text class="price-unit">元/人</text>
-            </block>
-            <text wx:else class="price-static">0元/人</text>
+          <view class="price-control">
+            <input
+              class="price-input"
+              type="digit"
+              value="{{form.price}}"
+              placeholder="请输入金额"
+              placeholder-class="control-placeholder"
+              bindinput="onPriceInput"
+            />
+            <text class="price-unit">元/人</text>
           </view>
         </view>
 

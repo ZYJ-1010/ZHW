@@ -248,11 +248,15 @@ function buildStatusTabs(cards, categoryKey, pageConfig = EMPTY_PAGE_CONFIG) {
 }
 
 function normalizeMyGamesPageConfig(config = {}) {
+  const statusTabs = Array.isArray(config.statusTabs) ? config.statusTabs.slice() : EMPTY_PAGE_CONFIG.statusTabs.slice()
+  if (!statusTabs.some((item) => item && item.key === 'dispute')) {
+    statusTabs.push({ key: 'dispute', text: '争议中' })
+  }
   return {
     ...EMPTY_PAGE_CONFIG,
     ...config,
     categoryTabs: Array.isArray(config.categoryTabs) ? config.categoryTabs : EMPTY_PAGE_CONFIG.categoryTabs,
-    statusTabs: Array.isArray(config.statusTabs) ? config.statusTabs : EMPTY_PAGE_CONFIG.statusTabs
+    statusTabs
   }
 }
 
@@ -324,7 +328,11 @@ function normalizeStatusType(status) {
       return 'complete'
     case 'canceled':
     case 'cancelled':
+    case 'rejected':
       return 'canceled'
+    case 'dispute':
+    case 'disputed':
+      return 'dispute'
     case 'overdue':
       return 'overdue'
     default:
@@ -340,6 +348,8 @@ function statusTextByType(statusType) {
       return '已取消'
     case 'overdue':
       return '超时'
+    case 'dispute':
+      return '争议中'
     default:
       return '进行中'
   }

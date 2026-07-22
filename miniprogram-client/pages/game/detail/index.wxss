@@ -473,6 +473,16 @@ page {
   line-height: 38rpx;
 }
 
+.organizer-blue-badge {
+  margin-left: 10rpx;
+  padding: 2rpx 9rpx;
+  border-radius: 8rpx;
+  background: #168bff;
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 28rpx;
+}
+
 .organizer-role {
   min-width: 0;
   margin-left: 14rpx;

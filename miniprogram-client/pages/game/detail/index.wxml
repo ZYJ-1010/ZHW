@@ -79,6 +79,7 @@
             <view class="organizer-main">
               <view class="organizer-name-row">
                 <text class="organizer-name">{{organizer.name}}</text>
+                <text wx:if="{{organizer.blueBadge.enabled}}" class="organizer-blue-badge" bindtap="onOrganizerBlueBadgeTap">蓝标</text>
                 <text class="organizer-role">{{organizer.role}}</text>
               </view>
               <text class="organizer-summary">{{organizer.summary}}</text>

@@ -166,11 +166,13 @@ func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			switch {
 			case errors.Is(err, auth.ErrPhoneInvalid):
-				httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
-			case errors.Is(err, auth.ErrPhoneCodeRateLimit), errors.Is(err, auth.ErrPhoneCodeDailyLimit):
-				httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "sms code send too frequently")
+				httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号格式不正确")
+			case errors.Is(err, auth.ErrPhoneCodeRateLimit):
+				httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "验证码发送过于频繁，请稍后再试")
+			case errors.Is(err, auth.ErrPhoneCodeDailyLimit):
+				httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "今日验证码发送次数已达上限，请明日再试")
 			default:
-				httpx.Error(w, http.StatusBadGateway, httpx.CodeSystemError, "sms code send failed")
+				httpx.Error(w, http.StatusBadGateway, httpx.CodeSystemError, "验证码发送失败，请稍后重试")
 			}
 			return
 		}
@@ -184,14 +186,14 @@ func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {
 	result, err := s.identity.SendSMSCode(userID)
 	if err != nil {
 		if errors.Is(err, identity.ErrSMSRateLimited) {
-			httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "sms code send too frequently")
+			httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "验证码发送过于频繁，请稍后再试")
 			return
 		}
 		if errors.Is(err, identity.ErrSMSDailyLimited) {
-			httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "sms code daily limit exceeded")
+			httpx.Error(w, http.StatusTooManyRequests, httpx.CodeValidationError, "今日验证码发送次数已达上限，请明日再试")
 			return
 		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "sms code send failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "验证码发送失败，请稍后重试")
 		return
 	}
 	httpx.OK(w, smsDispatchPayload(result))
@@ -200,7 +202,7 @@ func (s *Server) sendSMSCode(w http.ResponseWriter, r *http.Request) {
 func smsDispatchPayload(result identity.SMSDispatchResult) map[string]string {
 	data := map[string]string{
 		"provider": result.Provider,
-		"message":  "sms code sent",
+		"message":  "验证码已发送",
 	}
 	if result.MessageID != "" {
 		data["messageId"] = result.MessageID
@@ -413,6 +415,10 @@ func (s *Server) adminIdentityVerificationDetail(w http.ResponseWriter, r *http.
 }
 
 func (s *Server) routeAdminIdentityVerificationPost(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "/batch-review") {
+		s.requireAdminPermission("identity:update", s.batchReviewIdentityVerifications)(w, r)
+		return
+	}
 	if strings.HasSuffix(r.URL.Path, "/review") {
 		s.requireAdminPermission("identity:update", s.reviewIdentityVerification)(w, r)
 		return
@@ -435,33 +441,93 @@ func (s *Server) reviewIdentityVerification(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	reason := strings.TrimSpace(firstNonEmpty(req.Reason, req.Remark))
-	record, err := s.identity.ReviewManualRealname(userID, req.Approve, reason)
+	record, err := s.reviewIdentityRecord(r, userID, req.Approve, reason)
 	if err != nil {
-		switch {
-		case errors.Is(err, identity.ErrRecordNotFound):
-			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "identity record not found")
-		case errors.Is(err, identity.ErrRealnameRequired):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "identity material missing")
-		case errors.Is(err, identity.ErrReviewReasonRequired):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
-		default:
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "review identity failed")
-		}
+		writeIdentityReviewError(w, err)
 		return
 	}
-	if _, err := s.auth.UpdateRealnameStatus(userID, string(record.Status)); err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "sync user realname status failed")
+	httpx.OK(w, s.adminIdentityPayloadForRequest(r, record))
+}
+
+type identityBatchReviewRequest struct {
+	UserIDs []int64 `json:"userIds"`
+	Approve bool    `json:"approve"`
+	Reason  string  `json:"reason"`
+	Remark  string  `json:"remark"`
+}
+
+type identityBatchReviewResult struct {
+	UserID  int64  `json:"userId"`
+	Success bool   `json:"success"`
+	Status  string `json:"status,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (s *Server) batchReviewIdentityVerifications(w http.ResponseWriter, r *http.Request) {
+	var req identityBatchReviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "批量审核请求格式错误")
 		return
+	}
+	userIDs := uniquePositiveInt64s(req.UserIDs)
+	if len(userIDs) == 0 {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请至少选择一条实名认证记录")
+		return
+	}
+	reason := strings.TrimSpace(firstNonEmpty(req.Reason, req.Remark))
+	if !req.Approve && reason == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "批量驳回必须统一填写原因")
+		return
+	}
+
+	items := make([]identityBatchReviewResult, 0, len(userIDs))
+	success := 0
+	for _, userID := range userIDs {
+		record := s.identity.Status(userID)
+		if record.Status != identity.StatusPendingManualReview {
+			items = append(items, identityBatchReviewResult{UserID: userID, Error: "仅待审核的实名认证记录可批量处理"})
+			continue
+		}
+		reviewed, err := s.reviewIdentityRecord(r, userID, req.Approve, reason)
+		if err != nil {
+			items = append(items, identityBatchReviewResult{UserID: userID, Error: identityReviewErrorMessage(err)})
+			continue
+		}
+		success++
+		items = append(items, identityBatchReviewResult{UserID: userID, Success: true, Status: string(reviewed.Status)})
+	}
+	s.recordOperation(r, "identity:verification:batch_review", "identity_verification", "batch", map[string]interface{}{
+		"approve": req.Approve,
+		"reason":  reason,
+		"userIds": userIDs,
+		"success": success,
+		"failed":  len(userIDs) - success,
+	})
+	httpx.OK(w, map[string]interface{}{
+		"total":   len(userIDs),
+		"success": success,
+		"failed":  len(userIDs) - success,
+		"items":   items,
+	})
+}
+
+func (s *Server) reviewIdentityRecord(r *http.Request, userID int64, approve bool, reason string) (identity.Record, error) {
+	record, err := s.identity.ReviewManualRealname(userID, approve, reason)
+	if err != nil {
+		return identity.Record{}, err
+	}
+	if _, err := s.auth.UpdateRealnameStatus(userID, string(record.Status)); err != nil {
+		return identity.Record{}, err
 	}
 	status := "rejected"
 	title := "实名认证未通过"
 	content := "你的实名认证未通过，请核对姓名和身份证号后重新提交。"
-	if req.Approve {
+	if approve {
 		status = "verified"
 		title = "实名认证已通过"
 		content = "你的实名认证已通过，可以继续使用平台身份相关功能。"
 	}
-	if !req.Approve && reason != "" {
+	if !approve && reason != "" {
 		content += " 原因：" + reason
 	}
 	s.notices.Create(notifications.CreateRequest{
@@ -476,7 +542,49 @@ func (s *Server) reviewIdentityVerification(w http.ResponseWriter, r *http.Reque
 		"status": status,
 		"reason": reason,
 	})
-	httpx.OK(w, s.adminIdentityPayloadForRequest(r, record))
+	return record, nil
+}
+
+func uniquePositiveInt64s(values []int64) []int64 {
+	result := make([]int64, 0, len(values))
+	seen := make(map[int64]struct{}, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func writeIdentityReviewError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, identity.ErrRecordNotFound):
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "未找到实名认证记录")
+	case errors.Is(err, identity.ErrRealnameRequired):
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "实名认证材料不完整")
+	case errors.Is(err, identity.ErrReviewReasonRequired):
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
+	default:
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "实名认证审核失败")
+	}
+}
+
+func identityReviewErrorMessage(err error) string {
+	switch {
+	case errors.Is(err, identity.ErrRecordNotFound):
+		return "未找到实名认证记录"
+	case errors.Is(err, identity.ErrRealnameRequired):
+		return "实名认证材料不完整"
+	case errors.Is(err, identity.ErrReviewReasonRequired):
+		return "驳回审核必须填写原因"
+	default:
+		return "实名认证审核失败"
+	}
 }
 
 func (s *Server) adminIdentityPayloadForRequest(r *http.Request, record identity.Record) map[string]interface{} {

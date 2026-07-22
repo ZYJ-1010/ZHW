@@ -32,7 +32,7 @@
           placeholder-class="enjoy-placeholder"
           bindinput="onCodeInput"
         />
-        <text class="invite-flow-field-action enjoy-code-action {{canResend ? 'active' : 'disabled'}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" catchtap="sendUiPreviewInviteCode">
+        <text class="invite-flow-field-action enjoy-code-action {{canResend && canRequestCode ? 'active' : 'disabled'}} {{canResend && canRequestCode ? '' : 'enjoy-code-action--disabled'}}" catchtap="sendUiPreviewInviteCode">
           {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's后可获取验证码'}}
         </text>
       </view>
@@ -156,7 +156,7 @@
         <text class="invite-flow-star">✦</text>
       </view>
       <text class="invite-flow-welcome">欢迎进入真好玩~</text>
-      <text class="invite-flow-access-note">仅限受邀用户和已注册账号登录。已注册账号可使用手机号验证码、微信或密码完成鉴权，新用户需输入有效邀请码。</text>
+      <text class="invite-flow-access-note">{{entryFlow === 'existing' ? '已注册账号可使用手机号验证码或微信完成登录。' : '仅限受邀用户和已注册账号登录。已注册账号可使用手机号验证码、微信或密码完成鉴权，新用户需输入有效邀请码。'}}</text>
     </view>
 
     <view class="invite-flow-form">
@@ -182,11 +182,11 @@
           placeholder-class="enjoy-placeholder"
           bindinput="onCodeInput"
         />
-        <text class="invite-flow-field-action enjoy-code-action {{canResend ? 'active' : 'disabled'}} {{canResend ? '' : 'enjoy-code-action--disabled'}}" catchtap="getVerifyCode">
+        <text class="invite-flow-field-action enjoy-code-action {{canResend && canRequestCode ? 'active' : 'disabled'}} {{canResend && canRequestCode ? '' : 'enjoy-code-action--disabled'}}" catchtap="getVerifyCode">
           {{isSendingCode ? '发送中...' : canResend ? '获取验证码' : resendSeconds + 's后可获取验证码'}}
         </text>
       </view>
-      <view class="invite-flow-field enjoy-field">
+      <view wx:if="{{entryFlow !== 'existing'}}" class="invite-flow-field enjoy-field">
         <input
           class="invite-flow-field-input enjoy-input"
           value="{{inviteCode}}"
@@ -198,13 +198,13 @@
       </view>
 
       <view class="invite-flow-primary enjoy-button enjoy-button--primary" bindtap="handleInvitePrimaryLogin">
-        {{isPhoneLoggingIn ? '登录/注册中...' : '登录/注册'}}
+        {{isPhoneLoggingIn ? (entryFlow === 'existing' ? '登录中...' : '登录/注册中...') : (entryFlow === 'existing' ? '登录' : '登录/注册')}}
       </view>
-      <view class="invite-flow-login-options">
+      <view class="invite-flow-login-options {{entryFlow === 'existing' ? 'single' : ''}}">
         <view class="invite-flow-login-option" bindtap="startPasswordLogin">密码登录</view>
         <view class="invite-flow-login-option" bindtap="startWechatAuth">微信登录</view>
       </view>
-      <text class="invite-flow-invite-tip">已注册账号可用验证码、微信或密码登录；新用户需输入邀请码完成注册</text>
+      <text class="invite-flow-invite-tip">已注册账号可使用验证码、微信或密码登录；首次注册需输入邀请码并完成短信验证码验证</text>
       <view class="invite-flow-agreement" bindtap="toggleAgreement">
         <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
           <text wx:if="{{agreed}}">✓</text>

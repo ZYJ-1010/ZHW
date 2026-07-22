@@ -106,6 +106,17 @@
   white-space: normal;
 }
 
+.participant-blue-badge {
+  flex: none;
+  margin: 0 8rpx;
+  padding: 1rpx 8rpx;
+  border-radius: 7rpx;
+  background: #168bff;
+  color: #ffffff;
+  font-size: 17rpx;
+  line-height: 26rpx;
+}
+
 .participant-role-text {
   flex: none;
   min-width: 0;

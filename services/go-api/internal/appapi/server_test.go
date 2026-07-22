@@ -39,6 +39,18 @@ type fakeMapProvider struct {
 	routeReq   lbs.MapRouteRequest
 }
 
+type fakeIPGeoProvider struct {
+	*fakeMapProvider
+	place lbs.MapPlace
+	err   error
+	ip    string
+}
+
+func (f *fakeIPGeoProvider) LocateIP(_ context.Context, ip string) (lbs.MapPlace, error) {
+	f.ip = ip
+	return f.place, f.err
+}
+
 func (f *fakeMapProvider) Search(ctx context.Context, req lbs.MapSearchRequest) (lbs.MapSearchResult, error) {
 	f.searchReq = req
 	if req.Keyword == "bad" {
@@ -364,6 +376,76 @@ func TestWechatLoginInvalidCodeHTTP(t *testing.T) {
 	postJSON(t, mux, "/api/app/auth/wechat-login", "", `{"code":"bad-code","inviteCode":"TEST2026"}`, http.StatusUnprocessableEntity)
 }
 
+func TestWechatEntryPrecheckHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
+
+	newBody := postJSON(t, mux, "/api/app/auth/wechat-entry-precheck", "", `{"code":"entry-precheck-new"}`, http.StatusOK)
+	var precheck struct {
+		Data struct {
+			BoundWechat    bool `json:"boundWechat"`
+			RequiresInvite bool `json:"requiresInvite"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(newBody, &precheck); err != nil {
+		t.Fatal(err)
+	}
+	if precheck.Data.BoundWechat || !precheck.Data.RequiresInvite {
+		t.Fatalf("expected unbound WeChat to route to registration: %s", string(newBody))
+	}
+
+	postJSON(t, mux, "/api/app/auth/wechat-login", "", `{"code":"entry-precheck-existing","inviteCode":"TEST2026"}`, http.StatusOK)
+	existingBody := postJSON(t, mux, "/api/app/auth/wechat-entry-precheck", "", `{"code":"entry-precheck-existing"}`, http.StatusOK)
+	if err := json.Unmarshal(existingBody, &precheck); err != nil {
+		t.Fatal(err)
+	}
+	if !precheck.Data.BoundWechat || precheck.Data.RequiresInvite {
+		t.Fatalf("expected bound WeChat to route to existing login: %s", string(existingBody))
+	}
+}
+
+func TestDeleteAccountHTTPReleasesWechatAndExpiresOldInvite(t *testing.T) {
+	mux := http.NewServeMux()
+	inviteStore := invites.NewStore()
+	authService := auth.NewService(users.NewStore(), inviteStore, auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
+
+	oldInvite, err := authService.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue old invite: %v", err)
+	}
+	token := loginForTestWithCodeAndInvite(t, mux, "delete-account-http", oldInvite.Code)
+	postJSON(t, mux, "/api/app/account/delete", token, `{"confirm":true}`, http.StatusOK)
+
+	postJSON(t, mux, "/api/app/invites/precheck", "", `{"inviteCode":"`+oldInvite.Code+`","entryType":"qrcode"}`, http.StatusGone)
+	entryBody := postJSON(t, mux, "/api/app/auth/wechat-entry-precheck", "", `{"code":"delete-account-http"}`, http.StatusOK)
+	var entry struct {
+		Data struct {
+			BoundWechat    bool `json:"boundWechat"`
+			RequiresInvite bool `json:"requiresInvite"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(entryBody, &entry); err != nil {
+		t.Fatal(err)
+	}
+	if entry.Data.BoundWechat || !entry.Data.RequiresInvite {
+		t.Fatalf("deleted account should no longer be bound to wechat: %s", string(entryBody))
+	}
+
+	newInvite, err := authService.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue new invite: %v", err)
+	}
+	if newToken := loginForTestWithCodeAndInvite(t, mux, "delete-account-http", newInvite.Code); newToken == "" {
+		t.Fatal("expected same wechat to register again with a newly issued invite")
+	}
+}
+
 func TestCreateInviteEntryHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
@@ -391,7 +473,21 @@ func TestCreateInviteEntryHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, token)
 	// 玩家不能生成用于邀请新人注册的个人邀请码、二维码或海报。
 	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link","title":"邀请你加入真好玩"}`, http.StatusForbidden)
-	server.profiles.GrantRole(currentUserIDForTest(t, mux, token), "guide")
+	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"poster","gameId":1}`, http.StatusForbidden)
+	ownerID := currentUserIDForTest(t, mux, token)
+	server.profiles.GrantRole(ownerID, "guide")
+	// 身份生效后仍必须由后台先分配邀请码，不能由 C 端自行新增。
+	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link"}`, http.StatusConflict)
+	var allocatedLinkCode string
+	for _, entryType := range []string{invites.EntryTypeLink, invites.EntryTypePoster} {
+		allocated, err := authService.AdminCreateInviteCode("", ownerID, 1, entryType)
+		if err != nil {
+			t.Fatalf("allocate %s invite: %v", entryType, err)
+		}
+		if entryType == invites.EntryTypeLink {
+			allocatedLinkCode = allocated.Code
+		}
+	}
 	postJSON(t, mux, "/api/app/games", token, `{"title":"周末城市探索","gameType":"free","minPlayers":5,"maxPlayers":8,"cityName":"杭州","startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 
 	firstBody := postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link","title":"邀请你加入真好玩"}`, http.StatusOK)
@@ -439,8 +535,8 @@ func TestCreateInviteEntryHTTP(t *testing.T) {
 	if err := json.Unmarshal(posterBody, &poster); err != nil {
 		t.Fatal(err)
 	}
-	if first.Data.InviteCode == "" || second.Data.InviteCode == "" || first.Data.InviteCode == second.Data.InviteCode {
-		t.Fatalf("expected unique invite codes: first=%s second=%s", string(firstBody), string(secondBody))
+	if allocatedLinkCode == "" || first.Data.InviteCode != allocatedLinkCode || second.Data.InviteCode != allocatedLinkCode {
+		t.Fatalf("expected C end to reuse the backend-allocated unused link invite: first=%s second=%s", string(firstBody), string(secondBody))
 	}
 	if first.Data.EntryType != "link" || first.Data.Path == "" || first.Data.Scene == "" || first.Data.UrlLink == "" {
 		t.Fatalf("expected link entry payload: %s", string(firstBody))
@@ -890,10 +986,37 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 
 	adminToken := adminLoginForTest(t, mux)
 	ownerToken := loginForTestWithCode(t, mux, "admin-invite-owner")
+	completeIdentityForTest(t, mux, ownerToken)
 	ownerUserID := currentUserIDForTest(t, mux, ownerToken)
 	ownerUserIDJSON := strconv.FormatInt(ownerUserID, 10)
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":999999,"entryType":"qrcode"}`, http.StatusNotFound)
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
+	postAdminJSON(t, mux, "/api/admin/roles/grant", adminToken, `{"userId":`+ownerUserIDJSON+`,"roleCode":"guide","reason":"邀请码生成测试"}`, http.StatusOK)
+	getAdminJSON(t, mux, "/api/admin/invite-owners?keyword=User", operatorToken, http.StatusForbidden)
+	ownerIdentity := identityService.Status(ownerUserID)
+	ownerPlain, err := identityService.RevealRecord(ownerIdentity)
+	if err != nil || ownerPlain.Phone == "" || ownerPlain.RealName == "" {
+		t.Fatalf("expected searchable owner identity: record=%+v err=%v", ownerIdentity, err)
+	}
+	ownerSearchBody := getAdminJSON(t, mux, "/api/admin/invite-owners?keyword="+ownerPlain.Phone, adminToken, http.StatusOK)
+	var ownerSearchResp struct {
+		Data struct {
+			Total int `json:"total"`
+			Items []struct {
+				ID             int64    `json:"id"`
+				RealNameMasked string   `json:"realNameMasked"`
+				PhoneMasked    string   `json:"phoneMasked"`
+				Roles          []string `json:"roles"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(ownerSearchBody, &ownerSearchResp); err != nil {
+		t.Fatal(err)
+	}
+	if ownerSearchResp.Data.Total != 1 || len(ownerSearchResp.Data.Items) != 1 || ownerSearchResp.Data.Items[0].ID != ownerUserID || ownerSearchResp.Data.Items[0].RealNameMasked != ownerIdentity.RealNameMasked || ownerSearchResp.Data.Items[0].RealNameMasked == ownerPlain.RealName || ownerSearchResp.Data.Items[0].PhoneMasked == "" || !reflect.DeepEqual(ownerSearchResp.Data.Items[0].Roles, []string{"领路人"}) {
+		t.Fatalf("expected guide owner phone search result: %s", string(ownerSearchBody))
+	}
 	body := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"qrcode"}`, http.StatusOK)
 	var created struct {
 		Data struct {
@@ -1013,8 +1136,9 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 		t.Fatalf("expected invite code detail with bound user and relation: %s", string(detailBody))
 	}
 
-	postAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001/disable", adminToken, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/invites/precheck", "", `{"inviteCode":"ADMINQR001","entryType":"qrcode"}`, http.StatusForbidden)
+	// 已使用的邀请码已经建立终身邀请关系，后台不得再禁用、编辑或作废。
+	postAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001/disable", adminToken, `{}`, http.StatusUnprocessableEntity)
+	postJSON(t, mux, "/api/app/invites/precheck", "", `{"inviteCode":"ADMINQR001","entryType":"qrcode"}`, http.StatusOK)
 }
 
 func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
@@ -1075,7 +1199,7 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	if !login.Data.RequiresIdentityBinding || login.Data.IdentityBindStatus != "wechat_logged_in" {
 		t.Fatalf("expected identity binding hint: %s", rec.Body.String())
 	}
-	if login.Data.User.ID != 1 || login.Data.User.InviteCode == "" || login.Data.User.Membership.Status != "none" {
+	if login.Data.User.ID != 1 || login.Data.User.InviteCode != "" || login.Data.User.Membership.Status != "none" {
 		t.Fatalf("expected login CurrentUserDTO basics: %s", rec.Body.String())
 	}
 	if len(login.Data.User.Roles) != 2 || login.Data.User.RoleStatusMap["expert"] != "approved" || login.Data.User.RoleStatusMap["guide"] != "none" {
@@ -1186,7 +1310,7 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	if err := json.Unmarshal(meRec.Body.Bytes(), &meResp); err != nil {
 		t.Fatal(err)
 	}
-	if meResp.Data.Nickname != "Alice" || meResp.Data.InviteCode == "" || meResp.Data.Growth.Points != 12 {
+	if meResp.Data.Nickname != "Alice" || meResp.Data.InviteCode != "" || meResp.Data.Growth.Points != 12 {
 		t.Fatalf("expected current user aggregate updated: %s", meRec.Body.String())
 	}
 	if len(meResp.Data.Roles) != 2 || meResp.Data.RoleStatusMap["expert"] != "approved" || meResp.Data.Identity.Status != "verified" {
@@ -1339,7 +1463,10 @@ func TestIdentityFlowHTTP(t *testing.T) {
 
 	postJSON(t, mux, "/api/app/identity/phone/bind", token, `{"phone":"13800138000"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/sms/send-code", token, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/sms/send-code", token, `{}`, http.StatusTooManyRequests)
+	limitedBody := postJSON(t, mux, "/api/app/sms/send-code", token, `{}`, http.StatusTooManyRequests)
+	if !strings.Contains(string(limitedBody), "验证码发送过于频繁") {
+		t.Fatalf("expected Chinese SMS rate-limit message, got %s", string(limitedBody))
+	}
 	postJSON(t, mux, "/api/app/sms/verify-code", token, `{"code":"000000"}`, http.StatusOK)
 	body := postJSON(t, mux, "/api/app/identity/phone/verify", token, `{"realName":"User","idCard":"110101199001011234"}`, http.StatusOK)
 	var submitResp struct {
@@ -1470,6 +1597,63 @@ func TestIdentityFlowHTTP(t *testing.T) {
 	}
 	if detailResp.Data.PhoneFull != "13800138000" || detailResp.Data.RealNameFull != "User" || detailResp.Data.IDCardFull != "110101199001011234" {
 		t.Fatalf("expected admin identity detail to expose full review fields: %s", detailRec.Body.String())
+	}
+}
+
+func TestAdminBatchReviewIdentityVerificationsHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+
+	tokenA := loginForTestWithCode(t, mux, "identity-batch-a")
+	tokenB := loginForTestWithCode(t, mux, "identity-batch-b")
+	tokenC := loginForTestWithCode(t, mux, "identity-batch-c")
+	userA := currentUserIDForTest(t, mux, tokenA)
+	userB := currentUserIDForTest(t, mux, tokenB)
+	userC := currentUserIDForTest(t, mux, tokenC)
+	for _, userID := range []int64{userA, userB, userC} {
+		if _, err := identityService.SubmitManualRealname(userID, "测试用户", "110101199001011234"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	adminToken := adminLoginForTest(t, mux)
+	postAdminJSON(t, mux, "/api/admin/identity-verifications/batch-review", adminToken, `{"userIds":[`+strconv.FormatInt(userA, 10)+`],"approve":false}`, http.StatusUnprocessableEntity)
+	body := postAdminJSON(t, mux, "/api/admin/identity-verifications/batch-review", adminToken, `{"userIds":[`+strconv.FormatInt(userA, 10)+`,`+strconv.FormatInt(userB, 10)+`,`+strconv.FormatInt(userA, 10)+`],"approve":true,"reason":"后台批量审核通过"}`, http.StatusOK)
+	var approved struct {
+		Data struct {
+			Total   int `json:"total"`
+			Success int `json:"success"`
+			Failed  int `json:"failed"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &approved); err != nil {
+		t.Fatal(err)
+	}
+	if approved.Data.Total != 2 || approved.Data.Success != 2 || approved.Data.Failed != 0 {
+		t.Fatalf("expected two deduplicated approvals: %s", string(body))
+	}
+	if identityService.Status(userA).Status != identity.StatusVerified || identityService.Status(userB).Status != identity.StatusVerified {
+		t.Fatalf("expected batch approved records to be verified")
+	}
+
+	rejectedBody := postAdminJSON(t, mux, "/api/admin/identity-verifications/batch-review", adminToken, `{"userIds":[`+strconv.FormatInt(userC, 10)+`,`+strconv.FormatInt(userA, 10)+`],"approve":false,"reason":"证件照片不清晰"}`, http.StatusOK)
+	var rejected struct {
+		Data struct {
+			Success int `json:"success"`
+			Failed  int `json:"failed"`
+			Items   []struct {
+				UserID int64  `json:"userId"`
+				Error  string `json:"error"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rejectedBody, &rejected); err != nil {
+		t.Fatal(err)
+	}
+	if rejected.Data.Success != 1 || rejected.Data.Failed != 1 || identityService.Status(userC).Status != identity.StatusRejected {
+		t.Fatalf("expected one rejection and one non-pending failure: %s", string(rejectedBody))
 	}
 }
 
@@ -1865,6 +2049,31 @@ func TestCreateGamePersistsMiniProgramDetailFieldsHTTP(t *testing.T) {
 	}
 }
 
+func TestGameContentSensitiveWordsAreRejectedOnCreateAndDraftSaveHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	token := loginForTest(t, mux)
+
+	base := `{"gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`
+	for _, payload := range []string{
+		`{"title":"敏感词局",` + base[1:],
+		`{"title":"正常局","description":"包含敏感词的介绍",` + base[1:],
+		`{"title":"正常局","highlights":"亮点正常","tags":["敏感词标签"],` + base[1:],
+		`{"title":"正常局","completionRules":["敏感词规则"],` + base[1:],
+	} {
+		body := postJSON(t, mux, "/api/app/games", token, payload, http.StatusUnavailableForLegalReasons)
+		if !strings.Contains(string(body), "局内容涉及敏感词") {
+			t.Fatalf("expected sensitive game content message: %s", string(body))
+		}
+	}
+
+	postJSON(t, mux, "/api/app/game-drafts", token, `{"title":"敏感词草稿","payload":{"title":"正常"}}`, http.StatusUnavailableForLegalReasons)
+	postJSON(t, mux, "/api/app/game-drafts", token, `{"title":"正常草稿","payload":{"form":{"description":"包含敏感词的草稿内容"}}}`, http.StatusUnavailableForLegalReasons)
+	postJSON(t, mux, "/api/app/game-drafts", token, `{"title":"正常草稿","payload":{"form":{"description":"正常内容"}}}`, http.StatusOK)
+}
+
 func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
@@ -2057,6 +2266,88 @@ func TestAdminGrowthRewardRulesSaveAndReadBack(t *testing.T) {
 		t.Fatalf("expected runtime rewards to use saved config, got %#v", runtimeRules)
 	}
 	putJSON(t, mux, "/api/admin/growth/reward-rules", adminToken, `{"completedGameExperience":0}`, http.StatusUnprocessableEntity)
+}
+
+func TestAdminExpertSkillDisplayConfigHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
+	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
+
+	defaultBody := getJSON(t, mux, "/api/admin/experts/skill-display-config", adminToken, http.StatusOK)
+	if !bytes.Contains(defaultBody, []byte(`"visibleSkillLimit":3`)) || !bytes.Contains(defaultBody, []byte(`"homePreviewCount":3`)) {
+		t.Fatalf("expected default skill display config, got %s", string(defaultBody))
+	}
+	putJSON(t, mux, "/api/admin/experts/skill-display-config", adminToken, `{"visibleSkillLimit":4,"homePreviewCount":5}`, http.StatusUnprocessableEntity)
+
+	expertToken := loginForTestWithCode(t, mux, "expert-skill-display-config")
+	completeIdentityForTest(t, mux, expertToken)
+	expertUserID := currentUserIDForTest(t, mux, expertToken)
+	server.profiles.GrantRole(expertUserID, "expert")
+	putJSON(t, mux, "/api/app/experts/me/skills", expertToken, `{"skillTree":["技能一","技能二","技能三","技能四"]}`, http.StatusUnprocessableEntity)
+	putJSON(t, mux, "/api/admin/experts/skill-display-config", adminToken, `{"visibleSkillLimit":6,"homePreviewCount":3}`, http.StatusOK)
+	putJSON(t, mux, "/api/app/experts/me/skills", expertToken, `{"skillTree":["技能一","技能二","技能三","技能四","技能五","技能六"]}`, http.StatusOK)
+
+	skillConfigBody := getJSON(t, mux, "/api/app/profile/system-management/skill-config", expertToken, http.StatusOK)
+	if !bytes.Contains(skillConfigBody, []byte(`"maxSkillCount":6`)) || !bytes.Contains(skillConfigBody, []byte(`"技能六"`)) {
+		t.Fatalf("expected six configurable explicit skills, got %s", string(skillConfigBody))
+	}
+	putJSON(t, mux, "/api/app/profile/system-management/skill-config", expertToken, `{"skillGroups":{"visible":[{"id":"1"},{"id":"2"},{"id":"3"},{"id":"4"},{"id":"5"},{"id":"6"},{"id":"7"}]}}`, http.StatusUnprocessableEntity)
+
+	homeBody := getJSON(t, mux, "/api/app/home?roleType=expert", expertToken, http.StatusOK)
+	if !bytes.Contains(homeBody, []byte(`"homePreviewCount":3`)) || !bytes.Contains(homeBody, []byte(`"技能六"`)) {
+		t.Fatalf("expected home payload to expose all explicit skills and preview rule, got %s", string(homeBody))
+	}
+
+	// 下调上限不会清除存量技能，但会阻止继续新增。
+	putJSON(t, mux, "/api/admin/experts/skill-display-config", adminToken, `{"visibleSkillLimit":3,"homePreviewCount":3}`, http.StatusOK)
+	existingProfileBody := getJSON(t, mux, "/api/app/experts/me/skills", expertToken, http.StatusOK)
+	if !bytes.Contains(existingProfileBody, []byte(`"技能六"`)) {
+		t.Fatalf("expected existing expert skills to remain after lowering limit, got %s", string(existingProfileBody))
+	}
+	putJSON(t, mux, "/api/app/experts/me/skills", expertToken, `{"skillTree":["技能一","技能二","技能三","技能四","技能五","技能六","技能七"]}`, http.StatusUnprocessableEntity)
+}
+
+func TestAdminExpertBlueBadgeHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
+	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
+
+	expertToken := loginForTestWithCode(t, mux, "expert-blue-badge")
+	completeIdentityForTest(t, mux, expertToken)
+	expertID := currentUserIDForTest(t, mux, expertToken)
+	putJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(expertID, 10)+"/expert-blue-badge", adminToken, `{"enabled":true,"remark":"业内专业能力评估通过"}`, http.StatusUnprocessableEntity)
+
+	server.profiles.GrantRole(expertID, "expert")
+	putJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(expertID, 10)+"/expert-blue-badge", adminToken, `{"enabled":true,"remark":"业内专业能力评估通过"}`, http.StatusOK)
+
+	meBody := getJSON(t, mux, "/api/app/users/me", expertToken, http.StatusOK)
+	if !bytes.Contains(meBody, []byte(`"expertBlueBadge":{"enabled":true`)) {
+		t.Fatalf("expected blue badge on current user: %s", string(meBody))
+	}
+	homeBody := getJSON(t, mux, "/api/app/home?roleType=expert", expertToken, http.StatusOK)
+	if !bytes.Contains(homeBody, []byte(`"expertBlueBadge":{"enabled":true`)) {
+		t.Fatalf("expected blue badge on expert home: %s", string(homeBody))
+	}
+	adminUserBody := getAdminJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(expertID, 10), adminToken, http.StatusOK)
+	if !bytes.Contains(adminUserBody, []byte(`"expertBlueBadge":{"enabled":true`)) {
+		t.Fatalf("expected blue badge in admin detail: %s", string(adminUserBody))
+	}
+	operationBody := getAdminJSON(t, mux, "/api/admin/operation-logs?action=expert_blue_badge", adminToken, http.StatusOK)
+	if !bytes.Contains(operationBody, []byte(`"action":"expert_blue_badge:update"`)) {
+		t.Fatalf("expected blue badge operation log: %s", string(operationBody))
+	}
+
+	putJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(expertID, 10)+"/expert-blue-badge", adminToken, `{"enabled":false,"remark":"人工认证到期，已熄灭"}`, http.StatusOK)
+	meBody = getJSON(t, mux, "/api/app/users/me", expertToken, http.StatusOK)
+	if !bytes.Contains(meBody, []byte(`"expertBlueBadge":{"enabled":false`)) {
+		t.Fatalf("expected blue badge to be disabled: %s", string(meBody))
+	}
 }
 
 func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
@@ -8154,7 +8445,14 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, memberToken)
 	creatorID := currentUserIDForTest(t, mux, creatorToken)
 	memberID := currentUserIDForTest(t, mux, memberToken)
+	// 关系网络只承载行家/领路人的邀约关系，普通玩家不能通过直达接口读取。
+	getJSON(t, mux, "/api/app/profile/service-center/invite/network", creatorToken, http.StatusForbidden)
 	server.profiles.GrantRole(creatorID, "guide")
+	for _, entryType := range []string{invites.EntryTypeLink, invites.EntryTypeQRCode, invites.EntryTypePoster} {
+		if _, err := authService.AdminCreateInviteCode("", creatorID, 1, entryType); err != nil {
+			t.Fatalf("allocate %s invite: %v", entryType, err)
+		}
+	}
 	server.connections.UpsertPair(creatorID, memberID, "invite", "invite", 1, 4)
 
 	overviewBody := getJSON(t, mux, "/api/app/profile/service-center/invite/overview", creatorToken, http.StatusOK)
@@ -8176,7 +8474,7 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 	if err := json.Unmarshal(overviewBody, &overviewResp); err != nil {
 		t.Fatal(err)
 	}
-	if overviewResp.Data.Profile.Name == "" || len(overviewResp.Data.Metrics) == 0 || len(overviewResp.Data.Actions) != 3 || overviewResp.Data.Actions[0].InviteCode == "" {
+	if overviewResp.Data.Profile.Name == "" || len(overviewResp.Data.Metrics) == 0 || len(overviewResp.Data.Actions) != 4 || overviewResp.Data.Actions[0].InviteCode == "" {
 		t.Fatalf("expected invite overview payload: %s", string(overviewBody))
 	}
 
@@ -8198,7 +8496,7 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 		t.Fatalf("expected invite network payload: %s", string(networkBody))
 	}
 
-	recordsBody := getJSON(t, mux, "/api/app/profile/service-center/invite/records?role=referred&status=all", creatorToken, http.StatusOK)
+	recordsBody := getJSON(t, mux, "/api/app/profile/service-center/invite/records?status=all", creatorToken, http.StatusOK)
 	var recordsResp struct {
 		Data struct {
 			Records []struct {
@@ -8217,23 +8515,7 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 		t.Fatalf("expected invite records payload: %s", string(recordsBody))
 	}
 
-	rankingBody := getJSON(t, mux, "/api/app/profile/service-center/invite/ranking?period=week&type=inviteCount", creatorToken, http.StatusOK)
-	var rankingResp struct {
-		Data struct {
-			Members []struct {
-				Rank int `json:"rank"`
-			} `json:"members"`
-			RankTypes []struct {
-				Key string `json:"key"`
-			} `json:"rankTypes"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(rankingBody, &rankingResp); err != nil {
-		t.Fatal(err)
-	}
-	if len(rankingResp.Data.Members) != 1 || rankingResp.Data.Members[0].Rank != 1 || len(rankingResp.Data.RankTypes) == 0 {
-		t.Fatalf("expected invite ranking payload: %s", string(rankingBody))
-	}
+	getJSON(t, mux, "/api/app/profile/service-center/invite/ranking?period=week&type=inviteCount", creatorToken, http.StatusNotFound)
 
 	incomeBody := getJSON(t, mux, "/api/app/profile/service-center/invite/income", creatorToken, http.StatusOK)
 	var incomeResp struct {
@@ -8324,6 +8606,13 @@ func TestProfileHomeHTTP(t *testing.T) {
 	}
 	if homeResp.Data.User.MemberStatus == "none" && homeResp.Data.User.MemberLevel != "" {
 		t.Fatalf("unsubscribed user must not display a member level: %s", string(homeBody))
+	}
+	for _, section := range homeResp.Data.ServiceSections {
+		for _, item := range section.Items {
+			if item.Title == "我的邀请" {
+				t.Fatalf("普通玩家首页不应展示邀请码功能入口: %s", string(homeBody))
+			}
+		}
 	}
 	if len(homeResp.Data.Stats) != 4 || len(homeResp.Data.Assets) != 3 || len(homeResp.Data.ServiceSections) == 0 || len(homeResp.Data.ServiceSections[0].Items) == 0 {
 		t.Fatalf("expected profile home summary blocks: %s", string(homeBody))
@@ -9953,6 +10242,65 @@ func TestLocationAndNearbyGamesFlow(t *testing.T) {
 	if len(nearbyResp.Data.OnlinePlayers) != 1 || nearbyResp.Data.OnlinePlayers[0].UserID == 0 || nearbyResp.Data.OnlinePlayers[0].Name == "" || nearbyResp.Data.OnlinePlayers[0].DistanceText == "" {
 		t.Fatalf("expected nearby player marker fields: %s", rec.Body.String())
 	}
+}
+
+func TestLocationFallbackHTTP(t *testing.T) {
+	t.Run("优先返回用户已保存的位置城市", func(t *testing.T) {
+		mux := http.NewServeMux()
+		server := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+		server.Register(mux)
+		token := loginForTestWithCode(t, mux, "location-fallback-saved")
+		postJSON(t, mux, "/api/app/locations/manual", token, `{"longitude":121.55,"latitude":29.88,"cityCode":"330200","cityName":"宁波","address":"手动选点"}`, http.StatusOK)
+
+		body := getJSON(t, mux, "/api/app/locations/fallback", token, http.StatusOK)
+		var response struct {
+			Data struct {
+				Source   string `json:"source"`
+				CityCode string `json:"cityCode"`
+				CityName string `json:"cityName"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &response); err != nil {
+			t.Fatal(err)
+		}
+		if response.Data.Source != "saved" || response.Data.CityCode != "330200" || response.Data.CityName != "宁波" {
+			t.Fatalf("expected saved city fallback, got %s", string(body))
+		}
+	})
+
+	t.Run("无保存位置时使用IP城市", func(t *testing.T) {
+		mux := http.NewServeMux()
+		server := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+		provider := &fakeIPGeoProvider{fakeMapProvider: &fakeMapProvider{}, place: lbs.MapPlace{City: "宁波", CityCode: "330200", Longitude: 121.55, Latitude: 29.88}}
+		server.UseMapProvider(provider)
+		server.Register(mux)
+		token := loginForTestWithCode(t, mux, "location-fallback-ip")
+
+		req := httptest.NewRequest(http.MethodGet, "/api/app/locations/fallback", nil)
+		req.RemoteAddr = "203.0.113.8:19000"
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected IP city fallback 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		if provider.ip != "203.0.113.8" || !bytes.Contains(rec.Body.Bytes(), []byte(`"source":"ip_city"`)) || !bytes.Contains(rec.Body.Bytes(), []byte(`"cityCode":"330200"`)) {
+			t.Fatalf("expected IP city fallback payload, got ip=%q body=%s", provider.ip, rec.Body.String())
+		}
+	})
+
+	t.Run("IP服务异常时明确降级为默认城市", func(t *testing.T) {
+		mux := http.NewServeMux()
+		server := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+		server.UseMapProvider(&fakeIPGeoProvider{fakeMapProvider: &fakeMapProvider{}, err: fmt.Errorf("IP定位不可用")})
+		server.Register(mux)
+		token := loginForTestWithCode(t, mux, "location-fallback-default")
+
+		body := getJSON(t, mux, "/api/app/locations/fallback", token, http.StatusOK)
+		if !bytes.Contains(body, []byte(`"source":"default_city"`)) || !bytes.Contains(body, []byte(`"cityName":"默认城市"`)) || !bytes.Contains(body, []byte(`"latitude":31.2304`)) {
+			t.Fatalf("expected explicit default city fallback, got %s", string(body))
+		}
+	})
 }
 
 func TestAppHomeAndConnectionNetworkPayloadHTTP(t *testing.T) {

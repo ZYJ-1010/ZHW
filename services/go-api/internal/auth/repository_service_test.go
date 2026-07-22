@@ -167,15 +167,67 @@ func (r *fakeUserRepository) UpdateRealnameStatus(ctx context.Context, userID in
 	return user, nil
 }
 
+func (r *fakeUserRepository) PasswordHash(ctx context.Context, userID int64) (string, bool, error) {
+	user, ok := r.byID[userID]
+	return user.PasswordHash, ok && user.PasswordHash != "", nil
+}
+
+func (r *fakeUserRepository) UpdatePasswordHash(ctx context.Context, userID int64, passwordHash string) error {
+	user, ok := r.byID[userID]
+	if !ok {
+		return users.ErrInvalidProfile
+	}
+	user.PasswordHash = passwordHash
+	r.byID[userID] = user
+	return nil
+}
+
+func (r *fakeUserRepository) BindWechat(ctx context.Context, userID int64, openID string) (users.User, error) {
+	user, ok := r.byID[userID]
+	if !ok {
+		return users.User{}, users.ErrInvalidProfile
+	}
+	user.OpenID = openID
+	r.byID[userID] = user
+	return user, nil
+}
+
+func (r *fakeUserRepository) DeactivateAndClearLoginBindings(ctx context.Context, userID int64) (users.User, error) {
+	user, ok := r.byID[userID]
+	if !ok {
+		return users.User{}, users.ErrInvalidProfile
+	}
+	for openID, id := range r.byOpen {
+		if id == userID {
+			delete(r.byOpen, openID)
+		}
+	}
+	for phoneHash, id := range r.byPhone {
+		if id == userID {
+			delete(r.byPhone, phoneHash)
+		}
+	}
+	user.OpenID = ""
+	user.PhoneMasked = ""
+	user.Nickname = ""
+	user.AvatarURL = ""
+	user.AvatarFileID = 0
+	user.Status = "deleted"
+	r.byID[userID] = user
+	return user, nil
+}
+
 type fakeInviteRepository struct {
-	nextID    int64
-	codes     map[string]invites.InviteCode
-	relations map[int64]invites.Relation
-	boundCode map[int64]int64
+	nextID        int64
+	codes         map[string]invites.InviteCode
+	relations     map[int64]invites.Relation
+	boundCode     map[int64]int64
+	quotaRequests map[int64]invites.QuotaRequest
+	nextQuotaID   int64
 }
 
 func newFakeInviteRepository() *fakeInviteRepository {
-	return &fakeInviteRepository{nextID: 1, codes: make(map[string]invites.InviteCode), relations: make(map[int64]invites.Relation), boundCode: make(map[int64]int64)}
+	return &fakeInviteRepository{nextID: 1, codes: make(map[string]invites.InviteCode), relations: make(map[int64]invites.Relation), boundCode: make(map[int64]int64), quotaRequests: make(map[int64]invites.QuotaRequest), nextQuotaID: 1}
 }
 
 func (r *fakeInviteRepository) UpsertCode(ctx context.Context, invite invites.InviteCode) (invites.InviteCode, error) {
@@ -184,6 +236,7 @@ func (r *fakeInviteRepository) UpsertCode(ctx context.Context, invite invites.In
 		existing.Status = invite.Status
 		existing.MaxUses = invite.MaxUses
 		existing.EntryType = invite.EntryType
+		existing.ExpiresAt = invite.ExpiresAt
 		r.codes[invite.Code] = existing
 		return existing, nil
 	}
@@ -195,6 +248,45 @@ func (r *fakeInviteRepository) UpsertCode(ctx context.Context, invite invites.In
 	}
 	r.codes[invite.Code] = invite
 	return invite, nil
+}
+
+func (r *fakeInviteRepository) CreateQuotaRequest(ctx context.Context, request invites.QuotaRequest) (invites.QuotaRequest, error) {
+	request.ID = r.nextQuotaID
+	r.nextQuotaID++
+	r.quotaRequests[request.ID] = request
+	return request, nil
+}
+
+func (r *fakeInviteRepository) ListQuotaRequests(ctx context.Context, ownerUserID int64, status string) ([]invites.QuotaRequest, error) {
+	items := make([]invites.QuotaRequest, 0)
+	for _, item := range r.quotaRequests {
+		if ownerUserID > 0 && item.OwnerUserID != ownerUserID {
+			continue
+		}
+		if status != "" && item.Status != status {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (r *fakeInviteRepository) ReviewQuotaRequest(ctx context.Context, id int64, status string, auditReason string, reviewedBy int64) (invites.QuotaRequest, error) {
+	item, ok := r.quotaRequests[id]
+	if !ok {
+		return invites.QuotaRequest{}, context.Canceled
+	}
+	item.Status, item.AuditReason, item.ReviewedBy = status, auditReason, reviewedBy
+	r.quotaRequests[id] = item
+	return item, nil
+}
+
+func (r *fakeInviteRepository) ClearInviteeBindings(ctx context.Context, userID int64) error {
+	if relation, ok := r.relations[userID]; ok {
+		delete(r.boundCode, relation.InviteCodeID)
+	}
+	delete(r.relations, userID)
+	return nil
 }
 
 func (r *fakeInviteRepository) FindCode(ctx context.Context, code string) (invites.InviteCode, bool, error) {

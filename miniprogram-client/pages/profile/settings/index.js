@@ -12,6 +12,7 @@ function asset(name) {
 const ICON_MAP = {
   payPassword: asset('icon-pay-lock.png'),
   loginPassword: asset('icon-login-lock.png'),
+  wechatBind: asset('icon-users.png'),
   phone: asset('icon-mobile.png'),
   facePay: asset('icon-pay-shield.png'),
   gamePush: asset('icon-bell.png'),
@@ -121,6 +122,16 @@ Page({
       return
     }
 
+    if (row.action === 'bind_wechat') {
+      this.bindWechat()
+      return
+    }
+
+    if (row.action === 'set_password') {
+      this.setLoginPassword()
+      return
+    }
+
     if (row.action === 'clear_cache') {
       this.clearCache()
       return
@@ -137,6 +148,39 @@ Page({
     }
 
     this.showToast('该设置项暂未开放')
+  },
+
+  async bindWechat() {
+    try {
+      await authService.bindWechatAccount()
+      this.showToast('微信已绑定')
+      this.loadSettings()
+    } catch (error) {
+      this.showToast(error.message || '微信绑定失败')
+    }
+  },
+
+  setLoginPassword() {
+    wx.showModal({
+      title: '设置登录密码',
+      editable: true,
+      placeholderText: '8-64 位字母和数字',
+      success: async (res) => {
+        if (!res.confirm) return
+        const password = String(res.content || '')
+        if (!/^[A-Za-z0-9]{8,64}$/.test(password)) {
+          this.showToast('密码须为8-64位字母和数字')
+          return
+        }
+        try {
+          await authService.setLoginPassword(password)
+          this.showToast('登录密码已设置')
+          this.loadSettings()
+        } catch (error) {
+          this.showToast(error.message || '设置密码失败')
+        }
+      }
+    })
   },
 
   clearCache() {
@@ -163,6 +207,31 @@ Page({
         wx.reLaunch({
           url: '/pages/login/index'
         })
+      }
+    })
+  },
+
+  handleDeleteAccount() {
+    wx.showModal({
+      title: '确认注销账号',
+      content: '注销后将解除微信和手机号绑定，当前邀请码不可继续使用。后续注册需重新获取邀请码。',
+      confirmText: '确认注销',
+      confirmColor: '#ff4d57',
+      success: async (res) => {
+        if (!res.confirm) {
+          return
+        }
+        try {
+          await authService.deleteAccount()
+          wx.showModal({
+            title: '账号已注销',
+            content: '请重新获取邀请码后再注册。',
+            showCancel: false,
+            success: () => wx.reLaunch({ url: '/pages/entry/index' })
+          })
+        } catch (error) {
+          this.showToast(error.message || '账号注销失败，请稍后重试')
+        }
       }
     })
   },

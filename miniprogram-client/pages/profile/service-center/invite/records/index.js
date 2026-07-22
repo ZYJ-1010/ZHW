@@ -3,12 +3,7 @@ const { navigateShellRoute } = require('../../../../../utils/shell-nav')
 
 Page({
   data: {
-    activeRole: 'referred',
     activeStatus: 'all',
-    roleTabs: [
-      { key: 'referred', label: '我引荐的' },
-      { key: 'created', label: '我发起的' }
-    ],
     filters: [
       { key: 'all', label: '全部' },
       { key: 'progress', label: '进行中' },
@@ -25,14 +20,6 @@ Page({
     this.loadRecords()
   },
 
-  handleRoleTap(event) {
-    const { key } = event.currentTarget.dataset
-
-    this.setData({
-      activeRole: key
-    }, () => this.loadRecords())
-  },
-
   handleFilterTap(event) {
     const { key } = event.currentTarget.dataset
 
@@ -43,7 +30,6 @@ Page({
 
   handleWarningTap() {
     this.setData({
-      activeRole: 'referred',
       activeStatus: 'timeout'
     }, () => this.loadRecords())
   },
@@ -67,13 +53,14 @@ Page({
   async loadRecords() {
     try {
       const result = await profileService.getInviteRecords({
-        role: this.data.activeRole,
         status: this.data.activeStatus
       })
 
       this.setData({
         ...(result || {}),
-        warning: result && result.warning ? result.warning : null
+        warning: result && result.timeoutWarning && result.timeoutWarning.show
+          ? { title: result.timeoutWarning.title, desc: result.timeoutWarning.text }
+          : null
       })
     } catch (error) {
       console.warn('get invite records failed', error)
@@ -82,12 +69,11 @@ Page({
   },
 
   applyFilters() {
-    const { activeRole, activeStatus, allRecords } = this.data
+    const { activeStatus, allRecords } = this.data
     const records = allRecords.filter((item) => {
-      const roleMatched = item.role === activeRole
       const statusMatched = activeStatus === 'all' || item.statusKey === activeStatus
 
-      return roleMatched && statusMatched
+      return statusMatched
     })
 
     this.setData({ records })

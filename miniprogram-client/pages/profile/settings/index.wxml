@@ -52,5 +52,8 @@
     <view class="settings-logout" bindtap="handleLogout">
       <text>退出登录</text>
     </view>
+    <view class="settings-delete" bindtap="handleDeleteAccount">
+      <text>注销账号</text>
+    </view>
   </view>
 </profile-white-shell>

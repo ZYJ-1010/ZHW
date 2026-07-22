@@ -1,12 +1,11 @@
 const homeService = require('../../services/home')
 const inviteService = require('../../services/invite')
+const authService = require('../../services/auth')
 const { ROUTES } = require('../../config/routes')
 const { getAuthToken } = require('../../utils/auth-session')
 const entryLayout = require('./layout')
 
 const DEFAULT_ONLINE_COUNT = '0'
-const ENTRY_LOGIN_DELAY_MS = 3000
-
 function formatOnlineText(value) {
   const match = String(value || '').match(/\d[\d,]*/)
   const count = match ? match[0].replace(/,/g, '') : DEFAULT_ONLINE_COUNT
@@ -86,7 +85,8 @@ Page({
     entryType: '',
     isInviteVerifying: false,
     isInviteVerified: false,
-    isInviteNavigating: false
+    isInviteNavigating: false,
+    isWechatChecking: false
   },
 
   onLoad(options = {}) {
@@ -97,11 +97,7 @@ Page({
     if (!invite.inviteCode && this.restoreExistingSession()) {
       return
     }
-    if (invite.inviteCode) {
-      this.verifyInviteAndContinue()
-      return
-    }
-    this.scheduleContinueToLoginWithoutInvite()
+    this.checkWechatEntryAndContinue()
   },
 
   onShow() {
@@ -109,7 +105,7 @@ Page({
   },
 
   onUnload() {
-    this.clearLoginDelayTimer()
+    // No fixed startup timer: navigation is completed by the account precheck.
   },
 
   onResize() {
@@ -117,15 +113,14 @@ Page({
   },
 
   goGuestHome() {
-    if (this.data.isInviteVerifying) {
-      wx.showToast({ title: '邀请码校验中', icon: 'none' })
+    if (this.data.isInviteVerifying || this.data.isWechatChecking) {
+      wx.showToast({ title: '账号检测中', icon: 'none' })
       return
     }
     if (this.restoreExistingSession()) {
       return
     }
     if (!this.data.inviteCode) {
-      this.clearLoginDelayTimer()
       this.continueToLoginWithoutInvite()
       return
     }
@@ -134,6 +129,35 @@ Page({
       return
     }
     this.verifyInviteAndContinue()
+  },
+
+  async checkWechatEntryAndContinue() {
+    if (this.data.isWechatChecking || this.data.isInviteNavigating) {
+      return
+    }
+    this.setData({ isWechatChecking: true })
+    try {
+      const entry = await authService.precheckWechatEntry()
+      if (entry.boundWechat) {
+        this.continueToRegisteredLogin()
+        return
+      }
+      if (this.data.inviteCode) {
+        await this.verifyInviteAndContinue()
+        return
+      }
+      this.continueToLoginWithoutInvite()
+    } catch (error) {
+      // Do not hold the startup page on a network failure. The login page keeps
+      // both manual phone login and a user-triggered WeChat retry available.
+      if (this.data.inviteCode) {
+        await this.verifyInviteAndContinue()
+      } else {
+        this.continueToLoginWithoutInvite()
+      }
+    } finally {
+      this.setData({ isWechatChecking: false })
+    }
   },
 
   async verifyInviteAndContinue() {
@@ -145,6 +169,10 @@ Page({
       const result = await inviteService.verifyInviteCode(this.data.inviteCode, this.data.entryType)
       if (!result || result.status !== 'valid' || !result.invite) {
         this.setData({ isInviteVerified: false })
+        if (result && result.expired) {
+          this.handleExpiredInvite()
+          return
+        }
         wx.showToast({ title: result && result.message ? result.message : '邀请码无效', icon: 'none' })
         return
       }
@@ -166,6 +194,21 @@ Page({
     }
   },
 
+  handleExpiredInvite() {
+    inviteService.clearInviteContext()
+    this.setData({ inviteCode: '', entryType: '', isInviteVerified: false })
+    wx.showModal({
+      title: '邀请码已失效',
+      content: '当前邀请码已失效，请重新获取邀请码后再次进入。',
+      showCancel: false,
+      confirmText: '重新获取',
+      success: () => {
+        const url = `/${ROUTES.login}?flow=register`
+        wx.redirectTo({ url, fail: () => wx.reLaunch({ url }) })
+      }
+    })
+  },
+
   continueToPhoneRegister(inviteContext) {
     if (!inviteContext || !inviteContext.code || this.data.isInviteNavigating) {
       return
@@ -175,7 +218,7 @@ Page({
       `inviteCode=${encodeURIComponent(inviteContext.code)}`,
       inviteContext.entryType ? `entryType=${encodeURIComponent(inviteContext.entryType)}` : ''
     ].filter(Boolean).join('&')
-    const url = `/${ROUTES.login}?${query}`
+    const url = `/${ROUTES.login}?flow=register${query ? `&${query}` : ''}`
     wx.redirectTo({
       url,
       fail: () => {
@@ -184,29 +227,26 @@ Page({
     })
   },
 
-  scheduleContinueToLoginWithoutInvite() {
-    this.clearLoginDelayTimer()
-    this.entryLoginDelayTimer = setTimeout(() => {
-      this.entryLoginDelayTimer = null
-      this.continueToLoginWithoutInvite()
-    }, ENTRY_LOGIN_DELAY_MS)
-  },
-
-  clearLoginDelayTimer() {
-    if (!this.entryLoginDelayTimer) {
-      return
-    }
-    clearTimeout(this.entryLoginDelayTimer)
-    this.entryLoginDelayTimer = null
-  },
-
   continueToLoginWithoutInvite() {
     if (this.data.isInviteNavigating) {
       return
     }
-    this.clearLoginDelayTimer()
     this.setData({ isInviteNavigating: true })
-    const url = `/${ROUTES.login}`
+    const url = `/${ROUTES.login}?flow=register`
+    wx.redirectTo({
+      url,
+      fail: () => {
+        wx.reLaunch({ url })
+      }
+    })
+  },
+
+  continueToRegisteredLogin() {
+    if (this.data.isInviteNavigating) {
+      return
+    }
+    this.setData({ isInviteNavigating: true })
+    const url = `/${ROUTES.login}?flow=existing`
     wx.redirectTo({
       url,
       fail: () => {

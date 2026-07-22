@@ -845,6 +845,17 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	if s.rejectSensitiveGameContent(w,
+		req.Message,
+		req.ServiceType,
+		req.ServiceDuration,
+		req.DemandDetail,
+		req.ExpectedTime,
+		req.Overrides.Title,
+		req.Overrides.Description,
+	) {
+		return
+	}
 	sourceGameID := parseFlexibleInt64(req.SourceGameID)
 	if sourceGameID <= 0 {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "source game required")

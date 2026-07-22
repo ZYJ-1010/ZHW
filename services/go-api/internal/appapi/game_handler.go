@@ -109,14 +109,15 @@ type GameDetailDisplayDTO struct {
 }
 
 type GameDetailOrganizerDTO struct {
-	UserID      int64  `json:"userId"`
-	Name        string `json:"name"`
-	AvatarText  string `json:"avatarText"`
-	AvatarURL   string `json:"avatarUrl,omitempty"`
-	Role        string `json:"role"`
-	RoleLabel   string `json:"roleLabel"`
-	Rating      string `json:"rating,omitempty"`
-	RatingCount int    `json:"ratingCount"`
+	UserID          int64              `json:"userId"`
+	Name            string             `json:"name"`
+	AvatarText      string             `json:"avatarText"`
+	AvatarURL       string             `json:"avatarUrl,omitempty"`
+	Role            string             `json:"role"`
+	RoleLabel       string             `json:"roleLabel"`
+	Rating          string             `json:"rating,omitempty"`
+	RatingCount     int                `json:"ratingCount"`
+	ExpertBlueBadge ExpertBlueBadgeDTO `json:"expertBlueBadge"`
 }
 
 type GameDetailPrimaryActionDTO struct {
@@ -164,22 +165,23 @@ type GameReviewDTO struct {
 }
 
 type GameMemberDTO struct {
-	UserID        int64  `json:"userId"`
-	Name          string `json:"name,omitempty"`
-	Nickname      string `json:"nickname,omitempty"`
-	RealName      string `json:"realName,omitempty"`
-	DisplayName   string `json:"displayName,omitempty"`
-	AvatarURL     string `json:"avatarUrl,omitempty"`
-	AvatarText    string `json:"avatarText,omitempty"`
-	Role          string `json:"role"`
-	RoleLabel     string `json:"roleLabel,omitempty"`
-	Position      string `json:"position,omitempty"`
-	Topic         string `json:"topic,omitempty"`
-	PrimaryTag    string `json:"primaryTag,omitempty"`
-	Location      string `json:"location,omitempty"`
-	IsCreator     bool   `json:"isCreator"`
-	IsCurrentUser bool   `json:"isCurrentUser"`
-	Confirmed     bool   `json:"confirmed"`
+	UserID          int64              `json:"userId"`
+	Name            string             `json:"name,omitempty"`
+	Nickname        string             `json:"nickname,omitempty"`
+	RealName        string             `json:"realName,omitempty"`
+	DisplayName     string             `json:"displayName,omitempty"`
+	AvatarURL       string             `json:"avatarUrl,omitempty"`
+	AvatarText      string             `json:"avatarText,omitempty"`
+	Role            string             `json:"role"`
+	RoleLabel       string             `json:"roleLabel,omitempty"`
+	Position        string             `json:"position,omitempty"`
+	Topic           string             `json:"topic,omitempty"`
+	PrimaryTag      string             `json:"primaryTag,omitempty"`
+	Location        string             `json:"location,omitempty"`
+	IsCreator       bool               `json:"isCreator"`
+	IsCurrentUser   bool               `json:"isCurrentUser"`
+	Confirmed       bool               `json:"confirmed"`
+	ExpertBlueBadge ExpertBlueBadgeDTO `json:"expertBlueBadge"`
 }
 
 type ServiceConfirmDTO struct {
@@ -1023,6 +1025,10 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	if !s.systemConfig.Get(growthRewardRulesConfigKey, &growthRulesStored) {
 		_ = s.systemConfig.Set(growthRewardRulesConfigKey, reviews.DefaultGrowthRules())
 	}
+	var expertSkillDisplayStored expertSkillDisplayConfigDTO
+	if !s.systemConfig.Get(expertSkillDisplayConfigKey, &expertSkillDisplayStored) {
+		_ = s.systemConfig.Set(expertSkillDisplayConfigKey, defaultExpertSkillDisplayConfig())
+	}
 	var operationRulesStored operationRulesDTO
 	if !s.systemConfig.Get(operationRulesConfigKey, &operationRulesStored) {
 		_ = s.systemConfig.Set(operationRulesConfigKey, defaultOperationRules())
@@ -1835,6 +1841,9 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 	var req games.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
+	if s.rejectSensitiveGameCreateRequest(w, req) {
 		return
 	}
 	categoryConfig := s.currentGameCategoryConfig()
@@ -2755,6 +2764,9 @@ func (s *Server) adminCreateGame(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "璇锋眰鍙傛暟閿欒")
 		return
 	}
+	if s.rejectSensitiveGameCreateRequest(w, req) {
+		return
+	}
 	game, err := s.games.CreateFromAdmin(req)
 	if err != nil {
 		switch {
@@ -2885,21 +2897,22 @@ func (s *Server) buildGameMembers(userID int64, game games.Game, includeRealName
 			primaryTag = "当前用户"
 		}
 		member := GameMemberDTO{
-			UserID:        memberID,
-			Name:          name,
-			Nickname:      nickname,
-			DisplayName:   name,
-			AvatarURL:     s.imUserAvatarURL(memberID),
-			AvatarText:    profile.AvatarText,
-			Role:          role,
-			RoleLabel:     roleLabel,
-			Position:      roleLabel,
-			Topic:         "参与本次组局",
-			PrimaryTag:    primaryTag,
-			Location:      game.CityName,
-			IsCreator:     isCreator,
-			IsCurrentUser: isCurrentUser,
-			Confirmed:     confirmed[memberID],
+			UserID:          memberID,
+			Name:            name,
+			Nickname:        nickname,
+			DisplayName:     name,
+			AvatarURL:       s.imUserAvatarURL(memberID),
+			AvatarText:      profile.AvatarText,
+			Role:            role,
+			RoleLabel:       roleLabel,
+			Position:        roleLabel,
+			Topic:           "参与本次组局",
+			PrimaryTag:      primaryTag,
+			Location:        game.CityName,
+			IsCreator:       isCreator,
+			IsCurrentUser:   isCurrentUser,
+			Confirmed:       confirmed[memberID],
+			ExpertBlueBadge: s.expertBlueBadgeForUser(memberID),
 		}
 		if includeRealName {
 			member.RealName = profile.RealName
@@ -3006,14 +3019,15 @@ func (s *Server) buildGameDetailDisplay(userID int64, game games.Game, relation 
 		StatusText:              gameDetailStatusText(game.Status),
 		PendingApplicationCount: pendingCount,
 		Organizer: GameDetailOrganizerDTO{
-			UserID:      game.CreatorUserID,
-			Name:        s.displayName(game.CreatorUserID, "玩家"),
-			AvatarText:  organizerIdentity.AvatarText,
-			AvatarURL:   s.imUserAvatarURL(game.CreatorUserID),
-			Role:        organizerRole,
-			RoleLabel:   organizerRoleLabel,
-			Rating:      rating,
-			RatingCount: ratingCount,
+			UserID:          game.CreatorUserID,
+			Name:            s.displayName(game.CreatorUserID, "玩家"),
+			AvatarText:      organizerIdentity.AvatarText,
+			AvatarURL:       s.imUserAvatarURL(game.CreatorUserID),
+			Role:            organizerRole,
+			RoleLabel:       organizerRoleLabel,
+			Rating:          rating,
+			RatingCount:     ratingCount,
+			ExpertBlueBadge: s.expertBlueBadgeForUser(game.CreatorUserID),
 		},
 		PrimaryAction: gameDetailPrimaryAction(game, relation, pendingCount, reviewed),
 	}
@@ -5762,6 +5776,9 @@ func (s *Server) continueGame(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
+	if s.rejectSensitiveGameContent(w, req.Title) {
+		return
+	}
 	draft, err := s.games.ContinueDraft(userID, gameID, req)
 	if err != nil {
 		writeGameError(w, err)
@@ -5843,6 +5860,7 @@ func (s *Server) currentMyGamesPageConfig() map[string]interface{} {
 			{"key": "complete", "text": "\u5df2\u5b8c\u6210"},
 			{"key": "overdue", "text": "\u8d85\u65f6"},
 			{"key": "canceled", "text": "\u5df2\u53d6\u6d88"},
+			{"key": "dispute", "text": "\u4e89\u8bae\u4e2d"},
 		},
 	}
 }

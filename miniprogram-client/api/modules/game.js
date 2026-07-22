@@ -4,6 +4,10 @@ function getGames(params) {
   return request.get('/api/app/games', params)
 }
 
+function getSameCityGames(params) {
+  return request.get('/api/app/games/city', params)
+}
+
 function getGameDetail(gameId) {
   return request.get(`/api/app/games/${gameId}`)
 }
@@ -104,10 +108,6 @@ function getCategoryConfig(params) {
   return request.get('/api/app/games/category-config', params)
 }
 
-function getCreateTemplateConfig(params) {
-  return request.get('/api/app/games/create-template-config', params)
-}
-
 function getApplicationConfig(params) {
   return request.get('/api/app/games/application-config', params)
 }
@@ -206,6 +206,7 @@ function getGamePaymentPreview(gameId) {
 
 module.exports = {
   getGames,
+  getSameCityGames,
   getGameDetail,
   getGameMembers,
   getGameSuccessDetail,
@@ -231,7 +232,6 @@ module.exports = {
   favoriteGame,
   getProfitTemplates,
   getCategoryConfig,
-  getCreateTemplateConfig,
   getApplicationConfig,
   getConditionRuleConfig,
   getCancelConfig,

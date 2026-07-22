@@ -31,6 +31,9 @@ func TestPlayerBackendIsolatedLifecycleHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, ownerToken)
 	ownerID := currentUserIDForTest(t, mux, ownerToken)
 	server.profiles.GrantRole(ownerID, "guide")
+	if _, err := authService.AdminCreateInviteCode("", ownerID, 1, invites.EntryTypeLink); err != nil {
+		t.Fatalf("allocate owner invite code: %v", err)
+	}
 
 	inviteBody := postJSON(t, mux, "/api/app/invites/entries", ownerToken, `{"entryType":"link","title":"isolated lifecycle invite"}`, http.StatusOK)
 	var inviteResp struct {

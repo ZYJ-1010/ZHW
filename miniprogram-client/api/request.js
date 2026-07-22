@@ -196,6 +196,14 @@ function loginWithWechat(payload) {
   })
 }
 
+function precheckWechatEntry(payload) {
+  return request({
+    url: '/api/app/auth/wechat-entry-precheck',
+    method: 'POST',
+    data: payload
+  })
+}
+
 function sendPhoneCode(payload) {
   return request({
     url: '/api/app/sms/send-code',
@@ -221,11 +229,15 @@ function loginWithPhone(payload) {
 }
 
 function loginWithPassword(payload) {
-  return Promise.resolve({
-    code: 410,
-    message: '\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55',
-    data: null
-  })
+  return request({ url: '/api/app/auth/password-login', method: 'POST', data: payload })
+}
+
+function bindWechatAccount(payload) {
+  return request({ url: '/api/app/account/wechat-bind', method: 'POST', data: payload })
+}
+
+function setLoginPassword(payload) {
+  return request({ url: '/api/app/account/login-password', method: 'PUT', data: payload })
 }
 
 function resetPassword(payload) {
@@ -241,6 +253,14 @@ function issueTokenAfterIdentity(payload) {
     url: '/api/app/auth/issue-token-after-identity',
     method: 'POST',
     data: payload || {}
+  })
+}
+
+function deleteAccount(payload) {
+  return request({
+    url: '/api/app/account/delete',
+    method: 'POST',
+    data: payload || { confirm: true }
   })
 }
 
@@ -262,11 +282,15 @@ module.exports = {
   put,
   del,
   loginWithWechat,
+  precheckWechatEntry,
   sendPhoneCode,
   verifyPhoneCode,
   loginWithPhone,
   loginWithPassword,
+  bindWechatAccount,
+  setLoginPassword,
   resetPassword,
   issueTokenAfterIdentity,
+  deleteAccount,
   verifyInvite
 }

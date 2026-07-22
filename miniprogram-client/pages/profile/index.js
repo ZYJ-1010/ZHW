@@ -141,9 +141,9 @@ function normalizeProfileHome(data = {}) {
   }
 
   if (Array.isArray(data.serviceSections)) {
-    patch.serviceSections = ensureTaskCenterEntry(data.serviceSections)
+    patch.serviceSections = removeTaskCenterEntry(data.serviceSections)
   } else if (Array.isArray(data.sections)) {
-    patch.serviceSections = ensureTaskCenterEntry(data.sections)
+    patch.serviceSections = removeTaskCenterEntry(data.sections)
   }
 
   if (data.vipBanner) {
@@ -153,24 +153,11 @@ function normalizeProfileHome(data = {}) {
   return patch
 }
 
-function ensureTaskCenterEntry(sections) {
-  const result = (Array.isArray(sections) ? sections : []).map((section) => ({
+function removeTaskCenterEntry(sections) {
+  return (Array.isArray(sections) ? sections : []).map((section) => ({
     ...section,
-    items: Array.isArray(section.items) ? section.items.slice() : []
+    items: (Array.isArray(section.items) ? section.items : []).filter((item) => (
+      item && item.key !== 'taskCenter' && item.title !== '任务中心'
+    ))
   }))
-  const assetSection = result.find((section) => section && section.title === '资产中心')
-  if (!assetSection || assetSection.items.some((item) => item && (item.key === 'taskCenter' || item.title === '任务中心'))) {
-    return result
-  }
-  assetSection.items.push({
-    key: 'taskCenter',
-    title: '任务中心',
-    iconSrc: '/pages/profile/assets/i73@3x.png',
-    iconClass: 'orange',
-    badge: '',
-    badgeClass: '',
-    route: '/pages/profile/task-center/index',
-    enabled: true
-  })
-  return result
 }

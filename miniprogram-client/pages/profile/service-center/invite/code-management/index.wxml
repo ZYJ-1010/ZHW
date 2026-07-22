@@ -1,0 +1,22 @@
+<profile-white-shell title="邀请码管理" background="#050b14" nav-background="#050b14" title-color="#ffffff" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff">
+  <view class="invite-code-page dark-page">
+    <view class="summary-grid"><view><text>{{summary.total || 0}}</text><text>邀请码</text></view><view><text>{{summary.used || 0}}</text><text>已使用</text></view><view><text>{{summary.available || 0}}</text><text>可使用</text></view></view>
+    <view class="section"><view class="section-title">我的邀请码</view>
+      <view wx:if="{{loading}}" class="empty">加载中</view>
+      <view wx:for="{{items}}" wx:key="id" class="code-card">
+        <view><text class="code">{{item.code}}</text><text class="entry">{{item.entryText}}</text><text class="detail">{{item.usedUserText}} · {{item.expiresText}}</text></view>
+        <text class="status">{{item.statusText}}</text>
+      </view>
+      <view wx:if="{{!loading && !items.length}}" class="empty">暂无邀请码</view>
+    </view>
+    <view class="section"><view class="section-title">申请增加数量</view>
+      <input class="input" type="number" value="{{quantity}}" placeholder="申请数量（最多 {{maxRequestCount}} 个）" bindinput="onQuantityInput" />
+      <textarea class="input textarea" value="{{reason}}" placeholder="申请说明（可选）" bindinput="onReasonInput" maxlength="200" />
+      <button class="primary" bindtap="submitQuotaRequest">提交申请</button>
+    </view>
+    <view class="section"><view class="section-title">申请记录</view>
+      <view wx:for="{{requests}}" wx:key="id" class="request-row"><text>申请 {{item.quantity}} 个</text><text>{{item.statusText}}</text></view>
+      <view wx:if="{{!requests.length}}" class="empty">暂无申请记录</view>
+    </view>
+  </view>
+</profile-white-shell>

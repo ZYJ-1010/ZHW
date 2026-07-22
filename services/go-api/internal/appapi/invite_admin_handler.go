@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,9 +12,12 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/invites"
+	"zhw-mini/services/go-api/internal/users"
 )
 
 func (s *Server) adminInviteCodes(w http.ResponseWriter, r *http.Request) {
@@ -21,8 +25,9 @@ func (s *Server) adminInviteCodes(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	items, err := s.auth.AdminInviteCodes(invites.CodeFilter{
-		Status:    strings.TrimSpace(r.URL.Query().Get("status")),
+		Status:    status,
 		EntryType: strings.TrimSpace(r.URL.Query().Get("entryType")),
 		OwnerID:   ownerID,
 	})
@@ -37,18 +42,111 @@ func (s *Server) adminInviteCodes(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
 }
 
+// adminInviteOwners returns only users who can legally generate registration
+// invitations. The keyword is matched server-side so a full phone number or
+// real name never has to be downloaded to the browser just for searching.
+func (s *Server) adminInviteOwners(w http.ResponseWriter, r *http.Request) {
+	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
+	usersList, err := s.auth.AdminUsers(users.Filter{Status: "active"})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list invite owners failed")
+		return
+	}
+
+	recordByUserID := make(map[int64]identity.Record)
+	for _, record := range s.identity.AllRecords() {
+		recordByUserID[record.UserID] = record
+	}
+
+	const maxResults = 30
+	items := make([]map[string]interface{}, 0, maxResults)
+	for _, user := range usersList {
+		if !s.userCanGenerateInvitations(user.ID) {
+			continue
+		}
+		record := recordByUserID[user.ID]
+		if keyword != "" && !userMatchesInviteOwnerKeyword(user, record, keyword, s.identity) {
+			continue
+		}
+
+		phoneMasked := strings.TrimSpace(user.PhoneMasked)
+		if phoneMasked == "" {
+			phoneMasked = strings.TrimSpace(record.PhoneMasked)
+		}
+		roles := s.profiles.RoleSnapshot(user.ID).RoleStatusMap
+		roleNames := make([]string, 0, 2)
+		if roles["expert"] == "approved" || roles["expert"] == "active" {
+			roleNames = append(roleNames, "行家")
+		}
+		if roles["guide"] == "approved" || roles["guide"] == "active" {
+			roleNames = append(roleNames, "领路人")
+		}
+		items = append(items, map[string]interface{}{
+			"id":             user.ID,
+			"nickname":       strings.TrimSpace(user.Nickname),
+			"realNameMasked": strings.TrimSpace(record.RealNameMasked),
+			"phoneMasked":    phoneMasked,
+			"roles":          roleNames,
+		})
+		if len(items) >= maxResults {
+			break
+		}
+	}
+	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
+}
+
+func userMatchesInviteOwnerKeyword(user users.User, record identity.Record, keyword string, identityService identityService) bool {
+	keyword = strings.ToLower(strings.TrimSpace(keyword))
+	if keyword == "" {
+		return true
+	}
+	if adminSearchContains(strconv.FormatInt(user.ID, 10), keyword) ||
+		adminSearchContains(user.Nickname, keyword) ||
+		adminSearchContains(user.PhoneMasked, keyword) {
+		return true
+	}
+	return identityRecordMatchesInviteOwnerKeyword(record, keyword, identityService)
+}
+
+func identityRecordMatchesInviteOwnerKeyword(record identity.Record, keyword string, identityService identityService) bool {
+	if record.UserID <= 0 {
+		return false
+	}
+	if adminSearchContains(record.PhoneMasked, keyword) || adminSearchContains(record.RealNameMasked, keyword) {
+		return true
+	}
+	plain, err := identityService.RevealRecord(record)
+	if err != nil {
+		return false
+	}
+	return adminSearchContains(plain.Phone, keyword) || adminSearchContains(plain.RealName, keyword)
+}
+
 func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code        string `json:"code"`
 		OwnerUserID int64  `json:"ownerUserId"`
 		EntryType   string `json:"entryType"`
 		BatchCount  int    `json:"batchCount"`
+		ExpiresAt   string `json:"expiresAt"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
 	req.Code = strings.TrimSpace(req.Code)
+	config := s.inviteCodeConfig()
+	var expiresAt time.Time
+	if strings.TrimSpace(req.ExpiresAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
+		if err != nil || !parsed.After(time.Now()) {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "有效期必须是未来时间")
+			return
+		}
+		expiresAt = parsed
+	} else if config.DefaultValidDays > 0 {
+		expiresAt = time.Now().AddDate(0, 0, config.DefaultValidDays)
+	}
 	if req.OwnerUserID <= 0 {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "owner user id required")
 		return
@@ -57,7 +155,11 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "owner user not found")
 		return
 	}
-	if req.BatchCount < 0 || req.BatchCount > 200 {
+	if !s.userCanGenerateInvitations(req.OwnerUserID) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是已生效的行家或领路人，请更换用户 ID")
+		return
+	}
+	if req.BatchCount < 0 || req.BatchCount > config.MaxBatchCount {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch count")
 		return
 	}
@@ -91,6 +193,13 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "create invite code failed")
 				return
 			}
+			if !expiresAt.IsZero() {
+				invite, err = s.auth.AdminUpdateUnusedInviteCode(invite.Code, req.OwnerUserID, req.EntryType, expiresAt)
+				if err != nil {
+					httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "设置邀请码有效期失败")
+					return
+				}
+			}
 			items = append(items, invite)
 		}
 		s.recordOperation(r, "invite_code:batch_create", "invite_code", "", map[string]interface{}{
@@ -109,6 +218,13 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		}
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "create invite code failed")
 		return
+	}
+	if !expiresAt.IsZero() {
+		invite, err = s.auth.AdminUpdateUnusedInviteCode(invite.Code, req.OwnerUserID, req.EntryType, expiresAt)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "设置邀请码有效期失败")
+			return
+		}
 	}
 	s.recordOperation(r, "invite_code:create", "invite_code", strconv.FormatInt(invite.ID, 10), map[string]interface{}{
 		"code":        invite.Code,
@@ -447,27 +563,164 @@ func (s *Server) wechatPostBinary(ctx context.Context, path string, accessToken 
 }
 
 func (s *Server) routeAdminInviteCodePost(w http.ResponseWriter, r *http.Request) {
-	if strings.HasSuffix(r.URL.Path, "/disable") {
+	switch {
+	case strings.HasSuffix(r.URL.Path, "/disable"):
 		s.requireAdminPermission("invite_code:manage", s.disableAdminInviteCode)(w, r)
-		return
+	case strings.HasSuffix(r.URL.Path, "/enable"):
+		s.requireAdminPermission("invite_code:manage", s.enableAdminInviteCode)(w, r)
+	case strings.HasSuffix(r.URL.Path, "/void"):
+		s.requireAdminPermission("invite_code:manage", s.voidAdminInviteCode)(w, r)
+	default:
+		http.NotFound(w, r)
 	}
-	http.NotFound(w, r)
 }
 
 func (s *Server) disableAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/admin/invite-codes/"), "/disable")
 	code = strings.TrimSpace(strings.Trim(code, "/"))
 	if code == "" {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invite code required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少邀请码")
 		return
 	}
 	invite, err := s.auth.AdminDisableInviteCode(code)
 	if err != nil {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "invite code not found")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, inviteAdminErrorMessage(err))
 		return
 	}
 	s.recordOperation(r, "invite_code:disable", "invite_code", strconv.FormatInt(invite.ID, 10), map[string]interface{}{"code": invite.Code})
 	httpx.OK(w, invite)
+}
+
+func (s *Server) enableAdminInviteCode(w http.ResponseWriter, r *http.Request) {
+	code := inviteCodeFromAdminActionPath(r.URL.Path, "/enable")
+	if code == "" {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少邀请码")
+		return
+	}
+	invite, err := s.auth.AdminEnableInviteCode(code)
+	if err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, inviteAdminErrorMessage(err))
+		return
+	}
+	s.recordOperation(r, "invite_code:enable", "invite_code", strconv.FormatInt(invite.ID, 10), map[string]interface{}{"code": invite.Code})
+	httpx.OK(w, invite)
+}
+
+func (s *Server) voidAdminInviteCode(w http.ResponseWriter, r *http.Request) {
+	code := inviteCodeFromAdminActionPath(r.URL.Path, "/void")
+	if code == "" {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少邀请码")
+		return
+	}
+	invite, err := s.auth.AdminVoidInviteCode(code)
+	if err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, inviteAdminErrorMessage(err))
+		return
+	}
+	s.recordOperation(r, "invite_code:void", "invite_code", strconv.FormatInt(invite.ID, 10), map[string]interface{}{"code": invite.Code})
+	httpx.OK(w, invite)
+}
+
+func inviteCodeFromAdminActionPath(path string, suffix string) string {
+	code := strings.TrimSuffix(strings.TrimPrefix(path, "/api/admin/invite-codes/"), suffix)
+	return strings.TrimSpace(strings.Trim(code, "/"))
+}
+
+func inviteAdminErrorMessage(err error) string {
+	switch {
+	case errors.Is(err, invites.ErrInvalidEntryType):
+		return "邀请码入口类型不正确"
+	case strings.Contains(err.Error(), "used invite code"):
+		return "邀请码已使用，不能修改状态或作废"
+	case strings.Contains(err.Error(), "expired"):
+		return "邀请码已过期，不能启用"
+	case strings.Contains(err.Error(), "not found"):
+		return "邀请码不存在"
+	default:
+		return "邀请码状态不允许此操作"
+	}
+}
+
+func (s *Server) updateAdminInviteCode(w http.ResponseWriter, r *http.Request) {
+	code := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/admin/invite-codes/"))
+	code = strings.Trim(code, "/")
+	if code == "" || strings.Contains(code, "/") {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少邀请码")
+		return
+	}
+	var req struct {
+		OwnerUserID int64  `json:"ownerUserId"`
+		EntryType   string `json:"entryType"`
+		ExpiresAt   string `json:"expiresAt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
+		return
+	}
+	if req.OwnerUserID <= 0 || !s.userCanGenerateInvitations(req.OwnerUserID) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是已生效的行家或领路人")
+		return
+	}
+	var expiresAt time.Time
+	if strings.TrimSpace(req.ExpiresAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
+		if err != nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "有效期格式不正确")
+			return
+		}
+		expiresAt = parsed
+	}
+	invite, err := s.auth.AdminUpdateUnusedInviteCode(code, req.OwnerUserID, req.EntryType, expiresAt)
+	if err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, inviteAdminErrorMessage(err))
+		return
+	}
+	s.recordOperation(r, "invite_code:update", "invite_code", strconv.FormatInt(invite.ID, 10), map[string]interface{}{"code": invite.Code, "ownerUserId": invite.OwnerID})
+	httpx.OK(w, invite)
+}
+
+func (s *Server) exportAdminInviteCodes(w http.ResponseWriter, r *http.Request) {
+	ownerID, _, ok := optionalInt64Query(w, r, "ownerUserId")
+	if !ok {
+		return
+	}
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	items, err := s.auth.AdminInviteCodes(invites.CodeFilter{Status: status, EntryType: strings.TrimSpace(r.URL.Query().Get("entryType")), OwnerID: ownerID})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "导出邀请码失败")
+		return
+	}
+	requestedCodes := strings.Split(strings.TrimSpace(r.URL.Query().Get("codes")), ",")
+	selected := map[string]bool{}
+	for _, code := range requestedCodes {
+		if code = strings.TrimSpace(code); code != "" {
+			selected[code] = true
+		}
+	}
+	if len(selected) > 0 {
+		filtered := make([]invites.InviteCode, 0, len(selected))
+		for _, item := range items {
+			if selected[item.Code] {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	buffer := bytes.NewBuffer([]byte{0xEF, 0xBB, 0xBF})
+	writer := csv.NewWriter(buffer)
+	_ = writer.Write([]string{"邀请码编号", "邀请码", "邀请人用户ID", "邀请人昵称", "邀请人手机号", "入口类型", "状态", "使用状态", "使用次数", "使用用户ID", "使用用户昵称", "使用用户手机号", "有效期", "创建时间", "更新时间"})
+	for _, item := range items {
+		expiresAt := ""
+		if !item.ExpiresAt.IsZero() {
+			expiresAt = item.ExpiresAt.Format(time.RFC3339)
+		}
+		_ = writer.Write([]string{strconv.FormatInt(item.ID, 10), item.Code, strconv.FormatInt(item.OwnerID, 10), item.OwnerNickname, item.OwnerPhoneMasked, item.EntryType, item.DisplayStatus, item.UseStatus, strconv.Itoa(item.UsedCount), strconv.FormatInt(item.BoundWechatUserID, 10), item.BoundWechatNickname, item.BoundWechatPhoneMasked, expiresAt, item.CreatedAt.Format(time.RFC3339), item.UpdatedAt.Format(time.RFC3339)})
+	}
+	writer.Flush()
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="invite-codes.csv"`)
+	_, _ = w.Write(buffer.Bytes())
+	s.recordOperation(r, "invite_code:export", "invite_code", "", map[string]interface{}{"count": len(items), "batch": len(selected) > 0})
 }
 
 func (s *Server) adminInviteRelations(w http.ResponseWriter, r *http.Request) {
@@ -493,6 +746,74 @@ func (s *Server) adminInviteRelations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
+}
+
+func (s *Server) adminInviteQuotaRequests(w http.ResponseWriter, r *http.Request) {
+	ownerID, _, ok := optionalInt64Query(w, r, "ownerUserId")
+	if !ok {
+		return
+	}
+	items, err := s.auth.InviteQuotaRequests(ownerID, strings.TrimSpace(r.URL.Query().Get("status")))
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码加量申请失败")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
+}
+
+func (s *Server) routeAdminInviteQuotaRequestPost(w http.ResponseWriter, r *http.Request) {
+	if !strings.HasSuffix(r.URL.Path, "/audit") {
+		http.NotFound(w, r)
+		return
+	}
+	id, err := pathID(r.URL.Path, "/api/admin/invite-quota-requests/", "/audit")
+	if err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "申请编号不正确")
+		return
+	}
+	var req struct {
+		Approve   bool   `json:"approve"`
+		Reason    string `json:"reason"`
+		EntryType string `json:"entryType"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
+		return
+	}
+	status := "rejected"
+	if req.Approve {
+		status = "approved"
+	}
+	request, err := s.auth.ReviewInviteQuotaRequest(id, status, strings.TrimSpace(req.Reason), parseInt64Header(r, "X-Admin-ID"))
+	if err != nil {
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "加量申请不存在或已处理")
+		return
+	}
+	items := []invites.InviteCode{}
+	if req.Approve {
+		config := s.inviteCodeConfig()
+		entryType := strings.TrimSpace(req.EntryType)
+		if entryType == "" {
+			entryType = invites.EntryTypeLink
+		}
+		for i := 0; i < request.Quantity; i++ {
+			invite, createErr := s.auth.AdminCreateInviteCode("", request.OwnerUserID, 1, entryType)
+			if createErr != nil {
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "加量邀请码生成失败")
+				return
+			}
+			if config.DefaultValidDays > 0 {
+				invite, createErr = s.auth.AdminUpdateUnusedInviteCode(invite.Code, request.OwnerUserID, entryType, time.Now().AddDate(0, 0, config.DefaultValidDays))
+				if createErr != nil {
+					httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "设置邀请码有效期失败")
+					return
+				}
+			}
+			items = append(items, invite)
+		}
+	}
+	s.recordOperation(r, "invite_quota_request:"+status, "invite_quota_request", strconv.FormatInt(request.ID, 10), map[string]interface{}{"ownerUserId": request.OwnerUserID, "quantity": request.Quantity})
+	httpx.OK(w, map[string]interface{}{"request": request, "items": items})
 }
 
 func (s *Server) adminUserSummary(userID int64) interface{} {

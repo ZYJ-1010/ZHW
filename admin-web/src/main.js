@@ -51,6 +51,7 @@
   adminApplications: [],
   aiExportConfig: null,
   identities: [],
+  selectedIdentityReviewIds: new Set(),
   avatarAudits: [],
   roleApplications: [],
   gameCreateTemplateConfig: null,
@@ -58,6 +59,7 @@
   gameAuditConfig: null,
   conditionRuleConfig: null,
   roleBenefitConfig: null,
+  expertSkillDisplayConfig: null,
   growthRewardRules: null,
   operationRules: null,
   creditDeductionRules: [],
@@ -323,6 +325,7 @@ async function refreshPendingIndicators() {
       games: Number(counts.games || 0) + Number(counts.gameApplications || 0),
       reports: Number(counts.reports || 0),
       redemption: Number(counts.redemption || 0),
+      invites: Number(counts.invites || 0),
       audits: Number(counts.identity || 0) + Number(counts.enterprise || 0) + Number(counts.avatars || 0) + Number(counts.roles || 0),
     };
     Object.entries(navCounts).forEach(([view, count]) => {
@@ -433,6 +436,7 @@ async function showUserDetail(id) {
       ${detailCell("绑定邀请码", user.inviteCode || "-")}
       ${detailCell("邀请人", inviterLabel(inviter, inviteRelation))}
       ${detailCell("用户身份", roleSnapshot(data.roles))}
+      ${detailCell("行家蓝标", user.expertBlueBadge && user.expertBlueBadge.enabled ? "已点亮" : "未点亮")}
       ${detailCell("成长等级", `Lv.${growth.level || 0}`)}
       ${detailCell("信用分", growth.creditScore || 0)}
       ${detailCell("可用积分", points.availablePoints || growth.points || 0)}
@@ -456,16 +460,23 @@ async function showUserDetail(id) {
       </div>
       <form id="user-invite-relation-form" class="form-grid compact-grid invite-relation-form">
         <label class="user-picker-field">邀请人
-          <div class="user-picker" data-user-picker>
-            <input name="inviterUserText" type="text" autocomplete="off" required value="${escapeHTML(inviterPickerValue(inviter, inviteRelation))}" placeholder="输入用户编号或昵称搜索" data-user-picker-input />
-            <input name="inviterUserId" type="hidden" value="${escapeHTML(inviterPickerID(inviter, inviteRelation))}" data-user-picker-value />
-            <div class="user-picker-menu" data-user-picker-menu>
-              ${userPickerOptions(inviter, inviteRelation).map(userPickerOptionButton).join("")}
-              <div class="user-picker-empty" data-user-picker-empty hidden>没有匹配用户</div>
-            </div>
+          <div class="user-picker" data-invite-owner-picker>
+            <input name="inviterUserText" type="text" autocomplete="off" required value="${escapeHTML(inviterPickerValue(inviter, inviteRelation))}" placeholder="输入行家或领路人的用户 ID、手机号、昵称" data-invite-owner-input />
+            <input name="inviterUserId" type="hidden" value="${escapeHTML(inviterPickerID(inviter, inviteRelation))}" data-invite-owner-value />
+            <div class="user-picker-menu" data-invite-owner-menu></div>
           </div>
         </label>
         <button class="ghost" type="submit">保存邀请人</button>
+      </form>
+    </div>
+    ` : ""}
+    ${can("role:update") ? `
+    <div class="sub-panel">
+      <div class="panel-head"><div><h2>行家蓝标认证</h2><p>仅人工评估点亮，不影响等级与信用分。</p></div></div>
+      <form id="expert-blue-badge-form" class="form-grid compact-grid">
+        <label class="checkbox-label"><input name="enabled" type="checkbox" ${user.expertBlueBadge && user.expertBlueBadge.enabled ? "checked" : ""} /> 点亮蓝标认证</label>
+        <label>人工评估说明<textarea name="remark" required maxlength="200" placeholder="填写点亮或熄灭的审核依据"></textarea></label>
+        <button class="ghost" type="submit">保存蓝标状态</button>
       </form>
     </div>
     ` : ""}
@@ -476,10 +487,14 @@ async function showUserDetail(id) {
   `,
   });
   bindUserInviteRelationForm(id);
+  bindExpertBlueBadgeForm(id);
 }
 
 async function renderInvites() {
-  $("#invite-create-form").addEventListener("submit", createInviteCode);
+  const inviteCreateForm = $("#invite-create-form");
+  inviteCreateForm.addEventListener("submit", createInviteCode);
+  bindInviteOwnerPicker(inviteCreateForm);
+  $("#invite-config-form")?.addEventListener("submit", saveInviteCodeConfig);
   $("#invite-filter-form").addEventListener("submit", (event) => {
     event.preventDefault();
     loadInviteCodes(new FormData(event.currentTarget));
@@ -488,8 +503,47 @@ async function renderInvites() {
     event.preventDefault();
     loadInviteRelations(new FormData(event.currentTarget));
   });
+  $("#invite-quota-filter-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    loadInviteQuotaRequests(new FormData(event.currentTarget));
+  });
   $("#invite-codes-table").addEventListener("click", onInviteTableClick);
-  await Promise.all([loadInviteCodes(), loadInviteRelations()]);
+  $("#invite-quota-requests-table")?.addEventListener("click", onInviteQuotaTableClick);
+  $("#invite-select-all")?.addEventListener("change", (event) => {
+    document.querySelectorAll("input[data-invite-select]").forEach((input) => { input.checked = event.currentTarget.checked; });
+  });
+  $("#invite-export-filtered")?.addEventListener("click", () => exportInviteCodes(null));
+  $("#invite-export-selected")?.addEventListener("click", () => exportInviteCodes(selectedInviteCodes()));
+  await Promise.all([loadInviteCodes(), loadInviteRelations(), loadInviteQuotaRequests(), loadInviteCodeConfig()]);
+}
+
+async function loadInviteCodeConfig() {
+  const data = await apiGet("/api/admin/invite-code-config");
+  state.inviteCodeConfig = data.config || {};
+  const form = $("#invite-config-form");
+  if (!form) return;
+  ["maxBatchCount", "maxRequestCount", "defaultValidDays"].forEach((name) => {
+    const input = form.querySelector(`[name='${name}']`);
+    if (input) input.value = String(state.inviteCodeConfig[name] ?? "");
+  });
+  const batchInput = $("#invite-create-form")?.querySelector("[name='batchCount']");
+  if (batchInput) batchInput.placeholder = `1-${state.inviteCodeConfig.maxBatchCount || 200}`;
+}
+
+async function saveInviteCodeConfig(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const payload = {
+    maxBatchCount: Number(data.maxBatchCount),
+    maxRequestCount: Number(data.maxRequestCount),
+    defaultValidDays: Number(data.defaultValidDays)
+  };
+  try {
+    const result = await apiPut("/api/admin/invite-code-config", payload);
+    state.inviteCodeConfig = result.config || payload;
+    toast("邀请码规则已保存");
+    await loadInviteCodeConfig();
+  } catch (error) { toast(error.message, true); }
 }
 
 async function createInviteCode(event) {
@@ -498,10 +552,15 @@ async function createInviteCode(event) {
   const data = Object.fromEntries(new FormData(form).entries());
   const entryType = ["poster", "qrcode", "link"].includes(data.entryType) ? data.entryType : "poster";
   const rawBatchCount = Number(data.batchCount || 1);
-  const batchCount = Number.isFinite(rawBatchCount) ? Math.min(Math.max(rawBatchCount, 1), 200) : 1;
+  const maxBatchCount = Number(state.inviteCodeConfig?.maxBatchCount || 200);
+  if (!Number.isInteger(rawBatchCount) || rawBatchCount < 1 || rawBatchCount > maxBatchCount) {
+    toast(`生成数量应为 1 至 ${maxBatchCount}`, true);
+    return;
+  }
+  const batchCount = rawBatchCount;
   const ownerUserId = Number(data.ownerUserId || 0);
   if (!Number.isInteger(ownerUserId) || ownerUserId <= 0) {
-    toast("请输入有效的邀请人用户编号", true);
+    toast("请从下拉结果中选择已生效的行家或领路人", true);
     return;
   }
   const payload = {
@@ -509,6 +568,7 @@ async function createInviteCode(event) {
     ownerUserId,
     entryType,
     batchCount,
+    expiresAt: localDateTimeToRFC3339(data.expiresAt),
   };
   if (payload.code && !/^[A-Za-z0-9_-]{4,32}$/.test(payload.code)) {
     toast("邀请码只能使用 4-32 位字母、数字、下划线或短横线", true);
@@ -523,9 +583,11 @@ async function createInviteCode(event) {
     toast(payload.batchCount > 1 ? `已批量生成 ${result.total || payload.batchCount} 个邀请码` : "邀请码已创建");
     form.reset();
     const ownerInput = form.querySelector("[name='ownerUserId']");
+    const ownerTextInput = form.querySelector("[name='ownerUserText']");
     const entryTypeInput = form.querySelector("[name='entryType']");
     const batchCountInput = form.querySelector("[name='batchCount']");
     if (ownerInput) ownerInput.value = "";
+    if (ownerTextInput) ownerTextInput.value = "";
     if (entryTypeInput) entryTypeInput.value = "poster";
     if (batchCountInput) batchCountInput.value = "1";
     const codeInput = form.querySelector("[name='code']");
@@ -536,11 +598,49 @@ async function createInviteCode(event) {
   }
 }
 
+function localDateTimeToRFC3339(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function selectedInviteCodes() {
+  return Array.from(document.querySelectorAll("input[data-invite-select]:checked"))
+    .map((input) => input.dataset.code)
+    .filter(Boolean);
+}
+
+function exportInviteCodes(codes = null) {
+  if (Array.isArray(codes) && codes.length === 0) {
+    toast("请至少选择一条邀请码", true);
+    return;
+  }
+  const form = $("#invite-filter-form");
+  const params = new URLSearchParams(new FormData(form));
+  if (Array.isArray(codes) && codes.length) params.set("codes", codes.join(","));
+  const token = state.token;
+  if (!token) { toast("请先登录后台", true); return; }
+  fetch(`${API_BASE}/api/admin/invite-codes/export?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(async (response) => {
+    if (!response.ok) throw new Error("导出邀请码失败");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "invite-codes.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast(Array.isArray(codes) && codes.length ? `已导出 ${codes.length} 条邀请码` : "已导出邀请码");
+  }).catch((error) => toast(error.message || "导出邀请码失败", true));
+}
+
 async function loadInviteCodes(formData) {
   if (formData) resetPagination("inviteCodes");
   const data = await apiGet(`/api/admin/invite-codes${querySuffix(formData)}`);
   state.inviteCodes = data.items || [];
-  renderPaginatedTable("#invite-codes-table", state.inviteCodes, "inviteCodes", inviteCodeRow, 7, "暂无邀请码");
+  renderPaginatedTable("#invite-codes-table", state.inviteCodes, "inviteCodes", inviteCodeRow, 15, "暂无邀请码");
 }
 
 async function loadInviteRelations(formData) {
@@ -548,6 +648,32 @@ async function loadInviteRelations(formData) {
   const data = await apiGet(`/api/admin/invite-relations${querySuffix(formData)}`);
   state.inviteRelations = data.items || [];
   renderPaginatedTable("#invite-relations-table", state.inviteRelations, "inviteRelations", inviteRelationRow, 5, "暂无邀请关系");
+}
+
+async function loadInviteQuotaRequests(formData) {
+  const data = await apiGet(`/api/admin/invite-quota-requests${querySuffix(formData)}`);
+  state.inviteQuotaRequests = data.items || [];
+  renderPaginatedTable("#invite-quota-requests-table", state.inviteQuotaRequests, "inviteQuotaRequests", inviteQuotaRequestRow, 8, "暂无加量申请");
+}
+
+async function onInviteQuotaTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+  const id = Number(button.dataset.id || 0);
+  if (!id) return;
+  const approve = button.dataset.action === "invite-quota-approve";
+  const reason = window.prompt(approve ? "审核说明（可选）" : "驳回原因（可选）", "");
+  if (reason === null) return;
+  let entryType = "link";
+  if (approve) {
+    entryType = String(window.prompt("发放入口类型：link（链接）、qrcode（二维码）、poster（小程序卡片）", "link") || "").trim().toLowerCase();
+    if (!["link", "qrcode", "poster"].includes(entryType)) { toast("入口类型不正确", true); return; }
+  }
+  try {
+    await apiPost(`/api/admin/invite-quota-requests/${id}/audit`, { approve, reason, entryType });
+    toast(approve ? "已通过并生成邀请码" : "已驳回申请");
+    await Promise.all([loadInviteQuotaRequests(new FormData($("#invite-quota-filter-form"))), loadInviteCodes()]);
+  } catch (error) { toast(error.message, true); }
 }
 
 async function onInviteTableClick(event) {
@@ -566,6 +692,16 @@ async function onInviteTableClick(event) {
     if (button.dataset.action === "invite-disable") {
       await apiPost(`/api/admin/invite-codes/${encodeURIComponent(button.dataset.code)}/disable`, {});
       toast(`邀请码 ${button.dataset.code} 已禁用`);
+      await loadInviteCodes(new FormData($("#invite-filter-form")));
+    }
+    if (button.dataset.action === "invite-enable") {
+      await apiPost(`/api/admin/invite-codes/${encodeURIComponent(button.dataset.code)}/enable`, {});
+      toast(`邀请码 ${button.dataset.code} 已启用`);
+      await loadInviteCodes(new FormData($("#invite-filter-form")));
+    }
+    if (button.dataset.action === "invite-void") {
+      await apiPost(`/api/admin/invite-codes/${encodeURIComponent(button.dataset.code)}/void`, {});
+      toast(`邀请码 ${button.dataset.code} 已作废`);
       await loadInviteCodes(new FormData($("#invite-filter-form")));
     }
   } catch (error) {
@@ -594,12 +730,32 @@ async function showInviteCodeDetail(code) {
       ${detailCell("编号", invite.id)}
       ${detailCell("邀请码", invite.code)}
       ${detailCell("入口类型", inviteEntryLabel(invite.entryType))}
-      ${detailCell("创建来源", inviteOwnerText(invite, owner))}
+      ${detailCell("邀请人", inviteOwnerText(invite, owner))}
+      ${detailCell("邀请人手机号", invite.ownerPhoneMasked || "-")}
       ${detailCell("使用状态", inviteUseText(invite))}
       ${detailCell("绑定用户", bound.nickname || invite.boundWechatNickname || boundUserText(invite))}
       ${detailCell("绑定关系数", relations.length)}
       ${detailCell("绑定来源", compactList(relations.map((item) => item.bindSource)))}
+      ${detailCell("有效期", formatTime(invite.expiresAt) || "长期有效")}
+      ${detailCell("创建时间", formatTime(invite.createdAt))}
+      ${detailCell("更新时间", formatTime(invite.updatedAt))}
     </div>
+    ${!invite.boundWechatUserId && Number(invite.usedCount || 0) === 0 && can("invite_code:manage") ? `
+    <div class="sub-panel">
+      <div class="panel-head"><div><h2>编辑未使用邀请码</h2><p>已使用的邀请码会永久锁定，不能修改邀请人、入口或作废。</p></div></div>
+      <form id="invite-edit-form" class="form-grid compact-grid">
+        <label class="user-picker-field">邀请人（用户 ID / 手机号 / 实名姓名）
+          <div class="user-picker" data-invite-owner-picker>
+            <input name="ownerUserText" type="text" autocomplete="off" required value="${escapeHTML(userText(invite.ownerUserId))}" data-invite-owner-input />
+            <input name="ownerUserId" type="hidden" value="${escapeHTML(invite.ownerUserId)}" data-invite-owner-value />
+            <div class="user-picker-menu" data-invite-owner-menu></div>
+          </div>
+        </label>
+        <label>邀请入口<select name="entryType"><option value="poster" ${invite.entryType === "poster" ? "selected" : ""}>小程序卡片</option><option value="qrcode" ${invite.entryType === "qrcode" ? "selected" : ""}>二维码</option><option value="link" ${invite.entryType === "link" ? "selected" : ""}>链接</option></select></label>
+        <label>有效期（可选）<input name="expiresAt" type="datetime-local" value="${escapeHTML(inviteDateTimeLocalValue(invite.expiresAt))}" /></label>
+        <button class="primary" type="submit">保存修改</button>
+      </form>
+    </div>` : ""}
     <div class="sub-panel">
       <div class="panel-head">
         <div>
@@ -671,6 +827,29 @@ async function showInviteCodeDetail(code) {
       await Promise.all([showInviteCodeDetail(disableButton.dataset.code), loadInviteCodes(new FormData($("#invite-filter-form")))]);
     });
   }
+  const editForm = panel.querySelector("#invite-edit-form");
+  if (editForm) {
+    bindInviteOwnerPicker(editForm);
+    editForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(editForm).entries());
+      if (!Number(data.ownerUserId || 0)) { toast("请从下拉结果中选择邀请人", true); return; }
+      await apiPut(`/api/admin/invite-codes/${encodeURIComponent(invite.code)}`, {
+        ownerUserId: Number(data.ownerUserId),
+        entryType: data.entryType,
+        expiresAt: localDateTimeToRFC3339(data.expiresAt)
+      });
+      toast("邀请码已更新");
+      await Promise.all([showInviteCodeDetail(invite.code), loadInviteCodes(new FormData($("#invite-filter-form")))]);
+    });
+  }
+}
+
+function inviteDateTimeLocalValue(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 async function renderGames() {
@@ -1212,7 +1391,7 @@ function gameApplicationRow(item) {
       <td>${escapeHTML(item.id ? `申请 ${item.id}` : "-")}</td>
       <td>${escapeHTML(item.gameId ? `局 ${item.gameId}` : "-")}</td>
       <td>${escapeHTML(userText(item.userId))}</td>
-      <td><span class="${badgeClass(item.status)}">${statusLabel(item.status)}</span></td>
+      <td><span class="${badgeClass(inviteDisplayStatus(item))}">${statusLabel(inviteDisplayStatus(item))}</span></td>
       <td>${escapeHTML(item.reason || "-")}</td>
       <td>${fileButtons}</td>
       <td>${formatTime(item.createdAt)}</td>
@@ -1423,6 +1602,10 @@ function bindGameOpsPanel(panel, gameID) {
 async function renderAudits() {
   bindSectionTabs($("#view-root"));
   $("#role-grant-form")?.addEventListener("submit", grantRoleFromAdmin);
+  $("#identity-batch-approve")?.addEventListener("click", () => batchReviewIdentities(true));
+  $("#identity-batch-reject")?.addEventListener("click", () => batchReviewIdentities(false));
+  $("#identity-batch-select-all")?.addEventListener("change", onIdentityReviewSelectAllChange);
+  $("#identity-list")?.addEventListener("change", onIdentityReviewCheckboxChange);
   const tasks = [];
   if (can("identity:read")) {
     tasks.push(loadIdentities());
@@ -1541,7 +1724,7 @@ async function grantRoleFromAdmin(event) {
     const failed = Number(result.failed || 0);
     const failedItems = (result.items || []).filter((item) => item.status === "failed");
     const failureText = failedItems.map((item) => `${item.userId}：${item.reason || "开通失败"}`).join("；");
-    const receipt = `批次 ${result.batchId || "-"}：成功 ${success}，已开通 ${alreadyActive}，失败 ${failed}`;
+    const receipt = `本次开通结果：成功 ${success}，已开通 ${alreadyActive}，失败 ${failed}`;
     const receiptNode = $("#role-grant-result");
     if (receiptNode) receiptNode.textContent = failureText ? `${receipt}。${failureText}` : receipt;
     const resultList = $("#role-grant-result-list");
@@ -1576,6 +1759,7 @@ async function loadIdentities() {
   const list = $("#identity-list");
   const items = data.items || [];
   state.identities = items;
+  pruneIdentityReviewSelection();
   renderPaginatedList("#identity-list", items, "identities", (item) => stackItem({
     title: userText(item.userId),
     badge: item.status,
@@ -1587,6 +1771,7 @@ async function loadIdentities() {
     ],
     action: identityActions(item),
   }), "暂无认证记录");
+  updateIdentityReviewSelectionUI();
 }
 
 async function loadAvatarAudits() {
@@ -1666,10 +1851,90 @@ async function showEnterpriseCertificationDetail(userID) {
 function identityActions(item) {
   const actions = [`<button class="ghost" data-action="identity-detail" data-user-id="${item.userId}" type="button">详情</button>`];
   if (identityCanReview(item)) {
+    const checked = state.selectedIdentityReviewIds.has(String(item.userId)) ? "checked" : "";
+    actions.unshift(`<label class="audit-select-inline"><input class="identity-review-checkbox" type="checkbox" value="${escapeHTML(item.userId)}" aria-label="选择用户 ${escapeHTML(item.userId)}" ${checked} /><span>勾选</span></label>`);
     actions.push(`<button class="ghost" data-action="identity-approve" data-user-id="${item.userId}" type="button">通过</button>`);
     actions.push(`<button class="ghost" data-action="identity-reject" data-user-id="${item.userId}" type="button">驳回</button>`);
   }
   return actions.join("");
+}
+
+async function batchReviewIdentities(approve) {
+  const userIds = [...state.selectedIdentityReviewIds].map((id) => Number(id)).filter(Boolean);
+  if (!userIds.length) {
+    toast(`请先勾选要批量${approve ? "通过" : "驳回"}的待审核实名认证`, true);
+    return;
+  }
+  const reason = approve ? "后台批量审核通过" : window.prompt("请输入批量驳回原因");
+  if (!approve && (reason == null || !String(reason).trim())) {
+    toast("批量驳回必须统一填写原因", true);
+    return;
+  }
+  try {
+    const result = await apiPost("/api/admin/identity-verifications/batch-review", {
+      userIds,
+      approve,
+      reason: String(reason || "").trim(),
+    });
+    const failedItems = (result.items || []).filter((item) => !item.success);
+    const failureText = failedItems.map((item) => `${item.userId}：${item.error || "处理失败"}`).join("；");
+    toast(`批量${approve ? "通过" : "驳回"} ${result.success || 0} 条，失败 ${result.failed || 0} 条${failureText ? `。${failureText}` : ""}`, Boolean(result.failed));
+    state.selectedIdentityReviewIds.clear();
+    await loadIdentities();
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+function onIdentityReviewSelectAllChange(event) {
+  const checked = Boolean(event.currentTarget.checked);
+  document.querySelectorAll("#identity-list .identity-review-checkbox").forEach((checkbox) => {
+    checkbox.checked = checked;
+    updateIdentityReviewSelection(checkbox.value, checked);
+  });
+  updateIdentityReviewSelectionUI();
+}
+
+function onIdentityReviewCheckboxChange(event) {
+  const checkbox = event.target.closest(".identity-review-checkbox");
+  if (!checkbox) return;
+  updateIdentityReviewSelection(checkbox.value, checkbox.checked);
+  updateIdentityReviewSelectionUI();
+}
+
+function updateIdentityReviewSelection(id, checked) {
+  const value = String(id || "");
+  if (!value) return;
+  if (checked) {
+    state.selectedIdentityReviewIds.add(value);
+  } else {
+    state.selectedIdentityReviewIds.delete(value);
+  }
+}
+
+function pruneIdentityReviewSelection() {
+  const pendingIDs = new Set(state.identities.filter((item) => identityCanReview(item)).map((item) => String(item.userId)));
+  state.selectedIdentityReviewIds = new Set([...state.selectedIdentityReviewIds].filter((id) => pendingIDs.has(String(id))));
+}
+
+function updateIdentityReviewSelectionUI() {
+  const selectAll = $("#identity-batch-select-all");
+  if (!selectAll) return;
+  const boxes = [...document.querySelectorAll("#identity-list .identity-review-checkbox")];
+  const checkedCount = boxes.filter((box) => box.checked).length;
+  selectAll.checked = boxes.length > 0 && checkedCount === boxes.length;
+  selectAll.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+  selectAll.disabled = boxes.length === 0;
+  const summary = $("#identity-batch-summary");
+  if (summary) {
+    summary.textContent = boxes.length
+      ? `本页待审核 ${boxes.length} 条，已勾选 ${state.selectedIdentityReviewIds.size} 条`
+      : "当前页没有待审核实名认证";
+  }
+  [$("#identity-batch-approve"), $("#identity-batch-reject")].forEach((button) => {
+    if (!button) return;
+    button.disabled = state.selectedIdentityReviewIds.size === 0;
+  });
 }
 
 function identityCanReview(item) {
@@ -1767,14 +2032,18 @@ async function showIdentityDetail(userID) {
 }
 
 function avatarPreviewCell(label, url, fallback = "-") {
-  const text = url || fallback;
-  const image = url ? `<img class="avatar-audit-image" src="${escapeHTML(url)}" alt="${escapeHTML(label)}" />` : "";
+  const image = url
+    ? `<img class="avatar-audit-image" src="${escapeHTML(url)}" alt="${escapeHTML(label)}" />`
+    : `<div class="avatar-audit-image-empty">${escapeHTML(fallback)}</div>`;
   return `
-    <div class="detail-cell">
-      <span>${escapeHTML(label)}</span>
-      ${image}
-      <strong>${escapeHTML(text)}</strong>
-    </div>
+    <article class="avatar-audit-preview">
+      <div class="avatar-audit-preview-head">
+        <span>${escapeHTML(label)}</span>
+        <strong>${url ? "已上传" : escapeHTML(fallback)}</strong>
+      </div>
+      <div class="avatar-audit-image-frame">${image}</div>
+      ${url ? `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">在新窗口查看原图</a>` : ""}
+    </article>
   `;
 }
 
@@ -1793,6 +2062,8 @@ function showAvatarAuditDetail(userID) {
       ${detailCell("昵称", item.nickname || item.userName || "-")}
       ${detailCell("审核状态", statusLabel(item.status))}
       ${detailCell("审核说明", item.statusText || item.avatarAuditReason || "-")}
+    </div>
+    <div class="avatar-audit-preview-grid">
       ${avatarPreviewCell("当前头像", item.currentAvatarUrl)}
       ${avatarPreviewCell("待审头像", item.pendingAvatarUrl)}
     </div>
@@ -1804,6 +2075,7 @@ function showAvatarAuditDetail(userID) {
     </div>
   `,
   });
+  panel.closest(".admin-drawer")?.classList.add("avatar-audit-drawer");
   panel.querySelectorAll("button[data-action='avatar-approve'], button[data-action='avatar-reject']").forEach((button) => {
     button.addEventListener("click", async () => {
       const approve = button.dataset.action === "avatar-approve";
@@ -3382,6 +3654,8 @@ async function renderSystem() {
   $("#condition-rule-form").addEventListener("submit", saveConditionRuleConfig);
   $("#role-benefit-refresh").addEventListener("click", loadRoleBenefitConfig);
   $("#role-benefit-form").addEventListener("submit", saveRoleBenefitConfig);
+  $("#expert-skill-display-refresh").addEventListener("click", loadExpertSkillDisplayConfig);
+  $("#expert-skill-display-form").addEventListener("submit", saveExpertSkillDisplayConfig);
   $("#review-complete-refresh").addEventListener("click", loadReviewCompleteConfig);
   $("#review-complete-form").addEventListener("submit", saveReviewCompleteConfig);
   $("#growth-rules-refresh").addEventListener("click", loadGrowthRewardRules);
@@ -3410,6 +3684,7 @@ async function renderSystem() {
     tasks.push(loadGameAuditConfig());
     tasks.push(loadConditionRuleConfig());
     tasks.push(loadRoleBenefitConfig());
+    tasks.push(loadExpertSkillDisplayConfig());
     tasks.push(loadReviewCompleteConfig());
     tasks.push(loadGrowthRewardRules());
     tasks.push(loadAchievementConfig());
@@ -3424,6 +3699,7 @@ async function renderSystem() {
     renderNoAccess("#game-audit-config-panel", "缺少 system_config:read");
     renderNoAccess("#condition-rule-config-panel", "缺少 system_config:read");
     renderNoAccess("#role-benefit-config-panel", "缺少 system_config:read");
+    renderNoAccess("#expert-skill-display-config-panel", "缺少 system_config:read");
     renderNoAccess("#review-complete-config-panel", "缺少 system_config:read");
     renderNoAccess("#growth-rules-config-panel", "缺少 system_config:read");
     renderNoAccess("#achievement-config-panel", "缺少 system_config:read");
@@ -3647,7 +3923,7 @@ async function saveGameCreateTemplateConfig(event) {
     const textarea = $("#game-create-template-config-json");
     if (textarea) textarea.value = JSON.stringify(state.gameCreateTemplateConfig, null, 2);
     renderGameCreateTemplateConfig();
-    toast("局模板已保存，小程序创建页会读取最新配置");
+    toast("局模板已保存，当前仅用于后台运营维护");
   } catch (error) {
     toast(error.message || "局模板保存失败", true);
   }
@@ -3965,6 +4241,53 @@ async function saveRoleBenefitConfig(event) {
   });
 }
 
+async function loadExpertSkillDisplayConfig() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#expert-skill-display-config-panel", "缺少 system_config:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/experts/skill-display-config");
+  state.expertSkillDisplayConfig = data.config || data;
+  const form = $("#expert-skill-display-form");
+  if (form) {
+    setFormValue(form, "visibleSkillLimit", state.expertSkillDisplayConfig.visibleSkillLimit ?? "");
+    setFormValue(form, "homePreviewCount", state.expertSkillDisplayConfig.homePreviewCount ?? "");
+  }
+  renderExpertSkillDisplayConfig();
+}
+
+function renderExpertSkillDisplayConfig() {
+  const config = state.expertSkillDisplayConfig || {};
+  $("#expert-skill-display-config-panel").innerHTML = [
+    detailCell("显性技能上限", `${config.visibleSkillLimit ?? "-"} 个`),
+    detailCell("首页默认展示", `${config.homePreviewCount ?? "-"} 个`),
+    detailCell("隐性技能", "系统评估，不限数量"),
+  ].join("");
+}
+
+async function saveExpertSkillDisplayConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  const visibleSkillLimit = Number(new FormData(form).get("visibleSkillLimit"));
+  const homePreviewCount = Number(new FormData(form).get("homePreviewCount"));
+  if (!Number.isInteger(visibleSkillLimit) || visibleSkillLimit < 1 || visibleSkillLimit > 20 || !Number.isInteger(homePreviewCount) || homePreviewCount < 1 || homePreviewCount > visibleSkillLimit) {
+    toast("请填写有效数量：首页默认展示不能超过显性技能上限", true);
+    return;
+  }
+  try {
+    const data = await apiPut("/api/admin/experts/skill-display-config", { visibleSkillLimit, homePreviewCount });
+    state.expertSkillDisplayConfig = data.config || data;
+    await loadExpertSkillDisplayConfig();
+    toast("行家显性技能规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
 async function loadReviewCompleteConfig() {
   if (!can("system_config:read")) {
     renderNoAccess("#review-complete-config-panel", "缺少 system_config:read");
@@ -4210,10 +4533,14 @@ function renderCreditDeductionRules() {
     editor.innerHTML = items.length
       ? items.map((item) => `
         <article class="rule-editor-row" data-rule-code="${escapeHTML(item.ruleCode)}">
-          <strong>${escapeHTML(creditRuleLabel(item.ruleCode))}</strong>
-          <span class="muted">${escapeHTML(item.description || "-")}</span>
-          <label>扣分<input name="changeValue" type="number" min="-100" max="-1" value="${escapeHTML(item.changeValue)}" required /></label>
-          <label class="checkbox-field"><input name="enabled" type="checkbox" ${item.enabled ? "checked" : ""} />启用</label>
+          <div class="rule-editor-copy">
+            <strong>${escapeHTML(creditRuleLabel(item.ruleCode))}</strong>
+            <p>${escapeHTML(creditRuleDescription(item))}</p>
+          </div>
+          <div class="rule-editor-control">
+            <label>扣分<input name="changeValue" type="number" min="-100" max="-1" value="${escapeHTML(item.changeValue)}" required /></label>
+            <label class="checkbox-field"><input name="enabled" type="checkbox" ${item.enabled ? "checked" : ""} />启用</label>
+          </div>
         </article>
       `).join("")
       : emptyBlock("暂无信用扣分规则");
@@ -4230,6 +4557,19 @@ function creditRuleLabel(ruleCode) {
     report_confirmed: "举报核实成立",
     malicious_report: "恶意举报",
   }[ruleCode] || ruleCode;
+}
+
+function creditRuleDescription(item) {
+  const description = {
+    quit_after_confirm: "成员确认服务后主动退出时扣除信用分。",
+    quit_after_started: "局已开局后主动退出时扣除信用分。",
+    player_cancel_service: "玩家取消已确认服务时扣除信用分。",
+    expert_cancel_service: "行家取消已确认服务时扣除信用分。",
+    low_review: "收到低分评价时扣除信用分。",
+    report_confirmed: "举报核实成立时扣除信用分。",
+    malicious_report: "恶意举报核实成立时扣除信用分。",
+  }[item?.ruleCode];
+  return description || item?.description || "暂无规则说明";
 }
 
 async function saveCreditDeductionRules(event) {
@@ -5005,36 +5345,67 @@ function userFavoriteRow(item) {
 }
 
 function inviteCodeRow(item) {
-  const canDisable = item.status === "active" && can("invite_code:manage");
+  const useStatus = item.useStatus || (item.boundWechatUserId || Number(item.usedCount || 0) > 0 ? "used" : "unused");
+  const displayStatus = item.displayStatus || item.status;
+  const unused = useStatus === "unused";
+  const canManage = unused && displayStatus === "active" && can("invite_code:manage");
   const actions = [
     `<button class="ghost" data-action="invite-materials" data-code="${escapeHTML(item.code)}" type="button">生成物料</button>`,
     `<button class="ghost" data-action="invite-copy-usage" data-code="${escapeHTML(item.code)}" type="button">复制使用方式</button>`,
     `<button class="ghost" data-action="invite-detail" data-code="${escapeHTML(item.code)}" type="button">详情</button>`,
   ];
-  if (canDisable) actions.push(`<button class="ghost" data-action="invite-disable" data-code="${escapeHTML(item.code)}" type="button">禁用</button>`);
+  if (canManage && item.status === "active") actions.push(`<button class="ghost" data-action="invite-disable" data-code="${escapeHTML(item.code)}" type="button">禁用</button>`);
+  if (canManage && item.status === "disabled") actions.push(`<button class="ghost" data-action="invite-enable" data-code="${escapeHTML(item.code)}" type="button">启用</button>`);
+  if (canManage && (item.status === "active" || item.status === "disabled")) actions.push(`<button class="ghost danger" data-action="invite-void" data-code="${escapeHTML(item.code)}" type="button">作废</button>`);
   return `
     <tr>
+      <td><input type="checkbox" data-invite-select data-code="${escapeHTML(item.code)}" aria-label="选择邀请码 ${escapeHTML(item.code)}" /></td>
       <td>${escapeHTML(item.id ? `邀请码 ${item.id}` : "-")}</td>
+      <td>${escapeHTML(item.ownerUserId || "-")}</td>
       <td>${escapeHTML(item.code)}</td>
+      <td><button class="ghost" data-action="invite-materials" data-code="${escapeHTML(item.code)}" type="button">生成</button></td>
+      <td>${escapeHTML(inviteOwnerText(item))}</td>
+      <td>${escapeHTML(item.ownerPhoneMasked || "-")}</td>
       <td>${escapeHTML(inviteEntryLabel(item.entryType))}</td>
-      <td><span class="${badgeClass(item.status)}">${statusLabel(item.status)}</span></td>
+      <td><span class="${badgeClass(displayStatus)}">${statusLabel(displayStatus)}</span></td>
       <td>${escapeHTML(inviteUseText(item))}</td>
-      <td>${escapeHTML(boundUserText(item))}</td>
+      <td>${escapeHTML(item.boundWechatUserId || "-")}</td>
+      <td>${escapeHTML(item.boundWechatNickname || "-")}</td>
+      <td>${escapeHTML(item.boundWechatPhoneMasked || "-")}</td>
+      <td>${escapeHTML(formatTime(item.expiresAt) || "长期有效")}</td>
       <td><div class="row-actions">${actions.join("")}</div></td>
     </tr>
   `;
 }
 
+function inviteQuotaRequestRow(item) {
+  const pending = item.status === "pending" && can("invite_code:manage");
+  return `<tr>
+    <td>${escapeHTML(item.id ? `申请 ${item.id}` : "-")}</td>
+    <td>${escapeHTML(userText(item.ownerUserId))}</td>
+    <td>${escapeHTML(`${item.quantity || 0} 个`)}</td>
+    <td>${escapeHTML(item.reason || "-")}</td>
+    <td><span class="${badgeClass(item.status)}">${statusLabel(item.status)}</span></td>
+    <td>${escapeHTML(item.auditReason || "-")}</td>
+    <td>${escapeHTML(formatTime(item.createdAt))}</td>
+    <td><div class="row-actions">${pending ? `<button class="ghost" data-action="invite-quota-approve" data-id="${escapeHTML(item.id)}" type="button">通过</button><button class="ghost danger" data-action="invite-quota-reject" data-id="${escapeHTML(item.id)}" type="button">驳回</button>` : "-"}</div></td>
+  </tr>`;
+}
+
 function inviteUseText(item) {
   if (!item) return "-";
-  if (item.boundWechatUserId || Number(item.usedCount || 0) > 0) return "已绑定";
-  if (item.status === "disabled") return "已禁用";
-  if (item.status === "exhausted") return "已用完";
-  return "未使用";
+  const useStatus = item.useStatus || (item.boundWechatUserId || Number(item.usedCount || 0) > 0 ? "used" : "unused");
+  return useStatus === "used" ? "已使用" : "未使用";
+}
+
+function inviteDisplayStatus(item) {
+  return item?.displayStatus || item?.status || "-";
 }
 
 function inviteOwnerText(invite, owner = {}) {
-  return "后台管理员";
+  const name = owner.nickname || invite.ownerNickname || "";
+  const id = Number(invite.ownerUserId || owner.id || 0);
+  return name ? `${name}${id ? `（${id}）` : ""}` : (id ? `用户 ${id}` : "后台管理员");
 }
 
 function boundUserText(item) {
@@ -5378,7 +5749,7 @@ function feedbackRow(item) {
       <td>${escapeHTML(item.id ? `反馈 ${item.id}` : "-")}</td>
       <td>${escapeHTML(userText(item.userId))}</td>
       <td>${escapeHTML(feedbackTypeLabel(item.typeKey || item.type))}</td>
-      <td><span class="${badgeClass(item.statusClass || "pending")}">${escapeHTML(item.status || statusLabel(item.statusClass || "pending"))}</span></td>
+      <td><span class="${badgeClass(item.statusClass || item.status || "pending")}">${escapeHTML(statusLabel(item.status || item.statusClass || "pending"))}</span></td>
       <td>${escapeHTML(item.content || "-")}</td>
       <td>${escapeHTML(item.time || formatTime(item.createdAt))}</td>
       <td>
@@ -6363,10 +6734,27 @@ function roleSnapshot(value) {
   if (!value) return "-";
   if (Array.isArray(value)) return value.map(adminDisplayValue).join("、") || "-";
   if (typeof value !== "object") return adminDisplayValue(value);
+  const roles = Array.isArray(value.roles) ? value.roles : [];
+  if (roles.length) return roles.map(roleDisplayLabel).join("、");
+  const statusMap = value.roleStatusMap || value.role_status_map;
+  if (statusMap && typeof statusMap === "object") {
+    const activeRoles = Object.entries(statusMap)
+      .filter(([, status]) => status === "approved" || status === "active")
+      .map(([role]) => roleDisplayLabel(role));
+    return activeRoles.join("、") || "普通玩家";
+  }
   return Object.entries(value)
     .filter(([, enabled]) => Boolean(enabled))
-    .map(([role]) => adminDisplayValue(role))
+    .map(([role]) => roleDisplayLabel(role))
     .join("、") || "-";
+}
+
+function roleDisplayLabel(role) {
+  return {
+    player: "玩家",
+    expert: "行家",
+    guide: "领路人",
+  }[String(role || "").toLowerCase()] || adminDisplayValue(role);
 }
 
 function compactJSON(value) {
@@ -7089,11 +7477,14 @@ function statusLabel(value) {
     completed: "已完成",
     active: "正常",
     disabled: "已禁用",
+    voided: "已作废",
+    expired: "已过期",
     inactive: "已下架",
     archived: "已归档",
     approved: "已通过",
     fulfilled: "已履约",
     exhausted: "已用尽",
+    used: "已使用",
     pending_settlement: "待结算",
     frozen: "已冻结",
     settled: "已结算",
@@ -7203,6 +7594,92 @@ function userPickerOptionButton(item) {
   </button>`;
 }
 
+function inviteOwnerOptionText(item = {}) {
+  const id = Number(item.id) || 0;
+  const nickname = String(item.nickname || "").trim();
+  const realName = String(item.realNameMasked || "").trim();
+  const phoneMasked = String(item.phoneMasked || "").trim();
+  const roles = Array.isArray(item.roles) ? item.roles.filter(Boolean).join("、") : "";
+  const primary = nickname ? `用户 ${id} - ${nickname}` : `用户 ${id}`;
+  const identity = [realName ? `实名：${realName}` : "", phoneMasked ? `手机：${phoneMasked}` : "", roles].filter(Boolean);
+  return identity.length ? `${primary} · ${identity.join(" · ")}` : primary;
+}
+
+function bindInviteOwnerPicker(form) {
+  const picker = form?.querySelector("[data-invite-owner-picker]");
+  if (!picker) return;
+  const input = picker.querySelector("[data-invite-owner-input]");
+  const valueInput = picker.querySelector("[data-invite-owner-value]");
+  const menu = picker.querySelector("[data-invite-owner-menu]");
+  if (!input || !valueInput || !menu) return;
+
+  let timer = null;
+  let requestVersion = 0;
+  let items = [];
+
+  const render = (message = "") => {
+    if (message) {
+      menu.innerHTML = `<div class="user-picker-empty">${escapeHTML(message)}</div>`;
+      return;
+    }
+    menu.innerHTML = items.length
+      ? items.map((item) => `<button class="user-picker-option" type="button" data-invite-owner-option data-user-id="${escapeHTML(Number(item.id) || 0)}">
+          <span>${escapeHTML(inviteOwnerOptionText(item))}</span>
+        </button>`).join("")
+      : '<div class="user-picker-empty">没有匹配的行家或领路人</div>';
+    menu.querySelectorAll("[data-invite-owner-option]").forEach((button) => {
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("click", () => {
+        const selected = items.find((item) => Number(item.id) === Number(button.dataset.userId));
+        if (!selected) return;
+        input.value = inviteOwnerOptionText(selected);
+        valueInput.value = String(selected.id);
+        picker.classList.remove("is-open");
+      });
+    });
+  };
+
+  const search = async () => {
+    const version = ++requestVersion;
+    const keyword = String(input.value || "").trim();
+    picker.classList.add("is-open");
+    render("正在搜索…");
+    try {
+      const data = await apiGet(`/api/admin/invite-owners?keyword=${encodeURIComponent(keyword)}`);
+      if (version !== requestVersion) return;
+      items = Array.isArray(data.items) ? data.items : [];
+      render();
+    } catch (error) {
+      if (version !== requestVersion) return;
+      items = [];
+      render(error.message || "搜索失败，请稍后重试");
+    }
+  };
+
+  const scheduleSearch = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => { void search(); }, 220);
+  };
+
+  input.addEventListener("focus", scheduleSearch);
+  input.addEventListener("input", () => {
+    valueInput.value = "";
+    scheduleSearch();
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const first = items[0];
+    if (!first || valueInput.value) return;
+    event.preventDefault();
+    input.value = inviteOwnerOptionText(first);
+    valueInput.value = String(first.id);
+    picker.classList.remove("is-open");
+  });
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => picker.classList.remove("is-open"), 140);
+  });
+}
+
 function bindUserInvitePicker(form) {
   const picker = form?.querySelector("[data-user-picker]");
   if (!picker) return;
@@ -7263,7 +7740,7 @@ function bindUserInvitePicker(form) {
 function bindUserInviteRelationForm(userID) {
   const form = $("#user-invite-relation-form");
   if (!form) return;
-  bindUserInvitePicker(form);
+  bindInviteOwnerPicker(form);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
@@ -7275,6 +7752,30 @@ function bindUserInviteRelationForm(userID) {
       }
       await apiPut(`/api/admin/users/${userID}/invite-relation`, { inviterUserId });
       toast("邀请人已更新");
+      await Promise.all([showUserDetail(userID), loadUsers()]);
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }, { once: true });
+}
+
+function bindExpertBlueBadgeForm(userID) {
+  const form = $("#expert-blue-badge-form");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const formData = new FormData(form);
+      const remark = String(formData.get("remark") || "").trim();
+      if (!remark) {
+        toast("请填写人工评估说明", true);
+        return;
+      }
+      await apiPut(`/api/admin/users/${userID}/expert-blue-badge`, {
+        enabled: formData.get("enabled") === "on",
+        remark,
+      });
+      toast("行家蓝标认证已保存");
       await Promise.all([showUserDetail(userID), loadUsers()]);
     } catch (error) {
       toast(error.message, true);

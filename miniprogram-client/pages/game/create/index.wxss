@@ -199,17 +199,6 @@ page {
   margin-top: 22rpx;
 }
 
-.template-row {
-  margin-top: 18rpx;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-.template-chip {
-  flex: 0 0 calc((100% - 12rpx) / 2);
-  padding: 0 12rpx;
-}
-
 .form-field:first-child {
   margin-top: 0;
 }

@@ -108,6 +108,14 @@ function getInviteMemberDetail(memberId) {
   return request.get('/api/app/profile/service-center/invite/member-detail', { memberId })
 }
 
+function getInviteCodes() {
+  return request.get('/api/app/profile/service-center/invite/codes')
+}
+
+function createInviteQuotaRequest(data) {
+  return request.post('/api/app/profile/service-center/invite/quota-requests', data)
+}
+
 function getSystemProfileInfo() {
   return request.get('/api/app/profile/system-management/profile-info')
 }
@@ -216,6 +224,8 @@ module.exports = {
   getInviteRanking,
   getInviteIncome,
   getInviteMemberDetail,
+  getInviteCodes,
+  createInviteQuotaRequest,
   getSystemProfileInfo,
 	saveSystemProfileInfo,
 	getEnterpriseCertification,

@@ -125,6 +125,26 @@ func (s *TokenStore) ActiveSessionCount(kind string) int {
 	return count
 }
 
+// RevokeUserSessions invalidates every local and persisted session for a user.
+func (s *TokenStore) RevokeUserSessions(userID int64) error {
+	if s == nil || userID <= 0 {
+		return nil
+	}
+	if s.repo != nil {
+		if err := s.repo.RevokeUserSessions(context.Background(), userID); err != nil {
+			return err
+		}
+	}
+	s.mu.Lock()
+	for token, session := range s.sessions {
+		if session.UserID == userID {
+			delete(s.sessions, token)
+		}
+	}
+	s.mu.Unlock()
+	return nil
+}
+
 func randomToken(size int) (string, error) {
 	bytes := make([]byte, size)
 	if _, err := rand.Read(bytes); err != nil {

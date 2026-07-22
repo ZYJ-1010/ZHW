@@ -30,6 +30,22 @@ func TestGameDetailShowsEndedWhileDeliveryConfirmationIsPending(t *testing.T) {
 	}
 }
 
+func TestGameStatusTextCoversTerminalAndExceptionalStates(t *testing.T) {
+	tests := map[string]string{
+		"rejected": "\u5ba1\u6838\u672a\u901a\u8fc7",
+		"canceled": "\u5df2\u53d6\u6d88",
+		"disputed": "\u4e89\u8bae\u4e2d",
+		"settling": "\u7ed3\u7b97\u4e2d",
+		"closed":   "\u5df2\u5173\u95ed",
+		"unknown":  "\u72b6\u6001\u5904\u7406\u4e2d",
+	}
+	for status, expected := range tests {
+		if got := homeGameStatusText(status); got != expected {
+			t.Fatalf("status %q text = %q, want %q", status, got, expected)
+		}
+	}
+}
+
 func TestPendingConfirmationIsCompletedInServiceLists(t *testing.T) {
 	statusType, statusText := serviceOrderStatus("pending_confirm")
 	if statusType != "complete" || statusText != "已完成" {

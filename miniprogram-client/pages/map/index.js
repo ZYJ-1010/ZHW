@@ -1,4 +1,5 @@
 const locationService = require('../../services/location')
+const locationAccess = require('../../utils/location-access')
 const mapService = require('../../services/map')
 const { ROUTES } = require('../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
@@ -367,6 +368,7 @@ Page({
     radiusButtonText: '3km',
     rangeText: formatRadius(FALLBACK_MAP_CONFIG.defaultRadiusMeters),
     locationStatusText: '正在定位',
+    locationGuideVisible: false,
     nearbyCountText: '附近信息点 0 个',
     mapLegendItems: buildMapLegendItems(0, 0, 0),
     activeFilterIndex: 0,
@@ -391,7 +393,7 @@ Page({
 
   async onLoad() {
     await this.loadMapIndexConfig()
-    this.loadCurrentLocation()
+    this.useFallbackLocation('点击定位按钮后获取附近组局')
   },
 
   async loadMapIndexConfig() {
@@ -427,47 +429,21 @@ Page({
     this.mapContext = wx.createMapContext ? wx.createMapContext('nearbyMap', this) : null
   },
 
-  loadCurrentLocation() {
-    if (typeof wx === 'undefined' || typeof wx.getLocation !== 'function') {
-      this.useFallbackLocation('当前环境无法定位')
-      return
-    }
-
+  async loadCurrentLocation() {
     this.setData({
       locationStatusText: '正在定位'
     })
-
-    wx.getLocation({
-      type: 'gcj02',
-      success: (result) => {
-        const latitude = toNumber(result.latitude)
-        const longitude = toNumber(result.longitude)
-
-        if (latitude === null || longitude === null) {
-          this.useFallbackLocation('定位结果异常')
-          return
-        }
-
-        this.locationCenter = { latitude, longitude }
-        this.userLocationCenter = this.locationCenter
-        this.setMapCenter(this.locationCenter, this.data.radiusMeters, {
-          locationStatusText: '已获取当前位置'
-        })
-        // 只有用户主动打开地图并授权后才保存 GPS；首页和附近局接口会复用
-        // 这条最近定位，不会把默认城市坐标误当成用户位置。
-        locationService.saveCurrentLocation({
-          latitude,
-          longitude,
-          accuracyMeter: Number(result.accuracy || result.horizontalAccuracy || 0)
-        }).catch((error) => {
-          console.warn('save current location failed', error)
-        })
-        this.loadNearbyGames(this.locationCenter, this.data.radiusMeters)
-      },
-      fail: () => {
-        this.useFallbackLocation('未授权定位，显示默认位置')
-      }
-    })
+    try {
+      const result = await locationAccess.getPreciseLocation()
+      const latitude = toNumber(result.latitude)
+      const longitude = toNumber(result.longitude)
+      this.locationCenter = { latitude, longitude }
+      this.userLocationCenter = this.locationCenter
+      this.setMapCenter(this.locationCenter, this.data.radiusMeters, { locationStatusText: '已获取当前位置' })
+      this.loadNearbyGames(this.locationCenter, this.data.radiusMeters)
+    } catch (error) {
+      this.setData({ locationGuideVisible: true, locationStatusText: '未获取定位，可选择其他方式查看' })
+    }
   },
 
   useFallbackLocation(statusText) {
@@ -484,7 +460,7 @@ Page({
       selectedMarkerId: 0,
       selectedPlace: null,
       selectedPlayer: null,
-      nearbyCountText: '请授权定位后查看附近组局',
+      nearbyCountText: '可定位、手动选点或使用同城推荐',
       loadingNearby: false
     })
   },
@@ -735,6 +711,44 @@ Page({
       })
       this.loadNearbyGames(center, nextRadius)
     }
+  },
+
+  async chooseManualLocation() {
+    try {
+      const location = await locationAccess.chooseManualLocation()
+      const center = { latitude: location.latitude, longitude: location.longitude }
+      this.locationCenter = center
+      this.userLocationCenter = center
+      this.setData({ locationGuideVisible: false })
+      this.setMapCenter(center, this.data.radiusMeters, { locationStatusText: location.address || '已选择手动位置' })
+      this.loadNearbyGames(center, this.data.radiusMeters)
+    } catch (error) {
+      wx.showToast({ title: error.message || '未选择位置', icon: 'none' })
+    }
+  },
+
+  async useCityFallback() {
+    try {
+      const fallback = await locationAccess.getFallbackLocation()
+      const center = { latitude: Number(fallback.latitude), longitude: Number(fallback.longitude) }
+      this.locationCenter = center
+      this.userLocationCenter = center
+      this.setData({ locationGuideVisible: false })
+      this.setMapCenter(center, this.data.radiusMeters, { locationStatusText: fallback.message || `${fallback.cityName || '默认城市'}推荐` })
+      this.loadNearbyGames(center, this.data.radiusMeters)
+    } catch (error) {
+      this.useFallbackLocation('同城推荐暂不可用，已按发布时间展示')
+    }
+  },
+
+  async handleLocationGuideTap(event) {
+    const action = event.currentTarget.dataset.action
+    if (action === 'setting') {
+      await locationAccess.showDeniedGuide({ onManual: () => this.chooseManualLocation(), onFallback: () => this.useCityFallback() })
+      return
+    }
+    if (action === 'manual') return this.chooseManualLocation()
+    if (action === 'city') return this.useCityFallback()
   },
 
   handleDetailTap() {

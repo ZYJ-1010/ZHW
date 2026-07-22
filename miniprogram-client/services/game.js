@@ -10,6 +10,12 @@ async function getGameList(params) {
   return result.data
 }
 
+async function getSameCityGames(params) {
+  const result = await gameApi.getSameCityGames(params)
+  if (result.code !== 0) throw new Error(result.message || '获取同城局失败')
+  return result.data
+}
+
 async function getGameDetail(gameId) {
   const result = await gameApi.getGameDetail(gameId)
 
@@ -231,16 +237,6 @@ async function getCategoryConfig(params) {
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取组局分类配置失败')
-  }
-
-  return result.data
-}
-
-async function getCreateTemplateConfig(params) {
-  const result = await gameApi.getCreateTemplateConfig(params)
-
-  if (result.code !== 0) {
-    throw new Error(result.message || '获取组局模板失败')
   }
 
   return result.data
@@ -516,6 +512,7 @@ async function favoriteGame(gameId) {
 
 module.exports = {
   getGameList,
+  getSameCityGames,
   getGameDetail,
   getGameMembers,
   getGameSuccessDetail,
@@ -540,7 +537,6 @@ module.exports = {
   getSystemRecommendations,
   getProfitTemplates,
   getCategoryConfig,
-  getCreateTemplateConfig,
   getApplicationConfig,
   getConditionRuleConfig,
   applyGame,

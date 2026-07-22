@@ -57,6 +57,17 @@ async function loginByWechat(options = {}) {
   return result.data
 }
 
+async function precheckWechatEntry() {
+  const code = await wxLogin()
+  const result = await api.precheckWechatEntry({ code })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '微信账号检测失败')
+  }
+
+  return result.data || {}
+}
+
 async function sendPhoneCode(options) {
   const payload = options && typeof options === 'object' ? options : {
     phone: options
@@ -110,14 +121,26 @@ async function loginByPhone(options = {}) {
 }
 
 async function loginByPassword(options = {}) {
-  if (options.inviteCode) {
-    return loginByWechat({
-      inviteCode: options.inviteCode,
-      entryType: options.entryType || ''
-    })
-  }
+  const result = await api.loginWithPassword({ phone: options.phone || '', password: options.password || '' })
+  if (result.code !== 0) throw new Error(result.message || '手机号或密码错误')
+  setAuthToken(result.data.token || '')
+  wx.setStorageSync('enjoy_user', result.data.user)
+  return result.data
+}
 
-  throw new Error('\u5c0f\u7a0b\u5e8f\u9700\u8981\u9080\u8bf7\u624d\u53ef\u4ee5\u8fdb\u5165')
+async function bindWechatAccount() {
+  const code = await wxLogin()
+  const result = await api.bindWechatAccount({ code })
+  if (result.code !== 0) throw new Error(result.message || '微信绑定失败')
+  wx.setStorageSync('enjoy_user', result.data)
+  return result.data
+}
+
+async function setLoginPassword(password) {
+  const result = await api.setLoginPassword({ password: password || '' })
+  if (result.code !== 0) throw new Error(result.message || '设置密码失败')
+  wx.setStorageSync('enjoy_user', result.data)
+  return result.data
 }
 
 async function resetPassword() {
@@ -140,6 +163,17 @@ async function issueTokenAfterIdentity() {
   return result.data
 }
 
+async function deleteAccount() {
+  const result = await api.deleteAccount({ confirm: true })
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '账号注销失败')
+  }
+
+  logout()
+  return result.data || {}
+}
+
 function logout() {
   clearAuthToken()
   wx.removeStorageSync('enjoy_pre_auth_token')
@@ -149,12 +183,16 @@ function logout() {
 }
 
 module.exports = {
+  precheckWechatEntry,
   loginByWechat,
   sendPhoneCode,
   verifyPhoneCode,
   loginByPhone,
   loginByPassword,
+  bindWechatAccount,
+  setLoginPassword,
   resetPassword,
   issueTokenAfterIdentity,
+  deleteAccount,
   logout
 }

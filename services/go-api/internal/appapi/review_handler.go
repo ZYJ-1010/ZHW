@@ -707,13 +707,13 @@ func achievementVisibleForRole(item growthAchievementItemDTO, role string) bool 
 
 func defaultCreditDeductionRules() []reviews.CreditDeductionRule {
 	return []reviews.CreditDeductionRule{
-		{RuleCode: "quit_after_confirm", ChangeValue: -10, Enabled: true, Description: "Deduct credit when a member exits after service confirmation starts."},
-		{RuleCode: "quit_after_started", ChangeValue: -10, Enabled: true, Description: "Deduct credit when a member exits after the game has started."},
-		{RuleCode: "player_cancel_service", ChangeValue: -3, Enabled: true, Description: "Deduct credit when a player cancels an active service."},
-		{RuleCode: "expert_cancel_service", ChangeValue: -5, Enabled: true, Description: "Deduct credit when an expert cancels an active service."},
-		{RuleCode: "low_review", ChangeValue: -5, Enabled: true, Description: "Deduct credit when a participant receives a low score review."},
-		{RuleCode: "report_confirmed", ChangeValue: -10, Enabled: true, Description: "Deduct credit when a report is confirmed."},
-		{RuleCode: "malicious_report", ChangeValue: -10, Enabled: true, Description: "Deduct credit when a report is judged malicious."},
+		{RuleCode: "quit_after_confirm", ChangeValue: -10, Enabled: true, Description: "成员确认服务后主动退出时扣除信用分。"},
+		{RuleCode: "quit_after_started", ChangeValue: -10, Enabled: true, Description: "局已开局后主动退出时扣除信用分。"},
+		{RuleCode: "player_cancel_service", ChangeValue: -3, Enabled: true, Description: "玩家取消已确认服务时扣除信用分。"},
+		{RuleCode: "expert_cancel_service", ChangeValue: -5, Enabled: true, Description: "行家取消已确认服务时扣除信用分。"},
+		{RuleCode: "low_review", ChangeValue: -5, Enabled: true, Description: "收到低分评价时扣除信用分。"},
+		{RuleCode: "report_confirmed", ChangeValue: -10, Enabled: true, Description: "举报核实成立时扣除信用分。"},
+		{RuleCode: "malicious_report", ChangeValue: -10, Enabled: true, Description: "恶意举报核实成立时扣除信用分。"},
 	}
 }
 

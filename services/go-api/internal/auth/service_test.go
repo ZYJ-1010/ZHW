@@ -1,11 +1,24 @@
 package auth
 
 import (
+	"context"
+	"errors"
 	"testing"
 
+	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/invites"
 	"zhw-mini/services/go-api/internal/users"
 )
+
+type failingPhoneSMSSender struct{}
+
+func (failingPhoneSMSSender) GenerateCode() string {
+	return "123456"
+}
+
+func (failingPhoneSMSSender) Send(context.Context, identity.SMSDispatchRequest) (identity.SMSDispatchResult, error) {
+	return identity.SMSDispatchResult{}, errors.New("provider unavailable")
+}
 
 func newTestService() *Service {
 	return NewService(users.NewStore(), invites.NewStore(), NewTokenStore())
@@ -95,6 +108,18 @@ func TestPhoneLoginValidatesCodeAndInvite(t *testing.T) {
 	}
 	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13800138000", Code: "000000"}); err != ErrInviteRequired {
 		t.Fatalf("expected ErrInviteRequired, got %v", err)
+	}
+}
+
+func TestSendPhoneCodeDoesNotThrottleAfterProviderFailure(t *testing.T) {
+	service := newTestService()
+	service.UsePhoneSMSSender(failingPhoneSMSSender{})
+
+	if _, err := service.SendPhoneCode(context.Background(), "13800138000", "login"); !errors.Is(err, ErrPhoneCodeSendFailed) {
+		t.Fatalf("first failed send error = %v, want ErrPhoneCodeSendFailed", err)
+	}
+	if _, err := service.SendPhoneCode(context.Background(), "13800138000", "login"); !errors.Is(err, ErrPhoneCodeSendFailed) {
+		t.Fatalf("retry after failed send error = %v, want ErrPhoneCodeSendFailed instead of rate limit", err)
 	}
 }
 
@@ -240,14 +265,95 @@ func TestWechatLoginAllowsBoundWechatWithoutInvite(t *testing.T) {
 	}
 }
 
-func TestWechatLoginWithoutInviteRequiresExistingInviteRelation(t *testing.T) {
+func TestDeleteAccountReleasesLoginBindingsButExpiresOldInvite(t *testing.T) {
 	service := newTestService()
-	if _, err := service.users.Create(mockOpenID("existing-no-relation")); err != nil {
+	oldInvite, err := service.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue old invite: %v", err)
+	}
+	first, err := service.WechatLogin(WechatLoginRequest{Code: "deleted-account", InviteCode: oldInvite.Code, EntryType: invites.EntryTypeQRCode})
+	if err != nil {
+		t.Fatalf("first wechat login: %v", err)
+	}
+	if _, err := service.BindPhoneAuth(first.User.ID, "13900139001"); err != nil {
+		t.Fatalf("bind phone: %v", err)
+	}
+	if _, ok := service.CurrentUser(first.PreAuthToken); !ok {
+		t.Fatal("expected first session to be valid before deletion")
+	}
+
+	if err := service.DeleteAccount(first.User.ID); err != nil {
+		t.Fatalf("delete account: %v", err)
+	}
+	if _, ok := service.CurrentUser(first.PreAuthToken); ok {
+		t.Fatal("deleted account session must be revoked")
+	}
+	entry, err := service.WechatEntryPrecheck("deleted-account")
+	if err != nil {
+		t.Fatalf("wechat entry precheck: %v", err)
+	}
+	if entry.BoundWechat || !entry.RequiresInvite {
+		t.Fatalf("deleted account must no longer retain wechat binding: %+v", entry)
+	}
+	if _, err := service.InvitePrecheck(InvitePrecheckRequest{InviteCode: oldInvite.Code, EntryType: invites.EntryTypeQRCode}); err != ErrInviteExpired {
+		t.Fatalf("old invite must be expired after account deletion, got %v", err)
+	}
+
+	newInvite, err := service.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue new invite: %v", err)
+	}
+	second, err := service.WechatLogin(WechatLoginRequest{Code: "deleted-account", InviteCode: newInvite.Code, EntryType: invites.EntryTypeQRCode})
+	if err != nil {
+		t.Fatalf("same wechat should register again with a new invite: %v", err)
+	}
+	if second.User.ID == first.User.ID {
+		t.Fatalf("expected a new user after account deletion, got reused id %d", second.User.ID)
+	}
+
+	phoneInvite, err := service.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue phone invite: %v", err)
+	}
+	phoneLogin, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13900139001", Code: temporaryPhoneCode, InviteCode: phoneInvite.Code, EntryType: invites.EntryTypeQRCode})
+	if err != nil {
+		t.Fatalf("same phone should register again with a new invite: %v", err)
+	}
+	if phoneLogin.User.ID == first.User.ID {
+		t.Fatalf("expected a new phone user after account deletion, got reused id %d", phoneLogin.User.ID)
+	}
+}
+
+func TestIssueAssignedInviteEntryOnlyUsesAllocatedUnusedCode(t *testing.T) {
+	service := newTestService()
+	allocated, err := service.IssueInviteEntry(77, "qrcode")
+	if err != nil {
+		t.Fatalf("allocate invite code: %v", err)
+	}
+	entry, err := service.IssueAssignedInviteEntry(77, "qrcode")
+	if err != nil || entry.Code != allocated.Code {
+		t.Fatalf("expected allocated code, entry=%+v err=%v", entry, err)
+	}
+	if _, err := service.WechatLogin(WechatLoginRequest{Code: "assigned-owner", InviteCode: allocated.Code, EntryType: "qrcode"}); err != nil {
+		t.Fatalf("bind allocated code: %v", err)
+	}
+	if _, err := service.IssueAssignedInviteEntry(77, "qrcode"); !errors.Is(err, ErrInviteQuotaExceeded) {
+		t.Fatalf("expected exhausted allocation, got %v", err)
+	}
+}
+
+func TestWechatLoginAllowsExistingWechatWithoutInviteRelation(t *testing.T) {
+	service := newTestService()
+	user, err := service.users.Create(mockOpenID("existing-no-relation"))
+	if err != nil {
 		t.Fatalf("create existing user: %v", err)
 	}
 
-	_, err := service.WechatLogin(WechatLoginRequest{Code: "existing-no-relation"})
-	if err != ErrInviteRequired {
-		t.Fatalf("expected ErrInviteRequired for user without invite relation, got %v", err)
+	login, err := service.WechatLogin(WechatLoginRequest{Code: "existing-no-relation"})
+	if err != nil {
+		t.Fatalf("existing WeChat user should login without invite relation: %v", err)
+	}
+	if login.User.ID != user.ID || !login.BoundWechat || login.InviteRelation != nil || login.AuthPageMode != invites.AuthPageModeLogin {
+		t.Fatalf("unexpected existing WeChat login response: %+v", login)
 	}
 }

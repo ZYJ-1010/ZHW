@@ -1,9 +1,5 @@
 <profile-white-shell title="邀约记录" title-weight="400" background="#050b14" nav-background="#050b14" title-color="#ffffff" back-background="#050b14" back-border-color="transparent" back-icon-color="#12d8ff">
   <view class="invite-page records-page dark-page">
-    <view class="role-tabs">
-      <button wx:for="{{roleTabs}}" wx:key="key" class="role-tab {{activeRole === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleRoleTap">{{item.label}}</button>
-    </view>
-
     <view class="filter-strip">
       <button wx:for="{{filters}}" wx:key="key" class="filter-chip {{activeStatus === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="handleFilterTap">{{item.label}}</button>
     </view>
@@ -17,7 +13,7 @@
       <text class="warning-arrow">›</text>
     </view>
 
-    <view wx:for="{{records}}" wx:key="id" class="invite-card {{item.compact ? 'is-compact' : ''}}">
+    <view wx:for="{{records}}" wx:key="id" class="invite-card {{item.compact ? 'is-compact' : ''}}" data-id="{{item.id}}" bindtap="handleRecordTap">
       <view class="invite-card-head">
         <view class="invite-card-meta">
           <text class="invite-card-status {{item.statusClass}}">{{item.status}}</text>
@@ -63,7 +59,7 @@
           <text wx:if="{{item.budget}}" class="invite-card-budget">{{item.budget}}</text>
         </view>
         <text wx:if="{{item.income}}" class="invite-card-income">{{item.income}}</text>
-        <view wx:else class="invite-card-arrow" data-id="{{item.id}}" bindtap="handleRecordTap"></view>
+        <view wx:else class="invite-card-arrow"></view>
       </view>
 
       <text wx:if="{{item.warning}}" class="timeout-note">{{item.warning}}</text>

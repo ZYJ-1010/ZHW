@@ -46,3 +46,12 @@ where token_hash = $1
 	}
 	return session, true, nil
 }
+
+func (r *SQLSessionRepository) RevokeUserSessions(ctx context.Context, userID int64) error {
+	_, err := r.db.ExecContext(ctx, `
+update app_auth_sessions
+set revoked_at = now()
+where user_id = $1 and revoked_at is null
+`, userID)
+	return err
+}

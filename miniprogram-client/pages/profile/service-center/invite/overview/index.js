@@ -5,8 +5,14 @@ const INVITE_TABS = [
   { key: 'overview', label: '数据概览', route: '' },
   { key: 'network', label: '关系网络', route: '/pages/profile/service-center/invite/network/index' },
   { key: 'records', label: '邀约记录', route: '/pages/profile/service-center/invite/records/index' },
-  { key: 'ranking', label: '贡献排行', route: '/pages/profile/service-center/invite/ranking/index' },
   { key: 'income', label: '收益明细', route: '/pages/profile/service-center/invite/income/index' }
+]
+
+const INVITE_ACTIONS = [
+  { key: 'share_card', icon: '🔗', label: '分享邀请码' },
+  { key: 'qrcode', icon: '▦', label: '二维码', iconClass: 'white' },
+  { key: 'poster', icon: '▧', label: '生成海报', iconClass: 'white' },
+  { key: 'manage_codes', icon: '⚙', label: '邀请码管理', iconClass: 'white' }
 ]
 
 Page({
@@ -22,11 +28,7 @@ Page({
       { value: '0%', label: '转化率', trend: '', tone: 'up' },
       { value: '¥0', label: '分润收益', trend: '', tone: 'up' }
     ],
-    actions: [
-      { key: 'share_card', icon: '🔗', label: '分享邀请码' },
-      { key: 'qrcode', icon: '▦', label: '二维码', iconClass: 'white' },
-      { key: 'poster', icon: '▧', label: '生成海报', iconClass: 'white' }
-    ],
+    actions: [],
     tabs: INVITE_TABS,
     trends: [],
     loadError: ''
@@ -40,11 +42,12 @@ Page({
     try {
       const result = await profileService.getInviteOverview()
 
-      // 接口当前返回旧版字符串 tabs；页面点击路由需要稳定的 key 和 route，
-      // 因此只使用本地的结构化标签定义，避免接口结果覆盖后标签消失。
+      // 标签需要稳定的 key 和 route；快捷操作则由服务端按已分配的邀请码
+      // 返回，避免未分配邀请码的角色看到二维码或分享入口。
       this.setData({
         ...(result || {}),
-        tabs: INVITE_TABS
+        tabs: INVITE_TABS,
+        actions: Array.isArray(result && result.actions) ? result.actions : INVITE_ACTIONS.filter((item) => item.key === 'manage_codes')
       })
     } catch (error) {
       console.warn('get invite overview failed', error)
@@ -56,6 +59,12 @@ Page({
 
   handleActionTap(event) {
     const { key } = event.currentTarget.dataset
+    if (key === 'manage_codes') {
+      navigateShellRoute('/pages/profile/service-center/invite/code-management/index', {
+        currentRoute: '/pages/profile/service-center/invite/overview/index'
+      })
+      return
+    }
     const entryTypeMap = {
       share_card: 'link',
       qrcode: 'qrcode',

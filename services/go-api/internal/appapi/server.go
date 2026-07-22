@@ -46,14 +46,15 @@ import (
 
 type CurrentUserDTO struct {
 	users.User
-	Identity      identity.Record       `json:"identity"`
-	Roles         []string              `json:"roles"`
-	RoleStatusMap map[string]string     `json:"roleStatusMap"`
-	Membership    membership.Membership `json:"membership"`
-	Growth        GrowthDTO             `json:"growth"`
-	InviteCode    string                `json:"inviteCode"`
-	IncomeSummary revenue.IncomeSummary `json:"incomeSummary"`
-	Points        points.Account        `json:"pointsSummary"`
+	Identity        identity.Record       `json:"identity"`
+	Roles           []string              `json:"roles"`
+	RoleStatusMap   map[string]string     `json:"roleStatusMap"`
+	Membership      membership.Membership `json:"membership"`
+	Growth          GrowthDTO             `json:"growth"`
+	InviteCode      string                `json:"inviteCode"`
+	IncomeSummary   revenue.IncomeSummary `json:"incomeSummary"`
+	Points          points.Account        `json:"pointsSummary"`
+	ExpertBlueBadge ExpertBlueBadgeDTO    `json:"expertBlueBadge"`
 }
 
 type GrowthDTO struct {
@@ -362,8 +363,13 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/app/invites/precheck", s.invitePrecheck)
 	handle("POST /api/app/invites/entries", s.AppAuthMiddleware(s.createInviteEntry))
 	handle("POST /api/app/auth/wechat-login", s.wechatLogin)
+	handle("POST /api/app/auth/wechat-entry-precheck", s.wechatEntryPrecheck)
 	handle("POST /api/app/auth/phone-login", s.phoneLogin)
+	handle("POST /api/app/auth/password-login", s.passwordLogin)
+	handle("POST /api/app/account/wechat-bind", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.bindWechatAccount)))
+	handle("PUT /api/app/account/login-password", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.setLoginPassword)))
 	handle("POST /api/app/auth/issue-token-after-identity", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.issueTokenAfterIdentity)))
+	handle("POST /api/app/account/delete", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.deleteAccount)))
 	handle("GET /api/app/home", s.AppAuthMiddleware(s.appHome))
 	handle("GET /api/app/newbie-tasks", s.AppAuthMiddleware(s.newbieTasks))
 	handle("POST /api/app/newbie-tasks/", s.AppAuthMiddleware(s.completeTask))
@@ -459,6 +465,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/app/profile/service-center/reviews/", s.AppAuthMiddleware(s.profileReviewDetail))
 	handle("POST /api/app/profile/service-center/reviews/", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeProfileReviewPost)))
 	handle("GET /api/app/profile/service-center/invite/overview", s.AppAuthMiddleware(s.profileInviteOverview))
+	handle("GET /api/app/profile/service-center/invite/codes", s.AppAuthMiddleware(s.profileInviteCodes))
+	handle("POST /api/app/profile/service-center/invite/quota-requests", s.AppAuthMiddleware(s.profileInviteQuotaRequest))
 	handle("GET /api/app/profile/service-center/invite/network", s.AppAuthMiddleware(s.profileInviteNetwork))
 	handle("GET /api/app/profile/service-center/invite/records", s.AppAuthMiddleware(s.profileInviteRecords))
 	handle("GET /api/app/profile/service-center/invite/ranking", s.AppAuthMiddleware(s.profileInviteRanking))
@@ -536,10 +544,17 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/admin/admin-roles", s.requireAdminPermission("admin_user:view", s.adminRoles))
 	handle("GET /api/admin/admin-permissions/catalog", s.requireAdminPermission("admin_user:view", s.adminPermissionCatalog))
 	handle("GET /api/admin/invite-codes", s.requireAdminPermission("invite_code:read", s.adminInviteCodes))
+	handle("GET /api/admin/invite-code-config", s.requireAdminPermission("invite_code:read", s.adminInviteCodeConfig))
+	handle("PUT /api/admin/invite-code-config", s.requireAdminPermission("invite_code:manage", s.updateAdminInviteCodeConfig))
+	handle("GET /api/admin/invite-codes/export", s.requireAdminPermission("invite_code:read", s.exportAdminInviteCodes))
+	handle("GET /api/admin/invite-owners", s.requireAdminPermission("invite_code:manage", s.adminInviteOwners))
 	handle("POST /api/admin/invite-codes", s.requireAdminPermission("invite_code:manage", s.createAdminInviteCode))
 	handle("GET /api/admin/invite-codes/", s.requireAdminPermission("invite_code:read", s.adminInviteCodeDetail))
+	handle("PUT /api/admin/invite-codes/", s.requireAdminPermission("invite_code:manage", s.updateAdminInviteCode))
 	handle("POST /api/admin/invite-codes/", s.routeAdminInviteCodePost)
 	handle("GET /api/admin/invite-relations", s.requireAdminPermission("invite_code:read", s.adminInviteRelations))
+	handle("GET /api/admin/invite-quota-requests", s.requireAdminPermission("invite_code:read", s.adminInviteQuotaRequests))
+	handle("POST /api/admin/invite-quota-requests/", s.requireAdminPermission("invite_code:manage", s.routeAdminInviteQuotaRequestPost))
 	handle("GET /api/admin/users", s.requireAdminPermission("user:view", s.adminUsers))
 	handle("GET /api/admin/users/options", s.requireAdminPermission("game:create_admin", s.adminUserOptions))
 	handle("PUT /api/admin/users/", s.routeAdminUsersPut)
@@ -560,6 +575,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("PUT /api/admin/games/condition-rule-config", s.requireAdminPermission("system_config:update", s.adminGameConditionRuleConfig))
 	handle("GET /api/admin/roles/benefit-config", s.requireAdminPermission("system_config:read", s.adminRoleBenefitConfig))
 	handle("PUT /api/admin/roles/benefit-config", s.requireAdminPermission("system_config:update", s.adminRoleBenefitConfig))
+	handle("GET /api/admin/experts/skill-display-config", s.requireAdminPermission("system_config:read", s.adminExpertSkillDisplayConfig))
+	handle("PUT /api/admin/experts/skill-display-config", s.requireAdminPermission("system_config:update", s.adminExpertSkillDisplayConfig))
 	handle("POST /api/admin/roles/grant", s.requireAdminPermission("role:update", s.adminGrantRole))
 	handle("GET /api/admin/home/display-config", s.requireAdminPermission("system_config:read", s.adminHomeDisplayConfig))
 	handle("PUT /api/admin/home/display-config", s.requireAdminPermission("system_config:update", s.adminHomeDisplayConfig))
@@ -679,6 +696,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/app/locations/current", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveCurrentLocation)))
 	handle("POST /api/app/locations/manual", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveManualLocation)))
 	handle("GET /api/app/locations/my-recent", s.AppAuthMiddleware(s.myRecentLocations))
+	handle("GET /api/app/locations/fallback", s.AppAuthMiddleware(s.locationFallback))
 	handle("GET /api/admin/map/search", s.requireAdminPermission("game:create_admin", s.mapSearch))
 }
 
@@ -848,6 +866,8 @@ func (s *Server) routeAdminUsersPut(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasSuffix(r.URL.Path, "/invite-relation"):
 		s.requireAdminPermission("invite_code:manage", s.adminUpdateUserInviteRelation)(w, r)
+	case strings.HasSuffix(r.URL.Path, "/expert-blue-badge"):
+		s.requireAdminPermission("role:update", s.adminUpdateExpertBlueBadge)(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -1041,6 +1061,10 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "inviter not found")
 		return
 	}
+	if !s.userCanGenerateInvitations(inviter.ID) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是已生效的行家或领路人")
+		return
+	}
 	relation, err := s.auth.SetInviteRelationInviter(userID, inviter.ID, "admin_manual")
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "update invite relation failed")
@@ -1063,18 +1087,22 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) adminUserPayload(user users.User, relation invites.Relation) map[string]interface{} {
-	inviteCode, _ := s.auth.InviteCodeForUser(user.ID)
+	inviteCode := ""
+	if s.userCanGenerateInvitations(user.ID) {
+		inviteCode, _ = s.auth.InviteCodeForUser(user.ID)
+	}
 	payload := map[string]interface{}{
-		"id":             user.ID,
-		"openId":         user.OpenID,
-		"phoneMasked":    user.PhoneMasked,
-		"nickname":       user.Nickname,
-		"avatarUrl":      user.AvatarURL,
-		"avatarFileId":   user.AvatarFileID,
-		"realnameStatus": user.RealnameStatus,
-		"status":         user.Status,
-		"createdAt":      user.CreatedAt,
-		"inviteCode":     inviteCode,
+		"id":              user.ID,
+		"openId":          user.OpenID,
+		"phoneMasked":     user.PhoneMasked,
+		"nickname":        user.Nickname,
+		"avatarUrl":       user.AvatarURL,
+		"avatarFileId":    user.AvatarFileID,
+		"realnameStatus":  user.RealnameStatus,
+		"status":          user.Status,
+		"createdAt":       user.CreatedAt,
+		"inviteCode":      inviteCode,
+		"expertBlueBadge": s.expertBlueBadgeForUser(user.ID),
 	}
 	if relation.InviteeUserID > 0 {
 		payload["inviteRelation"] = relation
@@ -1236,6 +1264,8 @@ func (s *Server) invitePrecheck(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, auth.ErrInviteRequired):
 			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code required")
+		case errors.Is(err, auth.ErrInviteExpired):
+			httpx.Error(w, http.StatusGone, httpx.CodeInviteExpired, "邀请码已失效，请重新获取邀请码")
 		case errors.Is(err, auth.ErrInvalidInvite):
 			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invalid invite code")
 		default:
@@ -1260,18 +1290,20 @@ func (s *Server) createInviteEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
-	// 个人邀请码、海报和二维码只属于行家/领路人；组局内的成员邀请仍由组局权限控制。
-	if req.GameID <= 0 {
-		roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
-		if roles["expert"] != "approved" && roles["expert"] != "active" && roles["guide"] != "approved" && roles["guide"] != "active" {
-			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成邀请入口")
-			return
-		}
+	// 注册邀请码、二维码和海报只能由后台已授予身份且已分配邀请码的
+	// 行家/领路人使用。gameId 只改变分享落地页，不改变邀请码权限。
+	if !s.userCanGenerateInvitations(userID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成邀请入口")
+		return
 	}
-	invite, err := s.auth.IssueInviteEntry(userID, req.EntryType)
+	invite, err := s.auth.IssueAssignedInviteEntry(userID, req.EntryType)
 	if err != nil {
 		if errors.Is(err, invites.ErrInvalidEntryType) {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid entry type")
+			return
+		}
+		if errors.Is(err, auth.ErrInviteQuotaExceeded) {
+			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "暂无可用邀请码，请在邀请码管理中申请增加数量")
 			return
 		}
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "create invite entry failed")
@@ -1395,6 +1427,8 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, auth.ErrInviteRequired):
 			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code required")
+		case errors.Is(err, auth.ErrInviteExpired):
+			httpx.Error(w, http.StatusGone, httpx.CodeInviteExpired, "邀请码已失效，请重新获取邀请码")
 		case errors.Is(err, auth.ErrInvalidInvite):
 			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invalid invite code")
 		case errors.Is(err, auth.ErrInviteAlreadyBound):
@@ -1447,6 +1481,26 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) wechatEntryPrecheck(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		return
+	}
+	result, err := s.auth.WechatEntryPrecheck(req.Code)
+	if err != nil {
+		if errors.Is(err, auth.ErrWechatCodeInvalid) {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "wechat login code invalid")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "wechat entry precheck failed")
+		return
+	}
+	httpx.OK(w, result)
+}
+
 func (s *Server) requiresRoleIdentity(userID int64) bool {
 	snapshot := s.profiles.RoleSnapshot(userID)
 	for _, role := range []string{"expert", "guide", "main_guide"} {
@@ -1474,6 +1528,8 @@ func (s *Server) phoneLogin(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid sms code")
 		case errors.Is(err, auth.ErrInviteRequired):
 			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code required")
+		case errors.Is(err, auth.ErrInviteExpired):
+			httpx.Error(w, http.StatusGone, httpx.CodeInviteExpired, "邀请码已失效，请重新获取邀请码")
 		case errors.Is(err, auth.ErrInvalidInvite):
 			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invalid invite code")
 		case errors.Is(err, auth.ErrInviteAlreadyBound):
@@ -1572,7 +1628,10 @@ func (s *Server) buildCurrentUserDTO(user users.User, record identity.Record) Cu
 	growth := s.reviews.Profile(user.ID)
 	pointsSummary := s.points.Summary(user.ID)
 	membership := s.membership.My(user.ID)
-	inviteCode, _ := s.auth.InviteCodeForUser(user.ID)
+	inviteCode := ""
+	if s.userCanGenerateInvitations(user.ID) {
+		inviteCode, _ = s.auth.InviteCodeForUser(user.ID)
+	}
 	if record.Status != "" {
 		user.RealnameStatus = string(record.Status)
 	} else if user.RealnameStatus == "" {
@@ -1591,9 +1650,10 @@ func (s *Server) buildCurrentUserDTO(user users.User, record identity.Record) Cu
 			TodayCreditScore: growth.TodayCreditScore,
 			Points:           pointsSummary.AvailablePoints,
 		},
-		InviteCode:    inviteCode,
-		IncomeSummary: s.revenue.IncomeSummary(user.ID),
-		Points:        pointsSummary,
+		InviteCode:      inviteCode,
+		IncomeSummary:   s.revenue.IncomeSummary(user.ID),
+		Points:          pointsSummary,
+		ExpertBlueBadge: s.expertBlueBadgeForUser(user.ID),
 	}
 }
 

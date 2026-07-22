@@ -67,6 +67,7 @@
         "settings/index",
         "service-center/invite-records/index",
         "service-center/invite/overview/index",
+        "service-center/invite/code-management/index",
         "service-center/invite/qrcode-share/index",
         "service-center/invite/network/index",
         "service-center/invite/records/index",
@@ -164,7 +165,7 @@
   },
   "permission": {
     "scope.userLocation": {
-      "desc": "用于选择组局地址"
+      "desc": "用于在用户主动查看附近组局、地图或选择组局地址时提供位置服务"
     },
     "scope.record": {
       "desc": "用于在聊天中发送语音消息"

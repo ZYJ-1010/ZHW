@@ -51,9 +51,10 @@ async function verifyInviteCode(code, entryType = '') {
 
   if (result.code !== 0) {
     return {
-      status: 'invalid',
+      status: result.code === 40322 ? 'expired' : 'invalid',
       invite: null,
-      message: result.message || '邀请码无效'
+      message: result.message || '邀请码无效',
+      expired: result.code === 40322
     }
   }
 

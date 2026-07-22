@@ -1384,8 +1384,9 @@ function defaultProfileSettings() {
       {
         title: '账号安全',
         rows: [
+          { id: 'wechatBind', label: '绑定微信', iconKey: 'wechatBind', value: '未绑定', arrow: true, action: 'bind_wechat' },
           { id: 'payPassword', label: '支付密码', iconKey: 'payPassword', value: '一期未开放', arrow: true, disabledReason: '一期未接真实支付，支付密码暂未开放' },
-          { id: 'loginPassword', label: '登录密码', iconKey: 'loginPassword', value: '微信登录', arrow: true, disabledReason: '小程序当前使用微信登录' },
+          { id: 'loginPassword', label: '登录密码', iconKey: 'loginPassword', value: '未设置', arrow: true, action: 'set_password' },
           { id: 'phone', label: '更换手机号', iconKey: 'phone', value: '138****8888', arrow: true, disabledReason: '请在我的资料中更新联系方式' },
           { id: 'facePay', label: '指纹/面容支付', iconKey: 'facePay', switch: true, enabled: true }
         ]

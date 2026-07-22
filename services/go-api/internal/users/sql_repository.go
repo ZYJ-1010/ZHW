@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -287,6 +288,109 @@ where id = $1
 	}
 	if !ok {
 		return User{}, ErrInvalidProfile
+	}
+	return user, nil
+}
+
+func (r *SQLRepository) PasswordHash(ctx context.Context, userID int64) (string, bool, error) {
+	var hash string
+	err := r.db.QueryRowContext(ctx, `select password_hash from user_login_passwords where user_id = $1`, userID).Scan(&hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return hash, hash != "", nil
+}
+
+func (r *SQLRepository) UpdatePasswordHash(ctx context.Context, userID int64, passwordHash string) error {
+	_, err := r.db.ExecContext(ctx, `
+insert into user_login_passwords (user_id, password_hash, updated_at)
+values ($1,$2,now())
+on conflict (user_id) do update set password_hash = excluded.password_hash, updated_at = now()
+`, userID, passwordHash)
+	return err
+}
+
+func (r *SQLRepository) BindWechat(ctx context.Context, userID int64, openID string) (User, error) {
+	_, err := r.db.ExecContext(ctx, `
+insert into user_wechat_accounts (user_id, openid, created_at, updated_at)
+values ($1,$2,now(),now())
+on conflict (openid) do update set user_id = excluded.user_id, updated_at = now()
+`, userID, openID)
+	if err != nil {
+		return User{}, err
+	}
+	user, ok, err := r.FindByID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+	if !ok {
+		return User{}, ErrInvalidProfile
+	}
+	return user, nil
+}
+
+func (r *SQLRepository) DeactivateAndClearLoginBindings(ctx context.Context, userID int64) (User, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `
+update users
+set status = 'deleted',
+    nickname = null,
+    avatar_url = null,
+    avatar_file_id = null,
+    mobile_encrypted = null,
+    mobile_hash = null,
+    mobile_masked = null,
+    updated_at = now()
+where id = $1
+`, userID)
+	if err != nil {
+		return User{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return User{}, err
+	} else if affected == 0 {
+		return User{}, ErrInvalidProfile
+	}
+
+	_, err = tx.ExecContext(ctx, `
+delete from user_wechat_accounts
+where user_id = $1
+`, userID)
+	if err != nil {
+		return User{}, err
+	}
+	_, err = tx.ExecContext(ctx, `
+update user_profiles
+set gender = null,
+    bio = null,
+    interest_tags = '[]'::jsonb,
+    city_code = null,
+    city_name = null,
+    updated_at = now()
+where user_id = $1
+`, userID)
+	if err != nil {
+		return User{}, err
+	}
+
+	user, err := scanUser(tx.QueryRowContext(ctx, `
+select u.id, '', coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+from users u
+where u.id = $1
+`, userID))
+	if err != nil {
+		return User{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return User{}, err
 	}
 	return user, nil
 }

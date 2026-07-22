@@ -3,9 +3,11 @@
   nav-items="{{navItems}}"
   shell-class="home-shell--blue-topbar"
   nav-toast-enabled="{{false}}"
+  floating-task-visible="{{true}}"
   bindnavtap="handleShellNavTap"
   bindnavlongpress="handleShellNavLongPress"
   bindnavtouchend="handleShellNavTouchEnd"
+  bind:tasktap="handleTaskCenterTap"
 >
   <scroll-view
     class="player-home-scroll role-home-scroll"
@@ -50,7 +52,10 @@
           <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
           <view class="player-summary-copy">
             <text class="player-summary-title">{{playerCard.title}}</text>
-            <text class="player-summary-name" catchtap="handlePlayerNameTap">{{playerCard.name}}</text>
+            <view class="player-summary-name-row">
+              <text class="player-summary-name" catchtap="handlePlayerNameTap">{{playerCard.name}}</text>
+              <text wx:if="{{currentRoleType === 'expert' && blueBadge.enabled}}" class="expert-blue-badge" catchtap="handleBlueBadgeTap">蓝标</text>
+            </view>
           </view>
           <view class="player-level-progress">
             <view class="player-level-progress-fill" style="width: {{playerCard.progress}}%;"></view>
@@ -187,24 +192,14 @@
           <text class="role-skill-mark">🎯</text>
           <text class="role-skill-heading">行家技能树</text>
         </view>
-        <view class="role-skill-tree">
-          <view class="role-skill-line left"></view>
-          <view class="role-skill-line top"></view>
-          <view class="role-skill-line bottom"></view>
-          <view class="role-skill-node-wrap start {{skills[0].locked ? 'locked' : ''}}">
-            <view class="role-skill-node {{skills[0].locked ? 'locked' : 'unlocked'}} {{skills[0].tone}}" style="{{skills[0].nodeStyle}}"><text>{{skills[0].icon}}</text></view>
-            <text class="role-skill-node-label">{{skills[0].title}}</text>
-          </view>
-          <view class="role-skill-node-wrap middle {{skills[1].locked ? 'locked' : ''}}">
-            <view class="role-skill-node {{skills[1].locked ? 'locked' : 'unlocked'}} {{skills[1].tone}}" style="{{skills[1].nodeStyle}}"><text>{{skills[1].icon}}</text></view>
-            <text class="role-skill-node-label">{{skills[1].title}}</text>
-          </view>
-          <view class="role-skill-node-wrap locked top"><view class="role-skill-node locked"><text>🔒</text></view></view>
-          <view class="role-skill-node-wrap bottom {{skills[2].locked ? 'locked' : ''}}">
-            <view class="role-skill-node {{skills[2].locked ? 'locked' : 'unlocked'}} {{skills[2].tone}}" style="{{skills[2].nodeStyle}}"><text>{{skills[2].icon}}</text></view>
-            <text class="role-skill-node-label">{{skills[2].title}}</text>
+        <view wx:if="{{skills.length}}" class="role-skill-grid">
+          <view wx:for="{{skills}}" wx:key="key" class="role-skill-item">
+            <view class="role-skill-node {{item.tone}}" style="{{item.nodeStyle}}"><text>{{item.icon}}</text></view>
+            <text class="role-skill-node-label">{{item.title}}</text>
           </view>
         </view>
+        <text wx:else class="role-skill-empty">暂未配置显性技能</text>
+        <view wx:if="{{skillMoreCount}}" class="role-skill-more" bindtap="handleSkillMoreTap">{{skillsExpanded ? '收起技能' : '展开更多'}}（{{skillMoreCount}}）</view>
       </view>
 
       <view class="player-world-card" data-route="{{onlineCard.route}}" data-title="{{onlineCard.title}}" bindtap="handleActionTap">
@@ -245,6 +240,11 @@
         <text wx:else class="role-section-more disabled">{{mainSection.moreText}}</text>
       </view>
       <text wx:if="{{mainSection.desc}}" class="role-section-desc">{{mainSection.desc}}</text>
+
+      <view wx:if="{{locationGuideVisible}}" class="role-location-guide">
+        <text>未获取当前位置，可手动选位置或使用同城推荐。</text>
+        <view><text data-action="setting" bindtap="handleHomeLocationGuideTap">开启定位</text><text data-action="manual" bindtap="handleHomeLocationGuideTap">手动选位置</text><text data-action="city" bindtap="handleHomeLocationGuideTap">同城推荐</text></view>
+      </view>
 
       <block wx:if="{{mainVisibleGames.length}}">
         <block wx:for="{{mainVisibleGames}}" wx:key="title">

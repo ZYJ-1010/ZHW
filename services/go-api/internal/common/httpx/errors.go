@@ -6,6 +6,7 @@ const (
 	CodeTokenExpired    = 40102
 	CodeForbidden       = 40301
 	CodeInviteRequired  = 40321
+	CodeInviteExpired   = 40322
 	CodeNotFound        = 40400
 	CodeConflict        = 40900
 	CodeValidationError = 42200

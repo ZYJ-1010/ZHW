@@ -505,13 +505,39 @@ nav button[data-view]:hover,
 
 .rule-editor-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.4fr) minmax(150px, 2fr) minmax(108px, 0.7fr) 92px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space);
+  gap: calc(var(--space) * 2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-2);
-  padding: var(--space);
+  padding: calc(var(--space) * 1.5) calc(var(--space) * 2);
+}
+
+.rule-editor-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rule-editor-copy p {
+  margin: 0;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.rule-editor-control {
+  display: grid;
+  grid-template-columns: 128px 68px;
+  align-items: end;
+  gap: var(--space);
+}
+
+.rule-editor-control > label:not(.checkbox-field) {
+  display: grid;
+  gap: 5px;
+  color: var(--ink-2);
+  font-size: 12px;
 }
 
 .rule-editor-row input[type="number"] {
@@ -597,6 +623,67 @@ nav button[data-view]:hover,
   display: grid;
   grid-column: span 2;
   gap: 8px;
+}
+
+.game-create-form {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: calc(var(--space) * 2);
+}
+
+.game-create-section {
+  display: grid;
+  gap: calc(var(--space) * 1.5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: calc(var(--space) * 2);
+}
+
+.game-create-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.game-create-section-head p {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.game-create-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: calc(var(--space) * 1.5);
+}
+
+.game-create-fields .span-full,
+.game-create-fields .map-search-box {
+  grid-column: 1 / -1;
+}
+
+.game-create-fields .map-search-box {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  border-top: 1px solid var(--line);
+  padding-top: calc(var(--space) * 1.5);
+}
+
+.game-create-fields .map-search-results {
+  grid-column: 1 / -1;
+}
+
+.game-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  padding-top: calc(var(--space) * 2);
+}
+
+.game-create-actions .primary {
+  min-width: 184px;
 }
 
 .map-search-results {
@@ -1048,13 +1135,80 @@ tbody tr:hover {
 
 .avatar-audit-image {
   display: block;
-  width: 88px;
-  height: 88px;
-  margin-top: 8px;
-  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
   object-fit: cover;
+}
+
+.avatar-audit-drawer {
+  width: min(780px, calc(100vw - 32px));
+}
+
+.avatar-audit-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--space) * 2);
+}
+
+.avatar-audit-preview {
+  display: grid;
+  gap: 10px;
   border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: calc(var(--space) * 1.5);
+}
+
+.avatar-audit-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+}
+
+.avatar-audit-preview-head span,
+.avatar-audit-preview a {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.avatar-audit-preview a {
+  width: fit-content;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.avatar-audit-image-frame {
+  display: grid;
+  width: min(100%, 220px);
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--surface);
+}
+
+.avatar-audit-image-empty {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .rule-editor-control,
+  .game-create-fields,
+  .avatar-audit-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-create-fields .map-search-box {
+    grid-template-columns: 1fr;
+  }
+
+  .game-create-fields .map-search-box button {
+    width: 100%;
+  }
 }
 
 .invite-material-panel {

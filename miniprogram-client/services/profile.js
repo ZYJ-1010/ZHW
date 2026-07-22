@@ -336,6 +336,22 @@ async function getInviteMemberDetail(params = {}) {
   return result.data
 }
 
+async function getInviteCodes() {
+  const result = await profileApi.getInviteCodes()
+  if (result.code !== 0) throw new Error(result.message || '获取邀请码列表失败')
+  return result.data
+}
+
+async function createInviteQuotaRequest(payload = {}) {
+  const quantity = Number(payload.quantity || 0)
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
+    throw new Error('申请数量不正确')
+  }
+  const result = await profileApi.createInviteQuotaRequest({ quantity, reason: String(payload.reason || '').trim() })
+  if (result.code !== 0) throw new Error(result.message || '提交加量申请失败')
+  return result.data
+}
+
 async function getSystemProfileInfo() {
   const result = await profileApi.getSystemProfileInfo()
 
@@ -636,6 +652,8 @@ module.exports = {
   getInviteRanking,
   getInviteIncome,
   getInviteMemberDetail,
+  getInviteCodes,
+  createInviteQuotaRequest,
   getSystemProfileInfo,
   saveSystemProfileInfo,
   submitEnterpriseCertification,

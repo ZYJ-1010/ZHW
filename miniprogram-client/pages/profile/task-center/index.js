@@ -1,4 +1,5 @@
 const newbieService = require('../../../services/newbie')
+const reviewService = require('../../../services/review')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellBack, navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
@@ -56,6 +57,11 @@ function taskRoute(task = {}) {
   }
 }
 
+function isReviewTask(task = {}) {
+  const type = task.type || task.code
+  return type === 'review' || type === 'submit_review'
+}
+
 Page({
   data: {
     pageTitle: '任务中心',
@@ -107,9 +113,28 @@ Page({
     if (key) this.setData({ activeCategory: key, tasks: (this.data.categoryTasks || {})[key] || [] })
   },
 
-  onTaskTap(event) {
+  async onTaskTap(event) {
     const task = this.data.tasks.find((item) => String(item.id) === String(event.currentTarget.dataset.id))
     if (!task || task.completed) return
+
+    if (isReviewTask(task)) {
+      try {
+        const result = await reviewService.getAvailableReviews()
+        const items = Array.isArray(result && result.items) ? result.items : []
+        const review = items.find((item) => item && item.gameId)
+        if (!review) {
+          wx.showToast({ title: '暂无待评价的局', icon: 'none' })
+          return
+        }
+        navigateShellRoute(`/${ROUTES.gameReview}?gameId=${review.gameId}`, {
+          currentRoute: ROUTES.profileTaskCenter
+        })
+      } catch (error) {
+        wx.showToast({ title: '获取待评价局失败，请稍后重试', icon: 'none' })
+      }
+      return
+    }
+
     const route = taskRoute(task)
     if (route) {
       navigateShellRoute(route, { currentRoute: ROUTES.profileTaskCenter })

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -49,6 +50,53 @@ func (s *Server) myRecentLocations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.OK(w, map[string]interface{}{"items": s.lbs.RecentBySource(userID, source, limit)})
+}
+
+// locationFallback supplies a same-city recommendation context without asking
+// for device coordinates. The request IP is only used as a future provider
+// input; until an IP-city provider is configured, the configured map city is
+// returned explicitly as a default rather than being presented as GPS data.
+func (s *Server) locationFallback(w http.ResponseWriter, r *http.Request) {
+	userID, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	if location, found := s.lbs.Current(userID); found && strings.TrimSpace(location.CityCode) != "" {
+		httpx.OK(w, map[string]interface{}{"source": "saved", "cityCode": location.CityCode, "cityName": location.CityName, "latitude": location.Latitude, "longitude": location.Longitude, "sortMode": "city_then_time"})
+		return
+	}
+	config := s.currentMapIndexConfig()
+	cityName := "默认城市"
+	cityCode := ""
+	source := "default_city"
+	if provider, ok := s.mapProvider.(lbs.IPGeoProvider); ok {
+		ip := requestRemoteIP(r)
+		place, err := provider.LocateIP(r.Context(), ip)
+		if err == nil && strings.TrimSpace(place.City) != "" {
+			cityName, cityCode, source = place.City, place.CityCode, "ip_city"
+			if place.Longitude != 0 && place.Latitude != 0 {
+				config.DefaultLocation.Longitude, config.DefaultLocation.Latitude = place.Longitude, place.Latitude
+			}
+		}
+	} else if s.mapProvider != nil {
+		place, err := s.mapProvider.ReverseGeocode(r.Context(), lbs.MapReverseGeocodeRequest{Longitude: config.DefaultLocation.Longitude, Latitude: config.DefaultLocation.Latitude})
+		if err == nil && strings.TrimSpace(place.City) != "" {
+			cityName, cityCode = place.City, place.CityCode
+		}
+	}
+	httpx.OK(w, map[string]interface{}{
+		"source": source, "cityCode": cityCode, "cityName": cityName,
+		"latitude": config.DefaultLocation.Latitude, "longitude": config.DefaultLocation.Longitude,
+		"sortMode": "city_then_time", "message": "未获取定位，已按默认城市坐标推荐",
+	})
+}
+
+func requestRemoteIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
 }
 
 func (s *Server) saveLocation(w http.ResponseWriter, r *http.Request, current bool) {

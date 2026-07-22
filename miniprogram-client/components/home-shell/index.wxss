@@ -140,6 +140,46 @@
   filter: drop-shadow(0 2rpx 6rpx rgba(0, 0, 0, 0.18));
 }
 
+.home-shell-task-float {
+  position: absolute;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 112rpx;
+  height: 112rpx;
+  gap: 2rpx;
+  border: 2rpx solid rgba(111, 255, 235, 0.88);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: #ffffff;
+  background: rgba(0, 67, 119, 0.94);
+  box-shadow: 0 12rpx 24rpx rgba(0, 0, 0, 0.32);
+  user-select: none;
+}
+
+.home-shell-task-float--pressed {
+  opacity: 0.76;
+}
+
+.home-shell-task-float__icon {
+  width: 38rpx;
+  height: 38rpx;
+  flex: 0 0 38rpx;
+}
+
+.home-shell-task-float__text {
+  display: block;
+  width: 76rpx;
+  color: #ffffff;
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 22rpx;
+  text-align: center;
+  white-space: normal;
+}
+
 .home-shell-search {
   position: absolute;
   left: 0;

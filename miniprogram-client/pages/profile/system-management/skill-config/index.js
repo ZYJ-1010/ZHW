@@ -108,6 +108,26 @@ function buildEmptySlot(sourceId) {
   }
 }
 
+function normalizeSkillSlots(slots, maxSkillCount, icons) {
+  const result = (Array.isArray(slots) ? slots : []).map((item) => ({
+    ...item,
+    // 旧数据中的“第三个技能锁定”不再作为显性技能限制；数量由后台上限统一控制。
+    locked: false,
+    iconSrc: getIconSrc(item, icons),
+    iconAsImage: shouldUseImageIcon(item),
+    iconText: getIconText(item)
+  }))
+  const targetCount = Math.max(1, Number(maxSkillCount) || 3)
+  while (result.length < targetCount) {
+    result.push({
+      ...buildEmptySlot(`auto-${result.length + 1}`),
+      iconSrc: icons.plus,
+      iconAsImage: false
+    })
+  }
+  return result
+}
+
 function buildSkillFromCandidate(candidate, sourceType = 'manual') {
   const isAi = sourceType === 'ai'
 
@@ -179,21 +199,24 @@ function normalizeSkillConfig(config = {}) {
     return result
   }, {})
 
+  const roleSummary = {
+    ...fallback.roleSummary,
+    ...(config.roleSummary || {})
+  }
+  const skillSlots = normalizeSkillSlots(
+    Array.isArray(config.skillSlots) ? config.skillSlots : fallback.skillSlots,
+    roleSummary.maxSkillCount,
+    icons
+  )
+  roleSummary.maxSkillCount = Math.max(1, Number(roleSummary.maxSkillCount) || 3)
+  roleSummary.configuredCount = getConfiguredCount(skillSlots)
+
   return {
     ...fallback,
     ...config,
     icons,
-    roleSummary: {
-      ...fallback.roleSummary,
-      ...(config.roleSummary || {})
-    },
-    skillSlots: (Array.isArray(config.skillSlots) ? config.skillSlots : fallback.skillSlots)
-      .map((item) => ({
-        ...item,
-        iconSrc: getIconSrc(item, icons),
-        iconAsImage: shouldUseImageIcon(item),
-        iconText: getIconText(item)
-      })),
+    roleSummary,
+    skillSlots,
     tabs: Array.isArray(config.tabs) && config.tabs.length ? config.tabs : fallback.tabs,
     sectionMap: {
       ...fallback.sectionMap,
@@ -247,8 +270,7 @@ function getEmptySkillConfig() {
         iconText: '+',
         tone: 'gray',
         active: false,
-        empty: true,
-        locked: true
+        empty: true
       }
     ],
     tabs: [
@@ -277,9 +299,9 @@ function getEmptySkillConfig() {
     },
     addableSkills: [],
     unlockSuggestion: {
-      title: '解锁第三个技能',
-      desc: '解锁后可在上方槽位添加新的显性技能',
-      actionText: '立即解锁'
+      title: '配置显性技能',
+      desc: '显性技能数量由平台运营规则统一控制',
+      actionText: '去添加'
     }
   }
 }
@@ -396,11 +418,6 @@ Page({
     }
 
     if (slot.empty) {
-      if (slot.locked) {
-        toast.info('请先解锁第三个技能')
-        return
-      }
-
       this.openAddPanel()
       return
     }
@@ -476,7 +493,7 @@ Page({
 
   handleUnlockTap() {
     if (!hasLockedSkillSlot(this.data.skillSlots)) {
-      toast.info('第三个技能已解锁')
+      toast.info('当前没有待解锁的技能槽位')
       return
     }
 
@@ -575,9 +592,9 @@ Page({
         type: 'unlock-slot',
         iconSrc: this.data.icons.lock,
         iconTone: 'lock',
-        title: '解锁第三个技能',
+        title: '解锁技能槽位',
         descLines: [
-          '解锁后上方第三个技能槽位可添加新的显性技能'
+          '解锁后可在上方添加新的显性技能'
         ],
         cancelText: '暂不解锁',
         confirmText: '立即解锁'
@@ -714,13 +731,13 @@ Page({
 
     if (!hasLockedSkillSlot(config.skillSlots)) {
       this.closeResponseDialog()
-      toast.info('第三个技能已解锁')
+      toast.info('当前没有待解锁的技能槽位')
       return
     }
 
     config.skillSlots = unlockFirstLockedSkillSlot(config.skillSlots)
     config.unlockSuggestion = {
-      title: '第三个技能已解锁',
+      title: '技能槽位已解锁',
       desc: '点击上方添加技能槽位即可配置新的显性技能',
       actionText: '已解锁'
     }
@@ -728,7 +745,7 @@ Page({
     this.applyConfigState(config, 'visible', {
       responseDialog: { visible: false }
     })
-    toast.success('第三个技能已解锁')
+    toast.success('技能槽位已解锁')
   },
 
   handleEditCaseInput(event) {
@@ -818,7 +835,7 @@ Page({
     const remainingSlots = this.getRemainingSlotCount()
 
     if (remainingSlots <= 0 && hasLockedSkillSlot(this.data.skillSlots)) {
-      toast.info('请先解锁第三个技能')
+      toast.info('当前没有可用的技能槽位')
       return
     }
 
@@ -888,7 +905,7 @@ Page({
 
     if (getUnlockedEmptySlotCount(config.skillSlots) <= 0 && hasLockedSkillSlot(config.skillSlots)) {
       this.handleCloseAddPanel()
-      toast.info('请先解锁第三个技能')
+      toast.info('当前没有可用的技能槽位')
       return
     }
 

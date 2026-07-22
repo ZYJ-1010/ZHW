@@ -65,7 +65,7 @@
           <view class="filter-active-line"></view>
         </view>
         <view class="filter-option {{sortKey === 'time' ? 'active' : ''}}" bindtap="toggleTimeFilter">时间 {{sortKey === 'time' ? sortArrow : '▼'}}</view>
-        <view class="filter-option {{sortKey === 'distance' ? 'active' : ''}}" bindtap="toggleLocationFilter">地点 {{sortKey === 'distance' ? sortArrow : '▼'}}</view>
+        <view class="filter-option {{sortKey === 'distance' ? 'active' : ''}}" bindtap="toggleLocationFilter">地点·{{nearbyRadiusMeters >= 1000 ? nearbyRadiusMeters / 1000 + 'km' : nearbyRadiusMeters + 'm'}} ▼</view>
         <view class="filter-option {{activeTypeFilter !== 'all' ? 'active' : ''}}" bindtap="toggleTypeFilter">{{typeFilterText}} ▼</view>
         <view class="sort-option {{sortFilterActive ? 'active' : ''}}" bindtap="openSortFilter">
           <text>{{sortFilterText}}</text>
@@ -88,6 +88,16 @@
       </view>
     </view>
   </scroll-view>
+
+  <view wx:if="{{locationGuideVisible}}" class="hall-location-guide">
+    <text class="hall-location-guide-title">未获取当前位置</text>
+    <text class="hall-location-guide-desc">可开启定位查看附近局，也可手动选位置或使用同城推荐。</text>
+    <view class="hall-location-guide-actions">
+      <button data-action="setting" bindtap="handleHallLocationGuideTap">开启定位</button>
+      <button data-action="manual" bindtap="handleHallLocationGuideTap">手动选位置</button>
+      <button data-action="city" bindtap="handleHallLocationGuideTap">同城推荐</button>
+    </view>
+  </view>
 
   <view wx:if="{{sortFilterVisible}}" class="sort-filter-mask" catchtap="closeSortFilter">
     <view class="sort-filter-panel" catchtap="noop">

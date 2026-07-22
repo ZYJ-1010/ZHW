@@ -7,6 +7,7 @@
   <view class="participant-main">
     <view class="participant-title-row">
       <text class="participant-name">{{participant.name}}</text>
+      <text wx:if="{{participant.blueBadge.enabled}}" class="participant-blue-badge" catchtap="handleBlueBadgeTap">蓝标</text>
       <text class="participant-role-text">{{participant.position}}</text>
     </view>
     <text class="participant-topic">{{participant.topic}}</text>
