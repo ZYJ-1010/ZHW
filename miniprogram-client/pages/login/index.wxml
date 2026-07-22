@@ -6,7 +6,7 @@
         <text class="invite-flow-star">✦</text>
       </view>
       <text class="invite-flow-welcome">欢迎进入真好玩~</text>
-      <text class="invite-flow-access-note">仅限受邀用户和已注册账号登录。已注册账号可使用手机号验证码、微信或密码完成鉴权，新用户需输入有效邀请码。</text>
+      <text class="invite-flow-access-note">仅限受邀用户和已注册账号登录。已注册账号可使用短信验证码或账号密码登录，新用户需输入有效邀请码。</text>
     </view>
 
     <view class="invite-flow-form">
@@ -52,9 +52,8 @@
       </view>
       <view class="invite-flow-login-options">
         <view class="invite-flow-login-option" catchtap="startPasswordLogin">密码登录</view>
-        <view class="invite-flow-login-option" catchtap="startWechatAuth">微信登录</view>
       </view>
-      <text class="invite-flow-invite-tip">已注册账号可用验证码、微信或密码登录；新用户需输入邀请码完成注册</text>
+      <text class="invite-flow-invite-tip">已注册账号可使用短信验证码或账号密码登录；首次注册需输入邀请码完成注册</text>
       <view class="invite-flow-agreement">
         <image class="invite-flow-check" src="/pages/login/assets/icon-check.svg" mode="aspectFit"></image>
         <text class="invite-flow-agree-muted">注册即表明同意</text>
@@ -156,7 +155,7 @@
         <text class="invite-flow-star">✦</text>
       </view>
       <text class="invite-flow-welcome">欢迎进入真好玩~</text>
-      <text class="invite-flow-access-note">{{entryFlow === 'existing' ? '已注册账号可使用手机号验证码或微信完成登录。' : '仅限受邀用户和已注册账号登录。已注册账号可使用手机号验证码、微信或密码完成鉴权，新用户需输入有效邀请码。'}}</text>
+      <text class="invite-flow-access-note">{{entryFlow === 'existing' ? '已注册账号可使用短信验证码或账号密码登录。' : '仅限受邀用户和已注册账号登录。已注册账号可使用短信验证码或账号密码登录，新用户需输入有效邀请码。'}}</text>
     </view>
 
     <view class="invite-flow-form">
@@ -198,13 +197,12 @@
       </view>
 
       <view class="invite-flow-primary enjoy-button enjoy-button--primary" bindtap="handleInvitePrimaryLogin">
-        {{isPhoneLoggingIn ? (entryFlow === 'existing' ? '登录中...' : '登录/注册中...') : (entryFlow === 'existing' ? '登录' : '登录/注册')}}
+        {{isPhoneLoggingIn ? '处理中...' : '短信登录'}}
       </view>
       <view class="invite-flow-login-options {{entryFlow === 'existing' ? 'single' : ''}}">
-        <view class="invite-flow-login-option" bindtap="startPasswordLogin">密码登录</view>
-        <view class="invite-flow-login-option" bindtap="startWechatAuth">微信登录</view>
+        <view class="invite-flow-login-option" bindtap="startPasswordLogin">账号密码登录</view>
       </view>
-      <text class="invite-flow-invite-tip">已注册账号可使用验证码、微信或密码登录；首次注册需输入邀请码并完成短信验证码验证</text>
+      <text class="invite-flow-invite-tip">首次注册需输入邀请码并完成短信验证码验证；密码需在注册后于个人资料中设置</text>
       <view class="invite-flow-agreement" bindtap="toggleAgreement">
         <view class="checkbox enjoy-check {{agreed ? 'checked' : ''}} {{agreed ? 'enjoy-check--active' : ''}}">
           <text wx:if="{{agreed}}">✓</text>
@@ -304,8 +302,7 @@
     </view>
 
     <view class="account-switches">
-      <view class="account-switch enjoy-button enjoy-button--secondary" bindtap="startPhoneLogin">验证码登录</view>
-      <view class="account-switch enjoy-button enjoy-button--secondary" bindtap="startWechatAuth">微信登录</view>
+      <view class="account-switch enjoy-button enjoy-button--secondary" bindtap="startPhoneLogin">短信登录</view>
     </view>
 
     <view class="agreement" bindtap="toggleAgreement">
@@ -317,28 +314,6 @@
         <text class="agreement-link" catchtap="openUserAgreement">用户协议</text>
         <text class="agreement-normal">及</text>
         <text class="agreement-link" catchtap="openPrivacyAgreement">隐私协议</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="login-wrap auth-wrap" wx:elif="{{loginMode === 'wechatAuth'}}">
-    <view class="auth-content">
-      <view class="auth-wechat-icon">
-        <image class="auth-wechat-image" src="https://static.haowan.net.cn/miniprogram/pages/login/assets/icon-wechat.png" mode="aspectFit" />
-      </view>
-      <text class="auth-title">微信登录</text>
-      <text class="auth-desc">真好玩 申请获取你的微信头像、昵称</text>
-      <text class="auth-subdesc">用于完善个人资料</text>
-
-      <view class="auth-actions">
-        <view
-          class="allow-button enjoy-button enjoy-button--success enjoy-button--comfortable"
-          bindtap="handleWechatLogin"
-        >
-          {{hasWechatLogin ? '已允许' : isLoggingIn ? '授权中...' : '允许'}}
-        </view>
-
-        <view class="reject-button enjoy-button enjoy-button--secondary enjoy-button--comfortable" bindtap="declineAuth">拒绝</view>
       </view>
     </view>
   </view>

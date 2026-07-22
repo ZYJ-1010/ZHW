@@ -12,7 +12,7 @@ const TEST_PHONE = '13888888888'
 const TEST_REGISTER_PHONE = '13700000000'
 const TEST_CODE = '000000'
 const TEST_PASSWORD = 'Test123456'
-const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account', 'wechatAuth']
+const LOGIN_WALKTHROUGH_MODES = ['home', 'codeVerify', 'account']
 const INVITE_REQUIRED_MESSAGE = '小程序需要邀请才可以进入'
 const INVITE_INVALID_MESSAGE = '邀请码无效，请检查邀请链接或联系邀请人'
 const INITIAL_RESEND_SECONDS = 30
@@ -126,24 +126,6 @@ function normalizeInviteEntryType(value) {
   }
 
   return entryTypeMap[entryType] || entryType
-}
-
-function showInviteBindingNotice(message) {
-  const content = message || '该微信已绑定邀请码，将继续使用原邀请码进入小程序'
-  return new Promise((resolve) => {
-    if (typeof wx !== 'undefined' && typeof wx.showModal === 'function') {
-      wx.showModal({
-        title: '已绑定邀请码',
-        content,
-        showCancel: false,
-        confirmText: '知道了',
-        complete: resolve
-      })
-      return
-    }
-    toast.info(content)
-    resolve()
-  })
 }
 
 function resolveInviteRouteParams(options = {}) {
@@ -1201,13 +1183,7 @@ Page({
       return
     }
 
-    if (!this.data.agreed) {
-      toast.info('请先同意用户协议和隐私协议')
-      return
-    }
-
-    toast.info('请使用微信登录完成邀请绑定')
-    await this.startWechatAuth()
+    this.setData({ loginMode: 'home' })
   },
 
   startPasswordLogin() {
@@ -1450,13 +1426,7 @@ Page({
 
   async handlePasswordLogin() {
     if (this.data.isUiPreview) {
-      this.showUiPreviewMode('wechatAuth')
-      return
-    }
-
-    const inviteContext = this.resolveInviteContext()
-    if (!inviteContext) {
-      toast.info(INVITE_REQUIRED_MESSAGE)
+      this.showUiPreviewMode('account')
       return
     }
 
@@ -1524,85 +1494,6 @@ Page({
     })
   },
 
-  async startWechatAuth() {
-    if (this.data.isUiPreview) {
-      this.setData({
-        isUiPreview: false,
-        loginMode: 'wechatAuth',
-        agreed: true
-      })
-      return
-    }
-
-    if (!this.data.agreed) {
-      toast.info('请先同意用户协议和隐私协议')
-      return
-    }
-
-    this.setData({
-      loginMode: 'wechatAuth'
-    })
-  },
-
-  async handleWechatLogin() {
-    if (this.data.isUiPreview) {
-      this.showUiPreviewMode('newbieTasks')
-      return
-    }
-
-    const inviteContext = this.resolveInviteContext()
-    if (!this.data.agreed) {
-      toast.info('请先同意用户协议和隐私协议')
-      return
-    }
-
-    if (this.data.isLoggingIn || this.data.hasWechatLogin) {
-      return
-    }
-
-    this.setData({
-      isLoggingIn: true
-    })
-
-    try {
-      const loginData = await authService.loginByWechat({
-        inviteCode: inviteContext ? inviteContext.code : '',
-        entryType: inviteContext ? inviteContext.entryType || '' : ''
-      })
-      const isRegisteredWechat = loginData.boundWechat || loginData.authPageMode === 'login'
-
-      this.setData({
-        hasWechatLogin: true,
-        userInfo: loginData.user
-      })
-      inviteService.clearInviteContext()
-      if (loginData.inviteBindingStatus === 'already_bound') {
-        await showInviteBindingNotice(loginData.inviteBindingMessage)
-      } else {
-        toast.success(isRegisteredWechat ? '登录成功' : '注册成功')
-      }
-      await this.continueAfterLogin(loginData)
-    } catch (error) {
-      if (isInviteError(error)) {
-        if (isExpiredInviteError(error)) {
-          this.showExpiredInviteModal()
-          return
-        }
-        this.showInviteError(getInviteErrorMessage(error))
-        return
-      }
-
-      this.setData({
-        loginMode: 'wechatAuth'
-      })
-      toast.info(error.message || '授权失败')
-    } finally {
-      this.setData({
-        isLoggingIn: false
-      })
-    }
-  },
-
   goHome() {
     wx.reLaunch({
       url: `/${ROUTES.gameHall}`
@@ -1619,19 +1510,6 @@ Page({
     }
 
     navigateShellRoute(ROUTES.loginForgot)
-  },
-
-  declineAuth() {
-    if (this.data.isUiPreview) {
-      this.showUiPreviewMode('invite')
-      return
-    }
-
-    this.setData({
-      loginMode: 'home',
-      agreed: false
-    })
-    toast.info('已拒绝授权，可稍后再允许')
   },
 
   backToLogin() {
