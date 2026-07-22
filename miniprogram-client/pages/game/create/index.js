@@ -990,6 +990,24 @@ Page({
       return
     }
 
+    if (typeof wx.getSetting === 'function') {
+      wx.getSetting({
+        success: (setting = {}) => {
+          const authSetting = setting.authSetting || {}
+          if (authSetting['scope.userLocation'] === false) {
+            this.showLocationDeniedGuide()
+            return
+          }
+          this.requestCurrentLocationForGameMap()
+        },
+        fail: () => this.requestCurrentLocationForGameMap()
+      })
+      return
+    }
+    this.requestCurrentLocationForGameMap()
+  },
+
+  requestCurrentLocationForGameMap() {
     // Request location only after the user chooses to select an address.
     // A refusal still falls back to the native map, where manual search works.
     wx.getLocation({
@@ -1001,6 +1019,33 @@ Page({
         }
         this.setData({ locationFallbackInfo: currentLocation })
         this.openNativeGameLocation(currentLocation)
+      },
+      fail: () => this.openNativeGameLocation()
+    })
+  },
+
+  showLocationDeniedGuide() {
+    wx.showModal({
+      title: '开启定位权限',
+      content: '开启后可在地图中自动定位当前位置；也可以不授权，直接手动搜索地点。',
+      confirmText: '去设置',
+      cancelText: '手动选点',
+      success: (result = {}) => {
+        if (!result.confirm || typeof wx.openSetting !== 'function') {
+          this.openNativeGameLocation()
+          return
+        }
+        wx.openSetting({
+          success: (setting = {}) => {
+            const enabled = Boolean(setting.authSetting && setting.authSetting['scope.userLocation'])
+            if (enabled) {
+              this.requestCurrentLocationForGameMap()
+              return
+            }
+            this.openNativeGameLocation()
+          },
+          fail: () => this.openNativeGameLocation()
+        })
       },
       fail: () => this.openNativeGameLocation()
     })
