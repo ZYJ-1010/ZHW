@@ -70,7 +70,7 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 	requirements := make([]roleApplyRequirement, 0, 7)
 	if roleCode == "expert" {
 		requirements = append(requirements,
-			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
+			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsRealnameVerified(userID), "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
 			roleApplyCountRequirement("created_games", fmt.Sprintf("发起过 %d 次以上组局", rules.ExpertCreatedGames), createdGames[userID], rules.ExpertCreatedGames),
 			roleApplyCountRequirement("credit_score", fmt.Sprintf("信用分 ≥ %d 分", rules.ExpertCreditScore), growth.CreditScore, rules.ExpertCreditScore),
@@ -79,7 +79,7 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 	} else {
 		invitedCompleted := s.roleApplyInvitedCompletedCount(userID, completedUsers)
 		requirements = append(requirements,
-			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsVerified(userID), "已完成", "未完成"),
+			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsRealnameVerified(userID), "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
 			roleApplyCountRequirement("participated_games", fmt.Sprintf("参与过 %d 次以上组局", rules.GuideParticipatedGames), participatedGames[userID], rules.GuideParticipatedGames),
 			roleApplyCountRequirement("invited_completed_game", fmt.Sprintf("已成功邀请 ≥ %d 人完成组局", rules.GuideInvitedCompleted), invitedCompleted, rules.GuideInvitedCompleted),

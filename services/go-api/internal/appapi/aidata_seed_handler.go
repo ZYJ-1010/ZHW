@@ -112,7 +112,7 @@ func (s *Server) aiDataSnapshot() aidata.Snapshot {
 }
 
 func (s *Server) ensureSeedIdentity(userID int64) (bool, error) {
-	if s.identity.IsVerified(userID) {
+	if s.identity.IsRealnameVerified(userID) {
 		return false, nil
 	}
 	_, err := s.identity.BindPhone(userID, fmt.Sprintf("139%08d", userID%100000000))

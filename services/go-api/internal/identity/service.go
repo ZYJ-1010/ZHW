@@ -641,6 +641,15 @@ func (s *Service) IsVerified(userID int64) bool {
 	return record.PhoneVerified || record.FaceVerified || record.Status == StatusVerified
 }
 
+// IsRealnameVerified is stricter than IsVerified. Phone verification is enough
+// for account security, but role grants require an approved personal identity.
+func (s *Service) IsRealnameVerified(userID int64) bool {
+	record := s.Status(userID)
+	return record.Status == StatusVerified &&
+		strings.TrimSpace(record.RealNameCiphertext) != "" &&
+		strings.TrimSpace(record.IDCardCiphertext) != ""
+}
+
 func (s *Service) ensureLocked(userID int64) Record {
 	if record, ok := s.records[userID]; ok {
 		return record

@@ -866,6 +866,14 @@ func (s *Server) reviewRoleApplication(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
 		return
 	}
+	if req.Approve {
+		for _, item := range s.profiles.AllRoleApplications() {
+			if item.ID == applicationID && !s.identity.IsRealnameVerified(item.UserID) {
+				httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "必须先完成个人实名认证，才能开通角色身份")
+				return
+			}
+		}
+	}
 	app, err := s.profiles.ReviewRoleApplication(parseInt64Header(r, "X-Admin-ID"), applicationID, req)
 	if err != nil {
 		writeProfileError(w, err)

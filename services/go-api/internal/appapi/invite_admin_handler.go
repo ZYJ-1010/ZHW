@@ -42,11 +42,17 @@ func (s *Server) adminInviteCodes(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
 }
 
-// adminInviteOwners returns only users who can legally generate registration
-// invitations. The keyword is matched server-side so a full phone number or
-// real name never has to be downloaded to the browser just for searching.
+// adminInviteOwners returns the platform official account and users who can
+// legally own registration invitations. The keyword is matched server-side so
+// a full phone number or real name never has to be downloaded before searching.
 func (s *Server) adminInviteOwners(w http.ResponseWriter, r *http.Request) {
 	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
+	// 邀请人选择器只能通过关键词检索，避免把全部行家和领路人一次性暴露到后台页面。
+	if keyword == "" {
+		httpx.OK(w, map[string]interface{}{"items": []map[string]interface{}{}, "total": 0})
+		return
+	}
+	_, allowSensitive := s.admins.HasPermission(s.adminToken(r), "identity:sensitive:read")
 	usersList, err := s.auth.AdminUsers(users.Filter{Status: "active"})
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list invite owners failed")
@@ -61,7 +67,7 @@ func (s *Server) adminInviteOwners(w http.ResponseWriter, r *http.Request) {
 	const maxResults = 30
 	items := make([]map[string]interface{}, 0, maxResults)
 	for _, user := range usersList {
-		if !s.userCanGenerateInvitations(user.ID) {
+		if !s.userCanOwnAdminInviteCodes(user.ID) {
 			continue
 		}
 		record := recordByUserID[user.ID]
@@ -73,17 +79,28 @@ func (s *Server) adminInviteOwners(w http.ResponseWriter, r *http.Request) {
 		if phoneMasked == "" {
 			phoneMasked = strings.TrimSpace(record.PhoneMasked)
 		}
-		roles := s.profiles.RoleSnapshot(user.ID).RoleStatusMap
 		roleNames := make([]string, 0, 2)
-		if roles["expert"] == "approved" || roles["expert"] == "active" {
-			roleNames = append(roleNames, "行家")
+		if user.IsPlatformOfficial() {
+			roleNames = append(roleNames, "平台官方")
+		} else {
+			roles := s.profiles.RoleSnapshot(user.ID).RoleStatusMap
+			if roles["expert"] == "approved" || roles["expert"] == "active" {
+				roleNames = append(roleNames, "行家")
+			}
+			if roles["guide"] == "approved" || roles["guide"] == "active" {
+				roleNames = append(roleNames, "领路人")
+			}
 		}
-		if roles["guide"] == "approved" || roles["guide"] == "active" {
-			roleNames = append(roleNames, "领路人")
+		displayName := strings.TrimSpace(user.Nickname)
+		if allowSensitive {
+			if plain, revealErr := s.identity.RevealRecord(record); revealErr == nil && strings.TrimSpace(plain.RealName) != "" {
+				displayName = strings.TrimSpace(plain.RealName)
+			}
 		}
 		items = append(items, map[string]interface{}{
 			"id":             user.ID,
 			"nickname":       strings.TrimSpace(user.Nickname),
+			"displayName":    displayName,
 			"realNameMasked": strings.TrimSpace(record.RealNameMasked),
 			"phoneMasked":    phoneMasked,
 			"roles":          roleNames,
@@ -155,8 +172,8 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "owner user not found")
 		return
 	}
-	if !s.userCanGenerateInvitations(req.OwnerUserID) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是已生效的行家或领路人，请更换用户 ID")
+	if !s.userCanOwnAdminInviteCodes(req.OwnerUserID) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人，请更换用户 ID")
 		return
 	}
 	if req.BatchCount < 0 || req.BatchCount > config.MaxBatchCount {
@@ -657,8 +674,8 @@ func (s *Server) updateAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
 		return
 	}
-	if req.OwnerUserID <= 0 || !s.userCanGenerateInvitations(req.OwnerUserID) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是已生效的行家或领路人")
+	if req.OwnerUserID <= 0 || !s.userCanOwnAdminInviteCodes(req.OwnerUserID) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人")
 		return
 	}
 	var expiresAt time.Time

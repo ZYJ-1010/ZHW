@@ -21,10 +21,15 @@ type User struct {
 	Nickname       string    `json:"nickname"`
 	AvatarURL      string    `json:"avatarUrl"`
 	AvatarFileID   int64     `json:"avatarFileId,omitempty"`
+	AccountType    string    `json:"accountType,omitempty"`
 	RealnameStatus string    `json:"realnameStatus"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"createdAt"`
 	PasswordHash   string    `json:"-"`
+}
+
+func (u User) IsPlatformOfficial() bool {
+	return u.AccountType == "platform_official"
 }
 
 type Filter struct {

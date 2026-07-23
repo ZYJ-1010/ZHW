@@ -34,6 +34,7 @@ type identityService interface {
 	Status(userID int64) identity.Record
 	InGameIdentity(userID int64) (identity.InGameIdentity, bool)
 	IsVerified(userID int64) bool
+	IsRealnameVerified(userID int64) bool
 	AllRecords() []identity.Record
 	RevealRecord(record identity.Record) (identity.PlainIdentity, error)
 }
@@ -369,7 +370,7 @@ func (s *Server) issueTokenAfterIdentity(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	if !s.identity.IsVerified(userID) {
+	if !s.identity.IsRealnameVerified(userID) {
 		httpx.Error(w, http.StatusForbidden, 40341, "strong identity required")
 		return
 	}

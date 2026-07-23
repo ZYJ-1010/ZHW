@@ -18,7 +18,7 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 func (r *SQLRepository) FindByOpenID(ctx context.Context, openID string) (User, bool, error) {
 	user, err := scanUser(r.db.QueryRowContext(ctx, `
-select u.id, wa.openid, coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, wa.openid, coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from user_wechat_accounts wa
 join users u on u.id = wa.user_id
 where wa.openid = $1
@@ -34,7 +34,7 @@ where wa.openid = $1
 
 func (r *SQLRepository) FindByPhoneHash(ctx context.Context, phoneHash string) (User, bool, error) {
 	user, err := scanUser(r.db.QueryRowContext(ctx, `
-select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 left join user_wechat_accounts wa on wa.user_id = u.id
 where u.mobile_hash = $1
@@ -52,7 +52,7 @@ limit 1
 
 func (r *SQLRepository) FindByID(ctx context.Context, id int64) (User, bool, error) {
 	user, err := scanUser(r.db.QueryRowContext(ctx, `
-select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 left join user_wechat_accounts wa on wa.user_id = u.id
 where u.id = $1
@@ -94,7 +94,7 @@ or cast(u.id as text) = $%d
 	}
 
 	query := `
-select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 left join user_wechat_accounts wa on wa.user_id = u.id
 `
@@ -158,7 +158,7 @@ on conflict (user_id) do nothing
 	}
 
 	user, err := scanUser(tx.QueryRowContext(ctx, `
-select u.id, wa.openid, coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, wa.openid, coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 join user_wechat_accounts wa on wa.user_id = u.id
 where u.id = $1
@@ -199,7 +199,7 @@ on conflict (user_id) do nothing
 	}
 
 	user, err := scanUser(tx.QueryRowContext(ctx, `
-select u.id, '', coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, '', coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 where u.id = $1
 `, userID))
@@ -257,7 +257,7 @@ on conflict (user_id) do update set updated_at = now()
 	}
 
 	user, err := scanUser(tx.QueryRowContext(ctx, `
-select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, coalesce(wa.openid, ''), coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 left join user_wechat_accounts wa on wa.user_id = u.id
 where u.id = $1
@@ -382,7 +382,7 @@ where user_id = $1
 	}
 
 	user, err := scanUser(tx.QueryRowContext(ctx, `
-select u.id, '', coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), u.realname_status, u.status, u.created_at
+select u.id, '', coalesce(u.mobile_masked, ''), coalesce(u.nickname, ''), coalesce(u.avatar_url, ''), coalesce(u.avatar_file_id, 0), coalesce(u.account_type, 'player'), u.realname_status, u.status, u.created_at
 from users u
 where u.id = $1
 `, userID))
@@ -399,7 +399,7 @@ func scanUser(row interface {
 	Scan(dest ...any) error
 }) (User, error) {
 	var user User
-	err := row.Scan(&user.ID, &user.OpenID, &user.PhoneMasked, &user.Nickname, &user.AvatarURL, &user.AvatarFileID, &user.RealnameStatus, &user.Status, &user.CreatedAt)
+	err := row.Scan(&user.ID, &user.OpenID, &user.PhoneMasked, &user.Nickname, &user.AvatarURL, &user.AvatarFileID, &user.AccountType, &user.RealnameStatus, &user.Status, &user.CreatedAt)
 	return user, err
 }
 

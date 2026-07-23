@@ -65,7 +65,7 @@ func (s *Server) adminGrantRole(w http.ResponseWriter, r *http.Request) {
 			items = append(items, item)
 			continue
 		}
-		if !s.identity.IsVerified(userID) {
+		if !s.identity.IsRealnameVerified(userID) {
 			item["status"] = "failed"
 			item["reason"] = "必须先完成实名认证"
 			item["nickname"] = user.Nickname

@@ -1126,6 +1126,16 @@ func (s *Server) userCanGenerateInvitations(userID int64) bool {
 	return roles["expert"] == "approved" || roles["expert"] == "active" || roles["guide"] == "approved" || roles["guide"] == "active"
 }
 
+// platform_official is a backend-only inviter. It deliberately does not pass
+// the C-end role check above, so it can never obtain a user-side invite entry.
+func (s *Server) userCanOwnAdminInviteCodes(userID int64) bool {
+	user, found := s.auth.UserByID(userID)
+	if !found {
+		return false
+	}
+	return user.IsPlatformOfficial() || s.userCanGenerateInvitations(userID)
+}
+
 func (s *Server) createGameInviteReminder(w http.ResponseWriter, r *http.Request) {
 	userID, ok := s.requireUser(w, r)
 	if !ok {

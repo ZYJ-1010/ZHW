@@ -907,7 +907,7 @@ func (s *Server) defaultSystemProfileInfo(userID int64) map[string]interface{} {
 func (s *Server) profileCertificationSummary(userID int64) []map[string]interface{} {
 	personalStatus := "\u672a\u8ba4\u8bc1"
 	personalClass := ""
-	if s.identity.IsVerified(userID) {
+	if s.identity.IsRealnameVerified(userID) {
 		personalStatus = "\u5df2\u8ba4\u8bc1"
 		personalClass = "verified"
 	}

@@ -62,6 +62,15 @@ func TestAdminGrantRoleRequiresRealnameAndReconcilesGuide(t *testing.T) {
 		_ = json.Unmarshal(response.Body.Bytes(), &payload)
 		return response.Code, payload
 	}
+	if _, err := server.identity.BindPhone(userID, "13800000003"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.identity.MarkSMSVerified(userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.identity.VerifyPhone(userID, "Test User", "110101199001011234"); err != nil {
+		t.Fatal(err)
+	}
 	if code, payload := grant(); code != http.StatusOK || payload["data"] == nil {
 		t.Fatalf("expected per-item realname rejection response, code=%d payload=%v", code, payload)
 	}

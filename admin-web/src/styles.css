@@ -659,6 +659,15 @@ nav button[data-view]:hover,
   gap: calc(var(--space) * 1.5);
 }
 
+.game-create-basic-fields {
+  grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.game-create-basic-fields .field-with-hint {
+  align-content: start;
+}
+
 .game-create-fields .span-full,
 .game-create-fields .map-search-box {
   grid-column: 1 / -1;
@@ -909,6 +918,40 @@ textarea {
 
 .profile-detail-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.drawer-section {
+  display: grid;
+  gap: var(--space);
+}
+
+.drawer-section-head {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+.drawer-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.user-detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.user-detail-grid .detail-cell {
+  min-width: 0;
+}
+
+.user-detail-grid .detail-cell strong {
+  overflow-wrap: anywhere;
+}
+
+.user-detail-table-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(var(--space) * 2);
 }
 
 .nested-table {
@@ -1198,6 +1241,7 @@ tbody tr:hover {
 @media (max-width: 760px) {
   .rule-editor-control,
   .game-create-fields,
+  .game-create-basic-fields,
   .avatar-audit-preview-grid {
     grid-template-columns: 1fr;
   }
@@ -1484,7 +1528,8 @@ tbody tr:hover {
 
   .form-grid,
   .filters,
-  .detail-grid {
+  .detail-grid,
+  .user-detail-grid {
     grid-template-columns: 1fr;
   }
 

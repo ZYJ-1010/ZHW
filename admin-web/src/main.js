@@ -343,19 +343,25 @@ async function refreshPendingIndicators() {
 
 async function renderDashboard() {
   const canReadGames = can("game:read") || can("game:view");
-  const [dashboard, games, imRooms] = await Promise.all([
+  const [dashboard, games, imRooms, users, pending] = await Promise.all([
     apiGet("/api/admin/dashboard"),
     canReadGames ? apiGet("/api/admin/games") : Promise.resolve({ items: [] }),
     can("im:room:read") ? apiGet("/api/admin/im/rooms") : Promise.resolve({ items: [] }),
+    can("user:view") ? apiGet("/api/admin/users") : Promise.resolve({ items: [] }),
+    apiGet("/api/admin/pending-counts").catch(() => ({ counts: {} })),
   ]);
   state.dashboard = dashboard;
   state.games = games.items || [];
   state.imRooms = imRooms.items || [];
+  state.users = users.items || [];
 
-  setField("behaviorCount", countArray(dashboard.behaviorEvents || dashboard.events || dashboard.behaviorLogs));
-  setField("gameCount", state.games.length);
+  const pendingCounts = pending.counts || {};
+  const activeGames = state.games.filter((item) => item.status === "recruiting" || item.status === "in_progress");
   const pendingGames = state.games.filter((item) => item.status === "pending_audit").length;
-  setField("pendingGameCount", pendingGames);
+  setField("registeredUserCount", state.users.length);
+  setField("verifiedUserCount", state.users.filter((item) => item.realnameStatus === "verified").length);
+  setField("activeGameCount", activeGames.length);
+  setField("pendingWorkCount", Object.values(pendingCounts).reduce((total, count) => total + Number(count || 0), 0));
   const gamesNavButton = document.querySelector('#main-nav button[data-view="games"]');
   if (gamesNavButton) {
     gamesNavButton.classList.toggle("has-pending-dot", pendingGames > 0);
@@ -364,8 +370,8 @@ async function renderDashboard() {
   setField("imRoomCount", state.imRooms.length);
   renderGameTypeBars(state.games);
   renderDashboardStatusBars(state.games);
+  renderDashboardUserBars(state.users);
   renderDashboardWorkQueue(state.games, state.imRooms);
-  renderDashboardPermissionScope();
 }
 
 async function ensureUserDisplayCache() {
@@ -430,24 +436,30 @@ async function showUserDetail(id) {
     <div class="row-actions">
       <span class="${badgeClass(user.realnameStatus)}">${statusLabel(user.realnameStatus)}</span>
     </div>
-    <div class="detail-grid">
-      ${detailCell("账号状态", statusLabel(user.status))}
-      ${detailCell("实名状态", statusLabel(user.realnameStatus))}
-      ${detailCell("认证状态", statusLabel(identity.status))}
-      ${detailCell("绑定邀请码", user.inviteCode || "-")}
-      ${detailCell("邀请人", inviterLabel(inviter, inviteRelation))}
-      ${detailCell("用户身份", roleSnapshot(data.roles))}
-      ${detailCell("行家蓝标", user.expertBlueBadge && user.expertBlueBadge.enabled ? "已点亮" : "未点亮")}
-      ${detailCell("成长等级", `Lv.${growth.level || 0}`)}
-      ${detailCell("信用分", growth.creditScore || 0)}
-      ${detailCell("可用积分", points.availablePoints || growth.points || 0)}
-      ${detailCell("会员状态", statusLabel(membership.status))}
-      ${detailCell("收藏数", `${favorites.length} 个`)}
-      ${detailCell("人脉数", `${connections.length} 个`)}
-      ${detailCell("累计收益", yuanText(income.totalCent))}
-      ${detailCell("待结算收益", yuanText(income.pendingCent))}
-      ${detailCell("已结算收益", yuanText(income.settledCent))}
-    </div>
+    <section class="drawer-section">
+      <div class="drawer-section-head"><h3>账号与实名信息</h3></div>
+      <div class="detail-grid user-detail-grid">
+        ${detailCell("用户 ID", user.id || "-")}
+        ${detailCell("昵称", user.nickname || "-")}
+        ${detailCell("手机号", identityPhoneForAdmin(identity) || user.phoneMasked || "-")}
+        ${detailCell("真实姓名", identityNameForAdmin(identity))}
+        ${detailCell("身份证号", identityIDCardForAdmin(identity))}
+        ${detailCell("实名认证", statusLabel(identity.status || user.realnameStatus))}
+      </div>
+    </section>
+    <section class="drawer-section">
+      <div class="drawer-section-head"><h3>账户与身份</h3></div>
+      <div class="detail-grid user-detail-grid">
+        ${detailCell("账号状态", statusLabel(user.status))}
+        ${detailCell("用户身份", user.platformOfficial ? "平台官方推荐人（仅后台邀请码）" : roleSnapshot(data.roles))}
+        ${detailCell("行家蓝标", user.expertBlueBadge && user.expertBlueBadge.enabled ? "已点亮" : "未点亮")}
+        ${detailCell("成长等级", `Lv.${growth.level || 0}`)}
+        ${detailCell("信用分", growth.creditScore || 0)}
+        ${detailCell("可用积分", points.availablePoints || growth.points || 0)}
+        ${detailCell("会员状态", statusLabel(membership.status))}
+        ${detailCell("绑定邀请码", user.inviteCode || "-")}
+      </div>
+    </section>
     ${technicalDetails("技术识别信息", [
       detailCell("微信标识", user.openId || "-"),
       detailCell("用户 ID", user.id || "-"),
@@ -481,7 +493,17 @@ async function showUserDetail(id) {
       </form>
     </div>
     ` : ""}
-    <div class="split profile-form-gap">
+    <section class="drawer-section">
+      <div class="drawer-section-head"><h3>运营数据</h3></div>
+      <div class="detail-grid user-detail-grid">
+        ${detailCell("收藏数", `${favorites.length} 个`)}
+        ${detailCell("人脉数", `${connections.length} 个`)}
+        ${detailCell("累计收益", yuanText(income.totalCent))}
+        ${detailCell("待结算收益", yuanText(income.pendingCent))}
+        ${detailCell("已结算收益", yuanText(income.settledCent))}
+      </div>
+    </section>
+    <div class="user-detail-table-stack profile-form-gap">
       ${gameOpsTable("收藏明细", ["用户", "组局", "局标题", "收藏时间"], favorites.map(userFavoriteRow).join("") || emptyRow(4, "暂无收藏"))}
       ${gameOpsTable("人脉明细", ["关系编号", "用户", "关联用户", "关系类型", "来源", "关系强度", "更新时间"], connections.map(connectionRow).join("") || emptyRow(7, "暂无人脉"))}
     </div>
@@ -747,7 +769,7 @@ async function showInviteCodeDetail(code) {
       <form id="invite-edit-form" class="form-grid compact-grid">
         <label class="user-picker-field">邀请人（用户 ID / 手机号 / 实名姓名）
           <div class="user-picker" data-invite-owner-picker>
-            <input name="ownerUserText" type="text" autocomplete="off" required value="${escapeHTML(userText(invite.ownerUserId))}" data-invite-owner-input />
+            <input name="ownerUserText" type="text" autocomplete="off" required value="${escapeHTML(owner.displayName || owner.realName || owner.nickname || "")}" placeholder="输入行家或领路人的用户 ID、手机号、实名姓名" data-invite-owner-input />
             <input name="ownerUserId" type="hidden" value="${escapeHTML(invite.ownerUserId)}" data-invite-owner-value />
             <div class="user-picker-menu" data-invite-owner-menu></div>
           </div>
@@ -5435,7 +5457,6 @@ function userRow(user) {
   return `
     <tr>
       <td>${escapeHTML(user.id || "-")}</td>
-      <td>${escapeHTML(wechatBindingText(user.openId))}</td>
       <td>${escapeHTML(user.nickname || userText(user.id))}</td>
       <td>${escapeHTML(inviterLabel(user.inviter || { id: user.inviterUserId, nickname: user.inviterNickname }, user.inviteRelation))}</td>
       <td><span class="${badgeClass(user.realnameStatus)}">${statusLabel(user.realnameStatus)}</span></td>
@@ -6337,6 +6358,26 @@ function renderDashboardStatusBars(games) {
   }).join("");
 }
 
+function renderDashboardUserBars(users) {
+  const target = $("#user-status-bars");
+  if (!target) return;
+  const items = Array.isArray(users) ? users : [];
+  const statuses = [
+    { label: "已实名", count: items.filter((item) => item.realnameStatus === "verified").length },
+    { label: "待审核", count: items.filter((item) => item.realnameStatus === "pending").length },
+    { label: "已绑手机", count: items.filter((item) => item.realnameStatus === "phone_bound").length },
+    { label: "账号正常", count: items.filter((item) => item.status === "active").length },
+  ];
+  const max = Math.max(1, ...statuses.map((item) => item.count));
+  target.innerHTML = statuses.map((item) => `
+    <div class="bar-row">
+      <span>${escapeHTML(item.label)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((item.count / max) * 100)}%"></div></div>
+      <strong>${item.count}</strong>
+    </div>
+  `).join("");
+}
+
 function renderDashboardWorkQueue(games, imRooms) {
   const target = $("#dashboard-work-queue");
   if (!target) return;
@@ -6370,19 +6411,6 @@ function renderDashboardWorkQueue(games, imRooms) {
       loadView(state.view);
     });
   });
-}
-
-function renderDashboardPermissionScope() {
-  const target = $("#dashboard-permission-scope");
-  if (!target) return;
-  const menus = state.permissionTree?.menus || [];
-  target.innerHTML = menus.length
-    ? menus.map((item) => stackItem({
-      title: views[item.code]?.title || item.name || item.code,
-      badge: "active",
-      meta: [`菜单：${views[item.code]?.crumb || item.code}`, `权限点：${compactList(item.permissions || [], 5)}`],
-    })).join("")
-    : emptyBlock("当前账号暂无后台菜单权限");
 }
 
 function stackItem({ title, badge, meta, action = "" }) {
@@ -7624,6 +7652,7 @@ function statusLabel(value) {
     empty: "暂无数据",
     pending: "待处理",
     phone_bound: "已绑手机",
+    system: "平台账号",
     sms_verified: "短信已验证",
     phone_verified: "手机号已核验",
     faceid_processing: "人脸核身中",
@@ -7723,7 +7752,7 @@ function inviterLabel(inviter, inviteRelation) {
 function inviterPickerValue(inviter, inviteRelation) {
   const inviterID = Number(inviter?.id || inviteRelation?.inviterUserId || inviteRelation?.inviter_user_id || 0);
   if (!inviterID) return "";
-  return userPickerOptionText({ id: inviterID, nickname: inviter?.nickname || "" });
+  return String(inviter?.displayName || inviter?.realName || inviter?.nickname || userPickerOptionText({ id: inviterID, nickname: inviter?.nickname || "" }));
 }
 
 function inviterPickerID(inviter, inviteRelation) {
@@ -7768,6 +7797,10 @@ function inviteOwnerOptionText(item = {}) {
   return identity.length ? `${primary} · ${identity.join(" · ")}` : primary;
 }
 
+function inviteOwnerSelectedText(item = {}) {
+  return String(item.displayName || item.realName || item.nickname || `用户 ${Number(item.id) || ""}`).trim();
+}
+
 function bindInviteOwnerPicker(form) {
   const picker = form?.querySelector("[data-invite-owner-picker]");
   if (!picker) return;
@@ -7789,13 +7822,13 @@ function bindInviteOwnerPicker(form) {
       ? items.map((item) => `<button class="user-picker-option" type="button" data-invite-owner-option data-user-id="${escapeHTML(Number(item.id) || 0)}">
           <span>${escapeHTML(inviteOwnerOptionText(item))}</span>
         </button>`).join("")
-      : '<div class="user-picker-empty">没有匹配的行家或领路人</div>';
+      : '<div class="user-picker-empty">没有匹配的平台官方账号、行家或领路人</div>';
     menu.querySelectorAll("[data-invite-owner-option]").forEach((button) => {
       button.addEventListener("mousedown", (event) => event.preventDefault());
       button.addEventListener("click", () => {
         const selected = items.find((item) => Number(item.id) === Number(button.dataset.userId));
         if (!selected) return;
-        input.value = inviteOwnerOptionText(selected);
+        input.value = inviteOwnerSelectedText(selected);
         valueInput.value = String(selected.id);
         picker.classList.remove("is-open");
       });
@@ -7805,6 +7838,12 @@ function bindInviteOwnerPicker(form) {
   const search = async () => {
     const version = ++requestVersion;
     const keyword = String(input.value || "").trim();
+    if (!keyword) {
+      items = [];
+      picker.classList.remove("is-open");
+      menu.innerHTML = "";
+      return;
+    }
     picker.classList.add("is-open");
     render("正在搜索…");
     try {
@@ -7824,7 +7863,10 @@ function bindInviteOwnerPicker(form) {
     timer = window.setTimeout(() => { void search(); }, 220);
   };
 
-  input.addEventListener("focus", scheduleSearch);
+  input.addEventListener("focus", () => {
+    if (!String(input.value || "").trim()) return;
+    scheduleSearch();
+  });
   input.addEventListener("input", () => {
     valueInput.value = "";
     scheduleSearch();
@@ -7834,7 +7876,7 @@ function bindInviteOwnerPicker(form) {
     const first = items[0];
     if (!first || valueInput.value) return;
     event.preventDefault();
-    input.value = inviteOwnerOptionText(first);
+    input.value = inviteOwnerSelectedText(first);
     valueInput.value = String(first.id);
     picker.classList.remove("is-open");
   });

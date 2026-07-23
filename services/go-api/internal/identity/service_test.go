@@ -167,6 +167,39 @@ func TestManualRealnameReviewFlow(t *testing.T) {
 	}
 }
 
+func TestRealnameVerificationDoesNotTreatPhoneVerificationAsApprovedIdentity(t *testing.T) {
+	service := NewService()
+	userID := int64(10002)
+	if _, err := service.BindPhone(userID, "13800000002"); err != nil {
+		t.Fatal(err)
+	}
+	dispatch, err := service.SendSMSCode(userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.VerifySMSCode(userID, dispatch.MockCode); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.VerifyPhone(userID, "Test User", "110101199001011234"); err != nil {
+		t.Fatal(err)
+	}
+	if !service.IsVerified(userID) {
+		t.Fatal("phone verification should remain available for account security")
+	}
+	if service.IsRealnameVerified(userID) {
+		t.Fatal("phone verification must not satisfy the role realname requirement")
+	}
+	if _, err = service.SubmitManualRealname(userID, "Test User", "110101199001011234"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ReviewManualRealname(userID, true, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !service.IsRealnameVerified(userID) {
+		t.Fatal("approved personal identity should satisfy the role realname requirement")
+	}
+}
+
 func TestSMSCodeRateLimit(t *testing.T) {
 	service := NewService()
 	userID := int64(1)

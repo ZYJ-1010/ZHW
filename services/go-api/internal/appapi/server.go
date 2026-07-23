@@ -1016,12 +1016,17 @@ func (s *Server) adminUserDetail(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "user not found")
 		return
 	}
-	record := s.identity.Status(userID)
 	relation, _, _ := s.auth.InviteRelationForUser(userID)
 	inviter := s.adminUserSummary(relation.InviterUserID)
+	identityPayload := map[string]interface{}{"status": "system", "platformOfficial": true}
+	if !user.IsPlatformOfficial() {
+		record := s.identity.Status(userID)
+		identityPayload = s.adminIdentityPayloadForRequest(r, record)
+	}
 	httpx.OK(w, map[string]interface{}{
-		"user":           s.adminUserPayload(user, relation),
-		"identity":       record,
+		"user": s.adminUserPayload(user, relation),
+		// 用户详情在后台沿用实名认证详情的敏感字段权限控制；C 端不会经过该接口。
+		"identity":       identityPayload,
 		"inviteRelation": relation,
 		"inviter":        inviter,
 		"growth":         s.reviews.Profile(userID),
@@ -1061,8 +1066,8 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "inviter not found")
 		return
 	}
-	if !s.userCanGenerateInvitations(inviter.ID) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是已生效的行家或领路人")
+	if !s.userCanOwnAdminInviteCodes(inviter.ID) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人")
 		return
 	}
 	relation, err := s.auth.SetInviteRelationInviter(userID, inviter.ID, "admin_manual")
@@ -1092,17 +1097,19 @@ func (s *Server) adminUserPayload(user users.User, relation invites.Relation) ma
 		inviteCode, _ = s.auth.InviteCodeForUser(user.ID)
 	}
 	payload := map[string]interface{}{
-		"id":              user.ID,
-		"openId":          user.OpenID,
-		"phoneMasked":     user.PhoneMasked,
-		"nickname":        user.Nickname,
-		"avatarUrl":       user.AvatarURL,
-		"avatarFileId":    user.AvatarFileID,
-		"realnameStatus":  user.RealnameStatus,
-		"status":          user.Status,
-		"createdAt":       user.CreatedAt,
-		"inviteCode":      inviteCode,
-		"expertBlueBadge": s.expertBlueBadgeForUser(user.ID),
+		"id":               user.ID,
+		"openId":           user.OpenID,
+		"phoneMasked":      user.PhoneMasked,
+		"nickname":         user.Nickname,
+		"avatarUrl":        user.AvatarURL,
+		"avatarFileId":     user.AvatarFileID,
+		"accountType":      user.AccountType,
+		"platformOfficial": user.IsPlatformOfficial(),
+		"realnameStatus":   user.RealnameStatus,
+		"status":           user.Status,
+		"createdAt":        user.CreatedAt,
+		"inviteCode":       inviteCode,
+		"expertBlueBadge":  s.expertBlueBadgeForUser(user.ID),
 	}
 	if relation.InviteeUserID > 0 {
 		payload["inviteRelation"] = relation
@@ -1447,7 +1454,7 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	// identity. Only users operating an active expert/guide role are gated by
 	// real-name verification; role application endpoints still validate the
 	// requirement server-side.
-	resp.RequiresIdentityBinding = s.requiresRoleIdentity(resp.User.ID) && !s.identity.IsVerified(resp.User.ID)
+	resp.RequiresIdentityBinding = s.requiresRoleIdentity(resp.User.ID) && !s.identity.IsRealnameVerified(resp.User.ID)
 	if !resp.RequiresIdentityBinding {
 		session, err := s.auth.IssueAppToken(resp.User.ID)
 		if err != nil {

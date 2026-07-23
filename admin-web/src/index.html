@@ -120,24 +120,24 @@
     <template id="dashboard-template">
       <div class="metric-grid">
         <article class="metric-card">
-          <span>用户事件</span>
-          <strong data-field="behaviorCount">0</strong>
-          <small>小程序行为与后台操作输入</small>
+          <span>注册用户</span>
+          <strong data-field="registeredUserCount">0</strong>
+          <small>当前小程序用户总数</small>
         </article>
         <article class="metric-card">
-          <span>组局数</span>
-          <strong data-field="gameCount">0</strong>
-          <small>局类型与局类别分别统计</small>
+          <span>已实名用户</span>
+          <strong data-field="verifiedUserCount">0</strong>
+          <small>已通过个人实名认证</small>
         </article>
         <article class="metric-card">
-          <span>待审局</span>
-          <strong data-field="pendingGameCount">0</strong>
-          <small>后台审核后进入招募</small>
+          <span>活跃组局</span>
+          <strong data-field="activeGameCount">0</strong>
+          <small>招募中与进行中的局</small>
         </article>
         <article class="metric-card">
-          <span>局内消息房间</span>
-          <strong data-field="imRoomCount">0</strong>
-          <small>房间、消息和争议证据</small>
+          <span>待处理事项</span>
+          <strong data-field="pendingWorkCount">0</strong>
+          <small>审核、申诉、兑换等需处理事项</small>
         </article>
       </div>
       <div class="split">
@@ -146,8 +146,8 @@
           <div id="game-type-bars" class="bars"></div>
         </section>
         <section class="panel">
-          <div class="panel-head"><h2>组局状态</h2></div>
-          <div id="game-status-bars" class="bars"></div>
+          <div class="panel-head"><h2>用户状态</h2></div>
+          <div id="user-status-bars" class="bars"></div>
         </section>
       </div>
       <div class="split">
@@ -156,8 +156,8 @@
           <div id="dashboard-work-queue" class="stack-list"></div>
         </section>
         <section class="panel">
-          <div class="panel-head"><h2>管理员职责</h2></div>
-          <div id="dashboard-permission-scope" class="stack-list"></div>
+          <div class="panel-head"><h2>组局状态</h2></div>
+          <div id="game-status-bars" class="bars"></div>
         </section>
       </div>
     </template>
@@ -193,7 +193,6 @@
             <thead>
               <tr>
                 <th>用户 ID</th>
-                <th>用户来源</th>
                 <th>昵称</th>
                 <th>邀请人</th>
                 <th>实名状态</th>
@@ -214,7 +213,7 @@
         <div class="panel-head">
           <div>
             <h2>创建邀请码</h2>
-            <p>支持小程序卡片、二维码、链接三种入口；邀请人必须是已生效的行家或领路人，每个邀请码只能使用一次。</p>
+            <p>支持小程序卡片、二维码、链接三种入口；邀请人可选平台官方账号，或已生效的行家、领路人；每个邀请码只能使用一次。</p>
           </div>
         </div>
         <form id="invite-create-form" class="form-grid">
@@ -355,7 +354,7 @@
               <h3>基本信息</h3>
               <p>确定发起人、局类型和局类别后创建免费局。</p>
             </div>
-            <div class="game-create-fields">
+            <div class="game-create-fields game-create-basic-fields">
               <label class="span-full">标题<input name="title" required maxlength="80" placeholder="例如：北京周末条件局" /></label>
               <div class="field-with-hint">
                 <label>发起人

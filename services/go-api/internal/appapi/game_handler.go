@@ -4474,7 +4474,7 @@ func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 		FileIDs  []int64 `json:"fileIds"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	if config := s.currentGameApplicationConfig(); config.RequireRealname && !s.identity.IsVerified(userID) {
+	if config := s.currentGameApplicationConfig(); config.RequireRealname && !s.identity.IsRealnameVerified(userID) {
 		httpx.Error(w, http.StatusForbidden, 40341, "申请入局前请先完成实名认证")
 		return
 	}

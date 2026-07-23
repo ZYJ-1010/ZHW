@@ -994,6 +994,10 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
 	postAdminJSON(t, mux, "/api/admin/roles/grant", adminToken, `{"userId":`+ownerUserIDJSON+`,"roleCode":"guide","reason":"邀请码生成测试"}`, http.StatusOK)
 	getAdminJSON(t, mux, "/api/admin/invite-owners?keyword=User", operatorToken, http.StatusForbidden)
+	emptyOwnerSearchBody := getAdminJSON(t, mux, "/api/admin/invite-owners", adminToken, http.StatusOK)
+	if !bytes.Contains(emptyOwnerSearchBody, []byte(`"total":0`)) {
+		t.Fatalf("expected empty keyword to return no invite owners: %s", string(emptyOwnerSearchBody))
+	}
 	ownerIdentity := identityService.Status(ownerUserID)
 	ownerPlain, err := identityService.RevealRecord(ownerIdentity)
 	if err != nil || ownerPlain.Phone == "" || ownerPlain.RealName == "" {
@@ -1005,6 +1009,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 			Total int `json:"total"`
 			Items []struct {
 				ID             int64    `json:"id"`
+				DisplayName    string   `json:"displayName"`
 				RealNameMasked string   `json:"realNameMasked"`
 				PhoneMasked    string   `json:"phoneMasked"`
 				Roles          []string `json:"roles"`
@@ -1014,7 +1019,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(ownerSearchBody, &ownerSearchResp); err != nil {
 		t.Fatal(err)
 	}
-	if ownerSearchResp.Data.Total != 1 || len(ownerSearchResp.Data.Items) != 1 || ownerSearchResp.Data.Items[0].ID != ownerUserID || ownerSearchResp.Data.Items[0].RealNameMasked != ownerIdentity.RealNameMasked || ownerSearchResp.Data.Items[0].RealNameMasked == ownerPlain.RealName || ownerSearchResp.Data.Items[0].PhoneMasked == "" || !reflect.DeepEqual(ownerSearchResp.Data.Items[0].Roles, []string{"领路人"}) {
+	if ownerSearchResp.Data.Total != 1 || len(ownerSearchResp.Data.Items) != 1 || ownerSearchResp.Data.Items[0].ID != ownerUserID || ownerSearchResp.Data.Items[0].DisplayName != ownerPlain.RealName || ownerSearchResp.Data.Items[0].RealNameMasked != ownerIdentity.RealNameMasked || ownerSearchResp.Data.Items[0].RealNameMasked == ownerPlain.RealName || ownerSearchResp.Data.Items[0].PhoneMasked == "" || !reflect.DeepEqual(ownerSearchResp.Data.Items[0].Roles, []string{"领路人"}) {
 		t.Fatalf("expected guide owner phone search result: %s", string(ownerSearchBody))
 	}
 	body := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"qrcode"}`, http.StatusOK)
@@ -1788,7 +1793,7 @@ func TestAdminUsersListSupportsInviteLoggedUsers(t *testing.T) {
 	}
 
 	detailBody := getAdminJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(user.ID, 10), adminToken, http.StatusOK)
-	if !bytes.Contains(detailBody, []byte(`"user"`)) || !bytes.Contains(detailBody, []byte(`"identity"`)) {
+	if !bytes.Contains(detailBody, []byte(`"user"`)) || !bytes.Contains(detailBody, []byte(`"identity"`)) || !bytes.Contains(detailBody, []byte(`"realNameFull":"User"`)) || !bytes.Contains(detailBody, []byte(`"idCardFull":"110101199001011234"`)) {
 		t.Fatalf("expected admin user detail with identity bundle: %s", string(detailBody))
 	}
 }
