@@ -18,24 +18,20 @@ const APPLY_NAV_BOTTOM_GAP_RPX = 13
 const APPLY_FRAME_BOTTOM_PADDING_RPX = 10
 const EXPERT_APPLY_SUCCESS_REDIRECT_DELAY_MS = 1200
 const EXPERT_APPLY_YEAR_OPTIONS = Array.from({ length: 30 }, (_, index) => `${index + 1}年`).concat('30年以上')
-const EXPERT_SERVICE_COUNT = 3
-const GUIDE_SERVICE_COUNT = 3
 const GUIDE_UPLOAD_ACCEPT_TYPES = ['JPG', 'PNG', 'PDF']
 const DEFAULT_EXPERT_APPLY_FORM = {
   skillTags: '',
   experienceYearIndex: -1,
   experienceYears: '',
   intro: '',
-  uploadFiles: [],
-  services: []
+  uploadFiles: []
 }
 const DEFAULT_GUIDE_APPLY_FORM = {
   city: '',
   audience: [],
   contact: '',
   guidePlan: '',
-  uploadFiles: [],
-  services: []
+  uploadFiles: []
 }
 const DEFAULT_EXPERT_APPLY_CONFIG = {
   skillOptions: [
@@ -106,9 +102,9 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
   },
   perksTitle: '行家特权',
   perks: [
-    { icon: UI_ICONS.panel.revenue, text: '有权益的行家可发起有偿局并可获得相应收入' },
+    { icon: UI_ICONS.panel.featured, text: '开通行家身份后可使用行家主页和组局管理能力' },
     { icon: UI_ICONS.panel.featured, text: '专属行家标识与优先推荐位' },
-    { icon: UI_ICONS.panel.data, text: '数据看板：查看服务数据与收益分析' }
+    { icon: UI_ICONS.panel.data, text: '数据看板：查看组局与评价数据' }
   ],
   validationRules: {
     skillTags: {
@@ -119,22 +115,14 @@ const DEFAULT_EXPERT_APPLY_CONFIG = {
       minLength: 50,
       maxLength: 300
     },
-    serviceName: {
-      minLength: 2,
-      maxLength: 20
-    },
     customSkill: {
       minLength: 2,
       maxLength: 8
-    },
-    money: {
-      integerMaxLength: 8,
-      decimalMaxLength: 2
     }
   },
   yearOptions: EXPERT_APPLY_YEAR_OPTIONS,
-  serviceCount: EXPERT_SERVICE_COUNT,
-  priceHint: '平台将收取 10% 服务费',
+  serviceCount: 0,
+  priceHint: '',
   primaryText: '下一步',
   helperText: '审核预计 1-3 个工作日'
 }
@@ -174,45 +162,23 @@ function getPositiveInteger(value, fallback) {
   return Number.isInteger(number) && number > 0 ? number : fallback
 }
 
-function createExpertApplyServices(count = EXPERT_SERVICE_COUNT) {
-  const serviceCount = getPositiveInteger(count, EXPERT_SERVICE_COUNT)
-
-  return Array.from({ length: serviceCount }, () => ({
-    name: '',
-    price: '',
-    cost: ''
-  }))
-}
-
-function createExpertApplyServiceErrors(count = EXPERT_SERVICE_COUNT) {
-  const serviceCount = getPositiveInteger(count, EXPERT_SERVICE_COUNT)
-
-  return Array.from({ length: serviceCount }, () => ({
-    name: '',
-    price: '',
-    cost: ''
-  }))
-}
-
-function createExpertApplyForm(count = EXPERT_SERVICE_COUNT) {
+function createExpertApplyForm() {
   return {
     skillTags: DEFAULT_EXPERT_APPLY_FORM.skillTags,
     experienceYearIndex: DEFAULT_EXPERT_APPLY_FORM.experienceYearIndex,
     experienceYears: DEFAULT_EXPERT_APPLY_FORM.experienceYears,
     intro: DEFAULT_EXPERT_APPLY_FORM.intro,
-    uploadFiles: DEFAULT_EXPERT_APPLY_FORM.uploadFiles.map((file) => ({ ...file })),
-    services: createExpertApplyServices(count)
+    uploadFiles: DEFAULT_EXPERT_APPLY_FORM.uploadFiles.map((file) => ({ ...file }))
   }
 }
 
-function createGuideApplyForm(count = GUIDE_SERVICE_COUNT) {
+function createGuideApplyForm() {
   return {
     city: DEFAULT_GUIDE_APPLY_FORM.city,
     audience: DEFAULT_GUIDE_APPLY_FORM.audience.slice(),
     contact: DEFAULT_GUIDE_APPLY_FORM.contact,
     guidePlan: DEFAULT_GUIDE_APPLY_FORM.guidePlan,
-    uploadFiles: DEFAULT_GUIDE_APPLY_FORM.uploadFiles.slice(),
-    services: createExpertApplyServices(count)
+    uploadFiles: DEFAULT_GUIDE_APPLY_FORM.uploadFiles.slice()
   }
 }
 
@@ -244,22 +210,6 @@ function hasAnyError(errorMap) {
   return Object.keys(errorMap).some((key) => Boolean(errorMap[key]))
 }
 
-function getMoneyRule(rules) {
-  const moneyRule = (rules && rules.money) || DEFAULT_EXPERT_APPLY_CONFIG.validationRules.money
-
-  return {
-    integerMaxLength: getPositiveInteger(moneyRule.integerMaxLength, 8),
-    decimalMaxLength: getPositiveInteger(moneyRule.decimalMaxLength, 2)
-  }
-}
-
-function isValidMoney(value, rules) {
-  const text = trimText(value)
-  const moneyRule = getMoneyRule(rules)
-  const pattern = new RegExp(`^(0|[1-9]\\d{0,${moneyRule.integerMaxLength - 1}})(\\.\\d{1,${moneyRule.decimalMaxLength}})?$`)
-
-  return pattern.test(text) && Number(text) > 0
-}
 
 function normalizeUploadFile(file, index) {
   const path = file.path || file.tempFilePath || ''
@@ -448,16 +398,8 @@ function normalizeExpertPerks(perks) {
 }
 
 function createExpertServiceBlocks(count = EXPERT_SERVICE_COUNT) {
-  const serviceCount = getPositiveInteger(count, EXPERT_SERVICE_COUNT)
-
-  return Array.from({ length: serviceCount }, (_, index) => ({
-    id: `service-${index + 1}`,
-    title: '业务：',
-    fields: [
-      { key: 'price', label: '服务定价（元/小时）', required: true },
-      { key: 'cost', label: '服务成本', required: false }
-    ]
-  }))
+  // 一期角色申请不提供报价或服务交易，旧配置也不可重新开启。
+  return []
 }
 
 function normalizeValidationRules(rules) {
@@ -487,7 +429,7 @@ function extractResponseData(result) {
 
 function normalizeExpertApplyConfig(config) {
   const rawConfig = config && typeof config === 'object' ? config : {}
-  const serviceCount = getPositiveInteger(rawConfig.serviceCount, DEFAULT_EXPERT_APPLY_CONFIG.serviceCount)
+  const serviceCount = 0
 
   return {
     skillOptions: normalizeSkillOptions(rawConfig.skillOptions || rawConfig.skillDomains),
@@ -500,10 +442,8 @@ function normalizeExpertApplyConfig(config) {
       ? rawConfig.yearOptions
       : DEFAULT_EXPERT_APPLY_CONFIG.yearOptions,
     serviceCount,
-    serviceBlocks: Array.isArray(rawConfig.serviceBlocks) && rawConfig.serviceBlocks.length
-      ? rawConfig.serviceBlocks
-      : createExpertServiceBlocks(serviceCount),
-    priceHint: rawConfig.priceHint || DEFAULT_EXPERT_APPLY_CONFIG.priceHint,
+    serviceBlocks: [],
+    priceHint: '',
     requirementsTitle: rawConfig.requirementsTitle || DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
     requirements: resolveApplyRequirements(rawConfig.requirements, DEFAULT_EXPERT_APPLY_CONFIG.requirements),
     planTask: normalizeExpertPlanTask(rawConfig.planTask),
@@ -516,7 +456,7 @@ function normalizeExpertApplyConfig(config) {
 
 function normalizeGuideApplyConfig(config) {
   const rawConfig = config && typeof config === 'object' ? config : {}
-  const serviceCount = getPositiveInteger(rawConfig.serviceCount, GUIDE_SERVICE_COUNT)
+  const serviceCount = 0
   const fields = Array.isArray(rawConfig.fields) ? cloneObject(rawConfig.fields) : []
 
   return {
@@ -527,10 +467,8 @@ function normalizeGuideApplyConfig(config) {
     }, rawConfig.uploadField || rawConfig.upload || {})),
     validationRules: normalizeValidationRules(rawConfig.validationRules),
     serviceCount,
-    serviceBlocks: Array.isArray(rawConfig.serviceBlocks) && rawConfig.serviceBlocks.length
-      ? rawConfig.serviceBlocks
-      : createExpertServiceBlocks(serviceCount),
-    priceHint: rawConfig.priceHint || DEFAULT_EXPERT_APPLY_CONFIG.priceHint,
+    serviceBlocks: [],
+    priceHint: '',
     requirementsTitle: rawConfig.requirementsTitle || DEFAULT_EXPERT_APPLY_CONFIG.requirementsTitle,
     requirements: resolveApplyRequirements(rawConfig.requirements, DEFAULT_GUIDE_APPLY_REQUIREMENTS),
     planTask: normalizeExpertPlanTask(rawConfig.planTask),
@@ -590,9 +528,9 @@ function applyExpertApplyConfigToPage(page, config) {
   })
 }
 
-function normalizeGuideApplyDraftForm(draft, serviceCount, fields = []) {
+function normalizeGuideApplyDraftForm(draft, fields = []) {
   const sourceForm = draft && draft.form && typeof draft.form === 'object' ? draft.form : {}
-  const baseForm = createGuideApplyForm(serviceCount)
+  const baseForm = createGuideApplyForm()
   const audienceField = fields.find((field) => field && field.key === 'audience') || {}
   const defaultAudience = Array.isArray(audienceField.options)
     ? audienceField.options.filter((option) => option.active).map((option) => option.name).filter(Boolean)
@@ -600,10 +538,7 @@ function normalizeGuideApplyDraftForm(draft, serviceCount, fields = []) {
 
   return Object.assign({}, baseForm, sourceForm, {
     audience: Array.isArray(sourceForm.audience) ? sourceForm.audience : defaultAudience,
-    uploadFiles: Array.isArray(sourceForm.uploadFiles) ? sourceForm.uploadFiles : [],
-    services: createExpertApplyServices(serviceCount).map((service, index) => (
-      Object.assign({}, service, (sourceForm.services || [])[index] || {})
-    ))
+    uploadFiles: Array.isArray(sourceForm.uploadFiles) ? sourceForm.uploadFiles : []
   })
 }
 
@@ -613,7 +548,6 @@ function isGuideApplyFormEmpty(form = {}) {
     && !trimText(form.contact)
     && !trimText(form.guidePlan)
     && (!Array.isArray(form.uploadFiles) || form.uploadFiles.length === 0)
-    && (form.services || []).every((service) => !trimText(service.name) && !trimText(service.price) && !trimText(service.cost))
 }
 
 function applyGuideFormToPage(page, form = {}) {
@@ -642,24 +576,18 @@ function isExpertApplyFormEmpty(form) {
     return true
   }
 
-  const services = form.services || []
-
   return !trimText(form.skillTags)
     && !form.experienceYears
     && !trimText(form.intro)
     && (!form.uploadFiles || form.uploadFiles.length === 0)
-    && services.every((service) => !trimText(service.name) && !trimText(service.price) && !trimText(service.cost))
 }
 
-function normalizeExpertApplyDraftForm(draft, serviceCount) {
+function normalizeExpertApplyDraftForm(draft) {
   const sourceForm = draft && draft.form && typeof draft.form === 'object' ? draft.form : {}
-  const baseForm = createExpertApplyForm(serviceCount)
+  const baseForm = createExpertApplyForm()
 
   return Object.assign({}, baseForm, sourceForm, {
-    uploadFiles: Array.isArray(sourceForm.uploadFiles) ? sourceForm.uploadFiles : [],
-    services: createExpertApplyServices(serviceCount).map((service, index) => (
-      Object.assign({}, service, (sourceForm.services || [])[index] || {})
-    ))
+    uploadFiles: Array.isArray(sourceForm.uploadFiles) ? sourceForm.uploadFiles : []
   })
 }
 
@@ -729,13 +657,6 @@ function isPlanRequirement(requirement = {}) {
 
 function buildExpertApplyPayload(page, form) {
   const selectedSkill = ((page || {}).skillOptions || []).find((skill) => skill.active)
-  const services = (form.services || []).map((service) => ({
-    name: trimText(service.name),
-    serviceName: trimText(service.name),
-    price: trimText(service.price),
-    hourlyPrice: trimText(service.price),
-    cost: trimText(service.cost)
-  }))
   const uploadFiles = (form.uploadFiles || []).map((file) => ({
     name: file.name,
     fileName: file.name,
@@ -755,19 +676,11 @@ function buildExpertApplyPayload(page, form) {
     intro: trimText(form.intro),
     personalIntro: trimText(form.intro),
     uploadFiles,
-    qualifications: uploadFiles,
-    services
+    qualifications: uploadFiles
   }
 }
 
 function buildGuideApplyPayload(form) {
-  const services = (form.services || []).map((service) => ({
-    name: trimText(service.name),
-    serviceName: trimText(service.name),
-    price: trimText(service.price),
-    hourlyPrice: trimText(service.price),
-    cost: trimText(service.cost)
-  }))
   const uploadFiles = (form.uploadFiles || []).map((file) => ({
     name: file.name,
     fileName: file.name,
@@ -787,8 +700,7 @@ function buildGuideApplyPayload(form) {
       audience: Array.isArray(form.audience) ? form.audience.filter(Boolean) : [],
       contact: trimText(form.contact),
       guidePlan: trimText(form.guidePlan),
-      uploadFiles,
-      services
+      uploadFiles
     }
   }
 }
@@ -843,18 +755,17 @@ const ROLE_COMPARISON_PREVIEW_PAGE = {
   title: '角色权益对比',
   subtitle: '选择适合你的角色，开启不同玩法',
   roles: [
-    { key: 'player', name: '玩家', level: 'Lv.1+', icon: UI_ICONS.role.player, active: true },
-    { key: 'guide', name: '领路人', level: 'Lv.5+', icon: UI_ICONS.role.guide, active: false },
-    { key: 'expert', name: '行家', level: 'Lv.20+', icon: UI_ICONS.role.expert, active: false }
+    { key: 'player', name: '玩家', level: '等级由平台规则计算', icon: UI_ICONS.role.player, active: true },
+    { key: 'guide', name: '领路人', level: '等级由平台规则计算', icon: UI_ICONS.role.guide, active: false },
+    { key: 'expert', name: '行家', level: '星级由平台规则计算', icon: UI_ICONS.role.expert, active: false }
   ],
   benefits: [
-    { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
-    { name: '加入组局', player: '✓', leader: '✓', expert: '✓' },
-    { name: '创建路线', player: '✓', leader: '—', expert: '✓' },
-    { name: '分润收益', player: '—', leader: '基础会员40%', expert: '高级会员40%' },
-    { name: '服务交易', player: '—', leader: '—', expert: '✓' },
-    { name: '数据看板', player: '—', leader: '✓', expert: '✓' },
-    { name: '信用背书', player: '—', leader: '✓', expert: '✓' }
+    { name: '发起组局', player: '✓', guide: '✓', expert: '✓' },
+    { name: '加入组局', player: '✓', guide: '✓', expert: '✓' },
+    { name: '管理自己发起的局', player: '✓', guide: '✓', expert: '✓' },
+    { name: '邀请用户', player: '—', guide: '✓', expert: '✓' },
+    { name: '关系网络', player: '—', guide: '✓', expert: '—' },
+    { name: '等级与信用', player: '✓', guide: '✓', expert: '✓' }
   ],
   primary: '立即申请角色'
 }
@@ -1176,7 +1087,7 @@ function createRoleApplyPreviewPages(roleType = 'expert') {
       fields: DEFAULT_EXPERT_APPLY_CONFIG.fields,
       uploadField: DEFAULT_EXPERT_APPLY_CONFIG.uploadField,
       serviceBlocks: createExpertServiceBlocks(DEFAULT_EXPERT_APPLY_CONFIG.serviceCount),
-      priceHint: DEFAULT_EXPERT_APPLY_CONFIG.priceHint || '平台将收取 10% 服务费'
+      priceHint: ''
     }
   ]
 }
@@ -1236,10 +1147,8 @@ Page({
     expertApplyYearOptions: EXPERT_APPLY_YEAR_OPTIONS,
     expertApplyForm: createExpertApplyForm(),
     expertApplyErrors: createExpertApplyErrors(),
-    expertApplyServiceErrors: createExpertApplyServiceErrors(),
     guideApplyForm: createGuideApplyForm(),
     guideApplyErrors: createGuideApplyErrors(),
-    guideApplyServiceErrors: createExpertApplyServiceErrors(),
     isGuideApply: false,
     expertApplyValidationRules: DEFAULT_EXPERT_APPLY_CONFIG.validationRules,
     expertApplyCustomMaxLength: DEFAULT_EXPERT_APPLY_CONFIG.validationRules.customSkill.maxLength,
@@ -1456,9 +1365,9 @@ Page({
       const shouldResetForm = isGuideApplyFormEmpty(this.data.guideApplyForm)
       const draftEnabled = Boolean(savedDraft && shouldResetForm)
       const nextGuideApplyForm = draftEnabled
-        ? normalizeGuideApplyDraftForm(savedDraft, normalizedConfig.serviceCount, normalizedConfig.fields)
+        ? normalizeGuideApplyDraftForm(savedDraft, normalizedConfig.fields)
         : shouldResetForm
-          ? normalizeGuideApplyDraftForm(null, normalizedConfig.serviceCount, normalizedConfig.fields)
+          ? normalizeGuideApplyDraftForm(null, normalizedConfig.fields)
           : this.data.guideApplyForm
       const currentHomePreview = applyGuideFormToPage(
         applyExpertApplyConfigToPage(this.data.currentHomePreview, normalizedConfig),
@@ -1473,9 +1382,8 @@ Page({
         homePreviewPages,
         guideApplyForm: nextGuideApplyForm,
         guideApplyErrors: createGuideApplyErrors(),
-        guideApplyServiceErrors: createExpertApplyServiceErrors((nextGuideApplyForm.services || []).length),
         expertApplyValidationRules: normalizedConfig.validationRules,
-        expertApplyServiceNameMaxLength: getPositiveInteger(normalizedConfig.validationRules.serviceName.maxLength, 20),
+        expertApplyServiceNameMaxLength: getPositiveInteger((normalizedConfig.validationRules.serviceName || {}).maxLength, 20),
         isGuideApply: true
       })
       return
@@ -1499,7 +1407,7 @@ Page({
       previewDraft
     ))
     const nextExpertApplyForm = draftEnabled
-      ? normalizeExpertApplyDraftForm(savedDraft, normalizedConfig.serviceCount)
+      ? normalizeExpertApplyDraftForm(savedDraft)
       : shouldResetForm
         ? createExpertApplyForm(normalizedConfig.serviceCount)
         : this.data.expertApplyForm
@@ -1510,12 +1418,9 @@ Page({
       expertApplyYearOptions: normalizedConfig.yearOptions,
       expertApplyForm: nextExpertApplyForm,
       expertApplyErrors: createExpertApplyErrors(),
-      expertApplyServiceErrors: createExpertApplyServiceErrors(
-        (nextExpertApplyForm.services || []).length
-      ),
       expertApplyValidationRules: normalizedConfig.validationRules,
       expertApplyCustomMaxLength: getPositiveInteger(normalizedConfig.validationRules.customSkill.maxLength, 8),
-      expertApplyServiceNameMaxLength: getPositiveInteger(normalizedConfig.validationRules.serviceName.maxLength, 20),
+      expertApplyServiceNameMaxLength: getPositiveInteger((normalizedConfig.validationRules.serviceName || {}).maxLength, 20),
       expertApplyCustomInputVisible: false,
       expertApplyCustomInput: '',
       expertApplyCustomError: '',
@@ -1785,40 +1690,6 @@ Page({
     })
   },
 
-  onExpertApplyServiceNameInput(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    const value = event.detail.value
-
-    this.setData({
-      [`expertApplyForm.services[${index}].name`]: value,
-      [`expertApplyServiceErrors[${index}].name`]: ''
-    })
-  },
-
-  onExpertApplyMoneyInput(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    const field = event.currentTarget.dataset.field
-    const moneyRule = getMoneyRule(this.data.expertApplyValidationRules)
-    const rawValue = String(event.detail.value || '').replace(/[^\d.]/g, '')
-    const firstDotIndex = rawValue.indexOf('.')
-    const normalizedValue = firstDotIndex >= 0
-      ? rawValue.slice(0, firstDotIndex + 1) + rawValue.slice(firstDotIndex + 1).replace(/\./g, '')
-      : rawValue
-    const value = normalizedValue.replace(
-      new RegExp(`^(\\d{0,${moneyRule.integerMaxLength}})(\\.\\d{0,${moneyRule.decimalMaxLength}})?.*$`),
-      '$1$2'
-    )
-
-    if (!field) {
-      return
-    }
-
-    this.setData({
-      [`expertApplyForm.services[${index}].${field}`]: value,
-      [`expertApplyServiceErrors[${index}].${field}`]: ''
-    })
-  },
-
   onExpertApplyUploadTap() {
     const uploadField = (this.data.currentHomePreview || {}).uploadField || DEFAULT_EXPERT_APPLY_CONFIG.uploadField
     const maxCount = getPositiveInteger(uploadField.maxCount, DEFAULT_EXPERT_APPLY_CONFIG.uploadField.maxCount)
@@ -1907,43 +1778,6 @@ Page({
     })
   },
 
-  onGuideApplyServiceNameInput(event) {
-    const index = Number(event.currentTarget.dataset.index)
-
-    if (!Number.isInteger(index) || index < 0) {
-      return
-    }
-
-    this.setData({
-      [`guideApplyForm.services[${index}].name`]: event.detail.value || '',
-      [`guideApplyServiceErrors[${index}].name`]: ''
-    })
-  },
-
-  onGuideApplyMoneyInput(event) {
-    const index = Number(event.currentTarget.dataset.index)
-    const field = event.currentTarget.dataset.field
-    const moneyRule = getMoneyRule(this.data.expertApplyValidationRules)
-    const rawValue = String(event.detail.value || '').replace(/[^\d.]/g, '')
-    const firstDotIndex = rawValue.indexOf('.')
-    const normalizedValue = firstDotIndex >= 0
-      ? rawValue.slice(0, firstDotIndex + 1) + rawValue.slice(firstDotIndex + 1).replace(/\./g, '')
-      : rawValue
-    const value = normalizedValue.replace(
-      new RegExp(`^(\\d{0,${moneyRule.integerMaxLength}})(\\.\\d{0,${moneyRule.decimalMaxLength}})?.*$`),
-      '$1$2'
-    )
-
-    if (!Number.isInteger(index) || index < 0 || !field) {
-      return
-    }
-
-    this.setData({
-      [`guideApplyForm.services[${index}].${field}`]: value,
-      [`guideApplyServiceErrors[${index}].${field}`]: ''
-    })
-  },
-
   onGuideApplyUploadTap() {
     const uploadField = (this.data.currentHomePreview || {}).uploadField || {}
     const maxCount = getPositiveInteger(uploadField.maxCount, 5)
@@ -1992,10 +1826,8 @@ Page({
     const page = this.data.currentHomePreview || {}
     const form = this.data.guideApplyForm || createGuideApplyForm()
     const errors = createGuideApplyErrors()
-    const serviceErrors = createExpertApplyServiceErrors((form.services || []).length)
     const rules = this.data.expertApplyValidationRules || {}
     const guidePlanRule = rules.guidePlan || { minLength: 50, maxLength: 300 }
-    const serviceNameRule = rules.serviceName || { minLength: 2, maxLength: 20 }
 
     ;(page.fields || []).forEach((field) => {
       const value = form[field.key]
@@ -2014,46 +1846,21 @@ Page({
       errors.uploadFiles = '请上传资质证明'
     }
 
-    ;(form.services || []).forEach((service, index) => {
-      const name = trimText(service.name)
-      const price = trimText(service.price)
-      const cost = trimText(service.cost)
-
-      if (!name) {
-        serviceErrors[index].name = '请填写业务名称'
-      } else if (name.length < getPositiveInteger(serviceNameRule.minLength, 2) || name.length > getPositiveInteger(serviceNameRule.maxLength, 20)) {
-        serviceErrors[index].name = '业务名称长度不符合要求'
-      }
-      if (!price) {
-        serviceErrors[index].price = '请填写服务定价'
-      } else if (!isValidMoney(price, rules)) {
-        serviceErrors[index].price = '服务定价格式不正确'
-      }
-      if (cost && !isValidMoney(cost, rules)) {
-        serviceErrors[index].cost = '服务成本格式不正确'
-      }
-    })
-
-    this.setData({ guideApplyErrors: errors, guideApplyServiceErrors: serviceErrors })
-    return !hasAnyError(errors) && !serviceErrors.some((item) => hasAnyError(item))
+    this.setData({ guideApplyErrors: errors })
+    return !hasAnyError(errors)
   },
 
   validateExpertApplyForm() {
     const form = this.data.expertApplyForm || createExpertApplyForm()
     const errors = createExpertApplyErrors()
-    const serviceErrors = createExpertApplyServiceErrors((form.services || []).length)
     const rules = this.data.expertApplyValidationRules || DEFAULT_EXPERT_APPLY_CONFIG.validationRules
     const skillTagsRule = rules.skillTags || DEFAULT_EXPERT_APPLY_CONFIG.validationRules.skillTags
     const introRule = rules.intro || DEFAULT_EXPERT_APPLY_CONFIG.validationRules.intro
-    const serviceNameRule = rules.serviceName || DEFAULT_EXPERT_APPLY_CONFIG.validationRules.serviceName
-    const moneyRule = getMoneyRule(rules)
     const selectedSkill = ((this.data.currentHomePreview || {}).skillOptions || []).find((skill) => skill.active)
     const skillTagsMinLength = getPositiveInteger(skillTagsRule.minLength, 2)
     const skillTagsMaxLength = getPositiveInteger(skillTagsRule.maxLength, 30)
     const introMinLength = getPositiveInteger(introRule.minLength, 50)
     const introMaxLength = getPositiveInteger(introRule.maxLength, 300)
-    const serviceNameMinLength = getPositiveInteger(serviceNameRule.minLength, 2)
-    const serviceNameMaxLength = getPositiveInteger(serviceNameRule.maxLength, 20)
 
     if (!selectedSkill) {
       errors.skillDomain = '请选择技能领域'
@@ -2081,37 +1888,9 @@ Page({
       errors.uploadFiles = '请上传作品集及凭证'
     }
 
-    const services = form.services || []
-    services.forEach((service, index) => {
-      const name = trimText(service.name)
-      const price = trimText(service.price)
-      const cost = trimText(service.cost)
+    this.setData({ expertApplyErrors: errors })
 
-      if (!name) {
-        serviceErrors[index].name = '请填写业务名称'
-      } else if (name.length < serviceNameMinLength || name.length > serviceNameMaxLength) {
-        serviceErrors[index].name = `业务名称需为 ${serviceNameMinLength}-${serviceNameMaxLength} 个字`
-      }
-
-      if (!price) {
-        serviceErrors[index].price = '请填写服务定价'
-      } else if (!isValidMoney(price, rules)) {
-        serviceErrors[index].price = `金额需为最多 ${moneyRule.integerMaxLength} 位整数和 ${moneyRule.decimalMaxLength} 位小数`
-      }
-
-      if (cost && !isValidMoney(cost, rules)) {
-        serviceErrors[index].cost = `金额需为最多 ${moneyRule.integerMaxLength} 位整数和 ${moneyRule.decimalMaxLength} 位小数`
-      }
-    })
-
-    this.setData({
-      expertApplyErrors: errors,
-      expertApplyServiceErrors: serviceErrors
-    })
-
-    const hasServiceError = serviceErrors.some((serviceError) => hasAnyError(serviceError))
-
-    if (hasAnyError(errors) || hasServiceError) {
+    if (hasAnyError(errors)) {
       return false
     }
 

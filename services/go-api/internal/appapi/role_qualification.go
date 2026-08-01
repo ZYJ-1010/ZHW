@@ -63,23 +63,43 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 		return roleApplyEligibility{}, fmt.Errorf("invalid role code")
 	}
 
-	growth := s.reviews.Profile(userID)
-	createdGames, participatedGames, completedUsers := s.roleApplyGameStats()
-	enterpriseMet := s.enterpriseCertificationMet(userID)
-	rules := s.currentOperationRules().Roles
+	growth, err := s.reviews.ProfileStrict(userID)
+	if err != nil {
+		return roleApplyEligibility{}, err
+	}
+	createdGames, participatedGames, completedUsers, err := s.roleApplyGameStatsStrict()
+	if err != nil {
+		return roleApplyEligibility{}, err
+	}
+	enterpriseMet, err := s.enterpriseCertificationMetStrict(userID)
+	if err != nil {
+		return roleApplyEligibility{}, err
+	}
+	operationRules, err := s.currentOperationRulesStrict()
+	if err != nil {
+		return roleApplyEligibility{}, err
+	}
+	rules := operationRules.Roles
+	realnameVerified, err := s.identity.IsRealnameVerifiedStrict(userID)
+	if err != nil {
+		return roleApplyEligibility{}, err
+	}
 	requirements := make([]roleApplyRequirement, 0, 7)
 	if roleCode == "expert" {
 		requirements = append(requirements,
-			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsRealnameVerified(userID), "已完成", "未完成"),
+			roleApplyBoolRequirement("realname", "完成实名认证", realnameVerified, "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
 			roleApplyCountRequirement("created_games", fmt.Sprintf("发起过 %d 次以上组局", rules.ExpertCreatedGames), createdGames[userID], rules.ExpertCreatedGames),
 			roleApplyCountRequirement("credit_score", fmt.Sprintf("信用分 ≥ %d 分", rules.ExpertCreditScore), growth.CreditScore, rules.ExpertCreditScore),
 			roleApplyRequirement{Key: "plan", Title: "提交行家计划书", Text: "提交申请时填写计划书", Met: false, Checked: false},
 		)
 	} else {
-		invitedCompleted := s.roleApplyInvitedCompletedCount(userID, completedUsers)
+		invitedCompleted, err := s.roleApplyInvitedCompletedCountStrict(userID, completedUsers)
+		if err != nil {
+			return roleApplyEligibility{}, err
+		}
 		requirements = append(requirements,
-			roleApplyBoolRequirement("realname", "完成实名认证", s.identity.IsRealnameVerified(userID), "已完成", "未完成"),
+			roleApplyBoolRequirement("realname", "完成实名认证", realnameVerified, "已完成", "未完成"),
 			roleApplyBoolRequirement("enterprise", "完成企业认证", enterpriseMet, "已认证", "未认证"),
 			roleApplyCountRequirement("participated_games", fmt.Sprintf("参与过 %d 次以上组局", rules.GuideParticipatedGames), participatedGames[userID], rules.GuideParticipatedGames),
 			roleApplyCountRequirement("invited_completed_game", fmt.Sprintf("已成功邀请 ≥ %d 人完成组局", rules.GuideInvitedCompleted), invitedCompleted, rules.GuideInvitedCompleted),
@@ -88,7 +108,11 @@ func (s *Server) roleApplyEligibility(userID int64, roleCode string) (roleApplyE
 		)
 		// 后台明确标记的领路人资格是运营白名单，不参与普通条件计算。
 		// 这是单独的人工开通路径，不再作为条件配置来源。
-		if qualification, err := s.profiles.GuideQualification(userID); err == nil && qualification.ConditionMet {
+		qualification, err := s.profiles.GuideQualification(userID)
+		if err != nil {
+			return roleApplyEligibility{}, err
+		}
+		if qualification.ConditionMet {
 			for index, item := range requirements {
 				if item.Key == "plan" {
 					continue
@@ -130,14 +154,26 @@ func roleApplyBoolRequirement(key, title string, met bool, yes, no string) roleA
 }
 
 func (s *Server) roleApplyGameStats() (map[int64]int, map[int64]int, map[int64]bool) {
+	created, participated, completed, _ := s.roleApplyGameStatsStrict()
+	return created, participated, completed
+}
+
+func (s *Server) roleApplyGameStatsStrict() (map[int64]int, map[int64]int, map[int64]bool, error) {
 	created := make(map[int64]int)
 	participated := make(map[int64]int)
 	completedUsers := make(map[int64]bool)
-	for _, game := range s.games.List() {
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	for _, game := range gameItems {
 		if game.CreatorUserID > 0 {
 			created[game.CreatorUserID]++
 		}
-		members := s.games.Members(game.ID)
+		members, err := s.games.MembersStrict(game.ID)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 		for _, userID := range members {
 			if userID <= 0 {
 				continue
@@ -148,13 +184,18 @@ func (s *Server) roleApplyGameStats() (map[int64]int, map[int64]int, map[int64]b
 			}
 		}
 	}
-	return created, participated, completedUsers
+	return created, participated, completedUsers, nil
 }
 
 func (s *Server) roleApplyInvitedCompletedCount(userID int64, completedUsers map[int64]bool) int {
+	count, _ := s.roleApplyInvitedCompletedCountStrict(userID, completedUsers)
+	return count
+}
+
+func (s *Server) roleApplyInvitedCompletedCountStrict(userID int64, completedUsers map[int64]bool) (int, error) {
 	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
 	if err != nil {
-		return 0
+		return 0, err
 	}
 	seen := make(map[int64]bool)
 	for _, relation := range relations {
@@ -162,12 +203,17 @@ func (s *Server) roleApplyInvitedCompletedCount(userID int64, completedUsers map
 			seen[relation.InviteeUserID] = true
 		}
 	}
-	return len(seen)
+	return len(seen), nil
 }
 
 func (s *Server) enterpriseCertificationMet(userID int64) bool {
-	item, ok := s.profiles.EnterpriseCertification(userID)
-	return ok && item.Status == "approved"
+	met, _ := s.enterpriseCertificationMetStrict(userID)
+	return met
+}
+
+func (s *Server) enterpriseCertificationMetStrict(userID int64) (bool, error) {
+	item, ok, err := s.profiles.EnterpriseCertificationStrict(userID)
+	return ok && item.Status == "approved", err
 }
 
 func (e roleApplyEligibility) missingBaseRequirements() []string {

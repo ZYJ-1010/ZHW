@@ -36,6 +36,17 @@ func TestCreateAllowsPlayerWithoutVerifiedIdentity(t *testing.T) {
 	}
 }
 
+func TestFreeGameUsesCommercialReservationDefaults(t *testing.T) {
+	service := NewService(fakeIdentity{verified: false})
+	game, err := service.Create(1, CreateRequest{Title: "免费局商业预留", GameType: "free", MinPlayers: 5, MaxPlayers: 8, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game.DistributionMethod != "none" || game.PaymentStatus != "not_required" {
+		t.Fatalf("free game must keep phase-one commercial defaults: %+v", game)
+	}
+}
+
 func TestCreateRejectsMoreThanThreeTags(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	_, err := service.Create(1, CreateRequest{
@@ -45,6 +56,43 @@ func TestCreateRejectsMoreThanThreeTags(t *testing.T) {
 	})
 	if err != ErrInvalidGameInput {
 		t.Fatalf("expected too many tags to be rejected, got %v", err)
+	}
+}
+
+func TestConfiguredGameRejectsRoleNotOpenedByOrganizer(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	game, err := service.Create(1, CreateRequest{
+		Title: "仅玩家局", GameType: "free", MinPlayers: 5, MaxPlayers: 8,
+		StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00",
+		AllowedRoles: []string{"player"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.Apply(2, game.ID, ApplyRequest{RoleType: "expert", Reason: "以行家报名"}); err != ErrRoleNotAllowed {
+		t.Fatalf("expected role restriction, got %v", err)
+	}
+}
+
+func TestGuideEscortApplicationIsRejectedAfterFeatureRemoval(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	game, err := service.Create(1, CreateRequest{
+		Title: "玩家与领路人局", GameType: "free", MinPlayers: 5, MaxPlayers: 5,
+		StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00",
+		AllowedRoles:     []string{"player"},
+		AllowGuideEscort: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Apply(2, game.ID, ApplyRequest{RoleType: "guide_escort", Reason: "旁观协作"}); err != ErrRoleNotAllowed {
+		t.Fatalf("removed guide escort feature must reject new applications, got %v", err)
 	}
 }
 
@@ -59,7 +107,7 @@ func TestCreateUsesConfiguredPlayerLimits(t *testing.T) {
 	}
 }
 
-func TestReviewApplicationCreatesRoomWhenGameBecomesFull(t *testing.T) {
+func TestReviewApplicationCreatesRoomOnlyAfterManualStart(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 	ensurer := &recordingRoomEnsurer{}
 	service.UseRoomEnsurer(ensurer)
@@ -79,8 +127,20 @@ func TestReviewApplicationCreatesRoomWhenGameBecomesFull(t *testing.T) {
 			t.Fatal(reviewErr)
 		}
 	}
+	if len(ensurer.gameIDs) != 0 {
+		t.Fatalf("full game must not create an IM room before start, got %+v", ensurer.gameIDs)
+	}
+	if service.IsIMRoomReady(game.ID) {
+		t.Fatal("full game must not expose an IM room before manual start")
+	}
+	if _, err := service.ManualStart(1, game.ID); err != nil {
+		t.Fatalf("manual start failed: %v", err)
+	}
 	if len(ensurer.gameIDs) != 1 || ensurer.gameIDs[0] != game.ID {
-		t.Fatalf("expected one room ensure for full game %d, got %+v", game.ID, ensurer.gameIDs)
+		t.Fatalf("expected one room ensure after manual start for game %d, got %+v", game.ID, ensurer.gameIDs)
+	}
+	if !service.IsIMRoomReady(game.ID) {
+		t.Fatal("started game must expose its IM room")
 	}
 }
 
@@ -110,6 +170,41 @@ func TestReviewApplicationKeepsRecruitingAtMinimumPlayers(t *testing.T) {
 	}
 	if len(ensurer.gameIDs) != 0 {
 		t.Fatalf("room should not be created before automatic max-player start, got %+v", ensurer.gameIDs)
+	}
+}
+
+func TestPendingApplicationCanBeRejectedAfterGameBecomesFull(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	game, err := service.Create(1, CreateRequest{Title: "满员待处理申请", GameType: "free", MinPlayers: 5, MaxPlayers: 5, StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.ApproveGame(game.ID); err != nil {
+		t.Fatal(err)
+	}
+	applications := make([]Application, 0, 5)
+	for _, userID := range []int64{2, 3, 4, 5, 6} {
+		application, applyErr := service.Apply(userID, game.ID, ApplyRequest{Reason: "join"})
+		if applyErr != nil {
+			t.Fatal(applyErr)
+		}
+		applications = append(applications, application)
+	}
+	for index := 0; index < 4; index++ {
+		if _, err := service.ReviewApplication(1, applications[index].ID, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	full, err := service.Get(game.ID)
+	if err != nil || full.Status != StatusFull {
+		t.Fatalf("expected full game, game=%+v err=%v", full, err)
+	}
+	rejected, err := service.ReviewApplicationWithReason(1, applications[4].ID, false, "名额已满")
+	if err != nil {
+		t.Fatalf("remaining pending application must be rejectable after full: %v", err)
+	}
+	if rejected.Status != "rejected" || rejected.RejectReason != "名额已满" {
+		t.Fatalf("unexpected rejected application: %+v", rejected)
 	}
 }
 
@@ -185,7 +280,7 @@ func TestCreateEnforcesDailyLimit(t *testing.T) {
 	}
 }
 
-func TestCreateFromAdminAllowsDocumentedGameTypes(t *testing.T) {
+func TestCreateFromAdminForcesFreeGameType(t *testing.T) {
 	service := NewService(fakeIdentity{verified: true})
 
 	adminTypes := []string{"free", "standard", "public_welfare", "aa", "crowdfund", "deposit", "condition"}
@@ -195,7 +290,7 @@ func TestCreateFromAdminAllowsDocumentedGameTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("admin %s create failed: %v", gameType, err)
 		}
-		if game.GameType != gameType || game.GameSource != "admin" || game.Status != "recruiting" || game.CreatorUserID != creatorUserID {
+		if game.GameType != "free" || game.GameSource != "admin" || game.Status != "recruiting" || game.CreatorUserID != creatorUserID {
 			t.Fatalf("unexpected %s game: %+v", gameType, game)
 		}
 	}
@@ -211,8 +306,9 @@ func TestCreateFromAdminRejectsInvalidTypeAndCreator(t *testing.T) {
 	if _, err := service.CreateFromAdmin(CreateRequest{Title: "missing creator", GameType: "standard", MinPlayers: 5, MaxPlayers: 8}); err != ErrInvalidGameInput {
 		t.Fatalf("expected ErrInvalidGameInput, got %v", err)
 	}
-	if _, err := service.CreateFromAdmin(CreateRequest{Title: "invalid type", CreatorUserID: 11, GameType: "paid", MinPlayers: 5, MaxPlayers: 8}); err != ErrInvalidGameType {
-		t.Fatalf("expected ErrInvalidGameType, got %v", err)
+	game, err := service.CreateFromAdmin(CreateRequest{Title: "legacy paid type", CreatorUserID: 11, GameType: "paid", MinPlayers: 5, MaxPlayers: 8, SignupStartAt: "2026-07-10 09:00", SignupEndAt: "2026-07-12 14:00", StartAt: "2026-07-12 14:00", EndAt: "2026-07-12 16:00"})
+	if err != nil || game.GameType != "free" {
+		t.Fatalf("expected legacy requested type to be normalized to free, game=%+v err=%v", game, err)
 	}
 	if _, err := service.CreateFromAdmin(CreateRequest{Title: "same guide", CreatorUserID: 11, MainGuideUserID: 11, GameType: "condition", MinPlayers: 5, MaxPlayers: 8}); err != ErrInvalidGameInput {
 		t.Fatalf("expected ErrInvalidGameInput for creator as main guide, got %v", err)
@@ -472,8 +568,8 @@ func TestRejectedApplicationsDoNotConsumePlayerCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if full.CurrentPlayers != 5 || full.Status != "in_progress" || full.StartReason != "达到人数上限自动开局" {
-		t.Fatalf("only approved members should trigger automatic start: %+v", full)
+	if full.CurrentPlayers != 5 || full.Status != "full" || full.StartReason != "" {
+		t.Fatalf("only approved members should fill the game without starting it: %+v", full)
 	}
 	if _, err = service.Apply(6, game.ID, ApplyRequest{Reason: "too late"}); err != ErrGameNotRecruiting {
 		t.Fatalf("full game should reject new applications, got %v", err)
@@ -602,5 +698,23 @@ func TestCreatePersistsCategoryFields(t *testing.T) {
 	}
 	if game.PrimaryCategory != "task" || game.SecondaryCategory != "project" || game.Type != "free" {
 		t.Fatalf("expected category fields to persist, got %+v", game)
+	}
+}
+
+func TestListAndSameCityUseNewestFirstOrder(t *testing.T) {
+	service := NewService(fakeIdentity{verified: true})
+	older := time.Date(2026, 7, 30, 8, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Hour)
+	service.games[11] = Game{ID: 11, Title: "较早", CityCode: "330200", CreatedAt: older}
+	service.games[12] = Game{ID: 12, Title: "较新", CityCode: "330200", CreatedAt: newer}
+	service.games[13] = Game{ID: 13, Title: "同时间编号较大", CityCode: "310000", CreatedAt: newer}
+
+	items := service.List()
+	if len(items) != 3 || items[0].ID != 13 || items[1].ID != 12 || items[2].ID != 11 {
+		t.Fatalf("list order = %+v, want ids 13, 12, 11", items)
+	}
+	cityItems := service.SameCity("330200")
+	if len(cityItems) != 2 || cityItems[0].ID != 12 || cityItems[1].ID != 11 {
+		t.Fatalf("same-city order = %+v, want ids 12, 11", cityItems)
 	}
 }

@@ -301,20 +301,18 @@ paths:
           description: return faceToken from local mock or configured FACEID_HTTP_ENDPOINT
   /api/app/identity/faceid/callback:
     post:
-      summary: faceid callback
-      security:
-        - bearerAuth: []
+      summary: signed server-to-server faceid callback
       responses:
         "200":
           description: return identity status
   /api/app/identity/faceid/result:
     post:
-      summary: faceid result writeback
+      summary: local-development faceid result writeback
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: compatible with /api/app/identity/faceid/callback
+          description: local mode only; configured or production faceid uses the signed callback
   /api/app/identity/status:
     get:
       summary: get identity status

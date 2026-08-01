@@ -22,12 +22,12 @@ func (s *Server) adminExportTemplates(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createExportTask(w http.ResponseWriter, r *http.Request) {
 	var req exports.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	task, err := s.exports.Create(parseInt64Header(r, "X-Admin-ID"), req)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "export template not found or disabled")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "导出模板不存在或已停用")
 		return
 	}
 	s.recordOperation(r, "export:create", "export_task", strconv.FormatInt(task.ID, 10), map[string]interface{}{
@@ -39,7 +39,12 @@ func (s *Server) createExportTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminExportTasks(w http.ResponseWriter, r *http.Request) {
-	items := filterExportTasks(s.exports.Tasks(), r)
+	tasks, err := s.exports.TasksStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取导出任务失败，请稍后重试")
+		return
+	}
+	items := filterExportTasks(tasks, r)
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
 }
 
@@ -74,29 +79,29 @@ func (s *Server) adminExportTaskDownloadURL(w http.ResponseWriter, r *http.Reque
 	}
 	taskID, err := pathID(r.URL.Path, "/api/admin/export-tasks/", "/download-url")
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid task id")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "导出任务编号错误")
 		return
 	}
 	fileID, err := s.exports.ReadyFileID(taskID)
 	if err != nil {
 		if errors.Is(err, exports.ErrTaskNotFound) {
-			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "export task not found")
+			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "导出任务不存在")
 			return
 		}
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export file not ready")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "导出文件尚未生成")
 		return
 	}
 	file, err := s.files.Get(fileID)
 	if err != nil {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "export file not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "导出文件不存在")
 		return
 	}
 	if expiresAt, ok := parseExportFileExpiry(file.ExpiresAt); ok && time.Now().After(expiresAt) {
-		httpx.Error(w, http.StatusGone, httpx.CodeConflict, "export file expired")
+		httpx.Error(w, http.StatusGone, httpx.CodeConflict, "导出文件已过期")
 		return
 	}
 	if _, err := s.exports.FileContent(fileID); err != nil {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export content not ready")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "导出内容尚未生成")
 		return
 	}
 	s.recordOperation(r, "export:download_url", "export_task", strconv.FormatInt(taskID, 10), map[string]interface{}{
@@ -125,7 +130,7 @@ func (s *Server) runExportTasks(w http.ResponseWriter, r *http.Request) {
 		return file.ID, file.StorageKey, nil
 	})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "export task run failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "执行导出任务失败")
 		return
 	}
 	for _, result := range results {
@@ -152,26 +157,26 @@ func (s *Server) routeAdminExportTaskGet(w http.ResponseWriter, r *http.Request)
 func (s *Server) adminExportTaskDownload(w http.ResponseWriter, r *http.Request) {
 	taskID, err := pathID(r.URL.Path, "/api/admin/export-tasks/", "/download")
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid task id")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "导出任务编号错误")
 		return
 	}
 	fileID, err := s.exports.ReadyFileID(taskID)
 	if err != nil {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export file not ready")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "导出文件尚未生成")
 		return
 	}
 	file, err := s.files.Get(fileID)
 	if err != nil {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "export file not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "导出文件不存在")
 		return
 	}
 	if expiresAt, ok := parseExportFileExpiry(file.ExpiresAt); ok && time.Now().After(expiresAt) {
-		httpx.Error(w, http.StatusGone, httpx.CodeConflict, "export file expired")
+		httpx.Error(w, http.StatusGone, httpx.CodeConflict, "导出文件已过期")
 		return
 	}
 	content, err := s.exports.FileContent(fileID)
 	if err != nil {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "export content not ready")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "导出内容尚未生成")
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -191,19 +196,31 @@ func (s *Server) exportCSV(task exports.Task, template exports.Template) ([]byte
 	}
 	switch template.ExportType {
 	case "reports":
-		for _, item := range s.reports.List() {
+		items, err := s.reports.ListStrict()
+		if err != nil {
+			return nil, fmt.Errorf("读取举报导出数据失败: %w", err)
+		}
+		for _, item := range items {
 			if err := writer.Write([]string{strconv.FormatInt(item.ID, 10), strconv.FormatInt(item.GameID, 10), strconv.FormatInt(item.ReporterUserID, 10), item.ReportType, item.Status, item.CreatedAt.Format(time.RFC3339)}); err != nil {
 				return nil, err
 			}
 		}
 	case "operation_logs":
-		for _, item := range s.audit.OperationLogs() {
+		items, err := s.audit.OperationLogsStrict()
+		if err != nil {
+			return nil, fmt.Errorf("读取操作日志导出数据失败: %w", err)
+		}
+		for _, item := range items {
 			if err := writer.Write([]string{strconv.FormatInt(item.ID, 10), strconv.FormatInt(item.AdminUserID, 10), item.Action, item.TargetType, item.TargetID, item.CreatedAt.Format(time.RFC3339)}); err != nil {
 				return nil, err
 			}
 		}
 	case "reviews":
-		for _, item := range s.reviews.AllReviews() {
+		items, err := s.reviews.AllReviewsStrict()
+		if err != nil {
+			return nil, fmt.Errorf("读取评价导出数据失败: %w", err)
+		}
+		for _, item := range items {
 			if err := writer.Write([]string{strconv.FormatInt(item.ID, 10), strconv.FormatInt(item.GameID, 10), strconv.FormatInt(item.ReviewerUserID, 10), strconv.FormatInt(item.TargetUserID, 10), strconv.Itoa(item.Score), strings.Join(item.Tags, "|"), item.AgainIntent, item.CreatedAt.Format(time.RFC3339)}); err != nil {
 				return nil, err
 			}

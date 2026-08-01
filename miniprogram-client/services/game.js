@@ -1,5 +1,41 @@
 const gameApi = require('../api/modules/game')
 
+function requestFingerprint(value) {
+  const text = JSON.stringify(value == null ? null : value)
+  let hash = 2166136261
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
+}
+
+function idempotencyKey(scope, value) {
+  return `${scope}:${requestFingerprint(value)}`
+}
+
+function draftIdempotencyBody(body = {}) {
+  const payload = body.payload && typeof body.payload === 'object' && !Array.isArray(body.payload)
+    ? { ...body.payload }
+    : body.payload
+  if (payload && typeof payload === 'object') {
+    delete payload.savedAt
+    if (Number(payload.coverFileId || 0) > 0) {
+      payload.coverImage = ''
+    }
+    if (Array.isArray(payload.descriptionMedia)) {
+      payload.descriptionMedia = payload.descriptionMedia.map((item = {}) => ({
+        id: item.id || '',
+        type: item.type || '',
+        fileId: Number(item.fileId || 0),
+        duration: Number(item.duration || 0),
+        tempFilePath: Number(item.fileId || 0) > 0 ? '' : String(item.tempFilePath || '')
+      }))
+    }
+  }
+  return { title: body.title || '', payload }
+}
+
 async function getGameList(params) {
   const result = await gameApi.getGames(params)
 
@@ -96,14 +132,23 @@ async function createGuideFollowUp(gameId, payload) {
   return result.data
 }
 
-async function createGame(payload) {
-  const result = await gameApi.createGame(payload)
+async function createGame(payload, submissionSessionId = '') {
+  const sessionId = String(submissionSessionId || '').trim() || `runtime-${Date.now()}`
+  const result = await gameApi.createGame(payload, idempotencyKey(`game-create-${sessionId}`, payload))
 
   if (result.code !== 0) {
     throw new Error(result.message || '创建局失败')
   }
 
   return result.data
+}
+
+function requireGameDraftId(value) {
+  const draftId = Number(value)
+  if (!Number.isSafeInteger(draftId) || draftId <= 0) {
+    throw new Error('草稿编号无效')
+  }
+  return draftId
 }
 
 async function getGameDrafts() {
@@ -115,7 +160,7 @@ async function getGameDrafts() {
 }
 
 async function getGameDraft(draftId) {
-  const result = await gameApi.getGameDraft(draftId)
+  const result = await gameApi.getGameDraft(requireGameDraftId(draftId))
   if (result.code !== 0) {
     throw new Error(result.message || '获取草稿失败')
   }
@@ -123,19 +168,34 @@ async function getGameDraft(draftId) {
 }
 
 async function saveGameDraft(payload = {}) {
-  const draftId = Number(payload.id || 0)
-  const body = { title: payload.title || '', payload: payload.payload || {} }
+  const rawDraftId = payload.id
+  const hasDraftId = rawDraftId !== undefined && rawDraftId !== null && String(rawDraftId).trim() !== '' && Number(rawDraftId) !== 0
+  const draftId = hasDraftId ? requireGameDraftId(rawDraftId) : 0
+  const draftPayload = payload.payload
+  if (!draftPayload || typeof draftPayload !== 'object' || Array.isArray(draftPayload)) {
+    throw new Error('草稿内容格式错误')
+  }
+  const body = { title: payload.title || '', payload: draftPayload }
+  const submissionSessionId = String(payload.submissionSessionId || '').trim()
+  const saveScope = draftId > 0
+    ? `game-draft-save-${draftId}`
+    : `game-draft-save-new-${submissionSessionId || `runtime-${Date.now()}`}`
+  const saveKey = idempotencyKey(saveScope, draftIdempotencyBody(body))
   const result = draftId > 0
-    ? await gameApi.updateGameDraft(draftId, body)
-    : await gameApi.createGameDraft(body)
+    ? await gameApi.updateGameDraft(draftId, body, saveKey)
+    : await gameApi.createGameDraft(body, saveKey)
   if (result.code !== 0) {
     throw new Error(result.message || '保存草稿失败')
+  }
+  if (!result.data || !Number.isSafeInteger(Number(result.data.id)) || Number(result.data.id) <= 0) {
+    throw new Error('草稿保存结果异常')
   }
   return result.data
 }
 
 async function deleteGameDraft(draftId) {
-  const result = await gameApi.deleteGameDraft(draftId)
+  const normalizedDraftId = requireGameDraftId(draftId)
+  const result = await gameApi.deleteGameDraft(normalizedDraftId, `game-draft-delete:${normalizedDraftId}`)
   if (result.code !== 0) {
     throw new Error(result.message || '删除草稿失败')
   }

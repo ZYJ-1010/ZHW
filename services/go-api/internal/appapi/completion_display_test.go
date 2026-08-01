@@ -21,9 +21,9 @@ func TestPublicGamesKeepsSameDayFullOrAutoStartedCards(t *testing.T) {
 	}
 }
 
-func TestGameDetailShowsEndedWhileDeliveryConfirmationIsPending(t *testing.T) {
-	if got := gameDetailStatusText("pending_confirm"); got != "已结束" {
-		t.Fatalf("pending_confirm detail status = %q, want 已结束", got)
+func TestGameDetailShowsPendingConfirmationStatus(t *testing.T) {
+	if got := gameDetailStatusText("pending_confirm"); got != "待成员确认" {
+		t.Fatalf("pending_confirm detail status = %q, want 待成员确认", got)
 	}
 	if got := gameDetailStatusText("in_progress"); got != "进行中" {
 		t.Fatalf("in_progress detail status = %q, want 进行中", got)
@@ -43,6 +43,22 @@ func TestGameStatusTextCoversTerminalAndExceptionalStates(t *testing.T) {
 		if got := homeGameStatusText(status); got != expected {
 			t.Fatalf("status %q text = %q, want %q", status, got, expected)
 		}
+	}
+}
+
+func TestPlayerApplicationOrderKeepsJoinReviewStateVisible(t *testing.T) {
+	server := &Server{}
+	game := games.Game{ID: 42, Title: "状态流转测试局"}
+	application := games.Application{ID: 7, GameID: game.ID, Status: "rejected", RejectReason: "请补充报名说明"}
+	item := server.buildPlayerApplicationOrder(game, application)
+	if item["statusType"] != "canceled" || item["statusText"] != "未通过" {
+		t.Fatalf("rejected application order status = %+v", item)
+	}
+	if item["reasonLabel"] != "报名未通过原因" || item["reason"] != "请补充报名说明" {
+		t.Fatalf("rejected application reason = %+v", item)
+	}
+	if item["gameId"] != int64(42) || item["category"] != "joined" {
+		t.Fatalf("application must stay attached to its game in 我的局: %+v", item)
 	}
 }
 

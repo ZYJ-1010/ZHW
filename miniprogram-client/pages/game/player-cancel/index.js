@@ -38,11 +38,11 @@ const EMPTY_CANCEL_DETAIL = {
   suggestionMaxRate: 0,
   platformFeeRate: 0,
   smartSuggestion: '',
-  warningTitle: '免费局取消无需赔付',
-  warningDesc: '当前没有收费局，本次取消不会产生赔付金额，但会扣减信用分。',
+  warningTitle: '取消本局提醒',
+  warningDesc: '本局为免费局，取消后将按规则扣减信用分。',
   isFreeCancel: true,
   agreementTitle: '取消确认',
-  cancelTipText: '我理解免费局取消无需赔付，但会扣减信用分。'
+  cancelTipText: '我已了解取消后将扣减信用分。'
 }
 
 function roundRpx(value) {
@@ -180,15 +180,7 @@ function buildServedText(servedDurationText, totalDurationText) {
 }
 
 function buildSmartSuggestion(detail) {
-  if (detail.isFreeCancel) {
-    return '免费局无需设置赔付比例，取消后仅扣减信用分。'
-  }
-
-  if (!detail.servedDurationText) {
-    return ''
-  }
-
-  return `行家已投入${detail.servedDurationText}服务，建议设置${detail.suggestionMinRate}%-${detail.suggestionMaxRate}%赔付比例，体现对行家时间成本的尊重。`
+  return '本局为免费局，取消后将按平台规则扣减信用分。'
 }
 
 function getAvatarText(name, fallback) {
@@ -196,12 +188,6 @@ function getAvatarText(name, fallback) {
 }
 
 function buildCancelDetail(options = {}) {
-  const amount = getNumber(
-    options.amount || options.contractAmount || options.amountText || options.contractAmountText,
-    EMPTY_CANCEL_DETAIL.contractAmount
-  )
-  const gameType = decodeOption(options.gameType || options.type || options.mode)
-  const isFreeCancel = gameType === 'free' || decodeOption(options.freeCancel) === '1' || amount <= 0
   const playerName = decodeOption(options.playerName) || EMPTY_CANCEL_DETAIL.playerName
   const playerAvatarText = getAvatarText(playerName, decodeOption(options.playerAvatarText) || EMPTY_CANCEL_DETAIL.playerAvatarText)
   const hasExpert = decodeOption(options.hasExpert) === '1' || decodeOption(options.hasExpert) === 'true' || Number(options.expertId) > 0
@@ -254,17 +240,13 @@ function buildCancelDetail(options = {}) {
     expertAvatarText: avatarText,
     hasExpert,
     serviceTitle: decodeOption(options.serviceTitle) || EMPTY_CANCEL_DETAIL.serviceTitle,
-    contractAmount: amount,
-    contractAmountText: amount <= 0 ? '免费' : formatCurrency(amount),
-    isFreeCancel,
-    warningTitle: decodeOption(options.warningTitle) || (isFreeCancel ? '免费局取消无需赔付' : '取消需承担赔付'),
-    warningDesc: decodeOption(options.warningDesc) || (isFreeCancel
-      ? '当前没有收费局，本次取消不会产生赔付金额，但会扣减信用分。'
-      : '作为玩家主动取消，需要按约定比例赔付行家已投入的时间成本。'),
-    agreementTitle: isFreeCancel ? '取消确认' : '赔付协议确认',
-    cancelTipText: isFreeCancel
-      ? '我理解免费局取消无需赔付，但会扣减信用分。'
-      : '我已阅读并同意上述赔付协议，确认主动取消服务并承担相应赔付责任。'
+    contractAmount: 0,
+    contractAmountText: '免费',
+    isFreeCancel: true,
+    warningTitle: '取消本局提醒',
+    warningDesc: '本局为免费局，取消后将按规则扣减信用分。',
+    agreementTitle: '取消确认',
+    cancelTipText: '我已了解取消后将扣减信用分。'
   }
 
   return {
@@ -309,16 +291,16 @@ function buildActivityCard(detail) {
   const hasExpert = detail.hasExpert !== false
 
   return {
-    title: '活动信息',
+    title: '组局信息',
     avatarText: hasExpert ? detail.expertAvatarText : '局',
     avatarClass: hasExpert ? 'expert' : 'player',
-    name: hasExpert ? detail.expertName : (detail.serviceTitle || '本局暂未分配行家'),
-    roleLabel: hasExpert ? '行家' : '未分配行家',
+    name: detail.serviceTitle || '未命名组局',
+    roleLabel: '组局',
     roleClass: hasExpert ? 'expert' : 'player',
     serviceTitle: detail.serviceTitle,
     rows: [
-      { label: '合同金额', value: detail.contractAmountText, tone: 'strong', divider: true },
-      { label: '已服务时长', value: detail.servedText, tone: 'blue' }
+      { label: '取消规则', value: '免费局取消将扣减信用分', tone: 'strong', divider: true },
+      { label: '当前状态', value: detail.statusText || '进行中', tone: 'blue' }
     ]
   }
 }
@@ -385,7 +367,7 @@ Page({
         selectedReasonKey,
         agreementText: player.agreementText || '',
         agreementItems: this.data.detail.isFreeCancel
-          ? ['免费局取消无需赔付', '我理解本次取消将扣减信用分']
+          ? ['本局为免费局', '我已了解本次取消将扣减信用分']
           : Array.isArray(player.agreementItems) ? player.agreementItems : []
       })
     } catch (error) {
@@ -481,15 +463,13 @@ Page({
     }
 
     if (!this.data.agreementChecked) {
-      toast.info(this.data.detail.isFreeCancel ? '请先确认取消规则' : '请先同意赔付协议')
+      toast.info('请先确认取消规则')
       return
     }
 
     wx.showModal({
-      title: '确认取消服务',
-      content: this.data.detail.isFreeCancel
-        ? '免费局取消无需赔付，但会扣减信用分。确认后本次服务将取消。'
-        : `将按${this.data.compensationRate}%赔付行家，实际支付${this.data.payAmountText}。确认后本次服务将进入取消流程。`,
+      title: '确认取消本局',
+      content: '本局为免费局，取消后将扣减信用分。确认后本局将进入取消流程。',
       cancelText: '再想想',
       confirmText: '确认取消',
       confirmColor: '#ff4d4f',

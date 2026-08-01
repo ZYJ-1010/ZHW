@@ -81,6 +81,15 @@ function safeDecode(value) {
   }
 }
 
+function normalizeReturnRoute(value) {
+  const rawRoute = safeDecode(value).trim()
+  const route = rawRoute.startsWith('pages/') ? `/${rawRoute}` : rawRoute
+  if (!route || !route.startsWith('/pages/') || route.startsWith(`/${ROUTES.login}`)) {
+    return ''
+  }
+  return route
+}
+
 function decodeInviteScene(scene) {
   const decoded = safeDecode(scene)
 
@@ -256,6 +265,20 @@ function normalizeRewardText(value) {
 }
 
 function pickRewardText(source, meta) {
+  const rewardParts = []
+  const experience = Number(source.rewardExperience)
+  const points = Number(source.rewardPoints)
+
+  if (Number.isFinite(experience) && experience > 0) {
+    rewardParts.push(`+${experience} 经验值`)
+  }
+  if (Number.isFinite(points) && points > 0) {
+    rewardParts.push(`+${points} 积分`)
+  }
+  if (rewardParts.length) {
+    return rewardParts.join(' · ')
+  }
+
   const values = [
     source.rewardText,
     source.reward_text,
@@ -362,6 +385,8 @@ Page({
     isPasswordLoggingIn: false,
     isCheckingRealname: false,
     isStartingRealname: false,
+    isBindingWechat: false,
+    wechatBindPending: false,
     isLoadingNewbieTasks: false,
     newbieTasksLoaded: false,
     newbieTaskLoadFailed: false,
@@ -375,6 +400,8 @@ Page({
     canResend: true,
     canRequestCode: false,
     entryFlow: 'register',
+    loginNotice: '',
+    returnRoute: '',
     password: '',
     inviteCode: '',
     inviteContext: null,
@@ -412,7 +439,11 @@ Page({
 
     if (options.flow === 'existing') {
       this.enterNormalLogin('home')
-      this.setData({ entryFlow: 'existing' })
+      this.setData({
+        entryFlow: 'existing',
+        loginNotice: options.reason === 'reauth' || options.reason === 'expired' ? '为保障账号安全，请通过短信验证码或密码重新登录。' : '',
+        returnRoute: normalizeReturnRoute(options.returnTo)
+      })
       return
     }
 
@@ -645,6 +676,8 @@ Page({
       isPasswordLoggingIn: false,
       isCheckingRealname: false,
       isStartingRealname: false,
+      isBindingWechat: false,
+      wechatBindPending: false,
       isLoadingNewbieTasks: false,
       newbieTasksLoaded: false,
       newbieTaskLoadFailed: false,
@@ -823,7 +856,9 @@ Page({
     const nestedUser = user.user || {}
     const status = user.realnameStatus || nestedUser.realnameStatus || identity.status || user.authStatus
 
-    return status === 'verified' || status === 'phone_verified' || status === 'approved' || status === 'passed' || user.needRealname === false || user.requiresIdentityBinding === false
+    // 手机号验证只证明账号归属，不等同于实名认证。只有后台已经确认实名，
+    // 或接口明确告知无需再绑定身份时，才可以跳过实名认证引导。
+    return status === 'verified' || status === 'approved' || status === 'passed' || user.needRealname === false
   },
 
   showRealnameModalAfterLogin() {
@@ -884,6 +919,13 @@ Page({
   },
 
   async continueAfterLogin(loginData = {}) {
+    // 登录页既承接新用户邀请码注册，也承接未绑定微信的老用户短信/密码
+    // 登录。是否进入新手流程必须以后端本次真实结果为准，不能仅依赖页面
+    // 入口，否则老用户从普通登录入口进入时会被反复送回新手任务页。
+    if (this.data.entryFlow === 'existing' || loginData.authPageMode === 'login') {
+      this.continueExistingAfterLogin()
+      return
+    }
     if (loginData.requiresIdentityBinding === true) {
       const issued = await this.completePhaseOneSMSIdentity()
       if (issued && issued.token) {
@@ -895,7 +937,9 @@ Page({
       return
     }
 
-    if (loginData.requiresIdentityBinding === false || this.isRealnameVerified(loginData.user)) {
+    // requiresIdentityBinding 表示手机号登录凭证是否还需换发，不代表已经
+    // 完成姓名和身份证审核；新注册用户仍需按真实实名状态展示引导。
+    if (this.isRealnameVerified(loginData.user)) {
       this.showNewbieTasksAfterLogin()
       return
     }
@@ -911,6 +955,14 @@ Page({
     }
 
     this.showRealnameModalAfterLogin()
+  },
+
+  continueExistingAfterLogin() {
+    const target = normalizeReturnRoute(this.data.returnRoute) || `/${ROUTES.playerHome}`
+    wx.reLaunch({
+      url: target,
+      fail: () => wx.redirectTo({ url: target })
+    })
   },
 
   async completePhaseOneSMSIdentity() {
@@ -1044,31 +1096,7 @@ Page({
       return
     }
 
-    if (this.data.isStartingRealname) {
-      return
-    }
-
-    this.setData({
-      isStartingRealname: true
-    })
-
-    try {
-      const result = await userService.startRealnameAuth()
-      const url = result && result.url
-
-      if (url) {
-        navigateShellRoute(url)
-        return
-      }
-
-      navigateShellRoute('/pages/login/realname/index')
-    } catch (error) {
-      toast.info(error.message || '实名认证页面打开失败')
-    } finally {
-      this.setData({
-        isStartingRealname: false
-      })
-    }
+    navigateShellRoute('/pages/login/realname/index')
   },
 
   skipRealnameAuth() {
@@ -1391,7 +1419,8 @@ Page({
       })
       inviteService.clearInviteContext()
       toast.success(loginData.authPageMode === 'register' ? '注册成功' : '登录成功')
-      await this.promptWechatBindAfterLogin(loginData)
+      const wechatBound = await this.promptWechatBindAfterLogin(loginData)
+      this.setData({ wechatBindPending: !wechatBound })
       await this.continueAfterLogin(loginData)
     } catch (error) {
       if (isInviteError(error)) {
@@ -1459,7 +1488,8 @@ Page({
       })
       inviteService.clearInviteContext()
       toast.success('登录成功')
-      await this.promptWechatBindAfterLogin(loginData)
+      const wechatBound = await this.promptWechatBindAfterLogin(loginData)
+      this.setData({ wechatBindPending: !wechatBound })
       await this.continueAfterLogin(loginData)
     } catch (error) {
       toast.info(error.message || '账号密码登录失败')
@@ -1471,27 +1501,60 @@ Page({
   },
 
   async promptWechatBindAfterLogin(loginData) {
-    if (loginData && loginData.boundWechat) return
-    await new Promise((resolve) => {
+    if (loginData && loginData.boundWechat) return true
+    return new Promise((resolve) => {
       wx.showModal({
         title: '绑定微信',
-        content: '绑定后可使用微信快捷登录，也可暂不绑定。',
-        confirmText: '去绑定',
+        content: '现在绑定后可直接微信快捷登录；也可稍后在“我的-系统设置-账号安全”中绑定。',
+        confirmText: '现在绑定',
         cancelText: '暂不绑定',
         success: async (res) => {
-          if (res.confirm) {
-            try {
-              await authService.bindWechatAccount()
-              toast.success('微信已绑定')
-            } catch (error) {
-              toast.info(error.message || '微信绑定失败')
-            }
+          if (!res.confirm) {
+            resolve(false)
+            return
           }
-          resolve()
+
+          this.setData({ isBindingWechat: true })
+          try {
+            const user = await authService.bindWechatAccount()
+            this.setData({
+              userInfo: user,
+              wechatBindPending: false
+            })
+            toast.success('微信已绑定')
+            resolve(true)
+          } catch (error) {
+            // Do not treat a failed binding request as "bound". The new-user
+            // page retains a visible retry entry so the user can bind later.
+            toast.info(error.message || '微信绑定失败，可稍后在新手任务页或系统设置中重试')
+            resolve(false)
+          } finally {
+            this.setData({ isBindingWechat: false })
+          }
         },
-        fail: resolve
+        fail: () => resolve(false)
       })
     })
+  },
+
+  async bindWechatFromNewbieTasks() {
+    if (this.data.isBindingWechat) {
+      return
+    }
+
+    this.setData({ isBindingWechat: true })
+    try {
+      const user = await authService.bindWechatAccount()
+      this.setData({
+        userInfo: user,
+        wechatBindPending: false
+      })
+      toast.success('微信已绑定')
+    } catch (error) {
+      toast.info(error.message || '微信绑定失败，请稍后重试')
+    } finally {
+      this.setData({ isBindingWechat: false })
+    }
   },
 
   goHome() {

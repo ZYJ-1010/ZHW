@@ -123,7 +123,12 @@ async function loginByPhone(options = {}) {
 async function loginByPassword(options = {}) {
   const result = await api.loginWithPassword({ phone: options.phone || '', password: options.password || '' })
   if (result.code !== 0) throw new Error(result.message || '手机号或密码错误')
-  setAuthToken(result.data.token || '')
+  const token = result.data && result.data.token || ''
+  if (!token) {
+    throw new Error('账号密码登录未返回登录凭证')
+  }
+  setAuthToken(token)
+  wx.removeStorageSync('enjoy_pre_auth_token')
   wx.setStorageSync('enjoy_user', result.data.user)
   return result.data
 }
@@ -143,8 +148,16 @@ async function setLoginPassword(password) {
   return result.data
 }
 
-async function resetPassword() {
-  throw new Error('\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55\uff0c\u65e0\u9700\u627e\u56de\u5bc6\u7801')
+async function resetPassword(options = {}) {
+  const result = await api.resetPassword({
+    phone: options.phone || '',
+    code: options.code || '',
+    password: options.password || ''
+  })
+  if (result.code !== 0) {
+    throw new Error(result.message || '密码重置失败')
+  }
+  return result.data || {}
 }
 
 async function issueTokenAfterIdentity() {

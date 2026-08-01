@@ -2,6 +2,7 @@ package games
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -80,12 +81,26 @@ func TestFavoriteRepositoryIsUsedWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestStrictFavoriteListsDoNotUseStaleCache(t *testing.T) {
+	repo := &fakeFavoriteRepository{items: make(map[int64]map[int64]Favorite), readErr: errors.New("favorite database unavailable")}
+	service := NewServiceWithFavoriteRepository(fakeIdentity{verified: true}, repo)
+	service.favorites[2] = map[int64]Favorite{9: {UserID: 2, GameID: 9}}
+
+	if _, err := service.FavoriteGamesStrict(2); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected user favorites read error, got %v", err)
+	}
+	if _, err := service.AllFavoritesStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected all favorites read error, got %v", err)
+	}
+}
+
 type fakeFavoriteRepository struct {
 	items        map[int64]map[int64]Favorite
 	saved        bool
 	deleted      bool
 	listedByUser bool
 	listedAll    bool
+	readErr      error
 }
 
 func (r *fakeFavoriteRepository) SaveFavorite(ctx context.Context, favorite Favorite) (Favorite, error) {
@@ -112,6 +127,9 @@ func (r *fakeFavoriteRepository) DeleteFavorite(ctx context.Context, userID int6
 }
 
 func (r *fakeFavoriteRepository) ListFavoritesByUser(ctx context.Context, userID int64) ([]Favorite, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	r.listedByUser = true
 	result := make([]Favorite, 0)
 	for _, item := range r.items[userID] {
@@ -122,6 +140,9 @@ func (r *fakeFavoriteRepository) ListFavoritesByUser(ctx context.Context, userID
 }
 
 func (r *fakeFavoriteRepository) ListAllFavorites(ctx context.Context) ([]Favorite, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	r.listedAll = true
 	result := make([]Favorite, 0)
 	for _, userItems := range r.items {

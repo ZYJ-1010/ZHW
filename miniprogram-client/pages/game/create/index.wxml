@@ -14,6 +14,7 @@
     show-scrollbar="false"
     scroll-with-animation
     scroll-top="{{createScrollTop}}"
+    scroll-into-view="{{createScrollIntoView}}"
     bindscroll="handleCreateScroll"
     enable-back-to-top
   >
@@ -23,7 +24,7 @@
         <button class="draft-box-button" bindtap="openDraftBox">草稿箱</button>
       </view>
 
-      <view class="cover-section">
+      <view id="create-field-cover" class="cover-section">
         <view class="section-heading">
           <text class="section-title">局封面</text>
           <text class="section-required">{{coverUploadEnabled ? '（必填）' : '（当前使用默认封面）'}}</text>
@@ -41,7 +42,7 @@
 
       <text class="block-title">局属性</text>
       <view class="form-panel">
-        <view class="form-field">
+        <view id="create-field-theme" class="form-field">
           <text class="field-label">局主题</text>
           <input
             class="theme-control"
@@ -53,7 +54,7 @@
           />
         </view>
 
-        <view class="form-field">
+        <view id="create-field-type" class="form-field">
           <view class="field-heading">
             <text class="field-label">局类型</text>
             <text class="field-required">（必填）</text>
@@ -71,7 +72,7 @@
 
         <view class="divider"></view>
 
-        <view wx:for="{{scheduleFields}}" wx:key="key" class="schedule-block {{index === 0 ? '' : 'with-line'}}">
+        <view wx:for="{{scheduleFields}}" wx:key="key" id="create-field-{{item.key}}" class="schedule-block {{index === 0 ? '' : 'with-line'}}">
           <view
             class="select-row"
             data-key="{{item.key}}"
@@ -84,8 +85,8 @@
               </view>
               <text wx:if="{{!item.value}}" class="field-hint">{{item.hint}}</text>
             </view>
-            <view class="select-action {{item.value && item.key !== 'location' ? 'selected' : ''}}">
-              <text>{{item.key === 'location' ? '请选择' : (item.value && item.key !== 'gameTime' && item.key !== 'signupTime' ? item.value : '请选择')}}</text>
+            <view class="select-action {{item.value ? 'selected' : ''}}">
+              <text>{{item.value ? item.value : '请选择'}}</text>
               <text class="chevron">›</text>
             </view>
           </view>
@@ -236,7 +237,7 @@
 
         <view class="divider"></view>
 
-        <view class="form-field">
+        <view id="create-field-capacity" class="form-field">
           <view class="field-heading">
             <text class="field-label">局人数</text>
             <text class="field-required">必填</text>
@@ -283,6 +284,25 @@
 
         <view class="divider"></view>
 
+        <view id="create-field-roles" class="form-field">
+          <view class="field-heading">
+            <text class="field-label">可参与角色</text>
+            <text class="field-required">必填</text>
+          </view>
+          <text class="field-help">仅开放的身份可以申请入局。</text>
+          <view class="chip-row participation-row">
+            <button
+              wx:for="{{participantRoleOptions}}"
+              wx:key="key"
+              class="option-chip participation-chip {{item.active ? 'active' : ''}}"
+              data-key="{{item.key}}"
+              bindtap="toggleAllowedRole"
+            >{{item.name}}</button>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
         <view class="form-field">
           <view class="field-heading">
             <text class="field-label">标签</text>
@@ -302,7 +322,7 @@
 
       <text class="block-title">局概述</text>
       <view class="form-panel">
-        <view class="form-field">
+        <view id="create-field-introduction" class="form-field">
           <view class="field-heading">
             <text class="field-label">局介绍</text>
             <text class="field-required">（必填）</text>
@@ -319,7 +339,7 @@
           ></textarea>
         </view>
 
-        <view class="form-field">
+        <view id="create-field-highlights" class="form-field">
           <view class="field-heading">
             <text class="field-label">亮点</text>
             <text class="field-required">（必填）</text>
@@ -336,7 +356,7 @@
           ></textarea>
         </view>
 
-        <view class="form-field">
+        <view id="create-field-description" class="form-field">
           <view class="field-heading">
             <text class="field-label">局描述</text>
             <text class="field-required">（必填）</text>
@@ -345,22 +365,35 @@
           <textarea
             class="textarea-control description-control"
             value="{{form.description}}"
+            maxlength="{{descriptionMaxLength}}"
             placeholder="请输入局描述"
             placeholder-class="control-placeholder"
             auto-height
             bindinput="onDescriptionInput"
           ></textarea>
           <view class="description-media-actions">
-            <button class="description-media-button" data-type="image" bindtap="chooseDescriptionMedia">添加图片</button>
-            <button class="description-media-button" data-type="video" bindtap="chooseDescriptionMedia">添加视频</button>
+            <button class="description-media-button" disabled="{{draftSaving || previewPreparing || publishing}}" data-type="image" bindtap="chooseDescriptionMedia">添加图片</button>
+            <button class="description-media-button" disabled="{{draftSaving || previewPreparing || publishing}}" data-type="video" bindtap="chooseDescriptionMedia">添加视频</button>
           </view>
+          <text wx:if="{{descriptionMediaPendingCount > 0}}" class="field-help description-media-pending">正在处理媒体，请稍候</text>
           <view wx:if="{{descriptionMedia.length}}" class="description-media-list">
             <view wx:for="{{descriptionMedia}}" wx:key="id" class="description-media-item">
               <image
+                wx:if="{{item.type === 'image'}}"
                 class="description-media-thumb"
-                src="{{item.thumbTempFilePath}}"
+                src="{{item.url || item.thumbTempFilePath || item.tempFilePath}}"
                 mode="aspectFill"
               />
+              <video
+                wx:else
+                class="description-media-thumb"
+                src="{{item.url || item.tempFilePath}}"
+                controls="{{false}}"
+                show-center-play-btn="{{true}}"
+                show-play-btn="{{false}}"
+                show-fullscreen-btn="{{false}}"
+                object-fit="cover"
+              ></video>
               <text wx:if="{{item.type === 'video'}}" class="description-media-duration">{{item.durationText}}</text>
               <button
                 class="description-media-remove"
@@ -397,7 +430,7 @@
           />
         </view>
 
-        <view class="form-field">
+        <view id="create-field-completionRules" class="form-field">
           <text class="field-label">完成标准</text>
           <view class="completion-row">
             <button
@@ -411,75 +444,19 @@
         </view>
       </view>
 
-      <text class="block-title">费用与利润</text>
+      <text class="block-title">收费局</text>
       <view class="form-panel">
         <view class="form-field">
-          <view class="field-heading">
-            <text class="field-label">是否收费</text>
-            <text class="field-required">必填</text>
-          </view>
-          <view class="fee-row">
-            <button
-              wx:for="{{feeTypes}}"
-              wx:key="key"
-              class="fee-chip {{form.feeType === item.key ? 'active' : ''}}"
-              data-key="{{item.key}}"
-              bindtap="selectFeeType"
-            >{{item.name}}</button>
-          </view>
-        </view>
-
-        <view wx:if="{{form.feeType === 'paid'}}" class="form-field">
-          <text class="field-label">局费</text>
-          <view class="price-control">
-            <input
-              class="price-input"
-              type="digit"
-              value="{{form.price}}"
-              placeholder="请输入金额"
-              placeholder-class="control-placeholder"
-              bindinput="onPriceInput"
-            />
-            <text class="price-unit">元/人</text>
-          </view>
-        </view>
-
-        <view wx:if="{{showProfitTemplate}}" class="form-field">
-          <text class="field-label">分润模板</text>
-          <view class="profit-list">
-            <view
-              wx:for="{{profitTemplates}}"
-              wx:key="key"
-              class="profit-card {{form.profitTemplate === item.key ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
-              data-key="{{item.key}}"
-              bindtap="selectProfitTemplate"
-            >
-              <text class="profit-title">{{item.name}}</text>
-              <text wx:if="{{item.desc}}" class="profit-desc">{{item.desc}}</text>
-              <text wx:if="{{item.disabled && item.disabledReason}}" class="profit-disabled-reason">{{item.disabledReason}}</text>
-            </view>
-          </view>
-        </view>
-
-        <view wx:if="{{depositRuleText}}" class="form-field">
-          <text class="field-label">押金局规则</text>
-          <view class="rule-box">
-            <text>{{depositRuleText}}</text>
-          </view>
-        </view>
-
-        <view wx:if="{{depositNoticeText}}" class="form-field">
-          <text class="field-label deposit-notice-label">押金局提示</text>
-          <view class="rule-box subtle">
-            <text>{{depositNoticeText}}</text>
-          </view>
+          <text class="field-label">收费局功能暂未开放</text>
+          <text class="field-help">当前发布的局均为免费局</text>
+          <button class="fee-chip" bindtap="onPaidGameTap">收费局暂未开放</button>
         </view>
       </view>
 
       <view class="action-row">
-        <button class="secondary-action" bindtap="saveDraft">保存草稿</button>
-        <button class="secondary-action" bindtap="previewSubmit">预览</button>
-        <button class="primary-action {{publishDisabled ? 'disabled' : ''}}" bindtap="publishGame">发布并同步到地球网</button>
+        <button class="secondary-action" disabled="{{draftSaving || previewPreparing || publishing}}" bindtap="saveDraft">保存草稿</button>
+        <button class="secondary-action" disabled="{{draftSaving || previewPreparing || publishing}}" bindtap="previewSubmit">预览</button>
+        <button class="primary-action {{publishDisabled ? 'disabled' : ''}}" disabled="{{draftSaving || previewPreparing || publishing}}" bindtap="publishGame">发布并同步到地球网</button>
       </view>
     </view>
   </scroll-view>

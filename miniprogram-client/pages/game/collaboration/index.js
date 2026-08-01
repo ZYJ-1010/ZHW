@@ -3,6 +3,7 @@ const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 const { getSurnameInitials } = require('../../../utils/avatar')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const WHITE_CONTENT_LEFT_RPX = 2
 const WHITE_CONTENT_TOP_RPX = 160
@@ -89,7 +90,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        loadError: error && error.message ? error.message : '协作数据加载失败',
+        loadError: toUserMessage(error && error.message, '协作数据加载失败'),
         subtitle: '',
         progressPercent: 0,
         members: [],
@@ -201,7 +202,7 @@ Page({
       this.setData({ progressInput: '', progressNote: '' })
       await this.loadCollaboration(this.data.gameId)
     } catch (error) {
-      wx.showToast({ title: error && error.message ? error.message : '更新进度失败', icon: 'none' })
+      wx.showToast({ title: toUserMessage(error && error.message, '更新进度失败'), icon: 'none' })
     } finally {
       this.setData({ progressSaving: false })
     }
@@ -245,7 +246,7 @@ Page({
     } catch (error) {
       wx.hideLoading()
       wx.showToast({
-        title: error && error.message ? error.message : '结束组局失败',
+        title: toUserMessage(error && error.message, '结束组局失败'),
         icon: 'none'
       })
     } finally {

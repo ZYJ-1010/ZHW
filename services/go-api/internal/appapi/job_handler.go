@@ -12,23 +12,34 @@ import (
 
 func (s *Server) runReviewRemindJob(w http.ResponseWriter, r *http.Request) {
 	created := 0
-	for _, game := range s.games.List() {
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局列表失败，未执行评价提醒")
+		return
+	}
+	for _, game := range gameItems {
 		if game.Status != "pending_review" && game.Status != "completed" {
 			continue
 		}
 		for _, userID := range s.games.Members(game.ID) {
-			if s.hasUnreadJobNotification(userID, "review_remind", game.ID) {
+			exists, err := s.hasUnreadJobNotificationStrict(userID, "review_remind", game.ID)
+			if err != nil {
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取提醒状态失败，未执行评价提醒")
+				return
+			}
+			if exists {
 				continue
 			}
 			todos, err := s.reviews.Todos(userID)
 			if err != nil {
-				continue
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取评价待办失败，未执行评价提醒")
+				return
 			}
 			for _, todo := range todos {
 				if todo.GameID != game.ID {
 					continue
 				}
-				s.notices.Create(notifications.CreateRequest{
+				if _, err := s.createCriticalNotification(nil, "review_remind_job", notifications.CreateRequest{
 					UserID:     userID,
 					NotifyType: "review_remind",
 					Title:      "评价提醒",
@@ -40,7 +51,10 @@ func (s *Server) runReviewRemindJob(w http.ResponseWriter, r *http.Request) {
 						"thing1": game.Title,
 						"time2":  todo.DeadlineAt,
 					},
-				})
+				}); err != nil {
+					httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "保存评价提醒失败，请稍后重试")
+					return
+				}
 				created++
 				break
 			}
@@ -51,14 +65,24 @@ func (s *Server) runReviewRemindJob(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) runProgressFeedbackRemindJob(w http.ResponseWriter, r *http.Request) {
 	created := 0
-	for _, game := range s.games.List() {
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局列表失败，未执行进度提醒")
+		return
+	}
+	for _, game := range gameItems {
 		if game.Status != "in_progress" && game.Status != "pending_confirm" {
 			continue
 		}
-		if s.hasUnreadJobNotification(game.CreatorUserID, "progress_feedback_remind", game.ID) {
+		exists, err := s.hasUnreadJobNotificationStrict(game.CreatorUserID, "progress_feedback_remind", game.ID)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取提醒状态失败，未执行进度提醒")
+			return
+		}
+		if exists {
 			continue
 		}
-		s.notices.Create(notifications.CreateRequest{
+		if _, err := s.createCriticalNotification(nil, "progress_feedback_remind_job", notifications.CreateRequest{
 			UserID:     game.CreatorUserID,
 			NotifyType: "progress_feedback_remind",
 			Title:      "进度反馈提醒",
@@ -70,23 +94,34 @@ func (s *Server) runProgressFeedbackRemindJob(w http.ResponseWriter, r *http.Req
 				"thing1": game.Title,
 				"thing2": game.Status,
 			},
-		})
+		}); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "保存进度提醒失败，请稍后重试")
+			return
+		}
 		created++
 	}
 	httpx.OK(w, map[string]interface{}{"created": created})
 }
 
-func (s *Server) hasUnreadJobNotification(userID int64, notifyType string, bizID int64) bool {
-	for _, item := range s.notices.List(userID) {
+func (s *Server) hasUnreadJobNotificationStrict(userID int64, notifyType string, bizID int64) (bool, error) {
+	items, err := s.notices.ListStrict(userID)
+	if err != nil {
+		return false, err
+	}
+	for _, item := range items {
 		if item.NotifyType == notifyType && item.BizID == bizID && item.Status == "unread" {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
-	rules := s.currentOperationRules()
+	rules, err := s.currentOperationRulesStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取积分规则失败，未执行积分到期处理")
+		return
+	}
 	if !rules.Points.ExpireEnabled || rules.Points.ExpireDays <= 0 {
 		httpx.OK(w, map[string]interface{}{"enabled": false, "expiredCount": 0, "items": []interface{}{}})
 		return
@@ -95,7 +130,7 @@ func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]interface{}, 0)
 	usersList, err := s.auth.AdminUsers(users.Filter{})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取用户列表失败")
 		return
 	}
 	for _, user := range usersList {
@@ -104,11 +139,14 @@ func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		items = append(items, map[string]interface{}{"userId": user.ID, "expiredPoints": -log.ChangeValue, "account": account, "log": log})
-		s.notices.Create(notifications.CreateRequest{
+		if _, err := s.createCriticalNotification(nil, "points_expire_job", notifications.CreateRequest{
 			UserID: user.ID, NotifyType: "points_expired", Title: "积分到期提醒",
 			Content: "本次有 " + strconv.Itoa(-log.ChangeValue) + " 积分到期扣减，剩余积分 " + strconv.Itoa(account.AvailablePoints) + "。",
 			BizType: "points", BizID: log.ID,
-		})
+		}); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "保存积分到期提醒失败，请稍后重试")
+			return
+		}
 	}
 	httpx.OK(w, map[string]interface{}{"enabled": true, "cutoff": cutoff, "expiredCount": len(items), "items": items})
 }
@@ -116,11 +154,27 @@ func (s *Server) runPointsExpireJob(w http.ResponseWriter, r *http.Request) {
 func (s *Server) archiveExpiredIMRooms(w http.ResponseWriter, r *http.Request) {
 	gameIDs := make([]int64, 0)
 	skipped := make([]map[string]interface{}, 0)
-	for _, game := range s.games.List() {
+	reportItems, err := s.reports.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取举报状态失败，未执行聊天室归档")
+		return
+	}
+	openReportGames := make(map[int64]bool)
+	for _, report := range reportItems {
+		if report.Status != "closed" {
+			openReportGames[report.GameID] = true
+		}
+	}
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局列表失败，未执行聊天室归档")
+		return
+	}
+	for _, game := range gameItems {
 		if !imArchiveCandidateStatus(game.Status) {
 			continue
 		}
-		if s.hasOpenReport(game.ID) {
+		if openReportGames[game.ID] {
 			skipped = append(skipped, map[string]interface{}{
 				"gameId": game.ID,
 				"reason": "open_report",
@@ -129,7 +183,11 @@ func (s *Server) archiveExpiredIMRooms(w http.ResponseWriter, r *http.Request) {
 		}
 		gameIDs = append(gameIDs, game.ID)
 	}
-	archived := s.im.ArchiveRoomsByGameIDs(gameIDs, "archive_job")
+	archived, err := s.im.ArchiveRoomsByGameIDsStrict(gameIDs, "archive_job")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "归档聊天室失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, map[string]interface{}{
 		"archivedCount": len(archived),
 		"archivedRooms": archived,
@@ -162,13 +220,4 @@ func (s *Server) retryFailedIMRooms(w http.ResponseWriter, r *http.Request) {
 
 func imArchiveCandidateStatus(status string) bool {
 	return status == "pending_review" || status == "completed"
-}
-
-func (s *Server) hasOpenReport(gameID int64) bool {
-	for _, report := range s.reports.List() {
-		if report.GameID == gameID && report.Status != "closed" {
-			return true
-		}
-	}
-	return false
 }

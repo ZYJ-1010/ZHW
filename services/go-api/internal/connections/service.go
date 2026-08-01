@@ -14,6 +14,7 @@ var (
 	ErrConnectionNotFound  = errors.New("connection not found")
 	ErrConnectionForbidden = errors.New("connection forbidden")
 	ErrInvalidFollowLog    = errors.New("invalid follow log")
+	ErrInvalidConnection   = errors.New("invalid connection")
 )
 
 type Connection struct {
@@ -46,11 +47,13 @@ type FollowRequest struct {
 
 type Repository interface {
 	UpsertConnection(ctx context.Context, connection Connection, strengthDelta int) (Connection, error)
+	UpsertConnectionPair(ctx context.Context, first Connection, second Connection, strengthDelta int) (Connection, Connection, error)
 	ListConnections(ctx context.Context, userID int64) ([]Connection, error)
 	ListAllConnections(ctx context.Context) ([]Connection, error)
 	FindConnection(ctx context.Context, connectionID int64) (Connection, bool, error)
 	AddFollowLog(ctx context.Context, log FollowLog) (FollowLog, error)
 	IncrementStrength(ctx context.Context, connectionID int64, delta int) (Connection, error)
+	AddFollowLogAndIncrement(ctx context.Context, log FollowLog, strengthDelta int) (FollowLog, Connection, error)
 }
 
 type Service struct {
@@ -79,25 +82,37 @@ func NewServiceWithRepository(repo Repository) *Service {
 }
 
 func (s *Service) UpsertPair(userID int64, connectedUserID int64, relationType string, sourceType string, sourceID int64, strengthDelta int) {
+	_ = s.UpsertPairStrict(userID, connectedUserID, relationType, sourceType, sourceID, strengthDelta)
+}
+
+func (s *Service) UpsertPairStrict(userID int64, connectedUserID int64, relationType string, sourceType string, sourceID int64, strengthDelta int) error {
 	if userID <= 0 || connectedUserID <= 0 || userID == connectedUserID {
-		return
+		return ErrInvalidConnection
 	}
 	if s.repo != nil {
-		_, _ = s.repo.UpsertConnection(context.Background(), newConnection(userID, connectedUserID, relationType, sourceType, sourceID, strengthDelta), strengthDelta)
-		_, _ = s.repo.UpsertConnection(context.Background(), newConnection(connectedUserID, userID, relationType, sourceType, sourceID, strengthDelta), strengthDelta)
-		return
+		_, _, err := s.repo.UpsertConnectionPair(
+			context.Background(),
+			newConnection(userID, connectedUserID, relationType, sourceType, sourceID, strengthDelta),
+			newConnection(connectedUserID, userID, relationType, sourceType, sourceID, strengthDelta),
+			strengthDelta,
+		)
+		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.upsertLocked(userID, connectedUserID, relationType, sourceType, sourceID, strengthDelta)
 	s.upsertLocked(connectedUserID, userID, relationType, sourceType, sourceID, strengthDelta)
+	return nil
 }
 
 func (s *Service) My(userID int64) []Connection {
+	items, _ := s.MyStrict(userID)
+	return items
+}
+
+func (s *Service) MyStrict(userID int64) ([]Connection, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListConnections(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListConnections(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -107,14 +122,17 @@ func (s *Service) My(userID int64) []Connection {
 			result = append(result, item)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) All() []Connection {
+	items, _ := s.AllStrict()
+	return items
+}
+
+func (s *Service) AllStrict() ([]Connection, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListAllConnections(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListAllConnections(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -122,7 +140,7 @@ func (s *Service) All() []Connection {
 	for _, item := range s.connections {
 		result = append(result, item)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) AddFollowLog(operatorUserID int64, connectionID int64, req FollowRequest, guideAllowed bool) (FollowLog, error) {
@@ -143,18 +161,17 @@ func (s *Service) AddFollowLog(operatorUserID int64, connectionID int64, req Fol
 		if conn.UserID != operatorUserID && conn.ConnectedUserID != operatorUserID && !guideAllowed {
 			return FollowLog{}, ErrConnectionForbidden
 		}
-		log, err := s.repo.AddFollowLog(context.Background(), FollowLog{
+		log, _, err := s.repo.AddFollowLogAndIncrement(context.Background(), FollowLog{
 			ConnectionID:   connectionID,
 			OperatorUserID: operatorUserID,
 			FollowType:     req.FollowType,
 			Content:        req.Content,
 			NextFollowAt:   req.NextFollowAt,
 			CreatedAt:      time.Now(),
-		})
+		}, 1)
 		if err != nil {
 			return FollowLog{}, err
 		}
-		_, _ = s.repo.IncrementStrength(context.Background(), connectionID, 1)
 		return log, nil
 	}
 	s.mu.Lock()

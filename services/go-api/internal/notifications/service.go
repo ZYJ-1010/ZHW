@@ -16,6 +16,7 @@ var (
 	ErrNotificationNotFound = errors.New("notification not found")
 	ErrForbidden            = errors.New("forbidden")
 	ErrWechatSubscribeSend  = errors.New("wechat subscribe send failed")
+	ErrNotificationPersist  = errors.New("notification persistence failed")
 )
 
 type Notification struct {
@@ -149,6 +150,14 @@ func (s *Service) UseOpenIDResolver(resolver OpenIDResolver) {
 }
 
 func (s *Service) Create(req CreateRequest) Notification {
+	notification, _ := s.CreatePersisted(req)
+	return notification
+}
+
+// CreatePersisted keeps the legacy in-memory fallback but also reports a
+// configured repository failure to callers that must surface delivery
+// degradation. Create remains available for existing best-effort callers.
+func (s *Service) CreatePersisted(req CreateRequest) (Notification, error) {
 	if req.NotifyType == "" {
 		req.NotifyType = "system"
 	}
@@ -174,6 +183,7 @@ func (s *Service) Create(req CreateRequest) Notification {
 	s.notifications[notification.ID] = notification
 	if notification.NeedWechat {
 		notification.WechatTemplateID = s.templateIDForScene(req.NotifyType, req.WechatTemplateID)
+		localNotificationID := notification.ID
 		task := &WechatTask{
 			ID:             s.nextWechatID,
 			NotificationID: notification.ID,
@@ -185,34 +195,53 @@ func (s *Service) Create(req CreateRequest) Notification {
 			CreatedAt:      notification.CreatedAt,
 		}
 		s.nextWechatID++
+		localWechatTaskID := task.ID
 		s.wechatTasks[task.ID] = *task
 		notification.WechatTaskID = task.ID
 		notification.WechatState = "pending"
 		s.notifications[notification.ID] = notification
 		if s.repo != nil {
-			if saved, err := s.repo.SaveNotification(context.Background(), notification, task); err == nil {
-				if saved.WechatTaskID > 0 {
-					task.ID = saved.WechatTaskID
-					task.NotificationID = saved.ID
-					s.wechatTasks[task.ID] = *task
-				}
-				s.notifications[saved.ID] = saved
+			saved, err := s.repo.SaveNotification(context.Background(), notification, task)
+			if err != nil {
 				s.mu.Unlock()
-				return saved
+				return notification, fmt.Errorf("%w: %v", ErrNotificationPersist, err)
 			}
-		}
-		s.mu.Unlock()
-		return notification
-	}
-	if s.repo != nil {
-		if saved, err := s.repo.SaveNotification(context.Background(), notification, nil); err == nil {
+			delete(s.notifications, localNotificationID)
+			delete(s.wechatTasks, localWechatTaskID)
+			if saved.WechatTaskID > 0 {
+				task.ID = saved.WechatTaskID
+				task.NotificationID = saved.ID
+				s.wechatTasks[task.ID] = *task
+			}
+			if saved.ID >= s.nextID {
+				s.nextID = saved.ID + 1
+			}
+			if saved.WechatTaskID >= s.nextWechatID {
+				s.nextWechatID = saved.WechatTaskID + 1
+			}
 			s.notifications[saved.ID] = saved
 			s.mu.Unlock()
-			return saved
+			return saved, nil
 		}
+		s.mu.Unlock()
+		return notification, nil
+	}
+	if s.repo != nil {
+		saved, err := s.repo.SaveNotification(context.Background(), notification, nil)
+		if err != nil {
+			s.mu.Unlock()
+			return notification, fmt.Errorf("%w: %v", ErrNotificationPersist, err)
+		}
+		delete(s.notifications, notification.ID)
+		if saved.ID >= s.nextID {
+			s.nextID = saved.ID + 1
+		}
+		s.notifications[saved.ID] = saved
+		s.mu.Unlock()
+		return saved, nil
 	}
 	s.mu.Unlock()
-	return notification
+	return notification, nil
 }
 
 // CreateOrUpdateRoomMessage keeps one unread notification per user and game
@@ -262,13 +291,25 @@ func (s *Service) CreateOrUpdateRoomMessage(req CreateRequest) Notification {
 }
 
 func (s *Service) List(userID int64) []Notification {
-	if s.repo != nil {
-		if items, err := s.repo.ListNotifications(context.Background(), userID); err == nil {
-			return items
-		}
+	items, _ := s.ListStrict(userID)
+	if items != nil {
+		return items
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.listFromMemoryLocked(userID)
+}
+
+func (s *Service) ListStrict(userID int64) ([]Notification, error) {
+	if s.repo != nil {
+		return s.repo.ListNotifications(context.Background(), userID)
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.listFromMemoryLocked(userID), nil
+}
+
+func (s *Service) listFromMemoryLocked(userID int64) []Notification {
 	result := make([]Notification, 0)
 	for _, notification := range s.notifications {
 		if notification.UserID == userID {
@@ -321,13 +362,25 @@ func (s *Service) MarkRead(userID int64, notificationID int64) (Notification, er
 }
 
 func (s *Service) WechatTasks() []WechatTask {
-	if s.repo != nil {
-		if items, err := s.repo.ListWechatTasks(context.Background()); err == nil {
-			return items
-		}
+	items, _ := s.WechatTasksStrict()
+	if items != nil {
+		return items
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.wechatTasksFromMemoryLocked()
+}
+
+func (s *Service) WechatTasksStrict() ([]WechatTask, error) {
+	if s.repo != nil {
+		return s.repo.ListWechatTasks(context.Background())
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.wechatTasksFromMemoryLocked(), nil
+}
+
+func (s *Service) wechatTasksFromMemoryLocked() []WechatTask {
 	result := make([]WechatTask, 0, len(s.wechatTasks))
 	for _, task := range s.wechatTasks {
 		result = append(result, task)
@@ -336,13 +389,31 @@ func (s *Service) WechatTasks() []WechatTask {
 }
 
 func (s *Service) WechatTemplates() []WechatTemplate {
+	items, _ := s.WechatTemplatesStrict()
+	if len(items) > 0 {
+		return items
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.wechatTemplatesFromMemoryLocked()
+}
+
+func (s *Service) WechatTemplatesStrict() ([]WechatTemplate, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListWechatTemplates(context.Background()); err == nil && len(items) > 0 {
-			return items
+		items, err := s.repo.ListWechatTemplates(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		if len(items) > 0 {
+			return items, nil
 		}
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.wechatTemplatesFromMemoryLocked(), nil
+}
+
+func (s *Service) wechatTemplatesFromMemoryLocked() []WechatTemplate {
 	result := make([]WechatTemplate, 0, len(s.wechatTemplates))
 	for _, item := range s.wechatTemplates {
 		result = append(result, item)
@@ -417,12 +488,21 @@ func (s *Service) SendWechatTask(taskID int64) (WechatTask, error) {
 }
 
 func (s *Service) SendPendingWechatTasks(limit int) WechatTaskSendBatchResult {
+	result, _ := s.SendPendingWechatTasksStrict(limit)
+	return result
+}
+
+func (s *Service) SendPendingWechatTasksStrict(limit int) (WechatTaskSendBatchResult, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	result := WechatTaskSendBatchResult{Items: make([]WechatTask, 0)}
 	attempted := 0
-	for _, task := range s.WechatTasks() {
+	tasks, err := s.WechatTasksStrict()
+	if err != nil {
+		return result, err
+	}
+	for _, task := range tasks {
 		if task.Status != "pending" {
 			result.Skipped++
 			continue
@@ -440,7 +520,7 @@ func (s *Service) SendPendingWechatTasks(limit int) WechatTaskSendBatchResult {
 		result.Sent++
 		result.Items = append(result.Items, sent)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) findWechatTask(taskID int64) (WechatTask, error) {
@@ -640,6 +720,18 @@ func defaultWechatTemplates() map[string]WechatTemplate {
 			Scene:      "review_remind",
 			TemplateID: "mock_review_remind_tpl",
 			Title:      "评价提醒",
+			Status:     "active",
+		},
+		"application_approved": {
+			Scene:      "application_approved",
+			TemplateID: "mock_application_approved_tpl",
+			Title:      "入局申请通过提醒",
+			Status:     "active",
+		},
+		"application_rejected": {
+			Scene:      "application_rejected",
+			TemplateID: "mock_application_rejected_tpl",
+			Title:      "入局申请未通过提醒",
 			Status:     "active",
 		},
 		"progress_feedback_remind": {

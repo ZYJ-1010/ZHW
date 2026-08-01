@@ -1,8 +1,8 @@
 const profileApi = require('../api/modules/profile')
 const { createAuthExpiredError, isAuthExpiredResult } = require('../utils/auth-error')
 
-async function getProfileHome() {
-  const result = await profileApi.getProfileHome()
+async function getProfileHome(params = {}) {
+  const result = await profileApi.getProfileHome(params)
 
   if (isAuthExpiredResult(result)) {
     throw createAuthExpiredError(result.message)
@@ -130,8 +130,8 @@ async function getPointsLogs(params = {}) {
   return result.data
 }
 
-async function getGrowth() {
-  const result = await profileApi.getGrowth()
+async function getGrowth(params = {}) {
+  const result = await profileApi.getGrowth(params)
 
   if (result.code !== 0) {
     throw new Error(result.message || '获取成长数据失败')

@@ -5,7 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type SQLRepository struct {
@@ -23,6 +27,24 @@ values ($1,$2,'pending',$3,now())
 on conflict (game_id, user_id) do update set deadline_at = excluded.deadline_at
 `, gameID, userID, deadline)
 	return err
+}
+
+func (r *SQLRepository) MarkReviewableBatch(ctx context.Context, gameID int64, userIDs []int64, deadline time.Time) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, userID := range userIDs {
+		if _, err = tx.ExecContext(ctx, `
+insert into review_reminders (game_id, user_id, status, deadline_at, created_at)
+values ($1,$2,'pending',$3,now())
+on conflict (game_id, user_id) do update set deadline_at = excluded.deadline_at
+`, gameID, userID, deadline); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (r *SQLRepository) ListReviewable(ctx context.Context, userID int64) (map[int64]time.Time, error) {
@@ -61,11 +83,123 @@ select exists(
 
 func (r *SQLRepository) SaveReview(ctx context.Context, review Review) (Review, error) {
 	tags, _ := json.Marshal(review.Tags)
-	return scanReview(r.db.QueryRowContext(ctx, `
+	saved, err := scanReview(r.db.QueryRowContext(ctx, `
 insert into reviews (game_id, reviewer_user_id, target_user_id, target_role, score, content, tags, again_intent, nps_score, created_at)
 values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 returning id, game_id, reviewer_user_id, target_user_id, target_role, score, content, tags, again_intent, nps_score, created_at
 `, review.GameID, review.ReviewerUserID, review.TargetUserID, review.TargetRole, review.Score, review.Content, string(tags), review.AgainIntent, review.NPSScore, review.CreatedAt))
+	if isReviewUniqueViolation(err) {
+		return Review{}, ErrDuplicateReview
+	}
+	return saved, err
+}
+
+func (r *SQLRepository) SaveReviewWithGrowth(ctx context.Context, bundle ReviewGrowthBundle, initialLevel int) (Review, GrowthProfile, GrowthProfile, []Footprint, []Achievement, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		if isReviewUniqueViolation(err) {
+			return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, ErrDuplicateReview
+		}
+		return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+	}
+	defer tx.Rollback()
+	tags, _ := json.Marshal(bundle.Review.Tags)
+	review, err := scanReview(tx.QueryRowContext(ctx, `
+insert into reviews (game_id, reviewer_user_id, target_user_id, target_role, score, content, tags, again_intent, nps_score, created_at)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+returning id, game_id, reviewer_user_id, target_user_id, target_role, score, content, tags, again_intent, nps_score, created_at
+`, bundle.Review.GameID, bundle.Review.ReviewerUserID, bundle.Review.TargetUserID, bundle.Review.TargetRole,
+		bundle.Review.Score, bundle.Review.Content, string(tags), bundle.Review.AgainIntent, bundle.Review.NPSScore, bundle.Review.CreatedAt))
+	if err != nil {
+		return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+	}
+	reviewerProfile, reviewerFootprint, err := applyReviewGrowthMutationTx(ctx, tx, bundle.ReviewerMutation, initialLevel)
+	if err != nil {
+		return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+	}
+	targetProfile, targetFootprint, err := applyReviewGrowthMutationTx(ctx, tx, bundle.TargetMutation, initialLevel)
+	if err != nil {
+		return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+	}
+	for _, achievement := range bundle.Achievements {
+		if _, err = tx.ExecContext(ctx, `
+insert into achievements (code, title, created_at)
+values ($1,$2,now())
+on conflict (code) do update set title = excluded.title
+`, achievement.Code, achievement.Title); err != nil {
+			return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+		}
+		if _, err = tx.ExecContext(ctx, `
+insert into user_achievements (user_id, achievement_code, achieved_at)
+values ($1,$2,$3)
+on conflict (user_id, achievement_code) do nothing
+`, achievement.UserID, achievement.Code, achievement.AchievedAt); err != nil {
+			return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return Review{}, GrowthProfile{}, GrowthProfile{}, nil, nil, err
+	}
+	return review, reviewerProfile, targetProfile, []Footprint{reviewerFootprint, targetFootprint}, bundle.Achievements, nil
+}
+
+func isReviewUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	return errors.As(err, &pqErr) && pqErr.Code == "23505"
+}
+
+func applyReviewGrowthMutationTx(ctx context.Context, tx *sql.Tx, mutation GrowthMutation, initialLevel int) (GrowthProfile, Footprint, error) {
+	if mutation.UserID <= 0 || mutation.Action == "" || mutation.IdempotencyKey == "" || mutation.ExperienceDelta < 0 || mutation.ReviewCountDelta < 0 {
+		return GrowthProfile{}, Footprint{}, ErrInvalidReview
+	}
+	if mutation.CreatedAt.IsZero() {
+		mutation.CreatedAt = time.Now()
+	}
+	if _, err := tx.ExecContext(ctx, `
+insert into experience_logs (user_id, game_id, change_value, reason, idempotency_key, created_at)
+values ($1,$2,$3,$4,$5,$6)
+`, mutation.UserID, nullInt64(mutation.GameID), mutation.ExperienceDelta, mutation.Action, mutation.IdempotencyKey, mutation.CreatedAt); err != nil {
+		return GrowthProfile{}, Footprint{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+insert into user_growth_profiles (user_id, level, experience, review_count, updated_at)
+values ($1,$2,0,0,now())
+on conflict (user_id) do nothing
+`, mutation.UserID, initialLevel); err != nil {
+		return GrowthProfile{}, Footprint{}, err
+	}
+	var profile GrowthProfile
+	var updatedAt time.Time
+	err := tx.QueryRowContext(ctx, `
+update user_growth_profiles
+set experience = experience + $2,
+    review_count = review_count + $3,
+    updated_at = now()
+where user_id = $1
+returning user_id, level, experience, review_count, updated_at
+`, mutation.UserID, mutation.ExperienceDelta, mutation.ReviewCountDelta).Scan(&profile.UserID, &profile.Level, &profile.Experience, &profile.ReviewCount, &updatedAt)
+	if err != nil {
+		return GrowthProfile{}, Footprint{}, err
+	}
+	profile.UpdatedAt = updatedAt.Format(time.RFC3339)
+	footprint, err := scanFootprint(tx.QueryRowContext(ctx, `
+insert into user_footprints (user_id, game_id, action, created_at)
+values ($1,$2,$3,$4)
+returning user_id, game_id, action, created_at
+`, mutation.UserID, mutation.GameID, mutation.Action, mutation.CreatedAt))
+	if err != nil {
+		return GrowthProfile{}, Footprint{}, err
+	}
+	if mutation.Event != nil {
+		event := *mutation.Event
+		if _, err = tx.ExecContext(ctx, `
+insert into growth_event_ledger (user_id, game_id, role_code, event_code, idempotency_key, occurred_at, created_at)
+values ($1,$2,$3,$4,$5,$6,now())
+`, event.UserID, nullInt64(event.GameID), event.RoleCode, event.EventCode, event.IdempotencyKey, event.OccurredAt); err != nil {
+			return GrowthProfile{}, Footprint{}, err
+		}
+	}
+	return profile, footprint, nil
 }
 
 func (r *SQLRepository) ListReviews(ctx context.Context) ([]Review, error) {
@@ -139,19 +273,106 @@ returning updated_at
 	if err != nil {
 		return GrowthProfile{}, err
 	}
-	_, err = r.db.ExecContext(ctx, `
-insert into points_accounts (user_id, available_points, total_earned_points, updated_at)
-values ($1,$2,$2,now())
-on conflict (user_id) do update set
-  available_points = excluded.available_points,
-  total_earned_points = greatest(points_accounts.total_earned_points, excluded.total_earned_points),
-  updated_at = now()
-`, profile.UserID, profile.AvailablePoints)
-	if err != nil {
-		return GrowthProfile{}, err
-	}
+	// 积分账户由 points.Service 独立维护。成长档案只保存等级、经验和
+	// 评价次数，不能用可能过期的展示字段反向覆盖 points_accounts；否则
+	// 用户首次生成成长档案或并发写入经验时会把已有积分清零。
 	profile.UpdatedAt = updatedAt.Format(time.RFC3339)
 	return profile, nil
+}
+
+func (r *SQLRepository) ApplyGrowthMutation(ctx context.Context, mutation GrowthMutation, initialLevel int) (GrowthProfile, Footprint, bool, error) {
+	if mutation.UserID <= 0 || mutation.Action == "" || mutation.IdempotencyKey == "" || mutation.ExperienceDelta < 0 || mutation.ReviewCountDelta < 0 {
+		return GrowthProfile{}, Footprint{}, false, ErrInvalidReview
+	}
+	if mutation.CreatedAt.IsZero() {
+		mutation.CreatedAt = time.Now()
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return GrowthProfile{}, Footprint{}, false, err
+	}
+	defer tx.Rollback()
+	var inserted int
+	err = tx.QueryRowContext(ctx, `
+insert into experience_logs (user_id, game_id, change_value, reason, idempotency_key, created_at)
+values ($1,$2,$3,$4,$5,$6)
+on conflict (idempotency_key) do nothing
+returning 1
+`, mutation.UserID, nullInt64(mutation.GameID), mutation.ExperienceDelta, mutation.Action, mutation.IdempotencyKey, mutation.CreatedAt).Scan(&inserted)
+	if errors.Is(err, sql.ErrNoRows) {
+		profile, found, profileErr := growthProfileInTx(ctx, tx, mutation.UserID)
+		if profileErr != nil {
+			return GrowthProfile{}, Footprint{}, false, profileErr
+		}
+		if !found {
+			profile = defaultGrowthProfile(mutation.UserID)
+		}
+		return profile, Footprint{}, false, nil
+	}
+	if err != nil {
+		return GrowthProfile{}, Footprint{}, false, err
+	}
+	if _, err = tx.ExecContext(ctx, `
+insert into user_growth_profiles (user_id, level, experience, review_count, updated_at)
+values ($1,$2,0,0,now())
+on conflict (user_id) do nothing
+`, mutation.UserID, initialLevel); err != nil {
+		return GrowthProfile{}, Footprint{}, false, err
+	}
+	var profile GrowthProfile
+	var updatedAt time.Time
+	err = tx.QueryRowContext(ctx, `
+update user_growth_profiles
+set experience = experience + $2,
+    review_count = review_count + $3,
+    updated_at = now()
+where user_id = $1
+returning user_id, level, experience, review_count, updated_at
+`, mutation.UserID, mutation.ExperienceDelta, mutation.ReviewCountDelta).Scan(&profile.UserID, &profile.Level, &profile.Experience, &profile.ReviewCount, &updatedAt)
+	if err != nil {
+		return GrowthProfile{}, Footprint{}, false, err
+	}
+	profile.UpdatedAt = updatedAt.Format(time.RFC3339)
+	footprint, err := scanFootprint(tx.QueryRowContext(ctx, `
+insert into user_footprints (user_id, game_id, action, created_at)
+values ($1,$2,$3,$4)
+returning user_id, game_id, action, created_at
+`, mutation.UserID, mutation.GameID, mutation.Action, mutation.CreatedAt))
+	if err != nil {
+		return GrowthProfile{}, Footprint{}, false, err
+	}
+	if mutation.Event != nil {
+		event := *mutation.Event
+		if _, err = tx.ExecContext(ctx, `
+insert into growth_event_ledger (user_id, game_id, role_code, event_code, idempotency_key, occurred_at, created_at)
+values ($1,$2,$3,$4,$5,$6,now())
+on conflict (idempotency_key) do nothing
+`, event.UserID, nullInt64(event.GameID), event.RoleCode, event.EventCode, event.IdempotencyKey, event.OccurredAt); err != nil {
+			return GrowthProfile{}, Footprint{}, false, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return GrowthProfile{}, Footprint{}, false, err
+	}
+	return profile, footprint, true, nil
+}
+
+func growthProfileInTx(ctx context.Context, tx *sql.Tx, userID int64) (GrowthProfile, bool, error) {
+	var profile GrowthProfile
+	var updatedAt time.Time
+	err := tx.QueryRowContext(ctx, `
+select user_id, level, experience, review_count, updated_at
+from user_growth_profiles
+where user_id = $1
+`, userID).Scan(&profile.UserID, &profile.Level, &profile.Experience, &profile.ReviewCount, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return GrowthProfile{}, false, nil
+	}
+	if err != nil {
+		return GrowthProfile{}, false, err
+	}
+	profile.UpdatedAt = updatedAt.Format(time.RFC3339)
+	return profile, true, nil
 }
 
 func (r *SQLRepository) AddExperienceLog(ctx context.Context, userID int64, gameID int64, changeValue int, reason string, createdAt time.Time) error {
@@ -205,6 +426,189 @@ order by created_at desc
 	return scanFootprints(rows)
 }
 
+func (r *SQLRepository) GetCreditAccount(ctx context.Context, userID int64) (CreditAccount, bool, error) {
+	var account CreditAccount
+	err := r.db.QueryRowContext(ctx, `
+select user_id, current_score, updated_at
+from credit_accounts
+where user_id = $1
+`, userID).Scan(&account.UserID, &account.CurrentScore, &account.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return CreditAccount{}, false, nil
+	}
+	if err != nil {
+		return CreditAccount{}, false, err
+	}
+	return account, true, nil
+}
+
+func (r *SQLRepository) EnsureCreditAccount(ctx context.Context, userID int64, initialScore int) (CreditAccount, error) {
+	var account CreditAccount
+	err := r.db.QueryRowContext(ctx, `
+insert into credit_accounts (user_id, current_score, updated_at)
+values ($1,$2,now())
+on conflict (user_id) do update set current_score = credit_accounts.current_score
+returning user_id, current_score, updated_at
+`, userID, initialScore).Scan(&account.UserID, &account.CurrentScore, &account.UpdatedAt)
+	if err != nil {
+		return CreditAccount{}, err
+	}
+	return account, nil
+}
+
+func (r *SQLRepository) SaveCreditAccount(ctx context.Context, account CreditAccount) (CreditAccount, error) {
+	err := r.db.QueryRowContext(ctx, `
+insert into credit_accounts (user_id, current_score, updated_at)
+values ($1,$2,now())
+on conflict (user_id) do update set
+  current_score = excluded.current_score,
+  updated_at = now()
+returning user_id, current_score, updated_at
+`, account.UserID, account.CurrentScore).Scan(&account.UserID, &account.CurrentScore, &account.UpdatedAt)
+	if err != nil {
+		return CreditAccount{}, err
+	}
+	return account, nil
+}
+
+// ApplyCreditChange serializes mutations for one permanent credit account and
+// commits the account balance together with its audit ledger.
+func (r *SQLRepository) ApplyCreditChange(ctx context.Context, userID int64, gameID int64, changeValue int, reason string, initialScore int, scoreCap int, createdAt time.Time) (CreditLog, error) {
+	if initialScore < 0 || scoreCap < initialScore {
+		return CreditLog{}, ErrInvalidReview
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return CreditLog{}, err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `
+insert into credit_accounts (user_id, current_score, updated_at)
+values ($1,$2,now())
+on conflict (user_id) do nothing
+`, userID, initialScore); err != nil {
+		return CreditLog{}, err
+	}
+	var before int
+	if err = tx.QueryRowContext(ctx, `
+select current_score
+from credit_accounts
+where user_id = $1
+for update
+`, userID).Scan(&before); err != nil {
+		return CreditLog{}, err
+	}
+	after := before + changeValue
+	if after < 0 {
+		after = 0
+	}
+	if after > scoreCap {
+		after = scoreCap
+	}
+	if _, err = tx.ExecContext(ctx, `
+update credit_accounts
+set current_score = $2, updated_at = now()
+where user_id = $1
+`, userID, after); err != nil {
+		return CreditLog{}, err
+	}
+	log, err := scanCreditLog(tx.QueryRowContext(ctx, `
+insert into credit_logs (user_id, game_id, change_value, before_score, after_score, reason, created_at)
+values ($1,$2,$3,$4,$5,$6,$7)
+returning id, user_id, game_id, change_value, before_score, after_score, reason, created_at, appeal_id
+`, userID, nullInt64(gameID), after-before, before, after, reason, createdAt))
+	if err != nil {
+		return CreditLog{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return CreditLog{}, err
+	}
+	return log, nil
+}
+
+func (r *SQLRepository) ApplyCreditChangeOnce(ctx context.Context, userID int64, gameID int64, changeValue int, reason string, idempotencyKey string, initialScore int, scoreCap int, createdAt time.Time) (CreditLog, bool, error) {
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	if userID <= 0 || idempotencyKey == "" || initialScore < 0 || scoreCap < initialScore {
+		return CreditLog{}, false, ErrInvalidReview
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return CreditLog{}, false, err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `
+insert into credit_accounts (user_id, current_score, updated_at)
+values ($1,$2,now())
+on conflict (user_id) do nothing
+`, userID, initialScore); err != nil {
+		return CreditLog{}, false, err
+	}
+	var before int
+	if err = tx.QueryRowContext(ctx, `
+select current_score
+from credit_accounts
+where user_id = $1
+for update
+`, userID).Scan(&before); err != nil {
+		return CreditLog{}, false, err
+	}
+	existing, findErr := scanCreditLog(tx.QueryRowContext(ctx, creditLogSelect()+`
+ where user_id = $1 and idempotency_key = $2
+`, userID, idempotencyKey))
+	if findErr == nil {
+		if err = tx.Commit(); err != nil {
+			return CreditLog{}, false, err
+		}
+		return existing, false, nil
+	}
+	if !errors.Is(findErr, sql.ErrNoRows) {
+		return CreditLog{}, false, findErr
+	}
+	after := before + changeValue
+	if after < 0 {
+		after = 0
+	}
+	if after > scoreCap {
+		after = scoreCap
+	}
+	if _, err = tx.ExecContext(ctx, `
+update credit_accounts
+set current_score = $2, updated_at = now()
+where user_id = $1
+`, userID, after); err != nil {
+		return CreditLog{}, false, err
+	}
+	log, err := scanCreditLog(tx.QueryRowContext(ctx, `
+insert into credit_logs (
+  user_id, game_id, change_value, before_score, after_score, reason, created_at,
+  rule_code, source_type, source_id, idempotency_key
+)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+returning id, user_id, game_id, change_value, before_score, after_score, reason, created_at, appeal_id
+`, userID, nullInt64(gameID), after-before, before, after, reason, createdAt,
+		reason, "business_action", idempotencyKey, idempotencyKey))
+	if err != nil {
+		return CreditLog{}, false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return CreditLog{}, false, err
+	}
+	return log, true, nil
+}
+
+func (r *SQLRepository) RecordGrowthEvent(ctx context.Context, event GrowthEvent) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `
+insert into growth_event_ledger (user_id, game_id, role_code, event_code, idempotency_key, occurred_at, created_at)
+values ($1,$2,$3,$4,$5,$6,now())
+on conflict (idempotency_key) do nothing
+`, event.UserID, nullInt64(event.GameID), event.RoleCode, event.EventCode, event.IdempotencyKey, event.OccurredAt)
+	if err != nil {
+		return false, err
+	}
+	rows, err := result.RowsAffected()
+	return err == nil && rows > 0, err
+}
+
 func (r *SQLRepository) GetTodayCredit(ctx context.Context, userID int64, now time.Time) (int, error) {
 	scoreDate := dateOnly(now)
 	var score int
@@ -228,16 +632,22 @@ on conflict (user_id, score_date) do update set current_score = excluded.current
 
 func (r *SQLRepository) CreditDeductionValue(ctx context.Context, ruleCode string) (int, bool, error) {
 	var change int
+	var enabled bool
 	err := r.db.QueryRowContext(ctx, `
-select change_value
+select change_value, enabled
 from credit_deduction_rules
-where rule_code = $1 and enabled = true
-`, ruleCode).Scan(&change)
+where rule_code = $1
+`, ruleCode).Scan(&change, &enabled)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, false, nil
 	}
 	if err != nil {
 		return 0, false, err
+	}
+	// 找到但已停用与“从未配置”是两种状态。返回 found=true、扣分 0，
+	// 阻止服务层再次回退到历史硬编码扣分值。
+	if !enabled {
+		return 0, true, nil
 	}
 	return change, true, nil
 }
@@ -280,8 +690,122 @@ func (r *SQLRepository) AddCreditLog(ctx context.Context, log CreditLog) (Credit
 	return scanCreditLog(r.db.QueryRowContext(ctx, `
 insert into credit_logs (user_id, game_id, change_value, before_score, after_score, reason, created_at)
 values ($1,$2,$3,$4,$5,$6,$7)
-returning id, user_id, game_id, change_value, before_score, after_score, reason, created_at
+returning id, user_id, game_id, change_value, before_score, after_score, reason, created_at, appeal_id
 `, log.UserID, nullInt64(log.GameID), log.ChangeValue, log.BeforeScore, log.AfterScore, log.Reason, log.CreatedAt))
+}
+
+func (r *SQLRepository) RestoreCreditForAppeal(ctx context.Context, userID int64, gameID int64, sourceCreditLogID int64, appealID int64, amount int, initialScore int, scoreCap int, createdAt time.Time) (CreditLog, bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return CreditLog{}, false, err
+	}
+	defer tx.Rollback()
+
+	var linkedAppealID sql.NullInt64
+	var sourceChange int
+	err = tx.QueryRowContext(ctx, `
+select appeal_id, change_value
+from credit_logs
+where id = $1 and user_id = $2 and change_value < 0
+for update
+`, sourceCreditLogID, userID).Scan(&linkedAppealID, &sourceChange)
+	if errors.Is(err, sql.ErrNoRows) {
+		return CreditLog{}, false, ErrCreditLogNotFound
+	}
+	if err != nil {
+		return CreditLog{}, false, err
+	}
+	if linkedAppealID.Valid && linkedAppealID.Int64 != appealID {
+		return CreditLog{}, false, ErrCreditAppealConflict
+	}
+
+	idempotencyKey := "credit_appeal_restore:" + strconv.FormatInt(appealID, 10)
+	existing, err := scanCreditLog(tx.QueryRowContext(ctx, creditLogSelect()+`
+ where user_id = $1 and idempotency_key = $2
+`, userID, idempotencyKey))
+	if err == nil {
+		if commitErr := tx.Commit(); commitErr != nil {
+			return CreditLog{}, false, commitErr
+		}
+		existing.AppealID = appealID
+		return existing, false, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return CreditLog{}, false, err
+	}
+
+	if amount < 0 {
+		amount = -amount
+	}
+	if maximum := -sourceChange; amount > maximum {
+		amount = maximum
+	}
+	if initialScore < 0 || scoreCap < initialScore {
+		return CreditLog{}, false, ErrInvalidReview
+	}
+	if _, err = tx.ExecContext(ctx, `
+insert into credit_accounts (user_id, current_score, updated_at)
+values ($1,$2,now())
+on conflict (user_id) do nothing
+`, userID, initialScore); err != nil {
+		return CreditLog{}, false, err
+	}
+	var before int
+	if err = tx.QueryRowContext(ctx, `
+select current_score
+from credit_accounts
+where user_id = $1
+for update
+`, userID).Scan(&before); err != nil {
+		return CreditLog{}, false, err
+	}
+	after := before + amount
+	if after > scoreCap {
+		after = scoreCap
+	}
+	if _, err = tx.ExecContext(ctx, `
+update credit_accounts
+set current_score = $2, updated_at = now()
+where user_id = $1
+`, userID, after); err != nil {
+		return CreditLog{}, false, err
+	}
+
+	log := CreditLog{
+		UserID:      userID,
+		GameID:      gameID,
+		ChangeValue: after - before,
+		BeforeScore: before,
+		AfterScore:  after,
+		Reason:      "appeal_passed",
+		AppealID:    appealID,
+		CreatedAt:   createdAt,
+	}
+	log, err = scanCreditLog(tx.QueryRowContext(ctx, `
+insert into credit_logs (
+  user_id, game_id, change_value, before_score, after_score, reason, created_at,
+  rule_code, source_type, source_id, appeal_id, idempotency_key
+)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+returning id, user_id, game_id, change_value, before_score, after_score, reason, created_at, appeal_id
+`, log.UserID, nullInt64(log.GameID), log.ChangeValue, log.BeforeScore, log.AfterScore,
+		log.Reason, log.CreatedAt, "appeal_passed", "credit_appeal", strconv.FormatInt(appealID, 10),
+		appealID, idempotencyKey))
+	if err != nil {
+		return CreditLog{}, false, err
+	}
+	log.AppealID = appealID
+	if _, err = tx.ExecContext(ctx, `
+update credit_logs
+set appeal_id = $2
+where id = $1
+`, sourceCreditLogID, appealID); err != nil {
+		return CreditLog{}, false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return CreditLog{}, false, err
+	}
+	return log, true, nil
 }
 
 func (r *SQLRepository) ListCreditLogsByUser(ctx context.Context, userID int64) ([]CreditLog, error) {
@@ -358,7 +882,7 @@ func reviewSelect() string {
 }
 
 func creditLogSelect() string {
-	return `select id, user_id, game_id, change_value, before_score, after_score, reason, created_at from credit_logs`
+	return `select id, user_id, game_id, change_value, before_score, after_score, reason, created_at, appeal_id from credit_logs`
 }
 
 func scanReviews(rows *sql.Rows) ([]Review, error) {
@@ -429,8 +953,10 @@ func scanCreditLog(row interface {
 }) (CreditLog, error) {
 	var item CreditLog
 	var gameID sql.NullInt64
-	err := row.Scan(&item.ID, &item.UserID, &gameID, &item.ChangeValue, &item.BeforeScore, &item.AfterScore, &item.Reason, &item.CreatedAt)
+	var appealID sql.NullInt64
+	err := row.Scan(&item.ID, &item.UserID, &gameID, &item.ChangeValue, &item.BeforeScore, &item.AfterScore, &item.Reason, &item.CreatedAt, &appealID)
 	item.GameID = gameID.Int64
+	item.AppealID = appealID.Int64
 	return item, err
 }
 

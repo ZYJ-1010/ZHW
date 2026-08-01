@@ -2,6 +2,7 @@ const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
 const toast = require('../../../utils/toast')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const EMPTY_PROFILE = {
   name: '',
@@ -122,7 +123,7 @@ Page({
       })
       return invitation
     } catch (error) {
-      this.setData({ hasDetail: false, emptyText: error.message || '玩家确认信息加载失败' })
+      this.setData({ hasDetail: false, emptyText: toUserMessage(error && error.message, '玩家确认信息加载失败') })
     }
   },
 

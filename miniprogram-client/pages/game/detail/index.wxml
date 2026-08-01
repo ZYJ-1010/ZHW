@@ -4,7 +4,7 @@
       <view class="detail-nav-back-icon"></view>
     </view>
     <text class="detail-nav-title" style="{{navLayout.titleStyle}}">活动详情</text>
-    <button class="detail-nav-share" style="{{navLayout.shareStyle}}" bindtap="onOpenShare">
+    <button wx:if="{{shareComponent.enabled}}" class="detail-nav-share" style="{{navLayout.shareStyle}}" bindtap="onOpenShare">
       <image class="detail-share-image" src="/pages/game/detail/assets/i41@3x.png" mode="aspectFit" />
     </button>
   </view>
@@ -71,6 +71,13 @@
           <view wx:for="{{tags}}" wx:key="name" class="tag-pill {{item.tone}}">{{item.name}}</view>
         </view>
 
+        <view wx:if="{{allowedRoleLabels.length}}" class="role-access-card">
+          <text class="role-access-label">本局开放身份</text>
+          <view class="role-access-list">
+            <text wx:for="{{allowedRoleLabels}}" wx:key="*this" class="role-access-pill">{{item}}</text>
+          </view>
+        </view>
+
         <view class="detail-section">
           <text class="section-title">组局者</text>
           <view class="organizer-card">
@@ -114,6 +121,7 @@
             <text class="section-helper">支持文字/上传图片（9张）/视频（60秒内）</text>
           </view>
           <view class="plain-card flow-card compact-text-card">
+            <text wx:if="{{detailDescription}}" class="detail-description">{{detailDescription}}</text>
             <text class="flow-title">局流程安排</text>
             <view class="flow-list">
               <view wx:for="{{schedule}}" wx:key="title" class="flow-row">
@@ -121,8 +129,11 @@
                 <text class="flow-body">{{item.title}} <text class="flow-time">（{{item.time}}）</text>：{{item.desc}}</text>
               </view>
             </view>
-            <view class="detail-image-grid">
-              <image wx:for="{{detailImages}}" wx:key="*this" class="detail-image" src="{{item}}" mode="aspectFill" />
+            <view wx:if="{{detailMedia.length}}" class="detail-image-grid">
+              <block wx:for="{{detailMedia}}" wx:key="id">
+                <image wx:if="{{item.type === 'image'}}" class="detail-image" src="{{item.src}}" mode="aspectFill" />
+                <video wx:else class="detail-image" src="{{item.src}}" controls object-fit="cover"></video>
+              </block>
             </view>
           </view>
         </view>
@@ -185,35 +196,21 @@
 
   <view wx:if="{{showShareWindow}}" class="detail-share-mask" bindtap="onCloseShare" catchtouchmove="onPreventTouch">
     <view class="detail-share-sheet" catchtap="onPreventBubble">
-      <text class="detail-share-title">分享给朋友</text>
+      <text class="detail-share-title">{{shareComponent.label}}方式</text>
 
       <view class="detail-share-options">
-        <button class="detail-share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
+        <button wx:if="{{shareComponent.enableWechat}}" class="detail-share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
           <view class="detail-share-option-icon wechat">
             <image class="detail-share-option-image" src="https://static.haowan.net.cn/miniprogram/pages/game/share/assets/share-wechat.png" mode="aspectFit" />
           </view>
-          <text class="detail-share-option-label">微信好友</text>
+          <text class="detail-share-option-label">微信分享</text>
         </button>
 
-        <button class="detail-share-option" hover-class="none" bindtap="onShareTimelineTap">
-          <view class="detail-share-option-icon moments">
-            <view class="detail-moments-icon">
-              <view class="detail-moments-dot dot-one"></view>
-              <view class="detail-moments-dot dot-two"></view>
-              <view class="detail-moments-dot dot-three"></view>
-              <view class="detail-moments-dot dot-four"></view>
-              <view class="detail-moments-dot dot-five"></view>
-              <view class="detail-moments-dot dot-six"></view>
-            </view>
-          </view>
-          <text class="detail-share-option-label">朋友圈</text>
-        </button>
-
-        <button class="detail-share-option" hover-class="none" bindtap="onShareDirect">
+        <button wx:if="{{shareComponent.enableInternal}}" class="detail-share-option" hover-class="none" bindtap="onShareDirect">
           <view class="detail-share-option-icon direct">
             <image class="detail-share-option-image" src="/pages/game/share/assets/share-private-message.png" mode="aspectFit" />
           </view>
-          <text class="detail-share-option-label">私信好友</text>
+          <text class="detail-share-option-label">站内分享</text>
         </button>
       </view>
 

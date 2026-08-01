@@ -89,19 +89,21 @@ func TestPlayerBackendIsolatedLifecycleHTTP(t *testing.T) {
 	}
 	postJSON(t, mux, "/api/app/games/"+strconv.FormatInt(firstGameID, 10)+"/chat/messages", invitedToken, `{"messageType":"text","content":"isolated lifecycle hello"}`, http.StatusOK)
 
-	pointsBefore := lifecyclePoints(t, mux, invitedToken)
+	experienceBefore := lifecycleExperience(t, mux, invitedToken)
 	creditBefore := lifecycleCredit(t, mux, guideToken)
 	lifecycleFinishGame(t, mux, firstGameID, ownerToken, []string{invitedToken, memberAToken, memberBToken})
 	postJSON(t, mux, "/api/app/reviews", invitedToken, `{"gameId":`+strconv.FormatInt(firstGameID, 10)+`,"targetUserId":`+strconv.FormatInt(ownerID, 10)+`,"targetRole":"member","score":5,"content":"isolated good review","againIntent":"yes"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/reviews", memberAToken, `{"gameId":`+strconv.FormatInt(firstGameID, 10)+`,"targetUserId":`+strconv.FormatInt(guideID, 10)+`,"targetRole":"member","score":1,"content":"isolated low review","againIntent":"no"}`, http.StatusOK)
-	if after := lifecyclePoints(t, mux, invitedToken); after <= pointsBefore {
-		t.Errorf("expected review points to increase, before=%d after=%d", pointsBefore, after)
+	if after := lifecycleExperience(t, mux, invitedToken); after <= experienceBefore {
+		t.Errorf("expected free-game review experience to increase, before=%d after=%d", experienceBefore, after)
 	}
 	if after := lifecycleCredit(t, mux, guideToken); after >= creditBefore {
 		t.Errorf("expected low review to reduce guide credit, before=%d after=%d", creditBefore, after)
 	}
 
 	// The user who registered through the generated invite repeats the group flow.
+	// 组局邀请只能由行家或领路人发起，测试用户先获得领路人身份。
+	server.profiles.GrantRole(invitedID, "guide")
 	secondGameID := lifecycleCreateAndApproveGame(t, mux, invitedToken, adminToken, "isolated invited user game", "2026-08-02 10:00", "2026-08-02 12:00")
 	lifecycleApplyAndApprove(t, mux, ownerToken, invitedToken, secondGameID)
 	lifecycleInviteGuideAndApprove(t, mux, invitedToken, guideToken, guideID, secondGameID)
@@ -176,16 +178,18 @@ func lifecycleResponseID(t *testing.T, body []byte) int64 {
 	return response.Data.ID
 }
 
-func lifecyclePoints(t *testing.T, mux *http.ServeMux, token string) int {
+func lifecycleExperience(t *testing.T, mux *http.ServeMux, token string) int {
 	t.Helper()
-	body := getJSON(t, mux, "/api/app/points/summary", token, http.StatusOK)
+	body := getJSON(t, mux, "/api/app/users/me/growth", token, http.StatusOK)
 	var response struct {
 		Data struct {
-			AvailablePoints int `json:"availablePoints"`
+			Profile struct {
+				Experience int `json:"experience"`
+			} `json:"profile"`
 		} `json:"data"`
 	}
 	mustDecodeLifecycle(t, body, &response)
-	return response.Data.AvailablePoints
+	return response.Data.Profile.Experience
 }
 
 func lifecycleCredit(t *testing.T, mux *http.ServeMux, token string) int {

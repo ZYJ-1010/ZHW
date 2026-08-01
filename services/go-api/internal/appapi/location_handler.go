@@ -20,9 +20,13 @@ type lbsService interface {
 	SaveCurrent(userID int64, req lbs.SaveRequest) (lbs.Location, error)
 	SaveManual(userID int64, req lbs.SaveRequest) (lbs.Location, error)
 	Current(userID int64) (lbs.Location, bool)
+	CurrentStrict(userID int64) (lbs.Location, bool, error)
 	Recent(userID int64, limit int) []lbs.Location
+	RecentStrict(userID int64, limit int) ([]lbs.Location, error)
 	RecentBySource(userID int64, source string, limit int) []lbs.Location
+	RecentBySourceStrict(userID int64, source string, limit int) ([]lbs.Location, error)
 	NearbyUsers(userID int64, center lbs.Location, radiusMeter float64, limit int) []lbs.Location
+	NearbyUsersStrict(userID int64, center lbs.Location, radiusMeter float64, limit int) ([]lbs.Location, error)
 }
 
 func (s *Server) saveCurrentLocation(w http.ResponseWriter, r *http.Request) {
@@ -46,10 +50,15 @@ func (s *Server) myRecentLocations(w http.ResponseWriter, r *http.Request) {
 	}
 	source := r.URL.Query().Get("source")
 	if source != "" && source != "gps" && source != "manual" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid location source")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "定位来源参数错误")
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.lbs.RecentBySource(userID, source, limit)})
+	items, err := s.lbs.RecentBySourceStrict(userID, source, limit)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取历史定位失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 // locationFallback supplies a same-city recommendation context without asking
@@ -61,7 +70,12 @@ func (s *Server) locationFallback(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if location, found := s.lbs.Current(userID); found && strings.TrimSpace(location.CityCode) != "" {
+	location, found, err := s.lbs.CurrentStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取定位信息失败，请稍后重试")
+		return
+	}
+	if found && strings.TrimSpace(location.CityCode) != "" {
 		httpx.OK(w, map[string]interface{}{"source": "saved", "cityCode": location.CityCode, "cityName": location.CityName, "latitude": location.Latitude, "longitude": location.Longitude, "sortMode": "city_then_time"})
 		return
 	}
@@ -92,6 +106,19 @@ func (s *Server) locationFallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func requestRemoteIP(r *http.Request) string {
+	// In production the API is normally behind a reverse proxy.  Prefer the
+	// first forwarded address so IP-city fallback uses the visitor's address
+	// rather than the proxy/container address.  This value only affects a
+	// recommendation fallback and is never used for authentication or access
+	// control.
+	for _, header := range []string{"X-Forwarded-For", "X-Real-IP"} {
+		for _, value := range strings.Split(r.Header.Get(header), ",") {
+			value = strings.TrimSpace(value)
+			if net.ParseIP(value) != nil {
+				return value
+			}
+		}
+	}
 	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
 	if err == nil {
 		return host
@@ -150,7 +177,7 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 		lon, lonErr := strconv.ParseFloat(rawLon, 64)
 		lat, latErr := strconv.ParseFloat(rawLat, 64)
 		if lonErr != nil || latErr != nil || lon < -180 || lon > 180 || lat < -90 || lat > 90 || math.IsNaN(lon) || math.IsNaN(lat) || math.IsInf(lon, 0) || math.IsInf(lat, 0) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid coordinates")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "定位坐标参数错误")
 			return
 		}
 		location.UserID = userID
@@ -161,7 +188,12 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 	}
 	if !hasQueryLocation {
 		var ok bool
-		location, ok = s.lbs.Current(userID)
+		var err error
+		location, ok, err = s.lbs.CurrentStrict(userID)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取定位信息失败，请稍后重试")
+			return
+		}
 		if !ok {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先保存定位")
 			return
@@ -186,7 +218,12 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 		}
 		radius = parsed
 	}
-	items := publicGames(s.games.List())
+	allGames, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取附近组局失败，请稍后重试")
+		return
+	}
+	items := publicGames(allGames)
 	result := make([]games.Game, 0)
 	for _, game := range items {
 		if game.Longitude == 0 && game.Latitude == 0 {
@@ -202,7 +239,11 @@ func (s *Server) nearbyGames(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].DistanceMeter < result[j].DistanceMeter
 	})
-	onlinePlayers, offlinePlayers := s.nearbyPlayerDTOs(userID, location, radius, 30)
+	onlinePlayers, offlinePlayers, err := s.nearbyPlayerDTOs(userID, location, radius, 30)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取附近玩家失败，请稍后重试")
+		return
+	}
 	s.recordBehavior(userID, "browse_games", "game", 0, map[string]interface{}{"scope": "nearby", "radiusMeter": radius, "count": len(result)})
 	httpx.OK(w, map[string]interface{}{
 		"items":              result,
@@ -225,10 +266,14 @@ func nearbyRadiusQuery(r *http.Request) string {
 	return ""
 }
 
-func (s *Server) nearbyPlayerDTOs(userID int64, center lbs.Location, radius float64, limit int) ([]map[string]interface{}, []map[string]interface{}) {
+func (s *Server) nearbyPlayerDTOs(userID int64, center lbs.Location, radius float64, limit int) ([]map[string]interface{}, []map[string]interface{}, error) {
 	onlinePlayers := make([]map[string]interface{}, 0)
 	offlinePlayers := make([]map[string]interface{}, 0)
-	for _, item := range s.lbs.NearbyUsers(userID, center, radius, limit) {
+	nearbyUsers, err := s.lbs.NearbyUsersStrict(userID, center, radius, limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, item := range nearbyUsers {
 		distance := lbs.DistanceMeter(center.Longitude, center.Latitude, item.Longitude, item.Latitude)
 		status := "online"
 		if time.Since(item.UpdatedAt) > 15*time.Minute {
@@ -251,7 +296,7 @@ func (s *Server) nearbyPlayerDTOs(userID int64, center lbs.Location, radius floa
 			offlinePlayers = append(offlinePlayers, dto)
 		}
 	}
-	return onlinePlayers, offlinePlayers
+	return onlinePlayers, offlinePlayers, nil
 }
 
 func (s *Server) safeNearbyUserName(userID int64) string {

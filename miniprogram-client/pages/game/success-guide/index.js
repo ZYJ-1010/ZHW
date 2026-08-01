@@ -31,7 +31,7 @@ const DEFAULT_SUCCESS_GUIDE_DETAIL = {
     followMissingText: LOCAL_FOLLOW_MISSING_TEXT,
     loadFailedText: LOCAL_LOAD_FAILED_TEXT,
     followFailedText: LOCAL_FOLLOW_FAILED_TEXT,
-    defaultImPrefill: '我来跟进一下本次组局双方反馈。',
+    defaultImPrefill: '我来跟进一下本局成员反馈。',
     shareTitle: LOCAL_SHARE_TITLE,
     shareButtonText: '分享成局喜悦'
   },
@@ -248,6 +248,10 @@ Page({
     const gameId = this.data.gameId || target.gameId || ''
 
     if (target.type === 'im_room' || action === 'feedback') {
+      if (!target.roomId) {
+        wx.showToast({ title: '本局尚未开始，暂不可进入局内群聊', icon: 'none' })
+        return
+      }
       const query = [
         `gameId=${encodeURIComponent(gameId)}`,
         'role=guide'

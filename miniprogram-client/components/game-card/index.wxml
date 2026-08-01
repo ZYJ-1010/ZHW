@@ -24,15 +24,15 @@
       wx:for="{{item.actions}}"
       wx:for-item="action"
       wx:key="*this"
-      class="game-card-action"
-      data-action="{{action}}"
+      class="game-card-action {{action === item.shareActionLabel && item.shareComponentVariant === 'icon_button' ? 'game-card-action--icon-only' : ''}}"
+      data-action="{{action === item.shareActionLabel ? 'share' : action}}"
       catchtap="handleActionTap"
     >
-      <image wx:if="{{action === '分享'}}" class="game-card-action-icon" src="https://static.haowan.net.cn/miniprogram/components/game-card/assets/action-share.png" mode="aspectFit" />
+      <image wx:if="{{action === item.shareActionLabel || action === '分享'}}" class="game-card-action-icon" src="https://static.haowan.net.cn/miniprogram/components/game-card/assets/action-share.png" mode="aspectFit" />
       <image wx:elif="{{action === '关注'}}" class="game-card-action-icon" src="https://static.haowan.net.cn/miniprogram/components/game-card/assets/action-follow.png" mode="aspectFit" />
       <image wx:elif="{{action === '引荐'}}" class="game-card-action-icon" src="https://static.haowan.net.cn/miniprogram/components/game-card/assets/action-refer.png" mode="aspectFit" />
       <image wx:elif="{{action === '打招呼'}}" class="game-card-action-icon" src="https://static.haowan.net.cn/miniprogram/components/game-card/assets/action-greet.png" mode="aspectFit" />
-      <text class="game-card-action-text">{{action}}</text>
+      <text wx:if="{{!(action === item.shareActionLabel && item.shareComponentVariant === 'icon_button')}}" class="game-card-action-text">{{action}}</text>
     </view>
   </view>
 </view>

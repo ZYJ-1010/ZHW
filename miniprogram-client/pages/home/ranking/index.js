@@ -1,4 +1,5 @@
 const homeService = require('../../../services/home')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const DEFAULT_TABS = [
   { key: 'player', name: '玩家' },
@@ -82,7 +83,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        error: error.message || '榜单加载失败'
+        error: toUserMessage(error && error.message, '榜单加载失败')
       })
     }
   },

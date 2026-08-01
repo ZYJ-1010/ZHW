@@ -139,6 +139,10 @@ Page({
     try {
       const entry = await authService.precheckWechatEntry()
       if (entry.boundWechat) {
+        if (entry.requiresReauth) {
+          this.continueToRegisteredLogin('reauth')
+          return
+        }
         await this.loginBoundWechatAndContinue()
         return
       }
@@ -267,12 +271,14 @@ Page({
     })
   },
 
-  continueToRegisteredLogin() {
+  continueToRegisteredLogin(reason = '') {
     if (this.data.isInviteNavigating) {
       return
     }
     this.setData({ isInviteNavigating: true })
-    const url = `/${ROUTES.login}?flow=existing`
+    const query = ['flow=existing']
+    if (reason) query.push(`reason=${encodeURIComponent(reason)}`)
+    const url = `/${ROUTES.login}?${query.join('&')}`
     wx.redirectTo({
       url,
       fail: () => {

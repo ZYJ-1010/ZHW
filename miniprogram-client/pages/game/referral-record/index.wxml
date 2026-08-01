@@ -80,7 +80,7 @@
 
             <view class="service-row">
               <text class="service-title">{{item.serviceTitle}}</text>
-              <text class="reward-value {{item.rewardClass}}">{{texts.rewardPrefix}}{{item.reward}}</text>
+              <text class="reward-value">{{item.settlementText}}</text>
             </view>
 
             <view wx:if="{{item.actions.length}}" class="action-row {{item.actions.length === 1 ? 'single' : ''}}">

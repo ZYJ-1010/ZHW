@@ -148,11 +148,14 @@ type Repository interface {
 	SaveRule(ctx context.Context, rule Rule) (Rule, error)
 	ListRules(ctx context.Context, templateID int64) ([]Rule, error)
 	SaveRecord(ctx context.Context, record Record) (Record, error)
+	SaveRecordWithIncome(ctx context.Context, record Record) (Record, error)
 	ListRecords(ctx context.Context) ([]Record, error)
 	FindRecord(ctx context.Context, recordID int64) (Record, bool, error)
 	FindRecordByGame(ctx context.Context, gameID int64) (Record, bool, error)
 	UpdateRecord(ctx context.Context, record Record) (Record, error)
 	SaveSettlement(ctx context.Context, settlement Settlement) (Settlement, error)
+	SettleRecord(ctx context.Context, recordID int64, settlement Settlement) (Record, Settlement, error)
+	TransitionRecord(ctx context.Context, recordID int64, expectedStatus string, nextStatus string, frozenReason string, logReason string, changedAt time.Time) (Record, bool, error)
 	ListSettlements(ctx context.Context) ([]Settlement, error)
 	UpsertIncomeAccount(ctx context.Context, account IncomeAccount) (IncomeAccount, error)
 	AppendIncomeLog(ctx context.Context, log IncomeLogEntry) error
@@ -230,10 +233,13 @@ func (s *Service) CreateTemplate(req TemplateRequest) (Template, error) {
 }
 
 func (s *Service) Templates() []Template {
+	items, _ := s.TemplatesStrict()
+	return items
+}
+
+func (s *Service) TemplatesStrict() ([]Template, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListTemplates(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListTemplates(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -241,7 +247,7 @@ func (s *Service) Templates() []Template {
 	for _, item := range s.templates {
 		result = append(result, item)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) UpsertRule(req RuleRequest) (Rule, error) {
@@ -278,23 +284,20 @@ func (s *Service) UpsertRule(req RuleRequest) (Rule, error) {
 }
 
 func (s *Service) Rules(templateID int64) []Rule {
+	items, _ := s.RulesStrict(templateID)
+	return items
+}
+
+func (s *Service) RulesStrict(templateID int64) ([]Rule, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListRules(context.Background(), templateID); err == nil {
-			return items
-		}
+		return s.repo.ListRules(context.Background(), templateID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]Rule(nil), s.rules[templateID]...)
+	return append([]Rule(nil), s.rules[templateID]...), nil
 }
 
 func (s *Service) Template(templateID int64) (Template, error) {
-	s.mu.RLock()
-	template, ok := s.templates[templateID]
-	s.mu.RUnlock()
-	if ok {
-		return template, nil
-	}
 	if s.repo != nil {
 		template, found, err := s.repo.FindTemplate(context.Background(), templateID)
 		if err != nil {
@@ -303,6 +306,13 @@ func (s *Service) Template(templateID int64) (Template, error) {
 		if found {
 			return template, nil
 		}
+		return Template{}, ErrTemplateNotFound
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	template, ok := s.templates[templateID]
+	if ok {
+		return template, nil
 	}
 	return Template{}, ErrTemplateNotFound
 }
@@ -318,26 +328,20 @@ func (s *Service) Preview(req CalculateRequest) (Preview, error) {
 	if req.GameID > 0 && !s.reviews.GameReviewComplete(req.GameID) {
 		blockReasons = append(blockReasons, "review_incomplete")
 	}
-	s.mu.RLock()
-	template, ok := s.templates[req.TemplateID]
-	s.mu.RUnlock()
-	if !ok && s.repo != nil {
-		saved, found, err := s.repo.FindTemplate(context.Background(), req.TemplateID)
-		if err != nil {
+	template, err := s.Template(req.TemplateID)
+	if err != nil || template.Status != "active" {
+		if err != nil && !errors.Is(err, ErrTemplateNotFound) {
 			return Preview{}, err
 		}
-		if found {
-			template = saved
-			ok = true
-		}
-	}
-	if !ok || template.Status != "active" {
 		return Preview{}, ErrTemplateNotFound
 	}
 	if req.AmountCent < 0 {
 		req.AmountCent = 0
 	}
-	rules := s.Rules(req.TemplateID)
+	rules, err := s.RulesStrict(req.TemplateID)
+	if err != nil {
+		return Preview{}, err
+	}
 	items := make([]Item, 0)
 	platformAmount := bpsAmount(req.AmountCent, template.PlatformBps)
 	creatorAmount := bpsAmount(req.AmountCent, template.CreatorBps)
@@ -392,13 +396,15 @@ func (s *Service) Generate(req CalculateRequest) (Record, error) {
 			return record, ErrDuplicateRecord
 		}
 	}
-	s.mu.RLock()
-	if recordID, ok := s.recordsByGame[req.GameID]; ok {
-		record := s.records[recordID]
+	if s.repo == nil {
+		s.mu.RLock()
+		if recordID, ok := s.recordsByGame[req.GameID]; ok {
+			record := s.records[recordID]
+			s.mu.RUnlock()
+			return record, ErrDuplicateRecord
+		}
 		s.mu.RUnlock()
-		return record, ErrDuplicateRecord
 	}
-	s.mu.RUnlock()
 	preview, err := s.Preview(req)
 	if err != nil {
 		return Record{}, err
@@ -417,7 +423,7 @@ func (s *Service) Generate(req CalculateRequest) (Record, error) {
 	}
 	s.nextRecordID++
 	if s.repo != nil {
-		saved, err := s.repo.SaveRecord(context.Background(), record)
+		saved, err := s.repo.SaveRecordWithIncome(context.Background(), record)
 		if err != nil {
 			return Record{}, err
 		}
@@ -425,16 +431,20 @@ func (s *Service) Generate(req CalculateRequest) (Record, error) {
 	}
 	s.records[record.ID] = record
 	s.recordsByGame[record.GameID] = record.ID
-	s.syncIncomeAccountsForItemsLocked(record.Items)
-	s.appendIncomeLogsForRecordLocked(record, "record_generated")
+	if s.repo == nil {
+		s.syncIncomeAccountsForItemsLocked(record.Items)
+	}
 	return record, nil
 }
 
 func (s *Service) Records() []Record {
+	items, _ := s.RecordsStrict()
+	return items
+}
+
+func (s *Service) RecordsStrict() ([]Record, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListRecords(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListRecords(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -442,7 +452,7 @@ func (s *Service) Records() []Record {
 	for _, item := range s.records {
 		result = append(result, item)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Record(id int64) (Record, error) {
@@ -468,8 +478,9 @@ func (s *Service) Record(id int64) (Record, error) {
 func (s *Service) Freeze(recordID int64, reason string) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	record, ok := s.records[recordID]
-	if !ok && s.repo != nil {
+	var record Record
+	var ok bool
+	if s.repo != nil {
 		saved, found, err := s.repo.FindRecord(context.Background(), recordID)
 		if err != nil {
 			return Record{}, err
@@ -478,6 +489,8 @@ func (s *Service) Freeze(recordID int64, reason string) (Record, error) {
 			record = saved
 			ok = true
 		}
+	} else {
+		record, ok = s.records[recordID]
 	}
 	if !ok {
 		return Record{}, ErrRecordNotFound
@@ -485,55 +498,47 @@ func (s *Service) Freeze(recordID int64, reason string) (Record, error) {
 	record.Status = "frozen"
 	record.FrozenReason = reason
 	if s.repo != nil {
-		saved, err := s.repo.UpdateRecord(context.Background(), record)
+		saved, _, err := s.repo.TransitionRecord(context.Background(), recordID, "", "frozen", reason, "record_frozen", time.Now())
 		if err != nil {
 			return Record{}, err
 		}
 		record = saved
 	}
 	s.records[recordID] = record
-	s.syncIncomeAccountsForItemsLocked(record.Items)
-	s.appendIncomeLogsForRecordLocked(record, "record_frozen")
+	if s.repo == nil {
+		s.syncIncomeAccountsForItemsLocked(record.Items)
+	}
 	return record, nil
 }
 
 func (s *Service) FreezeByGame(gameID int64, reason string) (Record, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	recordID, ok := s.recordsByGame[gameID]
-	if !ok && s.repo != nil {
+	if s.repo != nil {
 		record, found, err := s.repo.FindRecordByGame(context.Background(), gameID)
 		if err != nil || !found {
 			return Record{}, false, err
 		}
-		record.Status = "frozen"
-		record.FrozenReason = reason
-		saved, err := s.repo.UpdateRecord(context.Background(), record)
+		saved, changed, err := s.repo.TransitionRecord(context.Background(), record.ID, "", "frozen", reason, "record_frozen", time.Now())
 		if err != nil {
 			return Record{}, false, err
 		}
 		s.records[saved.ID] = saved
 		s.recordsByGame[gameID] = saved.ID
-		s.syncIncomeAccountsForItemsLocked(saved.Items)
-		s.appendIncomeLogsForRecordLocked(saved, "record_frozen")
-		return saved, true, nil
+		return saved, changed, nil
 	}
+	recordID, ok := s.recordsByGame[gameID]
 	if !ok {
 		return Record{}, false, nil
 	}
 	record := s.records[recordID]
+	if record.Status == "frozen" {
+		return record, false, nil
+	}
 	record.Status = "frozen"
 	record.FrozenReason = reason
-	if s.repo != nil {
-		saved, err := s.repo.UpdateRecord(context.Background(), record)
-		if err != nil {
-			return Record{}, false, err
-		}
-		record = saved
-	}
 	s.records[recordID] = record
 	s.syncIncomeAccountsForItemsLocked(record.Items)
-	s.appendIncomeLogsForRecordLocked(record, "record_frozen")
 	return record, true, nil
 }
 
@@ -549,15 +554,14 @@ func (s *Service) RestoreFrozenByGame(gameID int64, reason string) (Record, bool
 	defer s.mu.Unlock()
 	var record Record
 	var ok bool
-	if recordID, found := s.recordsByGame[gameID]; found {
-		record, ok = s.records[recordID]
-	}
-	if !ok && s.repo != nil {
+	if s.repo != nil {
 		saved, found, err := s.repo.FindRecordByGame(context.Background(), gameID)
 		if err != nil || !found {
 			return Record{}, false, err
 		}
 		record, ok = saved, true
+	} else if recordID, found := s.recordsByGame[gameID]; found {
+		record, ok = s.records[recordID]
 	}
 	if !ok {
 		return Record{}, false, nil
@@ -568,16 +572,20 @@ func (s *Service) RestoreFrozenByGame(gameID int64, reason string) (Record, bool
 	record.Status = "pending_settlement"
 	record.FrozenReason = ""
 	if s.repo != nil {
-		saved, err := s.repo.UpdateRecord(context.Background(), record)
+		saved, changed, err := s.repo.TransitionRecord(context.Background(), record.ID, "frozen", "pending_settlement", "", "record_unfrozen:"+reason, time.Now())
 		if err != nil {
 			return Record{}, false, err
 		}
 		record = saved
+		if !changed {
+			return record, false, nil
+		}
 	}
 	s.records[record.ID] = record
 	s.recordsByGame[gameID] = record.ID
-	s.syncIncomeAccountsForItemsLocked(record.Items)
-	s.appendIncomeLogsForRecordLocked(record, "record_unfrozen:"+reason)
+	if s.repo == nil {
+		s.syncIncomeAccountsForItemsLocked(record.Items)
+	}
 	return record, true, nil
 }
 
@@ -598,8 +606,9 @@ func (s *Service) HasFrozenRecordForGame(gameID int64) bool {
 func (s *Service) Settle(recordID int64, method string, proofNo string) (Record, Settlement, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	record, ok := s.records[recordID]
-	if !ok && s.repo != nil {
+	var record Record
+	var ok bool
+	if s.repo != nil {
 		saved, found, err := s.repo.FindRecord(context.Background(), recordID)
 		if err != nil {
 			return Record{}, Settlement{}, err
@@ -608,6 +617,8 @@ func (s *Service) Settle(recordID int64, method string, proofNo string) (Record,
 			record = saved
 			ok = true
 		}
+	} else {
+		record, ok = s.records[recordID]
 	}
 	if !ok {
 		return Record{}, Settlement{}, ErrRecordNotFound
@@ -626,61 +637,85 @@ func (s *Service) Settle(recordID int64, method string, proofNo string) (Record,
 		AmountCent: record.AmountCent,
 		CreatedAt:  time.Now(),
 	}
-	s.nextSettlementID++
 	record.Status = "settled"
 	record.SettledAt = settlement.CreatedAt.Format(time.RFC3339)
 	if s.repo != nil {
-		savedSettlement, err := s.repo.SaveSettlement(context.Background(), settlement)
-		if err != nil {
-			return Record{}, Settlement{}, err
-		}
-		settlement = savedSettlement
-		savedRecord, err := s.repo.UpdateRecord(context.Background(), record)
+		savedRecord, savedSettlement, err := s.repo.SettleRecord(context.Background(), recordID, settlement)
 		if err != nil {
 			return Record{}, Settlement{}, err
 		}
 		record = savedRecord
+		settlement = savedSettlement
+	} else {
+		s.nextSettlementID++
 	}
 	s.records[recordID] = record
 	s.settlements = append(s.settlements, settlement)
-	s.syncIncomeAccountsForItemsLocked(record.Items)
-	s.appendIncomeLogsForRecordLocked(record, "record_settled")
+	if s.repo == nil {
+		s.syncIncomeAccountsForItemsLocked(record.Items)
+	}
 	return record, settlement, nil
 }
 
 func (s *Service) Settlements() []Settlement {
+	items, _ := s.SettlementsStrict()
+	return items
+}
+
+func (s *Service) SettlementsStrict() ([]Settlement, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListSettlements(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListSettlements(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]Settlement(nil), s.settlements...)
+	return append([]Settlement(nil), s.settlements...), nil
 }
 
 func (s *Service) IncomeSummary(userID int64) IncomeSummary {
+	summary, _ := s.IncomeSummaryStrict(userID)
+	return summary
+}
+
+func (s *Service) IncomeSummaryStrict(userID int64) (IncomeSummary, error) {
 	if s.repo != nil {
-		if summary, err := s.repo.IncomeSummary(context.Background(), userID); err == nil {
-			s.syncIncomeAccountFromSummary(summary)
-			return summary
-		}
+		return s.repo.IncomeSummary(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.incomeSummaryLocked(userID)
+	return s.incomeSummaryLocked(userID), nil
 }
 
 func (s *Service) IncomeAccount(userID int64) IncomeAccount {
-	summary := s.IncomeSummary(userID)
-	return s.syncIncomeAccountFromSummary(summary)
+	account, _ := s.IncomeAccountStrict(userID)
+	return account
+}
+
+func (s *Service) IncomeAccountStrict(userID int64) (IncomeAccount, error) {
+	summary, err := s.IncomeSummaryStrict(userID)
+	if err != nil {
+		return IncomeAccount{}, err
+	}
+	if s.repo != nil {
+		account, err := s.repo.UpsertIncomeAccount(context.Background(), accountFromSummary(summary))
+		if err != nil {
+			return IncomeAccount{}, err
+		}
+		s.mu.Lock()
+		s.accounts[userID] = account
+		s.mu.Unlock()
+		return account, nil
+	}
+	return s.syncIncomeAccountFromSummary(summary), nil
 }
 
 func (s *Service) IncomeLogs(userID int64, status string) []IncomeLog {
+	items, _ := s.IncomeLogsStrict(userID, status)
+	return items
+}
+
+func (s *Service) IncomeLogsStrict(userID int64, status string) ([]IncomeLog, error) {
 	if s.repo != nil {
-		if items, err := s.repo.IncomeLogs(context.Background(), userID, status); err == nil {
-			return items
-		}
+		return s.repo.IncomeLogs(context.Background(), userID, status)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -705,7 +740,7 @@ func (s *Service) IncomeLogs(userID int64, status string) []IncomeLog {
 			})
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) incomeSummaryLocked(userID int64) IncomeSummary {

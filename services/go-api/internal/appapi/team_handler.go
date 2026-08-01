@@ -26,7 +26,12 @@ func (s *Server) memberReportMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminMemberReports(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.memberReports.AdminSnapshots()})
+	items, err := s.memberReports.AdminSnapshotsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取会员报表失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) myTeam(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +49,12 @@ func (s *Server) myTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminTeams(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.teams.All()})
+	items, err := s.teams.AllStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取团队列表失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) adminTeamDetail(w http.ResponseWriter, r *http.Request) {

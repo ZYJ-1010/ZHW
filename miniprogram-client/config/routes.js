@@ -17,8 +17,10 @@ const ROUTES = {
   gameCreatePreview: 'pages/game/create-preview/index',
   gameDetail: 'pages/game/detail/index',
   gameParticipants: 'pages/game/participants/index',
-  gameManage: 'pages/game/manage/index',
-  gamePlayerManage: 'pages/game/player-manage/index',
+  // 一期统一使用“我的局”承载参与、发起和管理记录；旧的两套“服务订单”
+  // 页面含有收费/结算语义，保留源码仅用于历史兼容，不能再作为入口。
+  gameManage: 'pages/profile/service-center/my-games/index',
+  gamePlayerManage: 'pages/profile/service-center/my-games/index',
   gamePlayerCancel: 'pages/game/player-cancel/index',
   gameApply: 'pages/game/apply/index',
   gameSystemRecommend: 'pages/game/system-recommend/index',
@@ -33,7 +35,6 @@ const ROUTES = {
   gameShare: 'pages/game/share/index',
   gameInvite: 'pages/game/invite/index',
   gameConfirm: 'pages/game/confirm/index',
-  gamePayment: 'pages/game/payment/index',
   gameCollaboration: 'pages/game/collaboration/index',
   gameSuccessExpert: 'pages/game/success-expert/index',
   gameSuccessGuide: 'pages/game/success-guide/index',

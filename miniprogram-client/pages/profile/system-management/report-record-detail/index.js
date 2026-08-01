@@ -44,8 +44,7 @@ function buildEvidence(report) {
   return [
     report.chatMessageId ? { label: '聊天证据', index: String(report.chatMessageId), tone: 'teal' } : null,
     report.fileId ? { label: '文件证据', index: String(report.fileId), tone: 'red' } : null,
-    report.reviewId ? { label: '评价证据', index: String(report.reviewId), tone: 'purple' } : null,
-    report.revenueRecordId ? { label: '分账证据', index: String(report.revenueRecordId), tone: 'purple' } : null
+    report.reviewId ? { label: '评价证据', index: String(report.reviewId), tone: 'purple' } : null
   ].filter(Boolean)
 }
 
@@ -86,11 +85,6 @@ function buildResultRows(report) {
       value: outcomeText(report.handleOutcome, report.status),
       className: outcomeClass(report)
     },
-    {
-      label: '资金冻结',
-      value: report.revenueFrozen ? '已冻结相关分账' : '未冻结',
-      className: report.revenueFrozen ? 'text-danger' : ''
-    }
   ]
 
   if (report.creditChange) {

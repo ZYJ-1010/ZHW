@@ -150,12 +150,32 @@ paths:
           description: Admin account is disabled.
   /api/admin/auth/applications:
     post:
-      summary: Submit admin account application
+      summary: 提交后台管理员申请
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, contact, desiredRole]
+              properties:
+                name:
+                  type: string
+                  maxLength: 64
+                contact:
+                  type: string
+                  maxLength: 120
+                desiredRole:
+                  type: string
+                  description: 不允许申请 super_admin。
+                reason:
+                  type: string
+                  maxLength: 500
       responses:
         "200":
-          description: Returns pending admin application for super admin follow-up.
+          description: 返回已持久化的 pending 管理员申请。
         "422":
-          description: Request validation failed.
+          description: 申请参数无效。
   /api/admin/auth/permissions:
     get:
       summary: Current admin permission snapshot
@@ -577,12 +597,12 @@ paths:
   /api/admin/dashboard:
     get:
       summary: 数据看板基础统计
-      description: 需要 analytics:funnel:view 权限。返回漏斗和留存基础统计，供 PC 后台首页看板使用。
+      description: 持有任一后台业务查看权限即可访问。返回漏斗、留存、脱敏聚合总数及用户/组局状态分布，供 PC 后台首页看板使用；不返回用户实名明细。
       responses:
         "200":
-          description: 返回 DashboardSnapshotDTO，包含 funnel.steps、retention.buckets 和 updatedAt
+          description: 返回 DashboardSnapshotDTO，包含 funnel.steps、retention.buckets、summary、distributions 和 updatedAt
         "403":
-          description: 缺少 analytics:funnel:view 权限
+          description: 当前账号没有任何后台业务查看权限
   /api/admin/analytics/funnel:
     get:
       summary: 漏斗基础统计
@@ -858,18 +878,63 @@ paths:
           description: Request validation failed
   /api/admin/admin-applications:
     get:
-      summary: Admin account application list
+      summary: 管理员申请列表
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Unified response payload
+          description: 需要 admin_user:view，返回申请状态、审核备注、审核人、审核时间和关联后台账号。
         "403":
-          description: Missing admin permission
+          description: 缺少 admin_user:view 权限。
+  /api/admin/admin-applications/{applicationId}/review:
+    post:
+      summary: 审核管理员申请
+      description: 仅允许 pending 申请处理一次；approved 会在同一数据库事务中创建或关联后台账号，并授予申请角色。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [approve, reject, close]
+                remark:
+                  type: string
+                  maxLength: 500
+                  description: reject 和 close 必填。
+                adminUserId:
+                  type: integer
+                  description: approve 时关联已有后台账号；不能与 username/password 同时提交。
+                username:
+                  type: string
+                  maxLength: 64
+                  description: approve 时创建新后台账号使用。
+                password:
+                  type: string
+                  format: password
+                  description: approve 时创建新后台账号使用。
+      responses:
+        "200":
+          description: 返回处理后的申请及 linkedAdminUserId，并写入管理员操作日志。
+        "403":
+          description: 缺少 admin_user:create 权限。
         "404":
-          description: Resource not found
+          description: 申请或待关联后台账号不存在。
+        "409":
+          description: 申请已处理，或新后台账号用户名已存在。
         "422":
-          description: Request validation failed
+          description: 状态动作、审核备注或账号参数无效。
   /api/admin/admin-users/{adminUserId}:
     put:
       summary: Admin frontend integration endpoint

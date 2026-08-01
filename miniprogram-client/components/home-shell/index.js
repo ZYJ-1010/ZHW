@@ -1,7 +1,10 @@
 const DPAD_SCROLL_STEP_RPX = 360
-const { navigateShellBack, navigateShellForward, navigateShellKey } = require('../../utils/shell-nav')
+const { navigateShellBack, navigateShellForward, navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
+const { ROUTES } = require('../../config/routes')
 const profileService = require('../../services/profile')
+const newbieService = require('../../services/newbie')
 const toast = require('../../utils/toast')
+const { getActiveRole } = require('../../utils/active-role')
 const { getHomeShellFixedFrameLayout } = require('./layout')
 const DEFAULT_ONLINE_COUNT = '0'
 const FLOATING_TASK_POSITION_STORAGE_KEY = 'enjoy_home_task_float_position_v1'
@@ -41,7 +44,10 @@ Component({
     resolvedToolbarActionsVisible: true,
     resolvedToolbarAvatarVisible: true,
     shellAvatarUrl: '',
+    floatingTaskState: '',
     floatingTaskStyle: '',
+    profileGuideVisible: false,
+    profileGuideRemaining: 0,
     shellNavItems: [
       { name: '我的', key: 'mine' },
       { name: '元宇宙', key: 'metaverse' },
@@ -339,6 +345,15 @@ Component({
       this.triggerEvent('tasktap')
     },
 
+    handleProfileGuideLater() {
+      this.setData({ profileGuideVisible: false })
+    },
+
+    handleProfileGuideGo() {
+      this.setData({ profileGuideVisible: false })
+      navigateShellRoute(`/${ROUTES.profileSystemProfileInfo}`)
+    },
+
     normalizeStyle(style) {
       const value = style || ''
 
@@ -377,7 +392,7 @@ Component({
 
     async loadShellProfile() {
       try {
-        const data = await profileService.getProfileHome()
+        const data = await profileService.getProfileHome({ roleType: getActiveRole() })
         const user = data && data.user ? data.user : {}
         const avatarUrl = String(user.avatarUrl || '').trim()
 
@@ -391,6 +406,28 @@ Component({
           this.setData({
             shellAvatarUrl: ''
           })
+        }
+      }
+      if (this.properties.floatingTaskVisible) {
+        try {
+          const taskData = await newbieService.getNewbieTasks()
+          const categories = Array.isArray(taskData.categories) ? taskData.categories : []
+          const newbie = categories.find((item) => item && item.key === 'newbie') || {}
+          const tasks = Array.isArray(newbie.items) ? newbie.items : (taskData.items || taskData.tasks || [])
+          const guide = taskData.guide || {}
+          const completed = tasks.filter((item) => item && (item.completed || item.done || item.status === 'completed')).length
+          const pending = Math.max(0, tasks.length - completed)
+          const profileGuideVisible = Boolean(guide.profileReminderVisible)
+          this.setData({
+            floatingTaskState: guide.taskState || (pending ? (completed ? '?' : '!') : ''),
+            profileGuideVisible,
+            profileGuideRemaining: Number(guide.profileReminderRemaining || 0)
+          })
+          if (profileGuideVisible) {
+            newbieService.recordProfileGuideReminder().catch(() => {})
+          }
+        } catch (error) {
+          this.setData({ floatingTaskState: '', profileGuideVisible: false })
         }
       }
     },

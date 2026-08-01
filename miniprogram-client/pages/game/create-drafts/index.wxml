@@ -5,7 +5,10 @@
   </view>
 
   <scroll-view class="draft-scroll" scroll-y enhanced show-scrollbar="false">
-    <view wx:if="{{drafts.length}}" class="draft-list">
+    <view wx:if="{{loading}}" class="empty-state">
+      <text class="empty-title">正在读取草稿</text>
+    </view>
+    <view wx:elif="{{drafts.length}}" class="draft-list">
       <view wx:for="{{drafts}}" wx:key="id" class="draft-card">
         <view class="draft-card-main" data-id="{{item.id}}" bindtap="editDraft">
           <text class="draft-card-title">{{item.title}}</text>
@@ -14,8 +17,8 @@
           <text class="draft-card-time">保存于 {{item.savedAtText}}</text>
         </view>
         <view class="draft-card-actions">
-          <button class="draft-delete" data-id="{{item.id}}" bindtap="deleteDraft">删除</button>
-          <button class="draft-edit" data-id="{{item.id}}" bindtap="editDraft">继续编辑</button>
+          <button class="draft-delete" disabled="{{loadingDraftId || deletingDraftId}}" data-id="{{item.id}}" bindtap="deleteDraft">{{deletingDraftId === item.id ? '删除中' : '删除'}}</button>
+          <button class="draft-edit" disabled="{{loadingDraftId || deletingDraftId}}" data-id="{{item.id}}" bindtap="editDraft">{{loadingDraftId === item.id ? '读取中' : '继续编辑'}}</button>
         </view>
       </view>
     </view>

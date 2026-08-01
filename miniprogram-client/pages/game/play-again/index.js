@@ -2,6 +2,11 @@ const { ROUTES } = require('../../../config/routes')
 const gameApi = require('../../../api/modules/game')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
 
+const REQUIRED_OPENING_MODES = [
+  { id: 'same-friends', theme: 'green', iconText: '👥', title: '同局开局', desc: '邀请上一局成员再次组局', route: 'confirm', order: 10 },
+  { id: 'smart-match', theme: 'blue', iconText: '🤖', title: '系统自配', desc: '根据你的偏好推荐适配组局', route: 'system_recommend', order: 20 },
+  { id: 'create-new', theme: 'pink', iconType: 'plus', title: '玩家创建', desc: '自行创建一场全新的局', route: 'create', order: 30 }
+]
 const EMPTY_RECOMMEND_OPTIONS = []
 
 Page({
@@ -41,12 +46,12 @@ Page({
         panelTitle: data.title || data.panelTitle || this.data.panelTitle,
         panelSubtitle: data.desc || data.panelSubtitle || this.data.panelSubtitle,
         recommendOptions: options,
-        selectedOption: options[0] ? options[0].id : '',
+        selectedOption: '',
         loading: false
       })
     }).catch(() => {
       this.setData({
-        recommendOptions: EMPTY_RECOMMEND_OPTIONS,
+        recommendOptions: this.normalizeRecommendOptions(),
         selectedOption: '',
         loading: false
       })
@@ -54,11 +59,17 @@ Page({
   },
 
   normalizeRecommendOptions(items) {
-    const options = Array.isArray(items)
-      ? items.filter((item) => item && item.id && item.title)
-      : []
+    const configured = Array.isArray(items) ? items : []
+    const byRoute = new Map()
 
-    return options
+    configured.forEach((item) => {
+      const route = String(item && item.route || '').trim()
+      const fallback = REQUIRED_OPENING_MODES.find((mode) => mode.route === route)
+      if (!fallback || byRoute.has(route)) return
+      byRoute.set(route, Object.assign({}, fallback, item, { route, id: item.id || fallback.id }))
+    })
+
+    return REQUIRED_OPENING_MODES.map((fallback) => byRoute.get(fallback.route) || Object.assign({}, fallback))
   },
 
   onOptionTap(event) {
@@ -72,24 +83,25 @@ Page({
     this.setData({
       selectedOption: id
     })
-    this.navigateByOption(id)
-  },
-
-  onCloseTap() {
-    this.navigateBackOrHall()
   },
 
   handleShellNavTap(event) {
-    const route = this.getShellRoute(event.detail && event.detail.key)
+    this.showRequiredChoiceNotice()
+  },
 
-    if (!route) {
-      this.navigateBackOrHall()
+  onConfirmTap() {
+    const id = this.data.selectedOption
+    if (!id) {
+      this.showRequiredChoiceNotice()
       return
     }
+    this.navigateByOption(id)
+  },
 
-    navigateShellRoute(route, {
-      currentRoute: ROUTES.gamePlayAgain,
-      onSameRoute: () => this.navigateBackOrHall()
+  showRequiredChoiceNotice() {
+    wx.showToast({
+      title: '请选择一种开局方式后继续',
+      icon: 'none'
     })
   },
 
@@ -138,23 +150,5 @@ Page({
       .join('&')
 
     return `/${route}${query ? `?${query}` : ''}`
-  },
-
-  getShellRoute(key) {
-    const routes = {
-      home: ROUTES.playerHome || ROUTES.home,
-      mine: ROUTES.profile,
-      profile: ROUTES.profile,
-      map: ROUTES.map,
-      message: ROUTES.message,
-      metaverse: ROUTES.metaverse
-    }
-
-    return routes[key]
-  },
-
-  navigateBackOrHall() {
-    const url = `/${ROUTES.gameHall}`
-    wx.reLaunch({ url })
   }
 })

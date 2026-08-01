@@ -314,13 +314,38 @@ on conflict (user_id) do update set password_hash = excluded.password_hash, upda
 }
 
 func (r *SQLRepository) BindWechat(ctx context.Context, userID int64, openID string) (User, error) {
-	_, err := r.db.ExecContext(ctx, `
+	var existingOpenID string
+	err := r.db.QueryRowContext(ctx, `
+select openid
+from user_wechat_accounts
+where user_id = $1
+order by id asc
+limit 1
+`, userID).Scan(&existingOpenID)
+	if err != nil && err != sql.ErrNoRows {
+		return User{}, err
+	}
+	if err == nil && existingOpenID != openID {
+		return User{}, ErrWechatConflict
+	}
+	result, err := r.db.ExecContext(ctx, `
 insert into user_wechat_accounts (user_id, openid, created_at, updated_at)
 values ($1,$2,now(),now())
-on conflict (openid) do update set user_id = excluded.user_id, updated_at = now()
+on conflict (openid) do nothing
 `, userID, openID)
 	if err != nil {
 		return User{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return User{}, err
+	} else if affected == 0 {
+		var ownerUserID int64
+		if err := r.db.QueryRowContext(ctx, `select user_id from user_wechat_accounts where openid = $1`, openID).Scan(&ownerUserID); err != nil {
+			return User{}, err
+		}
+		if ownerUserID != userID {
+			return User{}, ErrWechatAlreadyUsed
+		}
 	}
 	user, ok, err := r.FindByID(ctx, userID)
 	if err != nil {

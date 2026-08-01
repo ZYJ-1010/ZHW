@@ -2,6 +2,7 @@ package lbs
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -72,8 +73,47 @@ func TestNearbyUsersReturnsOtherLatestLocationsWithinRadius(t *testing.T) {
 	}
 }
 
+func TestRepositoryFailureDoesNotUseStaleLocationCache(t *testing.T) {
+	repo := newFakeLocationRepository()
+	service := NewServiceWithRepository(repo)
+	service.locations[1] = Location{UserID: 1, CityName: "旧城市", Source: "manual"}
+	service.history[1] = []Location{{UserID: 1, CityName: "旧城市", Source: "manual"}}
+	repo.err = errors.New("database unavailable")
+
+	if _, err := service.SaveManual(1, SaveRequest{Longitude: 120, Latitude: 30}); !errors.Is(err, repo.err) {
+		t.Fatalf("expected repository save error, got %v", err)
+	}
+	if _, ok, err := service.CurrentStrict(1); ok || !errors.Is(err, repo.err) {
+		t.Fatalf("expected strict current error without stale cache, ok=%v err=%v", ok, err)
+	}
+	if _, err := service.RecentStrict(1, 10); !errors.Is(err, repo.err) {
+		t.Fatalf("expected strict recent error, got %v", err)
+	}
+	if _, err := service.RecentBySourceStrict(1, "manual", 10); !errors.Is(err, repo.err) {
+		t.Fatalf("expected strict recent-by-source error, got %v", err)
+	}
+	if _, err := service.NearbyUsersStrict(1, Location{Longitude: 120, Latitude: 30}, 1000, 10); !errors.Is(err, repo.err) {
+		t.Fatalf("expected strict nearby error, got %v", err)
+	}
+}
+
+func TestMemoryCurrentUsesLatestManualSelection(t *testing.T) {
+	service := NewService()
+	if _, err := service.SaveCurrent(1, SaveRequest{Longitude: 116, Latitude: 39, CityName: "北京"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SaveManual(1, SaveRequest{Longitude: 120, Latitude: 30, CityName: "杭州"}); err != nil {
+		t.Fatal(err)
+	}
+	current, ok, err := service.CurrentStrict(1)
+	if err != nil || !ok || current.Source != "manual" || current.CityName != "杭州" {
+		t.Fatalf("expected latest manual location, ok=%v err=%v current=%+v", ok, err, current)
+	}
+}
+
 type fakeLocationRepository struct {
 	items []Location
+	err   error
 }
 
 func newFakeLocationRepository() *fakeLocationRepository {
@@ -81,11 +121,17 @@ func newFakeLocationRepository() *fakeLocationRepository {
 }
 
 func (r *fakeLocationRepository) SaveLocation(ctx context.Context, location Location) (Location, error) {
+	if r.err != nil {
+		return Location{}, r.err
+	}
 	r.items = append([]Location{location}, r.items...)
 	return location, nil
 }
 
 func (r *fakeLocationRepository) CurrentLocation(ctx context.Context, userID int64) (Location, bool, error) {
+	if r.err != nil {
+		return Location{}, false, r.err
+	}
 	for _, item := range r.items {
 		if item.UserID == userID {
 			return item, true, nil
@@ -95,6 +141,9 @@ func (r *fakeLocationRepository) CurrentLocation(ctx context.Context, userID int
 }
 
 func (r *fakeLocationRepository) RecentLocations(ctx context.Context, userID int64, limit int) ([]Location, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
 	result := make([]Location, 0)
 	for _, item := range r.items {
 		if item.UserID == userID {
@@ -108,6 +157,9 @@ func (r *fakeLocationRepository) RecentLocations(ctx context.Context, userID int
 }
 
 func (r *fakeLocationRepository) RecentLocationsBySource(ctx context.Context, userID int64, source string, limit int) ([]Location, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
 	result := make([]Location, 0)
 	for _, item := range r.items {
 		if item.UserID == userID && item.Source == source {
@@ -121,6 +173,9 @@ func (r *fakeLocationRepository) RecentLocationsBySource(ctx context.Context, us
 }
 
 func (r *fakeLocationRepository) LatestLocations(ctx context.Context, limit int) ([]Location, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
 	result := make([]Location, 0)
 	seen := make(map[int64]bool)
 	for _, item := range r.items {

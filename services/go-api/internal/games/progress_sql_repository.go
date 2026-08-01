@@ -15,6 +15,40 @@ func NewSQLProgressRepository(db *sql.DB) *SQLProgressRepository {
 	return &SQLProgressRepository{db: db}
 }
 
+func (r *SQLProgressRepository) CreateProgressFeedback(ctx context.Context, feedback ProgressFeedback) (ProgressFeedback, error) {
+	fileIDs, err := json.Marshal(feedback.FileIDs)
+	if err != nil {
+		return ProgressFeedback{}, err
+	}
+	return scanProgressFeedback(r.db.QueryRowContext(ctx, `
+insert into game_progress_feedbacks (game_id, user_id, progress, content, file_ids, created_at)
+values ($1,$2,$3,$4,$5,$6)
+returning id, game_id, user_id, progress, content, file_ids, created_at
+`, feedback.GameID, feedback.UserID, feedback.Progress, nullString(feedback.Content), string(fileIDs), feedback.CreatedAt))
+}
+
+func (r *SQLProgressRepository) ListProgressFeedbacks(ctx context.Context, gameID int64) ([]ProgressFeedback, error) {
+	rows, err := r.db.QueryContext(ctx, `
+select id, game_id, user_id, progress, content, file_ids, created_at
+from game_progress_feedbacks
+where game_id = $1
+order by created_at asc, id asc
+`, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]ProgressFeedback, 0)
+	for rows.Next() {
+		item, err := scanProgressFeedback(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (r *SQLProgressRepository) CreateMilestone(ctx context.Context, milestone Milestone) (Milestone, error) {
 	return scanMilestone(r.db.QueryRowContext(ctx, `
 insert into game_milestones (game_id, title, status, created_at, updated_at)
@@ -176,6 +210,23 @@ func scanMilestone(row interface {
 	var item Milestone
 	err := row.Scan(&item.ID, &item.GameID, &item.Title, &item.Status, &item.CreatedAt)
 	return item, err
+}
+
+func scanProgressFeedback(row interface {
+	Scan(dest ...any) error
+}) (ProgressFeedback, error) {
+	var item ProgressFeedback
+	var content sql.NullString
+	var fileIDs []byte
+	err := row.Scan(&item.ID, &item.GameID, &item.UserID, &item.Progress, &content, &fileIDs, &item.CreatedAt)
+	if err != nil {
+		return ProgressFeedback{}, err
+	}
+	item.Content = content.String
+	if len(fileIDs) > 0 {
+		_ = json.Unmarshal(fileIDs, &item.FileIDs)
+	}
+	return item, nil
 }
 
 func scanCheckin(row interface {

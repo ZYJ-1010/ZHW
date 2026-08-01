@@ -81,12 +81,35 @@ func TestGameAuditAndApplicationNotificationsHTTP(t *testing.T) {
 	if countNotificationsByType(t, approvedNotices, "application_approved") != 1 {
 		t.Fatalf("expected application_approved notification: %s", string(approvedNotices))
 	}
+	if !strings.Contains(string(approvedNotices), "notification lifecycle game") ||
+		!strings.Contains(string(approvedNotices), "已入局") ||
+		!strings.Contains(string(approvedNotices), "审核时间") {
+		t.Fatalf("approved notification must include game name, result and review time: %s", string(approvedNotices))
+	}
 	rejectedNotices := getJSON(t, mux, "/api/app/notifications", rejectedToken, http.StatusOK)
 	if countNotificationsByType(t, rejectedNotices, "application_rejected") != 1 {
 		t.Fatalf("expected application_rejected notification: %s", string(rejectedNotices))
 	}
-	if !strings.Contains(string(rejectedNotices), "资料不完整") {
-		t.Fatalf("rejection reason must be included in notification: %s", string(rejectedNotices))
+	if !strings.Contains(string(rejectedNotices), "资料不完整") ||
+		!strings.Contains(string(rejectedNotices), "未通过") ||
+		!strings.Contains(string(rejectedNotices), "审核时间") {
+		t.Fatalf("rejection notification must include result, time and reason: %s", string(rejectedNotices))
+	}
+	approvedCenter := getJSON(t, mux, "/api/app/messages/center", applicantToken, http.StatusOK)
+	if !strings.Contains(string(approvedCenter), `"notifyType":"application_approved"`) ||
+		!strings.Contains(string(approvedCenter), `"text":"查看组局"`) {
+		t.Fatalf("approved result must appear in the message center with a game action: %s", string(approvedCenter))
+	}
+	approvedMyGames := getJSON(t, mux, "/api/app/games/player/manage", applicantToken, http.StatusOK)
+	if !strings.Contains(string(approvedMyGames), `"applicationStatus":"approved"`) ||
+		!strings.Contains(string(approvedMyGames), `"statusText":"已入局"`) {
+		t.Fatalf("approved result must be synchronized to my joined games: %s", string(approvedMyGames))
+	}
+	rejectedMyGames := getJSON(t, mux, "/api/app/games/player/manage", rejectedToken, http.StatusOK)
+	if !strings.Contains(string(rejectedMyGames), `"applicationStatus":"rejected"`) ||
+		!strings.Contains(string(rejectedMyGames), `"statusText":"未通过"`) ||
+		!strings.Contains(string(rejectedMyGames), "资料不完整") {
+		t.Fatalf("rejected result must be synchronized to my joined games: %s", string(rejectedMyGames))
 	}
 	received := getJSON(t, mux, "/api/app/game-applications/received?gameId="+gameIDText, creatorToken, http.StatusOK)
 	if !strings.Contains(string(received), `"rejectReason":"资料不完整"`) {

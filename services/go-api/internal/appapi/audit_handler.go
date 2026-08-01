@@ -2,6 +2,7 @@ package appapi
 
 import (
 	"encoding/json"
+	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -9,6 +10,8 @@ import (
 
 	"zhw-mini/services/go-api/internal/audit"
 	"zhw-mini/services/go-api/internal/common/httpx"
+	"zhw-mini/services/go-api/internal/games"
+	"zhw-mini/services/go-api/internal/users"
 )
 
 type behaviorEventRequest struct {
@@ -26,27 +29,113 @@ type behaviorEventRequest struct {
 }
 
 func (s *Server) adminBehaviorLogs(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.audit.BehaviorLogs()})
+	items, err := s.audit.BehaviorLogsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取行为日志失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) adminBehaviorEvents(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.audit.QueryBehaviorLogs(audit.BehaviorQuery{
+	items, err := s.audit.QueryBehaviorLogsStrict(audit.BehaviorQuery{
 		UserID:    parseInt64Query(r, "userId"),
 		EventType: strings.TrimSpace(r.URL.Query().Get("eventType")),
 		EventCode: strings.TrimSpace(r.URL.Query().Get("eventCode")),
-	})})
+	})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "查询行为日志失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) adminDashboard(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, s.audit.Dashboard())
+	dashboard, err := s.audit.DashboardStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取首页行为统计失败，请稍后重试")
+		return
+	}
+	usersList, err := s.auth.AdminUsers(users.Filter{})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取首页用户统计失败")
+		return
+	}
+	gamesList, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取首页组局统计失败，请稍后重试")
+		return
+	}
+	rooms, err := s.im.AdminRoomsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取聊天室统计失败，请稍后重试")
+		return
+	}
+	registeredUserCount := len(usersList)
+	verifiedUserCount := 0
+	userStatuses := map[string]int{}
+	for _, user := range usersList {
+		userStatuses[user.RealnameStatus]++
+		if user.RealnameStatus == "verified" {
+			verifiedUserCount++
+		}
+	}
+	activeGameCount := 0
+	gameStatuses := map[string]int{
+		games.StatusDraft:          0,
+		games.StatusPendingAudit:   0,
+		games.StatusRecruiting:     0,
+		games.StatusFull:           0,
+		games.StatusInProgress:     0,
+		games.StatusPendingConfirm: 0,
+		games.StatusPendingReview:  0,
+		games.StatusCompleted:      0,
+		games.StatusRejected:       0,
+		games.StatusCancelled:      0,
+		games.StatusDisputed:       0,
+		games.StatusSettling:       0,
+		games.StatusClosed:         0,
+	}
+	gameTypes := map[string]int{}
+	for _, game := range gamesList {
+		gameStatuses[game.Status]++
+		primaryCategory := strings.TrimSpace(game.PrimaryCategory)
+		if primaryCategory == "" {
+			primaryCategory = "unclassified"
+		}
+		gameTypes[primaryCategory]++
+		if game.Status == "recruiting" || game.Status == "in_progress" {
+			activeGameCount++
+		}
+	}
+	httpx.OK(w, map[string]interface{}{
+		"funnel": dashboard.Funnel, "retention": dashboard.Retention, "updatedAt": dashboard.UpdatedAt,
+		"summary": map[string]interface{}{
+			"registeredUserCount": registeredUserCount, "verifiedUserCount": verifiedUserCount,
+			"activeGameCount": activeGameCount, "imRoomCount": len(rooms),
+		},
+		"distributions": map[string]interface{}{
+			"userStatuses": userStatuses, "gameStatuses": gameStatuses, "gameTypes": gameTypes,
+		},
+	})
 }
 
 func (s *Server) adminFunnel(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, s.audit.Funnel(stringsFromQuery(r, "eventCodes")))
+	snapshot, err := s.audit.FunnelStrict(stringsFromQuery(r, "eventCodes"))
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取漏斗数据失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, snapshot)
 }
 
 func (s *Server) adminRetention(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, s.audit.Retention())
+	snapshot, err := s.audit.RetentionStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取留存数据失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, snapshot)
 }
 
 func (s *Server) createBehaviorEvent(w http.ResponseWriter, r *http.Request) {
@@ -57,16 +146,16 @@ func (s *Server) createBehaviorEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	eventType := strings.TrimSpace(req.EventType)
 	if eventType == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "eventType required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "事件类型不能为空")
 		return
 	}
 	eventCode := strings.TrimSpace(firstNonEmptyText(req.EventCode, eventType))
 	if eventCode == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "eventCode 不能为空")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "事件编码不能为空")
 		return
 	}
 	userID, _ := s.currentUserID(r)
-	log := s.audit.RecordBehavior(audit.BehaviorRequest{
+	log, err := s.audit.RecordBehaviorStrict(audit.BehaviorRequest{
 		UserID:       userID,
 		EventType:    eventType,
 		EventCode:    eventCode,
@@ -81,6 +170,10 @@ func (s *Server) createBehaviorEvent(w http.ResponseWriter, r *http.Request) {
 		IP:           clientIP(r),
 		Extra:        req.Extra,
 	})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "保存行为事件失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, log)
 }
 
@@ -98,10 +191,13 @@ func (s *Server) adminOperationLogs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if r.Header.Get("X-Admin-ID") == "" {
-		r.Header.Set("X-Admin-ID", strconv.FormatInt(adminID, 10))
+	r.Header.Set("X-Admin-ID", strconv.FormatInt(adminID, 10))
+	logs, err := s.audit.OperationLogsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取操作日志失败，请稍后重试")
+		return
 	}
-	items := filterOperationLogs(s.audit.OperationLogs(), r, adminID, hasFull)
+	items := filterOperationLogs(logs, r, adminID, hasFull)
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
 }
 
@@ -152,7 +248,7 @@ func (s *Server) recordBehavior(userID int64, eventType string, targetType strin
 	if s.audit == nil {
 		return
 	}
-	s.audit.RecordBehavior(audit.BehaviorRequest{
+	if _, err := s.audit.RecordBehaviorStrict(audit.BehaviorRequest{
 		UserID:       userID,
 		EventType:    eventType,
 		EventCode:    eventType,
@@ -162,14 +258,16 @@ func (s *Server) recordBehavior(userID int64, eventType string, targetType strin
 		BusinessID:   targetID,
 		Source:       "server",
 		Extra:        extra,
-	})
+	}); err != nil {
+		log.Printf("behavior audit persistence degraded event_type=%q user_id=%d err=%v", eventType, userID, err)
+	}
 }
 
 func (s *Server) recordOperation(r *http.Request, action string, targetType string, targetID string, detail map[string]interface{}) {
 	if s.audit == nil {
 		return
 	}
-	s.audit.RecordOperation(audit.OperationRequest{
+	if _, err := s.audit.RecordOperationStrict(audit.OperationRequest{
 		AdminUserID: parseInt64Header(r, "X-Admin-ID"),
 		Action:      action,
 		TargetType:  targetType,
@@ -177,7 +275,9 @@ func (s *Server) recordOperation(r *http.Request, action string, targetType stri
 		RequestID:   r.Header.Get("X-Request-ID"),
 		IP:          clientIP(r),
 		Detail:      detail,
-	})
+	}); err != nil {
+		log.Printf("admin operation audit persistence degraded action=%q target_type=%q target_id=%q err=%v", action, targetType, targetID, err)
+	}
 }
 
 func (s *Server) currentUserID(r *http.Request) (int64, bool) {
@@ -207,9 +307,7 @@ func (s *Server) requireAdminPermissionID(w http.ResponseWriter, r *http.Request
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "缺少后台接口权限")
 		return 0, false
 	}
-	if r.Header.Get("X-Admin-ID") == "" {
-		r.Header.Set("X-Admin-ID", strconv.FormatInt(adminID, 10))
-	}
+	r.Header.Set("X-Admin-ID", strconv.FormatInt(adminID, 10))
 	return adminID, true
 }
 

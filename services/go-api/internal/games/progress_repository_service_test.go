@@ -81,31 +81,52 @@ func TestProgressRepositoryPersistsMilestonesCheckinsRetrospectivesAndContinueDr
 }
 
 type fakeProgressRepository struct {
-	nextMilestoneID      int64
-	nextCheckinID        int64
-	nextRetrospectiveID  int64
-	milestones           map[int64]Milestone
-	checkins             map[int64]Checkin
-	retrospectives       map[int64]Retrospective
-	continueDrafts       []ContinueDraftRecord
-	createdMilestone     bool
-	listedMilestones     bool
-	createdCheckin       bool
-	listedCheckins       bool
-	createdRetrospective bool
-	createdContinueDraft bool
+	nextProgressFeedbackID int64
+	nextMilestoneID        int64
+	nextCheckinID          int64
+	nextRetrospectiveID    int64
+	milestones             map[int64]Milestone
+	checkins               map[int64]Checkin
+	retrospectives         map[int64]Retrospective
+	continueDrafts         []ContinueDraftRecord
+	progressFeedbacks      map[int64]ProgressFeedback
+	createdMilestone       bool
+	listedMilestones       bool
+	createdCheckin         bool
+	listedCheckins         bool
+	createdRetrospective   bool
+	createdContinueDraft   bool
 }
 
 func newFakeProgressRepository() *fakeProgressRepository {
 	return &fakeProgressRepository{
-		nextMilestoneID:     1,
-		nextCheckinID:       1,
-		nextRetrospectiveID: 1,
-		milestones:          make(map[int64]Milestone),
-		checkins:            make(map[int64]Checkin),
-		retrospectives:      make(map[int64]Retrospective),
-		continueDrafts:      make([]ContinueDraftRecord, 0),
+		nextProgressFeedbackID: 1,
+		nextMilestoneID:        1,
+		nextCheckinID:          1,
+		nextRetrospectiveID:    1,
+		milestones:             make(map[int64]Milestone),
+		checkins:               make(map[int64]Checkin),
+		retrospectives:         make(map[int64]Retrospective),
+		continueDrafts:         make([]ContinueDraftRecord, 0),
+		progressFeedbacks:      make(map[int64]ProgressFeedback),
 	}
+}
+
+func (r *fakeProgressRepository) CreateProgressFeedback(ctx context.Context, feedback ProgressFeedback) (ProgressFeedback, error) {
+	feedback.ID = r.nextProgressFeedbackID
+	r.nextProgressFeedbackID++
+	r.progressFeedbacks[feedback.ID] = feedback
+	return feedback, nil
+}
+
+func (r *fakeProgressRepository) ListProgressFeedbacks(ctx context.Context, gameID int64) ([]ProgressFeedback, error) {
+	result := make([]ProgressFeedback, 0)
+	for _, item := range r.progressFeedbacks {
+		if item.GameID == gameID {
+			result = append(result, item)
+		}
+	}
+	return result, nil
 }
 
 func (r *fakeProgressRepository) CreateMilestone(ctx context.Context, milestone Milestone) (Milestone, error) {

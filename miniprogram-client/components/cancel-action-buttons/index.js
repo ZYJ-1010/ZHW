@@ -14,7 +14,7 @@ Component({
     },
     primaryText: {
       type: String,
-      value: '确认取消并赔付'
+      value: '确认取消'
     },
     primaryDisabled: {
       type: Boolean,

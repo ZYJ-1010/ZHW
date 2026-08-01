@@ -12,10 +12,13 @@ import (
 )
 
 const (
-	openIMTextContentType = 101
-	openIMGroupSession    = 3
-	openIMWorkingGroup    = 2
-	openIMMiniProgram     = 5
+	openIMTextContentType    = 101
+	openIMPictureContentType = 102
+	openIMVoiceContentType   = 103
+	openIMFileContentType    = 105
+	openIMGroupSession       = 3
+	openIMWorkingGroup       = 2
+	openIMMiniProgram        = 5
 )
 
 type OpenIMConfig struct {
@@ -78,7 +81,11 @@ func (c *OpenIMClient) SyncGameRoom(ctx context.Context, gameID int64, memberIDs
 	return groupID, nil
 }
 
-func (c *OpenIMClient) SendGroupText(ctx context.Context, gameID int64, senderUserID int64, content string) error {
+func (c *OpenIMClient) SendGroupMessage(ctx context.Context, gameID int64, senderUserID int64, message SendRequest) error {
+	contentType, content, err := openIMMessageContent(message)
+	if err != nil {
+		return err
+	}
 	token, err := c.adminToken(ctx)
 	if err != nil {
 		return err
@@ -88,13 +95,82 @@ func (c *OpenIMClient) SendGroupText(ctx context.Context, gameID int64, senderUs
 		"senderNickname":   openIMUserID(senderUserID),
 		"senderPlatformID": openIMMiniProgram,
 		"groupID":          openIMGroupID(gameID),
-		"contentType":      openIMTextContentType,
+		"contentType":      contentType,
 		"sessionType":      openIMGroupSession,
-		"content": map[string]any{
-			"content": content,
-		},
+		"content":          content,
 	}
 	return c.post(ctx, token, "/msg/send_msg", req, nil)
+}
+
+func openIMMessageContent(message SendRequest) (int, map[string]any, error) {
+	if message.MessageType == "text" {
+		return openIMTextContentType, map[string]any{"content": message.Content}, nil
+	}
+	if message.Attachment == nil || strings.TrimSpace(message.Attachment.URL) == "" {
+		return 0, nil, ErrInvalidMessage
+	}
+
+	attachment := message.Attachment
+	uuid := "zhw_file_" + strconv.FormatInt(message.FileID, 10)
+	fileName := strings.TrimSpace(attachment.FileName)
+	if fileName == "" {
+		fileName = strings.TrimSpace(message.Content)
+	}
+	if fileName == "" {
+		fileName = uuid
+	}
+	fileSize := attachment.Size
+	if fileSize < 1 {
+		fileSize = 1
+	}
+
+	switch message.MessageType {
+	case "image":
+		width := message.Width
+		if width < 1 {
+			width = 1
+		}
+		height := message.Height
+		if height < 1 {
+			height = 1
+		}
+		picture := map[string]any{
+			"uuid":   uuid,
+			"type":   attachment.MimeType,
+			"size":   fileSize,
+			"width":  width,
+			"height": height,
+			"url":    attachment.URL,
+		}
+		return openIMPictureContentType, map[string]any{
+			"sourcePath":      fileName,
+			"sourcePicture":   picture,
+			"bigPicture":      picture,
+			"snapshotPicture": picture,
+		}, nil
+	case "voice":
+		durationMS := message.DurationMS
+		if durationMS < 1 {
+			durationMS = 1
+		}
+		return openIMVoiceContentType, map[string]any{
+			"uuid":      uuid,
+			"soundPath": fileName,
+			"sourceUrl": attachment.URL,
+			"dataSize":  fileSize,
+			"duration":  durationMS,
+		}, nil
+	case "file":
+		return openIMFileContentType, map[string]any{
+			"filePath":  fileName,
+			"uuid":      uuid,
+			"sourceUrl": attachment.URL,
+			"fileName":  fileName,
+			"fileSize":  fileSize,
+		}, nil
+	default:
+		return 0, nil, ErrInvalidMessage
+	}
 }
 
 func (c *OpenIMClient) UserToken(ctx context.Context, userID int64) (string, error) {

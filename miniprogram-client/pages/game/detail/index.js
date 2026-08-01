@@ -3,6 +3,7 @@ const gameService = require('../../../services/game')
 const inviteService = require('../../../services/invite')
 const userService = require('../../../services/user')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const DEFAULT_CONTENT_TOP_RPX = 160
 const NAV_BOTTOM_GAP_RPX = 18
@@ -107,17 +108,7 @@ function gameStatusText(status = '') {
 }
 
 function gameTypeText(type = '') {
-  const map = {
-    free: '免费局',
-    standard: '标准局',
-    public_welfare: '公益局',
-    aa: 'AA局',
-    crowdfund: '众筹局',
-    deposit: '押金局',
-    condition: '条件局'
-  }
-
-  return map[type] || type || '免费局'
+  return '免费局'
 }
 
 function formatCreatedAt(value) {
@@ -144,7 +135,7 @@ function normalizeParticipant(item = {}, index, game = {}) {
 	const roleKey = String(item.role || '').trim().toLowerCase()
 	const roleClass = roleKey === 'expert'
 		? 'expert'
-		: (roleKey === 'guide' || roleKey === 'main_guide' ? 'guide' : (roleKey === 'member' || roleKey === 'player' ? 'player' : 'unknown'))
+		: (roleKey === 'guide' || roleKey === 'main_guide' || roleKey === 'guide_escort' ? 'guide' : (roleKey === 'member' || roleKey === 'player' ? 'player' : 'unknown'))
 	const role = item.roleLabel || '后台未返回'
 	const name = item.displayName || item.name || item.nickname || '后台未返回'
 
@@ -255,7 +246,17 @@ function compactList(items) {
   return items.map((item) => String(item || '').trim()).filter(Boolean)
 }
 
-function buildBottomTools(relation = {}, game = {}) {
+function normalizeShareComponent(source = {}) {
+  return {
+    enabled: source.enabled !== false,
+    variant: source.variant === 'icon_button' ? 'icon_button' : 'channel_sheet',
+    label: source.label || '分享',
+    enableInternal: source.enableInternal !== false,
+    enableWechat: source.enableWechat !== false
+  }
+}
+
+function buildBottomTools(relation = {}, game = {}, shareComponent = {}) {
   if (['pending_review', 'completed', 'canceled', 'cancelled'].indexOf(game.status) !== -1) {
     return []
   }
@@ -263,23 +264,18 @@ function buildBottomTools(relation = {}, game = {}) {
   const role = String(relation.role || '').toLowerCase()
   const isCreator = Boolean(relation.isCreator)
   const isMember = Boolean(relation.isMember)
-  const tools = [
-    { key: 'share', text: '分享', iconSrc: '/pages/game/detail/assets/i45@3x.png' }
-  ]
-  const canInvite = ['recruiting', 'full'].indexOf(game.status) !== -1 &&
-    (relation.isCreator || role === 'main_guide' || role === 'guide')
-
-  if (canInvite) {
-    tools.push({ key: 'invite', text: '引荐', iconSrc: '/pages/game/detail/assets/i46@3x.png' })
-  }
+  const share = normalizeShareComponent(shareComponent)
+  const tools = share.enabled ? [
+    { key: 'share', text: share.label, iconSrc: '/pages/game/detail/assets/i45@3x.png' }
+  ] : []
 
   if (isMember && ['in_progress', 'pending_confirm'].indexOf(game.status) !== -1) {
     tools.push({ key: 'checkin', text: '签到', iconSrc: '/pages/game/detail/assets/i47@3x.png' })
   }
 
   if (relation.canEnterIM) {
-    tools.push({ key: 'chat', text: isCreator ? '聊天' : '打招呼', iconSrc: '/pages/game/detail/assets/i48@3x.png' })
-  } else if (!isCreator && !isMember && game.creatorUserId) {
+    tools.push({ key: 'chat', text: '聊天', iconSrc: '/pages/game/detail/assets/i48@3x.png' })
+  } else if (!isCreator && game.creatorUserId) {
     tools.push({ key: 'greet', text: '打招呼', iconSrc: '/pages/game/detail/assets/i48@3x.png' })
   }
 
@@ -300,9 +296,19 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
   const statusText = String(detailDisplay.statusText || gameStatusText(game.status))
   const gameType = gameTypeText(game.gameType)
   const categoryText = String(game.primaryCategoryText || game.secondaryCategoryText || '').trim()
+	const roleLabels = { player: '玩家', expert: '行家', guide: '领路人' }
+	const allowedRoles = Array.isArray(game.allowedRoles) && game.allowedRoles.length ? game.allowedRoles : ['player']
+	const allowedRoleLabels = allowedRoles.map((role) => roleLabels[role]).filter(Boolean)
   const createdAtText = formatCreatedAt(game.createdAt)
-  const bottomTools = buildBottomTools(relation, game)
+  const shareComponent = normalizeShareComponent(data.shareComponent || {})
+  const bottomTools = buildBottomTools(relation, game, shareComponent)
   const primaryAction = normalizePrimaryAction(detailDisplay, game, statusText, relation)
+  const descriptionMedia = Array.isArray(game.descriptionMedia) ? game.descriptionMedia : []
+  const detailMedia = descriptionMedia.map((item, index) => ({
+    id: item.id || item.fileId || `media-${index}`,
+    type: item.type === 'video' ? 'video' : 'image',
+    src: String(item.url || item.downloadUrl || item.src || '').trim()
+  })).filter((item) => item.src)
 
   return {
     event: Object.assign({}, fallbackEvent, {
@@ -322,18 +328,21 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
       name: `#${name}`,
       tone: ['blue', 'green', 'purple'][index % 3]
     })),
+    allowedRoleLabels,
     organizer: buildOrganizer(game, detailDisplay.organizer || {}),
-    introduction: title ? `${title}。${cityName || address ? `地点：${address || cityName}。` : ''}` : '暂无组局介绍',
+    introduction: String(game.introduction || '').trim() || (title ? `${title}。${cityName || address ? `地点：${address || cityName}。` : ''}` : '暂无组局介绍'),
     highlights: compactList([
       categoryText ? `分类：${categoryText}` : '',
       `人数规则：最少${minPlayers}人，最多${maxPlayers}人`,
-      game.mainGuideUserId ? `主行家：${game.mainGuideUserId}` : '',
+      game.mainGuideUserId ? `主领路人：${game.mainGuideUserId}` : '',
       statusText ? `当前状态：${statusText}` : ''
     ]),
+    detailDescription: String(game.description || '').trim(),
     schedule: createdAtText ? [
       { title: '组局发布', time: createdAtText, desc: '后台审核通过后进入报名和组局流程。' }
     ] : [],
-    detailImages: [],
+    detailImages: detailMedia.filter((item) => item.type === 'image').map((item) => item.src),
+    detailMedia,
     noticeLead: '请按平台规则参与组局。',
     noticeBullets: [
       `人数限制：${minPlayers}-${maxPlayers}人，未满${minPlayers}人不能开始，满${maxPlayers}人后不可继续报名。`,
@@ -351,6 +360,7 @@ function normalizeGameDetailPayload(data = {}, fallbackEvent = {}) {
       auditRejectReason: game.auditRejectReason || data.auditRejectReason || ''
     },
     interested: data.isFavorited === true || data.favorited === true || relation.isFavorited === true,
+    shareComponent,
     bottomTools,
     showBottomTools: bottomTools.length > 0
   }
@@ -363,6 +373,7 @@ Page({
     interested: false,
     authPromptVisible: false,
     showShareWindow: false,
+    shareComponent: normalizeShareComponent({ enabled: false, enableInternal: false, enableWechat: false }),
     shareEntry: null,
     detailScrollTop: 0,
     navLayout: getWhiteDetailLayout(),
@@ -388,6 +399,7 @@ Page({
     showBottomTools: true,
     stats: [],
     tags: [],
+    allowedRoleLabels: [],
     organizer: {
       name: '',
       avatarSrc: '',
@@ -401,7 +413,9 @@ Page({
     introduction: '暂无组局介绍',
     highlights: [],
     schedule: [],
+    detailDescription: '',
     detailImages: [],
+    detailMedia: [],
     noticeLead: '请按平台规则参与组局。',
     noticeBullets: [],
     audience: '',
@@ -410,6 +424,7 @@ Page({
 
   onLoad(options = {}) {
     this.saveInviteEntryContext(options)
+    this._skipNextShowRefresh = true
 
     this.setData({
       gameId: options.gameId || options.id || '',
@@ -418,13 +433,7 @@ Page({
     })
 
     this.loadGameDetail()
-
-    if (wx.showShareMenu) {
-      wx.showShareMenu({
-        withShareTicket: true,
-        menus: ['shareAppMessage', 'shareTimeline']
-      })
-    }
+    this.syncNativeShareMenu(this.data.shareComponent)
   },
 
   saveInviteEntryContext(options = {}) {
@@ -449,8 +458,16 @@ Page({
 
     try {
       const detail = await gameService.getGameDetail(this.data.gameId)
-      this.setData(normalizeGameDetailPayload(detail, this.data.event))
-      this.ensureShareEntry()
+      const normalized = normalizeGameDetailPayload(detail, this.data.event)
+      const nativeShareEnabled = normalized.shareComponent.enabled && normalized.shareComponent.enableWechat
+      this.setData(Object.assign({}, normalized, nativeShareEnabled ? {} : {
+        shareEntry: null,
+        showShareWindow: false
+      }))
+      this.syncNativeShareMenu(normalized.shareComponent)
+      if (nativeShareEnabled) {
+        this.ensureShareEntry()
+      }
       this.showEntryIntentHint()
     } catch (error) {
       this.showInfo(error.message || '局详情加载失败')
@@ -458,21 +475,57 @@ Page({
   },
 
   async ensureShareEntry() {
-    if (!this.data.gameId || this.data.shareEntry) {
+    const shareComponent = this.data.shareComponent || {}
+    if (!this.data.gameId || this.data.shareEntry || shareComponent.enabled === false || shareComponent.enableWechat === false) {
       return this.data.shareEntry
     }
 
-    try {
-      const shareEntry = await gameService.createInviteEntry({
-        entryType: 'link',
-        gameId: Number(this.data.gameId),
-        title: this.data.event.title || '真好玩组局邀请'
-      })
+    if (!this._shareEntryPromise) {
+      const requestedGameId = String(this.data.gameId)
+      this._shareEntryPromise = (async () => {
+        try {
+          const shareEntry = await gameService.createInviteEntry({
+            entryType: 'link',
+            gameId: Number(this.data.gameId),
+            title: this.data.event.title || '真好玩组局邀请'
+          })
 
-      this.setData({ shareEntry })
-      return shareEntry
-    } catch (error) {
-      return null
+          const currentShareComponent = this.data.shareComponent || {}
+          if (String(this.data.gameId) !== requestedGameId || currentShareComponent.enabled === false || currentShareComponent.enableWechat === false) {
+            return null
+          }
+
+          this.setData({ shareEntry })
+          return shareEntry
+        } catch (error) {
+          return null
+        } finally {
+          this._shareEntryPromise = null
+        }
+      })()
+    }
+
+    return this._shareEntryPromise
+  },
+
+  syncNativeShareMenu(shareComponent = {}) {
+    if (typeof wx === 'undefined') {
+      return
+    }
+
+    const nativeShareEnabled = shareComponent.enabled !== false && shareComponent.enableWechat !== false
+    if (nativeShareEnabled && typeof wx.showShareMenu === 'function') {
+      wx.showShareMenu({
+        withShareTicket: true,
+        menus: ['shareAppMessage', 'shareTimeline']
+      })
+      return
+    }
+
+    if (!nativeShareEnabled && typeof wx.hideShareMenu === 'function') {
+      wx.hideShareMenu({
+        menus: ['shareAppMessage', 'shareTimeline']
+      })
     }
   },
 
@@ -512,7 +565,9 @@ Page({
   async onShow() {
     this.updateDetailLayout()
 
-    if (this.data.gameId) {
+    if (this._skipNextShowRefresh) {
+      this._skipNextShowRefresh = false
+    } else if (this.data.gameId) {
       await this.loadGameDetail()
     }
 
@@ -604,24 +659,6 @@ Page({
       return
     }
 
-    if (action === 'invite') {
-      try {
-        const permission = await gameService.getInvitePermission({ gameId: this.data.gameId })
-
-        if (!permission.allowed) {
-          this.showInfo(permission.reason || '仅局创建者或主领路人可发起引荐')
-          return
-        }
-
-        navigateShellRoute(`${ROUTES.gameInvite}${gameIdQuery}`, {
-          currentRoute: ROUTES.gameDetail
-        })
-      } catch (error) {
-        this.showInfo(error.message || '引荐权限校验失败')
-      }
-      return
-    }
-
     if (action === 'greet') {
       this.navigateToCreatorPrivateChat()
       return
@@ -656,9 +693,15 @@ Page({
 
   navigateToCreatorPrivateChat() {
     const creatorUserId = Number(this.data.game && this.data.game.creatorUserId)
+    const relation = this.data.myRelation || {}
 
     if (!Number.isInteger(creatorUserId) || creatorUserId <= 0) {
       this.showInfo('缺少组局者信息')
+      return
+    }
+
+    if (relation.canEnterIM !== true) {
+      this.showInfo(relation.isMember === true ? '局还未开' : '仅局内玩家可用，请先报名')
       return
     }
 
@@ -678,6 +721,9 @@ Page({
   noop() {},
 
   onOpenShare() {
+    if (!this.data.shareComponent || this.data.shareComponent.enabled === false) {
+      return
+    }
     this.setData({
       showShareWindow: true
     })
@@ -848,7 +894,7 @@ Page({
 
   showInfo(title) {
     wx.showToast({
-      title,
+      title: toUserMessage(title),
       icon: 'none'
     })
   },

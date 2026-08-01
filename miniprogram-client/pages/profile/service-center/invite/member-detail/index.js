@@ -1,4 +1,5 @@
 const profileService = require('../../../../../services/profile')
+const { toUserMessage } = require('../../../../../utils/user-message')
 
 Page({
   data: {
@@ -8,14 +9,13 @@ Page({
       level: ''
     },
     stats: [],
-    income: [],
     activities: [],
     loadError: ''
   },
 
   onLoad(options) {
     this.setData({
-      memberId: options.id || ''
+      memberId: options.memberId || options.id || ''
     }, () => this.loadMemberDetail())
   },
 
@@ -29,7 +29,7 @@ Page({
     } catch (error) {
       console.warn('get invite member detail failed', error)
       this.setData({
-        loadError: error.message || '成员详情加载失败'
+        loadError: toUserMessage(error && error.message, '成员详情加载失败')
       })
     }
   }

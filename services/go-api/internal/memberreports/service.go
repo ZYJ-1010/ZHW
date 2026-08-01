@@ -76,19 +76,27 @@ func NewServiceWithRepository(games GameStatsProvider, revenue RevenueProvider, 
 }
 
 func (s *Service) GrantMembership(userID int64, planName string, invitedCount int) {
+	_ = s.GrantMembershipStrict(userID, planName, invitedCount)
+}
+
+// GrantMembershipStrict writes a membership relationship to the configured
+// repository before updating any local compatibility state.
+func (s *Service) GrantMembershipStrict(userID int64, planName string, invitedCount int) error {
 	if planName == "" {
 		planName = "Basic Member"
 	}
 	if s.repo != nil {
-		if membership, err := s.repo.SaveMembership(context.Background(), Membership{UserID: userID, PlanName: planName, InvitedCount: invitedCount, UpdatedAt: time.Now()}); err == nil {
-			planName = membership.PlanName
-			invitedCount = membership.InvitedCount
+		_, err := s.repo.SaveMembership(context.Background(), Membership{UserID: userID, PlanName: planName, InvitedCount: invitedCount, UpdatedAt: time.Now()})
+		if err != nil {
+			return err
 		}
+		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.memberships[userID] = planName
 	s.invites[userID] = invitedCount
+	return nil
 }
 
 func (s *Service) Me(userID int64) (Snapshot, error) {
@@ -124,18 +132,25 @@ func (s *Service) BuildSnapshot(userID int64) Snapshot {
 }
 
 func (s *Service) AdminSnapshots() []Snapshot {
+	items, _ := s.AdminSnapshotsStrict()
+	return items
+}
+
+func (s *Service) AdminSnapshotsStrict() ([]Snapshot, error) {
 	if s.repo != nil {
 		memberships, err := s.repo.ListMemberships(context.Background())
-		if err == nil {
-			result := make([]Snapshot, 0, len(memberships))
-			for _, membership := range memberships {
-				snapshot, err := s.saveRepositorySnapshot(s.buildSnapshot(membership.UserID, membership.PlanName, membership.InvitedCount))
-				if err == nil {
-					result = append(result, snapshot)
-				}
-			}
-			return result
+		if err != nil {
+			return nil, err
 		}
+		result := make([]Snapshot, 0, len(memberships))
+		for _, membership := range memberships {
+			snapshot, err := s.saveRepositorySnapshot(s.buildSnapshot(membership.UserID, membership.PlanName, membership.InvitedCount))
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, snapshot)
+		}
+		return result, nil
 	}
 	s.mu.RLock()
 	userIDs := make([]int64, 0, len(s.memberships))
@@ -148,7 +163,7 @@ func (s *Service) AdminSnapshots() []Snapshot {
 	for _, userID := range userIDs {
 		result = append(result, s.BuildSnapshot(userID))
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) buildSnapshot(userID int64, planName string, invitedCount int) Snapshot {

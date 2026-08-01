@@ -225,6 +225,15 @@
   flex: 0 0 20rpx;
 }
 
+.game-card-action--icon-only {
+  width: 24rpx;
+  justify-content: center;
+}
+
+.game-card-action--icon-only .game-card-action-icon {
+  margin-right: 0;
+}
+
 .game-card-action-text {
   display: block;
   overflow: hidden;

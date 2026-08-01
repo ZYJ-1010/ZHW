@@ -69,11 +69,9 @@
             </div>
           </section>
           <section class="nav-section">
-            <button class="nav-section-toggle" data-nav-group="growth" type="button">交易与增长</button>
+            <button class="nav-section-toggle" data-nav-group="growth" type="button">成长与关系</button>
             <div class="nav-section-items" data-nav-items="growth">
-              <button data-view="revenue">分润预留</button>
               <button data-view="redemption">积分兑换</button>
-              <button data-view="members">会员预留</button>
               <button data-view="profiles">画像关系</button>
               <button data-view="growth">评价成长</button>
             </div>
@@ -142,7 +140,7 @@
       </div>
       <div class="split">
         <section class="panel">
-          <div class="panel-head"><h2>局类别分布</h2></div>
+          <div class="panel-head"><h2>局类型分布</h2></div>
           <div id="game-type-bars" class="bars"></div>
         </section>
         <section class="panel">
@@ -173,17 +171,21 @@
             <select name="realnameStatus">
               <option value="">全部实名状态</option>
               <option value="pending">待处理</option>
+              <option value="wechat_logged_in">已微信登录</option>
               <option value="phone_bound">已绑手机</option>
+              <option value="sms_verified">短信已验证</option>
+              <option value="phone_verified">手机号已核验</option>
+              <option value="faceid_processing">人脸核身中</option>
+              <option value="face_verified">人脸已核验</option>
+              <option value="wechat_realname_not_supported">待补充实名材料</option>
               <option value="verified">已实名</option>
               <option value="rejected">已驳回</option>
+              <option value="system">平台账号</option>
             </select>
             <select name="status">
               <option value="">全部账号状态</option>
               <option value="active">正常</option>
-              <option value="unused">未使用</option>
-              <option value="used">已使用</option>
-              <option value="disabled">已禁用</option>
-              <option value="expired">已过期</option>
+              <option value="deleted">已注销</option>
             </select>
             <button class="ghost" type="submit">筛选</button>
           </form>
@@ -217,8 +219,8 @@
           </div>
         </div>
         <form id="invite-create-form" class="form-grid">
-          <label>指定邀请码（可选）
-            <input name="code" maxlength="32" placeholder="留空则自动生成；批量生成必须留空" />
+          <label>邀请码前缀
+            <input name="prefix" maxlength="3" placeholder="填写三位字母，如 ABC" />
           </label>
           <label class="user-picker-field">邀请人（用户 ID / 手机号 / 实名姓名）
             <div class="user-picker" data-invite-owner-picker>
@@ -236,7 +238,7 @@
           </label>
           <label>生成数量<input name="batchCount" inputmode="numeric" value="1" placeholder="1-200" /></label>
           <label>有效期（可选）<input name="expiresAt" type="datetime-local" /></label>
-          <div class="form-note">输入用户 ID、手机号或实名姓名后，从下拉结果中选择邀请人。仅显示已生效的行家或领路人，普通玩家不可作为邀请人。</div>
+          <div class="form-note">填写三位英文字母后，系统从 000001 开始连续生成六码流水号；例如前缀 ABC、数量 3，将生成 ABC000001 至 ABC000003。仅显示已生效的行家或领路人，普通玩家不可作为邀请人。</div>
           <button class="primary" type="submit">生成邀请码</button>
         </form>
       </section>
@@ -344,7 +346,7 @@
         <div class="panel-head">
           <div>
             <h2>后台开局</h2>
-            <p>小程序一期仅创建免费局；后台可按运营需要选择局类型与局类别后创建。</p>
+            <p>一期后台仅创建免费局；创建时选择四大局类型即可。</p>
           </div>
           <button id="open-game-create-drawer" class="primary" type="button">创建新局</button>
         </div>
@@ -352,7 +354,7 @@
           <section class="game-create-section">
             <div class="game-create-section-head">
               <h3>基本信息</h3>
-              <p>确定发起人、局类型和局类别后创建免费局。</p>
+              <p>确定发起人和局类型后创建免费局。</p>
             </div>
             <div class="game-create-fields game-create-basic-fields">
               <label class="span-full">标题<input name="title" required maxlength="80" placeholder="例如：北京周末条件局" /></label>
@@ -370,17 +372,6 @@
                   <option value="explore">探索局</option>
                   <option value="growth">成长局</option>
                   <option value="social">社交局</option>
-                </select>
-              </label>
-              <label>局类别
-                <select id="game-create-type-select" name="gameType">
-                  <option value="free">普通局</option>
-                  <option value="standard">标准局</option>
-                  <option value="public_welfare">公益局</option>
-                  <option value="aa">均摊局</option>
-                  <option value="crowdfund">众筹局</option>
-                  <option value="deposit">押金局</option>
-                  <option value="condition">条件局</option>
                 </select>
               </label>
             </div>
@@ -436,7 +427,7 @@
         <div class="panel-head panel-head-compact">
           <div>
             <h2>组局列表</h2>
-            <p>局类型表达主题方向，局类别表达组织规则；两者可分别筛选。</p>
+            <p>按局类型、状态和地点查看与处理组局。</p>
           </div>
         </div>
         <form id="game-filter-form" class="filters filter-strip">
@@ -447,16 +438,6 @@
             <option value="explore">探索局</option>
             <option value="growth">成长局</option>
             <option value="social">社交局</option>
-          </select>
-          <select id="game-filter-type-select" name="gameType">
-            <option value="">全部局类别</option>
-            <option value="free">普通局</option>
-            <option value="standard">标准局</option>
-            <option value="public_welfare">公益局</option>
-            <option value="aa">均摊局</option>
-            <option value="crowdfund">众筹局</option>
-            <option value="deposit">押金局</option>
-            <option value="condition">条件局</option>
           </select>
           <select name="status">
             <option value="">全部状态</option>
@@ -484,7 +465,6 @@
                 <th>组局</th>
                 <th>标题</th>
                 <th>局类型</th>
-                <th>局类别</th>
                 <th>创建方式</th>
                 <th>状态</th>
                 <th>人数</th>
@@ -500,7 +480,7 @@
 
     <template id="audits-template">
       <div class="section-tabs">
-        <button class="active" data-tab-group="audits" data-tab-target="#audit-identities-panel" type="button">认证记录</button>
+        <button class="active" data-tab-group="audits" data-tab-target="#audit-identities-panel" type="button">认证记录 <span id="identity-pending-count" class="pending-count-badge hidden" aria-label="待审核实名认证数量">0</span></button>
         <button data-tab-group="audits" data-tab-target="#audit-enterprise-panel" type="button">企业认证</button>
         <button data-tab-group="audits" data-tab-target="#audit-avatars-panel" type="button">头像审核</button>
         <button data-tab-group="audits" data-tab-target="#audit-roles-panel" type="button">行家/领路人申请</button>
@@ -564,7 +544,7 @@
             </div>
           </div>
           <form id="role-grant-form" class="form-grid config-form">
-            <label class="wide-field">用户 ID（可批量）<textarea name="userIds" rows="4" required placeholder="每行一个用户 ID，也可使用逗号分隔，例如：12,15,18"></textarea></label>
+            <label class="wide-field">用户 ID 或手机号（可批量）<textarea name="userIds" rows="4" required placeholder="每行一个用户 ID 或手机号，也可使用逗号分隔，例如：12,15,13800138000"></textarea></label>
             <label>直接赋予身份
               <select name="roleCode"><option value="expert">行家</option><option value="guide">领路人</option></select>
             </label>
@@ -592,6 +572,23 @@
         <strong>一期未启用真实分润</strong>
         <span>仅保留方案、记录和接口结构供后续版本核对；本页不可创建方案、试算、生成记录或结算。</span>
       </div>
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>有偿局分润积分规则</h2>
+            <p>评价和免费局只增加经验。仅在有偿局分润成功结算后，按每位用户实际分润金额折算积分。</p>
+          </div>
+          <button id="revenue-points-reward-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="revenue-points-reward-form" class="form-grid">
+          <label class="switch-field"><input name="enabled" type="checkbox" /> 结算后发放积分</label>
+          <label>分润积分比例（%）<input name="pointsPercent" required inputmode="decimal" type="number" min="0" max="100" step="0.01" /></label>
+          <label>单人单次结算积分上限（0 为不限）<input name="maxPointsPerSettlement" required inputmode="numeric" type="number" min="0" max="1000000" /></label>
+          <p class="form-note wide-field">示例：实际分润 100 元、比例 10%，则获得 10 积分。当前真实分润尚未开放，本规则会在有偿局结算上线后自动生效。</p>
+          <button class="primary" type="submit">保存分润积分规则</button>
+        </form>
+        <div id="revenue-points-reward-config-panel" class="detail-grid"></div>
+      </section>
       <div id="revenue-plan-panel" data-tab-panel-group="revenue">
       <section class="panel">
         <div class="panel-head">
@@ -1436,6 +1433,7 @@
                 <th>申请人</th>
                 <th>联系方式</th>
                 <th>申请角色</th>
+                <th>状态</th>
                 <th>说明</th>
                 <th>时间</th>
                 <th>操作</th>
@@ -1452,6 +1450,7 @@
         <button class="active" data-tab-group="system" data-tab-target="#system-game-category-panel" type="button">局类型</button>
         <button data-tab-group="system" data-tab-target="#system-game-create-template-panel" type="button">局模板</button>
         <button data-tab-group="system" data-tab-target="#system-home-display-panel" type="button">首页展示</button>
+        <button data-tab-group="system" data-tab-target="#system-share-component-panel" type="button">分享组件</button>
         <button data-tab-group="system" data-tab-target="#system-application-panel" type="button">入局规则</button>
         <button data-tab-group="system" data-tab-target="#system-audit-panel" type="button">审核规则</button>
         <button data-tab-group="system" data-tab-target="#system-condition-panel" type="button">条件局</button>
@@ -1459,10 +1458,10 @@
         <button data-tab-group="system" data-tab-target="#system-expert-skill-panel" type="button">行家技能</button>
         <button data-tab-group="system" data-tab-target="#system-review-complete-panel" type="button">评价完成</button>
         <button data-tab-group="system" data-tab-target="#system-growth-rules-panel" type="button">成长积分</button>
+        <button data-tab-group="system" data-tab-target="#system-role-growth-panel" type="button">等级与信用</button>
         <button data-tab-group="system" data-tab-target="#system-achievement-panel" type="button">成就配置</button>
         <button data-tab-group="system" data-tab-target="#system-operation-rules-panel" type="button">运营约束</button>
         <button data-tab-group="system" data-tab-target="#system-credit-panel" type="button">信用规则</button>
-        <button data-tab-group="system" data-tab-target="#system-profit-panel" type="button">押金规则</button>
         <button data-tab-group="system" data-tab-target="#system-sensitive-panel" type="button">敏感词</button>
         <button data-tab-group="system" data-tab-target="#system-risk-panel" type="button">风险日志</button>
         <button data-tab-group="system" data-tab-target="#guide-rule-panel" type="button">资格规则</button>
@@ -1471,8 +1470,8 @@
       <section id="system-game-category-panel" class="panel" data-tab-panel-group="system">
         <div class="panel-head">
           <div>
-            <h2>局类型、局类别与筛选规则</h2>
-            <p>局类型为任务、探索、成长、社交；局类别用于表达免费、标准、均摊等组织规则。</p>
+            <h2>局类型与筛选规则</h2>
+            <p>一期仅保留社交局、任务局、探索局、成长局四类；全部组局均为免费局。</p>
           </div>
           <button id="game-category-refresh" class="ghost" type="button">刷新</button>
         </div>
@@ -1495,7 +1494,6 @@
           <input name="templateKey" type="hidden" />
           <label>模板名称<input name="name" maxlength="40" required placeholder="例如：周末桌游" /></label>
           <label>所属局类型<select id="game-create-template-primary" name="primaryCategory" required></select></label>
-          <label>所属小类别<select id="game-create-template-secondary" name="secondaryCategory" required></select></label>
           <label>参与方式
             <select name="participation">
               <option value="offline">线下</option>
@@ -1513,7 +1511,7 @@
           <label>完成规则<input name="completionRules" maxlength="120" placeholder="例如：时间截止，手动结束" /></label>
           <div class="phase-one-banner config-fixed-note">
             <strong>配置校验</strong>
-            <span>每个模板必须绑定已启用的局类型与小类别。新增或编辑后立即保存至后台。</span>
+            <span>每个模板必须绑定已启用的局类型。新增或编辑后立即保存至后台。</span>
           </div>
           <div class="row-actions">
             <button id="game-create-template-submit" class="primary" type="submit">新增模板</button>
@@ -1523,7 +1521,7 @@
         <div id="game-create-template-config-panel" class="detail-grid"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>模板名称</th><th>局类型</th><th>小类别</th><th>参与方式</th><th>人数</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>模板名称</th><th>局类型</th><th>参与方式</th><th>人数</th><th>状态</th><th>操作</th></tr></thead>
             <tbody id="game-create-template-table"></tbody>
           </table>
         </div>
@@ -1546,6 +1544,25 @@
           <button class="primary" type="submit">保存展示</button>
         </form>
         <div id="home-display-config-panel" class="detail-grid"></div>
+      </section>
+
+      <section id="system-share-component-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>局卡片分享组件</h2>
+            <p>局卡片和局详情共用一个分享入口；站内分享和微信分享由此统一控制。</p>
+          </div>
+          <button id="share-component-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <form id="share-component-form" class="form-grid config-form">
+          <label>是否显示<select name="enabled"><option value="true">显示</option><option value="false">隐藏</option></select></label>
+          <label>组件形态<select name="variant"><option value="channel_sheet">渠道选择面板</option><option value="icon_button">图标按钮</option></select></label>
+          <label>按钮名称<input name="label" maxlength="8" required value="分享" /></label>
+          <label>站内分享<select name="enableInternal"><option value="true">开启</option><option value="false">关闭</option></select></label>
+          <label>微信分享<select name="enableWechat"><option value="true">开启</option><option value="false">关闭</option></select></label>
+          <button class="primary" type="submit">保存分享组件</button>
+        </form>
+        <div id="share-component-config-panel" class="detail-grid"></div>
       </section>
 
       <section id="system-application-panel" class="panel hidden" data-tab-panel-group="system">
@@ -1586,7 +1603,7 @@
         <div class="panel-head">
           <div>
             <h2>组局审核规则</h2>
-            <p>维护哪些局类别需要人工审核、驳回原因要求和入局审核方式。</p>
+            <p>一期全部为免费局；在此维护组局审核、驳回原因与入局审核方式。</p>
           </div>
           <button id="game-audit-refresh" class="ghost" type="button">刷新</button>
         </div>
@@ -1607,7 +1624,7 @@
             <span>局和入局申请驳回时必须填写原因，并通过消息通知申请人；角色申请驳回原因可填写但不强制。</span>
           </div>
           <details class="advanced-config">
-            <summary>高级配置：需人工审核的局类别、审核角色与版本</summary>
+            <summary>高级配置：审核角色与版本</summary>
             <textarea id="game-audit-config-json" name="configJson" rows="8" spellcheck="false"></textarea>
           </details>
           <button class="primary" type="submit">保存规则</button>
@@ -1696,24 +1713,60 @@
       <section id="system-growth-rules-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">
           <div>
-            <h2>成长等级与积分规则</h2>
-            <p>维护完成组局、评价产生的经验和积分，以及升级所需经验。</p>
+            <h2>评价经验规则</h2>
+            <p>维护评价产生的经验。完成局经验按既定口径发放，玩家等级梯度请在“等级与信用”中维护；积分仅由有偿局分润结算产生。</p>
           </div>
           <button id="growth-rules-refresh" class="ghost" type="button">刷新</button>
         </div>
         <form id="growth-rules-form" class="form-grid">
-          <label>完成一局经验<input name="completedGameExperience" required inputmode="numeric" type="number" min="1" max="10000" /></label>
-          <label>完成一局积分<input name="completedGamePoints" required inputmode="numeric" type="number" min="0" max="100000" /></label>
           <label>提交评价经验<input name="submittedReviewExperience" required inputmode="numeric" type="number" min="1" max="10000" /></label>
           <label>收到评价经验<input name="receivedReviewExperience" required inputmode="numeric" type="number" min="1" max="10000" /></label>
-          <label>提交评价积分<input name="submittedReviewPoints" required inputmode="numeric" type="number" min="0" max="100000" /></label>
-          <label>升级所需经验<input name="experiencePerLevel" required inputmode="numeric" type="number" min="1" max="1000000" /></label>
-          <label>初始成长等级<input name="initialLevel" required inputmode="numeric" type="number" min="1" max="10000" /></label>
-          <label>信用分上限<input name="creditScoreCap" required inputmode="numeric" type="number" min="100" max="100000" /></label>
           <button class="primary" type="submit">保存规则</button>
         </form>
-        <p class="muted">新手任务的经验奖励在“运营规则 → 新手任务”中按任务单独设置；信用分初始值统一固定为 100。</p>
+        <p class="muted">新手任务的经验奖励在“运营规则 → 新手任务”中按任务单独设置。</p>
         <div id="growth-rules-config-panel" class="detail-grid"></div>
+      </section>
+      <section id="system-role-growth-panel" class="panel hidden" data-tab-panel-group="system">
+        <div class="panel-head">
+          <div>
+            <h2>三角色等级与信用</h2>
+            <p>玩家按累计经验升级；行家按服务星级、领路人按连接等级计算；三类身份共用永久信用账户。</p>
+          </div>
+          <button id="role-growth-refresh" class="ghost" type="button">刷新</button>
+        </div>
+        <div class="phase-one-banner config-fixed-note">
+          <strong>结算口径</strong>
+          <span>玩家发起并完成局获得 100 经验，实际完成成员获得 50 经验。行家、领路人指标按真实业务数据计算；权重会按启用项自动归一化。</span>
+        </div>
+        <div id="role-growth-summary" class="detail-grid"></div>
+        <form id="role-growth-level-form" class="form-grid config-form">
+          <div class="wide-field">
+            <h3>等级梯度</h3>
+            <p class="muted">每个角色的门槛由低到高排列。保存后会立即按最新规则刷新成长结果。</p>
+            <div id="role-growth-level-editor" class="rule-editor"></div>
+          </div>
+          <button class="primary" type="submit">保存等级梯度</button>
+        </form>
+        <form id="role-growth-metric-form" class="form-grid config-form">
+          <div class="wide-field">
+            <h3>行家与领路人指标</h3>
+            <p class="muted">目标值用于换算 0 至 100 分；权重为相对权重，无需手工凑成 100%。</p>
+            <div id="role-growth-metric-editor" class="rule-editor"></div>
+          </div>
+          <button class="primary" type="submit">保存指标规则</button>
+        </form>
+        <form id="role-growth-credit-form" class="form-grid config-form">
+          <div class="wide-field">
+            <h3>永久信用限制</h3>
+            <p class="muted">信用不会按天重置。低于发局限制时不能发局；低于报名限制时不能报名；低于冻结限制时仅能查看和申诉。</p>
+          </div>
+          <label>新用户信用分（固定）<input name="initialScore" required readonly type="number" min="100" max="100" /></label>
+          <label>信用分上限<input name="scoreCap" required type="number" min="0" max="1000" /></label>
+          <label>发局限制阈值<input name="createRestrictedBelow" required type="number" min="1" max="1000" /></label>
+          <label>报名限制阈值<input name="joinRestrictedBelow" required type="number" min="1" max="1000" /></label>
+          <label>账号冻结阈值<input name="frozenBelow" required type="number" min="0" max="1000" /></label>
+          <button class="primary" type="submit">保存信用限制</button>
+        </form>
       </section>
       <section id="system-achievement-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">
@@ -1723,7 +1776,8 @@
           </div>
           <button id="achievement-config-refresh" class="ghost" type="button">刷新</button>
         </div>
-        <form id="achievement-config-form" class="form-grid hidden" aria-hidden="true">
+        <form id="achievement-config-form" class="form-grid">
+          <p class="form-note wide-field">成就目录配置会实时影响小程序“我的成就”和首页成就展示；请保留每项的 code、title、visible、roles 与 order 字段。</p>
           <textarea id="achievement-config-json" name="configJson" rows="14" spellcheck="false"></textarea>
           <button class="primary" type="submit">保存成就配置</button>
         </form>
@@ -1750,9 +1804,12 @@
           <label>单局邀请上限<input name="inviteMaxPerGame" required inputmode="numeric" type="number" min="1" max="1000" /></label>
           <label>附近局默认半径（米）<input name="defaultRadiusMeters" required inputmode="numeric" type="number" min="100" max="100000" /></label>
           <label>附近局最大半径（米）<input name="maxRadiusMeters" required inputmode="numeric" type="number" min="100" max="100000" /></label>
+          <label>资料提醒次数<input name="profileReminderLimit" required inputmode="numeric" type="number" min="1" max="20" /></label>
+          <label>资料提醒间隔（小时）<input name="profileReminderIntervalHours" required inputmode="numeric" type="number" min="1" max="720" /></label>
+          <label>重新登录间隔（天）<input name="reauthAfterDays" required inputmode="numeric" type="number" min="1" max="365" /></label>
           <div class="phase-one-banner operation-rules-note">
             <strong>一期固定口径</strong>
-            <span>会员购买条件、真实分润、每日任务和活动任务不在此页启用；新手任务奖励请通过高级配置维护。</span>
+            <span>新手任务入口始终开启；资料未完善时按上方次数提醒，达到次数后在个人中心常驻显示“待完善”。会员购买条件、真实分润、每日任务和活动任务不在此页启用。</span>
           </div>
           <details class="advanced-config">
             <summary>高级配置：新手任务、信用阈值、积分有效期与状态超时</summary>
@@ -1780,25 +1837,6 @@
         </form>
         <div id="credit-rule-config-panel" class="detail-grid"></div>
       </section>
-      <section id="system-profit-panel" class="panel hidden" data-tab-panel-group="system">
-        <div class="panel-head">
-          <div>
-            <h2>押金局规则</h2>
-            <p>小程序发起组局页读取该配置展示押金局规则和支付提示。</p>
-          </div>
-          <button id="profit-config-refresh" class="ghost" type="button">刷新</button>
-        </div>
-        <form id="profit-config-form" class="form-grid">
-          <label>押金规则说明<textarea name="depositRuleText" rows="4" maxlength="300"></textarea></label>
-          <label>押金提示说明<textarea name="depositNoticeText" rows="4" maxlength="300"></textarea></label>
-          <label>规则版本<input name="version" maxlength="32" placeholder="例如：2026-07" /></label>
-          <button class="primary" type="submit">保存规则</button>
-        </form>
-        <div id="profit-config-panel" class="detail-grid"></div>
-      </section>
-
-
-
       <section id="system-sensitive-panel" class="panel hidden" data-tab-panel-group="system">
         <div class="panel-head">
           <div>

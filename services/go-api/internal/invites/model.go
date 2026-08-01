@@ -13,6 +13,7 @@ import (
 var ErrInviteAlreadyBound = errors.New("invite already bound")
 var ErrInvalidEntryType = errors.New("invalid invite entry type")
 var ErrInviteInactive = errors.New("invite inactive")
+var ErrInviteCodeExists = errors.New("invite code already exists")
 
 const (
 	EntryTypePoster = "poster"
@@ -107,12 +108,18 @@ func NewStoreWithRepository(repo Repository) *Store {
 		nextQuotaID:    1,
 		repo:           repo,
 	}
-	store.UpsertCode("TEST2026", 0, 100)
+	// TEST2026 is only a local in-memory fixture. Persisting it from the
+	// repository-backed constructor would recreate a production test invite on
+	// every service start.
+	if repo == nil {
+		store.UpsertCode("TEST2026", 0, 100)
+	}
 	return store
 }
 
 type Repository interface {
 	UpsertCode(ctx context.Context, invite InviteCode) (InviteCode, error)
+	CreateCodes(ctx context.Context, invites []InviteCode) ([]InviteCode, error)
 	FindCode(ctx context.Context, code string) (InviteCode, bool, error)
 	Bind(ctx context.Context, invite InviteCode, inviteeUserID int64, source string) (Relation, error)
 	SetRelationInviter(ctx context.Context, inviteCodeID int64, inviteeUserID int64, inviterUserID int64, source string) (Relation, error)
@@ -124,6 +131,10 @@ type Repository interface {
 	ListQuotaRequests(ctx context.Context, ownerUserID int64, status string) ([]QuotaRequest, error)
 	ReviewQuotaRequest(ctx context.Context, id int64, status string, auditReason string, reviewedBy int64) (QuotaRequest, error)
 	ClearInviteeBindings(ctx context.Context, userID int64) error
+}
+
+type quotaApprovalRepository interface {
+	ApproveQuotaRequestWithCodes(ctx context.Context, id int64, auditReason string, reviewedBy int64, items []InviteCode) (QuotaRequest, []InviteCode, error)
 }
 
 func (s *Store) CreateQuotaRequest(ownerUserID int64, quantity int, reason string) (QuotaRequest, error) {
@@ -179,6 +190,89 @@ func (s *Store) ReviewQuotaRequest(id int64, status string, auditReason string, 
 	return request, nil
 }
 
+func (s *Store) PrepareEntryCodes(ownerID int64, quantity int, entryType string, expiresAt time.Time) ([]InviteCode, error) {
+	entryType, ok := ParseEntryType(entryType)
+	if ownerID <= 0 || quantity <= 0 || quantity > 1000 || !ok || entryType == "" {
+		return nil, errors.New("invalid invite code batch")
+	}
+	items := make([]InviteCode, 0, quantity)
+	seen := make(map[string]struct{}, quantity)
+	maxAttempts := quantity*10 + 20
+	for attempt := 0; attempt < maxAttempts && len(items) < quantity; attempt++ {
+		code, err := randomInviteCode(entryType)
+		if err != nil {
+			return nil, err
+		}
+		if _, duplicate := seen[code]; duplicate {
+			continue
+		}
+		if _, exists, err := s.FindCode(code); err != nil {
+			return nil, err
+		} else if exists {
+			continue
+		}
+		seen[code] = struct{}{}
+		items = append(items, InviteCode{Code: code, OwnerID: ownerID, Status: StatusActive, MaxUses: 1, EntryType: entryType, ExpiresAt: expiresAt})
+	}
+	if len(items) != quantity {
+		return nil, errors.New("failed to generate unique invite codes")
+	}
+	return items, nil
+}
+
+func (s *Store) ApproveQuotaRequestWithCodes(id int64, auditReason string, reviewedBy int64, items []InviteCode) (QuotaRequest, []InviteCode, error) {
+	if id <= 0 || len(items) == 0 {
+		return QuotaRequest{}, nil, errors.New("invalid invite quota approval")
+	}
+	if s.repo != nil {
+		repository, ok := s.repo.(quotaApprovalRepository)
+		if !ok {
+			return QuotaRequest{}, nil, errors.New("invite quota atomic approval unsupported")
+		}
+		return repository.ApproveQuotaRequestWithCodes(context.Background(), id, strings.TrimSpace(auditReason), reviewedBy, items)
+	}
+	request, ok := s.quotaRequests[id]
+	if !ok {
+		return QuotaRequest{}, nil, errors.New("invite quota request not found")
+	}
+	if request.Status != "pending" {
+		return QuotaRequest{}, nil, errors.New("invite quota request already reviewed")
+	}
+	if request.Quantity != len(items) {
+		return QuotaRequest{}, nil, errors.New("invite quota quantity mismatch")
+	}
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		if strings.TrimSpace(item.Code) == "" {
+			return QuotaRequest{}, nil, errors.New("invalid invite code batch")
+		}
+		if _, duplicate := seen[item.Code]; duplicate {
+			return QuotaRequest{}, nil, ErrInviteCodeExists
+		}
+		if _, exists := s.codes[item.Code]; exists {
+			return QuotaRequest{}, nil, ErrInviteCodeExists
+		}
+		seen[item.Code] = struct{}{}
+	}
+	created := make([]InviteCode, len(items))
+	nowTime := time.Now()
+	for index, item := range items {
+		item.ID = s.nextID
+		s.nextID++
+		item.Status = StatusActive
+		item.CreatedAt = nowTime
+		item.UpdatedAt = nowTime
+		s.codes[item.Code] = item
+		created[index] = item
+	}
+	request.Status = "approved"
+	request.AuditReason = strings.TrimSpace(auditReason)
+	request.ReviewedBy = reviewedBy
+	request.ReviewedAt = nowTime
+	s.quotaRequests[id] = request
+	return request, created, nil
+}
+
 type CodeFilter struct {
 	Status    string
 	EntryType string
@@ -196,13 +290,22 @@ func (s *Store) UpsertCode(code string, ownerID int64, maxUses int) InviteCode {
 }
 
 func (s *Store) UpsertCodeWithEntryType(code string, ownerID int64, maxUses int, entryType string) InviteCode {
+	invite, _ := s.UpsertCodeWithEntryTypeResult(code, ownerID, maxUses, entryType)
+	return invite
+}
+
+// UpsertCodeWithEntryTypeResult is the repository-aware creation path used by
+// request handlers. Unlike the legacy fixture helper above, it never turns a
+// database write failure into an in-memory success.
+func (s *Store) UpsertCodeWithEntryTypeResult(code string, ownerID int64, maxUses int, entryType string) (InviteCode, error) {
 	entryType = NormalizeEntryType(entryType)
 	if s.repo != nil {
 		invite, err := s.repo.UpsertCode(context.Background(), InviteCode{Code: code, OwnerID: ownerID, Status: "active", MaxUses: maxUses, EntryType: entryType})
-		if err == nil {
-			s.codes[code] = invite
-			return invite
+		if err != nil {
+			return InviteCode{}, err
 		}
+		s.codes[code] = invite
+		return invite, nil
 	}
 	invite := InviteCode{
 		ID:        s.nextID,
@@ -214,18 +317,56 @@ func (s *Store) UpsertCodeWithEntryType(code string, ownerID int64, maxUses int,
 	}
 	s.nextID++
 	s.codes[code] = invite
-	return invite
+	return invite, nil
+}
+
+func (s *Store) CreateCodes(items []InviteCode) ([]InviteCode, error) {
+	if len(items) == 0 {
+		return []InviteCode{}, nil
+	}
+	prepared := make([]InviteCode, 0, len(items))
+	seen := make(map[string]bool, len(items))
+	for _, item := range items {
+		item.Code = strings.TrimSpace(item.Code)
+		item.EntryType = NormalizeEntryType(item.EntryType)
+		if item.Code == "" || item.EntryType == "" || seen[item.Code] {
+			return nil, ErrInviteCodeExists
+		}
+		if _, exists, err := s.FindCode(item.Code); err != nil {
+			return nil, err
+		} else if exists {
+			return nil, ErrInviteCodeExists
+		}
+		item.Status = StatusActive
+		seen[item.Code] = true
+		prepared = append(prepared, item)
+	}
+	if s.repo != nil {
+		created, err := s.repo.CreateCodes(context.Background(), prepared)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range created {
+			s.codes[item.Code] = item
+		}
+		return created, nil
+	}
+	for index := range prepared {
+		item := prepared[index]
+		item.ID = s.nextID
+		s.nextID++
+		item.CreatedAt = time.Now()
+		item.UpdatedAt = item.CreatedAt
+		s.codes[item.Code] = item
+		prepared[index] = item
+	}
+	return prepared, nil
 }
 
 func (s *Store) FindCode(code string) (InviteCode, bool, error) {
 	if s.repo != nil {
 		invite, ok, err := s.repo.FindCode(context.Background(), code)
-		if err == nil && ok {
-			return invite, true, nil
-		}
-		if err != nil {
-			return InviteCode{}, false, err
-		}
+		return invite, ok, err
 	}
 	invite, ok := s.codes[code]
 	return invite, ok, nil
@@ -364,12 +505,7 @@ func (s *Store) Precheck(code string, entryType string) (PrecheckResult, error) 
 func (s *Store) FindBoundCode(inviteCodeID int64) (InviteCode, bool, error) {
 	if s.repo != nil {
 		invite, ok, err := s.repo.FindBoundCode(context.Background(), inviteCodeID)
-		if err == nil && ok {
-			return invite, true, nil
-		}
-		if err != nil {
-			return InviteCode{}, false, err
-		}
+		return invite, ok, err
 	}
 	userID, ok := s.boundCode[inviteCodeID]
 	if !ok {
@@ -539,7 +675,7 @@ func (s *Store) IssueEntryCode(ownerID int64, entryType string) (InviteCode, err
 		} else if exists {
 			continue
 		}
-		return s.UpsertCodeWithEntryType(code, ownerID, 1, entryType), nil
+		return s.UpsertCodeWithEntryTypeResult(code, ownerID, 1, entryType)
 	}
 	return InviteCode{}, errors.New("failed to generate unique invite code")
 }
@@ -657,6 +793,11 @@ func (s *Store) SetRelationInviter(inviteeUserID int64, inviterUserID int64, sou
 		s.relations[inviteeUserID] = relation
 		return relation, nil
 	}
+	oldInviteCodeID := relation.InviteCodeID
+	delete(s.entryRelations, relationKey(oldInviteCodeID, inviteeUserID))
+	if s.boundCode[oldInviteCodeID] == inviteeUserID {
+		delete(s.boundCode, oldInviteCodeID)
+	}
 	relation.InviterUserID = inviterUserID
 	relation.BindSource = source
 	relation.InviteCodeID = code.ID
@@ -672,12 +813,7 @@ func relationKey(inviteCodeID int64, userID int64) string {
 func (s *Store) RelationForUser(userID int64) (Relation, bool, error) {
 	if s.repo != nil {
 		relation, ok, err := s.repo.RelationForUser(context.Background(), userID)
-		if err == nil && ok {
-			return relation, true, nil
-		}
-		if err != nil {
-			return Relation{}, false, err
-		}
+		return relation, ok, err
 	}
 	relation, ok := s.relations[userID]
 	return relation, ok, nil

@@ -101,7 +101,10 @@ Page({
     })
 
     try {
-      await authService.sendPhoneCode(this.data.phone)
+      await authService.sendPhoneCode({
+        phone: this.data.phone,
+        scene: 'password_reset'
+      })
       toast.success('验证码已发送')
     } catch (error) {
       toast.info(error.message || '验证码发送失败')
@@ -118,29 +121,9 @@ Page({
       return
     }
 
-    if (this.data.isCheckingCode) {
-      return
-    }
-
-    this.setData({
-      isCheckingCode: true
-    })
-
-    try {
-      await authService.verifyPhoneCode({
-        phone: this.data.phone,
-        code: this.data.verifyCode
-      })
-      this.setData({
-        step: 'password'
-      })
-    } catch (error) {
-      toast.info(error.message || '手机号或验证码错误')
-    } finally {
-      this.setData({
-        isCheckingCode: false
-      })
-    }
+    // 验证码只能在提交重置时校验一次。若这里先校验，会消费验证码，
+    // 下一步提交新密码时必然因二次校验失败而无法完成重置。
+    this.setData({ step: 'password' })
   },
 
   goPhoneStep() {
@@ -156,7 +139,7 @@ Page({
     }
 
     if (!this.isValidPassword(this.data.password)) {
-      toast.info('仅支持字母和数字，长度8-20位')
+      toast.info('仅支持字母和数字，长度8-64位')
       return
     }
 
@@ -192,7 +175,7 @@ Page({
   },
 
   isValidPassword(password) {
-    return /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,20}$/.test(password)
+    return /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,64}$/.test(password)
   },
 
   backToLogin() {

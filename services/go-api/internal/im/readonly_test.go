@@ -80,6 +80,20 @@ func TestRecruitingGameDoesNotCreateRoomOnAccess(t *testing.T) {
 	}
 }
 
+func TestEnsureRoomRefreshesActiveMemberSnapshot(t *testing.T) {
+	state := &readonlyGameState{members: []int64{1, 2}, roomReady: true}
+	service := NewService(state)
+	room := service.EnsureRoom(99)
+	if len(room.MemberIDs) != 2 {
+		t.Fatalf("initial member snapshot = %+v", room.MemberIDs)
+	}
+	state.members = []int64{1}
+	room = service.EnsureRoom(99)
+	if len(room.MemberIDs) != 1 || room.MemberIDs[0] != 1 {
+		t.Fatalf("room retained a departed member: %+v", room.MemberIDs)
+	}
+}
+
 func TestEnsureRoomRecordsOpenIMCreationFailure(t *testing.T) {
 	state := &readonlyGameState{members: []int64{1, 2}, roomReady: true}
 	service := NewServiceWithOpenIM(state, OpenIMConfig{

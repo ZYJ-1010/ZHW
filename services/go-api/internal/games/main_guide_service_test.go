@@ -58,8 +58,8 @@ func TestReviewApplicationRejectsMemberAboveMaxPlayers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get full game failed: %v", err)
 	}
-	if fullGame.CurrentPlayers != game.MaxPlayers || fullGame.Status != "in_progress" || fullGame.StartReason != "达到人数上限自动开局" {
-		t.Fatalf("expected automatic start at max players, got %+v", fullGame)
+	if fullGame.CurrentPlayers != game.MaxPlayers || fullGame.Status != "full" || fullGame.StartReason != "" {
+		t.Fatalf("expected full game to stop recruiting without starting, got %+v", fullGame)
 	}
 	if app, err := service.Apply(9, game.ID, ApplyRequest{Reason: "join"}); err != ErrGameNotRecruiting {
 		t.Fatalf("expected ErrGameNotRecruiting after full game closes recruiting, got app=%+v err=%v", app, err)

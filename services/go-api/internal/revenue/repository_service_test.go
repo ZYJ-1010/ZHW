@@ -2,6 +2,7 @@ package revenue
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -102,6 +103,78 @@ func TestPreviewReturnsGenerateBlockReasons(t *testing.T) {
 	}
 	if invalidAmount.CanGenerateRecord || !hasBlockReason(invalidAmount.BlockReasons, "invalid_amount") {
 		t.Fatalf("expected invalid_amount preview block, got %+v", invalidAmount)
+	}
+}
+
+func TestSettlementTransactionFailureKeepsRecordPending(t *testing.T) {
+	repo := newFakeRevenueRepository()
+	service := NewServiceWithRepository(fakeReviewChecker{complete: true}, repo)
+	template, err := service.CreateTemplate(TemplateRequest{Name: "default", GameType: "free", PlatformBps: 1000, CreatorBps: 3000, MemberBps: 6000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := service.Generate(CalculateRequest{GameID: 91, AmountCent: 10000, TemplateID: template.ID, CreatorID: 10, MemberIDs: []int64{10, 20}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo.settleErr = errors.New("settlement transaction failed")
+	if _, _, err := service.Settle(record.ID, "offline", "P-FAIL"); err == nil {
+		t.Fatal("expected settlement transaction failure")
+	}
+	if len(repo.settlements) != 0 || repo.records[record.ID].Status != "pending_settlement" {
+		t.Fatalf("failed settlement must not leave partial state, settlements=%+v record=%+v", repo.settlements, repo.records[record.ID])
+	}
+}
+
+func TestRevenueStateTransitionIsIdempotent(t *testing.T) {
+	repo := newFakeRevenueRepository()
+	service := NewServiceWithRepository(fakeReviewChecker{complete: true}, repo)
+	template, _ := service.CreateTemplate(TemplateRequest{Name: "default", GameType: "free", PlatformBps: 1000, CreatorBps: 3000, MemberBps: 6000})
+	record, _ := service.Generate(CalculateRequest{GameID: 92, AmountCent: 10000, TemplateID: template.ID, CreatorID: 10, MemberIDs: []int64{10, 20}})
+	if _, err := service.Freeze(record.ID, "report"); err != nil {
+		t.Fatal(err)
+	}
+	logCount := len(repo.incomeLogs)
+	if _, err := service.Freeze(record.ID, "report"); err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.incomeLogs) != logCount {
+		t.Fatalf("repeated freeze must not append duplicate income logs: before=%d after=%d", logCount, len(repo.incomeLogs))
+	}
+}
+
+func TestRepositoryReadFailureDoesNotUseStaleRevenueCache(t *testing.T) {
+	repo := newFakeRevenueRepository()
+	service := NewServiceWithRepository(fakeReviewChecker{complete: true}, repo)
+	service.templates[9] = Template{ID: 9, Name: "旧模板", Status: "active"}
+	service.rules[9] = []Rule{{ID: 1, TemplateID: 9, RuleCode: "guide_bps", RuleValue: "1000"}}
+	service.records[8] = Record{ID: 8, GameID: 88, AmountCent: 10000}
+	service.settlements = []Settlement{{ID: 7, RecordID: 8, AmountCent: 10000}}
+	repo.readErr = errors.New("database unavailable")
+
+	if _, err := service.TemplatesStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected template list error, got %v", err)
+	}
+	if _, err := service.Template(9); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected template lookup error instead of stale template, got %v", err)
+	}
+	if _, err := service.RulesStrict(9); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected rule list error, got %v", err)
+	}
+	if _, err := service.RecordsStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected record list error, got %v", err)
+	}
+	if _, err := service.SettlementsStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected settlement list error, got %v", err)
+	}
+	if _, err := service.IncomeSummaryStrict(20); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected income summary error, got %v", err)
+	}
+	if _, err := service.IncomeLogsStrict(20, ""); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected income logs error, got %v", err)
+	}
+	if _, err := service.Preview(CalculateRequest{GameID: 1, AmountCent: 10000, TemplateID: 9}); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected preview to stop on template read error, got %v", err)
 	}
 }
 
@@ -234,6 +307,10 @@ type fakeRevenueRepository struct {
 	savedRecord     bool
 	updatedRecord   bool
 	savedSettlement bool
+	settleErr       error
+	transitionErr   error
+	recordIncomeErr error
+	readErr         error
 }
 
 func newFakeRevenueRepository() *fakeRevenueRepository {
@@ -261,6 +338,9 @@ func (r *fakeRevenueRepository) SaveTemplate(ctx context.Context, template Templ
 }
 
 func (r *fakeRevenueRepository) ListTemplates(ctx context.Context) ([]Template, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	result := make([]Template, 0, len(r.templates))
 	for _, item := range r.templates {
 		result = append(result, item)
@@ -269,6 +349,9 @@ func (r *fakeRevenueRepository) ListTemplates(ctx context.Context) ([]Template, 
 }
 
 func (r *fakeRevenueRepository) FindTemplate(ctx context.Context, templateID int64) (Template, bool, error) {
+	if r.readErr != nil {
+		return Template{}, false, r.readErr
+	}
 	item, ok := r.templates[templateID]
 	return item, ok, nil
 }
@@ -295,6 +378,9 @@ func (r *fakeRevenueRepository) SaveRule(ctx context.Context, rule Rule) (Rule, 
 }
 
 func (r *fakeRevenueRepository) ListRules(ctx context.Context, templateID int64) ([]Rule, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	return append([]Rule(nil), r.rules[templateID]...), nil
 }
 
@@ -310,7 +396,26 @@ func (r *fakeRevenueRepository) SaveRecord(ctx context.Context, record Record) (
 	return record, nil
 }
 
+func (r *fakeRevenueRepository) SaveRecordWithIncome(ctx context.Context, record Record) (Record, error) {
+	if r.recordIncomeErr != nil {
+		return Record{}, r.recordIncomeErr
+	}
+	saved, err := r.SaveRecord(ctx, record)
+	if err != nil {
+		return Record{}, err
+	}
+	for _, item := range saved.Items {
+		if item.UserID > 0 {
+			r.incomeLogs = append(r.incomeLogs, IncomeLogEntry{UserID: item.UserID, RevenueRecordID: saved.ID, ChangeValueCent: item.AmountCent, Reason: "record_generated", CreatedAt: saved.CreatedAt})
+		}
+	}
+	return saved, nil
+}
+
 func (r *fakeRevenueRepository) ListRecords(ctx context.Context) ([]Record, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	result := make([]Record, 0, len(r.records))
 	for _, item := range r.records {
 		result = append(result, item)
@@ -346,7 +451,65 @@ func (r *fakeRevenueRepository) SaveSettlement(ctx context.Context, settlement S
 	return settlement, nil
 }
 
+func (r *fakeRevenueRepository) SettleRecord(ctx context.Context, recordID int64, settlement Settlement) (Record, Settlement, error) {
+	if r.settleErr != nil {
+		return Record{}, Settlement{}, r.settleErr
+	}
+	record, ok := r.records[recordID]
+	if !ok {
+		return Record{}, Settlement{}, ErrRecordNotFound
+	}
+	if record.Status == "frozen" {
+		return Record{}, Settlement{}, ErrRecordFrozen
+	}
+	if record.Status != "pending_settlement" {
+		return Record{}, Settlement{}, ErrRecordNotSettleable
+	}
+	settlement.RecordID = recordID
+	settlement.AmountCent = record.AmountCent
+	saved, err := r.SaveSettlement(ctx, settlement)
+	if err != nil {
+		return Record{}, Settlement{}, err
+	}
+	record.Status = "settled"
+	record.SettledAt = saved.CreatedAt.Format(time.RFC3339)
+	r.records[recordID] = record
+	r.updatedRecord = true
+	for _, item := range record.Items {
+		if item.UserID > 0 {
+			r.incomeLogs = append(r.incomeLogs, IncomeLogEntry{UserID: item.UserID, RevenueRecordID: recordID, ChangeValueCent: item.AmountCent, Reason: "record_settled", CreatedAt: saved.CreatedAt})
+		}
+	}
+	return record, saved, nil
+}
+
+func (r *fakeRevenueRepository) TransitionRecord(ctx context.Context, recordID int64, expectedStatus string, nextStatus string, frozenReason string, logReason string, changedAt time.Time) (Record, bool, error) {
+	if r.transitionErr != nil {
+		return Record{}, false, r.transitionErr
+	}
+	record, ok := r.records[recordID]
+	if !ok {
+		return Record{}, false, ErrRecordNotFound
+	}
+	if (expectedStatus != "" && record.Status != expectedStatus) || record.Status == nextStatus {
+		return record, false, nil
+	}
+	record.Status = nextStatus
+	record.FrozenReason = frozenReason
+	r.records[recordID] = record
+	r.updatedRecord = true
+	for _, item := range record.Items {
+		if item.UserID > 0 {
+			r.incomeLogs = append(r.incomeLogs, IncomeLogEntry{UserID: item.UserID, RevenueRecordID: recordID, ChangeValueCent: item.AmountCent, Reason: logReason, CreatedAt: changedAt})
+		}
+	}
+	return record, true, nil
+}
+
 func (r *fakeRevenueRepository) ListSettlements(ctx context.Context) ([]Settlement, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	return append([]Settlement(nil), r.settlements...), nil
 }
 
@@ -367,6 +530,9 @@ func (r *fakeRevenueRepository) AppendIncomeLog(ctx context.Context, log IncomeL
 }
 
 func (r *fakeRevenueRepository) IncomeSummary(ctx context.Context, userID int64) (IncomeSummary, error) {
+	if r.readErr != nil {
+		return IncomeSummary{}, r.readErr
+	}
 	summary := IncomeSummary{UserID: userID}
 	for _, record := range r.records {
 		for _, item := range record.Items {
@@ -385,6 +551,9 @@ func (r *fakeRevenueRepository) IncomeSummary(ctx context.Context, userID int64)
 }
 
 func (r *fakeRevenueRepository) IncomeLogs(ctx context.Context, userID int64, status string) ([]IncomeLog, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	result := make([]IncomeLog, 0)
 	for _, record := range r.records {
 		if status != "" && record.Status != status {

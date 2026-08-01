@@ -2,9 +2,9 @@ const userService = require('../../services/user')
 const { navigateShellRoute } = require('../../utils/shell-nav')
 
 const ROLE_ITEMS = [
-  { key: 'player', label: '玩家', route: '/pages/game/player-manage/index' },
-  { key: 'guide', label: '领路人', route: '/pages/game/referral-record/index' },
-  { key: 'expert', label: '行家', route: '/pages/game/manage/index' }
+  { key: 'player', label: '玩家', route: '/pages/profile/service-center/my-games/index?category=joined' },
+  { key: 'guide', label: '领路人', route: '/pages/profile/service-center/my-games/index?category=created' },
+  { key: 'expert', label: '行家', route: '/pages/profile/service-center/my-games/index?category=created' }
 ]
 
 Component({

@@ -97,6 +97,33 @@ returning id, revenue_record_no, game_id, template_id, status, total_amount_cent
 	return saved, nil
 }
 
+func (r *SQLRepository) SaveRecordWithIncome(ctx context.Context, record Record) (Record, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Record{}, err
+	}
+	defer tx.Rollback()
+	saved, err := scanRecord(tx.QueryRowContext(ctx, `
+insert into revenue_records (revenue_record_no, game_id, template_id, status, total_amount_cent, frozen_reason, settled_at, created_at, updated_at)
+values ($1,$2,$3,$4,$5,$6,$7,$8,now())
+returning id, revenue_record_no, game_id, template_id, status, total_amount_cent, frozen_reason, settled_at, created_at
+`, record.RecordNo, record.GameID, record.TemplateID, record.Status, record.AmountCent, nullString(record.FrozenReason), nullTimeString(record.SettledAt), record.CreatedAt))
+	if err != nil {
+		return Record{}, err
+	}
+	if err = r.replaceRecordItems(ctx, tx, saved.ID, record.Items); err != nil {
+		return Record{}, err
+	}
+	if err = syncIncomeStateTx(ctx, tx, record.Items, saved.ID, "record_generated", record.CreatedAt); err != nil {
+		return Record{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return Record{}, err
+	}
+	saved.Items = record.Items
+	return saved, nil
+}
+
 func (r *SQLRepository) ListRecords(ctx context.Context) ([]Record, error) {
 	rows, err := r.db.QueryContext(ctx, recordSelect()+` order by created_at desc, id desc`)
 	if err != nil {
@@ -169,6 +196,199 @@ insert into settlement_records (revenue_record_id, method, proof_no, amount_cent
 values ($1,$2,$3,$4,$5)
 returning id, revenue_record_id, method, proof_no, amount_cent, created_at
 `, settlement.RecordID, settlement.Method, nullString(settlement.ProofNo), settlement.AmountCent, settlement.CreatedAt))
+}
+
+// SettleRecord commits the settlement, record state, income accounts and
+// income ledgers together. The row lock also prevents concurrent settlement.
+func (r *SQLRepository) SettleRecord(ctx context.Context, recordID int64, settlement Settlement) (Record, Settlement, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Record{}, Settlement{}, err
+	}
+	defer tx.Rollback()
+	record, err := scanRecord(tx.QueryRowContext(ctx, recordSelect()+` where id = $1 for update`, recordID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Record{}, Settlement{}, ErrRecordNotFound
+	}
+	if err != nil {
+		return Record{}, Settlement{}, err
+	}
+	if record.Status == "frozen" {
+		return Record{}, Settlement{}, ErrRecordFrozen
+	}
+	if record.Status != "pending_settlement" {
+		return Record{}, Settlement{}, ErrRecordNotSettleable
+	}
+	items, err := listRecordItemsTx(ctx, tx, recordID)
+	if err != nil {
+		return Record{}, Settlement{}, err
+	}
+	settlement.RecordID = recordID
+	settlement.AmountCent = record.AmountCent
+	savedSettlement, err := scanSettlement(tx.QueryRowContext(ctx, `
+insert into settlement_records (revenue_record_id, method, proof_no, amount_cent, created_at)
+values ($1,$2,$3,$4,$5)
+returning id, revenue_record_id, method, proof_no, amount_cent, created_at
+`, settlement.RecordID, settlement.Method, nullString(settlement.ProofNo), settlement.AmountCent, settlement.CreatedAt))
+	if err != nil {
+		return Record{}, Settlement{}, err
+	}
+	savedRecord, err := scanRecord(tx.QueryRowContext(ctx, `
+update revenue_records
+set status = 'settled', frozen_reason = null, settled_at = $2, updated_at = now()
+where id = $1
+returning id, revenue_record_no, game_id, template_id, status, total_amount_cent, frozen_reason, settled_at, created_at
+`, recordID, savedSettlement.CreatedAt))
+	if err != nil {
+		return Record{}, Settlement{}, err
+	}
+	for _, userID := range affectedUserIDs(items) {
+		var summary IncomeSummary
+		summary.UserID = userID
+		if err = tx.QueryRowContext(ctx, `
+select
+  coalesce(sum(i.amount_cent), 0),
+  coalesce(sum(case when rr.status = 'settled' then 0 else i.amount_cent end), 0),
+  coalesce(sum(case when rr.status = 'settled' then i.amount_cent else 0 end), 0)
+from revenue_record_items i
+join revenue_records rr on rr.id = i.revenue_record_id
+where i.user_id = $1
+`, userID).Scan(&summary.TotalCent, &summary.PendingCent, &summary.SettledCent); err != nil {
+			return Record{}, Settlement{}, err
+		}
+		if _, err = tx.ExecContext(ctx, `
+insert into user_income_accounts (user_id, total_cent, pending_cent, settled_cent, updated_at)
+values ($1,$2,$3,$4,now())
+on conflict (user_id) do update set
+  total_cent = excluded.total_cent,
+  pending_cent = excluded.pending_cent,
+  settled_cent = excluded.settled_cent,
+  updated_at = now()
+`, userID, summary.TotalCent, summary.PendingCent, summary.SettledCent); err != nil {
+			return Record{}, Settlement{}, err
+		}
+	}
+	for _, item := range items {
+		if item.UserID <= 0 {
+			continue
+		}
+		if _, err = tx.ExecContext(ctx, `
+insert into income_logs (user_id, revenue_record_id, change_value_cent, reason, created_at)
+values ($1,$2,$3,$4,$5)
+`, item.UserID, recordID, item.AmountCent, "record_settled", savedSettlement.CreatedAt); err != nil {
+			return Record{}, Settlement{}, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return Record{}, Settlement{}, err
+	}
+	savedRecord.Items = items
+	return savedRecord, savedSettlement, nil
+}
+
+func (r *SQLRepository) TransitionRecord(ctx context.Context, recordID int64, expectedStatus string, nextStatus string, frozenReason string, logReason string, changedAt time.Time) (Record, bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Record{}, false, err
+	}
+	defer tx.Rollback()
+	record, err := scanRecord(tx.QueryRowContext(ctx, recordSelect()+` where id = $1 for update`, recordID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Record{}, false, ErrRecordNotFound
+	}
+	if err != nil {
+		return Record{}, false, err
+	}
+	items, err := listRecordItemsTx(ctx, tx, recordID)
+	if err != nil {
+		return Record{}, false, err
+	}
+	record.Items = items
+	if (expectedStatus != "" && record.Status != expectedStatus) || record.Status == nextStatus {
+		return record, false, nil
+	}
+	settledAt := nullTimeString(record.SettledAt)
+	saved, err := scanRecord(tx.QueryRowContext(ctx, `
+update revenue_records
+set status = $2, frozen_reason = $3, settled_at = $4, updated_at = now()
+where id = $1
+returning id, revenue_record_no, game_id, template_id, status, total_amount_cent, frozen_reason, settled_at, created_at
+`, recordID, nextStatus, nullString(frozenReason), settledAt))
+	if err != nil {
+		return Record{}, false, err
+	}
+	if err = syncIncomeStateTx(ctx, tx, items, recordID, logReason, changedAt); err != nil {
+		return Record{}, false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return Record{}, false, err
+	}
+	saved.Items = items
+	return saved, true, nil
+}
+
+func syncIncomeStateTx(ctx context.Context, tx *sql.Tx, items []Item, recordID int64, logReason string, changedAt time.Time) error {
+	for _, userID := range affectedUserIDs(items) {
+		var summary IncomeSummary
+		if err := tx.QueryRowContext(ctx, `
+select
+  coalesce(sum(i.amount_cent), 0),
+  coalesce(sum(case when rr.status = 'settled' then 0 else i.amount_cent end), 0),
+  coalesce(sum(case when rr.status = 'settled' then i.amount_cent else 0 end), 0)
+from revenue_record_items i
+join revenue_records rr on rr.id = i.revenue_record_id
+where i.user_id = $1
+`, userID).Scan(&summary.TotalCent, &summary.PendingCent, &summary.SettledCent); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `
+insert into user_income_accounts (user_id, total_cent, pending_cent, settled_cent, updated_at)
+values ($1,$2,$3,$4,now())
+on conflict (user_id) do update set
+  total_cent = excluded.total_cent,
+  pending_cent = excluded.pending_cent,
+  settled_cent = excluded.settled_cent,
+  updated_at = now()
+`, userID, summary.TotalCent, summary.PendingCent, summary.SettledCent); err != nil {
+			return err
+		}
+	}
+	for _, item := range items {
+		if item.UserID <= 0 {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `
+insert into income_logs (user_id, revenue_record_id, change_value_cent, reason, created_at)
+values ($1,$2,$3,$4,$5)
+`, item.UserID, recordID, item.AmountCent, logReason, changedAt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func listRecordItemsTx(ctx context.Context, tx *sql.Tx, recordID int64) ([]Item, error) {
+	rows, err := tx.QueryContext(ctx, `
+select user_id, role, amount_cent
+from revenue_record_items
+where revenue_record_id = $1
+order by id asc
+`, recordID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]Item, 0)
+	for rows.Next() {
+		var item Item
+		var userID sql.NullInt64
+		if err := rows.Scan(&userID, &item.Role, &item.AmountCent); err != nil {
+			return nil, err
+		}
+		item.UserID = userID.Int64
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (r *SQLRepository) ListSettlements(ctx context.Context) ([]Settlement, error) {

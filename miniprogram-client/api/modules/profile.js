@@ -1,7 +1,7 @@
 const request = require('../request')
 
-function getProfileHome() {
-  return request.get('/api/app/profile/home')
+function getProfileHome(data = {}) {
+  return request.get('/api/app/profile/home', data)
 }
 
 function getProfileAssets() {
@@ -20,8 +20,8 @@ function getPointsLogs(data) {
   return request.get('/api/app/points/logs', data)
 }
 
-function getGrowth() {
-  return request.get('/api/app/growth/my')
+function getGrowth(data = {}) {
+  return request.get('/api/app/growth/my', data)
 }
 
 function getMemberStatus() {

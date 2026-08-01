@@ -601,7 +601,7 @@ Component({
       const config = extractResponseData(await roleService.getRoleStatusPageConfig())
 
       if (!this.isValidRoleStatusConfig(config)) {
-        throw new Error('invalid role status config')
+        throw new Error('角色状态配置格式错误')
       }
 
       return config
@@ -678,8 +678,10 @@ Component({
         && experience >= 0
         && Number.isFinite(nextLevelExperience)
         && nextLevelExperience > 0
-      const experienceText = hasExperienceProgress
-        ? `${experience}/${nextLevelExperience} XP`
+      // 玩家保留“当前经验 / 下一等级经验”的进度表达；行家、领路人
+      // 使用服务端返回的综合得分，不能再误标为 XP。
+      const experienceText = roleType === 'player' && hasExperienceProgress
+        ? `${experience}/${nextLevelExperience} 经验`
         : (summary.xpText || summary.scoreText || '')
       const nextLevelText = summary.nextLevelText || (
         Number.isFinite(expToNextLevel) && expToNextLevel >= 0
@@ -698,7 +700,7 @@ Component({
         identity: summary.identity || summary.profileTitle || '',
         levelText: summary.roleLabel || summary.levelText || '',
         xpText: experienceText,
-        scoreText: experienceText,
+        scoreText: summary.scoreText || '',
         progress: this.pickFirstValue(summary.progressPercent, summary.progress, 0),
         nextLevelText,
         stats: Array.isArray(summary.stats) ? summary.stats : [],
@@ -875,7 +877,6 @@ Component({
         hubTitle: network.hubTitle || network.centerTitle || '',
         hubDesc: network.hubDesc || network.centerDesc || '',
         summary,
-        income: network.income || '',
         location: network.location || '',
         locationText: network.locationText || String(network.location || '').replace(/^📍\s*/, ''),
         items: items.slice(0, 5),
@@ -898,28 +899,23 @@ Component({
         }
         return result
       }, {})
-      const income = home.user && home.user.incomeSummary ? home.user.incomeSummary : {}
       const relationCount = this.pickFirstValue((statMap.relations || {}).value, home.nearbySummary && home.nearbySummary.relationCount, 0)
       const strongCount = this.pickFirstValue((statMap.strongRelations || {}).value, 0)
       const nodeCount = this.pickFirstValue((statMap.onlineNodes || {}).value, network.nodes && network.nodes.length, 0)
-      const pendingIncome = income.pendingCent || 0
 
       return {
         title: '我的关系网络',
         status: '实时连接中',
         summary: `已连接 ${relationCount} 位玩家`,
-        income: `本周收益 ¥${this.formatCentAmount(pendingIncome || income.totalCent || 0)}`,
         locationText: '核心区',
         items: [
           { id: 'relations', icon: '👑', name: '累计连接', desc: `${relationCount}人` },
           { id: 'strong', icon: '🎓', name: '强关系', desc: `${strongCount}人` },
           { id: 'nodes', icon: '👶', name: '动态节点', desc: `${nodeCount}个` },
-          { id: 'income', icon: '🏛️', name: '本周收益', desc: `¥${this.formatCentAmount(pendingIncome)}` },
           { id: 'more', icon: '+', name: '更多', desc: '待加入', dashed: true }
         ],
         buttons: [
-          { text: '管理我的连接', primary: true, route: ROUTES.relationNetwork },
-          { text: '查看分润', route: 'pages/profile/service-center/invite/income/index' }
+          { text: '管理我的连接', primary: true, route: ROUTES.relationNetwork }
         ]
       }
     },
@@ -1272,7 +1268,6 @@ Component({
           sessionTags: this.formatSessionTags(item),
           coverSrc: item.coverUrl || item.coverSrc || item.cover || '',
           price: item.playerPriceText || item.priceText || item.price || '',
-          income: item.expertIncomeText || item.incomeText || item.income || item.priceText || item.price || '',
           action,
           primaryActionText: hasOwnField(item, 'primaryActionText') ? String(item.primaryActionText || '') : action,
           primaryActionType: item.primaryActionType || '',
@@ -1295,7 +1290,9 @@ Component({
           avatarFallbacks: playerAvatars
             .filter((avatar) => !avatar.imageUrl && avatar.text)
             .map((avatar) => avatar.text),
-          actions: this.formatGameActions(item.actions),
+          actions: this.formatGameActions(item.actions, item.shareComponent),
+          shareActionLabel: item.shareComponent && item.shareComponent.label || '分享',
+          shareComponentVariant: item.shareComponent && item.shareComponent.variant === 'icon_button' ? 'icon_button' : 'channel_sheet',
           route: this.resolveGameCardRoute(item)
         }
       })
@@ -1494,7 +1491,7 @@ Component({
       return `+${joinedCount}位玩家已入局`
     },
 
-    formatGameActions(actions) {
+    formatGameActions(actions, shareComponent = {}) {
       const actionMap = {
         share: '分享',
         follow: '关注',
@@ -1503,7 +1500,7 @@ Component({
       }
 
       if (!Array.isArray(actions) || actions.length === 0) {
-        return ['分享', '关注', '引荐', '打招呼']
+        return shareComponent.enabled === false ? ['关注', '打招呼'] : [shareComponent.label || '分享', '关注', '打招呼']
       }
 
       return actions.map((action) => actionMap[action] || action)

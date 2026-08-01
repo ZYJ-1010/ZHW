@@ -3,7 +3,7 @@ const gameService = require('../../../services/game')
 const reviewService = require('../../../services/review')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
 
-const EMPTY_REWARD = { show: false, points: '', title: '', desc: '', iconText: '' }
+const EMPTY_REWARD = { show: false, value: '', title: '', desc: '', iconText: '' }
 const DEFAULT_PLAY_OPTIONS = []
 
 function normalizeRewardIcon(iconText) {
@@ -24,7 +24,7 @@ Page({
     pageScrollTop: 0,
     reviewCount: 0,
     reviewGameId: 0,
-    rewardedPoints: 0,
+    rewardedExperience: 0,
     reviewSummaryText: '',
     reward: EMPTY_REWARD,
     benefits: [],
@@ -36,12 +36,12 @@ Page({
   onLoad(options = {}) {
     const reviewCount = Number(options.count || 0) || 0
     const reviewGameId = Number(options.gameId || 0) || 0
-    const rewardedPoints = Math.max(0, Number(options.rewardPoints || 0) || 0)
+    const rewardedExperience = Math.max(0, Number(options.rewardExperience || 0) || 0)
 
     this.setData({
       reviewCount,
       reviewGameId,
-      rewardedPoints,
+      rewardedExperience,
       reviewSummaryText: reviewCount
         ? `本次已提交 ${reviewCount} 条评价${reviewGameId ? ` · 局ID ${reviewGameId}` : ''}`
         : ''
@@ -57,15 +57,15 @@ Page({
       const benefits = Array.isArray(config.benefits) ? config.benefits : []
       const playOptions = Array.isArray(config.playOptions) ? config.playOptions : DEFAULT_PLAY_OPTIONS
       const rewardConfig = config.reward && typeof config.reward === 'object' ? config.reward : EMPTY_REWARD
-      const rewardedPoints = this.data.rewardedPoints
-      const reward = rewardedPoints > 0
+      const rewardedExperience = this.data.rewardedExperience
+      const reward = rewardedExperience > 0
         ? {
             ...rewardConfig,
             show: true,
-            points: `+${rewardedPoints}`,
+            value: `+${rewardedExperience} 经验`,
             iconText: normalizeRewardIcon(rewardConfig.iconText),
-            title: rewardConfig.title || '积分已到账',
-            desc: rewardConfig.desc || '评价奖励已存入积分账户'
+            title: '经验已到账',
+            desc: '评价奖励已计入成长经验'
           }
         : EMPTY_REWARD
 

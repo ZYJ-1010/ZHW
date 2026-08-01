@@ -1,6 +1,7 @@
 const env = require('../config/env')
 const logger = require('../utils/logger')
 const { getAuthToken } = require('../utils/auth-session')
+const { toUserMessage } = require('../utils/user-message')
 const {
   AUTH_EXPIRED_MESSAGE,
   isAuthExpiredResult,
@@ -67,7 +68,7 @@ function request(options) {
         return Object.assign({}, body, {
           authExpired: true,
           code: typeof code === 'number' ? code : 40102,
-          message: message || AUTH_EXPIRED_MESSAGE
+          message: toUserMessage(message, AUTH_EXPIRED_MESSAGE)
         })
       }
 
@@ -77,6 +78,12 @@ function request(options) {
         data: null,
         authExpired: true
       }
+    }
+
+    if (body && typeof body === 'object' && typeof code === 'number' && code !== 0) {
+      return Object.assign({}, body, {
+        message: toUserMessage(message)
+      })
     }
 
     return body
@@ -164,27 +171,30 @@ function get(url, data) {
   })
 }
 
-function post(url, data) {
+function post(url, data, options = {}) {
   return request({
     url,
     method: 'POST',
-    data
+    data,
+    header: options.header || {}
   })
 }
 
-function put(url, data) {
+function put(url, data, options = {}) {
   return request({
     url,
     method: 'PUT',
-    data
+    data,
+    header: options.header || {}
   })
 }
 
-function del(url, data) {
+function del(url, data, options = {}) {
   return request({
     url,
     method: 'DELETE',
-    data
+    data,
+    header: options.header || {}
   })
 }
 
@@ -241,11 +251,7 @@ function setLoginPassword(payload) {
 }
 
 function resetPassword(payload) {
-  return Promise.resolve({
-    code: 410,
-    message: '\u5f53\u524d\u5c0f\u7a0b\u5e8f\u4ec5\u652f\u6301\u901a\u8fc7\u9080\u8bf7\u5165\u53e3\u5fae\u4fe1\u767b\u5f55\uff0c\u65e0\u9700\u627e\u56de\u5bc6\u7801',
-    data: null
-  })
+  return request({ url: '/api/app/auth/password-reset', method: 'POST', data: payload })
 }
 
 function issueTokenAfterIdentity(payload) {

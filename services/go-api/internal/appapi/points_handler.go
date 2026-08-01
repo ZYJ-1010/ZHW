@@ -76,8 +76,12 @@ func (s *Server) pointsSummary(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	account, logs, loaded := s.loadPointsData(w, userID, true)
+	if !loaded {
+		return
+	}
 	s.recordBehavior(userID, "view_points_summary", "points", userID, nil)
-	httpx.OK(w, s.buildPointsSummaryPayload(userID))
+	httpx.OK(w, s.buildPointsSummaryPayload(account, logs))
 }
 
 func (s *Server) pointsLogs(w http.ResponseWriter, r *http.Request) {
@@ -85,17 +89,24 @@ func (s *Server) pointsLogs(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	_, logs, loaded := s.loadPointsData(w, userID, true)
+	if !loaded {
+		return
+	}
 	s.recordBehavior(userID, "view_points_logs", "points", userID, nil)
-	httpx.OK(w, map[string]interface{}{"items": s.points.Logs(userID)})
+	httpx.OK(w, map[string]interface{}{"items": logs})
 }
 
 func (s *Server) adminPointsLogs(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.points.AllLogs()})
+	logs, err := s.points.AllLogsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "积分明细读取失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": logs})
 }
 
-func (s *Server) buildPointsSummaryPayload(userID int64) map[string]interface{} {
-	account := s.points.Summary(userID)
-	logs := s.points.Logs(userID)
+func (s *Server) buildPointsSummaryPayload(account points.Account, logs []points.Log) map[string]interface{} {
 	config := s.currentPointsPageConfig()
 	operationRules := s.currentOperationRules()
 	redeemedPoints := 0
@@ -215,11 +226,21 @@ func (s *Server) redemptionItems(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.requireUser(w, r); !ok {
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.redemption.Items()})
+	items, err := s.redemption.ItemsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取兑换商品失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) adminRedemptionItems(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.redemption.AdminItems()})
+	items, err := s.redemption.AdminItemsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取兑换商品失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) createAdminRedemptionItem(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +303,11 @@ func (s *Server) myRedemptionOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	config := s.currentRedemptionOrderPageConfig()
-	orders := s.redemption.OrdersForUser(userID)
+	orders, err := s.redemption.OrdersForUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取兑换订单失败，请稍后重试")
+		return
+	}
 	items := make([]appRedemptionOrderDTO, 0, len(orders))
 	for _, order := range orders {
 		if !matchAppRedemptionStatus(status, order.Status) {
@@ -358,15 +383,24 @@ func (s *Server) cancelRedemptionOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordBehavior(userID, "cancel_redemption_order", "redemption_order", order.ID, map[string]interface{}{"reason": order.ReviewReason})
+	pointsSummary, pointsErr := s.points.SummaryStrict(userID)
+	if pointsErr != nil {
+		markPointsPersistenceDegraded(w, "redemption_cancel", userID, pointsErr)
+	}
 	httpx.OK(w, map[string]interface{}{
 		"order":         buildAppRedemptionOrderDTO(order, s.currentRedemptionOrderPageConfig()),
-		"pointsSummary": s.points.Summary(userID),
+		"pointsSummary": pointsSummary,
 		"message":       "订单已取消，积分已退回",
 	})
 }
 
 func (s *Server) adminRedemptionOrders(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.redemption.AdminOrders()})
+	items, err := s.redemption.AdminOrdersStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取兑换订单失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) reviewAdminRedemptionOrder(w http.ResponseWriter, r *http.Request) {
@@ -385,7 +419,7 @@ func (s *Server) reviewAdminRedemptionOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if order.Status == "rejected" {
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "redemption_order_review", notifications.CreateRequest{
 			UserID: order.UserID, NotifyType: "redemption_order_rejected", Title: "兑换订单未通过",
 			Content: "你的兑换订单未通过审核。原因：" + order.ReviewReason,
 			BizType: "redemption_order", BizID: order.ID,

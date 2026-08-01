@@ -2,6 +2,7 @@ package redemption
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"zhw-mini/services/go-api/internal/points"
@@ -71,11 +72,33 @@ func TestRepositoryBackedRedemptionCancelRefund(t *testing.T) {
 	}
 }
 
+func TestStrictListsDoNotUseStaleRedemptionCache(t *testing.T) {
+	repo := newFakeRedemptionRepository()
+	service := NewServiceWithRepository(points.NewService(), repo)
+	service.items[9] = Item{ID: 9, Name: "旧商品", Status: "active"}
+	service.orders[8] = Order{ID: 8, UserID: 1, ItemID: 9, Status: "pending"}
+	repo.readErr = errors.New("database unavailable")
+
+	if _, err := service.ItemsStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected item list error, got %v", err)
+	}
+	if _, err := service.AdminItemsStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected admin item list error, got %v", err)
+	}
+	if _, err := service.OrdersForUserStrict(1); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected user order list error, got %v", err)
+	}
+	if _, err := service.AdminOrdersStrict(); !errors.Is(err, repo.readErr) {
+		t.Fatalf("expected admin order list error, got %v", err)
+	}
+}
+
 type fakeRedemptionRepository struct {
 	nextItemID  int64
 	nextOrderID int64
 	items       map[int64]Item
 	orders      map[int64]Order
+	readErr     error
 }
 
 func newFakeRedemptionRepository() *fakeRedemptionRepository {
@@ -95,6 +118,9 @@ func (r *fakeRedemptionRepository) CreateItem(ctx context.Context, item Item) (I
 }
 
 func (r *fakeRedemptionRepository) ListItems(ctx context.Context, includeInactive bool) ([]Item, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	result := make([]Item, 0)
 	for _, item := range r.items {
 		if includeInactive || item.Status == "active" {
@@ -146,6 +172,9 @@ func (r *fakeRedemptionRepository) CreateOrder(ctx context.Context, order Order)
 }
 
 func (r *fakeRedemptionRepository) ListOrdersByUser(ctx context.Context, userID int64) ([]Order, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	result := make([]Order, 0)
 	for _, order := range r.orders {
 		if order.UserID == userID {
@@ -156,6 +185,9 @@ func (r *fakeRedemptionRepository) ListOrdersByUser(ctx context.Context, userID 
 }
 
 func (r *fakeRedemptionRepository) ListOrders(ctx context.Context) ([]Order, error) {
+	if r.readErr != nil {
+		return nil, r.readErr
+	}
 	result := make([]Order, 0, len(r.orders))
 	for _, order := range r.orders {
 		result = append(result, order)

@@ -35,12 +35,19 @@ page {
 }
 
 .summary-title-row,
+.summary-kicker-row,
 .section-head,
 .achievement-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20rpx;
+}
+
+.summary-role {
+  color: #2563eb;
+  font-size: 24rpx;
+  line-height: 34rpx;
 }
 
 .summary-title {
@@ -103,6 +110,99 @@ page {
 .achievement-list,
 .footprint-list {
   margin-top: 22rpx;
+}
+
+.role-growth-list {
+  margin-top: 18rpx;
+}
+
+.role-growth-item {
+  padding: 24rpx 0;
+  border-top: 1rpx solid #eef0f4;
+}
+
+.role-growth-item:first-child {
+  border-top: 0;
+}
+
+.role-growth-item.is-inactive {
+  opacity: 0.64;
+}
+
+.role-growth-item.is-selected {
+  margin: 0 -14rpx;
+  padding-right: 14rpx;
+  padding-left: 14rpx;
+  border-radius: 12rpx;
+  background: #eff6ff;
+}
+
+.role-growth-head,
+.role-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.role-growth-name {
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+}
+
+.role-growth-level {
+  margin-left: 14rpx;
+  color: #2563eb;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.role-growth-current {
+  margin-left: 12rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 20rpx;
+  line-height: 30rpx;
+}
+
+.role-growth-score {
+  flex: none;
+  color: #111827;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.role-growth-desc {
+  display: block;
+  margin-top: 10rpx;
+  color: #6b7280;
+  font-size: 23rpx;
+  line-height: 34rpx;
+}
+
+.role-metric-list {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  background: #f9fafb;
+}
+
+.role-metric-item + .role-metric-item {
+  margin-top: 16rpx;
+}
+
+.role-metric-head {
+  color: #4b5563;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.role-metric-progress {
+  background: #16a34a;
 }
 
 .achievement-item,

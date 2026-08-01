@@ -532,6 +532,37 @@ page {
   line-height: 32rpx;
 }
 
+.guide-escort-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-top: 24rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.guide-escort-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.guide-escort-title {
+  color: #ffffff;
+  font-size: 25rpx;
+  line-height: 34rpx;
+}
+
+.guide-escort-hint {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 20rpx;
+  line-height: 30rpx;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: nowrap;

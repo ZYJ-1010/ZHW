@@ -35,6 +35,14 @@ type operationRulesDTO struct {
 	Tasks struct {
 		Items []taskRuleDTO `json:"items"`
 	} `json:"tasks"`
+	NewbieGuide struct {
+		Enabled                      bool `json:"enabled"`
+		ProfileReminderLimit         int  `json:"profileReminderLimit"`
+		ProfileReminderIntervalHours int  `json:"profileReminderIntervalHours"`
+	} `json:"newbieGuide"`
+	Login struct {
+		ReauthAfterDays int `json:"reauthAfterDays"`
+	} `json:"login"`
 	Roles     roleOperationRulesDTO `json:"roles"`
 	Condition struct {
 		Enabled         bool `json:"enabled"`
@@ -49,9 +57,10 @@ type operationRulesDTO struct {
 		MaxScore            int `json:"maxScore"`
 	} `json:"credit"`
 	Game struct {
-		MinPlayers       int `json:"minPlayers"`
-		MaxPlayers       int `json:"maxPlayers"`
-		DailyCreateLimit int `json:"dailyCreateLimit"`
+		MinPlayers              int  `json:"minPlayers"`
+		MaxPlayers              int  `json:"maxPlayers"`
+		DailyCreateLimit        int  `json:"dailyCreateLimit"`
+		AllowGuideEscortForPaid bool `json:"allowGuideEscortForPaid"`
 	} `json:"game"`
 	Invite struct {
 		TimeoutMinutes int  `json:"timeoutMinutes"`
@@ -93,6 +102,10 @@ func defaultOperationRules() operationRulesDTO {
 		{Code: "daily_join_game", Category: "daily", Title: "今日参与 1 次组局", Required: 1, Enabled: true},
 		{Code: "activity_complete_game", Category: "activity", Title: "完成一局并提交评价", Required: 1, Enabled: true},
 	}
+	config.NewbieGuide.Enabled = true
+	config.NewbieGuide.ProfileReminderLimit = 3
+	config.NewbieGuide.ProfileReminderIntervalHours = 24
+	config.Login.ReauthAfterDays = 60
 	config.Roles = roleOperationRulesDTO{ExpertCreatedGames: 5, ExpertCreditScore: 90, GuideParticipatedGames: 3, GuideInvitedCompleted: 1, GuideCreditScore: 80}
 	config.Condition.Enabled = true
 	config.Condition.CreditMinScore = 80
@@ -116,27 +129,62 @@ func defaultOperationRules() operationRulesDTO {
 }
 
 func (s *Server) currentOperationRules() operationRulesDTO {
-	config := defaultOperationRules()
-	if s.systemConfig != nil {
-		var stored operationRulesDTO
-		if s.systemConfig.Get(operationRulesConfigKey, &stored) {
-			config = normalizeOperationRules(stored)
-		}
+	config, err := s.currentOperationRulesStrict()
+	if err != nil {
+		return defaultOperationRules()
 	}
 	return config
 }
 
-func (s *Server) phaseOneIncomeSummary(userID int64) revenue.IncomeSummary {
-	if !s.currentOperationRules().Revenue.Enabled {
-		return revenue.IncomeSummary{UserID: userID}
+// currentOperationRulesStrict is for endpoints that enforce a business
+// decision. A configured repository outage must not silently replace an
+// operator-maintained rule with the built-in defaults.
+func (s *Server) currentOperationRulesStrict() (operationRulesDTO, error) {
+	config := defaultOperationRules()
+	if s.systemConfig != nil {
+		var stored operationRulesDTO
+		found, err := s.systemConfig.GetStrict(operationRulesConfigKey, &stored)
+		if err != nil {
+			return operationRulesDTO{}, err
+		}
+		if found {
+			config = normalizeOperationRules(stored)
+		}
 	}
-	return s.revenue.IncomeSummary(userID)
+	return config, nil
+}
+
+func (s *Server) phaseOneIncomeSummary(userID int64) revenue.IncomeSummary {
+	summary, _ := s.phaseOneIncomeSummaryStrict(userID)
+	return summary
+}
+
+func (s *Server) phaseOneIncomeSummaryStrict(userID int64) (revenue.IncomeSummary, error) {
+	rules, err := s.currentOperationRulesStrict()
+	if err != nil {
+		return revenue.IncomeSummary{}, err
+	}
+	if !rules.Revenue.Enabled {
+		return revenue.IncomeSummary{UserID: userID}, nil
+	}
+	return s.revenue.IncomeSummaryStrict(userID)
 }
 
 func normalizeOperationRules(config operationRulesDTO) operationRulesDTO {
 	defaults := defaultOperationRules()
 	if len(config.Tasks.Items) == 0 {
 		config.Tasks.Items = defaults.Tasks.Items
+	}
+	if config.NewbieGuide.ProfileReminderLimit <= 0 {
+		config.NewbieGuide.ProfileReminderLimit = defaults.NewbieGuide.ProfileReminderLimit
+	}
+	if config.NewbieGuide.ProfileReminderIntervalHours <= 0 {
+		config.NewbieGuide.ProfileReminderIntervalHours = defaults.NewbieGuide.ProfileReminderIntervalHours
+	}
+	// 一期的新手入口为基础回流能力，后台仅调整频次，不关闭整个链路。
+	config.NewbieGuide.Enabled = true
+	if config.Login.ReauthAfterDays <= 0 {
+		config.Login.ReauthAfterDays = defaults.Login.ReauthAfterDays
 	}
 	if config.Roles.ExpertCreatedGames <= 0 {
 		config.Roles.ExpertCreatedGames = defaults.Roles.ExpertCreatedGames
@@ -243,6 +291,14 @@ func (s *Server) adminOperationRules(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "信用分阈值顺序无效")
 			return
 		}
+		if config.NewbieGuide.ProfileReminderLimit < 1 || config.NewbieGuide.ProfileReminderLimit > 20 || config.NewbieGuide.ProfileReminderIntervalHours < 1 || config.NewbieGuide.ProfileReminderIntervalHours > 24*30 {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "新手资料提醒参数无效")
+			return
+		}
+		if config.Login.ReauthAfterDays < 1 || config.Login.ReauthAfterDays > 365 {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "重新登录间隔参数无效")
+			return
+		}
 		if s.systemConfig == nil || s.systemConfig.Set(operationRulesConfigKey, config) != nil {
 			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存运营规则失败")
 			return
@@ -254,10 +310,11 @@ func (s *Server) adminOperationRules(w http.ResponseWriter, r *http.Request) {
 			limiter.SetPlayerLimits(config.Game.MinPlayers, config.Game.MaxPlayers)
 			limiter.SetDailyCreateLimit(config.Game.DailyCreateLimit)
 		}
+		s.auth.SetAppReauthAfterDays(config.Login.ReauthAfterDays)
 		s.recordOperation(r, "operation_rules:update", "system_config", operationRulesConfigKey, map[string]interface{}{"taskCount": len(config.Tasks.Items)})
 		httpx.OK(w, map[string]interface{}{"config": config})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "不支持当前请求方式")
 	}
 }
 

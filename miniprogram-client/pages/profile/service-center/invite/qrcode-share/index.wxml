@@ -13,7 +13,7 @@
     </view>
     <text class="code">邀请码：{{inviteCode || '--'}}</text>
     <button class="primary" open-type="share" disabled="{{!inviteCode}}">{{actionText}}</button>
-    <button class="secondary" bindtap="copyInvitePath" disabled="{{!inviteCode}}">复制邀请入口</button>
+    <button wx:if="{{urlLinkReady}}" class="secondary" bindtap="copyInvitePath" disabled="{{!inviteCode}}">复制邀请链接</button>
     <button wx:if="{{qrcodeUrl}}" class="secondary" bindtap="saveQrcode">保存二维码到相册</button>
     <text wx:if="{{errorText}}" class="hint">{{errorText}}</text>
   </view>

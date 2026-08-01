@@ -18,6 +18,7 @@ import (
 
 type imService interface {
 	EnsureRoom(gameID int64) im.Room
+	EnsureRoomStrict(gameID int64) (im.Room, error)
 	RoomForGame(userID int64, gameID int64) (im.Room, error)
 	Session(userID int64, gameID int64) (im.Session, error)
 	Send(userID int64, gameID int64, req im.SendRequest) (im.Message, error)
@@ -31,15 +32,19 @@ type imService interface {
 	AuthorizeRoomAccess(userID int64, roomID int64) (im.Room, error)
 	AdminMessagesByRoom(roomID int64) ([]im.Message, im.Room, error)
 	AdminRooms() []im.Room
+	AdminRoomsStrict() ([]im.Room, error)
 	AdminArchiveRoom(roomID int64, reason string) (im.Room, error)
 	AdminRetryCreateRoom(roomID int64) (im.Room, error)
 	AdminHideMessage(messageID int64, reason string) (im.Message, error)
 	AllMessages() []im.Message
+	AllMessagesStrict() ([]im.Message, error)
 	Ack(userID int64, roomID int64, messageID int64) (im.Message, error)
 	MarkRead(userID int64, roomID int64, messageID int64) (im.Message, error)
 	ArchiveRoom(userID int64, roomID int64, reason string) (im.Room, error)
 	ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []im.Room
+	ArchiveRoomsByGameIDsStrict(gameIDs []int64, reason string) ([]im.Room, error)
 	ReadOnlyRoomsByGameIDs(gameIDs []int64, reason string) []im.Room
+	ReadOnlyRoomsByGameIDsStrict(gameIDs []int64, reason string) ([]im.Room, error)
 	RecordWebhook(command string, gameID int64, roomID int64, payload []byte) im.WebhookEvent
 	CheckSensitiveWords(content string) (im.SensitiveWord, bool)
 	SensitiveWords() []im.SensitiveWord
@@ -64,6 +69,7 @@ func (s *Server) chatRoom(w http.ResponseWriter, r *http.Request) {
 		writeIMError(w, err)
 		return
 	}
+	s.markGameIMNotificationsRead(userID, gameID)
 	s.recordBehavior(userID, "enter_im", "game", gameID, nil)
 	game, _ := s.games.Get(gameID)
 	httpx.OK(w, s.chatRoomPayload(room, userID, game))
@@ -107,6 +113,7 @@ func (s *Server) chatSession(w http.ResponseWriter, r *http.Request) {
 		writeIMError(w, err)
 		return
 	}
+	s.markGameIMNotificationsRead(userID, gameID)
 	s.recordBehavior(userID, "enter_im", "game", gameID, nil)
 	payload := map[string]interface{}{
 		"engine":        session.Engine,
@@ -135,7 +142,7 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	if !s.validateChatMessageFile(w, req, gameID) {
+	if !s.prepareChatMessageFile(w, &req, gameID) {
 		return
 	}
 	message, err := s.im.Send(userID, gameID, req)
@@ -145,6 +152,7 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	s.recordBehavior(userID, "send_message", "game", gameID, map[string]interface{}{"messageId": message.ID, "messageType": message.Type})
 	s.createIMMessageNotifications(userID, message)
+	s.broadcastIMMessage(message)
 	httpx.OK(w, s.inGameMessageDTO(message))
 }
 
@@ -167,7 +175,7 @@ func (s *Server) sendMessageToRoom(w http.ResponseWriter, r *http.Request) {
 		writeIMError(w, err)
 		return
 	}
-	if !s.validateChatMessageFile(w, req, room.GameID) {
+	if !s.prepareChatMessageFile(w, &req, room.GameID) {
 		return
 	}
 	message, err := s.im.SendToRoom(userID, roomID, req)
@@ -177,7 +185,18 @@ func (s *Server) sendMessageToRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	s.recordBehavior(userID, "send_message", "room", roomID, map[string]interface{}{"messageId": message.ID, "messageType": message.Type})
 	s.createIMMessageNotifications(userID, message)
+	s.broadcastIMMessage(message)
 	httpx.OK(w, s.inGameMessageDTO(message))
+}
+
+func (s *Server) broadcastIMMessage(message im.Message) {
+	if s == nil || s.imSocketHub == nil || message.ID <= 0 || message.RoomID <= 0 {
+		return
+	}
+	s.imSocketHub.broadcast(message.RoomID, imSocketOutgoing{
+		Type: "message",
+		Data: s.inGameMessageDTO(message),
+	})
 }
 
 func (s *Server) historyMessages(w http.ResponseWriter, r *http.Request) {
@@ -232,6 +251,9 @@ func (s *Server) privateChatMessages(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "用户不存在")
 		return
 	}
+	if !s.authorizeSourceGamePrivateChat(w, userID, targetUserID, sourceGameID) {
+		return
+	}
 	messages, conversation, err := s.im.PrivateMessages(userID, targetUserID, sourceGameID)
 	if err != nil {
 		writeIMError(w, err)
@@ -262,12 +284,15 @@ func (s *Server) sendPrivateChatMessage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if req.TargetUserID <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "targetUserId invalid")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "接收用户 ID 错误")
 		return
 	}
 	target, found := s.auth.UserByID(req.TargetUserID)
 	if !found || target.Status != "active" {
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "用户不存在")
+		return
+	}
+	if !s.authorizeSourceGamePrivateChat(w, userID, req.TargetUserID, req.SourceGameID) {
 		return
 	}
 	message, conversation, err := s.im.SendPrivate(userID, req.TargetUserID, req.SourceGameID, im.SendRequest{
@@ -279,12 +304,41 @@ func (s *Server) sendPrivateChatMessage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	s.recordBehavior(userID, "send_private_message", "user", req.TargetUserID, map[string]interface{}{"conversationId": conversation.ID, "messageId": message.ID, "sourceGameId": req.SourceGameID})
-	s.createPrivateMessageNotification(userID, req.TargetUserID, message)
+	s.createPrivateMessageNotification(w, userID, req.TargetUserID, message)
 	httpx.OK(w, map[string]interface{}{
 		"conversation": conversation,
 		"targetUser":   s.privateChatUserDTO(target),
 		"message":      s.privateChatMessageDTO(message),
 	})
+}
+
+// 带局来源的“打招呼”只能发生在局已开局且双方均已入局后。
+// 这与局内 IM 的开放时点一致，不能让详情页链接绕过前端提示直接私聊。
+func (s *Server) authorizeSourceGamePrivateChat(w http.ResponseWriter, userID int64, targetUserID int64, sourceGameID int64) bool {
+	if sourceGameID <= 0 {
+		return true
+	}
+
+	game, err := s.games.Get(sourceGameID)
+	if err != nil {
+		// 历史私聊记录可能携带已清理的来源局。该来源仅用于追溯，
+		// 不应阻止无来源权限的普通私聊继续读取。
+		return true
+	}
+	if !s.games.IsMember(sourceGameID, userID) || !s.games.IsMember(sourceGameID, targetUserID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅局内玩家可用，请先报名")
+		return false
+	}
+	if game.Status != "in_progress" {
+		if game.Status == "recruiting" || game.Status == "full" || game.Status == "pending_audit" {
+			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "局还未开")
+			return false
+		}
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "本局已结束，暂不能发起私聊")
+		return false
+	}
+
+	return true
 }
 
 func (s *Server) createIMMessageNotifications(senderID int64, message im.Message) {
@@ -313,12 +367,25 @@ func (s *Server) createIMMessageNotifications(senderID int64, message im.Message
 	}
 }
 
-func (s *Server) createPrivateMessageNotification(senderID int64, targetUserID int64, message im.PrivateMessage) {
+// 无论从消息中心、局详情还是实时连接进入房间，都要同步清除该局的消息红点。
+func (s *Server) markGameIMNotificationsRead(userID int64, gameID int64) {
+	if s == nil || s.notices == nil || userID <= 0 || gameID <= 0 {
+		return
+	}
+	for _, item := range s.notices.List(userID) {
+		if item.Status != "unread" || item.NotifyType != "im_message" || item.BizType != "game" || item.BizID != gameID {
+			continue
+		}
+		_, _ = s.notices.MarkRead(userID, item.ID)
+	}
+}
+
+func (s *Server) createPrivateMessageNotification(w http.ResponseWriter, senderID int64, targetUserID int64, message im.PrivateMessage) {
 	if s == nil || s.notices == nil || targetUserID <= 0 || message.Status != "sent" {
 		return
 	}
 	senderName := s.displayName(senderID, "用户 "+strconv.FormatInt(senderID, 10))
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "private_message", notifications.CreateRequest{
 		UserID:     targetUserID,
 		NotifyType: "private_message",
 		Title:      "收到私聊消息",
@@ -468,6 +535,8 @@ func imRoleText(role string) string {
 		return "发起人"
 	case "main_guide", "guide":
 		return "领路人"
+	case "guide_escort":
+		return "护航领路人"
 	case "expert":
 		return "行家"
 	case "guest":
@@ -526,7 +595,10 @@ func (s *Server) archiveRoom(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Reason string `json:"reason"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
 	room, err := s.im.ArchiveRoom(userID, roomID, req.Reason)
 	if err != nil {
 		writeIMError(w, err)
@@ -555,22 +627,43 @@ func (s *Server) openIMWebhook(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, event)
 }
 
-func (s *Server) validateChatMessageFile(w http.ResponseWriter, req im.SendRequest, gameID int64) bool {
+func (s *Server) prepareChatMessageFile(w http.ResponseWriter, req *im.SendRequest, gameID int64) bool {
+	if req == nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return false
+	}
 	if req.MessageType != "image" && req.MessageType != "file" && req.MessageType != "voice" {
 		return true
 	}
 	file, err := s.files.Get(req.FileID)
 	if err != nil {
 		if errors.Is(err, files.ErrFileNotFound) {
-			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "file not found")
+			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "文件不存在")
 			return false
 		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "failed to get file")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取文件失败")
 		return false
 	}
 	if file.BizType != "chat_file" || file.ObjectID != gameID {
-		httpx.Error(w, http.StatusForbidden, 40331, "file access denied")
+		httpx.Error(w, http.StatusForbidden, 40331, "无权使用该文件")
 		return false
+	}
+	mimeType := strings.ToLower(strings.TrimSpace(file.MimeType))
+	if req.MessageType == "image" && !strings.HasPrefix(mimeType, "image/") {
+		writeIMError(w, im.ErrInvalidImageFile)
+		return false
+	}
+	if req.MessageType == "voice" && !strings.HasPrefix(mimeType, "audio/") {
+		writeIMError(w, im.ErrInvalidVoiceFile)
+		return false
+	}
+	download, err := s.files.DownloadURLForFile(file)
+	if err != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "文件服务暂不可用")
+		return false
+	}
+	req.Attachment = &im.MessageAttachment{
+		URL: download.DownloadURL, FileName: file.FileName, MimeType: file.MimeType, Size: file.Size,
 	}
 	return true
 }
@@ -608,9 +701,18 @@ func (s *Server) adminIMRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
-	messages := s.im.AllMessages()
+	messages, err := s.im.AllMessagesStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取聊天消息失败，请稍后重试")
+		return
+	}
+	rooms, err := s.im.AdminRoomsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取聊天室失败，请稍后重试")
+		return
+	}
 	items := make([]map[string]interface{}, 0)
-	for _, room := range s.im.AdminRooms() {
+	for _, room := range rooms {
 		if hasGameFilter && room.GameID != gameFilter {
 			continue
 		}
@@ -696,7 +798,10 @@ func (s *Server) adminArchiveIMRoom(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Reason string `json:"reason"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
 	room, err := s.im.AdminArchiveRoom(roomID, req.Reason)
 	if err != nil {
 		writeIMError(w, err)
@@ -717,7 +822,10 @@ func (s *Server) adminHideIMMessage(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Reason string `json:"reason"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
 	message, err := s.im.AdminHideMessage(messageID, req.Reason)
 	if err != nil {
 		writeIMError(w, err)
@@ -831,7 +939,7 @@ func adminIMMessageIDFromPath(w http.ResponseWriter, path string, suffix string)
 	text := strings.TrimSuffix(strings.TrimPrefix(path, "/api/admin/im/messages/"), suffix)
 	id, err := strconv.ParseInt(strings.Trim(text, "/"), 10, 64)
 	if err != nil || id <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "娑堟伅 ID 閿欒")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "消息 ID 错误")
 		return 0, false
 	}
 	return id, true
@@ -844,7 +952,7 @@ func optionalInt64Query(w http.ResponseWriter, r *http.Request, name string) (in
 	}
 	id, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || id <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, name+" invalid")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "参数错误")
 		return 0, true, false
 	}
 	return id, true, true
@@ -854,7 +962,7 @@ func requiredInt64Query(w http.ResponseWriter, r *http.Request, name string) (in
 	value := strings.TrimSpace(r.URL.Query().Get(name))
 	id, err := strconv.ParseInt(value, 10, 64)
 	if value == "" || err != nil || id <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, name+" invalid")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "参数错误")
 		return 0, false
 	}
 	return id, true
@@ -943,6 +1051,10 @@ func writeIMError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusNotFound, 40432, "IM 消息不存在")
 	case errors.Is(err, im.ErrInvalidMessage):
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "IM 消息参数错误")
+	case errors.Is(err, im.ErrInvalidImageFile):
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "图片消息只能发送图片文件")
+	case errors.Is(err, im.ErrInvalidVoiceFile):
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "语音消息只能发送音频文件")
 	case errors.Is(err, im.ErrSensitive):
 		httpx.Error(w, http.StatusUnavailableForLegalReasons, 45101, "消息命中敏感词")
 	case errors.Is(err, im.ErrExternalIM):

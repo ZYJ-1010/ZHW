@@ -15,12 +15,11 @@
       <view class="panel-header">
         <view class="panel-copy">
           <text class="panel-title">{{panelTitle}}</text>
-          <text class="panel-subtitle">{{panelSubtitle}}</text>
+          <text class="panel-subtitle">请选择一种开局方式后继续</text>
         </view>
-        <button class="close-button" hover-class="none" aria-label="关闭" bindtap="onCloseTap">
-          <image class="close-icon" src="https://static.haowan.net.cn/miniprogram/pages/game/play-again/assets/i8@3x.png" mode="aspectFit"></image>
-        </button>
       </view>
+
+      <text class="choice-required">开局方式为必选项</text>
 
       <view class="option-list">
         <view wx:if="{{!recommendOptions.length}}" class="option-card">
@@ -48,7 +47,8 @@
         </view>
       </view>
 
-      <text class="panel-footnote">随时可在「我的」-「组局记录」中查看</text>
+      <button class="confirm-choice-button {{selectedOption ? '' : 'disabled'}}" hover-class="none" aria-disabled="{{!selectedOption}}" bindtap="onConfirmTap">确认选择</button>
+      <text class="panel-footnote">选择后将进入对应的下一步</text>
     </view>
   </view>
 </home-shell>

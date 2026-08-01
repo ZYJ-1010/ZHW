@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -23,6 +25,9 @@ type gameService interface {
 	Create(userID int64, req games.CreateRequest) (games.Game, error)
 	CreateFromAdmin(req games.CreateRequest) (games.Game, error)
 	List() []games.Game
+	ListStrict() ([]games.Game, error)
+	Members(gameID int64) []int64
+	MembersStrict(gameID int64) ([]int64, error)
 	Get(id int64) (games.Game, error)
 	ApproveGame(gameID int64) (games.Game, error)
 	RejectGame(gameID int64, reason string) (games.Game, error)
@@ -34,7 +39,9 @@ type gameService interface {
 	ReviewApplicationWithReason(operatorUserID int64, applicationID int64, approve bool, rejectReason string) (games.Application, error)
 	CancelApplication(userID int64, applicationID int64) (games.Application, error)
 	ApplicationsForUser(userID int64) []games.Application
+	ApplicationsForUserStrict(userID int64) ([]games.Application, error)
 	ApplicationsForCreator(userID int64) []games.Application
+	ApplicationsForCreatorStrict(userID int64) ([]games.Application, error)
 	InvitationsForUser(userID int64) []games.Invitation
 	ManualStart(userID int64, gameID int64) (games.Game, error)
 	ManualStartWithReason(userID int64, gameID int64, startReason string) (games.Game, error)
@@ -66,28 +73,34 @@ type gameService interface {
 	FavoriteGame(userID int64, gameID int64) (games.Favorite, error)
 	UnfavoriteGame(userID int64, gameID int64) error
 	FavoriteGames(userID int64) []games.Favorite
+	FavoriteGamesStrict(userID int64) ([]games.Favorite, error)
 	FavoritesForUser(userID int64) []games.Favorite
 	AllFavorites() []games.Favorite
+	AllFavoritesStrict() ([]games.Favorite, error)
 	StatsForUser(userID int64) games.UserStats
-	Members(gameID int64) []int64
+	StatsForUserStrict(userID int64) (games.UserStats, error)
+	ParticipatedBetween(userID int64, start time.Time, end time.Time) bool
+	ParticipatedBetweenStrict(userID int64, start time.Time, end time.Time) (bool, error)
 	MemberRoles(gameID int64) []games.MemberRole
 	IsMember(gameID int64, userID int64) bool
+	IsMemberStrict(gameID int64, userID int64) (bool, error)
 }
 
 type GameDetailDTO struct {
 	games.Game
-	MyRelation         GameMyRelationDTO    `json:"myRelation"`
-	DetailDisplay      GameDetailDisplayDTO `json:"detailDisplay"`
-	MemberIDs          []int64              `json:"memberIds"`
-	Members            []GameMemberDTO      `json:"members"`
-	IsFavorited        bool                 `json:"isFavorited"`
-	FavoriteCount      int                  `json:"favoriteCount"`
-	Progress           GameProgressDTO      `json:"progress"`
-	IM                 GameIMDTO            `json:"im"`
-	Review             GameReviewDTO        `json:"review"`
-	ServiceConfirm     *ServiceConfirmDTO   `json:"serviceConfirm,omitempty"`
-	PendingApplication *games.Application   `json:"pendingApplication,omitempty"`
-	AuditRejectReason  string               `json:"auditRejectReason,omitempty"`
+	MyRelation         GameMyRelationDTO           `json:"myRelation"`
+	DetailDisplay      GameDetailDisplayDTO        `json:"detailDisplay"`
+	MemberIDs          []int64                     `json:"memberIds"`
+	Members            []GameMemberDTO             `json:"members"`
+	IsFavorited        bool                        `json:"isFavorited"`
+	FavoriteCount      int                         `json:"favoriteCount"`
+	Progress           GameProgressDTO             `json:"progress"`
+	IM                 GameIMDTO                   `json:"im"`
+	Review             GameReviewDTO               `json:"review"`
+	ServiceConfirm     *ServiceConfirmDTO          `json:"serviceConfirm,omitempty"`
+	PendingApplication *games.Application          `json:"pendingApplication,omitempty"`
+	AuditRejectReason  string                      `json:"auditRejectReason,omitempty"`
+	ShareComponent     gameShareComponentConfigDTO `json:"shareComponent"`
 }
 
 type GameListAvatarDTO struct {
@@ -98,7 +111,8 @@ type GameListAvatarDTO struct {
 
 type GameListItemDTO struct {
 	games.Game
-	PlayerAvatars []GameListAvatarDTO `json:"playerAvatars"`
+	PlayerAvatars  []GameListAvatarDTO         `json:"playerAvatars"`
+	ShareComponent gameShareComponentConfigDTO `json:"shareComponent"`
 }
 
 type GameDetailDisplayDTO struct {
@@ -130,18 +144,27 @@ type GameDetailPrimaryActionDTO struct {
 }
 
 type GameMyRelationDTO struct {
-	Role                string `json:"role"`
-	IsCreator           bool   `json:"isCreator"`
-	IsMember            bool   `json:"isMember"`
-	CanApply            bool   `json:"canApply"`
-	ApplyDisabledReason string `json:"applyDisabledReason,omitempty"`
-	CanAudit            bool   `json:"canAudit"`
-	CanStart            bool   `json:"canStart"`
-	CanEnterIM          bool   `json:"canEnterIM"`
-	CanConfirm          bool   `json:"canConfirm"`
-	CanReview           bool   `json:"canReview"`
-	ApplicationID       int64  `json:"applicationId,omitempty"`
-	ApplicationStatus   string `json:"applicationStatus,omitempty"`
+	Role                string                   `json:"role"`
+	AllowedRoles        []string                 `json:"allowedRoles"`
+	ApplyRoleOptions    []GameApplyRoleOptionDTO `json:"applyRoleOptions"`
+	IsCreator           bool                     `json:"isCreator"`
+	IsMember            bool                     `json:"isMember"`
+	CanApply            bool                     `json:"canApply"`
+	ApplyDisabledReason string                   `json:"applyDisabledReason,omitempty"`
+	CanAudit            bool                     `json:"canAudit"`
+	CanStart            bool                     `json:"canStart"`
+	CanEnterIM          bool                     `json:"canEnterIM"`
+	CanConfirm          bool                     `json:"canConfirm"`
+	CanReview           bool                     `json:"canReview"`
+	ApplicationID       int64                    `json:"applicationId,omitempty"`
+	ApplicationStatus   string                   `json:"applicationStatus,omitempty"`
+}
+
+type GameApplyRoleOptionDTO struct {
+	Key            string `json:"key"`
+	Label          string `json:"label"`
+	Enabled        bool   `json:"enabled"`
+	DisabledReason string `json:"disabledReason,omitempty"`
 }
 
 type GameProgressDTO struct {
@@ -201,16 +224,25 @@ type gameCategoryOptionDTO struct {
 }
 
 type gameCategoryConfigDTO struct {
-	PrimaryCategories        []gameCategoryOptionDTO `json:"primaryCategories"`
-	TypeFilters              []gameCategoryOptionDTO `json:"typeFilters"`
-	LocationFilters          []gameCategoryOptionDTO `json:"locationFilters"`
-	SortOptions              []gameHallSortOptionDTO `json:"sortOptions,omitempty"`
-	EventActions             []string                `json:"eventActions,omitempty"`
-	DefaultPrimaryCategory   string                  `json:"defaultPrimaryCategory"`
-	DefaultSecondaryCategory string                  `json:"defaultSecondaryCategory"`
-	DefaultType              string                  `json:"defaultType"`
-	CreateForm               gameCreateFormConfigDTO `json:"createForm"`
-	Version                  string                  `json:"version"`
+	PrimaryCategories        []gameCategoryOptionDTO     `json:"primaryCategories"`
+	TypeFilters              []gameCategoryOptionDTO     `json:"typeFilters"`
+	LocationFilters          []gameCategoryOptionDTO     `json:"locationFilters"`
+	SortOptions              []gameHallSortOptionDTO     `json:"sortOptions,omitempty"`
+	EventActions             []string                    `json:"eventActions,omitempty"`
+	ShareComponent           gameShareComponentConfigDTO `json:"shareComponent"`
+	DefaultPrimaryCategory   string                      `json:"defaultPrimaryCategory"`
+	DefaultSecondaryCategory string                      `json:"defaultSecondaryCategory"`
+	DefaultType              string                      `json:"defaultType"`
+	CreateForm               gameCreateFormConfigDTO     `json:"createForm"`
+	Version                  string                      `json:"version"`
+}
+
+type gameShareComponentConfigDTO struct {
+	Enabled        bool   `json:"enabled"`
+	Variant        string `json:"variant"`
+	Label          string `json:"label"`
+	EnableInternal bool   `json:"enableInternal"`
+	EnableWechat   bool   `json:"enableWechat"`
 }
 
 type gameHallSortOptionDTO struct {
@@ -237,7 +269,6 @@ type gameCreateFormConfigDTO struct {
 	ParticipationModes  []gameCreateFormOptionDTO   `json:"participationModes"`
 	Tags                []gameCreateFormOptionDTO   `json:"tags"`
 	CompletionRules     []gameCreateFormOptionDTO   `json:"completionRules"`
-	FeeTypes            []gameCreateFormOptionDTO   `json:"feeTypes"`
 }
 
 // gameCreateTemplateDTO is an operation-maintained starting point for the
@@ -272,23 +303,24 @@ const gameDeliveryPageConfigKey = "game.delivery_page_config"
 const gameMyGamesPageConfigKey = "game.my_games_page_config"
 
 type gameApplicationConfigDTO struct {
-	AgreementTitle      string                            `json:"agreementTitle"`
-	AgreementText       string                            `json:"agreementText"`
-	RequireRealname     bool                              `json:"requireRealname"`
-	RequireIntro        bool                              `json:"requireIntro"`
-	RequireAgreement    bool                              `json:"requireAgreement"`
-	AllowDuplicateApply bool                              `json:"allowDuplicateApply"`
-	UploadRequired      bool                              `json:"uploadRequired"`
-	MaxUploadCount      int                               `json:"maxUploadCount"`
-	AllowedUploadTypes  []string                          `json:"allowedUploadTypes"`
-	MinIntroLength      int                               `json:"minIntroLength"`
-	MaxIntroLength      int                               `json:"maxIntroLength"`
-	MaxMessageLength    int                               `json:"maxMessageLength"`
-	SearchEnabled       bool                              `json:"searchEnabled"`
-	RecommendationHint  string                            `json:"recommendationHint"`
-	Texts               map[string]string                 `json:"texts,omitempty"`
-	AuditPage           gameApplicationAuditPageConfigDTO `json:"auditPage,omitempty"`
-	Version             string                            `json:"version"`
+	AgreementTitle       string                            `json:"agreementTitle"`
+	AgreementText        string                            `json:"agreementText"`
+	RequireRealname      bool                              `json:"requireRealname"`
+	RequireIntro         bool                              `json:"requireIntro"`
+	RequireAgreement     bool                              `json:"requireAgreement"`
+	AllowDuplicateApply  bool                              `json:"allowDuplicateApply"`
+	UploadRequired       bool                              `json:"uploadRequired"`
+	MaxUploadCount       int                               `json:"maxUploadCount"`
+	AllowedUploadTypes   []string                          `json:"allowedUploadTypes"`
+	MinIntroLength       int                               `json:"minIntroLength"`
+	MaxIntroLength       int                               `json:"maxIntroLength"`
+	MaxMessageLength     int                               `json:"maxMessageLength"`
+	SearchEnabled        bool                              `json:"searchEnabled"`
+	RecommendationHint   string                            `json:"recommendationHint"`
+	SubscribeTemplateIDs []string                          `json:"subscribeTemplateIds,omitempty"`
+	Texts                map[string]string                 `json:"texts,omitempty"`
+	AuditPage            gameApplicationAuditPageConfigDTO `json:"auditPage,omitempty"`
+	Version              string                            `json:"version"`
 }
 
 type gameApplicationAuditFilterDTO struct {
@@ -473,14 +505,7 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			Icon:    "category-social",
 			Visible: true,
 			Order:   10,
-			Children: []gameCategoryOptionDTO{
-				categoryChild("meal", "饭局", 10),
-				categoryChild("dibai", "地白局", 20),
-				categoryChild("board_game", "桌游局", 30),
-				categoryChild("friend", "交友局", 40),
-				categoryChild("walk", "同城散步局", 50),
-			},
-			Tags: categoryTags("轻松社交", "同城搭子", "桌游", "美食"),
+			Tags:    categoryTags("轻松社交", "同城搭子", "桌游", "美食"),
 		},
 		{
 			Key:     "task",
@@ -488,14 +513,7 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			Icon:    "category-task",
 			Visible: true,
 			Order:   20,
-			Children: []gameCategoryOptionDTO{
-				categoryChild("partner", "找合伙人", 10),
-				categoryChild("project", "做项目", 20),
-				categoryChild("brainstorm", "头脑风暴", 30),
-				categoryChild("cowork", "组队共创", 40),
-				categoryChild("extension", "扩展方案", 50),
-			},
-			Tags: categoryTags("找搭子", "项目协作", "创业", "资源对接"),
+			Tags:    categoryTags("找搭子", "项目协作", "创业", "资源对接"),
 		},
 		{
 			Key:     "explore",
@@ -503,14 +521,7 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			Icon:    "category-income",
 			Visible: true,
 			Order:   30,
-			Children: []gameCategoryOptionDTO{
-				categoryChild("city_store", "城市探店", 10),
-				categoryChild("route_blind_box", "路线盲盒", 20),
-				categoryChild("checkin_challenge", "打卡挑战", 30),
-				categoryChild("city_story", "城市故事采集", 40),
-				categoryChild("night_walk", "夜游/徒步/骑行", 50),
-			},
-			Tags: categoryTags("城市探索", "户外", "打卡", "周末"),
+			Tags:    categoryTags("城市探索", "户外", "打卡", "周末"),
 		},
 		{
 			Key:     "growth",
@@ -518,26 +529,13 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			Icon:    "category-growth",
 			Visible: true,
 			Order:   40,
-			Children: []gameCategoryOptionDTO{
-				categoryChild("reading", "读书局", 10),
-				categoryChild("fitness", "健身局", 20),
-				categoryChild("checkin", "打卡局", 30),
-				categoryChild("deposit_checkin", "押金局", 40),
-				categoryChild("study", "学习共修局", 50),
-			},
-			Tags: categoryTags("学习", "健康", "习惯养成", "自我提升"),
+			Tags:    categoryTags("学习", "健康", "习惯养成", "自我提升"),
 		},
 	}
 	return gameCategoryConfigDTO{
 		PrimaryCategories: primaryCategories,
 		TypeFilters: []gameCategoryOptionDTO{
-			{Key: "all", Name: "类型", Visible: true, Order: 0, Selectable: true},
-			{Key: "free", Name: "免费局", Visible: true, Order: 10, Selectable: true},
-			{Key: "standard", Name: "标准局", Visible: true, Order: 20, Selectable: true},
-			{Key: "aa", Name: "AA局", Visible: true, Order: 30, Selectable: true},
-			{Key: "crowdfund", Name: "众筹局", Visible: true, Order: 40, Selectable: true},
-			{Key: "deposit", Name: "押金局", Visible: true, Order: 50, Selectable: true},
-			{Key: "public_welfare", Name: "公益局", Visible: true, Order: 60, Selectable: false},
+			{Key: "all", Name: "全部", Visible: true, Order: 0, Selectable: true},
 		},
 		LocationFilters: []gameCategoryOptionDTO{
 			{Key: "all", Name: "全国", Visible: true, Order: 0, Selectable: true},
@@ -549,10 +547,11 @@ func defaultGameCategoryConfig() gameCategoryConfigDTO {
 			{Key: "distance", Name: "距离最近", SortKey: "distance", SortOrder: "asc"},
 			{Key: "credit", Name: "信用优先", SortKey: "credit", SortOrder: "desc"},
 		},
-		EventActions:             []string{"分享", "关注", "引荐", "打招呼"},
+		EventActions:             []string{"分享", "关注", "打招呼"},
+		ShareComponent:           gameShareComponentConfigDTO{Enabled: true, Variant: "channel_sheet", Label: "分享", EnableInternal: true, EnableWechat: true},
 		DefaultPrimaryCategory:   "task",
-		DefaultSecondaryCategory: "project",
-		DefaultType:              "free",
+		DefaultSecondaryCategory: "",
+		DefaultType:              "all",
 		CreateForm:               defaultGameCreateFormConfig(),
 		Version:                  "2026-07-20-category-v2",
 	}
@@ -579,20 +578,16 @@ func defaultGameCreateFormConfig() gameCreateFormConfigDTO {
 			{Key: "capacity", Name: "人数满额"},
 			{Key: "manual", Name: "手动结束", Active: true},
 		},
-		FeeTypes: []gameCreateFormOptionDTO{
-			{Key: "free", Name: "免费局"},
-			{Key: "paid", Name: "收费局"},
-		},
 	}
 }
 
 func defaultGameCreateTemplateConfig() gameCreateTemplateConfigDTO {
 	return gameCreateTemplateConfigDTO{
 		Items: []gameCreateTemplateDTO{
-			{Key: "social_board_game", Name: "同城桌游", Description: "适合线下轻松社交", PrimaryCategory: "social", SecondaryCategory: "board_game", Participation: "offline", Capacity: 5, Tags: []string{"同城搭子", "桌游"}, CompletionRules: []string{"time", "manual"}, Visible: true, Order: 10},
-			{Key: "task_cocreation", Name: "项目共创", Description: "适合共同推进一个明确目标", PrimaryCategory: "task", SecondaryCategory: "cowork", Participation: "hybrid", Capacity: 5, Tags: []string{"项目协作", "资源对接"}, CompletionRules: []string{"goal", "manual"}, Visible: true, Order: 20},
-			{Key: "explore_weekend", Name: "周末探索", Description: "适合城市探索和线下打卡", PrimaryCategory: "explore", SecondaryCategory: "city_store", Participation: "offline", Capacity: 5, Tags: []string{"城市探索", "周末"}, CompletionRules: []string{"time", "capacity"}, Visible: true, Order: 30},
-			{Key: "growth_reading", Name: "读书共修", Description: "适合学习、习惯养成和共同复盘", PrimaryCategory: "growth", SecondaryCategory: "reading", Participation: "hybrid", Capacity: 5, Tags: []string{"学习", "习惯养成"}, CompletionRules: []string{"time", "goal"}, Visible: true, Order: 40},
+			{Key: "social_board_game", Name: "同城桌游", Description: "适合线下轻松社交", PrimaryCategory: "social", Participation: "offline", Capacity: 5, Tags: []string{"同城搭子", "桌游"}, CompletionRules: []string{"time", "manual"}, Visible: true, Order: 10},
+			{Key: "task_cocreation", Name: "项目共创", Description: "适合共同推进一个明确目标", PrimaryCategory: "task", Participation: "hybrid", Capacity: 5, Tags: []string{"项目协作", "资源对接"}, CompletionRules: []string{"goal", "manual"}, Visible: true, Order: 20},
+			{Key: "explore_weekend", Name: "周末探索", Description: "适合城市探索和线下打卡", PrimaryCategory: "explore", Participation: "offline", Capacity: 5, Tags: []string{"城市探索", "周末"}, CompletionRules: []string{"time", "capacity"}, Visible: true, Order: 30},
+			{Key: "growth_reading", Name: "读书共修", Description: "适合学习、习惯养成和共同复盘", PrimaryCategory: "growth", Participation: "hybrid", Capacity: 5, Tags: []string{"学习", "习惯养成"}, CompletionRules: []string{"time", "goal"}, Visible: true, Order: 40},
 		},
 		Version: "2026-07-20-create-templates-v1",
 	}
@@ -617,13 +612,9 @@ func (s *Server) currentGameCreateTemplateConfig() gameCreateTemplateConfigDTO {
 
 func normalizeGameCreateTemplateConfig(req gameCreateTemplateConfigDTO, categoryConfig gameCategoryConfigDTO) (gameCreateTemplateConfigDTO, error) {
 	seen := map[string]bool{}
-	primaryChildren := map[string]map[string]bool{}
+	primaryCategories := map[string]bool{}
 	for _, primary := range categoryConfig.PrimaryCategories {
-		children := map[string]bool{}
-		for _, child := range primary.Children {
-			children[strings.TrimSpace(child.Key)] = true
-		}
-		primaryChildren[strings.TrimSpace(primary.Key)] = children
+		primaryCategories[strings.TrimSpace(primary.Key)] = true
 	}
 	items := make([]gameCreateTemplateDTO, 0, len(req.Items))
 	for _, item := range req.Items {
@@ -631,24 +622,23 @@ func normalizeGameCreateTemplateConfig(req gameCreateTemplateConfigDTO, category
 		item.Name = strings.TrimSpace(item.Name)
 		item.Description = strings.TrimSpace(item.Description)
 		item.PrimaryCategory = strings.TrimSpace(item.PrimaryCategory)
-		item.SecondaryCategory = strings.TrimSpace(item.SecondaryCategory)
+		// 小类别已从一期创建局及后台模板配置中移除；保留字段仅用于
+		// 兼容历史局的读取，新增和编辑模板不再写入。
+		item.SecondaryCategory = ""
 		item.Participation = strings.TrimSpace(item.Participation)
 		if item.Key == "" || item.Name == "" || seen[item.Key] {
-			return gameCreateTemplateConfigDTO{}, errors.New("template key and name must be unique")
+			return gameCreateTemplateConfigDTO{}, errors.New("模板编码和名称不能为空，且编码不能重复")
 		}
-		if _, ok := primaryChildren[item.PrimaryCategory]; !ok {
-			return gameCreateTemplateConfigDTO{}, errors.New("template primaryCategory not found: " + item.PrimaryCategory)
-		}
-		if item.SecondaryCategory == "" || !primaryChildren[item.PrimaryCategory][item.SecondaryCategory] {
-			return gameCreateTemplateConfigDTO{}, errors.New("template secondaryCategory not found: " + item.SecondaryCategory)
+		if !primaryCategories[item.PrimaryCategory] {
+			return gameCreateTemplateConfigDTO{}, errors.New("模板局类型不存在：" + item.PrimaryCategory)
 		}
 		if item.Participation != "" && item.Participation != "online" && item.Participation != "offline" && item.Participation != "hybrid" {
-			return gameCreateTemplateConfigDTO{}, errors.New("template participation invalid")
+			return gameCreateTemplateConfigDTO{}, errors.New("模板参与方式不正确")
 		}
 		minCapacity := categoryConfig.CreateForm.Capacity.Min
 		maxCapacity := categoryConfig.CreateForm.Capacity.Max
 		if item.Capacity < 0 || item.Capacity > maxCapacity || (item.Capacity > 0 && item.Capacity < minCapacity) {
-			return gameCreateTemplateConfigDTO{}, errors.New("template capacity invalid")
+			return gameCreateTemplateConfigDTO{}, errors.New("模板人数不在允许范围内")
 		}
 		item.Tags = cleanStringSlice(item.Tags)
 		item.CompletionRules = cleanStringSlice(item.CompletionRules)
@@ -677,10 +667,6 @@ func cleanStringSlice(values []string) []string {
 	return result
 }
 
-func categoryChild(key string, name string, order int) gameCategoryOptionDTO {
-	return gameCategoryOptionDTO{Key: key, Name: name, Visible: true, Order: order, Selectable: true}
-}
-
 func categoryTags(names ...string) []gameCreateFormOptionDTO {
 	items := make([]gameCreateFormOptionDTO, 0, len(names))
 	for _, name := range names {
@@ -699,7 +685,7 @@ func (s *Server) adminGameCategoryConfig(w http.ResponseWriter, r *http.Request)
 	case http.MethodPut:
 		var req gameCategoryConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid category config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "局类型配置格式不正确")
 			return
 		}
 		config, err := normalizeGameCategoryConfig(req)
@@ -708,7 +694,7 @@ func (s *Server) adminGameCategoryConfig(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if err := s.setGameCategoryConfig(config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save category config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存局类型配置失败")
 			return
 		}
 		s.recordOperation(r, "game_category_config:update", "system_config", "game_category_config", map[string]interface{}{
@@ -719,7 +705,7 @@ func (s *Server) adminGameCategoryConfig(w http.ResponseWriter, r *http.Request)
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentGameCategoryConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -730,7 +716,7 @@ func (s *Server) adminGameCreateTemplateConfig(w http.ResponseWriter, r *http.Re
 	case http.MethodPut:
 		var req gameCreateTemplateConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid create template config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "局模板配置格式不正确")
 			return
 		}
 		config, err := normalizeGameCreateTemplateConfig(req, s.currentGameCategoryConfig())
@@ -739,7 +725,7 @@ func (s *Server) adminGameCreateTemplateConfig(w http.ResponseWriter, r *http.Re
 			return
 		}
 		if err := s.systemConfig.Set(gameCreateTemplateConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save create template config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存局模板配置失败")
 			return
 		}
 		s.recordOperation(r, "game_create_template_config:update", "system_config", gameCreateTemplateConfigKey, map[string]interface{}{
@@ -748,7 +734,7 @@ func (s *Server) adminGameCreateTemplateConfig(w http.ResponseWriter, r *http.Re
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentGameCreateTemplateConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -759,7 +745,7 @@ func (s *Server) adminGameApplicationConfig(w http.ResponseWriter, r *http.Reque
 	case http.MethodPut:
 		var req gameApplicationConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid application config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "入局申请配置格式不正确")
 			return
 		}
 		config, err := normalizeGameApplicationConfig(req)
@@ -768,7 +754,7 @@ func (s *Server) adminGameApplicationConfig(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		if err := s.systemConfig.Set(gameApplicationConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save application config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存入局申请配置失败")
 			return
 		}
 		s.recordOperation(r, "game_application_config:update", "system_config", "game_application_config", map[string]interface{}{
@@ -778,7 +764,7 @@ func (s *Server) adminGameApplicationConfig(w http.ResponseWriter, r *http.Reque
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentGameApplicationConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -789,7 +775,7 @@ func (s *Server) adminGameAuditConfig(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		var req gameAuditConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid audit config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "组局审核配置格式不正确")
 			return
 		}
 		config, err := normalizeGameAuditConfig(req)
@@ -798,7 +784,7 @@ func (s *Server) adminGameAuditConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := s.systemConfig.Set(gameAuditConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save audit config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存组局审核配置失败")
 			return
 		}
 		s.recordOperation(r, "game_audit_config:update", "system_config", "game_audit_config", map[string]interface{}{
@@ -808,7 +794,7 @@ func (s *Server) adminGameAuditConfig(w http.ResponseWriter, r *http.Request) {
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentGameAuditConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -819,7 +805,7 @@ func (s *Server) adminGameConditionRuleConfig(w http.ResponseWriter, r *http.Req
 	case http.MethodPut:
 		var req gameConditionRuleConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid condition rule config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "条件规则配置格式不正确")
 			return
 		}
 		config, err := normalizeGameConditionRuleConfig(req)
@@ -828,7 +814,7 @@ func (s *Server) adminGameConditionRuleConfig(w http.ResponseWriter, r *http.Req
 			return
 		}
 		if err := s.systemConfig.Set(gameConditionRuleConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save condition rule config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存条件规则配置失败")
 			return
 		}
 		s.recordOperation(r, "game_condition_rule_config:update", "system_config", "game_condition_rule_config", map[string]interface{}{
@@ -838,7 +824,7 @@ func (s *Server) adminGameConditionRuleConfig(w http.ResponseWriter, r *http.Req
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentGameConditionRuleConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -846,33 +832,43 @@ func (s *Server) currentGameCategoryConfig() gameCategoryConfigDTO {
 	var stored gameCategoryConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameCategoryConfigKey, &stored) && len(stored.PrimaryCategories) > 0 {
 		config := cloneGameCategoryConfig(upgradeLegacyGameCategoryConfig(stored))
+		config.ShareComponent = normalizeGameShareComponentConfig(config.ShareComponent)
+		config.EventActions = normalizeGameCardActions(config.EventActions, config.ShareComponent)
 		s.applyOperationGameLimits(&config)
 		return config
 	}
 	s.gameCategoryConfigMu.RLock()
 	if len(s.gameCategoryConfig.PrimaryCategories) > 0 {
 		config := cloneGameCategoryConfig(s.gameCategoryConfig)
+		config.ShareComponent = normalizeGameShareComponentConfig(config.ShareComponent)
+		config.EventActions = normalizeGameCardActions(config.EventActions, config.ShareComponent)
 		s.gameCategoryConfigMu.RUnlock()
 		s.applyOperationGameLimits(&config)
 		return config
 	}
 	s.gameCategoryConfigMu.RUnlock()
 	config := cloneGameCategoryConfig(defaultGameCategoryConfig())
+	config.ShareComponent = normalizeGameShareComponentConfig(config.ShareComponent)
+	config.EventActions = normalizeGameCardActions(config.EventActions, config.ShareComponent)
 	s.applyOperationGameLimits(&config)
 	return config
 }
 
-// upgradeLegacyGameCategoryConfig keeps the operational settings already
-// configured in the backend, while upgrading the old two-level taxonomy to
-// the four primary categories and their required child categories.
+// upgradeLegacyGameCategoryConfig keeps operational settings while converting
+// old taxonomy records to the four supported primary categories.
 func upgradeLegacyGameCategoryConfig(stored gameCategoryConfigDTO) gameCategoryConfigDTO {
-	if strings.TrimSpace(stored.Version) == "2026-07-20-category-v2" && hasRequiredPrimaryCategories(stored.PrimaryCategories) {
+	if hasRequiredPrimaryCategories(stored.PrimaryCategories) {
+		for index := range stored.PrimaryCategories {
+			stored.PrimaryCategories[index].Children = nil
+		}
+		stored.TypeFilters = []gameCategoryOptionDTO{{Key: "all", Name: "全部", Visible: true, Order: 0, Selectable: true}}
+		stored.DefaultType = "all"
+		stored.CreateForm = normalizeGameCreateFormConfig(stored.CreateForm)
 		return stored
 	}
 	defaults := defaultGameCategoryConfig()
-	if len(stored.TypeFilters) > 0 {
-		defaults.TypeFilters = stored.TypeFilters
-	}
+	defaults.TypeFilters = []gameCategoryOptionDTO{{Key: "all", Name: "全部", Visible: true, Order: 0, Selectable: true}}
+	defaults.DefaultType = "all"
 	if len(stored.LocationFilters) > 0 {
 		defaults.LocationFilters = stored.LocationFilters
 	}
@@ -882,19 +878,24 @@ func upgradeLegacyGameCategoryConfig(stored gameCategoryConfigDTO) gameCategoryC
 	if len(stored.EventActions) > 0 {
 		defaults.EventActions = stored.EventActions
 	}
-	if len(stored.CreateForm.ParticipationModes) > 0 || len(stored.CreateForm.Tags) > 0 || len(stored.CreateForm.CompletionRules) > 0 || len(stored.CreateForm.FeeTypes) > 0 {
-		defaults.CreateForm = stored.CreateForm
+	if len(stored.CreateForm.ParticipationModes) > 0 || len(stored.CreateForm.Tags) > 0 || len(stored.CreateForm.CompletionRules) > 0 {
+		defaults.CreateForm = normalizeGameCreateFormConfig(stored.CreateForm)
 	}
 	return defaults
 }
 
 func hasRequiredPrimaryCategories(items []gameCategoryOptionDTO) bool {
 	required := map[string]bool{"social": false, "task": false, "explore": false, "growth": false}
+	if len(items) != len(required) {
+		return false
+	}
 	for _, item := range items {
 		key := strings.TrimSpace(item.Key)
-		if _, ok := required[key]; ok {
-			required[key] = true
+		present, ok := required[key]
+		if !ok || present || !item.Visible {
+			return false
 		}
+		required[key] = true
 	}
 	for _, present := range required {
 		if !present {
@@ -914,19 +915,72 @@ func (s *Server) applyOperationGameLimits(config *gameCategoryConfigDTO) {
 }
 
 func (s *Server) currentGameApplicationConfig() gameApplicationConfigDTO {
-	var stored gameApplicationConfigDTO
-	if s.systemConfig != nil && s.systemConfig.Get(gameApplicationConfigKey, &stored) && strings.TrimSpace(stored.AgreementTitle) != "" {
-		config := mergeGameApplicationConfigDefaults(stored)
-		config.RequireRealname = false
-		return config
+	config, err := s.currentGameApplicationConfigStrict()
+	if err != nil {
+		return s.withApplicationResultSubscribeTemplates(defaultGameApplicationConfig())
 	}
-	return defaultGameApplicationConfig()
+	return config
+}
+
+// currentGameApplicationConfigStrict is used before accepting an application.
+// A storage outage must not silently drop operator-required introductions,
+// agreements, or supporting-material checks.
+func (s *Server) currentGameApplicationConfigStrict() (gameApplicationConfigDTO, error) {
+	var stored gameApplicationConfigDTO
+	if s.systemConfig != nil {
+		found, err := s.systemConfig.GetStrict(gameApplicationConfigKey, &stored)
+		if err != nil {
+			return gameApplicationConfigDTO{}, err
+		}
+		if found && strings.TrimSpace(stored.AgreementTitle) != "" {
+			config := mergeGameApplicationConfigDefaults(stored)
+			config.RequireRealname = false
+			return s.withApplicationResultSubscribeTemplates(config), nil
+		}
+	}
+	return s.withApplicationResultSubscribeTemplates(defaultGameApplicationConfig()), nil
+}
+
+// withApplicationResultSubscribeTemplates exposes the active production
+// templates needed to ask for subscription permission before a player applies.
+func (s *Server) withApplicationResultSubscribeTemplates(config gameApplicationConfigDTO) gameApplicationConfigDTO {
+	config.SubscribeTemplateIDs = s.applicationResultSubscribeTemplateIDs()
+	return config
+}
+
+func (s *Server) applicationResultSubscribeTemplateIDs() []string {
+	ids := make([]string, 0, 2)
+	for _, template := range s.notices.WechatTemplates() {
+		if template.Status != "active" || strings.HasPrefix(template.TemplateID, "mock_") {
+			continue
+		}
+		switch template.Scene {
+		case "application_approved", "application_rejected":
+			if strings.TrimSpace(template.TemplateID) != "" {
+				ids = append(ids, template.TemplateID)
+			}
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func (s *Server) applicationResultSubscribeTemplateID(scene string) string {
+	for _, template := range s.notices.WechatTemplates() {
+		if template.Scene == scene && template.Status == "active" && strings.TrimSpace(template.TemplateID) != "" && !strings.HasPrefix(template.TemplateID, "mock_") {
+			return template.TemplateID
+		}
+	}
+	return ""
 }
 
 func (s *Server) currentGameAuditConfig() gameAuditConfigDTO {
 	var stored gameAuditConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameAuditConfigKey, &stored) && strings.TrimSpace(stored.ApplicationAuditMode) != "" {
-		return cloneGameAuditConfig(stored)
+		config, err := normalizeGameAuditConfig(stored)
+		if err == nil {
+			return config
+		}
 	}
 	return defaultGameAuditConfig()
 }
@@ -942,18 +996,14 @@ func (s *Server) currentGameConditionRuleConfig() gameConditionRuleConfigDTO {
 }
 
 func (s *Server) currentGameCancelConfig() gameCancelConfigDTO {
-	var stored gameCancelConfigDTO
-	if s.systemConfig != nil && s.systemConfig.Get(gameCancelConfigKey, &stored) && len(stored.Player.ReasonOptions) > 0 && len(stored.Expert.ReasonOptions) > 0 {
-		return stored
-	}
+	// 当前仅开放免费局。旧配置带有赔付、托管资金等商业化规则，不能继续
+	// 作用于前台取消页；后续支付能力上线时再恢复后台可配置版本。
 	return defaultGameCancelConfig()
 }
 
 func (s *Server) currentGameDeliveryPageConfig() gameDeliveryPageConfigDTO {
-	var stored gameDeliveryPageConfigDTO
-	if s.systemConfig != nil && s.systemConfig.Get(gameDeliveryPageConfigKey, &stored) && strings.TrimSpace(stored.Paid.PageTitle) != "" && strings.TrimSpace(stored.Free.PageTitle) != "" {
-		return stored
-	}
+	// 一期只有免费局。旧配置中的收费、结算文案不能重新下发到小程序，
+	// 完成确认统一采用本局完成配置；二期接入支付后再扩展独立模式。
 	return defaultGameDeliveryPageConfig()
 }
 
@@ -964,11 +1014,8 @@ func (s *Server) ensureDefaultSystemConfigs() {
 	var stored gameCategoryConfigDTO
 	if !s.systemConfig.Get(gameCategoryConfigKey, &stored) || len(stored.PrimaryCategories) == 0 {
 		_ = s.systemConfig.Set(gameCategoryConfigKey, defaultGameCategoryConfig())
-	} else {
-		upgraded := upgradeLegacyGameCategoryConfig(stored)
-		if strings.TrimSpace(stored.Version) != strings.TrimSpace(upgraded.Version) || !hasRequiredPrimaryCategories(stored.PrimaryCategories) {
-			_ = s.systemConfig.Set(gameCategoryConfigKey, upgraded)
-		}
+	} else if !hasRequiredPrimaryCategories(stored.PrimaryCategories) {
+		_ = s.systemConfig.Set(gameCategoryConfigKey, upgradeLegacyGameCategoryConfig(stored))
 	}
 	var templateStored gameCreateTemplateConfigDTO
 	if !s.systemConfig.Get(gameCreateTemplateConfigKey, &templateStored) {
@@ -1003,7 +1050,7 @@ func (s *Server) ensureDefaultSystemConfigs() {
 		_ = s.systemConfig.Set(roleApplicationPageConfigKey, defaultRoleApplicationPageConfig())
 	}
 	var deliveryPageStored gameDeliveryPageConfigDTO
-	if !s.systemConfig.Get(gameDeliveryPageConfigKey, &deliveryPageStored) || strings.TrimSpace(deliveryPageStored.Paid.PageTitle) == "" {
+	if !s.systemConfig.Get(gameDeliveryPageConfigKey, &deliveryPageStored) || strings.TrimSpace(deliveryPageStored.Free.PageTitle) == "" {
 		_ = s.systemConfig.Set(gameDeliveryPageConfigKey, defaultGameDeliveryPageConfig())
 	}
 	var reportStored reportCenterConfigDTO
@@ -1090,41 +1137,75 @@ func normalizeGameCategoryConfig(req gameCategoryConfigDTO) (gameCategoryConfigD
 	config.TypeFilters = normalizeCategoryOptions(req.TypeFilters, true)
 	config.LocationFilters = normalizeCategoryOptions(req.LocationFilters, false)
 	config.DefaultPrimaryCategory = strings.TrimSpace(req.DefaultPrimaryCategory)
-	config.DefaultSecondaryCategory = strings.TrimSpace(req.DefaultSecondaryCategory)
+	// 一期不再维护小类别，历史字段只用于读取旧局。
+	config.DefaultSecondaryCategory = ""
 	config.DefaultType = strings.TrimSpace(req.DefaultType)
 	config.Version = strings.TrimSpace(req.Version)
-	if len(config.PrimaryCategories) == 0 {
-		return gameCategoryConfigDTO{}, errors.New("primaryCategories required")
+	if !hasRequiredPrimaryCategories(config.PrimaryCategories) {
+		return gameCategoryConfigDTO{}, errors.New("局类型必须保留并展示社交局、任务局、探索局和成长局四类")
 	}
-	if len(config.TypeFilters) == 0 {
-		return gameCategoryConfigDTO{}, errors.New("typeFilters required")
-	}
-	if key := unsupportedGameTypeFilter(config.TypeFilters); key != "" {
-		return gameCategoryConfigDTO{}, errors.New("unsupported game type: " + key)
-	}
+	config.TypeFilters = []gameCategoryOptionDTO{{Key: "all", Name: "全部", Visible: true, Order: 0, Selectable: true}}
 	if config.DefaultPrimaryCategory == "" {
 		config.DefaultPrimaryCategory = config.PrimaryCategories[0].Key
 	}
-	if config.DefaultType == "" {
-		config.DefaultType = firstCreatableGameType(config.TypeFilters)
-	}
+	config.DefaultType = "all"
 	config.CreateForm = normalizeGameCreateFormConfig(config.CreateForm)
+	config.ShareComponent = normalizeGameShareComponentConfig(config.ShareComponent)
+	if config.ShareComponent.Enabled && !config.ShareComponent.EnableInternal && !config.ShareComponent.EnableWechat {
+		return gameCategoryConfigDTO{}, errors.New("开启分享时至少选择一种分享渠道")
+	}
+	config.EventActions = normalizeGameCardActions(config.EventActions, config.ShareComponent)
 	if !categoryKeyExists(config.PrimaryCategories, config.DefaultPrimaryCategory) {
-		return gameCategoryConfigDTO{}, errors.New("defaultPrimaryCategory not found")
-	}
-	if config.DefaultSecondaryCategory != "" && !categoryChildKeyExists(config.PrimaryCategories, config.DefaultPrimaryCategory, config.DefaultSecondaryCategory) {
-		return gameCategoryConfigDTO{}, errors.New("defaultSecondaryCategory not found")
-	}
-	if !categoryKeyExists(config.TypeFilters, config.DefaultType) {
-		return gameCategoryConfigDTO{}, errors.New("defaultType not found")
-	}
-	if !validConfigGameType(config.DefaultType) {
-		return gameCategoryConfigDTO{}, errors.New("defaultType must be a creatable game type")
+		return gameCategoryConfigDTO{}, errors.New("默认局类型不存在")
 	}
 	if config.Version == "" {
 		config.Version = time.Now().UTC().Format("2006-01-02")
 	}
 	return config, nil
+}
+
+func normalizeGameShareComponentConfig(config gameShareComponentConfigDTO) gameShareComponentConfigDTO {
+	defaults := defaultGameCategoryConfig().ShareComponent
+	// Existing category configurations predate the share component. Treat a
+	// missing object as the default rather than silently hiding sharing.
+	if config == (gameShareComponentConfigDTO{}) {
+		return defaults
+	}
+	config.Variant = strings.TrimSpace(config.Variant)
+	if config.Variant == "" {
+		config.Variant = defaults.Variant
+	}
+	if config.Variant != "channel_sheet" && config.Variant != "icon_button" {
+		config.Variant = defaults.Variant
+	}
+	config.Label = strings.TrimSpace(config.Label)
+	if config.Label == "" {
+		config.Label = defaults.Label
+	}
+	return config
+}
+
+func normalizeGameCardActions(actions []string, share gameShareComponentConfigDTO) []string {
+	result := make([]string, 0, len(actions)+1)
+	seenShare := false
+	for _, action := range actions {
+		action = strings.TrimSpace(action)
+		if action == "" || action == "引荐" || action == "邀请（站内）" || action == "站内邀请" {
+			continue
+		}
+		if action == "分享" || action == share.Label {
+			if share.Enabled && !seenShare {
+				result = append(result, share.Label)
+				seenShare = true
+			}
+			continue
+		}
+		result = append(result, action)
+	}
+	if share.Enabled && !seenShare {
+		result = append([]string{share.Label}, result...)
+	}
+	return result
 }
 
 func normalizeGameCreateFormConfig(config gameCreateFormConfigDTO) gameCreateFormConfigDTO {
@@ -1151,7 +1232,6 @@ func normalizeGameCreateFormConfig(config gameCreateFormConfigDTO) gameCreateFor
 	config.ParticipationModes = normalizeCreateFormOptions(config.ParticipationModes, defaults.ParticipationModes)
 	config.Tags = normalizeCreateFormOptions(config.Tags, defaults.Tags)
 	config.CompletionRules = normalizeCreateFormOptions(config.CompletionRules, defaults.CompletionRules)
-	config.FeeTypes = normalizeCreateFormOptions(config.FeeTypes, defaults.FeeTypes)
 	return config
 }
 
@@ -1176,39 +1256,6 @@ func normalizeCreateFormOptions(items []gameCreateFormOptionDTO, defaults []game
 	return result
 }
 
-func unsupportedGameTypeFilter(items []gameCategoryOptionDTO) string {
-	for _, item := range items {
-		if item.Key == "all" {
-			continue
-		}
-		if !validConfigGameType(item.Key) {
-			return item.Key
-		}
-	}
-	return ""
-}
-
-func firstCreatableGameType(items []gameCategoryOptionDTO) string {
-	for _, item := range items {
-		if validConfigGameType(item.Key) {
-			return item.Key
-		}
-	}
-	if len(items) > 0 {
-		return items[0].Key
-	}
-	return ""
-}
-
-func validConfigGameType(value string) bool {
-	switch value {
-	case "free", "standard", "public_welfare", "aa", "crowdfund", "deposit", "condition":
-		return true
-	default:
-		return false
-	}
-}
-
 func normalizeCategoryOptions(items []gameCategoryOptionDTO, selectable bool) []gameCategoryOptionDTO {
 	result := make([]gameCategoryOptionDTO, 0, len(items))
 	seen := map[string]struct{}{}
@@ -1229,7 +1276,9 @@ func normalizeCategoryOptions(items []gameCategoryOptionDTO, selectable bool) []
 		if selectable && !item.Selectable {
 			item.Selectable = true
 		}
-		item.Children = normalizeCategoryOptions(item.Children, true)
+		// 小类别不再是一期的组局维度。历史数据可以读取，但后台配置
+		// 和小程序创建表单都不再下发或保存该选项。
+		item.Children = nil
 		result = append(result, item)
 	}
 	return result
@@ -1239,20 +1288,6 @@ func categoryKeyExists(items []gameCategoryOptionDTO, key string) bool {
 	for _, item := range items {
 		if item.Key == key {
 			return true
-		}
-	}
-	return false
-}
-
-func categoryChildKeyExists(items []gameCategoryOptionDTO, primaryKey string, childKey string) bool {
-	for _, item := range items {
-		if item.Key != primaryKey {
-			continue
-		}
-		for _, child := range item.Children {
-			if child.Key == childKey {
-				return true
-			}
 		}
 	}
 	return false
@@ -1326,6 +1361,7 @@ func defaultGameApplicationConfig() gameApplicationConfigDTO {
 			"submittingText":        "提交中",
 			"submitSuccessText":     "申请已提交",
 			"submitFailedText":      "提交失败，请重试",
+			"subscribeDeclinedText": "审核结果将同步到消息中心",
 			"maxUploadTemplate":     "最多上传{max}个文件",
 			"navUnavailableText":    "当前页暂无左右切换",
 		},
@@ -1431,7 +1467,7 @@ func defaultGameApplicationConfig() gameApplicationConfigDTO {
 					"approveSuccessText":       "已确认通过",
 					"rejectSuccessText":        "已拒绝申请",
 					"reviewFailedText":         "审核失败",
-					"actionTip":                "确认后将建立三方连接群并冻结资金",
+					"actionTip":                "确认后将按对应身份加入本局；局开始后可进入局内群聊。",
 					"actionLoadingText":        "处理中...",
 					"confirmText":              "确认通过",
 				},
@@ -1441,21 +1477,15 @@ func defaultGameApplicationConfig() gameApplicationConfigDTO {
 					{Key: "location", Label: "地点", ActionText: "地图位置", IconSrc: "/pages/game/detail/assets/icon-location.png", IconClass: "place"},
 				},
 				ConfirmRows: []gameApplicationAuditSessionItemDTO{
-					{Key: "activityType", Label: "活动类型"},
-					{Key: "serviceDuration", Label: "服务时长"},
-					{Key: "clientBudget", Label: "客户预算"},
-					{Key: "platformFee", Label: "平台"},
-					{Key: "guideReward", Label: "领路人"},
-					{Key: "partnerReward", Label: "生态合伙人"},
-					{Key: "expertIncome", Label: "你的收益"},
+					{Key: "activityType", Label: "局分类"},
+					{Key: "serviceDuration", Label: "活动时长"},
 				},
 				OptionalActions: []gameApplicationAuditActionDTO{
 					{Key: "time", Name: "提议具体时间", IconSrc: "/pages/game/audit-detail/assets/option-time.png"},
-					{Key: "chat", Name: "与玩家沟通", IconSrc: "/pages/game/audit-detail/assets/option-chat.png"},
 				},
 				NoticeBullets: []string{
 					"确认后请准时参加，如需取消请提前通知",
-					"双方确认后组局正式生效，领路人将获得积分奖励",
+					"确认后将按对应身份加入本局，局开始后可进行局内沟通",
 					"请保持专业态度，维护平台信誉",
 				},
 			},
@@ -1467,7 +1497,7 @@ func defaultGameApplicationConfig() gameApplicationConfigDTO {
 func defaultGameAuditConfig() gameAuditConfigDTO {
 	return gameAuditConfigDTO{
 		AutoApproveFreeGames:         false,
-		RequireManualAuditTypes:      []string{"free", "standard", "public_welfare", "aa", "crowdfund", "deposit", "condition"},
+		RequireManualAuditTypes:      []string{"free"},
 		RequiredRejectReason:         true,
 		AllowUserResubmitAfterReject: true,
 		BatchAuditMaxCount:           50,
@@ -1498,87 +1528,62 @@ func defaultGameCancelConfig() gameCancelConfigDTO {
 	return gameCancelConfigDTO{
 		Player: gameCancelRoleConfigDTO{
 			ReasonOptions: []map[string]string{
-				{"key": "need_changed", "text": "需求变更，不再需要服务"},
-				{"key": "other_solution", "text": "找到其他解决方案"},
-				{"key": "service_unexpected", "text": "业务主服务不符合预期"},
-				{"key": "budget", "text": "预算问题/资金紧张"},
+				{"key": "schedule_conflict", "text": "临时有事，无法参加"},
+				{"key": "time_or_place", "text": "时间或地点不合适"},
+				{"key": "content_mismatch", "text": "本局内容与预期不符"},
+				{"key": "other", "text": "其他原因"},
 			},
-			DefaultReason: "other_solution",
-			AgreementText: "我已阅读并同意上述赔付协议，理解主动取消需承担行家的时间成本损失，并同意按设置比例从托管资金中赔付行家。",
+			DefaultReason: "schedule_conflict",
+			AgreementText: "我已了解本局取消规则，确认取消将按规则扣减信用分。",
 			AgreementItems: []string{
-				"我理解主动取消需承担行家的时间成本损失",
-				"我同意按设置比例赔付行家，金额从托管资金扣除",
-				"剩余金额将在3个工作日内原路退回",
-				"此取消记录将影响信用分（-3分）",
+				"我已了解本局为免费局，不涉及资金赔付",
+				"我已了解本次取消将按规则扣减信用分",
 			},
 		},
 		Expert: gameCancelRoleConfigDTO{
 			ReasonOptions: []map[string]string{
-				{"key": "schedule_conflict", "text": "个人时间冲突，无法交付"},
-				{"key": "requirement_mismatch", "text": "需求与描述不符，无法完成"},
+				{"key": "schedule_conflict", "text": "个人时间冲突，无法参加"},
+				{"key": "requirement_mismatch", "text": "本局信息与实际情况不符"},
 				{"key": "emergency", "text": "身体原因/突发状况"},
 				{"key": "other", "text": "其他原因"},
 			},
 			DefaultReason: "schedule_conflict",
-			AgreementText: "我已阅读并同意《服务取消协议》，理解主动取消将对我的信用分产生影响（-5分），并同意按设置比例赔付玩家损失。",
+			AgreementText: "我已了解本局取消规则，确认取消将按规则扣减信用分。",
 		},
 		Version: "2026-07-01",
 	}
 }
 
 func defaultGameDeliveryPageConfig() gameDeliveryPageConfigDTO {
+	completion := deliveryModeConfigDTO{
+		PageTitle: "确认本局完成",
+		Status:    deliveryStatusConfigDTO{Theme: "free", Title: "本局已结束", Desc: "请确认本局流程和体验已完成"},
+		StatePill: deliveryStatePillConfigDTO{Theme: "blue", Text: "待成员确认"},
+		Notice: deliveryNoticeConfigDTO{
+			IconText: "✓",
+			Title:    "完成说明",
+			Parts:    []deliveryNoticePartDTO{{Text: "本局为免费局，不涉及资金结算。成员确认完成后可进入评价。"}},
+		},
+		ConfirmItems: []deliveryConfirmItemDTO{
+			{ID: "completed", Title: "本局流程已完成", Desc: "本次组局已按约定完成"},
+			{ID: "qualified", Title: "参与体验已确认", Desc: "如有问题，请先在局内沟通"},
+			{ID: "communicated", Title: "已通知局内成员", Desc: "成员可继续完成确认和评价"},
+		},
+		ConfirmNote:       "确认后将通知局内成员完成后续确认；如本局仍有问题，请先在局内沟通。",
+		Security:          deliverySecurityConfigDTO{Title: "组局确认", Desc: "确认记录将用于后续评价和信用规则处理"},
+		SubmitHints:       deliverySubmitHintsDTO{Ready: "确认后将通知局内成员", Pending: "请完成上方确认项后提交"},
+		SubmitToast:       "本局完成确认已提交",
+		SubmitLoadingText: "提交中",
+		AmountRowLabel:    "",
+	}
 	return gameDeliveryPageConfigDTO{
-		Paid: deliveryModeConfigDTO{
-			PageTitle: "确认服务完成",
-			Status:    deliveryStatusConfigDTO{Theme: "paid", Title: "服务已完成!", Desc: "双方确认后，资金将全额结算"},
-			StatePill: deliveryStatePillConfigDTO{Theme: "green", Text: "待确认完成"},
-			Notice:    deliveryNoticeConfigDTO{},
-			ConfirmItems: []deliveryConfirmItemDTO{
-				{ID: "completed", Title: "服务已全部完成", Desc: "约定的2小时咨询服务已完整交付"},
-				{ID: "qualified", Title: "服务质量达标", Desc: "需求方对服务内容和质量无异议"},
-				{ID: "communicated", Title: "双方已沟通确认", Desc: "已与需求方确认服务完成，对方同意结算"},
-			},
-			ConfirmNote:       "正常交付无需扣减任何费用，只需双方确认服务已完成，资金将按全额结算。如服务未完全达标，请与玩家沟通后再确认。",
-			Security:          deliverySecurityConfigDTO{},
-			SubmitHints:       deliverySubmitHintsDTO{Ready: "确认后将通知玩家进行最终确认", Pending: "需勾选上方确认项后方可提交"},
-			SubmitToast:       "服务完成确认已提交",
-			SubmitLoadingText: "提交中",
-			AmountRowLabel:    "合同金额",
-		},
-		Free: deliveryModeConfigDTO{
-			PageTitle: "确认服务完成",
-			Status:    deliveryStatusConfigDTO{Theme: "free", Title: "服务已完成!", Desc: "双方确认后，服务正式结束"},
-			StatePill: deliveryStatePillConfigDTO{Theme: "blue", Text: "待确认完成"},
-			Notice: deliveryNoticeConfigDTO{
-				IconText: "🎁",
-				Title:    "免费局说明",
-				Parts: []deliveryNoticePartDTO{
-					{Text: "本局为"},
-					{Text: "免费体验局", Strong: true},
-					{Text: "不涉及资金结算。双方确认完成后，行家将获得"},
-					{Text: "信用积分+5和免费局贡献徽章", Strong: true},
-					{Text: "，玩家"},
-					{Text: "优先推荐权益", Strong: true},
-				},
-			},
-			ConfirmItems: []deliveryConfirmItemDTO{
-				{ID: "completed", Title: "服务已全部完成", Desc: "约定的2小时咨询服务已完整交付"},
-				{ID: "qualified", Title: "服务质量达标", Desc: "需求方对服务内容和质量无异议"},
-				{ID: "communicated", Title: "双方已沟通确认", Desc: "已与需求方确认服务完成，对方同意归档"},
-			},
-			ConfirmNote:       "免费局无需扣除任何费用，只需双方确认服务已完成，系统将自动归档。如服务未完全达标，请与玩家沟通后再次确认。",
-			Security:          deliverySecurityConfigDTO{Title: "服务保障", Desc: "免费局同样享受平台服务保障，评价真实有效"},
-			SubmitHints:       deliverySubmitHintsDTO{Ready: "确认后将通知玩家进行最终确认", Pending: "需勾选上方确认项后方可提交"},
-			SubmitToast:       "免费局服务完成确认已提交",
-			SubmitLoadingText: "提交中",
-			AmountRowLabel:    "服务类型",
-		},
+		Paid: completion,
+		Free: completion,
 		QuickActions: []deliveryQuickActionDTO{
-			{Key: "upload", Title: "上传凭证", Theme: "blue", IconText: "📎"},
-			{Key: "contact_player", Title: "联系玩家", Theme: "blue", IconSrc: "/pages/game/delivery/assets/i18@3x.png"},
+			{Key: "contact_player", Title: "联系局内成员", Theme: "blue", IconSrc: "/pages/game/delivery/assets/i18@3x.png"},
 			{Key: "contact_guide", Title: "联系领路人", Theme: "orange", IconText: "👬"},
 		},
-		Version: "2026-07-01",
+		Version: "2026-07-29",
 	}
 }
 
@@ -1595,25 +1600,25 @@ func normalizeGameApplicationConfig(req gameApplicationConfigDTO) (gameApplicati
 	// 一期普通玩家申请入局不强制实名；实名是行家、领路人身份申请的前置条件。
 	config.RequireRealname = false
 	if config.AgreementTitle == "" {
-		return gameApplicationConfigDTO{}, errors.New("agreementTitle required")
+		return gameApplicationConfigDTO{}, errors.New("申请协议标题不能为空")
 	}
 	if config.RequireAgreement && config.AgreementText == "" {
-		return gameApplicationConfigDTO{}, errors.New("agreementText required")
+		return gameApplicationConfigDTO{}, errors.New("启用申请协议时，协议内容不能为空")
 	}
 	if config.MaxUploadCount < 0 || config.MaxUploadCount > 9 {
-		return gameApplicationConfigDTO{}, errors.New("maxUploadCount must be between 0 and 9")
+		return gameApplicationConfigDTO{}, errors.New("最多上传材料数须为 0-9")
 	}
 	if config.UploadRequired && config.MaxUploadCount == 0 {
-		return gameApplicationConfigDTO{}, errors.New("maxUploadCount required when uploadRequired is true")
+		return gameApplicationConfigDTO{}, errors.New("要求上传材料时，最多上传材料数不能为 0")
 	}
 	if config.MinIntroLength < 0 || config.MaxIntroLength < 0 || config.MinIntroLength > config.MaxIntroLength {
-		return gameApplicationConfigDTO{}, errors.New("intro length invalid")
+		return gameApplicationConfigDTO{}, errors.New("自我介绍字数范围不正确")
 	}
 	if config.MaxIntroLength > 500 {
-		return gameApplicationConfigDTO{}, errors.New("maxIntroLength must be less than or equal to 500")
+		return gameApplicationConfigDTO{}, errors.New("自我介绍最多不能超过 500 字")
 	}
 	if config.MaxMessageLength < 0 || config.MaxMessageLength > 500 {
-		return gameApplicationConfigDTO{}, errors.New("maxMessageLength must be between 0 and 500")
+		return gameApplicationConfigDTO{}, errors.New("申请留言最多字数须为 0-500")
 	}
 	if len(config.AllowedUploadTypes) == 0 {
 		config.AllowedUploadTypes = []string{"jpg", "png", "pdf"}
@@ -1626,27 +1631,23 @@ func normalizeGameApplicationConfig(req gameApplicationConfigDTO) (gameApplicati
 
 func normalizeGameAuditConfig(req gameAuditConfigDTO) (gameAuditConfigDTO, error) {
 	config := cloneGameAuditConfig(req)
-	config.RequireManualAuditTypes = normalizeStringList(config.RequireManualAuditTypes, 16)
+	// 一期所有局均为免费局，旧收费类别不能通过配置重新启用。
+	config.RequireManualAuditTypes = []string{"free"}
 	config.ApplicationAuditMode = strings.TrimSpace(config.ApplicationAuditMode)
 	config.ReviewerRoles = normalizeStringList(config.ReviewerRoles, 16)
 	config.Version = strings.TrimSpace(config.Version)
-	for _, gameType := range config.RequireManualAuditTypes {
-		if !validConfigGameType(gameType) {
-			return gameAuditConfigDTO{}, errors.New("unsupported audit game type: " + gameType)
-		}
-	}
 	if config.BatchAuditMaxCount <= 0 {
 		config.BatchAuditMaxCount = 50
 	}
 	if config.BatchAuditMaxCount > 200 {
-		return gameAuditConfigDTO{}, errors.New("batchAuditMaxCount must be less than or equal to 200")
+		return gameAuditConfigDTO{}, errors.New("批量审核上限不能超过 200 条")
 	}
 	switch config.ApplicationAuditMode {
 	case "", "creator_or_main_guide":
 		config.ApplicationAuditMode = "creator_or_main_guide"
 	case "creator_only", "main_guide_only", "admin_only":
 	default:
-		return gameAuditConfigDTO{}, errors.New("unsupported applicationAuditMode")
+		return gameAuditConfigDTO{}, errors.New("入局审核方式不支持")
 	}
 	if len(config.ReviewerRoles) == 0 {
 		config.ReviewerRoles = []string{"super_admin", "audit_admin"}
@@ -1665,14 +1666,14 @@ func normalizeGameConditionRuleConfig(req gameConditionRuleConfigDTO) (gameCondi
 	// 一期没有支付与押金能力，条件局仅使用资格与可见性规则。
 	config.PaymentRequired = false
 	if len(config.RuleItems) == 0 {
-		return gameConditionRuleConfigDTO{}, errors.New("ruleItems required")
+		return gameConditionRuleConfigDTO{}, errors.New("至少保留一条条件规则")
 	}
 	switch config.DefaultVisibility {
 	case "", "approved_users":
 		config.DefaultVisibility = "approved_users"
 	case "all_users", "invite_only", "hidden":
 	default:
-		return gameConditionRuleConfigDTO{}, errors.New("unsupported defaultVisibility")
+		return gameConditionRuleConfigDTO{}, errors.New("默认可见范围不支持")
 	}
 	if config.Version == "" {
 		config.Version = time.Now().UTC().Format("2006-01-02")
@@ -1745,6 +1746,7 @@ func cloneStringMap(src map[string]string) map[string]string {
 
 func cloneGameApplicationConfig(config gameApplicationConfigDTO) gameApplicationConfigDTO {
 	config.AllowedUploadTypes = append([]string(nil), config.AllowedUploadTypes...)
+	config.SubscribeTemplateIDs = append([]string(nil), config.SubscribeTemplateIDs...)
 	config.Texts = cloneStringMap(config.Texts)
 	config.AuditPage = cloneGameApplicationAuditPageConfig(config.AuditPage)
 	return config
@@ -1761,6 +1763,10 @@ func mergeGameApplicationConfigDefaults(config gameApplicationConfigDTO) gameApp
 	}
 	config.Texts = mergeStringMap(defaults.Texts, config.Texts)
 	config.AuditPage = mergeGameApplicationAuditPageConfig(defaults.AuditPage, config.AuditPage)
+	// 一期审核页不允许历史配置重新带回资金冻结、收益分配或开局前私聊。
+	config.AuditPage.Detail.ConfirmRows = append([]gameApplicationAuditSessionItemDTO(nil), defaults.AuditPage.Detail.ConfirmRows...)
+	config.AuditPage.Detail.OptionalActions = append([]gameApplicationAuditActionDTO(nil), defaults.AuditPage.Detail.OptionalActions...)
+	config.AuditPage.Detail.Texts["actionTip"] = defaults.AuditPage.Detail.Texts["actionTip"]
 	return config
 }
 
@@ -1843,6 +1849,10 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if allowed, message := s.canUseCreditAction(userID, "create_game"); !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
+		return
+	}
 	var req games.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
@@ -1852,7 +1862,32 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	categoryConfig := s.currentGameCategoryConfig()
-	operationRules := s.currentOperationRules()
+	operationRules, err := s.currentOperationRulesStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取组局规则失败，请稍后重试")
+		return
+	}
+	// 直属领路人护航已从一期范围移除；忽略遗留客户端字段，避免创建后重新开放。
+	req.AllowGuideEscort = false
+	// 小类别已经下线，不能再让旧客户端或手工请求写回新局。
+	req.SecondaryCategory = ""
+	req.SecondaryCategoryText = ""
+	if strings.TrimSpace(req.Introduction) == "" || strings.TrimSpace(req.Highlights) == "" || strings.TrimSpace(req.Description) == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请填写局介绍、亮点和局描述")
+		return
+	}
+	if req.CoverFileID <= 0 && strings.TrimSpace(req.CoverImage) == "" {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先上传局封面")
+		return
+	}
+	if !games.ValidSignupTimeRange(req.SignupStartAt, req.SignupEndAt, req.StartAt) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "报名时间需完整填写，且报名结束须早于局开始")
+		return
+	}
+	if !hasGameCreateLocation(req) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先选择组局地址")
+		return
+	}
 	if req.MinPlayers < operationRules.Game.MinPlayers || req.MaxPlayers > operationRules.Game.MaxPlayers || req.MinPlayers > req.MaxPlayers {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, fmt.Sprintf("每局人数必须为 %d-%d", operationRules.Game.MinPlayers, operationRules.Game.MaxPlayers))
 		return
@@ -1861,25 +1896,33 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		service.SetDailyCreateLimit(operationRules.Game.DailyCreateLimit)
 	}
 	if strings.TrimSpace(req.PrimaryCategory) != "" && !categoryKeyExists(categoryConfig.PrimaryCategories, strings.TrimSpace(req.PrimaryCategory)) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid primary category")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "局类型无效，请重新选择")
 		return
 	}
 	if req.CoverFileID > 0 {
 		file, err := s.files.Get(req.CoverFileID)
 		if err != nil || file.UploaderID != userID || file.BizType != "game_cover" {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game cover")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "封面文件无效，请重新上传")
 			return
 		}
 		download, err := s.files.DownloadURLForFile(file)
 		if err != nil {
 			if errors.Is(err, files.ErrStorageNotConfigured) {
-				httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "storage base url not configured")
+				httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "文件存储服务暂不可用，请稍后重试")
 				return
 			}
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game cover")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "封面文件无效，请重新上传")
 			return
 		}
 		req.CoverImage = download.DownloadURL
+	}
+	if len(req.DescriptionMedia) > 0 {
+		media, mediaErr := s.resolveGameDescriptionMedia(userID, req.DescriptionMedia)
+		if mediaErr != nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "局详情图片或视频无效，请重新上传")
+			return
+		}
+		req.DescriptionMedia = media
 	}
 	game, err := s.games.Create(userID, req)
 	if err != nil {
@@ -1891,7 +1934,7 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, games.ErrInvalidPlayers):
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, fmt.Sprintf("每局人数必须为 %d-%d", operationRules.Game.MinPlayers, operationRules.Game.MaxPlayers))
 		case errors.Is(err, games.ErrInvalidGameInput):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game input")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "组局信息不完整或格式不正确，请检查后重试")
 		case errors.Is(err, games.ErrDailyLimit):
 			httpx.Error(w, http.StatusTooManyRequests, 42921, fmt.Sprintf("每日最多创建 %d 局", operationRules.Game.DailyCreateLimit))
 		default:
@@ -1899,12 +1942,69 @@ func (s *Server) createGame(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	// SQL-backed creation has already committed the free order in the same
+	// transaction. This idempotent call keeps the in-memory test/development
+	// implementation aligned and repairs a missing placeholder if needed. A
+	// recheck failure must not turn an already committed game into a false 5xx.
+	orderPlaceholderReady := true
 	if _, err := s.orders.EnsureFreeNoPayOrder(userID, game.ID); err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "创建订单占位失败")
-		return
+		orderPlaceholderReady = false
 	}
-	s.recordBehavior(userID, "game_create_submit", "game", game.ID, map[string]interface{}{"status": game.Status, "gameType": game.GameType})
+	s.recordBehavior(userID, "game_create_submit", "game", game.ID, map[string]interface{}{
+		"status": game.Status, "gameType": game.GameType, "orderPlaceholderReady": orderPlaceholderReady,
+	})
 	httpx.OK(w, game)
+}
+
+func hasGameCreateLocation(req games.CreateRequest) bool {
+	if strings.TrimSpace(req.Address) == "" || (req.Longitude == 0 && req.Latitude == 0) {
+		return false
+	}
+	if math.IsNaN(req.Longitude) || math.IsNaN(req.Latitude) || math.IsInf(req.Longitude, 0) || math.IsInf(req.Latitude, 0) {
+		return false
+	}
+	return req.Longitude >= -180 && req.Longitude <= 180 && req.Latitude >= -90 && req.Latitude <= 90
+}
+
+func (s *Server) resolveGameDescriptionMedia(userID int64, items []games.DescriptionMedia) ([]games.DescriptionMedia, error) {
+	result := make([]games.DescriptionMedia, 0, len(items))
+	imageCount, videoCount := 0, 0
+	seen := make(map[int64]bool, len(items))
+	for _, item := range items {
+		if item.FileID <= 0 || seen[item.FileID] {
+			return nil, errors.New("invalid description media")
+		}
+		seen[item.FileID] = true
+		file, err := s.files.Get(item.FileID)
+		if err != nil || file.UploaderID != userID || file.BizType != "game_description" {
+			return nil, errors.New("invalid description media")
+		}
+		item.Type = strings.ToLower(strings.TrimSpace(item.Type))
+		switch item.Type {
+		case "image":
+			if !strings.HasPrefix(strings.ToLower(file.MimeType), "image/") {
+				return nil, errors.New("invalid description media")
+			}
+			imageCount++
+		case "video":
+			if file.MimeType != "video/mp4" && file.MimeType != "video/quicktime" || item.Duration < 0 || item.Duration > 60 {
+				return nil, errors.New("invalid description media")
+			}
+			videoCount++
+		default:
+			return nil, errors.New("invalid description media")
+		}
+		download, err := s.files.DownloadURLForFile(file)
+		if err != nil {
+			return nil, err
+		}
+		item.URL = download.DownloadURL
+		result = append(result, item)
+	}
+	if imageCount > 9 || videoCount > 1 || len(result) > 10 {
+		return nil, errors.New("invalid description media")
+	}
+	return result, nil
 }
 
 func (s *Server) listGames(w http.ResponseWriter, r *http.Request) {
@@ -1915,8 +2015,9 @@ func (s *Server) listGames(w http.ResponseWriter, r *http.Request) {
 	listItems := make([]GameListItemDTO, 0, len(items))
 	for _, game := range items {
 		listItems = append(listItems, GameListItemDTO{
-			Game:          game,
-			PlayerAvatars: s.gameListPlayerAvatars(game),
+			Game:           game,
+			PlayerAvatars:  s.gameListPlayerAvatars(game),
+			ShareComponent: s.currentGameCategoryConfig().ShareComponent,
 		})
 	}
 	httpx.OK(w, map[string]interface{}{"items": listItems})
@@ -1964,19 +2065,48 @@ func (s *Server) appHome(w http.ResponseWriter, r *http.Request) {
 	requestedRoleType := strings.TrimSpace(r.URL.Query().Get("roleType"))
 	roleType := normalizeHomeRoleType(requestedRoleType)
 	if requestedRoleType != "" && roleType == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid roleType")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "身份参数不正确")
 		return
 	}
 	if roleType != "" && roleType != "player" {
-		status := s.profiles.RoleSnapshot(userID).RoleStatusMap[roleType]
+		snapshot, err := s.profiles.RoleSnapshotStrict(userID)
+		if err != nil {
+			httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取角色身份失败，请稍后重试")
+			return
+		}
+		status := snapshot.RoleStatusMap[roleType]
 		if status != "active" && status != "approved" {
-			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "role is not active")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "当前身份尚未生效")
 			return
 		}
 	}
-	visibleGames := publicGames(s.games.List())
+	allGames, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取首页组局失败，请稍后重试")
+		return
+	}
+	visibleGames := publicGames(allGames)
+	pointSummary, _, loaded := s.loadPointsData(w, userID, false)
+	if !loaded {
+		return
+	}
+	notificationItems, err := s.notices.ListStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取首页消息提醒失败，请稍后重试")
+		return
+	}
+	onlineCount, err := s.auth.ActiveAppSessionCountStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取在线人数失败，请稍后重试")
+		return
+	}
+	payload, err := s.buildAppHomePayload(userID, visibleGames, roleType, pointSummary, unreadNotificationCount(notificationItems), onlineCount)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取首页数据失败，请稍后重试")
+		return
+	}
 	s.recordBehavior(userID, "view_home", "home", 0, map[string]interface{}{"gameCount": len(visibleGames), "roleType": roleType})
-	httpx.OK(w, s.buildAppHomePayload(userID, visibleGames, roleType))
+	httpx.OK(w, payload)
 }
 
 func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
@@ -1984,35 +2114,45 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	record := s.identity.Status(userID)
-	snapshot := s.profiles.RoleSnapshot(userID)
-	stats := s.games.StatsForUser(userID)
-	_, err := s.reviews.Todos(userID)
+	record, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
+		return
+	}
+	snapshot, err := s.profiles.RoleSnapshotStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取角色状态失败，请稍后重试")
+		return
+	}
+	stats, err := s.games.StatsForUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局任务状态失败，请稍后重试")
+		return
+	}
+	_, err = s.reviews.Todos(userID)
 	if err != nil {
 		writeReviewError(w, err)
 		return
 	}
-	reviewIntents := s.reviews.MyIntents(userID)
-	applications := s.profiles.RoleApplicationsByUser(userID)
-	hasRoleApplication := len(applications) > 0
-	hasApprovedRole := false
-	for _, status := range snapshot.RoleStatusMap {
-		if status == "active" || status == "approved" {
-			hasApprovedRole = true
-			break
-		}
+	reviewIntents, err := s.reviews.MyIntentsStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取评价任务状态失败，请稍后重试")
+		return
 	}
+	applications, err := s.profiles.RoleApplicationsByUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取身份任务状态失败，请稍后重试")
+		return
+	}
+	hasRoleApplication := len(applications) > 0
+	hasApprovedRole := hasApprovedNonPlayerRole(snapshot)
 	rules := s.currentOperationRules()
-	dailyJoinedToday := false
 	today := time.Now().In(appDisplayLocation)
-	for _, game := range s.games.List() {
-		if game.CreatedAt.IsZero() || game.CreatedAt.In(appDisplayLocation).Format("2006-01-02") != today.Format("2006-01-02") {
-			continue
-		}
-		if s.games.IsMember(game.ID, userID) {
-			dailyJoinedToday = true
-			break
-		}
+	dayStart := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, appDisplayLocation)
+	dailyJoinedToday, err := s.games.ParticipatedBetweenStrict(userID, dayStart, dayStart.AddDate(0, 0, 1))
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取每日任务参与状态失败，请稍后重试")
+		return
 	}
 	completion := map[string]bool{
 		"complete_identity":   record.Status == "verified",
@@ -2043,7 +2183,11 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 		items = []map[string]interface{}{{"code": "complete_identity", "title": "完成实名认证", "completed": record.Status == "verified"}}
 	}
 	if len(dailyItems) == 0 {
-		dailyItems = []map[string]interface{}{{"code": "daily_join_game", "title": "今日参与 1 次组局", "completed": stats.Participated > 0, "current": stats.Participated, "required": 1}}
+		current := 0
+		if dailyJoinedToday {
+			current = 1
+		}
+		dailyItems = []map[string]interface{}{{"code": "daily_join_game", "title": "今日参与 1 次组局", "completed": dailyJoinedToday, "current": current, "required": 1}}
 	}
 	if len(activityItems) == 0 {
 		activityItems = []map[string]interface{}{{"code": "activity_complete_game", "title": "完成一局并提交评价", "completed": stats.Completed > 0 && len(reviewIntents) > 0, "current": stats.Completed, "required": 1}}
@@ -2057,8 +2201,16 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 	completedCodes := map[string]bool{}
 	dailyCompletedCodes := map[string]bool{}
 	if s.tasks != nil {
-		completedCodes = s.tasks.CompletedCodes(userID)
-		dailyCompletedCodes = s.tasks.CompletedCodesForDate(userID, time.Now())
+		completedCodes, err = s.tasks.CompletedCodesStrict(userID)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取任务领取状态失败，请稍后重试")
+			return
+		}
+		dailyCompletedCodes, err = s.tasks.CompletedCodesForDateStrict(userID, time.Now())
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取每日任务领取状态失败，请稍后重试")
+			return
+		}
 	}
 	for collectionIndex, collection := range [][]map[string]interface{}{items, dailyItems, activityItems} {
 		for _, item := range collection {
@@ -2074,26 +2226,41 @@ func (s *Server) newbieTasks(w http.ResponseWriter, r *http.Request) {
 			if done, _ := item["completed"].(bool); done && s.tasks != nil && !isCompleted {
 				var markErr error
 				if collectionIndex == 1 {
-					_, markErr = s.tasks.MarkCompletedForDate(userID, code, time.Now())
+					_, _, markErr = s.tasks.MarkCompletedForDateOnce(userID, code, time.Now())
 				} else {
-					_, markErr = s.tasks.MarkCompleted(userID, code)
+					_, _, markErr = s.tasks.MarkCompletedOnce(userID, code)
 				}
 				if markErr == nil {
-					for _, rule := range rules.Tasks.Items {
-						if rule.Code == code && rule.Enabled {
-							s.awardNewbieTaskReward(userID, rule)
-							item["claimStatus"] = "claimed"
-							break
-						}
+					item["claimStatus"] = "claimed"
+				}
+			}
+			if done, _ := item["completed"].(bool); done {
+				for _, taskRule := range rules.Tasks.Items {
+					if taskRule.Code != code || !taskRule.Enabled {
+						continue
 					}
+					rewardKey := taskRule.Code
+					if collectionIndex == 1 {
+						rewardKey += "@" + today.Format("2006-01-02")
+					}
+					if _, rewardErr := s.awardTaskReward(userID, taskRule, rewardKey); rewardErr != nil {
+						markGrowthPersistenceDegraded(w, "task_center_repair", userID, 0, rewardErr)
+					}
+					break
 				}
 			}
 		}
+	}
+	guideState, err := s.newbieGuideStateStrict(userID, items)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取新手引导状态失败，请稍后重试")
+		return
 	}
 	httpx.OK(w, map[string]interface{}{
 		"items":     items,
 		"completed": completed,
 		"total":     len(items),
+		"guide":     guideState,
 		"categories": []map[string]interface{}{
 			{"key": "newbie", "title": "新手任务", "items": items},
 			{"key": "daily", "title": "每日任务", "items": dailyItems},
@@ -2119,7 +2286,7 @@ func (s *Server) myManagedGames(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, map[string]interface{}{
 		"items":       items,
 		"orders":      items,
-		"summary":     serviceOrderSummary(allItems, "\u672c\u6708\u670d\u52a1\u6536\u5165"),
+		"summary":     gameListSummary(allItems, "我管理的局"),
 		"pageConfig":  s.currentMyGamesPageConfig(),
 		"serverTime":  time.Now().Format(time.RFC3339),
 		"total":       total,
@@ -2147,6 +2314,7 @@ func (s *Server) myPlayerGames(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	items := make([]map[string]interface{}, 0)
+	listedGameIDs := make(map[int64]bool)
 	for _, game := range s.games.List() {
 		if game.CreatorUserID != userID && game.MainGuideUserID != userID && !s.userGuideForGame(game, userID) && !s.userExpertForGame(game, userID) && s.userPlayerForGame(game, userID) {
 			item := s.buildPlayerServiceOrder(userID, game, pageConfig)
@@ -2154,20 +2322,47 @@ func (s *Server) myPlayerGames(w http.ResponseWriter, r *http.Request) {
 				item["category"] = "invited"
 			}
 			items = append(items, item)
+			listedGameIDs[game.ID] = true
 			continue
 		}
 		if invitedGameIDs[game.ID] && game.CreatorUserID != userID && game.MainGuideUserID != userID && !s.userGuideForGame(game, userID) && !s.userExpertForGame(game, userID) {
 			item := s.buildPlayerServiceOrder(userID, game, pageConfig)
 			item["category"] = "invited"
 			items = append(items, item)
+			listedGameIDs[game.ID] = true
 		}
+	}
+	// 报名记录在通过前并不是局成员，旧实现会导致“报名审核中”或
+	// “报名未通过”在我的局中消失。每个局只展示最新一条申请，且不和
+	// 已入局/已受邀的卡片重复。
+	latestApplications := make(map[int64]games.Application)
+	for _, application := range s.games.ApplicationsForUser(userID) {
+		current, exists := latestApplications[application.GameID]
+		if !exists || application.CreatedAt.After(current.CreatedAt) || (application.CreatedAt.Equal(current.CreatedAt) && application.ID > current.ID) {
+			latestApplications[application.GameID] = application
+		}
+	}
+	for gameID, application := range latestApplications {
+		if listedGameIDs[gameID] {
+			continue
+		}
+		// 审核通过后应由成员关系承载；这里只补足尚未入局的待审、驳回和
+		// 主动取消记录，避免行家/领路人角色页面被旧申请重复占位。
+		if application.Status == "approved" {
+			continue
+		}
+		game, err := s.games.Get(gameID)
+		if err != nil {
+			continue
+		}
+		items = append(items, s.buildPlayerApplicationOrder(game, application))
 	}
 	allItems := items
 	items, page, pageSize, total := paginateRoleItems(r, allItems, "statusType")
 	httpx.OK(w, map[string]interface{}{
 		"items":       items,
 		"orders":      items,
-		"summary":     serviceOrderSummary(allItems, "\u672c\u6708\u670d\u52a1\u652f\u51fa"),
+		"summary":     gameListSummary(allItems, "我参与的局"),
 		"pageConfig":  pageConfig,
 		"serverTime":  time.Now().Format(time.RFC3339),
 		"total":       total,
@@ -2176,6 +2371,45 @@ func (s *Server) myPlayerGames(w http.ResponseWriter, r *http.Request) {
 		"hasPrevious": page > 1,
 		"hasMore":     page*pageSize < total,
 	})
+}
+
+func (s *Server) buildPlayerApplicationOrder(game games.Game, application games.Application) map[string]interface{} {
+	statusType := "active"
+	if application.Status == "rejected" || application.Status == "cancelled" {
+		statusType = "canceled"
+	}
+	statusText := games.ApplicationStatusText(application.Status)
+	return map[string]interface{}{
+		"id":                      "APPLICATION-" + strconv.FormatInt(application.ID, 10),
+		"game":                    game,
+		"gameId":                  game.ID,
+		"serviceOrderId":          "APPLICATION-" + strconv.FormatInt(application.ID, 10),
+		"ref":                     "APPLICATION-" + strconv.FormatInt(application.ID, 10),
+		"title":                   game.Title,
+		"serviceTitle":            game.Title,
+		"category":                "joined",
+		"statusType":              statusType,
+		"status":                  application.Status,
+		"statusText":              statusText,
+		"applicationStatus":       application.Status,
+		"applicationRejectReason": application.RejectReason,
+		"reason":                  application.RejectReason,
+		"reasonLabel":             "报名未通过原因",
+		"resultText":              statusText,
+		"createdAt":               application.CreatedAt.Format(time.RFC3339),
+		"categoryText":            homeGameCategoryText(game),
+		"startAt":                 game.StartAt,
+		"addressText":             game.Address,
+		"memberText":              gameMemberCountText(game),
+		// 该构建器也被轻量单元测试直接调用；此时 Server 未初始化用户资料服务，
+		// 因而使用稳定的角色文案，详情页仍可展示真实发起人资料。
+		"creatorName":    "发起人",
+		"viewerRoleText": "报名用户",
+		"actions": map[string]interface{}{
+			"canContactExpert": false,
+			"canCancelOrder":   application.Status == "pending",
+		},
+	}
 }
 
 func paginateRoleItems(r *http.Request, items []map[string]interface{}, statusField string) ([]map[string]interface{}, int, int, int) {
@@ -2231,12 +2465,11 @@ func (s *Server) buildManagedServiceOrder(userID int64, game games.Game) map[str
 	statusType, statusText := serviceOrderStatus(game.Status)
 	canReview := hasReviewTodo && statusType == "complete" && targetID > 0
 	reviewed := hasSubmittedReview && !hasReviewTodo
-	amountCent := successFundAmount(game)
 	playerName := s.inGameDisplayName(targetID, "\u73a9\u5bb6")
 	gameIDText := strconv.FormatInt(game.ID, 10)
 	serviceOrderID := serviceOrderID(game.ID)
 	reviewRoute := "/pages/game/review/index?gameId=" + gameIDText
-	deliveryRoute := "/pages/game/delivery/index?gameId=" + gameIDText + "&mode=paid&note=%E7%A1%AE%E8%AE%A4%E6%9C%8D%E5%8A%A1%E5%AE%8C%E6%88%90"
+	deliveryRoute := "/pages/game/delivery/index?gameId=" + gameIDText + "&mode=free&note=%E7%A1%AE%E8%AE%A4%E6%9C%AC%E5%B1%80%E5%B7%B2%E5%AE%8C%E6%88%90"
 	completionCanConfirm, _ := s.gameCompletionState(game, userID)["canConfirm"].(bool)
 	completedActionText := serviceReviewActionText(reviewed, canReview, statusType, game.Status)
 	completedActionRoute := reviewRoute
@@ -2246,25 +2479,15 @@ func (s *Server) buildManagedServiceOrder(userID int64, game games.Game) map[str
 		completedActionRoute = deliveryRoute
 		completedActionEnabled = true
 	}
-	expertCancelRoute := "/pages/game/expert-cancel/index?" + serviceCancelQuery(map[string]string{
-		"serviceOrderId":  serviceOrderID,
-		"gameId":          gameIDText,
-		"playerId":        strconv.FormatInt(targetID, 10),
-		"playerName":      playerName,
-		"avatarText":      avatarTextForName(playerName, targetID),
-		"serviceTitle":    game.Title,
-		"amount":          "0",
-		"amountText":      "免费",
-		"gameType":        "free",
-		"freeCancel":      "1",
-		"platformFeeRate": "0",
-		"platformFeeText": "免费",
-		"statusText":      statusText,
-		"warningTitle":    "免费局取消无需赔付",
-		"warningDesc":     "当前没有收费局，本次取消不会产生赔付金额，但会扣减信用分。",
-	})
-	playerContactRoute := "/pages/im/room/index?gameId=" + gameIDText + "&prefill=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E6%83%B3%E5%92%8C%E4%BD%A0%E7%A1%AE%E8%AE%A4%E4%B8%80%E4%B8%8B%E6%9C%8D%E5%8A%A1%E8%BF%9B%E5%BA%A6%E3%80%82"
-	guideContactRoute := "/pages/im/room/index?gameId=" + gameIDText + "&prefill=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E8%BE%9B%E8%8B%A6%E5%90%8C%E6%AD%A5%E4%B8%80%E4%B8%8B%E7%BB%84%E5%B1%80%E8%BF%9B%E5%BA%A6%E3%80%82"
+	// 取消页只接收局 ID 并从后端读取本局状态，不能再通过路由传入金额、
+	// 赔付比例等二期字段，避免旧页面参数被当作真实结算数据展示。
+	expertCancelRoute := "/pages/game/expert-cancel/index?gameId=" + gameIDText
+	playerContactRoute := ""
+	guideContactRoute := ""
+	if game.Status == games.StatusInProgress {
+		playerContactRoute = "/pages/im/room/index?gameId=" + gameIDText + "&prefill=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E6%88%91%E6%83%B3%E7%A1%AE%E8%AE%A4%E4%B8%80%E4%B8%8B%E6%9C%AC%E5%B1%80%E8%BF%9B%E5%BA%A6%E3%80%82"
+		guideContactRoute = "/pages/im/room/index?gameId=" + gameIDText + "&prefill=%E4%BD%A0%E5%A5%BD%EF%BC%8C%E8%AF%B7%E5%90%8C%E6%AD%A5%E4%B8%80%E4%B8%8B%E6%9C%AC%E5%B1%80%E8%BF%9B%E5%BA%A6%E3%80%82"
+	}
 	return map[string]interface{}{
 		"id":                  serviceOrderID,
 		"game":                game,
@@ -2275,9 +2498,12 @@ func (s *Server) buildManagedServiceOrder(userID int64, game games.Game) map[str
 		"serviceTitle":        game.Title,
 		"statusType":          statusType,
 		"statusText":          statusText,
-		"amount":              amountCent / 100,
-		"amountCent":          amountCent,
-		"amountText":          serviceAmountText(amountCent),
+		"categoryText":        homeGameCategoryText(game),
+		"startAt":             game.StartAt,
+		"addressText":         game.Address,
+		"memberText":          gameMemberCountText(game),
+		"creatorName":         s.inGameDisplayName(game.CreatorUserID, "发起人"),
+		"viewerRoleText":      managedGameViewerRoleText(game, userID, s.games.MemberRoles(game.ID)),
 		"playerId":            targetID,
 		"playerName":          playerName,
 		"name":                playerName,
@@ -2293,10 +2519,10 @@ func (s *Server) buildManagedServiceOrder(userID int64, game games.Game) map[str
 		"canReviewBoth":       canReview,
 		"reviewActionText":    completedActionText,
 		"canReviewAction":     completedActionEnabled,
-		"primaryActionText":   "提前结束交付",
-		"secondaryActionText": "取消并赔付",
-		"playerActionText":    "联系玩家",
-		"guideActionText":     "联系领路人",
+		"primaryActionText":   "确认本局完成",
+		"secondaryActionText": "申请取消",
+		"playerActionText":    "联系局内玩家",
+		"guideActionText":     "联系局内领路人",
 		"deliveryRoute":       deliveryRoute,
 		"expertCancelRoute":   expertCancelRoute,
 		"contactPlayerRoute":  playerContactRoute,
@@ -2307,9 +2533,9 @@ func (s *Server) buildManagedServiceOrder(userID int64, game games.Game) map[str
 			"finishDeliveryRoute":       deliveryRoute,
 			"canCancelWithCompensation": statusType == "active",
 			"expertCancelRoute":         expertCancelRoute,
-			"canContactPlayer":          targetID > 0,
+			"canContactPlayer":          targetID > 0 && playerContactRoute != "",
 			"contactPlayerRoute":        playerContactRoute,
-			"canContactGuide":           game.MainGuideUserID > 0,
+			"canContactGuide":           game.MainGuideUserID > 0 && guideContactRoute != "",
 			"contactGuideRoute":         guideContactRoute,
 			"canReview":                 canReview,
 			"canReviewAction":           completedActionEnabled,
@@ -2328,15 +2554,21 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 	}
 	hasSubmittedReview := s.userReviewedGame(userID, game.ID)
 	statusType, statusText := serviceOrderStatus(game.Status)
+	applicationStatus := ""
+	applicationStatusText := ""
+	if application, ok := s.latestApplicationForGameUser(userID, game.ID); ok {
+		applicationStatus = application.Status
+		applicationStatusText = games.ApplicationStatusText(application.Status)
+		if application.Status == "approved" && (game.Status == games.StatusRecruiting || game.Status == games.StatusFull) {
+			statusText = applicationStatusText
+		}
+	}
 	canReview := hasReviewTodo && statusType == "complete" && targetID > 0
 	reviewed := hasSubmittedReview && !hasReviewTodo
-	amountCent := successFundAmount(game)
 	hasExpert := expertID > 0
 	expertName := "暂未分配行家"
-	expertAvatarText := "局"
 	if hasExpert {
 		expertName = s.inGameDisplayName(expertID, "\u884c\u5bb6")
-		expertAvatarText = avatarTextForName(expertName, expertID)
 	}
 	gameIDText := strconv.FormatInt(game.ID, 10)
 	serviceOrderID := serviceOrderID(game.ID)
@@ -2351,80 +2583,54 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 		completedActionRoute = deliveryRoute
 		completedActionEnabled = true
 	}
-	playerName := s.inGameDisplayName(userID, "玩家")
-	playerCancelRoute := "/pages/game/player-cancel/index?" + serviceCancelQuery(map[string]string{
-		"serviceOrderId":     serviceOrderID,
-		"gameId":             gameIDText,
-		"ref":                serviceOrderID,
-		"playerName":         playerName,
-		"playerAvatarText":   avatarTextForName(playerName, userID),
-		"expertId":           strconv.FormatInt(expertID, 10),
-		"expertName":         expertName,
-		"expertAvatarText":   expertAvatarText,
-		"hasExpert":          boolQueryValue(hasExpert),
-		"serviceTitle":       game.Title,
-		"amount":             "0",
-		"contractAmount":     "0",
-		"amountText":         "免费",
-		"contractAmountText": "免费",
-		"gameType":           "free",
-		"freeCancel":         "1",
-		"minRate":            "0",
-		"maxRate":            "0",
-		"suggestedRate":      "0",
-		"suggestionMinRate":  "0",
-		"suggestionMaxRate":  "0",
-		"platformFeeRate":    "0",
-		"servedDurationText": "待确认",
-		"totalDurationText":  "免费局",
-		"warningTitle":       "免费局取消无需赔付",
-		"warningDesc":        "当前没有收费局，本次取消不会产生赔付金额，但会扣减信用分。",
-	})
+	// 同上：取消规则、信用扣减和当前局状态以详情接口为准。
+	playerCancelRoute := "/pages/game/player-cancel/index?gameId=" + gameIDText
 	contactExpertRoute := ""
-	if hasExpert {
-		contactExpertRoute = "/pages/message/my/index?mode=private&targetUserId=" + strconv.FormatInt(expertID, 10) + "&sourceGameId=" + gameIDText + "&prefill=" + url.QueryEscape("你好，我这边想确认一下服务内容。")
+	if hasExpert && game.Status == games.StatusInProgress {
+		contactExpertRoute = "/pages/im/room/index?gameId=" + gameIDText + "&prefill=" + url.QueryEscape("你好，我想确认一下本次组局进度。")
 	}
-	primaryActionText := myGamesPageConfigText(pageConfig, "contactExpertText", "联系行家")
-	noticeText := myGamesPageConfigText(pageConfig, "cancelNoticeText", "取消需赔付一定比例金额给行家")
-	if !hasExpert {
-		primaryActionText = "暂无行家"
-		noticeText = "本局暂未分配行家，无法联系行家。"
-	}
+	primaryActionText := "查看局内沟通"
+	noticeText := "本局开始后可在局内群聊沟通。"
 	return map[string]interface{}{
-		"id":                  serviceOrderID,
-		"game":                game,
-		"gameId":              game.ID,
-		"serviceOrderId":      serviceOrderID,
-		"ref":                 serviceOrderID,
-		"title":               game.Title,
-		"serviceTitle":        game.Title,
-		"statusType":          statusType,
-		"statusText":          statusText,
-		"amount":              amountCent / 100,
-		"amountCent":          amountCent,
-		"amountText":          serviceAmountText(amountCent),
-		"expertId":            expertID,
-		"expertName":          expertName,
-		"name":                expertName,
-		"hasExpert":           hasExpert,
-		"expert":              serviceOrderPerson(expertID, expertName),
-		"guideId":             game.MainGuideUserID,
-		"guide":               serviceOrderPerson(game.MainGuideUserID, s.inGameDisplayName(game.MainGuideUserID, "\u9886\u8def\u4eba")),
-		"startedAt":           game.CreatedAt.Format(time.RFC3339),
-		"expectedDeliveryAt":  game.CreatedAt.Add(72 * time.Hour).Format(time.RFC3339),
-		"serverTime":          time.Now().Format(time.RFC3339),
-		"reviewStatus":        serviceReviewStatus(reviewed, canReview, statusType, game.Status),
-		"reviewed":            reviewed,
-		"canReview":           canReview,
-		"canReviewBoth":       canReview,
-		"reviewActionText":    completedActionText,
-		"canReviewAction":     completedActionEnabled,
-		"primaryActionText":   primaryActionText,
-		"secondaryActionText": myGamesPageConfigText(pageConfig, "cancelOrderText", "申请取消"),
-		"noticeText":          noticeText,
-		"contactExpertRoute":  contactExpertRoute,
-		"playerCancelRoute":   playerCancelRoute,
-		"reviewRoute":         completedActionRoute,
+		"id":                    serviceOrderID,
+		"game":                  game,
+		"gameId":                game.ID,
+		"serviceOrderId":        serviceOrderID,
+		"ref":                   serviceOrderID,
+		"title":                 game.Title,
+		"serviceTitle":          game.Title,
+		"statusType":            statusType,
+		"statusText":            statusText,
+		"applicationStatus":     applicationStatus,
+		"applicationStatusText": applicationStatusText,
+		"categoryText":          homeGameCategoryText(game),
+		"startAt":               game.StartAt,
+		"addressText":           game.Address,
+		"memberText":            gameMemberCountText(game),
+		"creatorName":           s.inGameDisplayName(game.CreatorUserID, "发起人"),
+		"viewerRoleText":        "参与者",
+		"expertId":              expertID,
+		"expertName":            expertName,
+		"name":                  expertName,
+		"hasExpert":             hasExpert,
+		"expert":                serviceOrderPerson(expertID, expertName),
+		"guideId":               game.MainGuideUserID,
+		"guide":                 serviceOrderPerson(game.MainGuideUserID, s.inGameDisplayName(game.MainGuideUserID, "\u9886\u8def\u4eba")),
+		"startedAt":             game.CreatedAt.Format(time.RFC3339),
+		"expectedDeliveryAt":    game.CreatedAt.Add(72 * time.Hour).Format(time.RFC3339),
+		"serverTime":            time.Now().Format(time.RFC3339),
+		"reviewStatus":          serviceReviewStatus(reviewed, canReview, statusType, game.Status),
+		"reviewed":              reviewed,
+		"canReview":             canReview,
+		"canReviewBoth":         canReview,
+		"reviewActionText":      completedActionText,
+		"canReviewAction":       completedActionEnabled,
+		"primaryActionText":     primaryActionText,
+		"secondaryActionText":   myGamesPageConfigText(pageConfig, "cancelOrderText", "申请取消"),
+		"noticeText":            noticeText,
+		"contactExpertRoute":    contactExpertRoute,
+		"playerCancelRoute":     playerCancelRoute,
+		"reviewRoute":           completedActionRoute,
 		"actions": map[string]interface{}{
 			"canContactExpert":   hasExpert,
 			"contactExpertRoute": contactExpertRoute,
@@ -2435,6 +2641,21 @@ func (s *Server) buildPlayerServiceOrder(userID int64, game games.Game, pageConf
 			"reviewRoute":        completedActionRoute,
 		},
 	}
+}
+
+func (s *Server) latestApplicationForGameUser(userID int64, gameID int64) (games.Application, bool) {
+	var latest games.Application
+	hasLatest := false
+	for _, application := range s.games.ApplicationsForUser(userID) {
+		if application.GameID != gameID {
+			continue
+		}
+		if !hasLatest || application.CreatedAt.After(latest.CreatedAt) || (application.CreatedAt.Equal(latest.CreatedAt) && application.ID > latest.ID) {
+			latest = application
+			hasLatest = true
+		}
+	}
+	return latest, hasLatest
 }
 
 func (s *Server) reviewTodoForGame(userID int64, gameID int64) (reviews.Todo, bool) {
@@ -2609,6 +2830,51 @@ func serviceOrderSummary(items []map[string]interface{}, title string) map[strin
 	}
 }
 
+// gameListSummary is the first-phase summary for "我的局". 组局目前没有
+// 收费、分润或结算入口，因此此处只返回局数量，避免旧的服务订单字段被
+// 新页面误用成资金数据。
+func gameListSummary(items []map[string]interface{}, title string) map[string]interface{} {
+	active := 0
+	completed := 0
+	canceled := 0
+	disputed := 0
+	for _, item := range items {
+		switch item["statusType"] {
+		case "active":
+			active++
+		case "complete":
+			completed++
+		case "canceled":
+			canceled++
+		case "dispute":
+			disputed++
+		}
+	}
+	return map[string]interface{}{
+		"title":         title,
+		"amountText":    strconv.Itoa(len(items)) + " 局",
+		"activeCount":   active,
+		"pendingCount":  completed,
+		"completeCount": completed,
+		"disputeCount":  disputed + canceled,
+		"canceledCount": canceled,
+	}
+}
+
+func gameMemberCountText(game games.Game) string {
+	if game.MaxPlayers <= 0 {
+		return strconv.Itoa(game.CurrentPlayers) + " 人已加入"
+	}
+	return strconv.Itoa(game.CurrentPlayers) + "/" + strconv.Itoa(game.MaxPlayers) + " 人"
+}
+
+func managedGameViewerRoleText(game games.Game, userID int64, memberRoles []games.MemberRole) string {
+	if game.CreatorUserID == userID {
+		return "发起人"
+	}
+	return collaborationRoleText(game, userID, gameMemberRole(game, userID, true, gameMemberRoleMap(memberRoles)))
+}
+
 func publicGames(items []games.Game) []games.Game {
 	result := make([]games.Game, 0, len(items))
 	now := time.Now()
@@ -2628,8 +2894,7 @@ func isPublicJoinableGame(game games.Game, now time.Time) bool {
 	if !isPublicGameStatus(game.Status) {
 		return false
 	}
-	// 达到人数上限后会自动开局，因此新流程里的满员局状态为
-	// in_progress；旧数据可能仍保留 full。两种状态都只在当天保留为
+	// 满员只停止继续报名，仍须由发起人手动开局。满员和进行中的局都只在当天保留为
 	// 状态展示卡片，次日从首页移除，且不再允许报名。
 	if game.Status == "full" {
 		return sameAppDay(game.CreatedAt, now)
@@ -2660,7 +2925,11 @@ func (s *Server) adminGames(w http.ResponseWriter, r *http.Request) {
 	primaryCategory := strings.TrimSpace(r.URL.Query().Get("primaryCategory"))
 	cityCode := strings.TrimSpace(r.URL.Query().Get("cityCode"))
 	keyword := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("keyword")))
-	allItems := s.games.List()
+	allItems, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局管理列表失败，请稍后重试")
+		return
+	}
 	items := make([]games.Game, 0, len(allItems))
 	for _, game := range allItems {
 		if status != "" && game.Status != status {
@@ -2697,11 +2966,26 @@ func (s *Server) adminGameApplications(w http.ResponseWriter, r *http.Request) {
 	userID, _ := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("userId")), 10, 64)
 	applications := make([]games.Application, 0)
 	seen := make(map[int64]bool)
-	for _, game := range s.games.List() {
+	allGames, err := s.games.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局申请列表失败，请稍后重试")
+		return
+	}
+	seenCreators := make(map[int64]bool)
+	for _, game := range allGames {
 		if gameID > 0 && game.ID != gameID {
 			continue
 		}
-		for _, item := range s.games.ApplicationsForCreator(game.CreatorUserID) {
+		if seenCreators[game.CreatorUserID] {
+			continue
+		}
+		seenCreators[game.CreatorUserID] = true
+		creatorApplications, listErr := s.games.ApplicationsForCreatorStrict(game.CreatorUserID)
+		if listErr != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取组局申请列表失败，请稍后重试")
+			return
+		}
+		for _, item := range creatorApplications {
 			if seen[item.ID] || (gameID > 0 && item.GameID != gameID) || (userID > 0 && item.UserID != userID) || (status != "" && item.Status != status) {
 				continue
 			}
@@ -2766,25 +3050,37 @@ func (s *Server) adminGameDetail(w http.ResponseWriter, r *http.Request) {
 func (s *Server) adminCreateGame(w http.ResponseWriter, r *http.Request) {
 	var req games.CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "璇锋眰鍙傛暟閿欒")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
 		return
 	}
 	if s.rejectSensitiveGameCreateRequest(w, req) {
+		return
+	}
+	// 一期后台与小程序保持同一规则：只可创建免费局。
+	// 忽略历史管理端或手工请求提交的商业化字段。
+	req.GameType = "free"
+	req.Type = "free"
+	req.Price = 0
+	req.ProfitTemplate = ""
+	req.DistributionMethod = "none"
+	req.PaymentStatus = "not_required"
+	if !hasGameCreateLocation(req) {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先选择组局地址")
 		return
 	}
 	game, err := s.games.CreateFromAdmin(req)
 	if err != nil {
 		switch {
 		case errors.Is(err, games.ErrInvalidGameType):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game type")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "局类型不支持")
 		case errors.Is(err, games.ErrInvalidPlayers):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "姣忓眬浜烘暟蹇呴』涓?5-8")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "每局人数必须为 5-8 人")
 		case errors.Is(err, games.ErrInvalidGameInput):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game input")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "组局信息填写不完整或格式不正确")
 		case errors.Is(err, games.ErrRealnameRequired):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "main guide realname required")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "主领路人须先完成实名认证")
 		default:
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "鍒涘缓灞€澶辫触")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "创建组局失败，请稍后重试")
 		}
 		return
 	}
@@ -2928,17 +3224,19 @@ func (s *Server) buildGameMembers(userID int64, game games.Game, includeRealName
 }
 
 func (s *Server) buildGameDetail(userID int64, game games.Game) GameDetailDTO {
+	game.AllowedRoles = games.AllowedRolesForGame(game)
 	memberIDs := s.games.Members(game.ID)
 	_, members := s.buildGameMembers(userID, game, false)
 	relation := s.buildGameRelation(userID, game)
 	isFavorited, favoriteCount := s.gameFavoriteState(userID, game.ID)
 	detail := GameDetailDTO{
-		Game:          game,
-		MemberIDs:     memberIDs,
-		Members:       members,
-		MyRelation:    relation,
-		IsFavorited:   isFavorited,
-		FavoriteCount: favoriteCount,
+		Game:           game,
+		MemberIDs:      memberIDs,
+		Members:        members,
+		MyRelation:     relation,
+		IsFavorited:    isFavorited,
+		FavoriteCount:  favoriteCount,
+		ShareComponent: s.currentGameCategoryConfig().ShareComponent,
 		Review: GameReviewDTO{
 			Complete: s.reviews.GameReviewComplete(game.ID),
 		},
@@ -3039,12 +3337,7 @@ func (s *Server) buildGameDetailDisplay(userID int64, game games.Game, relation 
 }
 
 func gameDetailStatusText(status string) string {
-	switch status {
-	case "pending_confirm", "pending_review", "completed":
-		return "已结束"
-	default:
-		return homeGameStatusText(status)
-	}
+	return games.StatusText(status)
 }
 
 func organizerRating(items []reviews.Review, organizerUserID int64) (string, int) {
@@ -3083,11 +3376,11 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 				ConfirmText: "确认开始本局？开始后将进入组局协作。",
 			}
 		}
-		if game.Status == "recruiting" && relation.IsCreator && relation.CanAudit && pendingCount > 0 {
+		if game.Status == "recruiting" && relation.CanAudit && pendingCount > 0 {
 			return action("审核报名（"+strconv.Itoa(pendingCount)+"）", "audit", "/pages/game/audit/index?gameId="+gameID)
 		}
 		if game.Status == "recruiting" && relation.ApplicationStatus == "pending" {
-			return disabled("报名审核中")
+			return disabled(games.ApplicationStatusText(relation.ApplicationStatus))
 		}
 		// 人数以已入局成员数（CurrentPlayers）为准。即使状态字段尚未
 		// 同步为 full，也不能继续展示“立即报名”或报名时间提示。
@@ -3102,9 +3395,12 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 		}
 		if game.Status == "full" {
 			if relation.IsMember {
-				return disabled("等待开局")
+				return disabled("已入局")
 			}
 			return disabled("已满员")
+		}
+		if relation.IsMember {
+			return disabled("已入局")
 		}
 		if relation.IsCreator {
 			return disabled("等待报名")
@@ -3119,6 +3415,9 @@ func gameDetailPrimaryAction(game games.Game, relation GameMyRelationDTO, pendin
 		}
 		return disabled("进行中")
 	case "pending_confirm":
+		if relation.CanConfirm {
+			return action("确认完成", "confirm", "/pages/game/delivery/index?gameId="+gameID+"&mode=free")
+		}
 		if relation.ApplyDisabledReason != "" {
 			return disabled(relation.ApplyDisabledReason)
 		}
@@ -3167,7 +3466,7 @@ func (s *Server) gameSuccessDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	successInvitation, hasSuccessInvitation := s.successfulExpertInvitation(game.ID, userID)
 	if !s.games.IsMember(game.ID, userID) && !hasSuccessInvitation {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "forbidden")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅局内成员可查看本局完成详情")
 		return
 	}
 	if updatedGame, resolved, err := s.games.ResolveNoExpertPendingConfirm(game.ID); err != nil {
@@ -3176,9 +3475,15 @@ func (s *Server) gameSuccessDetail(w http.ResponseWriter, r *http.Request) {
 	} else if resolved {
 		game = updatedGame
 		if !currentGameReviewable(s.games, game.ID) {
-			s.reviews.MarkGameReviewable(game.ID)
-			s.awardCompletedGameRewards(game.ID)
-			s.createCoGameConnections(game.ID)
+			if reviewErr := s.reviews.MarkGameReviewableStrict(game.ID); reviewErr != nil {
+				markReviewPersistenceDegraded(w, "resolve_pending_confirm", game.ID, reviewErr)
+			}
+			if growthErr := s.awardCompletedGameRewards(game.ID); growthErr != nil {
+				markGrowthPersistenceDegraded(w, "resolve_pending_confirm", userID, game.ID, growthErr)
+			}
+			if connectionErr := s.createCoGameConnections(game.ID); connectionErr != nil {
+				markConnectionPersistenceDegraded(w, "resolve_pending_confirm", userID, 0, connectionErr)
+			}
 		}
 	}
 	if r.URL.Query().Get("view") == "service-confirm" && !s.canAccessServiceConfirmation(game, userID) {
@@ -3241,12 +3546,10 @@ func (s *Server) gameSuccessDetail(w http.ResponseWriter, r *http.Request) {
 	if room, err := s.im.RoomForGame(userID, game.ID); err == nil {
 		roomID = room.ID
 	}
-	fundAmount := successFundAmount(game)
-	fund := successFundStatus(game, fundAmount)
-	deliveryMode := "paid"
-	if fundAmount <= 0 {
-		deliveryMode = "free"
-	}
+	// 一期所有前台组局均按免费局处理；支付、资金和结算字段只作为二期
+	// 架构预留，不能影响完成确认页面。
+	fund := map[string]interface{}{"status": "free_no_pay"}
+	deliveryMode := "free"
 	deliveryPage := s.currentGameDeliveryPageConfig()
 	contactKey, contactText, contactPrefill := deliveryContactForRole(relation.Role)
 	confirmTimeline := s.serviceConfirmTimelineSteps(game, memberRoles, userID)
@@ -3274,41 +3577,41 @@ func (s *Server) gameSuccessDetail(w http.ResponseWriter, r *http.Request) {
 		"deliveryPage":     deliveryPage,
 		"deliveryProof": map[string]interface{}{
 			"maxCount":                4,
-			"emptyText":               "\u53ef\u4e0a\u4f20\u670d\u52a1\u5b8c\u6210\u622a\u56fe\u3001\u4ea4\u4ed8\u6750\u6599\u622a\u56fe\u7b49\u51ed\u8bc1\uff0c\u6700\u591a 4 \u5f20\u3002",
+			"emptyText":               "可上传本局完成截图、活动照片等凭证，最多 4 张。",
 			"fullText":                "\u6700\u591a\u4e0a\u4f20 4 \u5f20\u51ed\u8bc1",
 			"selectedTemplate":        "\u5df2\u9009\u62e9 {selected}/{max} \u5f20\u51ed\u8bc1",
 			"uploadActionText":        "\u4e0a\u4f20\u51ed\u8bc1",
 			"contactPlayerText":       "\u8054\u7cfb\u73a9\u5bb6",
 			"contactExpertText":       "联系行家",
 			"contactGuideText":        "\u8054\u7cfb\u9886\u8def\u4eba",
-			"cancelServiceText":       "\u7533\u8bf7\u53d6\u6d88\u670d\u52a1",
+			"cancelServiceText":       "申请取消本局",
 			"unavailableTextTemplate": "{action}\u6682\u4e0d\u53ef\u7528",
-			"contactPlayerPrefill":    "\u4f60\u597d\uff0c\u9ebb\u70e6\u786e\u8ba4\u4e00\u4e0b\u670d\u52a1\u5b8c\u6210\u60c5\u51b5\u3002",
-			"contactExpertPrefill":    "你好，想和你确认一下本次服务完成情况。",
-			"contactGuidePrefill":     "\u4f60\u597d\uff0c\u8f9b\u82e6\u5e2e\u5fd9\u540c\u6b65\u4e00\u4e0b\u670d\u52a1\u5b8c\u6210\u72b6\u6001\u3002",
+			"contactPlayerPrefill":    "你好，麻烦确认一下本局完成情况。",
+			"contactExpertPrefill":    "你好，想和你确认一下本局完成情况。",
+			"contactGuidePrefill":     "你好，辛苦同步一下本局完成状态。",
 			"primaryContactKey":       contactKey,
 			"primaryContactText":      contactText,
 			"primaryContactPrefill":   contactPrefill,
-			"timelinePrefill":         "\u4f60\u597d\uff0c\u670d\u52a1\u5df2\u7ecf\u5b8c\u6210\uff0c\u9ebb\u70e6\u786e\u8ba4\u4e00\u4e0b\u3002",
+			"timelinePrefill":         "你好，本局已经结束，麻烦确认一下。",
 			"idleTimelineText":        "\u5f53\u524d\u8282\u70b9\u65e0\u9700\u989d\u5916\u64cd\u4f5c",
 			"timelineActionText":      "\u8054\u7cfb\u73a9\u5bb6",
-			"proofNoteTemplate":       "\u4ea4\u4ed8\u51ed\u8bc1ID\uff1a{fileIds}",
+			"proofNoteTemplate":       "完成凭证 ID：{fileIds}",
 		},
 	})
 }
 
 func deliveryActivityRows(game games.Game) []map[string]interface{} {
 	rows := []map[string]interface{}{
-		{"label": "服务类型", "value": auditGameTypeText(game), "type": "blue"},
+		{"label": "局分类", "value": homeGameCategoryText(game), "type": "blue"},
 	}
 	if duration := deliveryDurationText(game); duration != "" {
-		rows = append(rows, map[string]interface{}{"label": "服务时长", "value": duration})
+		rows = append(rows, map[string]interface{}{"label": "活动时长", "value": duration})
 	}
 	if startText := deliveryTimeText(game.StartAt, game.CreatedAt); startText != "" {
 		rows = append(rows, map[string]interface{}{"label": "开始时间", "value": startText})
 	}
 	if endText := deliveryTimeText(game.EndAt, time.Time{}); endText != "" {
-		rows = append(rows, map[string]interface{}{"label": "完成时间", "value": endText})
+		rows = append(rows, map[string]interface{}{"label": "结束时间", "value": endText})
 	}
 	return rows
 }
@@ -3400,7 +3703,7 @@ func (s *Server) serviceConfirmTimelineSteps(game games.Game, memberRoles map[in
 	playerConfirmed := playerID > 0 && !confirmed[playerID].CreatedAt.IsZero()
 	bothConfirmed := expertConfirmed && playerConfirmed
 
-	expertDesc := "等待行家确认服务完成"
+	expertDesc := "等待行家确认本局完成"
 	expertTitle := "等待行家确认"
 	expertState := "active"
 	expertLineState := "pending"
@@ -3411,43 +3714,43 @@ func (s *Server) serviceConfirmTimelineSteps(game games.Game, memberRoles map[in
 		expertLineState = "confirmed"
 	} else if expertConfirmed {
 		expertTitle = "行家已确认完成"
-		expertDesc = "行家标记服务已完成 " + confirmed[expertID].CreatedAt.Format("01-02 15:04")
+		expertDesc = "行家已确认本局完成 " + confirmed[expertID].CreatedAt.Format("01-02 15:04")
 		expertState = "done"
 		expertLineState = "confirmed"
 	}
 
-	playerDesc := "需玩家确认服务已达标"
+	playerDesc := "需玩家确认本局体验已完成"
 	playerTitle := "等待玩家确认"
 	playerState := "pending"
 	playerLineState := "pending"
 	if playerConfirmed {
 		playerTitle = "玩家已确认完成"
-		playerDesc = s.inGameDisplayName(playerID, "玩家") + "已确认服务已达标"
+		playerDesc = s.inGameDisplayName(playerID, "玩家") + "已确认本局体验完成"
 		playerState = "done"
 		playerLineState = "confirmed"
 	} else if expertConfirmed {
 		playerState = "active"
 	}
 
-	archiveDesc := "双方确认后服务自动归档"
+	archiveDesc := "成员确认后本局自动归档"
 	archiveState := "pending"
 	if bothConfirmed {
-		archiveDesc = "服务已进入归档"
+		archiveDesc = "本局已进入归档"
 		archiveState = "active"
 	}
 
 	return []map[string]interface{}{
 		{"index": 1, "key": "expert_confirmed", "title": expertTitle, "desc": expertDesc, "state": expertState, "lineState": expertLineState},
 		{"index": 2, "key": "player_confirmed", "title": playerTitle, "desc": playerDesc, "state": playerState, "lineState": playerLineState, "action": "contact_player"},
-		{"index": 3, "key": "service_archive", "title": "服务归档", "desc": archiveDesc, "state": archiveState},
+		{"index": 3, "key": "game_archive", "title": "本局归档", "desc": archiveDesc, "state": archiveState},
 	}
 }
 
 func deliveryContactForRole(role string) (string, string, string) {
 	if role == "member" || role == "player" {
-		return "contact_expert", "联系行家", "你好，想和你确认一下本次服务完成情况。"
+		return "contact_expert", "联系行家", "你好，想和你确认一下本局完成情况。"
 	}
-	return "contact_player", "联系玩家", "你好，麻烦确认一下服务完成情况。"
+	return "contact_player", "联系玩家", "你好，麻烦确认一下本局完成情况。"
 }
 
 func (s *Server) gameCompletionState(game games.Game, userID int64) map[string]interface{} {
@@ -3512,11 +3815,13 @@ func (s *Server) gameCompletionState(game games.Game, userID int64) map[string]i
 	case hasConfirmed:
 		waitingText = "你已确认完成，等待其他成员确认"
 	case role == "member" && !allExpertsConfirmed:
-		waitingText = "请等待行家先确认服务完成"
+		waitingText = "请等待行家先确认本局完成"
 	case role == "guide" || role == "main_guide":
 		waitingText = "领路人无需确认，等待行家和玩家完成确认"
+	case role == "guide_escort":
+		waitingText = "护航领路人无需交付确认，可保持观察"
 	case canConfirm:
-		waitingText = "请确认本次服务已经完成"
+		waitingText = "请确认本局已经完成"
 	}
 	return map[string]interface{}{
 		"role":                role,
@@ -3591,7 +3896,7 @@ func (s *Server) gameCollaboration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.games.IsMember(game.ID, userID) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "forbidden")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅局内成员可查看局协作进度")
 		return
 	}
 	messages, _ := s.im.Messages(userID, game.ID)
@@ -3630,12 +3935,20 @@ func (s *Server) requestGameCompletion(w http.ResponseWriter, r *http.Request) {
 		writeGameError(w, err)
 		return
 	}
-	s.im.ReadOnlyRoomsByGameIDs([]int64{gameID}, "game_ended")
+	if _, imErr := s.im.ReadOnlyRoomsByGameIDsStrict([]int64{gameID}, "game_ended"); imErr != nil {
+		markIMPersistenceDegraded(w, "request_completion", gameID, imErr)
+	}
 	directReview := game.Status == "pending_review"
 	if directReview && !wasReviewable {
-		s.reviews.MarkGameReviewable(gameID)
-		s.awardCompletedGameRewards(gameID)
-		s.createCoGameConnections(gameID)
+		if reviewErr := s.reviews.MarkGameReviewableStrict(gameID); reviewErr != nil {
+			markReviewPersistenceDegraded(w, "request_completion", gameID, reviewErr)
+		}
+		if growthErr := s.awardCompletedGameRewards(gameID); growthErr != nil {
+			markGrowthPersistenceDegraded(w, "request_completion", userID, gameID, growthErr)
+		}
+		if connectionErr := s.createCoGameConnections(gameID); connectionErr != nil {
+			markConnectionPersistenceDegraded(w, "request_completion", userID, 0, connectionErr)
+		}
 	}
 	if !alreadyRequested {
 		recipients := s.games.Members(gameID)
@@ -3656,7 +3969,7 @@ func (s *Server) requestGameCompletion(w http.ResponseWriter, r *http.Request) {
 				content = "《" + game.Title + "》已结束，现在可以进入评价。"
 				notifyType = "game_ended"
 			}
-			s.notices.Create(notifications.CreateRequest{
+			_, _ = s.createCriticalNotification(w, "request_game_completion", notifications.CreateRequest{
 				UserID:      memberID,
 				NotifyType:  notifyType,
 				Title:       title,
@@ -3672,7 +3985,7 @@ func (s *Server) requestGameCompletion(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		if directReview {
-			s.createReviewRemindNotifications(gameID)
+			s.createReviewRemindNotifications(w, gameID)
 		}
 	}
 	s.ensureCompletionIMReminder(userID, game, directReview)
@@ -3925,6 +4238,8 @@ func gameRoleLabel(role string) string {
 		return "\u884c\u5bb6"
 	case "guide", "main_guide":
 		return "\u9886\u8def\u4eba"
+	case "guide_escort":
+		return "\u62a4\u822a\u9886\u8def\u4eba"
 	default:
 		return "\u73a9\u5bb6"
 	}
@@ -3932,7 +4247,7 @@ func gameRoleLabel(role string) string {
 
 func gameRoleAvatarClass(role string) string {
 	switch role {
-	case "guide", "main_guide":
+	case "guide", "main_guide", "guide_escort":
 		return "orange"
 	case "expert":
 		return "blue"
@@ -3944,9 +4259,9 @@ func gameRoleAvatarClass(role string) string {
 func successStageText(status string) string {
 	switch status {
 	case "pending_review", "completed":
-		return "\u5f85\u8bc4\u4ef7\u7ed3\u7b97"
+		return "待评价"
 	case "in_progress", "pending_confirm":
-		return "\u5f85\u4ea4\u4ed8\u670d\u52a1"
+		return "进行中"
 	default:
 		return "\u5df2\u6210\u5c40"
 	}
@@ -3988,17 +4303,17 @@ func successExpertPageTexts() map[string]string {
 		"navTitle":          "组局成功",
 		"successHeading":    "组局成功!",
 		"subtitleFallback":  "成功详情以接口返回为准",
-		"groupSectionTitle": "三方连接群",
-		"onlineText":        "在线",
-		"chatButtonText":    "进入群聊",
-		"activityTitle":     "活动信息",
-		"fundTitle":         "资金状态",
-		"fundEmptyText":     "暂无资金状态",
+		"groupSectionTitle": "局内成员",
+		"onlineText":        "局内",
+		"chatButtonText":    "进入局内群聊",
+		"activityTitle":     "本局信息",
+		"fundTitle":         "",
+		"fundEmptyText":     "",
 		"stepsTitle":        "下一步",
 		"stepsEmptyText":    "暂无下一步动作",
 		"manageButtonText":  "进入局管理",
 		"loadFailedText":    "组局成功详情加载失败，请稍后重试",
-		"chatPrefill":       "我已进入三方群，准备确认后续服务安排。",
+		"chatPrefill":       "你好，想和大家确认一下本局安排。",
 	}
 }
 
@@ -4013,7 +4328,7 @@ func successGuidePageTexts() map[string]string {
 		"followMissingText": "未找到跟进项",
 		"loadFailedText":    "领路人成功详情加载失败，请稍后重试",
 		"followFailedText":  "跟进记录失败，继续打开页面",
-		"defaultImPrefill":  "我来跟进一下本次组局双方反馈。",
+		"defaultImPrefill":  "我来跟进一下本局成员反馈。",
 		"shareTitle":        "组局成功",
 		"shareButtonText":   "分享成局喜悦",
 	}
@@ -4034,7 +4349,7 @@ func (s *Server) gameGuideSuccessDetail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !s.canGuideFollowUp(userID, game) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "forbidden")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权查看该局的领路人跟进信息")
 		return
 	}
 	invitation, hasSuccessInvitation := s.guideSuccessInvitation(game.ID, userID)
@@ -4060,7 +4375,7 @@ func (s *Server) gameGuideSuccessDetail(w http.ResponseWriter, r *http.Request) 
 			{"title": "\u53d1\u8d77\u5f15\u8350", "desc": "\u4f60\u5411\u53cc\u65b9\u53d1\u9001\u4e86\u7ec4\u5c40\u9080\u8bf7", "time": game.CreatedAt.Format("01-02 15:04")},
 			{"title": "\u73a9\u5bb6\u786e\u8ba4", "desc": s.inGameDisplayName(playerID, "\u73a9\u5bb6") + "\u786e\u8ba4\u53c2\u52a0\u7ec4\u5c40", "time": game.CreatedAt.Format("01-02 15:04")},
 			{"title": "\u884c\u5bb6\u786e\u8ba4", "desc": s.inGameDisplayName(expertID, "\u884c\u5bb6") + "\u786e\u8ba4\u53c2\u52a0\u7ec4\u5c40", "time": game.CreatedAt.Format("01-02 15:04")},
-			{"title": "\u7ec4\u5c40\u6210\u529f\uff01", "desc": "\u53cc\u65b9\u5df2\u5efa\u7acb\u8fde\u63a5\uff0c\u8fdb\u5165\u4ea4\u4ed8\u9636\u6bb5", "time": game.CreatedAt.Format("01-02 15:04"), "active": true},
+			{"title": "组局成功！", "desc": "成员已确认参加，等待本局按计划开始", "time": game.CreatedAt.Format("01-02 15:04"), "active": true},
 		},
 		"party": map[string]interface{}{
 			"confirmedText": "",
@@ -4070,15 +4385,10 @@ func (s *Server) gameGuideSuccessDetail(w http.ResponseWriter, r *http.Request) 
 			"player":        guideSuccessPartyMember(s.inGameDisplayName(playerID, "\u73a9\u5bb6"), playerID, "\u73a9\u5bb6", "pink"),
 			"expert":        guideSuccessPartyMember(s.inGameDisplayName(expertID, "\u884c\u5bb6"), expertID, "\u884c\u5bb6", "blue"),
 		},
-		"reward": map[string]interface{}{
-			"show":  true,
-			"value": "+50",
-			"label": "积分奖励已到账",
-		},
+		"reward": map[string]interface{}{"show": false},
 		"followUps": []map[string]interface{}{
-			{"key": "schedule", "title": "\u67e5\u770b\u7ec4\u5c40\u65e5\u7a0b", "desc": "\u67e5\u770b\u8be5\u5c40\u8be6\u60c5\u4e0e\u4ea4\u4ed8\u8fdb\u5ea6", "iconSrc": "https://static.haowan.net.cn/miniprogram/pages/game/success-guide/assets/follow-schedule.png", "iconClass": "schedule", "theme": "blue", "target": map[string]interface{}{"type": "game_detail", "gameId": game.ID}},
-			{"key": "feedback", "title": "\u8be2\u95ee\u53cc\u65b9\u53cd\u9988", "desc": "\u8fdb\u5165\u4e09\u65b9\u7fa4\u4e86\u89e3\u4ea4\u6d41\u60c5\u51b5", "iconSrc": "https://static.haowan.net.cn/miniprogram/pages/game/success-guide/assets/follow-feedback.png", "iconClass": "feedback", "theme": "purple", "target": map[string]interface{}{"type": "im_room", "gameId": game.ID, "roomId": roomID, "prefill": "\u6211\u6765\u8ddf\u8fdb\u4e00\u4e0b\u672c\u6b21\u7ec4\u5c40\u53cc\u65b9\u53cd\u9988\u3002"}},
-			{"key": "deal", "title": "\u4fc3\u6210\u4ea4\u6613", "desc": "\u8bb0\u5f55\u6216\u8ddf\u8fdb\u53cc\u65b9\u5408\u4f5c\u610f\u5411", "iconSrc": "https://static.haowan.net.cn/miniprogram/pages/game/success-guide/assets/follow-deal.png", "iconClass": "deal", "theme": "orange", "target": map[string]interface{}{"type": "referral_record", "gameId": game.ID}},
+			{"key": "schedule", "title": "查看局详情", "desc": "查看本局时间、地点和协作进度", "iconSrc": "https://static.haowan.net.cn/miniprogram/pages/game/success-guide/assets/follow-schedule.png", "iconClass": "schedule", "theme": "blue", "target": map[string]interface{}{"type": "game_detail", "gameId": game.ID}},
+			{"key": "feedback", "title": "查看局内沟通", "desc": "本局开始后可进入局内群聊跟进情况", "iconSrc": "https://static.haowan.net.cn/miniprogram/pages/game/success-guide/assets/follow-feedback.png", "iconClass": "feedback", "theme": "purple", "target": map[string]interface{}{"type": "im_room", "gameId": game.ID, "roomId": roomID, "prefill": "我来跟进一下本局成员反馈。"}},
 		},
 	})
 }
@@ -4135,7 +4445,7 @@ func (s *Server) createGuideFollowUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.canGuideFollowUp(userID, game) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "forbidden")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅发起人或主领路人可执行此操作")
 		return
 	}
 	var req struct {
@@ -4143,22 +4453,22 @@ func (s *Server) createGuideFollowUp(w http.ResponseWriter, r *http.Request) {
 		Note   string `json:"note"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
 		return
 	}
 	action := strings.TrimSpace(req.Action)
 	if action == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "action required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择跟进操作")
 		return
 	}
 	if !validGuideFollowUpAction(action) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid follow-up action")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "跟进操作不支持")
 		return
 	}
 	target := guideFollowUpTarget(action, game.ID)
 	note := strings.TrimSpace(req.Note)
 	s.recordBehavior(userID, "guide_follow_up_"+action, "game", game.ID, map[string]interface{}{"action": action, "note": note})
-	s.createGuideFollowUpNotifications(userID, game, action)
+	s.createGuideFollowUpNotifications(w, userID, game, action)
 	httpx.OK(w, map[string]interface{}{
 		"gameId": game.ID,
 		"action": action,
@@ -4191,7 +4501,7 @@ func guideFollowUpTarget(action string, gameID int64) map[string]interface{} {
 	}
 }
 
-func (s *Server) createGuideFollowUpNotifications(userID int64, game games.Game, action string) {
+func (s *Server) createGuideFollowUpNotifications(w http.ResponseWriter, userID int64, game games.Game, action string) {
 	title := "\u9886\u8def\u4eba\u5df2\u8ddf\u8fdb"
 	content := map[string]string{
 		"schedule": "\u9886\u8def\u4eba\u67e5\u770b\u4e86\u7ec4\u5c40\u65e5\u7a0b",
@@ -4202,7 +4512,7 @@ func (s *Server) createGuideFollowUpNotifications(userID int64, game games.Game,
 		if memberID == userID {
 			continue
 		}
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "guide_follow_up", notifications.CreateRequest{
 			UserID:     memberID,
 			NotifyType: "guide_follow_up",
 			Title:      title,
@@ -4213,33 +4523,91 @@ func (s *Server) createGuideFollowUpNotifications(userID int64, game games.Game,
 	}
 }
 
+func (s *Server) gameApplyRoleOptions(userID int64, game games.Game) []GameApplyRoleOptionDTO {
+	snapshot := s.profiles.RoleSnapshot(userID)
+	status := snapshot.RoleStatusMap
+	items := []GameApplyRoleOptionDTO{
+		{Key: "player", Label: "玩家"},
+		{Key: "expert", Label: "行家"},
+		{Key: "guide", Label: "领路人"},
+	}
+	for index := range items {
+		item := &items[index]
+		if !games.GameAllowsRole(game, item.Key) {
+			item.DisabledReason = "本局未开放" + item.Label + "身份入局"
+			continue
+		}
+		if item.Key == "expert" && status["expert"] != "approved" && status["expert"] != "active" {
+			item.DisabledReason = "当前账号未开通行家身份"
+			continue
+		}
+		if item.Key == "guide" && status["guide"] != "approved" && status["guide"] != "active" {
+			item.DisabledReason = "当前账号未开通领路人身份"
+			continue
+		}
+		if games.RoleOccupiesSeat(game, item.Key) && game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers {
+			item.DisabledReason = "该局已满员"
+			continue
+		}
+		item.Enabled = true
+	}
+	return items
+}
+
 func (s *Server) buildGameRelation(userID int64, game games.Game) GameMyRelationDTO {
 	isCreator := game.CreatorUserID == userID
 	isMember := s.games.IsMember(game.ID, userID)
 	signupOpen := games.CanApplyWithinSignupWindow(game, time.Now())
 	canManageProgress := isCreator || (game.MainGuideUserID > 0 && game.MainGuideUserID == userID)
 	startableStatus := game.Status == "recruiting" || game.Status == "full"
-	relation := GameMyRelationDTO{
-		Role:       s.userRoleForGame(game, userID),
-		IsCreator:  isCreator,
-		IsMember:   isMember,
-		CanApply:   game.Status == "recruiting" && !isMember && signupOpen,
-		CanAudit:   isCreator && game.Status == "recruiting",
-		CanStart:   canManageProgress && startableStatus && game.CurrentPlayers >= game.MinPlayers,
-		CanEnterIM: isMember && (game.Status == "in_progress" || game.Status == "pending_confirm" || game.Status == "pending_review" || game.Status == "completed"),
-		CanConfirm: isMember && (game.Status == "in_progress" || game.Status == "pending_confirm"),
+	relationRole := s.userRoleForGame(game, userID)
+	completionState := s.gameCompletionState(game, userID)
+	canConfirm, _ := completionState["canConfirm"].(bool)
+	applyRoleOptions := s.gameApplyRoleOptions(userID, game)
+	hasEnabledApplyRole := false
+	firstRoleReason := ""
+	for _, option := range applyRoleOptions {
+		if option.Enabled {
+			hasEnabledApplyRole = true
+		}
+		if firstRoleReason == "" && option.DisabledReason != "" {
+			firstRoleReason = option.DisabledReason
+		}
 	}
-	if game.Status == "recruiting" && !isMember && game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers {
-		relation.CanApply = false
-		relation.ApplyDisabledReason = "该局已满员"
+	relation := GameMyRelationDTO{
+		Role:             relationRole,
+		AllowedRoles:     games.AllowedRolesForGame(game),
+		ApplyRoleOptions: applyRoleOptions,
+		IsCreator:        isCreator,
+		IsMember:         isMember,
+		CanApply:         game.Status == "recruiting" && !isMember && signupOpen && hasEnabledApplyRole,
+		CanAudit:         (isCreator || game.MainGuideUserID == userID) && game.Status == "recruiting",
+		CanStart:         canManageProgress && startableStatus && game.CurrentPlayers >= game.MinPlayers,
+		CanEnterIM:       isMember && (game.Status == "in_progress" || game.Status == "pending_confirm" || game.Status == "pending_review" || game.Status == "completed"),
+		// 交付确认还要受行家优先、角色和已确认状态约束，不能只按“局内成员”
+		// 粗略放开，否则详情页会把无法提交的成员带到确认流程。
+		CanConfirm: canConfirm,
+	}
+	if !isCreator && !isMember {
+		if allowed, message := s.canUseCreditAction(userID, "join_game"); !allowed {
+			relation.CanApply = false
+			relation.ApplyDisabledReason = message
+		}
+	}
+	if game.Status == "recruiting" && !isMember && !hasEnabledApplyRole {
+		if relation.ApplyDisabledReason == "" {
+			relation.ApplyDisabledReason = firstRoleReason
+		}
 	} else if game.Status == "recruiting" && !isMember && !signupOpen {
-		switch games.SignupWindowStateAt(game, time.Now()) {
-		case "not_started":
-			relation.ApplyDisabledReason = "报名尚未开始"
-		case "ended":
-			relation.ApplyDisabledReason = "报名已截止"
-		default:
-			relation.ApplyDisabledReason = "当前不在报名时间内"
+		if relation.ApplyDisabledReason == "" {
+			switch games.SignupWindowStateAt(game, time.Now()) {
+			case "not_started":
+				relation.ApplyDisabledReason = "报名尚未开始"
+			case "ended":
+				relation.ApplyDisabledReason = "报名已截止"
+			default:
+				relation.ApplyDisabledReason = "当前不在报名时间内"
+			}
 		}
 	}
 	// ApplicationsForUser 在内存实现中来自 map，不能依赖遍历顺序；取该局
@@ -4260,7 +4628,10 @@ func (s *Server) buildGameRelation(userID int64, game games.Game) GameMyRelation
 		relation.ApplicationStatus = latest.Status
 		if latest.Status == "pending" {
 			relation.CanApply = false
-			relation.ApplyDisabledReason = "报名审核中"
+			relation.ApplyDisabledReason = games.ApplicationStatusText(latest.Status)
+		} else if latest.Status == "rejected" && !s.currentGameApplicationConfig().AllowDuplicateApply {
+			relation.CanApply = false
+			relation.ApplyDisabledReason = games.ApplicationStatusText(latest.Status)
 		}
 	}
 	if !relation.IsMember && !relation.IsCreator && relation.ApplyDisabledReason == "" {
@@ -4314,6 +4685,8 @@ func normalizeGameMemberRole(role string) string {
 		return "expert"
 	case "guide", "leader":
 		return "guide"
+	case "guide_escort", "guide-escort", "escort", "observer":
+		return "guide_escort"
 	case "main_guide":
 		return "main_guide"
 	case "member", "player", "creator":
@@ -4380,7 +4753,10 @@ func (s *Server) adminAuditGame(w http.ResponseWriter, r *http.Request) {
 		Approve bool   `json:"approve"`
 		Remark  string `json:"remark"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
 	remark := strings.TrimSpace(req.Remark)
 	if !req.Approve && remark == "" {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
@@ -4392,9 +4768,9 @@ func (s *Server) adminAuditGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Approve {
-		s.notifyGameApproved(game)
+		s.notifyGameApproved(w, game)
 	} else {
-		s.notifyGameRejected(game, remark)
+		s.notifyGameRejected(w, game, remark)
 	}
 	s.recordOperation(r, "game:audit", "game", strconv.FormatInt(game.ID, 10), map[string]interface{}{"status": game.Status, "remark": remark})
 	httpx.OK(w, game)
@@ -4407,11 +4783,11 @@ func (s *Server) adminBatchAuditGames(w http.ResponseWriter, r *http.Request) {
 		Remark  string  `json:"remark"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid batch audit request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "批量审核请求格式不正确")
 		return
 	}
 	if len(req.GameIDs) == 0 || len(req.GameIDs) > 100 || (!req.Approve && strings.TrimSpace(req.Remark) == "") {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch audit request")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择 1-100 条组局；驳回时必须填写原因")
 		return
 	}
 	results := make([]batchMutationResult, 0, len(req.GameIDs))
@@ -4427,9 +4803,9 @@ func (s *Server) adminBatchAuditGames(w http.ResponseWriter, r *http.Request) {
 			result.Status = game.Status
 			success++
 			if req.Approve {
-				s.notifyGameApproved(game)
+				s.notifyGameApproved(w, game)
 			} else {
-				s.notifyGameRejected(game, strings.TrimSpace(req.Remark))
+				s.notifyGameRejected(w, game, strings.TrimSpace(req.Remark))
 			}
 			s.recordOperation(r, "game:batch_audit", "game", strconv.FormatInt(game.ID, 10), map[string]interface{}{"status": game.Status, "remark": req.Remark})
 		}
@@ -4459,12 +4835,12 @@ func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	id, ok := gameIDFromPath(w, r.URL.Path, "/api/app/games/", "/applications")
-	if !ok {
+	if allowed, message := s.canUseCreditAction(userID, "join_game"); !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
 		return
 	}
-	if game, err := s.games.Get(id); err == nil && game.MaxPlayers > 0 && game.CurrentPlayers >= game.MaxPlayers {
-		writeGameError(w, games.ErrFull)
+	id, ok := gameIDFromPath(w, r.URL.Path, "/api/app/games/", "/applications")
+	if !ok {
 		return
 	}
 	var req struct {
@@ -4472,23 +4848,79 @@ func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 		Role     string  `json:"role"`
 		RoleType string  `json:"roleType"`
 		FileIDs  []int64 `json:"fileIds"`
+		Agreed   bool    `json:"agreed"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if config := s.currentGameApplicationConfig(); config.RequireRealname && !s.identity.IsRealnameVerified(userID) {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
+	// 局状态、报名窗口和满员是整个申请表单的前置条件。应先返回
+	// “当前状态不可报名”，避免用户在已结束的局上被误导去补自我介绍。
+	game, gameErr := s.games.Get(id)
+	if gameErr != nil {
+		writeGameError(w, gameErr)
+		return
+	}
+	if game.Status != games.StatusRecruiting {
+		writeGameError(w, games.ErrGameNotRecruiting)
+		return
+	}
+	if !games.CanApplyWithinSignupWindow(game, time.Now()) {
+		writeGameError(w, games.ErrSignupClosed)
+		return
+	}
+	if game.CurrentPlayers >= game.MaxPlayers {
+		writeGameError(w, games.ErrFull)
+		return
+	}
+	config, configErr := s.currentGameApplicationConfigStrict()
+	if configErr != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取入局申请规则失败，请稍后重试")
+		return
+	}
+	if config.RequireRealname && !s.identity.IsRealnameVerified(userID) {
 		httpx.Error(w, http.StatusForbidden, 40341, "申请入局前请先完成实名认证")
 		return
 	}
+	reasonLength := len([]rune(strings.TrimSpace(req.Reason)))
+	if config.RequireIntro && reasonLength == 0 {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先填写自我介绍")
+		return
+	}
+	if config.MinIntroLength > 0 && reasonLength > 0 && reasonLength < config.MinIntroLength {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, fmt.Sprintf("自我介绍不少于%d字", config.MinIntroLength))
+		return
+	}
+	if config.RequireAgreement && !req.Agreed {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先阅读并同意入局申请须知")
+		return
+	}
+	if config.MaxUploadCount > 0 && len(req.FileIDs) > config.MaxUploadCount {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, fmt.Sprintf("最多上传%d个申请材料", config.MaxUploadCount))
+		return
+	}
+	if config.UploadRequired && len(req.FileIDs) == 0 {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请先上传相关经历或作品")
+		return
+	}
 	requestedRole := strings.ToLower(strings.TrimSpace(firstNonEmpty(req.RoleType, req.Role)))
-	snapshot := s.profiles.RoleSnapshot(userID)
+	snapshot, snapshotErr := s.profiles.RoleSnapshotStrict(userID)
+	if snapshotErr != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取角色身份失败，请稍后重试")
+		return
+	}
 	switch requestedRole {
 	case "guide", "leader", "main_guide":
-		if snapshot.RoleStatusMap["guide"] != "approved" {
+		if snapshot.RoleStatusMap["guide"] != "approved" && snapshot.RoleStatusMap["guide"] != "active" {
 			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "当前账号未开通领路人身份")
 			return
 		}
 		req.RoleType = "guide"
+	case "guide_escort", "guide-escort", "escort", "observer":
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "领路人护航功能暂未开放")
+		return
 	case "expert", "master":
-		if snapshot.RoleStatusMap["expert"] != "approved" {
+		if snapshot.RoleStatusMap["expert"] != "approved" && snapshot.RoleStatusMap["expert"] != "active" {
 			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "当前账号未开通行家身份")
 			return
 		}
@@ -4502,7 +4934,7 @@ func (s *Server) applyGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if game, gameErr := s.games.Get(app.GameID); gameErr == nil {
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "game_application_created", notifications.CreateRequest{
 			UserID:     game.CreatorUserID,
 			NotifyType: "game_apply",
 			Title:      "\u6536\u5230\u65b0\u7684\u5165\u5c40\u7533\u8bf7",
@@ -4520,17 +4952,22 @@ func (s *Server) createGameInvitation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.userCanGenerateInvitations(userID) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成组局邀请")
-		return
-	}
 	gameID, ok := gameIDFromPath(w, r.URL.Path, "/api/app/games/", "/guide-invitations")
 	if !ok {
 		return
 	}
+	game, err := s.games.Get(gameID)
+	if err != nil {
+		writeGameError(w, err)
+		return
+	}
+	if allowed, message := s.currentGameInvitePermission(userID, game); !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
+		return
+	}
 	var req games.InvitationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "璇锋眰鍙傛暟閿欒")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	invitation, err := s.games.CreateInvitation(userID, gameID, req)
@@ -4539,7 +4976,7 @@ func (s *Server) createGameInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordBehavior(userID, "create_game_invitation", "game", gameID, map[string]interface{}{"invitationId": invitation.ID, "targetUserId": invitation.TargetUserID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "create_game_invitation", notifications.CreateRequest{
 		UserID:     invitation.TargetUserID,
 		NotifyType: "game_invitation",
 		Title:      "\u7ec4\u5c40\u9080\u8bf7",
@@ -4561,8 +4998,14 @@ func (s *Server) respondGameInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 	var req games.InvitationRespondRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "璇锋眰鍙傛暟閿欒")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
+	}
+	if req.Accept {
+		if allowed, message := s.canUseCreditAction(userID, "accept_invitation"); !allowed {
+			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
+			return
+		}
 	}
 	invitation, app, err := s.games.RespondInvitation(userID, invitationID, req)
 	if err != nil {
@@ -4571,17 +5014,19 @@ func (s *Server) respondGameInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 	successRoute := ""
 	if invitation.Status == "accepted" {
-		s.connections.UpsertPair(invitation.InviterID, invitation.TargetUserID, "guide_match", "guide_match", invitation.ID, 3)
+		if connectionErr := s.connections.UpsertPairStrict(invitation.InviterID, invitation.TargetUserID, "guide_match", "guide_match", invitation.ID, 3); connectionErr != nil {
+			markConnectionPersistenceDegraded(w, "invitation_accept", invitation.InviterID, invitation.TargetUserID, connectionErr)
+		}
 		if strings.TrimSpace(invitation.InviteGroupID) != "" {
-			s.createPairedInvitationProgressNotification(invitation)
+			s.createPairedInvitationProgressNotification(w, invitation)
 		}
 		if app.Status == "approved" {
-			s.createGameInvitationSuccessNotifications(invitation)
+			s.createGameInvitationSuccessNotifications(w, invitation)
 			if _, _, allConfirmed := s.invitationConfirmedParties(invitation); allConfirmed && guideProgressInvitationRole(invitation.Role) == "expert" {
 				successRoute, _ = gameInvitationSuccessRoute(invitation.GameID, "expert")
 			}
 		} else {
-			s.createInvitationReviewNotification(invitation, app)
+			s.createInvitationReviewNotification(w, invitation, app)
 		}
 	}
 	s.recordBehavior(userID, "respond_game_invitation", "game", invitation.GameID, map[string]interface{}{"invitationId": invitation.ID, "status": invitation.Status, "applicationId": app.ID})
@@ -4597,7 +5042,12 @@ func (s *Server) myApplications(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.games.ApplicationsForUser(userID)})
+	items, err := s.games.ApplicationsForUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取我的报名申请失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) receivedApplications(w http.ResponseWriter, r *http.Request) {
@@ -4607,7 +5057,12 @@ func (s *Server) receivedApplications(w http.ResponseWriter, r *http.Request) {
 	}
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	gameID, _ := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("gameId")), 10, 64)
-	items := filterReceivedApplications(s.games.ApplicationsForCreator(userID), status, gameID)
+	applications, err := s.games.ApplicationsForCreatorStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取待审核报名申请失败，请稍后重试")
+		return
+	}
+	items := filterReceivedApplications(applications, status, gameID)
 	items = s.excludeAutoApprovedPairedInvitationApplications(items)
 	httpx.OK(w, map[string]interface{}{"items": s.buildReceivedApplicationItems(userID, items), "gameId": gameID})
 }
@@ -4780,9 +5235,9 @@ func (s *Server) buildReceivedApplicationItem(reviewerID int64, app games.Applic
 			{"key": "location", "label": "\u5730\u70b9", "value": firstNonEmpty(locationText, "\u672a\u8bbe\u7f6e"), "actionText": "\u5730\u56fe\u4f4d\u7f6e", "iconSrc": "/pages/game/detail/assets/icon-location.png", "iconClass": "place"},
 		},
 		"confirmRows": []map[string]interface{}{
-			{"label": "\u6d3b\u52a8\u7c7b\u578b", "value": activityType},
-			{"label": "\u670d\u52a1\u65f6\u957f", "value": firstNonEmpty(durationText, "\u672a\u8bbe\u7f6e")},
-			{"label": "\u5ba2\u6237\u9884\u7b97", "value": budgetText},
+			{"label": "局分类", "value": homeGameCategoryText(game)},
+			{"label": "活动时长", "value": firstNonEmpty(durationText, "未设置")},
+			{"label": "参与人数", "value": gameMemberCountText(game)},
 		},
 	}
 	return item
@@ -4794,6 +5249,8 @@ func auditApplicationRole(role string) (string, string) {
 		return "expert", "\u884c\u5bb6"
 	case "guide", "leader", "main_guide":
 		return "guide", "\u9886\u8def\u4eba"
+	case "guide_escort", "guide-escort", "escort", "observer":
+		return "guide_escort", "\u62a4\u822a\u9886\u8def\u4eba"
 	default:
 		return "player", "\u73a9\u5bb6"
 	}
@@ -4918,26 +5375,58 @@ func (s *Server) reviewApplication(w http.ResponseWriter, r *http.Request) {
 			title = "\u5165\u5c40\u7533\u8bf7\u5df2\u901a\u8fc7"
 			content = "\u4f60\u7533\u8bf7\u52a0\u5165\u7684\u300a" + game.Title + "\u300b\u5df2\u901a\u8fc7\u5ba1\u6838\u3002"
 		}
-		s.notices.Create(notifications.CreateRequest{
-			UserID:     app.UserID,
-			NotifyType: notifyType,
-			Title:      title,
-			Content:    content,
-			BizType:    "game",
-			BizID:      game.ID,
+		reviewedAt := time.Now()
+		resultText := games.ApplicationStatusText("rejected")
+		if req.Approve {
+			resultText = games.ApplicationStatusText("approved")
+		}
+		templateID := s.applicationResultSubscribeTemplateID(notifyType)
+		content = applicationReviewNotificationContent(game.Title, resultText, reviewedAt, app.RejectReason)
+		notice, notificationErr := s.createCriticalNotification(w, "game_application_reviewed", notifications.CreateRequest{
+			UserID:           app.UserID,
+			NotifyType:       notifyType,
+			Title:            title,
+			Content:          content,
+			BizType:          "game",
+			BizID:            game.ID,
+			NeedWechat:       templateID != "",
+			WechatTemplateID: templateID,
+			WechatData: map[string]string{
+				"thing1": game.Title,
+				"thing2": resultText,
+				"time3":  reviewedAt.Local().Format("2006-01-02 15:04"),
+				"page":   "pages/game/detail/index?id=" + strconv.FormatInt(game.ID, 10),
+			},
 		})
+		if notificationErr == nil && notice.NeedWechat && notice.WechatTaskID > 0 {
+			// 授权成功后立即尝试发送；发送失败时通知已保留在消息中心，
+			// 订阅任务保持待重试状态，不影响审核结果返回。
+			_, _ = s.notices.SendWechatTask(notice.WechatTaskID)
+		}
 	}
 	if req.Approve {
-		s.createGameInvitationSuccessNotificationsForApplication(app)
+		s.createGameInvitationSuccessNotificationsForApplication(w, app)
 		if game, gameErr := s.games.Get(app.GameID); gameErr == nil {
-			s.createGameReadyToStartNotification(game)
+			s.createGameReadyToStartNotification(w, game)
 		}
 	}
 	httpx.OK(w, s.buildReceivedApplicationItem(userID, app))
 }
 
-func (s *Server) notifyGameApproved(game games.Game) {
-	s.notices.Create(notifications.CreateRequest{
+func applicationReviewNotificationContent(gameTitle string, resultText string, reviewedAt time.Time, rejectReason string) string {
+	gameTitle = strings.TrimSpace(gameTitle)
+	if gameTitle == "" {
+		gameTitle = "未命名组局"
+	}
+	content := "你申请加入的《" + gameTitle + "》审核结果：" + resultText + "。审核时间：" + reviewedAt.Local().Format("2006-01-02 15:04") + "。"
+	if strings.TrimSpace(rejectReason) != "" {
+		content += "拒绝原因：" + strings.TrimSpace(rejectReason)
+	}
+	return content
+}
+
+func (s *Server) notifyGameApproved(w http.ResponseWriter, game games.Game) {
+	_, _ = s.createCriticalNotification(w, "game_audit_approved", notifications.CreateRequest{
 		UserID:     game.CreatorUserID,
 		NotifyType: "game_approved",
 		Title:      "\u7ec4\u5c40\u5ba1\u6838\u901a\u8fc7",
@@ -4947,12 +5436,12 @@ func (s *Server) notifyGameApproved(game games.Game) {
 	})
 }
 
-func (s *Server) notifyGameRejected(game games.Game, reason string) {
+func (s *Server) notifyGameRejected(w http.ResponseWriter, game games.Game, reason string) {
 	content := "你的组局《" + game.Title + "》未通过审核。"
 	if strings.TrimSpace(reason) != "" {
 		content += "原因：" + strings.TrimSpace(reason)
 	}
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "game_audit_rejected", notifications.CreateRequest{
 		UserID:     game.CreatorUserID,
 		NotifyType: "game_rejected",
 		Title:      "组局审核未通过",
@@ -4981,12 +5470,12 @@ func invitationIDFromPath(w http.ResponseWriter, path string) (int64, bool) {
 	text := strings.Trim(path, "/")
 	parts := strings.Split(text, "/")
 	if len(parts) < 3 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "閭€绾?ID 閿欒")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "邀约 ID 错误")
 		return 0, false
 	}
 	id, err := strconv.ParseInt(parts[len(parts)-2], 10, 64)
 	if err != nil || id <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "閭€绾?ID 閿欒")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "邀约 ID 错误")
 		return 0, false
 	}
 	return id, true
@@ -5024,11 +5513,11 @@ func (s *Server) playerCancelRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.canRequestPlayerCancel(game, userID) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "no permission to request player cancel")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权申请取消该局")
 		return
 	}
 	if game.Status != "in_progress" {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "current game cannot be canceled")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "当前局状态不可取消")
 		return
 	}
 	var req struct {
@@ -5046,17 +5535,17 @@ func (s *Server) playerCancelRequest(w http.ResponseWriter, r *http.Request) {
 		TotalDurationText      string  `json:"totalDurationText"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	req.ReasonKey = strings.TrimSpace(req.ReasonKey)
 	req.ReasonText = strings.TrimSpace(req.ReasonText)
 	if req.ReasonKey == "" || req.ReasonText == "" || !validCancelReason(req.ReasonKey, s.currentGameCancelConfig().Player.ReasonOptions) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "cancel reason required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择并填写取消原因")
 		return
 	}
 	if req.CompensationRate < 0 || req.CompensationRate > 100 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid compensation rate")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "赔付比例不合法")
 		return
 	}
 	amountCent := successFundAmount(game)
@@ -5076,20 +5565,28 @@ func (s *Server) playerCancelRequest(w http.ResponseWriter, r *http.Request) {
 		"servedDurationText":     firstNonEmpty(strings.TrimSpace(game.StartAt), "待后端确认"),
 		"totalDurationText":      firstNonEmpty(strings.TrimSpace(game.EndAt), "待后端确认"),
 	}
+	membersBeforeCancel, membersErr := s.games.MembersStrict(gameID)
+	if membersErr != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取局成员失败，请稍后重试")
+		return
+	}
 	s.recordBehavior(userID, "player_cancel_request", "game", gameID, extra)
-	s.createPlayerCancelNotifications(userID, game, req.ReasonText)
 	if game.CreatorUserID != userID {
 		result, err := s.games.Exit(userID, gameID)
 		if err != nil {
 			writeGameError(w, err)
 			return
 		}
-		credit := s.reviews.DeductCredit(userID, gameID, "player_cancel_service")
+		credit, creditErr := s.reviews.DeductCreditStrict(userID, gameID, "player_cancel_service")
+		if creditErr != nil {
+			markCreditPersistenceDegraded(w, "player_cancel_after_exit", userID, gameID, creditErr)
+		}
 		result.CreditLogID = credit.ID
 		if err := s.games.RecordExitCredit(gameID, userID, credit.ID); err != nil {
 			writeGameError(w, err)
 			return
 		}
+		s.createPlayerCancelNotifications(w, userID, game, req.ReasonText, false, nil)
 		httpx.OK(w, map[string]interface{}{
 			"game":   result.Game,
 			"gameId": gameID,
@@ -5115,7 +5612,11 @@ func (s *Server) playerCancelRequest(w http.ResponseWriter, r *http.Request) {
 		writeGameError(w, err)
 		return
 	}
-	credit := s.reviews.DeductCredit(userID, gameID, "player_cancel_service")
+	credit, creditErr := s.reviews.DeductCreditStrict(userID, gameID, "player_cancel_service")
+	if creditErr != nil {
+		markCreditPersistenceDegraded(w, "player_cancel_after_cancel", userID, gameID, creditErr)
+	}
+	s.createPlayerCancelNotifications(w, userID, game, req.ReasonText, true, membersBeforeCancel)
 	httpx.OK(w, map[string]interface{}{
 		"game":   canceledGame,
 		"gameId": gameID,
@@ -5155,11 +5656,11 @@ func (s *Server) gameCancelDetail(w http.ResponseWriter, r *http.Request, role s
 	}
 	if role == "player" {
 		if !s.canRequestPlayerCancel(game, userID) {
-			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "no permission to request player cancel")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权申请取消该局")
 			return
 		}
 	} else if game.CreatorUserID != userID && game.MainGuideUserID != userID {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "no permission to request expert cancel")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权取消该局")
 		return
 	}
 
@@ -5173,7 +5674,7 @@ func (s *Server) gameCancelDetail(w http.ResponseWriter, r *http.Request, role s
 	platformFeeCent := compensationCent * int64(platformFeeRate) / 100
 	statusType, statusText := serviceOrderStatus(game.Status)
 	if statusType != "active" {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "current game cannot be canceled")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "当前局状态不可取消")
 		return
 	}
 
@@ -5202,8 +5703,8 @@ func (s *Server) gameCancelDetail(w http.ResponseWriter, r *http.Request, role s
 	warningTitle := "取消将产生赔付"
 	warningDesc := "赔付金额由后端根据订单金额和赔付比例计算。"
 	if isFree {
-		warningTitle = "免费局取消无需赔付"
-		warningDesc = "当前为免费局，本次取消不会产生赔付金额，但会扣减信用分。"
+		warningTitle = "取消本局提醒"
+		warningDesc = "本局为免费局，取消后将按规则扣减信用分。"
 	}
 
 	httpx.OK(w, map[string]interface{}{
@@ -5245,8 +5746,15 @@ func serviceOrderStatusText(status string) string {
 	return text
 }
 
-func (s *Server) createPlayerCancelNotifications(userID int64, game games.Game, reason string) {
+func (s *Server) createPlayerCancelNotifications(w http.ResponseWriter, userID int64, game games.Game, reason string, gameCanceled bool, memberIDs []int64) {
 	recipients := make(map[int64]bool)
+	if gameCanceled {
+		for _, memberID := range memberIDs {
+			if memberID > 0 && memberID != userID {
+				recipients[memberID] = true
+			}
+		}
+	}
 	if game.CreatorUserID > 0 && game.CreatorUserID != userID {
 		recipients[game.CreatorUserID] = true
 	}
@@ -5259,7 +5767,7 @@ func (s *Server) createPlayerCancelNotifications(userID int64, game games.Game, 
 		content += "，原因：" + reason
 	}
 	for recipientID := range recipients {
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "player_cancel_request", notifications.CreateRequest{
 			UserID:     recipientID,
 			NotifyType: "player_cancel_request",
 			Title:      "玩家取消组局",
@@ -5285,11 +5793,11 @@ func (s *Server) expertCancelRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if game.CreatorUserID != userID && game.MainGuideUserID != userID {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "no permission to request expert cancel")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权取消该局")
 		return
 	}
 	if game.Status != "in_progress" {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "current game cannot be canceled")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "当前局状态不可取消")
 		return
 	}
 	var req struct {
@@ -5305,17 +5813,17 @@ func (s *Server) expertCancelRequest(w http.ResponseWriter, r *http.Request) {
 		StatusText             string  `json:"statusText"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	req.ReasonKey = strings.TrimSpace(req.ReasonKey)
 	req.ReasonText = strings.TrimSpace(req.ReasonText)
 	if req.ReasonKey == "" || req.ReasonText == "" || !validCancelReason(req.ReasonKey, s.currentGameCancelConfig().Expert.ReasonOptions) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "cancel reason required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择并填写取消原因")
 		return
 	}
 	if req.CompensationRate < 0 || req.CompensationRate > 100 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid compensation rate")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "赔付比例不合法")
 		return
 	}
 	amountCent := successFundAmount(game)
@@ -5333,14 +5841,22 @@ func (s *Server) expertCancelRequest(w http.ResponseWriter, r *http.Request) {
 		"contractAmount":         float64(amountCent) / 100,
 		"statusText":             serviceOrderStatusText(game.Status),
 	}
+	membersBeforeCancel, membersErr := s.games.MembersStrict(gameID)
+	if membersErr != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取局成员失败，请稍后重试")
+		return
+	}
 	s.recordBehavior(userID, "expert_cancel_request", "game", gameID, extra)
-	s.createExpertCancelNotifications(userID, game, req.ReasonText)
 	canceledGame, err := s.games.CancelService(gameID, "expert_cancel_service")
 	if err != nil {
 		writeGameError(w, err)
 		return
 	}
-	credit := s.reviews.DeductCredit(userID, gameID, "expert_cancel_service")
+	credit, creditErr := s.reviews.DeductCreditStrict(userID, gameID, "expert_cancel_service")
+	if creditErr != nil {
+		markCreditPersistenceDegraded(w, "expert_cancel_after_cancel", userID, gameID, creditErr)
+	}
+	s.createExpertCancelNotifications(w, userID, game, req.ReasonText, membersBeforeCancel)
 	httpx.OK(w, map[string]interface{}{
 		"game":   canceledGame,
 		"gameId": gameID,
@@ -5360,17 +5876,17 @@ func (s *Server) expertCancelRequest(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) createExpertCancelNotifications(userID int64, game games.Game, reason string) {
+func (s *Server) createExpertCancelNotifications(w http.ResponseWriter, userID int64, game games.Game, reason string, memberIDs []int64) {
 	expertName := s.inGameDisplayName(userID, "行家")
 	content := expertName + "取消了本次组局"
 	if reason != "" {
 		content += "，原因：" + reason
 	}
-	for _, recipientID := range s.games.Members(game.ID) {
+	for _, recipientID := range memberIDs {
 		if recipientID == userID {
 			continue
 		}
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "expert_cancel_request", notifications.CreateRequest{
 			UserID:     recipientID,
 			NotifyType: "expert_cancel_request",
 			Title:      "行家取消组局",
@@ -5394,20 +5910,31 @@ func (s *Server) manualStart(w http.ResponseWriter, r *http.Request) {
 		StartReason string `json:"startReason"`
 	}
 	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+			return
+		}
 	}
 	startReason := strings.TrimSpace(req.StartReason)
 	if startReason == "" {
 		startReason = "发起人手动开始"
+	}
+	members, membersErr := s.games.MembersStrict(id)
+	if membersErr != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取局成员失败，请稍后重试")
+		return
 	}
 	game, err := s.games.ManualStartWithReason(userID, id, startReason)
 	if err != nil {
 		writeGameError(w, err)
 		return
 	}
-	s.im.EnsureRoom(id)
-	s.createManualStartChatMessage(userID, game)
-	s.createManualStartNotifications(userID, game)
+	if _, roomErr := s.im.EnsureRoomStrict(id); roomErr != nil {
+		markIMPersistenceDegraded(w, "manual_start", id, roomErr)
+	} else {
+		s.createManualStartChatMessage(userID, game)
+	}
+	s.createManualStartNotifications(w, userID, game, members)
 	httpx.OK(w, game)
 }
 
@@ -5423,22 +5950,17 @@ func (s *Server) createManualStartChatMessage(userID int64, game games.Game) {
 	if err != nil {
 		return
 	}
-	if s.imSocketHub != nil {
-		s.imSocketHub.broadcast(message.RoomID, imSocketOutgoing{
-			Type: "message",
-			Data: s.inGameMessageDTO(message),
-		})
-	}
+	s.broadcastIMMessage(message)
 }
 
-func (s *Server) createManualStartNotifications(userID int64, game games.Game) {
+func (s *Server) createManualStartNotifications(w http.ResponseWriter, userID int64, game games.Game, memberIDs []int64) {
 	starterName := s.inGameDisplayName(userID, "组建者")
 	content := starterName + "已开始组局，请及时查看并参与"
 	if title := strings.TrimSpace(game.Title); title != "" {
 		content = "「" + title + "」" + content
 	}
-	for _, recipientID := range s.games.Members(game.ID) {
-		s.notices.Create(notifications.CreateRequest{
+	for _, recipientID := range memberIDs {
+		_, _ = s.createCriticalNotification(w, "manual_start", notifications.CreateRequest{
 			UserID:     recipientID,
 			NotifyType: "game_started",
 			Title:      "组局已开局",
@@ -5464,17 +5986,28 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.games.IsMember(id, userID) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "not a game member")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅局内成员可退出")
 		return
 	}
 	if atomic, ok := s.games.(interface {
+		SupportsExitWithCreditMutation() bool
 		ExitWithCreditMutation(userID int64, gameID int64, memberStatus string, reason string, mutation games.ExitCreditMutation) (games.ExitCreditResult, error)
-	}); ok && gameNeedsExitCredit(game.Status) {
+	}); ok && atomic.SupportsExitWithCreditMutation() && gameNeedsExitCredit(game.Status) {
 		reason := exitCreditReason(game.Status)
-		changeValue := s.reviews.CreditDeductionValue(reason)
+		changeValue, creditRuleErr := s.reviews.CreditDeductionValueStrict(reason)
+		if creditRuleErr != nil {
+			httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "信用规则暂时不可用，请稍后重试")
+			return
+		}
+		creditConfig, configErr := s.currentCreditRestrictionConfigStrict()
+		if configErr != nil {
+			httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "信用规则暂时不可用，请稍后重试")
+			return
+		}
 		atomicResult, err := atomic.ExitWithCreditMutation(userID, id, games.ExitMemberStatusForGame(game.Status), reason, games.ExitCreditMutation{
-			ChangeValue: changeValue,
-			Reason:      reason,
+			ChangeValue:  changeValue,
+			Reason:       reason,
+			InitialScore: creditConfig.InitialScore,
 		})
 		if err != nil {
 			writeGameError(w, err)
@@ -5490,29 +6023,38 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 			Reason:      reason,
 			CreatedAt:   atomicResult.CreatedAt,
 		}
-		s.createExitNotifications(atomicResult.ExitResult, credit.ChangeValue)
+		if atomicResult.CreditDeducted {
+			s.createExitNotifications(w, atomicResult.ExitResult, credit.ChangeValue)
+		}
 		httpx.OK(w, map[string]interface{}{"game": atomicResult.Game, "exit": atomicResult.ExitResult, "credit": credit})
 		return
 	}
 	var credit reviews.CreditLog
 	if gameNeedsExitCredit(game.Status) {
-		credit = s.reviews.DeductCredit(userID, id, exitCreditReason(game.Status))
+		var creditErr error
+		credit, creditErr = s.reviews.DeductCreditStrict(userID, id, exitCreditReason(game.Status))
+		if creditErr != nil {
+			writeGameError(w, creditErr)
+			return
+		}
 	}
 	result, err := s.games.ExitWithCredit(userID, id, credit.ID)
 	if err != nil {
 		if credit.ID > 0 && credit.ChangeValue < 0 {
-			s.reviews.RestoreCredit(userID, id, "exit_rollback", -credit.ChangeValue)
+			if _, restoreErr := s.reviews.RestoreCreditStrict(userID, id, "exit_rollback", -credit.ChangeValue); restoreErr != nil {
+				markCreditPersistenceDegraded(w, "exit_rollback", userID, id, restoreErr)
+			}
 			_ = s.games.RestoreMemberAfterExit(userID, id)
 		}
 		writeGameError(w, err)
 		return
 	}
 	if result.CreditDeduct {
-		s.createExitNotifications(result, credit.ChangeValue)
+		s.createExitNotifications(w, result, credit.ChangeValue)
 		httpx.OK(w, map[string]interface{}{"game": result.Game, "exit": result, "credit": credit})
 		return
 	}
-	s.createExitNotifications(result, 0)
+	s.createExitNotifications(w, result, 0)
 	httpx.OK(w, map[string]interface{}{"game": result.Game, "exit": result})
 }
 
@@ -5527,13 +6069,13 @@ func exitCreditReason(status string) string {
 	return "quit_after_started"
 }
 
-func (s *Server) createExitNotifications(result games.ExitResult, creditChange int) {
+func (s *Server) createExitNotifications(w http.ResponseWriter, result games.ExitResult, creditChange int) {
 	content := "成员已退出局"
 	if result.CreditDeduct {
 		content = "成员退出局，已扣减信用分 " + strconv.Itoa(-creditChange)
 	}
 	if result.Game.CreatorUserID > 0 && result.Game.CreatorUserID != result.UserID {
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "exit_game", notifications.CreateRequest{
 			UserID:     result.Game.CreatorUserID,
 			NotifyType: "game_member_quit",
 			Title:      "成员退出局",
@@ -5542,7 +6084,7 @@ func (s *Server) createExitNotifications(result games.ExitResult, creditChange i
 			BizID:      result.GameID,
 		})
 	}
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "exit_game", notifications.CreateRequest{
 		UserID:     result.UserID,
 		NotifyType: "game_quit_result",
 		Title:      "退出局结果",
@@ -5710,12 +6252,12 @@ func (s *Server) markCheckinInvalid(w http.ResponseWriter, r *http.Request) {
 		Reason string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
 		return
 	}
 	req.Reason = strings.TrimSpace(req.Reason)
 	if req.Reason == "" || len(req.Reason) > 300 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid reason")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "异常原因不能为空且不能超过 300 字")
 		return
 	}
 	checkin, err := s.games.MarkCheckinInvalid(checkinID)
@@ -5770,6 +6312,10 @@ func (s *Server) retrospectives(w http.ResponseWriter, r *http.Request) {
 func (s *Server) continueGame(w http.ResponseWriter, r *http.Request) {
 	userID, ok := s.requireUser(w, r)
 	if !ok {
+		return
+	}
+	if allowed, message := s.canUseCreditAction(userID, "create_game"); !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
 		return
 	}
 	gameID, ok := gameIDFromPath(w, r.URL.Path, "/api/app/games/", "/continue")
@@ -5839,14 +6385,7 @@ func (s *Server) myFavoriteGames(w http.ResponseWriter, r *http.Request) {
 func (s *Server) currentMyGamesPageConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(gameMyGamesPageConfigKey, &config) && len(config) > 0 {
-		// 兼容旧版本将管理局错误放入“我的局”的配置，统一显示为“我受邀的”。
-		if tabs, ok := config["categoryTabs"].([]interface{}); ok {
-			for _, raw := range tabs {
-				if item, ok := raw.(map[string]interface{}); ok && item["key"] == "created" {
-					item["key"], item["text"] = "invited", "我受邀的"
-				}
-			}
-		}
+		config["categoryTabs"] = normalizeMyGamesCategoryTabs(config["categoryTabs"])
 		return config
 	}
 	return map[string]interface{}{
@@ -5854,11 +6393,7 @@ func (s *Server) currentMyGamesPageConfig() map[string]interface{} {
 		"emptyText":     "\u6682\u65e0\u76f8\u5173\u5c40",
 		"detailMissing": "\u6682\u65e0\u7ec4\u5c40\u8be6\u60c5",
 		"actionMissing": "\u6682\u65e0\u53ef\u6267\u884c\u64cd\u4f5c",
-		"categoryTabs": []map[string]interface{}{
-			{"key": "joined", "text": "\u6211\u53c2\u4e0e\u7684"},
-			{"key": "invited", "text": "\u6211\u53d7\u9080\u7684"},
-			{"key": "favorite", "text": "\u6211\u6536\u85cf\u7684"},
-		},
+		"categoryTabs":  normalizeMyGamesCategoryTabs(nil),
 		"statusTabs": []map[string]interface{}{
 			{"key": "all", "text": "\u5168\u90e8"},
 			{"key": "active", "text": "\u8fdb\u884c\u4e2d"},
@@ -5868,6 +6403,45 @@ func (s *Server) currentMyGamesPageConfig() map[string]interface{} {
 			{"key": "dispute", "text": "\u4e89\u8bae\u4e2d"},
 		},
 	}
+}
+
+// normalizeMyGamesCategoryTabs keeps the two distinct business views that
+// were previously conflated: a user can both participate in games and manage
+// games they created or serve. Existing operation configuration is retained,
+// while missing canonical tabs are restored so management cards never become
+// inaccessible after an older configuration is loaded.
+func normalizeMyGamesCategoryTabs(raw interface{}) []map[string]interface{} {
+	defaults := []map[string]interface{}{
+		{"key": "joined", "text": "我参与的"},
+		{"key": "created", "text": "我发起/管理的"},
+		{"key": "invited", "text": "我受邀的"},
+		{"key": "favorite", "text": "我收藏的"},
+	}
+	configured := map[string]map[string]interface{}{}
+	items, _ := raw.([]interface{})
+	for _, item := range items {
+		row, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		key := strings.TrimSpace(stringValue(row["key"]))
+		if key == "joined" || key == "created" || key == "invited" || key == "favorite" {
+			configured[key] = row
+		}
+	}
+	result := make([]map[string]interface{}, 0, len(defaults))
+	for _, fallback := range defaults {
+		key := fallback["key"].(string)
+		if item, ok := configured[key]; ok {
+			text := strings.TrimSpace(stringValue(item["text"]))
+			if text != "" && !(key == "created" && text == "我受邀的") {
+				result = append(result, map[string]interface{}{"key": key, "text": text})
+				continue
+			}
+		}
+		result = append(result, fallback)
+	}
+	return result
 }
 
 func myGamesPageConfigText(config map[string]interface{}, key string, fallback string) string {
@@ -6012,9 +6586,11 @@ func writeGameError(w http.ResponseWriter, err error) {
 	case errors.Is(err, games.ErrAlreadyApplied), errors.Is(err, games.ErrAlreadyMember), errors.Is(err, games.ErrAlreadyInvited):
 		httpx.Error(w, http.StatusConflict, 40923, "重复申请或已是成员")
 	case errors.Is(err, games.ErrFull):
-		httpx.Error(w, http.StatusConflict, 40922, "人数已满")
+		httpx.Error(w, http.StatusConflict, 40922, "该局已满员")
+	case errors.Is(err, games.ErrRoleNotAllowed):
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "本局未开放当前身份入局")
 	case errors.Is(err, games.ErrInvalidGameInput):
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid game input")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "组局信息不完整或格式不正确")
 	case errors.Is(err, games.ErrInvalidProgress):
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "进度参数错误")
 	case errors.Is(err, games.ErrInvalidMilestone), errors.Is(err, games.ErrInvalidCheckin), errors.Is(err, games.ErrInvalidRetrospective):

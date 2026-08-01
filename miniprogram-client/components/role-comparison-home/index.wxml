@@ -46,7 +46,7 @@
         <view wx:for="{{displayComparison.benefits}}" wx:for-index="benefitIndex" wx:key="name" class="home-role-row {{benefitIndex === 4 ? 'spaced' : ''}}">
           <text>{{item.name}}</text>
           <text class="player {{item.player === '✓' ? 'ok' : 'muted'}}">{{item.player}}</text>
-          <text class="guide {{item.leader === '✓' ? 'ok' : item.leader === '—' ? 'muted' : 'rate'}}">{{item.leader}}</text>
+          <text class="guide {{item.guide === '✓' ? 'ok' : item.guide === '—' ? 'muted' : 'rate'}}">{{item.guide}}</text>
           <text class="expert {{item.expert === '✓' ? 'ok' : item.expert === '—' ? 'muted' : 'rate'}}">{{item.expert}}</text>
         </view>
       </view>

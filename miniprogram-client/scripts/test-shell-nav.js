@@ -24,6 +24,9 @@ function runNavigation(pages, target, options = {}) {
     },
     reLaunch(payload) {
       calls.push({ type: 'reLaunch', payload })
+    },
+    showToast(payload) {
+      calls.push({ type: 'showToast', payload })
     }
   }
 
@@ -83,6 +86,20 @@ const noReuseCalls = runNavigation([
 
 assert.deepStrictEqual(noReuseCalls.map((call) => call.type), ['navigateTo'])
 
+const deferredMapCalls = runNavigation([
+  { route: 'pages/game/detail/index', options: { id: '202' } }
+], 'pages/map/index?gameId=202')
+
+assert.deepStrictEqual(deferredMapCalls.map((call) => call.type), ['showToast'])
+assert.strictEqual(deferredMapCalls[0].payload.title, '地图功能暂未开放')
+
+const deferredMetaverseCalls = runNavigation([
+  { route: 'pages/game/detail/index', options: { id: '202' } }
+], 'pages/metaverse/home/index')
+
+assert.deepStrictEqual(deferredMetaverseCalls.map((call) => call.type), ['showToast'])
+assert.strictEqual(deferredMetaverseCalls[0].payload.title, '元宇宙功能暂未开放')
+
 delete require.cache[shellNavPath]
 global.getCurrentPages = () => [{ route: 'pages/message/index', options: {} }]
 const homeCalls = []
@@ -90,7 +107,8 @@ global.wx = {
   getStorageSync: () => 'guide',
   navigateTo: (payload) => homeCalls.push(payload),
   redirectTo() {},
-  reLaunch() {}
+  reLaunch() {},
+  showToast() {}
 }
 require(shellNavPath).navigateShellKey('home')
 assert.strictEqual(homeCalls[0].url, '/pages/home/guide/index')

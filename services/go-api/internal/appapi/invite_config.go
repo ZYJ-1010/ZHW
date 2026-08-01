@@ -2,6 +2,7 @@ package appapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"zhw-mini/services/go-api/internal/common/httpx"
@@ -20,25 +21,47 @@ func defaultInviteCodeConfig() inviteCodeConfigDTO {
 }
 
 func (s *Server) inviteCodeConfig() inviteCodeConfigDTO {
-	config := defaultInviteCodeConfig()
-	if s.systemConfig.Get(inviteCodeConfigKey, &config) {
-		if config.MaxBatchCount < 1 || config.MaxBatchCount > 1000 {
-			config.MaxBatchCount = 200
-		}
-		if config.MaxRequestCount < 1 || config.MaxRequestCount > 1000 {
-			config.MaxRequestCount = 200
-		}
-		if config.DefaultValidDays < 0 || config.DefaultValidDays > 3650 {
-			config.DefaultValidDays = 0
-		}
-		return config
+	config, err := s.inviteCodeConfigStrict()
+	if err != nil {
+		return defaultInviteCodeConfig()
 	}
-	_ = s.systemConfig.Set(inviteCodeConfigKey, config)
 	return config
 }
 
+func (s *Server) inviteCodeConfigStrict() (inviteCodeConfigDTO, error) {
+	config := defaultInviteCodeConfig()
+	if s.systemConfig == nil {
+		return config, nil
+	}
+	found, err := s.systemConfig.GetStrict(inviteCodeConfigKey, &config)
+	if err != nil {
+		return inviteCodeConfigDTO{}, err
+	}
+	if found {
+		if config.MaxBatchCount < 1 || config.MaxBatchCount > 1000 {
+			return inviteCodeConfigDTO{}, fmt.Errorf("邀请码批量数量配置无效")
+		}
+		if config.MaxRequestCount < 1 || config.MaxRequestCount > 1000 {
+			return inviteCodeConfigDTO{}, fmt.Errorf("邀请码申请数量配置无效")
+		}
+		if config.DefaultValidDays < 0 || config.DefaultValidDays > 3650 {
+			return inviteCodeConfigDTO{}, fmt.Errorf("邀请码有效期配置无效")
+		}
+		return config, nil
+	}
+	if err := s.systemConfig.Set(inviteCodeConfigKey, config); err != nil {
+		return inviteCodeConfigDTO{}, err
+	}
+	return config, nil
+}
+
 func (s *Server) adminInviteCodeConfig(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"config": s.inviteCodeConfig()})
+	config, err := s.inviteCodeConfigStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请码配置失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"config": config})
 }
 
 func (s *Server) updateAdminInviteCodeConfig(w http.ResponseWriter, r *http.Request) {

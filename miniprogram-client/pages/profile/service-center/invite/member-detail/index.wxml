@@ -15,15 +15,6 @@
         </view>
       </view>
 
-      <view class="section-card income-section">
-        <view class="section-title"><text class="title-icon">💰</text><text>收益贡献</text></view>
-        <view wx:for="{{income}}" wx:key="label" class="income-row {{item.highlight ? 'highlight' : ''}}">
-          <text class="income-label">{{item.label}}</text>
-          <text class="income-value">{{item.value}}</text>
-        </view>
-        <view wx:if="{{!income.length}}" class="empty-state">暂无收益贡献</view>
-      </view>
-
       <view class="section-card activity-section">
         <view class="section-title"><text class="title-icon">📈</text><text>最近动态</text></view>
         <view wx:for="{{activities}}" wx:key="title" class="activity-row">

@@ -31,7 +31,7 @@
 
         <view class="card activity-card">
           <view class="section-head">
-            <text class="section-title">活动信息</text>
+            <text class="section-title">本局信息</text>
             <view class="state-pill {{statePill.theme}}">
               <view class="state-dot"></view>
               <text>{{statePill.text}}</text>
@@ -46,7 +46,7 @@
                 <text class="role-tag">{{activity.roleTag}}</text>
               </view>
               <text class="expert-service">{{activity.serviceName}}</text>
-              <text class="order-no">订单号: {{activity.orderNo}}</text>
+              <text class="order-no">局编号：{{activity.orderNo}}</text>
             </view>
           </view>
 
@@ -106,7 +106,7 @@
         </view>
 
         <view class="card confirmation-card">
-          <text class="section-title standalone">服务内容确认</text>
+          <text class="section-title standalone">本局完成确认</text>
           <view class="check-list">
             <view
               wx:for="{{confirmItems}}"
@@ -133,7 +133,7 @@
 
         <view wx:if="{{showProofCard}}" class="card proof-card">
           <view class="section-head">
-            <text class="section-title">交付凭证</text>
+          <text class="section-title">完成凭证</text>
             <button class="proof-upload-button" hover-class="none" bindtap="chooseProofImages">上传</button>
           </view>
           <view wx:if="{{proofImages.length}}" class="proof-list">
@@ -189,7 +189,7 @@
         hover-class="none"
         bindtap="onSubmitTap"
       >
-        {{hasConfirmed ? '已确认完成' : '确认服务完成'}}
+        {{hasConfirmed ? '已确认完成' : '确认本局完成'}}
       </button>
       <text class="submit-hint">{{!canSubmit ? submitBlockText : (allConfirmed ? submitHints.ready : submitHints.pending)}}</text>
     </view>

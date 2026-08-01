@@ -52,7 +52,12 @@ func (s *Server) adminUpdateExpertBlueBadge(w http.ResponseWriter, r *http.Reque
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "用户不存在")
 		return
 	}
-	roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
+	snapshot, snapshotErr := s.profiles.RoleSnapshotStrict(userID)
+	if snapshotErr != nil {
+		httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "读取用户角色身份失败，请稍后重试")
+		return
+	}
+	roles := snapshot.RoleStatusMap
 	if roles["expert"] != "approved" && roles["expert"] != "active" {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "仅已生效行家可设置蓝标认证")
 		return
@@ -70,12 +75,14 @@ func (s *Server) adminUpdateExpertBlueBadge(w http.ResponseWriter, r *http.Reque
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请填写不超过 200 字的人工评估说明")
 		return
 	}
-	s.profiles.SaveSystemManagementConfig(userID, expertBlueBadgeProfileConfigKey, map[string]interface{}{
+	if _, saved := s.saveProfileConfig(w, userID, expertBlueBadgeProfileConfigKey, map[string]interface{}{
 		"enabled":   req.Enabled,
 		"remark":    req.Remark,
 		"updatedAt": time.Now().UTC().Format(time.RFC3339),
 		"updatedBy": parseInt64Header(r, "X-Admin-ID"),
-	})
+	}); !saved {
+		return
+	}
 	s.recordOperation(r, "expert_blue_badge:update", "user", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"enabled": req.Enabled,
 		"remark":  req.Remark,

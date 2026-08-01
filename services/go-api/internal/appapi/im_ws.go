@@ -64,7 +64,7 @@ func newIMSocketHub(server *Server) *imSocketHub {
 
 func (s *Server) imSocket(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 		return
 	}
 	userID, ok := s.socketUserID(r)
@@ -74,7 +74,7 @@ func (s *Server) imSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	gameID, err := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("gameId")), 10, 64)
 	if err != nil || gameID <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "gameId invalid")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "局 ID 错误")
 		return
 	}
 	room, err := s.im.RoomForGame(userID, gameID)
@@ -84,7 +84,7 @@ func (s *Server) imSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	conn, reader, err := upgradeWebSocket(w, r)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "websocket upgrade failed")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "建立实时连接失败")
 		return
 	}
 	client := &imSocketClient{
@@ -96,6 +96,7 @@ func (s *Server) imSocket(w http.ResponseWriter, r *http.Request) {
 		roomID: room.ID,
 	}
 	s.imSocketHub.add(client)
+	s.markGameIMNotificationsRead(userID, gameID)
 	s.recordBehavior(userID, "enter_im_ws", "game", gameID, map[string]interface{}{"roomId": room.ID})
 	game, _ := s.games.Get(gameID)
 	_ = client.writeJSON(imSocketOutgoing{Type: "connected", Data: s.chatRoomPayload(room, userID, game)})
@@ -193,7 +194,7 @@ func (c *imSocketClient) handleText(payload []byte) {
 	if sendReq.FileID == 0 {
 		sendReq.FileID = req.FileID
 	}
-	if err := c.hub.server.validateChatMessageFileForSocket(sendReq, c.gameID); err != nil {
+	if err := c.hub.server.prepareChatMessageFileForSocket(&sendReq, c.gameID); err != nil {
 		_ = c.writeJSON(socketError(req.RequestID, err))
 		return
 	}
@@ -207,7 +208,10 @@ func (c *imSocketClient) handleText(payload []byte) {
 	c.hub.broadcast(message.RoomID, imSocketOutgoing{Type: "message", RequestID: req.RequestID, Data: c.hub.server.inGameMessageDTO(message)})
 }
 
-func (s *Server) validateChatMessageFileForSocket(req im.SendRequest, gameID int64) error {
+func (s *Server) prepareChatMessageFileForSocket(req *im.SendRequest, gameID int64) error {
+	if req == nil {
+		return im.ErrInvalidMessage
+	}
 	if req.MessageType != "image" && req.MessageType != "file" && req.MessageType != "voice" {
 		return nil
 	}
@@ -221,6 +225,20 @@ func (s *Server) validateChatMessageFileForSocket(req im.SendRequest, gameID int
 	if file.BizType != "chat_file" || file.ObjectID != gameID {
 		return im.ErrForbidden
 	}
+	mimeType := strings.ToLower(strings.TrimSpace(file.MimeType))
+	if req.MessageType == "image" && !strings.HasPrefix(mimeType, "image/") {
+		return im.ErrInvalidImageFile
+	}
+	if req.MessageType == "voice" && !strings.HasPrefix(mimeType, "audio/") {
+		return im.ErrInvalidVoiceFile
+	}
+	download, err := s.files.DownloadURLForFile(file)
+	if err != nil {
+		return err
+	}
+	req.Attachment = &im.MessageAttachment{
+		URL: download.DownloadURL, FileName: file.FileName, MimeType: file.MimeType, Size: file.Size,
+	}
 	return nil
 }
 
@@ -229,13 +247,17 @@ func socketError(requestID string, err error) imSocketOutgoing {
 	case errors.Is(err, im.ErrForbidden):
 		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: 40331, Message: "非局成员不能访问 IM"}
 	case errors.Is(err, files.ErrFileNotFound):
-		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: httpx.CodeNotFound, Message: "file not found"}
+		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: httpx.CodeNotFound, Message: "文件不存在"}
 	case errors.Is(err, im.ErrRoomNotFound):
 		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: 40431, Message: "IM 房间不存在"}
 	case errors.Is(err, im.ErrSensitive):
 		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: 45101, Message: "消息命中敏感词"}
 	case errors.Is(err, im.ErrInvalidMessage):
 		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: httpx.CodeValidationError, Message: "IM 消息参数错误"}
+	case errors.Is(err, im.ErrInvalidImageFile):
+		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: httpx.CodeValidationError, Message: "图片消息只能发送图片文件"}
+	case errors.Is(err, im.ErrInvalidVoiceFile):
+		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: httpx.CodeValidationError, Message: "语音消息只能发送音频文件"}
 	default:
 		return imSocketOutgoing{Type: "error", RequestID: requestID, Code: httpx.CodeSystemError, Message: "IM 操作失败"}
 	}

@@ -26,6 +26,7 @@ var (
 	ErrEnterpriseCertificationNotFound = errors.New("enterprise certification not found")
 	ErrEnterpriseCertificationPending  = errors.New("enterprise certification already pending")
 	ErrInvalidEnterpriseCertification  = errors.New("invalid enterprise certification")
+	ErrInvalidSystemManagementConfig   = errors.New("invalid system management config")
 )
 
 const roleApplicationReapplyCooldown = 7 * 24 * time.Hour
@@ -254,9 +255,12 @@ func NewServiceWithRepository(repo Repository) *Service {
 }
 
 func (s *Service) GrantRole(userID int64, roleCode string) {
+	_ = s.GrantRoleStrict(userID, roleCode)
+}
+
+func (s *Service) GrantRoleStrict(userID int64, roleCode string) error {
 	if s.repo != nil {
-		_ = s.repo.GrantRole(context.Background(), userID, roleCode)
-		return
+		return s.repo.GrantRole(context.Background(), userID, roleCode)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -266,6 +270,7 @@ func (s *Service) GrantRole(userID int64, roleCode string) {
 	case "guide":
 		s.guides[userID] = true
 	}
+	return nil
 }
 
 // GrantRoleWhitelist is the一期运营开通路径. It still requires the caller
@@ -331,17 +336,25 @@ func (s *Service) GrantRoleWhitelist(userID int64, roleCode string, adminID int6
 }
 
 func (s *Service) EnterpriseCertification(userID int64) (EnterpriseCertification, bool) {
+	item, found, _ := s.EnterpriseCertificationStrict(userID)
+	return item, found
+}
+
+func (s *Service) EnterpriseCertificationStrict(userID int64) (EnterpriseCertification, bool, error) {
 	if userID <= 0 {
-		return EnterpriseCertification{}, false
+		return EnterpriseCertification{}, false, nil
 	}
 	if repository, ok := s.repo.(enterpriseRepository); ok {
 		item, found, err := repository.FindEnterpriseCertification(context.Background(), userID)
-		return item, err == nil && found
+		if err != nil {
+			return EnterpriseCertification{}, false, err
+		}
+		return item, found, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	item, ok := s.enterprise[userID]
-	return item, ok
+	return item, ok, nil
 }
 
 func (s *Service) SubmitEnterpriseCertification(userID int64, req SubmitEnterpriseCertificationRequest) (EnterpriseCertification, error) {
@@ -404,12 +417,18 @@ func (s *Service) ReviewEnterpriseCertification(adminID int64, userID int64, req
 }
 
 func (s *Service) AllEnterpriseCertifications(status string) []EnterpriseCertification {
+	items, _ := s.AllEnterpriseCertificationsStrict(status)
+	return items
+}
+
+func (s *Service) AllEnterpriseCertificationsStrict(status string) ([]EnterpriseCertification, error) {
 	status = strings.TrimSpace(status)
 	if repository, ok := s.repo.(enterpriseRepository); ok {
 		items, err := repository.ListEnterpriseCertifications(context.Background(), status)
-		if err == nil {
-			return items
+		if err != nil {
+			return nil, err
 		}
+		return items, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -420,7 +439,7 @@ func (s *Service) AllEnterpriseCertifications(status string) []EnterpriseCertifi
 		}
 		items = append(items, item)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) IsGuide(userID int64) bool {
@@ -434,37 +453,54 @@ func (s *Service) IsGuide(userID int64) bool {
 }
 
 func (s *Service) RoleSnapshot(userID int64) RoleSnapshot {
+	snapshot, _ := s.RoleSnapshotStrict(userID)
+	return snapshot
+}
+
+func (s *Service) RoleSnapshotStrict(userID int64) (RoleSnapshot, error) {
 	statusMap := map[string]string{
 		"player": "approved",
 		"expert": "none",
 		"guide":  "none",
 	}
 	roles := []string{"player"}
-	if s.hasRole(userID, "expert") {
+	expert, err := s.hasRoleStrict(userID, "expert")
+	if err != nil {
+		return RoleSnapshot{}, err
+	}
+	if expert {
 		statusMap["expert"] = "approved"
 		roles = append(roles, "expert")
 	}
-	if s.hasRole(userID, "guide") {
+	guide, err := s.hasRoleStrict(userID, "guide")
+	if err != nil {
+		return RoleSnapshot{}, err
+	}
+	if guide {
 		statusMap["guide"] = "approved"
 		roles = append(roles, "guide")
 	}
-	return RoleSnapshot{Roles: roles, RoleStatusMap: statusMap}
+	return RoleSnapshot{Roles: roles, RoleStatusMap: statusMap}, nil
 }
 
 func (s *Service) hasRole(userID int64, roleCode string) bool {
+	ok, _ := s.hasRoleStrict(userID, roleCode)
+	return ok
+}
+
+func (s *Service) hasRoleStrict(userID int64, roleCode string) (bool, error) {
 	if s.repo != nil {
-		ok, err := s.repo.HasRole(context.Background(), userID, roleCode)
-		return err == nil && ok
+		return s.repo.HasRole(context.Background(), userID, roleCode)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	switch roleCode {
 	case "expert":
-		return s.experts[userID]
+		return s.experts[userID], nil
 	case "guide":
-		return s.guides[userID]
+		return s.guides[userID], nil
 	default:
-		return roleCode == "player"
+		return roleCode == "player", nil
 	}
 }
 
@@ -554,21 +590,27 @@ func roleApplicationInCooldown(items []RoleApplication, roleCode string, now tim
 }
 
 func (s *Service) RoleApplicationsByUser(userID int64) []RoleApplication {
+	items, _ := s.RoleApplicationsByUserStrict(userID)
+	return items
+}
+
+func (s *Service) RoleApplicationsByUserStrict(userID int64) ([]RoleApplication, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListRoleApplicationsByUser(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListRoleApplicationsByUser(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.roleApplicationsByUserLocked(userID)
+	return s.roleApplicationsByUserLocked(userID), nil
 }
 
 func (s *Service) AllRoleApplications() []RoleApplication {
+	items, _ := s.AllRoleApplicationsStrict()
+	return items
+}
+
+func (s *Service) AllRoleApplicationsStrict() ([]RoleApplication, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListRoleApplications(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListRoleApplications(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -576,7 +618,7 @@ func (s *Service) AllRoleApplications() []RoleApplication {
 	for _, app := range s.apps {
 		items = append(items, app)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) ReviewRoleApplication(adminID int64, applicationID int64, req ReviewRoleApplicationRequest) (RoleApplication, error) {
@@ -649,6 +691,7 @@ func (s *Service) GuideQualification(userID int64) (GuideQualification, error) {
 		} else if ok {
 			return q, nil
 		}
+		return GuideQualification{UserID: userID, GuideOpenStatus: "waiting_condition", UpdatedAt: time.Now()}, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -684,10 +727,13 @@ func (s *Service) UpdateGuideQualification(userID int64, req UpdateGuideQualific
 }
 
 func (s *Service) GuideQualificationRules() []GuideQualificationRule {
+	items, _ := s.GuideQualificationRulesStrict()
+	return items
+}
+
+func (s *Service) GuideQualificationRulesStrict() ([]GuideQualificationRule, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListGuideQualificationRules(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListGuideQualificationRules(context.Background())
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -696,7 +742,7 @@ func (s *Service) GuideQualificationRules() []GuideQualificationRule {
 	for _, rule := range s.rules {
 		items = append(items, rule)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) UpdateGuideQualificationRule(ruleID int64, req UpdateGuideQualificationRuleRequest) (GuideQualificationRule, error) {
@@ -778,24 +824,37 @@ func (s *Service) ExpertSkill(userID int64) (ExpertSkillProfile, error) {
 }
 
 func (s *Service) AdminExpertSkill(userID int64) ExpertSkillProfile {
+	profile, _ := s.AdminExpertSkillStrict(userID)
+	return profile
+}
+
+func (s *Service) AdminExpertSkillStrict(userID int64) (ExpertSkillProfile, error) {
 	if s.repo != nil {
-		if profile, ok, err := s.repo.GetExpertSkill(context.Background(), userID); err == nil && ok {
-			return profile
+		profile, ok, err := s.repo.GetExpertSkill(context.Background(), userID)
+		if err != nil {
+			return ExpertSkillProfile{}, err
 		}
+		if ok {
+			return profile, nil
+		}
+		return ExpertSkillProfile{UserID: userID, SkillTree: []string{}, ServiceTags: []string{}, CaseFileIDs: []int64{}, UpdatedAt: time.Now()}, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if profile, ok := s.skills[userID]; ok {
-		return profile
+		return profile, nil
 	}
-	return ExpertSkillProfile{UserID: userID, SkillTree: []string{}, ServiceTags: []string{}, CaseFileIDs: []int64{}, UpdatedAt: time.Now()}
+	return ExpertSkillProfile{UserID: userID, SkillTree: []string{}, ServiceTags: []string{}, CaseFileIDs: []int64{}, UpdatedAt: time.Now()}, nil
 }
 
 func (s *Service) AllExpertSkills() []ExpertSkillProfile {
+	items, _ := s.AllExpertSkillsStrict()
+	return items
+}
+
+func (s *Service) AllExpertSkillsStrict() ([]ExpertSkillProfile, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListExpertSkills(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListExpertSkills(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -803,7 +862,7 @@ func (s *Service) AllExpertSkills() []ExpertSkillProfile {
 	for _, profile := range s.skills {
 		items = append(items, profile)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) UpdateExpertSkill(userID int64, req ExpertSkillRequest) (ExpertSkillProfile, error) {
@@ -860,24 +919,37 @@ func (s *Service) GuideResource(userID int64) (GuideResourceProfile, error) {
 }
 
 func (s *Service) AdminGuideResource(userID int64) GuideResourceProfile {
+	profile, _ := s.AdminGuideResourceStrict(userID)
+	return profile
+}
+
+func (s *Service) AdminGuideResourceStrict(userID int64) (GuideResourceProfile, error) {
 	if s.repo != nil {
-		if profile, ok, err := s.repo.GetGuideResource(context.Background(), userID); err == nil && ok {
-			return profile
+		profile, ok, err := s.repo.GetGuideResource(context.Background(), userID)
+		if err != nil {
+			return GuideResourceProfile{}, err
 		}
+		if ok {
+			return profile, nil
+		}
+		return GuideResourceProfile{UserID: userID, ResourceTags: []string{}, IndustryTags: []string{}, CityCodes: []string{}, UpdatedAt: time.Now()}, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if profile, ok := s.resources[userID]; ok {
-		return profile
+		return profile, nil
 	}
-	return GuideResourceProfile{UserID: userID, ResourceTags: []string{}, IndustryTags: []string{}, CityCodes: []string{}, UpdatedAt: time.Now()}
+	return GuideResourceProfile{UserID: userID, ResourceTags: []string{}, IndustryTags: []string{}, CityCodes: []string{}, UpdatedAt: time.Now()}, nil
 }
 
 func (s *Service) AllGuideResources() []GuideResourceProfile {
+	items, _ := s.AllGuideResourcesStrict()
+	return items
+}
+
+func (s *Service) AllGuideResourcesStrict() ([]GuideResourceProfile, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListGuideResources(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListGuideResources(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -885,38 +957,61 @@ func (s *Service) AllGuideResources() []GuideResourceProfile {
 	for _, profile := range s.resources {
 		items = append(items, profile)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) SystemManagementConfig(userID int64, key string, fallback map[string]interface{}) map[string]interface{} {
+	value, err := s.SystemManagementConfigStrict(userID, key, fallback)
+	if err == nil {
+		return value
+	}
+	return cloneObjectMap(fallback)
+}
+
+func (s *Service) SystemManagementConfigStrict(userID int64, key string, fallback map[string]interface{}) (map[string]interface{}, error) {
 	if userID <= 0 || strings.TrimSpace(key) == "" {
-		return cloneObjectMap(fallback)
+		return nil, ErrInvalidSystemManagementConfig
 	}
 	key = strings.TrimSpace(key)
 	if s.repo != nil {
-		if value, ok, err := s.repo.GetSystemManagementConfig(context.Background(), userID, key); err == nil && ok {
-			return cloneObjectMap(value)
+		value, ok, err := s.repo.GetSystemManagementConfig(context.Background(), userID, key)
+		if err != nil {
+			return nil, err
 		}
+		if ok {
+			return cloneObjectMap(value), nil
+		}
+		return cloneObjectMap(fallback), nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if byKey, ok := s.system[userID]; ok {
 		if value, ok := byKey[key].(map[string]interface{}); ok {
-			return cloneObjectMap(value)
+			return cloneObjectMap(value), nil
 		}
 	}
-	return cloneObjectMap(fallback)
+	return cloneObjectMap(fallback), nil
 }
 
 func (s *Service) SaveSystemManagementConfig(userID int64, key string, payload map[string]interface{}) map[string]interface{} {
+	saved, err := s.SaveSystemManagementConfigStrict(userID, key, payload)
+	if err == nil {
+		return saved
+	}
+	return cloneObjectMap(payload)
+}
+
+func (s *Service) SaveSystemManagementConfigStrict(userID int64, key string, payload map[string]interface{}) (map[string]interface{}, error) {
 	key = strings.TrimSpace(key)
 	if userID <= 0 || key == "" {
-		return cloneObjectMap(payload)
+		return nil, ErrInvalidSystemManagementConfig
 	}
 	if s.repo != nil {
-		if saved, err := s.repo.SaveSystemManagementConfig(context.Background(), userID, key, payload); err == nil {
-			return cloneObjectMap(saved)
+		saved, err := s.repo.SaveSystemManagementConfig(context.Background(), userID, key, payload)
+		if err != nil {
+			return nil, err
 		}
+		return cloneObjectMap(saved), nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -924,18 +1019,25 @@ func (s *Service) SaveSystemManagementConfig(userID int64, key string, payload m
 		s.system[userID] = make(map[string]interface{})
 	}
 	s.system[userID][key] = cloneObjectMap(payload)
-	return cloneObjectMap(s.system[userID][key].(map[string]interface{}))
+	return cloneObjectMap(s.system[userID][key].(map[string]interface{})), nil
 }
 
 func (s *Service) SystemManagementConfigs(key string) []SystemManagementConfigItem {
+	items, _ := s.SystemManagementConfigsStrict(key)
+	return items
+}
+
+func (s *Service) SystemManagementConfigsStrict(key string) ([]SystemManagementConfigItem, error) {
 	key = strings.TrimSpace(key)
 	if key == "" {
-		return []SystemManagementConfigItem{}
+		return nil, ErrInvalidSystemManagementConfig
 	}
 	if s.repo != nil {
-		if items, err := s.repo.ListSystemManagementConfigs(context.Background(), key); err == nil {
-			return cloneSystemManagementConfigItems(items)
+		items, err := s.repo.ListSystemManagementConfigs(context.Background(), key)
+		if err != nil {
+			return nil, err
 		}
+		return cloneSystemManagementConfigItems(items), nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -945,7 +1047,7 @@ func (s *Service) SystemManagementConfigs(key string) []SystemManagementConfigIt
 			items = append(items, SystemManagementConfigItem{UserID: userID, Key: key, Value: cloneObjectMap(value)})
 		}
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) UpdateGuideResource(userID int64, req GuideResourceRequest) (GuideResourceProfile, error) {

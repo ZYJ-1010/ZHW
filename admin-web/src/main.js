@@ -16,6 +16,7 @@
   revenueTemplates: [],
   revenueRecords: [],
   revenueSettlements: [],
+  revenuePointsRewardConfig: null,
   redemptionItems: [],
   redemptionOrders: [],
   pointsLogs: [],
@@ -62,6 +63,10 @@
   roleBenefitConfig: null,
   expertSkillDisplayConfig: null,
   growthRewardRules: null,
+  roleLevelConfig: null,
+  roleMetricConfig: null,
+  creditRestrictionConfig: null,
+  roleGrowthRecalculation: null,
   operationRules: null,
   creditDeductionRules: [],
   pagination: {},
@@ -104,9 +109,7 @@ const ADMIN_VISIBLE_VIEWS = new Set([
   "invites",
   "games",
   "audits",
-  "revenue",
   "redemption",
-  "members",
   "profiles",
   "growth",
   "reports",
@@ -120,13 +123,7 @@ const ADMIN_VISIBLE_VIEWS = new Set([
 ]);
 
 const DEFAULT_GAME_TYPE_OPTIONS = [
-  { key: "free", name: "普通局", selectable: true },
-  { key: "standard", name: "标准局", selectable: true },
-  { key: "public_welfare", name: "公益局", selectable: true },
-  { key: "aa", name: "均摊局", selectable: true },
-  { key: "crowdfund", name: "众筹局", selectable: true },
-  { key: "deposit", name: "押金局", selectable: true },
-  { key: "condition", name: "条件局", selectable: true },
+  { key: "free", name: "免费局", selectable: true },
 ];
 
 const DEFAULT_PRIMARY_CATEGORY_OPTIONS = [
@@ -212,7 +209,7 @@ async function boot() {
   } catch (error) {
     setAPIStatus(false);
     showLogin();
-    showLoginError(error.message);
+    showLoginError(humanMessage(error.message));
   }
 }
 
@@ -238,7 +235,7 @@ async function login(event) {
     localStorage.setItem("zhw_admin_token", state.token);
     await boot();
   } catch (error) {
-    showLoginError(error.message);
+    showLoginError(humanMessage(error.message));
   }
 }
 
@@ -324,10 +321,12 @@ async function refreshPendingIndicators() {
     const counts = pending.counts || {};
     const navCounts = {
       games: Number(counts.games || 0) + Number(counts.gameApplications || 0),
-      reports: Number(counts.reports || 0),
+      reports: Number(counts.reports || 0) + Number(counts.feedback || 0),
       redemption: Number(counts.redemption || 0),
       invites: Number(counts.invites || 0),
       audits: Number(counts.identity || 0) + Number(counts.enterprise || 0) + Number(counts.avatars || 0) + Number(counts.roles || 0),
+      delivery: Number(counts.wechatTasks || 0),
+      admins: Number(counts.adminApplications || 0),
     };
     Object.entries(navCounts).forEach(([view, count]) => {
       const button = document.querySelector(`#main-nav button[data-view="${view}"]`);
@@ -336,8 +335,21 @@ async function refreshPendingIndicators() {
       button.setAttribute("data-pending-count", String(count));
       button.setAttribute("aria-label", count > 0 ? `${button.textContent.trim()}，${count} 项待处理` : button.textContent.trim());
     });
+    updateIdentityPendingBadge(Number(counts.identity || 0));
   } catch (error) {
     // 红点刷新失败不会中断当前页面；下一个周期会继续重试。
+  }
+}
+
+function updateIdentityPendingBadge(count) {
+  const badge = $("#identity-pending-count");
+  if (!badge) return;
+  const normalized = Math.max(0, Number(count) || 0);
+  badge.textContent = String(normalized);
+  badge.classList.toggle("hidden", normalized <= 0);
+  const tab = badge.closest("button");
+  if (tab) {
+    tab.setAttribute("aria-label", normalized > 0 ? `实名认证审核，${normalized} 条待审核` : "实名认证审核，无待审核记录");
   }
 }
 
@@ -356,26 +368,22 @@ async function renderDashboard() {
   state.users = users.items || [];
 
   const pendingCounts = pending.counts || {};
+  const summary = dashboard.summary || {};
+  const distributions = dashboard.distributions || {};
   const activeGames = state.games.filter((item) => item.status === "recruiting" || item.status === "in_progress");
-  const pendingGames = state.games.filter((item) => item.status === "pending_audit").length;
-  setField("registeredUserCount", state.users.length);
-  setField("verifiedUserCount", state.users.filter((item) => item.realnameStatus === "verified").length);
-  setField("activeGameCount", activeGames.length);
+  setField("registeredUserCount", Number(summary.registeredUserCount ?? state.users.length));
+  setField("verifiedUserCount", Number(summary.verifiedUserCount ?? state.users.filter((item) => item.realnameStatus === "verified").length));
+  setField("activeGameCount", Number(summary.activeGameCount ?? activeGames.length));
   setField("pendingWorkCount", Object.values(pendingCounts).reduce((total, count) => total + Number(count || 0), 0));
-  const gamesNavButton = document.querySelector('#main-nav button[data-view="games"]');
-  if (gamesNavButton) {
-    gamesNavButton.classList.toggle("has-pending-dot", pendingGames > 0);
-    gamesNavButton.setAttribute("data-pending-count", String(pendingGames));
-  }
-  setField("imRoomCount", state.imRooms.length);
-  renderGameTypeBars(state.games);
-  renderDashboardStatusBars(state.games);
-  renderDashboardUserBars(state.users);
-  renderDashboardWorkQueue(state.games, state.imRooms);
+  setField("imRoomCount", Number(summary.imRoomCount ?? state.imRooms.length));
+  renderGameTypeBars(state.games, distributions.gameTypes);
+  renderDashboardStatusBars(state.games, distributions.gameStatuses);
+  renderDashboardUserBars(state.users, distributions.userStatuses);
+  renderDashboardWorkQueue(pendingCounts);
 }
 
 async function ensureUserDisplayCache() {
-  if (!can("user:read")) return;
+  if (!can("user:view")) return;
   try {
     const data = await apiGet("/api/admin/users");
     rememberUserDisplayItems(data.items || []);
@@ -398,7 +406,7 @@ async function loadUsers(formData) {
   const data = await apiGet(`/api/admin/users${querySuffix(formData)}`);
   state.users = data.items || [];
   rememberUserDisplayItems(state.users);
-  renderPaginatedTable("#users-table", state.users, "users", userRow, 8, "暂无用户");
+  renderPaginatedTable("#users-table", state.users, "users", userRow, 7, "暂无用户");
 }
 
 async function onUsersTableClick(event) {
@@ -421,8 +429,8 @@ async function showUserDetail(id) {
   rememberUserDisplayItems([inviter]);
   const growth = data.growth || user.growth || {};
   const income = data.incomeSummary || user.incomeSummary || {};
-  const points = user.pointsSummary || {};
-  const membership = user.membership || {};
+  const points = data.pointsSummary || user.pointsSummary || {};
+  const membership = data.membership || user.membership || {};
   const [favoriteData, connectionData] = await Promise.all([
     can("user:read") ? apiGet(`/api/admin/users/${id}/favorites`) : Promise.resolve({ items: data.favorites || [] }),
     can("connection:read") ? apiGet(`/api/admin/users/${id}/connections`) : Promise.resolve({ items: data.connections || [] }),
@@ -455,7 +463,7 @@ async function showUserDetail(id) {
         ${detailCell("行家蓝标", user.expertBlueBadge && user.expertBlueBadge.enabled ? "已点亮" : "未点亮")}
         ${detailCell("成长等级", `Lv.${growth.level || 0}`)}
         ${detailCell("信用分", growth.creditScore || 0)}
-        ${detailCell("可用积分", points.availablePoints || growth.points || 0)}
+        ${detailCell("可用积分", points.availablePoints ?? growth.availablePoints ?? 0)}
         ${detailCell("会员状态", statusLabel(membership.status))}
         ${detailCell("绑定邀请码", user.inviteCode || "-")}
       </div>
@@ -587,18 +595,14 @@ async function createInviteCode(event) {
     return;
   }
   const payload = {
-    code: String(data.code || "").trim(),
+    prefix: String(data.prefix || "").trim().toUpperCase(),
     ownerUserId,
     entryType,
     batchCount,
     expiresAt: localDateTimeToRFC3339(data.expiresAt),
   };
-  if (payload.code && !/^[A-Za-z0-9_-]{4,32}$/.test(payload.code)) {
-    toast("邀请码只能使用 4-32 位字母、数字、下划线或短横线", true);
-    return;
-  }
-  if (payload.batchCount > 1 && payload.code) {
-    toast("批量生成时请留空邀请码，由系统自动生成", true);
+  if (!/^[A-Z]{3}$/.test(payload.prefix)) {
+    toast("请填写三位英文字母作为邀请码前缀", true);
     return;
   }
   try {
@@ -613,8 +617,8 @@ async function createInviteCode(event) {
     if (ownerTextInput) ownerTextInput.value = "";
     if (entryTypeInput) entryTypeInput.value = "poster";
     if (batchCountInput) batchCountInput.value = "1";
-    const codeInput = form.querySelector("[name='code']");
-    if (codeInput) codeInput.value = "";
+    const prefixInput = form.querySelector("[name='prefix']");
+    if (prefixInput) prefixInput.value = "";
     await loadInviteCodes();
   } catch (error) {
     toast(error.message, true);
@@ -685,18 +689,28 @@ async function onInviteQuotaTableClick(event) {
   const id = Number(button.dataset.id || 0);
   if (!id) return;
   const approve = button.dataset.action === "invite-quota-approve";
-  const reason = window.prompt(approve ? "审核说明（可选）" : "驳回原因（可选）", "");
-  if (reason === null) return;
-  let entryType = "link";
-  if (approve) {
-    entryType = String(window.prompt("发放入口类型：link（链接）、qrcode（二维码）、poster（小程序卡片）", "link") || "").trim().toLowerCase();
-    if (!["link", "qrcode", "poster"].includes(entryType)) { toast("入口类型不正确", true); return; }
+  const audit = async (reason) => {
+    let entryType = "link";
+    if (approve) {
+      entryType = String(window.prompt("发放入口类型：link（链接）、qrcode（二维码）、poster（小程序卡片）", "link") || "").trim().toLowerCase();
+      if (!["link", "qrcode", "poster"].includes(entryType)) { toast("入口类型不正确", true); return; }
+    }
+    try {
+      await apiPost(`/api/admin/invite-quota-requests/${id}/audit`, { approve, reason, entryType });
+      toast(approve ? "已通过并生成邀请码" : "已驳回申请");
+      await Promise.all([loadInviteQuotaRequests(new FormData($("#invite-quota-filter-form"))), loadInviteCodes()]);
+    } catch (error) { toast(error.message, true); }
+  };
+  if (!approve) {
+    openInlineRejectEditor(button, {
+      title: `驳回加量申请 ${id}`,
+      placeholder: "请填写无法通过本次邀请码加量申请的原因",
+      required: false,
+      onSubmit: audit,
+    });
+    return;
   }
-  try {
-    await apiPost(`/api/admin/invite-quota-requests/${id}/audit`, { approve, reason, entryType });
-    toast(approve ? "已通过并生成邀请码" : "已驳回申请");
-    await Promise.all([loadInviteQuotaRequests(new FormData($("#invite-quota-filter-form"))), loadInviteCodes()]);
-  } catch (error) { toast(error.message, true); }
+  await audit("");
 }
 
 async function onInviteTableClick(event) {
@@ -741,13 +755,18 @@ async function showInviteCodeDetail(code) {
   rememberUserDisplayItems([owner, bound]);
   const relations = data.relations || [];
   const usage = inviteUsageInfo(invite);
+  const displayStatus = inviteDisplayStatus(invite);
+  const unused = (invite.useStatus || (invite.boundWechatUserId || Number(invite.usedCount || 0) > 0 ? "used" : "unused")) === "unused";
+  const canManage = unused && ["active", "disabled"].includes(displayStatus) && can("invite_code:manage");
   const panel = openAdminDrawer({
     title: "邀请码详情",
     subtitle: invite.code || code,
     body: `
       <div class="row-actions">
-        <span class="${badgeClass(invite.status)}">${statusLabel(invite.status)}</span>
-        ${invite.status === "active" && can("invite_code:manage") ? `<button class="ghost" data-action="detail-invite-disable" data-code="${escapeHTML(invite.code)}" type="button">禁用</button>` : ""}
+        <span class="${badgeClass(displayStatus)}">${statusLabel(displayStatus)}</span>
+        ${canManage && displayStatus === "active" ? `<button class="ghost" data-action="detail-invite-disable" data-code="${escapeHTML(invite.code)}" type="button">禁用</button>` : ""}
+        ${canManage && displayStatus === "disabled" ? `<button class="ghost" data-action="detail-invite-enable" data-code="${escapeHTML(invite.code)}" type="button">启用</button>` : ""}
+        ${canManage ? `<button class="ghost danger" data-action="detail-invite-void" data-code="${escapeHTML(invite.code)}" type="button">作废</button>` : ""}
       </div>
     <div class="detail-grid">
       ${detailCell("编号", invite.id)}
@@ -763,7 +782,7 @@ async function showInviteCodeDetail(code) {
       ${detailCell("创建时间", formatTime(invite.createdAt))}
       ${detailCell("更新时间", formatTime(invite.updatedAt))}
     </div>
-    ${!invite.boundWechatUserId && Number(invite.usedCount || 0) === 0 && can("invite_code:manage") ? `
+    ${canManage ? `
     <div class="sub-panel">
       <div class="panel-head"><div><h2>编辑未使用邀请码</h2><p>已使用的邀请码会永久锁定，不能修改邀请人、入口或作废。</p></div></div>
       <form id="invite-edit-form" class="form-grid compact-grid">
@@ -842,14 +861,25 @@ async function showInviteCodeDetail(code) {
   if (materialsButton) {
     materialsButton.addEventListener("click", () => showInviteMaterials(invite.code));
   }
-  const disableButton = panel.querySelector("button[data-action='detail-invite-disable']");
-  if (disableButton) {
-    disableButton.addEventListener("click", async () => {
-      await apiPost(`/api/admin/invite-codes/${encodeURIComponent(disableButton.dataset.code)}/disable`, {});
-      toast(`邀请码 ${disableButton.dataset.code} 已禁用`);
-      await Promise.all([showInviteCodeDetail(disableButton.dataset.code), loadInviteCodes(new FormData($("#invite-filter-form")))]);
+  panel.querySelectorAll("button[data-action^='detail-invite-']").forEach((button) => {
+    const operation = {
+      "detail-invite-disable": { path: "disable", message: "已禁用" },
+      "detail-invite-enable": { path: "enable", message: "已启用" },
+      "detail-invite-void": { path: "void", message: "已作废" },
+    }[button.dataset.action];
+    if (!operation) return;
+    button.addEventListener("click", async () => {
+      try {
+        button.disabled = true;
+        await apiPost(`/api/admin/invite-codes/${encodeURIComponent(button.dataset.code)}/${operation.path}`, {});
+        toast(`邀请码 ${button.dataset.code} ${operation.message}`);
+        await Promise.all([showInviteCodeDetail(button.dataset.code), loadInviteCodes(new FormData($("#invite-filter-form")))]);
+      } catch (error) {
+        toast(error.message, true);
+        button.disabled = false;
+      }
     });
-  }
+  });
   const editForm = panel.querySelector("#invite-edit-form");
   if (editForm) {
     bindInviteOwnerPicker(editForm);
@@ -1172,16 +1202,7 @@ function normalizeGameTypeOptions(items = []) {
 }
 
 function mergeGameTypeOptions(items = []) {
-  const merged = new Map(DEFAULT_GAME_TYPE_OPTIONS.map((item) => [item.key, { ...item }]));
-  normalizeGameTypeOptions(items).forEach((item) => {
-    const preset = merged.get(item.key);
-    merged.set(item.key, {
-      ...item,
-      name: preset?.name || item.name,
-      selectable: item.selectable !== false,
-    });
-  });
-  return [...merged.values()];
+  return DEFAULT_GAME_TYPE_OPTIONS.map((item) => ({ ...item }));
 }
 
 function mergePrimaryCategoryOptions(items = []) {
@@ -1203,7 +1224,7 @@ function renderGameTypeSelect(selector, options, includeAll) {
   if (!select) return;
   const current = select.value;
   const rows = [];
-  if (includeAll) rows.push(`<option value="">全部局类别</option>`);
+  if (includeAll) rows.push(`<option value="">全部</option>`);
   rows.push(...options.map((item) => `<option value="${escapeHTML(item.key)}" ${item.selectable ? "" : "disabled"}>${escapeHTML(item.name)}</option>`));
   select.innerHTML = rows.join("");
   if ([...select.options].some((option) => option.value === current)) {
@@ -1246,25 +1267,22 @@ async function batchAuditGames() {
   }
 }
 
-async function batchRejectGames() {
+function batchRejectGames(event) {
   const ids = [...state.selectedGameAuditIds].map((id) => Number(id)).filter(Boolean)
   if (!ids.length) {
     toast("请先勾选要批量驳回的待审核组局", true)
     return
   }
-  const reason = window.prompt("请输入批量驳回原因")
-  if (reason == null || !String(reason).trim()) {
-    toast("驳回必须填写原因", true)
-    return
-  }
-  try {
-    const result = await apiPost("/api/admin/games/batch-audit", { gameIds: ids, approve: false, remark: String(reason).trim() })
-    toast(`批量驳回 ${result.success || 0} 个组局，失败 ${result.failed || 0} 个`)
-    state.selectedGameAuditIds.clear()
-    await loadGames(new FormData($("#game-filter-form")))
-  } catch (error) {
-    toast(error.message, true)
-  }
+  openInlineRejectEditor(event.currentTarget, {
+    title: `批量驳回 ${ids.length} 个组局`,
+    placeholder: "请填写统一的驳回原因和修改要求",
+    onSubmit: async (reason) => {
+      const result = await apiPost("/api/admin/games/batch-audit", { gameIds: ids, approve: false, remark: reason })
+      toast(`批量驳回 ${result.success || 0} 个组局，失败 ${result.failed || 0} 个`)
+      state.selectedGameAuditIds.clear()
+      await loadGames(new FormData($("#game-filter-form")))
+    },
+  })
 }
 
 function onGameAuditSelectAllChange(event) {
@@ -1324,7 +1342,7 @@ async function loadGames(formData) {
   const data = await apiGet(`/api/admin/games${querySuffix(formData)}`);
   state.games = data.items || [];
   pruneGameAuditSelection();
-  renderPaginatedTable("#games-table", state.games, "games", gameRow, 9, "暂无组局");
+  renderPaginatedTable("#games-table", state.games, "games", gameRow, 8, "暂无组局");
   updateGameAuditSelectionUI();
   await loadGameApplications();
 }
@@ -1436,7 +1454,7 @@ async function createAdminGame(event) {
     creatorUserId,
     primaryCategory: String(data.primaryCategory || "").trim(),
     primaryCategoryText: primaryCategoryLabel(data.primaryCategory),
-    gameType: data.gameType,
+    gameType: "free",
     coverImage: String(data.coverImage || "").trim(),
     cityCode: data.cityCode.trim(),
     cityName: data.cityName.trim(),
@@ -1508,14 +1526,16 @@ async function onGameTableClick(event) {
       await loadGames(new FormData($("#game-filter-form")));
     }
     if (button.dataset.action === "reject-audit") {
-      const reason = window.prompt("请输入驳回原因");
-      if (reason == null || !String(reason).trim()) {
-        toast("驳回必须填写原因", true);
-        return;
-      }
-      await apiPost(`/api/admin/games/${id}/audit`, { approve: false, remark: String(reason).trim() });
-      toast(`局 ${id} 已驳回`);
-      await loadGames(new FormData($("#game-filter-form")));
+      openInlineRejectEditor(button, {
+        title: `驳回局 ${id}`,
+        placeholder: "请说明不符合要求的内容及修改建议",
+        onSubmit: async (reason) => {
+          await apiPost(`/api/admin/games/${id}/audit`, { approve: false, remark: reason });
+          toast(`局 ${id} 已驳回`);
+          await loadGames(new FormData($("#game-filter-form")));
+        },
+      });
+      return;
     }
     if (button.dataset.action === "detail") {
       await showGameDetail(id);
@@ -1626,7 +1646,7 @@ async function renderAudits() {
   bindSectionTabs($("#view-root"));
   $("#role-grant-form")?.addEventListener("submit", grantRoleFromAdmin);
   $("#identity-batch-approve")?.addEventListener("click", () => batchReviewIdentities(true));
-  $("#identity-batch-reject")?.addEventListener("click", () => batchReviewIdentities(false));
+  $("#identity-batch-reject")?.addEventListener("click", (event) => batchReviewIdentities(false, event));
   $("#identity-batch-select-all")?.addEventListener("change", onIdentityReviewSelectAllChange);
   $("#identity-list")?.addEventListener("change", onIdentityReviewCheckboxChange);
   const tasks = [];
@@ -1677,11 +1697,16 @@ async function renderAudits() {
         await loadIdentities();
       }
       if (button.dataset.action === "identity-reject") {
-        const reason = askRejectReason("请输入实名认证驳回原因");
-        if (!reason) return;
-        await reviewIdentityVerification(button.dataset.userId, false, reason);
-        toast("实名认证已驳回");
-        await loadIdentities();
+        openInlineRejectEditor(button, {
+          title: "驳回实名认证",
+          placeholder: "请填写材料不通过的原因及补充要求",
+          onSubmit: async (reason) => {
+            await reviewIdentityVerification(button.dataset.userId, false, reason);
+            toast("实名认证已驳回");
+            await loadIdentities();
+          },
+        });
+        return;
       }
       if (button.dataset.action === "enterprise-certification-approve") {
         await reviewEnterpriseCertification(button.dataset.userId, true, "后台审核通过");
@@ -1689,11 +1714,16 @@ async function renderAudits() {
         await loadEnterpriseCertifications();
       }
       if (button.dataset.action === "enterprise-certification-reject") {
-        const reason = askRejectReason("请输入企业认证驳回原因");
-        if (!reason) return;
-        await reviewEnterpriseCertification(button.dataset.userId, false, reason);
-        toast("企业认证已驳回");
-        await loadEnterpriseCertifications();
+        openInlineRejectEditor(button, {
+          title: "驳回企业认证",
+          placeholder: "请填写企业材料不通过的原因及补充要求",
+          onSubmit: async (reason) => {
+            await reviewEnterpriseCertification(button.dataset.userId, false, reason);
+            toast("企业认证已驳回");
+            await loadEnterpriseCertifications();
+          },
+        });
+        return;
       }
       if (button.dataset.action === "avatar-detail") showAvatarAuditDetail(Number(button.dataset.userId));
       if (button.dataset.action === "avatar-approve") {
@@ -1702,11 +1732,16 @@ async function renderAudits() {
         await loadAvatarAudits();
       }
       if (button.dataset.action === "avatar-reject") {
-        const reason = askRejectReason("请输入头像驳回原因");
-        if (!reason) return;
-        await reviewAvatarAudit(button.dataset.userId, false, reason);
-        toast("头像已驳回");
-        await loadAvatarAudits();
+        openInlineRejectEditor(button, {
+          title: "驳回头像审核",
+          placeholder: "请填写头像不符合规范的原因",
+          onSubmit: async (reason) => {
+            await reviewAvatarAudit(button.dataset.userId, false, reason);
+            toast("头像已驳回");
+            await loadAvatarAudits();
+          },
+        });
+        return;
       }
       if (button.dataset.action === "role-detail") showRoleApplicationDetail(Number(button.dataset.id));
       if (button.dataset.action === "role-approve") {
@@ -1715,11 +1750,17 @@ async function renderAudits() {
         await loadRoles();
       }
       if (button.dataset.action === "role-reject") {
-        const reason = askOptionalRejectReason("请输入角色申请驳回原因");
-        if (reason == null) return;
-        await reviewRoleApplication(button.dataset.id, false, reason);
-        toast("角色申请已驳回");
-        await loadRoles();
+        openInlineRejectEditor(button, {
+          title: "驳回角色申请",
+          placeholder: "可填写申请资料需补充或调整的内容",
+          required: false,
+          onSubmit: async (reason) => {
+            await reviewRoleApplication(button.dataset.id, false, reason);
+            toast("角色申请已驳回");
+            await loadRoles();
+          },
+        });
+        return;
       }
     } catch (error) {
       toast(error.message, true);
@@ -1735,13 +1776,15 @@ async function grantRoleFromAdmin(event) {
   }
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form).entries());
-  const userIds = String(data.userIds || "").split(/[\s,，、]+/).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0);
-  if (!userIds.length) {
-    toast("请填写有效用户 ID", true);
+  const entries = String(data.userIds || "").split(/[\s,，、]+/).map((value) => value.trim()).filter(Boolean);
+  const userIds = entries.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0 && String(value).length !== 11);
+  const phoneNumbers = entries.filter((value) => /^1\d{10}$/.test(value));
+  if (!userIds.length && !phoneNumbers.length) {
+    toast("请填写有效用户 ID 或手机号", true);
     return;
   }
   try {
-    const result = await apiPost("/api/admin/roles/grant", { userIds, roleCode: data.roleCode, reason: data.reason || "一期白名单开通" });
+    const result = await apiPost("/api/admin/roles/grant", { userIds, phoneNumbers, roleCode: data.roleCode, reason: data.reason || "一期白名单开通" });
     const success = Number(result.success || 0);
     const alreadyActive = Number(result.alreadyActive || 0);
     const failed = Number(result.failed || 0);
@@ -1755,7 +1798,7 @@ async function grantRoleFromAdmin(event) {
       const items = Array.isArray(result.items) ? result.items : [];
       resultList.innerHTML = items.length
         ? items.map((item) => stackItem({
-          title: `用户 ${item.userId || "-"}${item.nickname ? ` · ${item.nickname}` : ""}`,
+          title: `用户 ${item.userId || item.phoneMasked || "-"}${item.nickname ? ` · ${item.nickname}` : ""}`,
           badge: item.status === "approved" || item.status === "already_active" ? "active" : "rejected",
           meta: [
             `身份：${item.roleCode === "guide" ? "领路人" : "行家"}`,
@@ -1782,6 +1825,7 @@ async function loadIdentities() {
   const list = $("#identity-list");
   const items = data.items || [];
   state.identities = items;
+  updateIdentityPendingBadge(items.filter((item) => item && (item.status === "pending" || item.status === "submitted")).length);
   pruneIdentityReviewSelection();
   renderPaginatedList("#identity-list", items, "identities", (item) => stackItem({
     title: userText(item.userId),
@@ -1855,7 +1899,7 @@ async function reviewEnterpriseCertification(userID, approve, remark) {
 async function showEnterpriseCertificationDetail(userID) {
   if (!userID) return;
   const item = await apiGet(`/api/admin/enterprise-certifications/${userID}`);
-  openAdminDrawer({
+  const panel = openAdminDrawer({
     title: "企业认证详情",
     subtitle: userText(item.userId),
     body: `<div class="row-actions"><span class="${badgeClass(item.status)}">${statusLabel(item.status)}</span></div><div class="detail-grid">
@@ -1863,11 +1907,23 @@ async function showEnterpriseCertificationDetail(userID) {
       ${detailCell("企业名称", item.companyName || "-")}
       ${detailCell("统一社会信用代码", item.unifiedSocialCreditCode || "-")}
       ${detailCell("法定代表人", item.legalPerson || "-")}
-      ${detailCell("营业执照材料", item.businessLicenseFileId ? `<button class="ghost" data-action="download-application-file" data-id="${escapeHTML(item.businessLicenseFileId)}" type="button">查看材料</button>` : "-")}
-      ${detailCell("对公账户材料", item.publicAccountFileId ? `<button class="ghost" data-action="download-application-file" data-id="${escapeHTML(item.publicAccountFileId)}" type="button">查看材料</button>` : "-")}
+      ${detailContentCell("营业执照材料", item.businessLicenseFileId ? `<button class="ghost" data-action="download-application-file" data-id="${escapeHTML(item.businessLicenseFileId)}" type="button">查看材料</button>` : "-")}
+      ${detailContentCell("对公账户材料", item.publicAccountFileId ? `<button class="ghost" data-action="download-application-file" data-id="${escapeHTML(item.publicAccountFileId)}" type="button">查看材料</button>` : "-")}
       ${detailCell("审核备注", item.reviewRemark || item.rejectReason || "-")}
       ${detailCell("提交时间", formatTime(item.createdAt))}
     </div>`,
+  });
+  panel.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action='download-application-file']");
+    if (!button) return;
+    try {
+      button.disabled = true;
+      await downloadAdminFile(button.dataset.id);
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 
@@ -1882,18 +1938,13 @@ function identityActions(item) {
   return actions.join("");
 }
 
-async function batchReviewIdentities(approve) {
+function batchReviewIdentities(approve, event) {
   const userIds = [...state.selectedIdentityReviewIds].map((id) => Number(id)).filter(Boolean);
   if (!userIds.length) {
     toast(`请先勾选要批量${approve ? "通过" : "驳回"}的待审核实名认证`, true);
     return;
   }
-  const reason = approve ? "后台批量审核通过" : window.prompt("请输入批量驳回原因");
-  if (!approve && (reason == null || !String(reason).trim())) {
-    toast("批量驳回必须统一填写原因", true);
-    return;
-  }
-  try {
+  const submit = async (reason) => {
     const result = await apiPost("/api/admin/identity-verifications/batch-review", {
       userIds,
       approve,
@@ -1904,9 +1955,16 @@ async function batchReviewIdentities(approve) {
     toast(`批量${approve ? "通过" : "驳回"} ${result.success || 0} 条，失败 ${result.failed || 0} 条${failureText ? `。${failureText}` : ""}`, Boolean(result.failed));
     state.selectedIdentityReviewIds.clear();
     await loadIdentities();
-  } catch (error) {
-    toast(error.message, true);
+  };
+  if (approve) {
+    void submit("后台批量审核通过").catch((error) => toast(error.message, true));
+    return;
   }
+  openInlineRejectEditor(event?.currentTarget || $("#identity-batch-reject"), {
+    title: `批量驳回 ${userIds.length} 条实名认证`,
+    placeholder: "请填写统一的驳回原因和补充要求",
+    onSubmit: submit,
+  });
 }
 
 function onIdentityReviewSelectAllChange(event) {
@@ -2102,11 +2160,22 @@ function showAvatarAuditDetail(userID) {
   panel.querySelectorAll("button[data-action='avatar-approve'], button[data-action='avatar-reject']").forEach((button) => {
     button.addEventListener("click", async () => {
       const approve = button.dataset.action === "avatar-approve";
+      if (!approve) {
+        openInlineRejectEditor(button, {
+          title: "驳回头像审核",
+          placeholder: "请填写头像不符合规范的原因",
+          onSubmit: async (reason) => {
+            await reviewAvatarAudit(button.dataset.userId, false, reason);
+            toast("头像已驳回");
+            closeAdminDrawer();
+            await loadAvatarAudits();
+          },
+        });
+        return;
+      }
       try {
-        const reason = approve ? "后台审核通过" : askRejectReason("请输入头像驳回原因");
-        if (!reason) return;
-        await reviewAvatarAudit(button.dataset.userId, approve, reason);
-        toast(approve ? "头像已通过" : "头像已驳回");
+        await reviewAvatarAudit(button.dataset.userId, true, "后台审核通过");
+        toast("头像已通过");
         closeAdminDrawer();
         await loadAvatarAudits();
       } catch (error) {
@@ -2169,6 +2238,8 @@ async function renderRevenue() {
   $("#revenue-rule-form").addEventListener("submit", upsertRevenueRule);
   $("#revenue-calc-form").addEventListener("click", onRevenueCalcClick);
   $("#revenue-records-table").addEventListener("click", onRevenueRecordClick);
+  $("#revenue-points-reward-refresh").addEventListener("click", loadRevenuePointsRewardConfig);
+  $("#revenue-points-reward-form").addEventListener("submit", saveRevenuePointsRewardConfig);
   applyPhaseOneRevenueGuard();
   await loadGameTypeOptionsForRevenue();
   const tasks = [];
@@ -2177,6 +2248,11 @@ async function renderRevenue() {
   } else {
     renderNoAccess("#revenue-template-list", "缺少 revenue:template:view");
     renderNoAccess("#revenue-rule-list", "缺少 revenue:template:view");
+  }
+  if (can("system_config:read")) {
+    tasks.push(loadRevenuePointsRewardConfig());
+  } else {
+    renderNoAccess("#revenue-points-reward-config-panel", "缺少 system_config:read");
   }
   if (can("revenue:record:view")) {
     tasks.push(loadRevenueRecords());
@@ -2189,6 +2265,59 @@ async function renderRevenue() {
     $("#revenue-settlements-table").innerHTML = emptyRow(6, "无权限查看线下结算记录");
   }
   await Promise.all(tasks);
+}
+
+async function loadRevenuePointsRewardConfig() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#revenue-points-reward-config-panel", "缺少 system_config:read");
+    return;
+  }
+  const data = await apiGet("/api/admin/revenue/points-reward-config");
+  state.revenuePointsRewardConfig = data.config || data;
+  const form = $("#revenue-points-reward-form");
+  if (form) {
+    form.elements.enabled.checked = Boolean(state.revenuePointsRewardConfig.enabled);
+    setFormValue(form, "pointsPercent", Number(state.revenuePointsRewardConfig.pointsPerRevenueBps || 0) / 100);
+    setFormValue(form, "maxPointsPerSettlement", state.revenuePointsRewardConfig.maxPointsPerSettlement || 0);
+  }
+  renderRevenuePointsRewardConfig();
+}
+
+function renderRevenuePointsRewardConfig() {
+  const config = state.revenuePointsRewardConfig || {};
+  $("#revenue-points-reward-config-panel").innerHTML = [
+    detailCell("结算积分发放", config.enabled ? "已启用" : "已停用"),
+    detailCell("分润积分比例", `${(Number(config.pointsPerRevenueBps || 0) / 100).toFixed(2).replace(/\\.00$/, "")}%`),
+    detailCell("单人单次积分上限", Number(config.maxPointsPerSettlement || 0) > 0 ? `${config.maxPointsPerSettlement} 积分` : "不限"),
+  ].join("");
+}
+
+async function saveRevenuePointsRewardConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const form = event.currentTarget;
+  const percent = Number(new FormData(form).get("pointsPercent"));
+  const maxPoints = Number(new FormData(form).get("maxPointsPerSettlement"));
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100 || !Number.isInteger(maxPoints) || maxPoints < 0 || maxPoints > 1000000) {
+    toast("请填写有效的分润积分规则", true);
+    return;
+  }
+  const payload = {
+    enabled: Boolean(form.elements.enabled.checked),
+    pointsPerRevenueBps: Math.round(percent * 100),
+    maxPointsPerSettlement: maxPoints,
+  };
+  try {
+    const data = await apiPut("/api/admin/revenue/points-reward-config", payload);
+    state.revenuePointsRewardConfig = data.config || data;
+    renderRevenuePointsRewardConfig();
+    toast("分润积分规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 function applyPhaseOneRevenueGuard() {
@@ -2277,7 +2406,7 @@ async function loadRevenueTemplates() {
   state.revenueTemplates = data.items || [];
   renderPaginatedList("#revenue-template-list", state.revenueTemplates, "revenueTemplates", (item) => stackItem({
     title: item.name || revenueTemplateName(item.id),
-    badge: statusLabel(item.status),
+    badge: item.status,
     meta: [
       `局类型：${gameTypeLabel(item.gameType)}`,
       `平台分成：${bpsText(item.platformBps)}`,
@@ -2581,10 +2710,19 @@ async function onRedemptionOrderClick(event) {
   let payload;
   if (button.dataset.status) {
     payload = { status: button.dataset.status, reason: button.dataset.reason || "后台处理" };
+  } else if (!approve) {
+    openInlineRejectEditor(button, {
+      title: `驳回兑换订单 ${button.dataset.id}`,
+      placeholder: "请填写兑换订单无法通过的原因",
+      onSubmit: async (reason) => {
+        await apiPost(`/api/admin/redemption/orders/${button.dataset.id}/review`, { approve: false, reason });
+        toast("兑换订单已驳回");
+        await Promise.all([loadRedemptionOrders(), loadPointsLogs()]);
+      },
+    });
+    return;
   } else {
-    const reason = approve ? "后台审核通过" : askRejectReason("请输入兑换订单驳回原因");
-    if (!reason) return;
-    payload = { approve, reason };
+    payload = { approve: true, reason: "后台审核通过" };
   }
   try {
     await apiPost(`/api/admin/redemption/orders/${button.dataset.id}/review`, payload);
@@ -2917,19 +3055,23 @@ async function loadFeedbackRecords() {
 
 async function onFeedbackTableClick(event) {
   const button = event.target.closest("button[data-action]");
-  if (!button || button.dataset.action !== "feedback-reply") return;
-  const content = window.prompt("回复内容", "客服已收到反馈，正在跟进处理。");
+  if (!button || !["feedback-reply", "feedback-resolve"].includes(button.dataset.action)) return;
+  const resolving = button.dataset.action === "feedback-resolve";
+  const content = window.prompt(
+    resolving ? "解决说明" : "回复内容",
+    resolving ? "该反馈已处理完成，如仍有问题请继续留言。" : "客服已收到反馈，正在跟进处理。",
+  );
   if (!content || !content.trim()) return;
   try {
     await apiPost(`/api/admin/feedback-records/${encodeURIComponent(button.dataset.id)}/reply`, {
       userId: Number(button.dataset.userId),
       content: content.trim(),
-      status: "processing",
+      status: resolving ? "resolved" : "processing",
     });
-    toast("反馈已回复并同步到用户端");
-    await loadFeedbackRecords();
+    toast(resolving ? "反馈已标记解决并同步到用户端" : "反馈已回复并同步到用户端");
+    await Promise.all([loadFeedbackRecords(), refreshPendingIndicators()]);
   } catch (error) {
-    toast(error.message, true);
+    toast(humanMessage(error.message), true);
   }
 }
 
@@ -2954,11 +3096,16 @@ async function onReportsTableClick(event) {
       await loadReports();
     }
     if (button.dataset.action === "credit-appeal-reject") {
-      const reason = askRejectReason("请输入信用申诉驳回原因");
-      if (!reason) return;
-      await apiPost(`/api/admin/reports/${button.dataset.id}/handle`, { result: reason, outcome: "appeal_rejected" });
-      toast("信用申诉已驳回");
-      await loadReports();
+      openInlineRejectEditor(button, {
+        title: "驳回信用申诉",
+        placeholder: "请填写申诉未通过的事实依据或处理说明",
+        onSubmit: async (reason) => {
+          await apiPost(`/api/admin/reports/${button.dataset.id}/handle`, { result: reason, outcome: "appeal_rejected" });
+          toast("信用申诉已驳回");
+          await loadReports();
+        },
+      });
+      return;
     }
     if (button.dataset.action === "report-close") {
       await apiPost(`/api/admin/reports/${button.dataset.id}/close`, { result: "后台关闭" });
@@ -3124,7 +3271,7 @@ async function showExportTaskDetail(taskID) {
       const result = await apiGet(`/api/admin/export-tasks/${item.id}/download-url`);
       downloadURL = exportDownloadText(result);
     } catch (error) {
-      downloadURL = error.message;
+      downloadURL = humanMessage(error.message);
     }
   }
   openAdminDrawer({
@@ -3304,7 +3451,7 @@ async function exportAIIMData() {
     renderAIIMExport(items);
     toast(`智能局内消息数据已导出：${items.length} 条`);
   } catch (error) {
-    $("#ai-im-export-panel").innerHTML = emptyBlock(`导出失败：${error.message}`);
+    $("#ai-im-export-panel").innerHTML = emptyBlock(`导出失败：${humanMessage(error.message)}`);
     toast(error.message, true);
   }
 }
@@ -3319,7 +3466,8 @@ function renderAIIMExport(items) {
     }),
     ...sample.map((item) => stackItem({
       title: `消息 ${item.messageId || item.id || "-"}`,
-      badge: item.messageType || item.type || "message",
+      badge: item.messageType || item.type || "system",
+      badgeText: messageTypeLabel(item.messageType || item.type || "system"),
       meta: [
         `房间编号：${item.roomId || "-"}`,
         `组局：${item.gameId ? `局 ${item.gameId}` : "-"}`,
@@ -3351,7 +3499,8 @@ function renderAIDataSnapshot(data) {
   const sections = data.dataReadinessSections || {};
   renderPaginatedList("#ai-readiness-list", Object.entries(sections), "aiReadiness", ([key, item]) => stackItem({
     title: aiReadinessSectionLabel(key),
-    badge: item.ready ? "已准备" : "待补齐",
+    badge: item.ready ? "ready" : "pending",
+    badgeText: item.ready ? "已准备" : "待补齐",
     meta: [`样本数量：${item.count || 0}`, `状态：${item.ready ? "可用" : "待补齐"}`],
   }), "暂无数据准备分区");
 }
@@ -3407,7 +3556,7 @@ async function loadWechatTemplates() {
   state.wechatTemplates = data.items || [];
   renderPaginatedList("#wechat-template-list", state.wechatTemplates, "wechatTemplates", (item) => stackItem({
     title: item.title || notificationSceneLabel(item.scene),
-    badge: statusLabel(item.status),
+    badge: item.status,
     meta: [`使用场景：${notificationSceneLabel(item.scene)}`, `模板状态：${statusLabel(item.status)}`],
   }), "暂无订阅模板");
 }
@@ -3564,7 +3713,14 @@ async function onTestRunTableClick(event) {
 
 async function renderAdmins() {
   bindSectionTabs($("#view-root"));
-  $("#admin-create-form").addEventListener("submit", createAdminUser);
+  const createForm = $("#admin-create-form");
+  const createPassword = createForm?.querySelector("input[name='password']");
+  if (createPassword) {
+    createPassword.minLength = 8;
+    createPassword.maxLength = 128;
+    createPassword.placeholder = "8 至 128 位初始密码";
+  }
+  createForm?.addEventListener("submit", createAdminUser);
   $("#admin-users-table").addEventListener("click", onAdminUserTableClick);
   $("#admin-applications-refresh").addEventListener("click", loadAdminApplications);
   $("#admin-applications-table").addEventListener("click", onAdminApplicationTableClick);
@@ -3579,10 +3735,15 @@ async function createAdminUser(event) {
     return;
   }
   const data = Object.fromEntries(new FormData(form).entries());
+  const password = String(data.password || "");
+  if (password.length < 8 || password.length > 128) {
+    toast("初始密码必须为 8 至 128 位", true);
+    return;
+  }
   try {
     await apiPost("/api/admin/admin-users", {
       username: data.username.trim(),
-      password: data.password,
+      password,
       roles: String(data.roles || "").split(/[,，]/).map((item) => adminRoleCode(item.trim())).filter(Boolean),
       status: data.status,
     });
@@ -3605,18 +3766,145 @@ async function loadAdminAccounts() {
 async function loadAdminApplications() {
   const data = await apiGet("/api/admin/admin-applications");
   state.adminApplications = data.items || [];
-  renderPaginatedTable("#admin-applications-table", state.adminApplications, "adminApplications", adminApplicationRow, 7, "暂无管理员申请");
+  renderPaginatedTable("#admin-applications-table", state.adminApplications, "adminApplications", adminApplicationRow, 8, "暂无管理员申请");
 }
 
 function onAdminApplicationTableClick(event) {
-  const button = event.target.closest("button[data-action='copy-admin-application']");
+  const button = event.target.closest("button[data-action]");
   if (!button) return;
   const item = state.adminApplications.find((application) => String(application.id) === String(button.dataset.id));
   if (!item) {
     toast("申请记录不存在", true);
     return;
   }
-  copyText(adminApplicationCopyText(item), "申请信息已复制");
+  const action = button.dataset.action;
+  if (action === "copy-admin-application") {
+    copyText(adminApplicationCopyText(item), "申请信息已复制");
+    return;
+  }
+  if (item.status !== "pending") {
+    toast("该管理员申请已处理，请刷新列表", true);
+    return;
+  }
+  if (action === "approve-admin-application") {
+    openAdminApplicationApproval(item);
+    return;
+  }
+  if (action === "reject-admin-application" || action === "close-admin-application") {
+    const closing = action === "close-admin-application";
+    openInlineRejectEditor(button, {
+      title: closing ? `关闭管理员申请 ${item.id}` : `驳回管理员申请 ${item.id}`,
+      hint: closing ? "关闭用于申请人撤回、重复提交等无需继续审核的情况" : "原因会保存在管理员申请审核记录中",
+      placeholder: closing ? "请填写关闭原因" : "请填写资料或权限申请未通过的原因",
+      confirmText: closing ? "确认关闭" : "确认驳回",
+      onSubmit: async (remark) => {
+        await reviewAdminApplication(item.id, { action: closing ? "close" : "reject", remark });
+        toast(closing ? "管理员申请已关闭" : "管理员申请已驳回");
+        await Promise.all([loadAdminApplications(), refreshPendingIndicators()]);
+      },
+    });
+  }
+}
+
+async function reviewAdminApplication(id, payload) {
+  return apiPost(`/api/admin/admin-applications/${id}/review`, payload);
+}
+
+function openAdminApplicationApproval(item) {
+  const currentAdminID = adminID();
+  const availableAccounts = (state.adminUsers || []).filter((account) => (
+    account.status === "active" && Number(account.id) !== currentAdminID
+  ));
+  const accounts = availableAccounts.map((account) => `
+    <option value="${escapeHTML(account.id)}">
+      ${escapeHTML(account.username)}（${escapeHTML((account.roles || []).map(adminRoleLabel).join("、") || "未分配角色")} · ${escapeHTML(statusLabel(account.status))}）
+    </option>
+  `).join("");
+  const panel = openAdminDrawer({
+    title: "通过管理员申请",
+    subtitle: `${item.name || "申请人"} · ${adminRoleLabel(item.desiredRole)}`,
+    body: `
+      <div class="detail-grid profile-detail-grid">
+        ${detailCell("申请编号", item.id ? `申请 ${item.id}` : "-")}
+        ${detailCell("联系方式", item.contact || "-")}
+        ${detailCell("申请角色", adminRoleLabel(item.desiredRole))}
+        ${detailCell("申请说明", item.reason || "-")}
+      </div>
+      <form id="admin-application-approve-form" class="form-grid compact-grid">
+        <label>账号处理方式
+          <select name="mode">
+            <option value="new">创建新后台账号</option>
+            <option value="existing">关联已有后台账号</option>
+          </select>
+        </label>
+        <div data-admin-application-new-account>
+          <label>登录账号<input name="username" maxlength="64" autocomplete="off" placeholder="例如 operation_zhang" /></label>
+          <label>初始密码<input name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="至少 8 位" /></label>
+        </div>
+        <div class="hidden" data-admin-application-existing-account>
+          <label>已有后台账号
+            <select name="adminUserId">
+              <option value="">请选择要关联的账号</option>
+              ${accounts || '<option value="" disabled>暂无其他正常状态的后台账号</option>'}
+            </select>
+          </label>
+          <p class="form-help">仅可关联其他正常状态的后台账号；通过后会在保留原角色的基础上增加“${escapeHTML(adminRoleLabel(item.desiredRole))}”角色。</p>
+        </div>
+        <label>审核备注<textarea name="remark" maxlength="500" placeholder="可填写核验说明"></textarea></label>
+        <div class="row-actions">
+          <button class="ghost" data-action="drawer-close" type="button">取消</button>
+          <button class="primary" type="submit">确认通过</button>
+        </div>
+      </form>
+    `,
+  });
+  const form = $("#admin-application-approve-form", panel);
+  const mode = form?.querySelector("select[name='mode']");
+  const newAccount = form?.querySelector("[data-admin-application-new-account]");
+  const existingAccount = form?.querySelector("[data-admin-application-existing-account]");
+  const syncMode = () => {
+    const useExisting = mode?.value === "existing";
+    newAccount?.classList.toggle("hidden", useExisting);
+    existingAccount?.classList.toggle("hidden", !useExisting);
+    const username = form?.querySelector("input[name='username']");
+    const password = form?.querySelector("input[name='password']");
+    const adminUserID = form?.querySelector("select[name='adminUserId']");
+    if (username) username.required = !useExisting;
+    if (password) password.required = !useExisting;
+    if (adminUserID) adminUserID.required = useExisting;
+  };
+  mode?.addEventListener("change", syncMode);
+  syncMode();
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(form).entries());
+    const payload = { action: "approve", remark: String(values.remark || "").trim() };
+    if (values.mode === "existing") {
+      payload.adminUserId = Number(values.adminUserId || 0);
+      if (!payload.adminUserId) {
+        toast("请选择要关联的后台账号", true);
+        return;
+      }
+    } else {
+      payload.username = String(values.username || "").trim();
+      payload.password = String(values.password || "");
+      if (!payload.username || payload.password.length < 8) {
+        toast("请填写登录账号，并设置至少 8 位初始密码", true);
+        return;
+      }
+    }
+    const submit = form.querySelector("button[type='submit']");
+    if (submit) submit.disabled = true;
+    try {
+      await reviewAdminApplication(item.id, payload);
+      toast("管理员申请已通过，后台账号已关联");
+      closeAdminDrawer();
+      await Promise.all([loadAdminAccounts(), loadAdminApplications(), refreshPendingIndicators()]);
+    } catch (error) {
+      toast(error.message, true);
+      if (submit) submit.disabled = false;
+    }
+  });
 }
 
 async function onAdminUserTableClick(event) {
@@ -3667,13 +3955,10 @@ async function renderSystem() {
   $("#game-category-form").addEventListener("submit", saveGameCategoryConfig);
   $("#game-create-template-refresh").addEventListener("click", loadGameCreateTemplateConfig);
   $("#game-create-template-form").addEventListener("submit", saveGameCreateTemplateConfig);
-  $("#game-create-template-primary").addEventListener("change", () => {
-    const form = $("#game-create-template-form");
-    if (form && form.elements.secondaryCategory) form.elements.secondaryCategory.value = "";
-    renderGameCreateTemplateForm();
-  });
   $("#home-display-refresh").addEventListener("click", loadHomeDisplayConfig);
   $("#home-display-form").addEventListener("submit", saveHomeDisplayConfig);
+  $("#share-component-refresh").addEventListener("click", loadShareComponentConfig);
+  $("#share-component-form").addEventListener("submit", saveShareComponentConfig);
   $("#game-application-refresh").addEventListener("click", loadGameApplicationConfig);
   $("#game-application-form").addEventListener("submit", saveGameApplicationConfig);
   $("#game-audit-refresh").addEventListener("click", loadGameAuditConfig);
@@ -3688,14 +3973,16 @@ async function renderSystem() {
   $("#review-complete-form").addEventListener("submit", saveReviewCompleteConfig);
   $("#growth-rules-refresh").addEventListener("click", loadGrowthRewardRules);
   $("#growth-rules-form").addEventListener("submit", saveGrowthRewardRules);
+  $("#role-growth-refresh").addEventListener("click", loadRoleGrowthConfigs);
+  $("#role-growth-level-form").addEventListener("submit", saveRoleLevelConfig);
+  $("#role-growth-metric-form").addEventListener("submit", saveRoleMetricConfig);
+  $("#role-growth-credit-form").addEventListener("submit", saveCreditRestrictionConfig);
   $("#achievement-config-refresh").addEventListener("click", loadAchievementConfig);
   $("#achievement-config-form").addEventListener("submit", saveAchievementConfig);
   $("#operation-rules-refresh").addEventListener("click", loadOperationRules);
   $("#operation-rules-form").addEventListener("submit", saveOperationRules);
   $("#credit-rule-refresh").addEventListener("click", loadCreditDeductionRules);
   $("#credit-rule-form").addEventListener("submit", saveCreditDeductionRules);
-  $("#profit-config-refresh").addEventListener("click", loadProfitTemplateConfig);
-  $("#profit-config-form").addEventListener("submit", saveProfitTemplateConfig);
   $("#risk-logs-refresh").addEventListener("click", loadRiskLogs);
   $("#guide-rule-form").addEventListener("submit", updateGuideRule);
   $("#guide-qualification-form").addEventListener("submit", updateGuideQualification);
@@ -3708,6 +3995,7 @@ async function renderSystem() {
     tasks.push(loadGameCategoryConfig());
     tasks.push(loadGameCreateTemplateConfig());
     tasks.push(loadHomeDisplayConfig());
+    tasks.push(loadShareComponentConfig());
     tasks.push(loadGameApplicationConfig());
     tasks.push(loadGameAuditConfig());
     tasks.push(loadConditionRuleConfig());
@@ -3715,14 +4003,15 @@ async function renderSystem() {
     tasks.push(loadExpertSkillDisplayConfig());
     tasks.push(loadReviewCompleteConfig());
     tasks.push(loadGrowthRewardRules());
+    tasks.push(loadRoleGrowthConfigs());
     tasks.push(loadAchievementConfig());
     tasks.push(loadOperationRules());
     tasks.push(loadCreditDeductionRules());
-    tasks.push(loadProfitTemplateConfig());
   } else {
     renderNoAccess("#game-category-config-panel", "缺少 system_config:read");
     renderNoAccess("#game-create-template-config-panel", "缺少 system_config:read");
     renderNoAccess("#home-display-config-panel", "缺少 system_config:read");
+    renderNoAccess("#share-component-config-panel", "缺少 system_config:read");
     renderNoAccess("#game-application-config-panel", "缺少 system_config:read");
     renderNoAccess("#game-audit-config-panel", "缺少 system_config:read");
     renderNoAccess("#condition-rule-config-panel", "缺少 system_config:read");
@@ -3730,6 +4019,7 @@ async function renderSystem() {
     renderNoAccess("#expert-skill-display-config-panel", "缺少 system_config:read");
     renderNoAccess("#review-complete-config-panel", "缺少 system_config:read");
     renderNoAccess("#growth-rules-config-panel", "缺少 system_config:read");
+    renderNoAccess("#role-growth-summary", "缺少 system_config:read");
     renderNoAccess("#achievement-config-panel", "缺少 system_config:read");
     renderNoAccess("#operation-rules-config-panel", "缺少 system_config:read");
     renderNoAccess("#credit-rule-config-panel", "缺少 system_config:read");
@@ -3832,13 +4122,6 @@ function ensureGuideRulePanel() {
             <option value="false">否</option>
           </select>
         </label>
-        <label>付费是否满足
-          <select name="paymentMet">
-            <option value="">不变</option>
-            <option value="true">是</option>
-            <option value="false">否</option>
-          </select>
-        </label>
         <button class="ghost" data-action="guide-qualification-load" type="button">查询资格</button>
         <button class="primary" type="submit">保存用户资格</button>
       </form>
@@ -3868,12 +4151,61 @@ async function loadGameCategoryConfig() {
 function renderGameCategoryConfig() {
   const config = state.gameCategoryConfig || {};
   $("#game-category-config-panel").innerHTML = [
-    detailCell("首页分类", `${(config.primaryCategories || []).length} 类`),
-    detailCell("局类别筛选", mergeGameTypeOptions(config.typeFilters).map((item) => item.name).join("、")),
+    detailCell("局类型数量", `${(config.primaryCategories || []).length} 类`),
     detailCell("位置筛选", `${(config.locationFilters || []).length} 项`),
     detailCell("默认分类", categoryName(config.primaryCategories, config.defaultPrimaryCategory)),
-    detailCell("默认局类别", gameTypeLabel(config.defaultType)),
+    detailCell("收费规则", "一期仅支持免费局"),
   ].join("");
+}
+
+async function loadShareComponentConfig() {
+  if (!can("system_config:read")) return;
+  const data = await apiGet("/api/admin/games/category-config");
+  state.gameCategoryConfig = data.config || data;
+  const config = state.gameCategoryConfig.shareComponent || {};
+  const form = $("#share-component-form");
+  if (form) {
+    setFormValue(form, "enabled", String(config.enabled !== false));
+    setFormValue(form, "variant", config.variant || "channel_sheet");
+    setFormValue(form, "label", config.label || "分享");
+    setFormValue(form, "enableInternal", String(config.enableInternal !== false));
+    setFormValue(form, "enableWechat", String(config.enableWechat !== false));
+  }
+  $("#share-component-config-panel").innerHTML = [
+    detailCell("当前状态", config.enabled === false ? "隐藏" : "显示"),
+    detailCell("组件形态", config.variant === "icon_button" ? "图标按钮" : "渠道选择面板"),
+    detailCell("站内分享", config.enableInternal === false ? "关闭" : "开启"),
+    detailCell("微信分享", config.enableWechat === false ? "关闭" : "开启"),
+  ].join("");
+}
+
+async function saveShareComponentConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("缺少 system_config:update", true);
+    return;
+  }
+  const formData = new FormData(event.currentTarget);
+  const payload = JSON.parse(JSON.stringify(state.gameCategoryConfig || {}));
+  const shareComponent = {
+    enabled: formData.get("enabled") === "true",
+    variant: String(formData.get("variant") || "channel_sheet"),
+    label: String(formData.get("label") || "分享").trim() || "分享",
+    enableInternal: formData.get("enableInternal") === "true",
+    enableWechat: formData.get("enableWechat") === "true",
+  };
+  payload.shareComponent = shareComponent;
+  const actions = Array.isArray(payload.eventActions) ? payload.eventActions : [];
+  payload.eventActions = actions.filter((item) => !["分享", "引荐", "邀请（站内）", "站内邀请"].includes(String(item || "").trim()));
+  if (shareComponent.enabled) payload.eventActions.unshift(shareComponent.label);
+  try {
+    const data = await apiPut("/api/admin/games/category-config", payload);
+    state.gameCategoryConfig = data.config || data;
+    await loadShareComponentConfig();
+    toast("分享组件已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 async function saveGameCategoryConfig(event) {
@@ -3935,7 +4267,6 @@ function renderGameCreateTemplateConfig() {
     <tr>
       <td><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.description || "-")}</small></td>
       <td>${escapeHTML(gameCategoryLabel(item.primaryCategory))}</td>
-      <td>${escapeHTML(gameSecondaryCategoryLabel(item.primaryCategory, item.secondaryCategory))}</td>
       <td>${escapeHTML(participationLabel(item.participation))}</td>
       <td>${escapeHTML(item.capacity || "-")}</td>
       <td><span class="badge ${item.visible === false ? "pending" : "active"}">${item.visible === false ? "停用" : "启用"}</span></td>
@@ -3945,7 +4276,7 @@ function renderGameCreateTemplateConfig() {
         <button class="ghost danger" data-action="game-template-delete" data-key="${escapeHTML(item.key)}" type="button">删除</button>
       </td>
     </tr>
-  `).join("") : emptyRow(7, "暂无局模板");
+  `).join("") : emptyRow(6, "暂无局模板");
 }
 
 function gameTemplatePrimaryCategories() {
@@ -3957,14 +4288,6 @@ function gameTemplatePrimaryCategories() {
 function gameCategoryLabel(key) {
   const item = gameTemplatePrimaryCategories().find((category) => category.key === key);
   return item ? item.name : (key || "-");
-}
-
-function gameSecondaryCategoryLabel(primaryKey, secondaryKey) {
-  const primary = gameTemplatePrimaryCategories().find((category) => category.key === primaryKey);
-  const item = primary && Array.isArray(primary.children)
-    ? primary.children.find((child) => child && child.key === secondaryKey)
-    : null;
-  return item ? item.name : (secondaryKey || "-");
 }
 
 function participationLabel(value) {
@@ -3981,16 +4304,10 @@ function renderGameCreateTemplateForm() {
   const categories = gameTemplatePrimaryCategories();
   const editing = (state.gameCreateTemplateConfig?.items || []).find((item) => item.key === state.gameCreateTemplateEditingKey);
   const primarySelect = form.elements.primaryCategory;
-  const secondarySelect = form.elements.secondaryCategory;
-  if (!primarySelect || !secondarySelect) return;
+  if (!primarySelect) return;
   const selectedPrimary = String(primarySelect.value || editing?.primaryCategory || categories[0]?.key || "");
   primarySelect.innerHTML = categories.map((item) => `<option value="${escapeHTML(item.key)}">${escapeHTML(item.name)}</option>`).join("");
   primarySelect.value = categories.some((item) => item.key === selectedPrimary) ? selectedPrimary : (categories[0]?.key || "");
-  const primary = categories.find((item) => item.key === primarySelect.value);
-  const children = Array.isArray(primary?.children) ? primary.children.filter((item) => item && item.key && item.visible !== false) : [];
-  const selectedSecondary = String(secondarySelect.value || editing?.secondaryCategory || children[0]?.key || "");
-  secondarySelect.innerHTML = children.map((item) => `<option value="${escapeHTML(item.key)}">${escapeHTML(item.name)}</option>`).join("");
-  secondarySelect.value = children.some((item) => item.key === selectedSecondary) ? selectedSecondary : (children[0]?.key || "");
 }
 
 function resetGameCreateTemplateForm() {
@@ -4017,10 +4334,9 @@ async function saveGameCreateTemplateConfig(event) {
   const data = Object.fromEntries(new FormData(form).entries());
   const name = String(data.name || "").trim();
   const primaryCategory = String(data.primaryCategory || "").trim();
-  const secondaryCategory = String(data.secondaryCategory || "").trim();
   const capacity = Number(data.capacity || 0);
-  if (!name || !primaryCategory || !secondaryCategory || !Number.isInteger(capacity) || capacity <= 0) {
-    toast("请完整填写模板名称、局类型、小类别和建议人数", true);
+  if (!name || !primaryCategory || !Number.isInteger(capacity) || capacity <= 0) {
+    toast("请完整填写模板名称、局类型和建议人数", true);
     return;
   }
   const config = state.gameCreateTemplateConfig || {};
@@ -4035,7 +4351,6 @@ async function saveGameCreateTemplateConfig(event) {
     name,
     description: String(data.description || "").trim(),
     primaryCategory,
-    secondaryCategory,
     participation: String(data.participation || "offline").trim(),
     capacity,
     tags: splitTemplateValues(data.tags),
@@ -4231,7 +4546,7 @@ function renderGameAuditConfig() {
   const config = state.gameAuditConfig || {};
   $("#game-audit-config-panel").innerHTML = [
     detailCell("普通局自动审核", yesNo(config.autoApproveFreeGames)),
-    detailCell("需人工审核局类别", compactList((config.requireManualAuditTypes || []).map(gameTypeLabel)) || "无"),
+    detailCell("审核范围", "免费局"),
     detailCell("局和入局申请驳回原因", config.requiredRejectReason ? "必填并通知申请人" : "未启用（需调整）"),
     detailCell("入局审核模式", applicationAuditModeLabel(config.applicationAuditMode)),
     detailCell("批量审核上限", `${config.batchAuditMaxCount ?? 0} 条`),
@@ -4476,14 +4791,8 @@ async function loadGrowthRewardRules() {
   const form = $("#growth-rules-form");
   if (form) {
     [
-      "completedGameExperience",
-      "completedGamePoints",
       "submittedReviewExperience",
       "receivedReviewExperience",
-      "submittedReviewPoints",
-      "experiencePerLevel",
-      "initialLevel",
-      "creditScoreCap",
     ].forEach((field) => setFormValue(form, field, state.growthRewardRules[field] ?? ""));
   }
   renderGrowthRewardRules();
@@ -4492,14 +4801,10 @@ async function loadGrowthRewardRules() {
 function renderGrowthRewardRules() {
   const config = state.growthRewardRules || {};
   $("#growth-rules-config-panel").innerHTML = [
-    detailCell("完成组局经验", config.completedGameExperience ?? "-"),
-    detailCell("完成组局积分", config.completedGamePoints ?? "-"),
+    detailCell("完成局经验", "发起人 100 / 实际成员 50"),
     detailCell("提交评价经验", config.submittedReviewExperience ?? "-"),
     detailCell("收到评价经验", config.receivedReviewExperience ?? "-"),
-    detailCell("提交评价积分", config.submittedReviewPoints ?? "-"),
-    detailCell("升级所需经验", config.experiencePerLevel ?? "-"),
-    detailCell("信用初始分（固定）", 100),
-    detailCell("信用分上限", config.creditScoreCap ?? "-"),
+    detailCell("等级梯度", "请在“等级与信用”中维护"),
   ].join("");
 }
 
@@ -4510,21 +4815,15 @@ async function saveGrowthRewardRules(event) {
     return;
   }
   const form = event.currentTarget;
-  const payload = {};
+  const payload = { ...(state.growthRewardRules || {}) };
   const fields = [
-    "completedGameExperience",
-    "completedGamePoints",
     "submittedReviewExperience",
     "receivedReviewExperience",
-    "submittedReviewPoints",
-    "experiencePerLevel",
-    "initialLevel",
-    "creditScoreCap",
   ];
   for (const field of fields) {
     const value = Number(new FormData(form).get(field));
     if (!Number.isInteger(value)) {
-      toast("请填写有效的成长等级与积分规则", true);
+      toast("请填写有效的评价经验规则", true);
       return;
     }
     payload[field] = value;
@@ -4533,7 +4832,160 @@ async function saveGrowthRewardRules(event) {
     const data = await apiPut("/api/admin/growth/reward-rules", payload);
     state.growthRewardRules = data.config || data;
     await loadGrowthRewardRules();
-    toast("成长等级与积分规则已保存");
+    toast("成长等级规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+async function loadRoleGrowthConfigs() {
+  if (!can("system_config:read")) {
+    renderNoAccess("#role-growth-summary", "暂无查看该配置的权限");
+    return;
+  }
+  const [levels, metrics, credit] = await Promise.all([
+    apiGet("/api/admin/growth/role-level-config"),
+    apiGet("/api/admin/growth/role-metric-config"),
+    apiGet("/api/admin/credit/restriction-config"),
+  ]);
+  state.roleLevelConfig = levels.config || levels;
+  state.roleMetricConfig = metrics.config || metrics;
+  state.creditRestrictionConfig = credit.config || credit;
+  state.roleGrowthRecalculation = levels.recalculation || metrics.recalculation || credit.recalculation || null;
+  renderRoleGrowthConfigs();
+}
+
+function renderRoleGrowthConfigs() {
+  const levels = state.roleLevelConfig || { items: [] };
+  const metrics = state.roleMetricConfig || { items: [] };
+  const credit = state.creditRestrictionConfig || {};
+  const levelItems = Array.isArray(levels.items) ? levels.items : [];
+  const metricItems = Array.isArray(metrics.items) ? metrics.items : [];
+  const recalculation = state.roleGrowthRecalculation || {};
+  const summary = $("#role-growth-summary");
+  if (summary) {
+    summary.innerHTML = [
+      detailCell("玩家等级", `${levelItems.filter((item) => item.roleCode === "player" && item.enabled).length} 档`),
+      detailCell("行家星级", `${levelItems.filter((item) => item.roleCode === "expert" && item.enabled).length} 档`),
+      detailCell("领路人等级", `${levelItems.filter((item) => item.roleCode === "guide" && item.enabled).length} 档`),
+      detailCell("信用限制", `发局 ${credit.createRestrictedBelow ?? "-"} / 报名 ${credit.joinRestrictedBelow ?? "-"} / 冻结 ${credit.frozenBelow ?? "-"}`),
+      detailCell("规则生效", recalculation.state || "计算中"),
+    ].join("");
+  }
+  const levelEditor = $("#role-growth-level-editor");
+  if (levelEditor) {
+    const groups = [
+      ["player", "玩家等级", "累计经验门槛"],
+      ["expert", "行家星级", "服务总分门槛"],
+      ["guide", "领路人等级", "连接总分门槛与直属完成用户门槛"],
+    ];
+    levelEditor.innerHTML = groups.map(([roleCode, title, thresholdLabel]) => {
+      const rows = levelItems.map((item, index) => ({ item, index })).filter(({ item }) => item.roleCode === roleCode);
+      return `
+        <div class="rule-editor-row">
+          <div class="rule-editor-copy"><strong>${title}</strong><p>${thresholdLabel}按从低到高排列。</p></div>
+          <div class="rule-editor-control">
+            ${rows.map(({ item, index }) => `
+              <label>${escapeHTML(item.title)} · ${roleCode === "player" ? "经验" : "综合得分"}
+                <input data-role-level-index="${index}" data-role-level-field="${roleCode === "player" ? "minExperience" : "minScore"}" type="number" min="0" max="1000000" value="${roleCode === "player" ? Number(item.minExperience || 0) : Number(item.minScore || 0)}" />
+              </label>
+              ${roleCode === "guide" ? `<label>${escapeHTML(item.title)} · 直属完成用户
+                <input data-role-level-index="${index}" data-role-level-field="minDirectCompletedInvitees" type="number" min="0" max="1000000" value="${Number(item.minDirectCompletedInvitees || 0)}" />
+              </label>` : ""}
+            `).join("")}
+          </div>
+        </div>`;
+    }).join("");
+  }
+  const metricEditor = $("#role-growth-metric-editor");
+  if (metricEditor) {
+    metricEditor.innerHTML = metricItems.map((item, index) => `
+      <div class="rule-editor-row">
+        <div class="rule-editor-copy">
+          <strong>${escapeHTML(item.title)}</strong>
+          <p>${item.roleCode === "expert" ? "行家" : "领路人"} · ${escapeHTML(item.metricGroup)} · ${escapeHTML(item.metricType)}指标</p>
+        </div>
+        <div class="rule-editor-control">
+          <label>目标值<input data-role-metric-index="${index}" data-role-metric-field="targetValue" type="number" min="0" max="1000000" value="${Number(item.targetValue || 0)}" /></label>
+          <label>权重<input data-role-metric-index="${index}" data-role-metric-field="rawWeight" type="number" min="0" max="1000" value="${Number(item.rawWeight || 0)}" /></label>
+          <label>周期（天）<input data-role-metric-index="${index}" data-role-metric-field="windowDays" type="number" min="0" max="365" value="${Number(item.windowDays || 0)}" /></label>
+          <label class="checkbox-field"><input data-role-metric-index="${index}" data-role-metric-field="enabled" type="checkbox" ${item.enabled ? "checked" : ""} />启用</label>
+        </div>
+      </div>
+    `).join("");
+  }
+  const creditForm = $("#role-growth-credit-form");
+  if (creditForm) {
+    ["initialScore", "scoreCap", "createRestrictedBelow", "joinRestrictedBelow", "frozenBelow"].forEach((field) => setFormValue(creditForm, field, credit[field] ?? ""));
+  }
+}
+
+async function saveRoleLevelConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("暂无修改等级配置的权限", true);
+    return;
+  }
+  const config = JSON.parse(JSON.stringify(state.roleLevelConfig || { items: [] }));
+  event.currentTarget.querySelectorAll("[data-role-level-index]").forEach((input) => {
+    const item = config.items[Number(input.dataset.roleLevelIndex)];
+    if (item) item[input.dataset.roleLevelField] = Number(input.value);
+  });
+  try {
+    const data = await apiPut("/api/admin/growth/role-level-config", config);
+    state.roleLevelConfig = data.config || data;
+    state.roleGrowthRecalculation = data.recalculation || state.roleGrowthRecalculation;
+    renderRoleGrowthConfigs();
+    toast("三角色等级梯度已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+async function saveRoleMetricConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("暂无修改指标配置的权限", true);
+    return;
+  }
+  const config = JSON.parse(JSON.stringify(state.roleMetricConfig || { items: [] }));
+  event.currentTarget.querySelectorAll("[data-role-metric-index]").forEach((input) => {
+    const item = config.items[Number(input.dataset.roleMetricIndex)];
+    if (!item) return;
+    item[input.dataset.roleMetricField] = input.type === "checkbox" ? input.checked : Number(input.value);
+  });
+  try {
+    const data = await apiPut("/api/admin/growth/role-metric-config", config);
+    state.roleMetricConfig = data.config || data;
+    state.roleGrowthRecalculation = data.recalculation || state.roleGrowthRecalculation;
+    renderRoleGrowthConfigs();
+    toast("行家与领路人指标规则已保存");
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+async function saveCreditRestrictionConfig(event) {
+  event.preventDefault();
+  if (!can("system_config:update")) {
+    toast("暂无修改信用配置的权限", true);
+    return;
+  }
+  const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const payload = {
+    ...(state.creditRestrictionConfig || {}),
+    initialScore: Number(values.initialScore),
+    scoreCap: Number(values.scoreCap),
+    createRestrictedBelow: Number(values.createRestrictedBelow),
+    joinRestrictedBelow: Number(values.joinRestrictedBelow),
+    frozenBelow: Number(values.frozenBelow),
+  };
+  try {
+    const data = await apiPut("/api/admin/credit/restriction-config", payload);
+    state.creditRestrictionConfig = data.config || data;
+    state.roleGrowthRecalculation = data.recalculation || state.roleGrowthRecalculation;
+    renderRoleGrowthConfigs();
+    toast("永久信用限制已保存");
   } catch (error) {
     toast(error.message, true);
   }
@@ -4552,6 +5004,8 @@ async function loadOperationRules() {
     const game = state.operationRules.game || {};
     const invite = state.operationRules.invite || {};
     const map = state.operationRules.map || {};
+    const newbieGuide = state.operationRules.newbieGuide || {};
+    const login = state.operationRules.login || {};
     [
       ["expertCreatedGames", roles.expertCreatedGames],
       ["expertCreditScore", roles.expertCreditScore],
@@ -4565,6 +5019,9 @@ async function loadOperationRules() {
       ["inviteMaxPerGame", invite.maxPerGame],
       ["defaultRadiusMeters", map.defaultRadiusMeters],
       ["maxRadiusMeters", map.maxRadiusMeters],
+      ["profileReminderLimit", newbieGuide.profileReminderLimit],
+      ["profileReminderIntervalHours", newbieGuide.profileReminderIntervalHours],
+      ["reauthAfterDays", login.reauthAfterDays],
     ].forEach(([field, value]) => setFormValue(form, field, value ?? ""));
   }
   const textarea = $("#operation-rules-config-json");
@@ -4579,6 +5036,8 @@ function renderOperationRules() {
   const game = config.game || {};
   const invite = config.invite || {};
   const stateRules = config.state || {};
+  const newbieGuide = config.newbieGuide || {};
+  const login = config.login || {};
   $("#operation-rules-config-panel").innerHTML = [
     detailCell("任务规则", `${tasks.length} 条`),
     detailCell("行家发起局门槛", `${roles.expertCreatedGames ?? "-"} 次`),
@@ -4587,6 +5046,8 @@ function renderOperationRules() {
     detailCell("每日创建上限", `${game.dailyCreateLimit ?? "-"} 局`),
     detailCell("邀请有效期", `${invite.timeoutMinutes ?? "-"} 分钟`),
     detailCell("状态审核超时", `${stateRules.auditTimeoutHours ?? "-"} 小时`),
+    detailCell("资料提醒", `${newbieGuide.profileReminderLimit ?? "-"} 次，每 ${newbieGuide.profileReminderIntervalHours ?? "-"} 小时一次`),
+    detailCell("重新登录", `超过 ${login.reauthAfterDays ?? "-"} 天需短信或密码验证`),
   ].join("");
 }
 
@@ -4610,7 +5071,7 @@ async function saveOperationRules(event) {
   const values = Object.fromEntries(new FormData(form).entries());
   const fields = [
     "expertCreatedGames", "expertCreditScore", "guideParticipatedGames", "guideInvitedCompleted", "guideCreditScore",
-    "minPlayers", "maxPlayers", "dailyCreateLimit", "inviteTimeoutMinutes", "inviteMaxPerGame", "defaultRadiusMeters", "maxRadiusMeters",
+    "minPlayers", "maxPlayers", "dailyCreateLimit", "inviteTimeoutMinutes", "inviteMaxPerGame", "defaultRadiusMeters", "maxRadiusMeters", "profileReminderLimit", "profileReminderIntervalHours", "reauthAfterDays",
   ];
   const numbers = {};
   for (const field of fields) {
@@ -4633,6 +5094,8 @@ async function saveOperationRules(event) {
   payload.game = { ...(payload.game || {}), minPlayers: numbers.minPlayers, maxPlayers: numbers.maxPlayers, dailyCreateLimit: numbers.dailyCreateLimit };
   payload.invite = { ...(payload.invite || {}), timeoutMinutes: numbers.inviteTimeoutMinutes, maxPerGame: numbers.inviteMaxPerGame, playerEnabled: false };
   payload.map = { ...(payload.map || {}), defaultRadiusMeters: numbers.defaultRadiusMeters, maxRadiusMeters: numbers.maxRadiusMeters };
+  payload.newbieGuide = { ...(payload.newbieGuide || {}), enabled: true, profileReminderLimit: numbers.profileReminderLimit, profileReminderIntervalHours: numbers.profileReminderIntervalHours };
+  payload.login = { ...(payload.login || {}), reauthAfterDays: numbers.reauthAfterDays };
   payload.revenue = { ...(payload.revenue || {}), enabled: false };
   try {
     const data = await apiPut("/api/admin/operation-rules", payload);
@@ -4928,7 +5391,7 @@ async function loadRiskLogs() {
   state.riskLogs = data.items || [];
   renderPaginatedList("#risk-log-list", state.riskLogs, "riskLogs", (item) => stackItem({
     title: item.id ? `${sensitiveActionLabel(item.action)}：${item.word || "内容"}（记录 ${item.id}）` : `${sensitiveActionLabel(item.action)}：${item.word || "内容"}`,
-    badge: statusLabel(item.status),
+    badge: item.status,
     meta: [`关联组局：${item.gameId ? `局 ${item.gameId}` : "-"}`, `聊天房间：${item.roomId || "-"}`, `消息记录：${item.messageId || "-"}`, `来源：${sourceLabel(item.source)}`, `创建时间：${formatTime(item.createdAt)}`],
   }), "暂无内容风险日志");
 }
@@ -4939,7 +5402,7 @@ async function loadPermissionTree() {
   $("#permission-tree-panel").innerHTML = [
     stackItem({
       title: `${data.adminUser?.username || "管理员"} 的后台范围`,
-      badge: statusLabel(data.adminUser?.status || "active"),
+      badge: data.adminUser?.status || "active",
       meta: [
         `角色：${(data.roles || []).map(adminRoleLabel).join("、") || "-"}`,
         `职责：${adminRoleScopeText({ roles: data.roles || [] })}`,
@@ -4962,7 +5425,7 @@ async function loadGuideQualificationRules() {
   state.guideQualificationRules = data.items || [];
   renderPaginatedList("#guide-rule-list", state.guideQualificationRules, "guideQualificationRules", (item) => stackItem({
     title: item.id ? `${guideRuleLabel(item.ruleCode)}（规则 ${item.id}）` : guideRuleLabel(item.ruleCode),
-    badge: statusLabel(item.status),
+    badge: item.status,
     meta: [
       `最低邀请人数：${item.minInviteCount || 0}`,
       `最低信用分：${item.minCreditScore || 0}`,
@@ -5001,7 +5464,6 @@ async function onSystemActionClick(event) {
     form.elements.description.value = item.description || "";
     form.elements.primaryCategory.value = item.primaryCategory || "";
     renderGameCreateTemplateForm();
-    form.elements.secondaryCategory.value = item.secondaryCategory || "";
     form.elements.participation.value = item.participation || "offline";
     form.elements.capacity.value = item.capacity || 5;
     form.elements.order.value = item.order || 0;
@@ -5117,12 +5579,11 @@ async function updateGuideQualification(event) {
   const userID = Number(data.userId);
   const payload = { userId: userID };
   if (data.conditionMet) payload.conditionMet = data.conditionMet === "true";
-  if (data.paymentMet) payload.paymentMet = data.paymentMet === "true";
   if (!Number.isFinite(userID) || userID <= 0) {
     toast("请输入有效的用户", true);
     return;
   }
-  if (!("conditionMet" in payload) && !("paymentMet" in payload)) {
+  if (!("conditionMet" in payload)) {
     toast("请选择要更新的资格条件", true);
     return;
   }
@@ -5139,7 +5600,6 @@ function renderGuideQualification(item) {
   $("#guide-qualification-panel").innerHTML = [
     detailCell("用户", userText(item.userId)),
     detailCell("条件已满足", yesNo(item.conditionMet)),
-    detailCell("支付条件已满足", yesNo(item.paymentMet)),
     detailCell("领路人开通状态", statusLabel(item.guideOpenStatus)),
     detailCell("更新时间", formatTime(item.updatedAt)),
   ].join("");
@@ -5530,17 +5990,19 @@ function userFavoriteRow(item) {
 
 function inviteCodeRow(item) {
   const useStatus = item.useStatus || (item.boundWechatUserId || Number(item.usedCount || 0) > 0 ? "used" : "unused");
-  const displayStatus = item.displayStatus || item.status;
+  const displayStatus = inviteDisplayStatus(item);
   const unused = useStatus === "unused";
-  const canManage = unused && displayStatus === "active" && can("invite_code:manage");
+  // 已禁用但尚未使用的邀请码应当可重新启用；已使用、已过期和已作废
+  // 的邀请码不允许再改动，避免影响已经建立的邀请绑定关系。
+  const canManage = unused && ["active", "disabled"].includes(displayStatus) && can("invite_code:manage");
   const actions = [
     `<button class="ghost" data-action="invite-materials" data-code="${escapeHTML(item.code)}" type="button">生成物料</button>`,
     `<button class="ghost" data-action="invite-copy-usage" data-code="${escapeHTML(item.code)}" type="button">复制使用方式</button>`,
     `<button class="ghost" data-action="invite-detail" data-code="${escapeHTML(item.code)}" type="button">详情</button>`,
   ];
-  if (canManage && item.status === "active") actions.push(`<button class="ghost" data-action="invite-disable" data-code="${escapeHTML(item.code)}" type="button">禁用</button>`);
-  if (canManage && item.status === "disabled") actions.push(`<button class="ghost" data-action="invite-enable" data-code="${escapeHTML(item.code)}" type="button">启用</button>`);
-  if (canManage && (item.status === "active" || item.status === "disabled")) actions.push(`<button class="ghost danger" data-action="invite-void" data-code="${escapeHTML(item.code)}" type="button">作废</button>`);
+  if (canManage && displayStatus === "active") actions.push(`<button class="ghost" data-action="invite-disable" data-code="${escapeHTML(item.code)}" type="button">禁用</button>`);
+  if (canManage && displayStatus === "disabled") actions.push(`<button class="ghost" data-action="invite-enable" data-code="${escapeHTML(item.code)}" type="button">启用</button>`);
+  if (canManage) actions.push(`<button class="ghost danger" data-action="invite-void" data-code="${escapeHTML(item.code)}" type="button">作废</button>`);
   return `
     <tr>
       <td><input type="checkbox" data-invite-select data-code="${escapeHTML(item.code)}" aria-label="选择邀请码 ${escapeHTML(item.code)}" /></td>
@@ -5650,7 +6112,7 @@ async function showInviteMaterials(code) {
   const wxaCodeDataUrl = result.wxaCodeDataUrl || "";
   const copyValue = inviteMaterialCopyText(result, code);
   const statusText = urlLink ? "链接可发送" : wxaCodeDataUrl ? "二维码可发送" : "待配置";
-  const linkText = urlLink || (result.urlLinkError ? "正式发布后可生成：" + result.urlLinkError : "未生成");
+  const linkText = urlLink || (result.urlLinkError ? "正式发布后可生成，当前微信链接服务未就绪" : "未生成");
   holder.innerHTML = `
     <div class="sub-panel invite-material-panel">
       <div class="panel-head">
@@ -5671,7 +6133,7 @@ async function showInviteMaterials(code) {
       </div>
       <div class="detail-grid profile-detail-grid">
         ${detailCell("可点击链接", linkText)}
-        ${detailCell("二维码状态", wxaCodeDataUrl ? "已生成" : result.wxaCodeError || "未生成")}
+        ${detailCell("二维码状态", wxaCodeDataUrl ? "已生成" : result.wxaCodeError ? "当前微信二维码服务未就绪" : "未生成")}
         ${detailCell("入口类型", result.entryLabel || inviteEntryLabel(result.entryType))}
         ${detailCell("邀请码", result.inviteCode || code)}
       </div>
@@ -5939,6 +6401,7 @@ function feedbackRow(item) {
       <td>
         <div class="row-actions">
           ${canReply ? `<button class="ghost" data-action="feedback-reply" data-id="${escapeHTML(item.id)}" data-user-id="${escapeHTML(item.userId)}" type="button">回复</button>` : ""}
+          ${canReply ? `<button class="primary" data-action="feedback-resolve" data-id="${escapeHTML(item.id)}" data-user-id="${escapeHTML(item.userId)}" type="button">回复并解决</button>` : ""}
         </div>
       </td>
     </tr>
@@ -6038,9 +6501,11 @@ function behaviorEventRow(item) {
 }
 
 function behaviorLogItem(item) {
+  const eventType = item.eventType || "behavior";
   return stackItem({
     title: item.id ? `${behaviorEventLabel(item.eventCode || item.eventType)} ${item.id}` : behaviorEventLabel(item.eventCode || item.eventType),
-    badge: behaviorTypeLabel(item.eventType || "behavior"),
+    badge: eventType,
+    badgeText: behaviorTypeLabel(eventType),
     meta: [
       `用户：${userText(item.userId)}`,
       `目标：${operationTargetText(item)}`,
@@ -6175,7 +6640,8 @@ function operationLogRow(item) {
 
 function adminUserRow(item) {
   const actions = [];
-  if (can("admin_user:update")) {
+  const isCurrentAccount = Number(item.id) === adminID();
+  if (can("admin_user:update") && !isCurrentAccount) {
     actions.push(`<button class="ghost" data-action="admin-user-update" data-id="${item.id}" type="button">保存</button>`);
     actions.push(item.status === "active"
       ? `<button class="ghost" data-action="admin-user-disable" data-id="${item.id}" type="button">禁用</button>`
@@ -6187,7 +6653,7 @@ function adminUserRow(item) {
       <td data-raw-copy>${escapeHTML(item.username)}</td>
       <td>${escapeHTML((item.roles || []).map(adminRoleLabel).join("、") || "-")}</td>
       <td>
-        <select data-field="status">
+        <select data-field="status" ${isCurrentAccount ? "disabled" : ""} aria-label="${isCurrentAccount ? "当前登录账号状态不可自行修改" : "后台账号状态"}">
           <option value="active" ${item.status === "active" ? "selected" : ""}>正常</option>
           <option value="disabled" ${item.status === "disabled" ? "selected" : ""}>已禁用</option>
         </select>
@@ -6195,7 +6661,7 @@ function adminUserRow(item) {
       <td>${escapeHTML(adminRoleScopeText(item))}</td>
       <td>
         <div class="row-actions">
-          ${actions.join("") || "-"}
+          ${actions.join("") || (isCurrentAccount ? "当前登录账号" : "-")}
         </div>
       </td>
     </tr>
@@ -6203,16 +6669,39 @@ function adminUserRow(item) {
 }
 
 function adminApplicationRow(item) {
+  const pending = item.status === "pending";
+  const reviewText = item.reviewRemark ? `审核备注：${item.reviewRemark}` : "";
+  const linkText = item.linkedAdminUsername ? `关联账号：${item.linkedAdminUsername}` : "";
+  const reviewerText = item.reviewerUsername
+    ? `审核人：${item.reviewerUsername}`
+    : item.reviewedBy
+      ? `审核人：后台账号 ${item.reviewedBy}`
+      : `审核人：${pending ? "待审核" : "未记录"}`;
+  const reviewedTimeText = item.reviewedAt
+    ? `审核时间：${formatTime(item.reviewedAt)}`
+    : `审核时间：${pending ? "待审核" : "未记录"}`;
   return `
     <tr>
       <td>${escapeHTML(item.id ? `申请 ${item.id}` : "-")}</td>
       <td>${escapeHTML(item.name || "-")}</td>
       <td>${escapeHTML(item.contact || "-")}</td>
       <td>${escapeHTML(adminRoleLabel(item.desiredRole))}</td>
-      <td>${escapeHTML(item.reason || "-")}</td>
-      <td>${formatTime(item.createdAt)}</td>
+      <td><span class="${badgeClass(item.status)}">${escapeHTML(statusLabel(item.status))}</span></td>
+      <td>
+        <div>${escapeHTML(item.reason || "-")}</div>
+        ${reviewText ? `<small>${escapeHTML(reviewText)}</small>` : ""}
+        ${linkText ? `<small>${escapeHTML(linkText)}</small>` : ""}
+        <small>${escapeHTML(reviewerText)}</small>
+      </td>
+      <td>
+        <div>提交：${formatTime(item.createdAt)}</div>
+        <small>${escapeHTML(reviewedTimeText)}</small>
+      </td>
       <td>
         <div class="row-actions">
+          ${pending && can("admin_user:create") ? `<button class="ghost" data-action="approve-admin-application" data-id="${escapeHTML(item.id)}" type="button">通过</button>` : ""}
+          ${pending && can("admin_user:create") ? `<button class="ghost danger" data-action="reject-admin-application" data-id="${escapeHTML(item.id)}" type="button">驳回</button>` : ""}
+          ${pending && can("admin_user:create") ? `<button class="ghost" data-action="close-admin-application" data-id="${escapeHTML(item.id)}" type="button">关闭</button>` : ""}
           <button class="ghost" data-action="copy-admin-application" data-id="${escapeHTML(item.id)}" type="button">复制</button>
         </div>
       </td>
@@ -6227,8 +6716,12 @@ function adminApplicationCopyText(item = {}) {
     `申请人：${item.name || "-"}`,
     `联系方式：${item.contact || "-"}`,
     `申请角色：${adminRoleLabel(item.desiredRole)}`,
-    `角色代码：${item.desiredRole || "-"}`,
     `申请说明：${item.reason || "-"}`,
+    `处理状态：${statusLabel(item.status)}`,
+    `审核备注：${item.reviewRemark || "-"}`,
+    `关联账号：${item.linkedAdminUsername || "-"}`,
+    `审核人员：${item.reviewerUsername || "-"}`,
+    `审核时间：${formatTime(item.reviewedAt) || "-"}`,
     `提交时间：${formatTime(item.createdAt)}`,
   ].join("\n");
 }
@@ -6254,7 +6747,6 @@ function gameRow(game) {
       <td>${escapeHTML(game.id ? `局 ${game.id}` : "-")}</td>
       <td>${escapeHTML(game.title)}</td>
       <td>${escapeHTML(primaryCategoryLabel(game.primaryCategory, game.primaryCategoryText))}</td>
-      <td>${gameTypeLabel(game.gameType)}</td>
       <td>${escapeHTML(sourceLabel(game.gameSource))}</td>
       <td><span class="${badgeClass(game.status)}">${statusLabel(game.status)}</span></td>
       <td>${game.currentPlayers}/${game.minPlayers}-${game.maxPlayers}</td>
@@ -6319,17 +6811,19 @@ function gameContinueDraftRow(item) {
   `;
 }
 
-function renderGameTypeBars(games) {
-  const counts = games.reduce((acc, item) => {
-    acc[item.gameType] = (acc[item.gameType] || 0) + 1;
+function renderGameTypeBars(games, aggregateCounts) {
+  const counts = aggregateCounts || games.reduce((acc, item) => {
+    const category = item.primaryCategory || "unclassified";
+    acc[category] = (acc[category] || 0) + 1;
     return acc;
   }, {});
   const max = Math.max(1, ...Object.values(counts));
-  $("#game-type-bars").innerHTML = ["free", "standard", "public_welfare", "aa", "crowdfund", "deposit", "condition"].map((type) => {
+  const categories = ["social", "task", "explore", "growth"];
+  $("#game-type-bars").innerHTML = categories.map((type) => {
     const count = counts[type] || 0;
     return `
       <div class="bar-row">
-        <span>${gameTypeLabel(type)}</span>
+        <span>${primaryCategoryLabel(type)}</span>
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count / max) * 100)}%"></div></div>
         <strong>${count}</strong>
       </div>
@@ -6337,17 +6831,35 @@ function renderGameTypeBars(games) {
   }).join("");
 }
 
-function renderDashboardStatusBars(games) {
+function renderDashboardStatusBars(games, aggregateCounts) {
   const target = $("#game-status-bars");
   if (!target) return;
-  const counts = games.reduce((acc, item) => {
-    acc[item.status] = (acc[item.status] || 0) + 1;
+  const counts = aggregateCounts || games.reduce((acc, item) => {
+    const status = String(item.status || "").trim();
+    if (!status) return acc;
+    acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
-  const statuses = ["pending_audit", "recruiting", "in_progress", "pending_review", "completed", "canceled"];
-  const max = Math.max(1, ...Object.values(counts));
+  const lifecycleStatuses = [
+    "draft",
+    "pending_audit",
+    "recruiting",
+    "full",
+    "in_progress",
+    "pending_confirm",
+    "pending_review",
+    "completed",
+    "rejected",
+    "canceled",
+    "disputed",
+    "closed",
+    "settling",
+  ];
+  const unknownStatuses = Object.keys(counts).filter((status) => !lifecycleStatuses.includes(status));
+  const statuses = [...lifecycleStatuses, ...unknownStatuses];
+  const max = Math.max(1, ...Object.values(counts).map((value) => Number(value || 0)));
   target.innerHTML = statuses.map((status) => {
-    const count = counts[status] || 0;
+    const count = Number(counts[status] || 0);
     return `
       <div class="bar-row">
         <span>${statusLabel(status)}</span>
@@ -6358,15 +6870,16 @@ function renderDashboardStatusBars(games) {
   }).join("");
 }
 
-function renderDashboardUserBars(users) {
+function renderDashboardUserBars(users, aggregateCounts) {
   const target = $("#user-status-bars");
   if (!target) return;
   const items = Array.isArray(users) ? users : [];
+  const counts = aggregateCounts || {};
   const statuses = [
-    { label: "已实名", count: items.filter((item) => item.realnameStatus === "verified").length },
-    { label: "待审核", count: items.filter((item) => item.realnameStatus === "pending").length },
-    { label: "已绑手机", count: items.filter((item) => item.realnameStatus === "phone_bound").length },
-    { label: "账号正常", count: items.filter((item) => item.status === "active").length },
+    { label: "已实名", count: counts.verified ?? items.filter((item) => item.realnameStatus === "verified").length },
+    { label: "待审核", count: counts.pending ?? items.filter((item) => item.realnameStatus === "pending").length },
+    { label: "已绑手机", count: counts.phone_bound ?? items.filter((item) => item.realnameStatus === "phone_bound").length },
+    { label: "其他状态", count: Object.entries(counts).filter(([key]) => !["verified", "pending", "phone_bound"].includes(key)).reduce((total, [, count]) => total + Number(count || 0), 0) },
   ];
   const max = Math.max(1, ...statuses.map((item) => item.count));
   target.innerHTML = statuses.map((item) => `
@@ -6378,47 +6891,90 @@ function renderDashboardUserBars(users) {
   `).join("");
 }
 
-function renderDashboardWorkQueue(games, imRooms) {
+function renderDashboardWorkQueue(pendingCounts = {}) {
   const target = $("#dashboard-work-queue");
   if (!target) return;
-  const pendingGames = games.filter((item) => item.status === "pending_audit");
-  const activeGames = games.filter((item) => item.status === "recruiting" || item.status === "in_progress");
-  const rooms = Array.isArray(imRooms) ? imRooms : [];
-  target.innerHTML = [
-    stackItem({
-      title: "待审核组局",
-      badge: pendingGames.length ? "pending" : "completed",
-      meta: [`${pendingGames.length} 个待处理`, "进入组局管理后可批量通过"],
+  const workItems = [
+    can("game:read") || can("game:update_status") ? stackItem({
+      title: "组局与入局审核",
+      badge: Number(pendingCounts.games || 0) + Number(pendingCounts.gameApplications || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.games || 0)} 个组局、${Number(pendingCounts.gameApplications || 0)} 个入局申请`, "进入组局管理处理"],
       action: `<button class="ghost" data-view-shortcut="games" type="button">去处理</button>`,
-    }),
-    stackItem({
-      title: "运行中组局",
-      badge: activeGames.length ? "active" : "completed",
-      meta: [`${activeGames.length} 个正在招募或服务`, "重点关注人数、进度和局内消息"],
-      action: `<button class="ghost" data-view-shortcut="games" type="button">查看组局</button>`,
-    }),
-    stackItem({
-      title: "局内消息证据",
-      badge: rooms.length ? "active" : "completed",
-      meta: [`${rooms.length} 个房间`, "争议处理时从这里进入证据链"],
-      action: can("im:room:read") ? `<button class="ghost" data-view-shortcut="im" type="button">查看消息</button>` : "",
-    }),
-  ].join("");
+    }) : "",
+    can("identity:read") || can("role:view") ? stackItem({
+      title: "认证与身份审核",
+      badge: Number(pendingCounts.identity || 0) + Number(pendingCounts.enterprise || 0) + Number(pendingCounts.avatars || 0) + Number(pendingCounts.roles || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.identity || 0)} 个实名、${Number(pendingCounts.roles || 0)} 个身份申请`, "含企业认证与头像审核"],
+      action: `<button class="ghost" data-view-shortcut="audits" type="button">去处理</button>`,
+    }) : "",
+    can("report:view") ? stackItem({
+      title: "举报申诉",
+      badge: Number(pendingCounts.reports || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.reports || 0)} 个待处理举报`],
+      action: `<button class="ghost" data-view-shortcut="reports" type="button">去处理</button>`,
+    }) : "",
+    can("feedback:view") ? stackItem({
+      title: "用户反馈",
+      badge: Number(pendingCounts.feedback || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.feedback || 0)} 个待回复反馈`],
+      action: `<button class="ghost" data-view-shortcut="reports" data-view-action="feedback" type="button">去处理</button>`,
+    }) : "",
+    can("notification:wechat:view") ? stackItem({
+      title: "微信消息任务",
+      badge: Number(pendingCounts.wechatTasks || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.wechatTasks || 0)} 个待发送任务`],
+      action: `<button class="ghost" data-view-shortcut="delivery" type="button">去处理</button>`,
+    }) : "",
+    can("redemption:manage") ? stackItem({
+      title: "积分兑换订单",
+      badge: Number(pendingCounts.redemption || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.redemption || 0)} 个待审核订单`],
+      action: `<button class="ghost" data-view-shortcut="redemption" data-view-action="redemption-orders" type="button">去处理</button>`,
+    }) : "",
+    can("invite_code:read") || can("invite_code:manage") ? stackItem({
+      title: "邀请码加量申请",
+      badge: Number(pendingCounts.invites || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.invites || 0)} 个待审核申请`],
+      action: `<button class="ghost" data-view-shortcut="invites" data-view-action="invite-quota" type="button">去处理</button>`,
+    }) : "",
+    can("admin_user:view") || can("admin_user:create") ? stackItem({
+      title: "管理员账号申请",
+      badge: Number(pendingCounts.adminApplications || 0) ? "pending" : "completed",
+      meta: [`${Number(pendingCounts.adminApplications || 0)} 个待审核申请`],
+      action: `<button class="ghost" data-view-shortcut="admins" data-view-action="admin-applications" type="button">去处理</button>`,
+    }) : "",
+  ].filter(Boolean);
+  target.innerHTML = workItems.join("");
   target.querySelectorAll("button[data-view-shortcut]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.view = button.dataset.viewShortcut;
+    button.addEventListener("click", async () => {
+      const view = button.dataset.viewShortcut;
+      const action = button.dataset.viewAction;
+      state.view = view;
       setActiveNav();
-      loadView(state.view);
+      expandActiveNavGroup();
+      await loadView(state.view);
+      if (action === "feedback") await loadFeedbackRecords();
+      if (action === "redemption-orders") {
+        document.querySelector('[data-tab-target="#redemption-orders-panel"]')?.click();
+        document.querySelector("#redemption-orders-panel")?.scrollIntoView({ block: "start" });
+      }
+      if (action === "invite-quota") {
+        document.querySelector("#invite-quota-requests-table")?.closest(".panel")?.scrollIntoView({ block: "start" });
+      }
+      if (action === "admin-applications") {
+        document.querySelector('[data-tab-target="#admins-application-panel"]')?.click();
+        document.querySelector("#admins-application-panel")?.scrollIntoView({ block: "start" });
+      }
     });
   });
 }
 
-function stackItem({ title, badge, meta, action = "" }) {
+function stackItem({ title, badge, badgeText = "", meta, action = "" }) {
   return `
     <article class="stack-item">
       <div class="stack-item-head">
         <strong>${escapeHTML(title)}</strong>
-        <span class="${badgeClass(badge)}">${escapeHTML(statusLabel(badge))}</span>
+        <span class="${badgeClass(badge)}">${escapeHTML(badgeText || statusLabel(badge))}</span>
       </div>
       <div class="kv">${meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}</div>
       ${action ? `<div class="row-actions">${action}</div>` : ""}
@@ -6444,6 +7000,7 @@ function profileDetailBlock(title, data, rows) {
 
 function growthTraceBlock(title, trace) {
   const profile = trace?.profile || {};
+  const roleProfiles = Array.isArray(trace?.roleProfiles) ? trace.roleProfiles : [];
   const reviews = trace?.reviews || [];
   const creditLogs = trace?.creditLogs || [];
   const footprints = trace?.footprints || [];
@@ -6455,9 +7012,16 @@ function growthTraceBlock(title, trace) {
         <span class="${badgeClass(reviews.length ? "active" : "pending")}">${escapeHTML(reviews.length)} 条评价</span>
       </div>
       <div class="detail-grid profile-detail-grid">
-        ${detailCell("成长等级", `Lv.${profile.level || 0}`)}
+        ${roleProfiles.length
+          ? roleProfiles.map((item) => detailCell(
+            `${item.roleName || roleLabel(item.roleCode)}成长`,
+            item.active === false
+              ? "身份未开通"
+              : `${item.levelTitle || "0 级"} · ${item.scoreLabel || "当前数值"} ${Number(item.score || 0)}`,
+          )).join("")
+          : detailCell("玩家等级", `Lv.${profile.level || 0}`)}
         ${detailCell("成长经验", profile.experience || 0)}
-        ${detailCell("信用分", profile.creditScore || profile.todayCreditScore || 100)}
+        ${detailCell("信用分", profile.creditScore ?? profile.todayCreditScore ?? 100)}
         ${detailCell("可用积分", profile.availablePoints || 0)}
         ${detailCell("评价数量", profile.reviewCount || reviews.length)}
         ${detailCell("成就数量", achievements.length || (profile.achievements || []).length || 0)}
@@ -6542,6 +7106,12 @@ function technicalDetails(summary, body) {
 
 function detailCell(label, value) {
   return `<div class="detail-cell"><span>${escapeHTML(adminLabel(label))}</span><strong>${escapeHTML(adminDisplayValue(value))}</strong></div>`;
+}
+
+// Only use this helper with locally generated, escaped controls. API text must
+// continue through detailCell so it cannot inject markup into the admin page.
+function detailContentCell(label, content) {
+  return `<div class="detail-cell"><span>${escapeHTML(adminLabel(label))}</span><div class="detail-cell-content">${content}</div></div>`;
 }
 
 function adminLabel(label) {
@@ -6853,7 +7423,9 @@ function adminCopyReplacements() {
     [/\bpending_audit\b/g, "待审核"],
     [/\brecruiting\b/g, "招募中"],
     [/\bin_progress\b/g, "进行中"],
+    [/\bpending_confirm\b/g, "待成员确认"],
     [/\bpending_review\b/g, "待评价"],
+    [/\bsettling\b/g, "结算中"],
     [/\bcompleted\b/g, "已完成"],
     [/\bcanceled\b/g, "已取消"],
     [/\bcancelled\b/g, "已取消"],
@@ -6869,6 +7441,14 @@ function adminCopyReplacements() {
     [/\barchived\b/g, "已归档"],
     [/\bfrozen\b/g, "已冻结"],
     [/\bsettled\b/g, "已结算"],
+    [/\bprocessing\b/g, "处理中"],
+    [/\bresolved\b/g, "已解决"],
+    [/\bshipping\b/g, "配送中"],
+    [/\bpassed\b/g, "已通过"],
+    [/\bblocked\b/g, "已拦截"],
+    [/\brisk_flagged\b/g, "风险标记"],
+    [/\bwaiting_condition\b/g, "等待条件满足"],
+    [/\bopened\b/g, "已开启"],
     [/\bexhausted\b/g, "已用尽"],
     [/\bstandard\b/g, "标准局"],
     [/\bpublic_welfare\b/g, "公益局"],
@@ -7354,26 +7934,71 @@ function emptyBlock(text) {
   return `<div class="empty">${text}</div>`;
 }
 
+function openInlineRejectEditor(button, options = {}) {
+  const title = options.title || "填写驳回原因";
+  const placeholder = options.placeholder || "请清楚说明需修改或补充的内容";
+  const required = options.required !== false;
+  const hint = options.hint || (required ? "驳回原因将同步发送给用户" : "可选，留空不会附带说明");
+  const confirmText = options.confirmText || "确认驳回";
+  document.querySelectorAll(".inline-reject-editor, .inline-reject-table-row").forEach((item) => item.remove());
+
+  const row = button.closest("tr");
+  let host;
+  if (row) {
+    const cells = row.closest("table")?.querySelectorAll("thead th").length || row.children.length || 1;
+    const editorRow = document.createElement("tr");
+    editorRow.className = "inline-reject-table-row";
+    editorRow.innerHTML = `<td colspan="${cells}"></td>`;
+    row.insertAdjacentElement("afterend", editorRow);
+    host = editorRow.firstElementChild;
+  } else {
+    host = button.closest(".game-audit-toolbar, .stack-item, .sub-panel, .admin-drawer-body") || button.parentElement;
+  }
+  if (!host) return;
+
+  const editor = document.createElement("form");
+  editor.className = "inline-reject-editor";
+  editor.innerHTML = `
+    <div class="inline-reject-editor-head">
+      <strong>${escapeHTML(title)}</strong>
+      <span>${escapeHTML(hint)}</span>
+    </div>
+    <textarea name="reason" maxlength="500" ${required ? "required" : ""} placeholder="${escapeHTML(placeholder)}"></textarea>
+    <div class="row-actions">
+      <button class="ghost" type="button" data-action="inline-reject-cancel">取消</button>
+      <button class="ghost danger" type="submit">${escapeHTML(confirmText)}</button>
+    </div>
+  `;
+  host.appendChild(editor);
+  const input = editor.querySelector("textarea[name='reason']");
+  input?.focus();
+  editor.querySelector("[data-action='inline-reject-cancel']")?.addEventListener("click", () => editor.closest(".inline-reject-table-row")?.remove() || editor.remove());
+  editor.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const reason = String(input?.value || "").trim();
+    if (required && !reason) {
+      toast("驳回必须填写原因", true);
+      input?.focus();
+      return;
+    }
+    const submit = editor.querySelector("button[type='submit']");
+    if (submit) submit.disabled = true;
+    try {
+      await options.onSubmit?.(reason);
+      editor.closest(".inline-reject-table-row")?.remove() || editor.remove();
+    } catch (error) {
+      toast(error.message, true);
+      if (submit) submit.disabled = false;
+    }
+  });
+}
+
 function renderNoAccess(selector, message) {
   const element = $(selector);
   if (element) {
     element.innerHTML = emptyBlock(humanMessage(message || "无权限访问"));
   }
-}
-
-function askRejectReason(title = "请输入驳回原因") {
-  const value = window.prompt(title);
-  const reason = String(value || "").trim();
-  if (!reason) {
-    toast("拒绝必须填写原因", true);
-    return "";
-  }
-  return reason;
-}
-
-function askOptionalRejectReason(title = "请输入驳回原因") {
-  const value = window.prompt(`${title}（可选，留空表示未填写原因）`);
-  return value == null ? null : String(value).trim();
 }
 
 function toast(message, isError = false) {
@@ -7388,8 +8013,24 @@ function humanMessage(message) {
   const text = String(message || "");
   const noPermission = text.match(/^缺少\s+(.+)$/);
   if (noPermission) return `当前账号无权限：${permissionLabel(noPermission[1])}`;
-  if (/^[a-z_]+:[a-z_]+/i.test(text)) return `当前账号无权限：${permissionLabel(text)}`;
-  return text;
+  if (/^[a-z_]+(?::[a-z_]+)+$/i.test(text) && permissionLabel(text) !== "后台权限") {
+    return `当前账号无权限：${permissionLabel(text)}`;
+  }
+  if (/[一-鿿]/.test(text)) return text;
+
+  const normalized = text.toLowerCase();
+  const messages = [
+    [/permission|forbidden|not allowed/, "当前账号没有此操作权限"],
+    [/unauthorized|token.*(expired|invalid)|login.*required|authentication/, "登录状态已失效，请重新登录"],
+    [/not found|does not exist/, "相关内容不存在或已被删除"],
+    [/invalid.*(request|json|id|input|config)|malformed/, "提交信息有误，请检查后重试"],
+    [/duplicate|already exists|conflict/, "当前数据状态已变化，请刷新后重试"],
+    [/full|capacity/, "人数已满，当前操作无法完成"],
+    [/file.*(invalid|fail)|upload.*fail|storage/, "文件处理失败，请检查后重试"],
+    [/network|timeout|request.*fail|connection/, "网络连接异常，请稍后重试"],
+  ];
+  const matched = messages.find(([pattern]) => pattern.test(normalized));
+  return matched ? matched[1] : "操作失败，请稍后重试";
 }
 
 function permissionLabel(code) {
@@ -7558,13 +8199,7 @@ function gameTypeLabel(value) {
   const option = (state.gameTypeOptions || []).find((item) => item.key === value);
   if (option) return option.name;
   return {
-    free: "普通局",
-    standard: "标准局",
-    public_welfare: "公益局",
-    aa: "均摊局",
-    crowdfund: "众筹局",
-    deposit: "押金局",
-    condition: "条件局",
+    free: "免费局",
   }[value] || adminDisplayValue(value || "-");
 }
 
@@ -7587,9 +8222,27 @@ function sourceLabel(value) {
   return {
     app: "小程序",
     admin: "后台",
+    admin_whitelist: "后台白名单",
     system: "系统",
+    server: "服务端",
     seed: "初始化数据",
     mock: "初始化数据",
+    continue: "再来一局",
+    replay: "再来一局",
+    invite: "邀请绑定",
+    self_apply: "自主报名",
+    manual: "手动录入",
+    saved: "用户保存",
+    gps: "定位授权",
+    query: "地址搜索",
+    default_city: "默认城市",
+    ip_city: "网络城市定位",
+    sensitive_word: "敏感词触发",
+    ai_placeholder: "智能分析预留",
+    membership_radar: "关系发现",
+    guide_match: "领路匹配",
+    co_game: "同局协作",
+    review: "局后评价",
   }[value] || adminDisplayValue(value || "-");
 }
 
@@ -7665,7 +8318,9 @@ function statusLabel(value) {
     recruiting: "招募中",
     full: "已满员",
     in_progress: "进行中",
+    pending_confirm: "待成员确认",
     pending_review: "待评价",
+    settling: "结算中",
     completed: "已完成",
     active: "正常",
     disabled: "已禁用",
@@ -7680,18 +8335,42 @@ function statusLabel(value) {
     pending_settlement: "待结算",
     frozen: "已冻结",
     settled: "已结算",
+    disputed: "争议中",
     assigned: "已分配",
     handled: "已处理",
     closed: "已关闭",
     appealed: "申诉中",
+    processing: "处理中",
+    resolved: "已解决",
+    shipping: "配送中",
+    passed: "已通过",
+    blocked: "已拦截",
+    risk_flagged: "风险标记",
+    waiting_condition: "等待条件满足",
+    opened: "已开启",
     done: "已完成",
     sent: "已发送",
     failed: "失败",
+    accepted: "已接受",
+    appeal_withdrawn: "申诉已撤回",
     create_failed: "创建失败",
     canceled: "已取消",
     cancelled: "已取消",
+    deleted: "已注销",
     invalid: "无效",
     hidden: "已隐藏",
+    none: "暂无记录",
+    normal: "正常",
+    ok: "正常",
+    read: "已读",
+    unread: "未读",
+    readonly: "只读",
+    valid: "有效",
+    free_no_pay: "免费，无需支付",
+    guide_fee_placeholder: "领路服务费预留",
+    share_placeholder: "分账能力预留",
+    return_placeholder: "退回能力预留",
+    wechat_realname_not_supported: "微信实名信息不可直接获取",
   }[value] || adminDisplayValue(value || "-");
 }
 
@@ -7854,7 +8533,7 @@ function bindInviteOwnerPicker(form) {
     } catch (error) {
       if (version !== requestVersion) return;
       items = [];
-      render(error.message || "搜索失败，请稍后重试");
+      render(humanMessage(error.message || "搜索失败，请稍后重试"));
     }
   };
 
@@ -8000,6 +8679,10 @@ function relationTypeLabel(value) {
     teammate: "同局关系",
     follow: "关注关系",
     member_team: "会员团队",
+    radar_follow: "关系发现关注",
+    radar_view: "关系发现浏览",
+    guide_match: "领路匹配关系",
+    co_game: "同局协作关系",
   }[value] || adminDisplayValue(value);
 }
 
@@ -8060,9 +8743,9 @@ function notificationTemplateLabel(value) {
 
 function notificationResultText(item = {}) {
   if (item.status === "sent" || item.status === "done") return "发送成功";
-  if (item.status === "failed") return adminDisplayValue(item.resultMessage || "发送失败");
+  if (item.status === "failed") return item.resultMessage ? humanMessage(item.resultMessage) : "发送失败";
   if (item.resultCode === "admin" || /admin marked sent/i.test(String(item.resultMessage || ""))) return "后台已确认";
-  if (item.resultMessage) return adminDisplayValue(item.resultMessage);
+  if (item.resultMessage) return humanMessage(item.resultMessage);
   if (item.resultCode) return statusLabel(item.resultCode);
   return "-";
 }
@@ -8188,9 +8871,9 @@ function operationDetailText(detail) {
 }
 
 function badgeClass(value) {
-  if (["verified", "recruiting", "completed", "approved", "fulfilled", "active", "settled", "handled", "closed", "done"].includes(value)) return "badge success";
-  if (["pending", "running", "pending_audit", "pending_review", "phone_bound", "pending_settlement", "assigned", "appealed"].includes(value)) return "badge warning";
-  if (["rejected", "failed", "disabled", "inactive", "frozen", "canceled", "cancelled", "invalid", "hidden"].includes(value)) return "badge danger";
+  if (["verified", "recruiting", "completed", "approved", "accepted", "passed", "fulfilled", "active", "settled", "handled", "resolved", "closed", "done", "opened", "normal", "ok", "read", "valid", "free_no_pay"].includes(value)) return "badge success";
+  if (["pending", "running", "pending_audit", "pending_confirm", "pending_review", "pending_settlement", "settling", "disputed", "phone_bound", "assigned", "appealed", "processing", "shipping", "waiting_condition", "unread", "readonly", "guide_fee_placeholder", "share_placeholder", "return_placeholder"].includes(value)) return "badge warning";
+  if (["rejected", "failed", "disabled", "inactive", "frozen", "blocked", "risk_flagged", "canceled", "cancelled", "deleted", "invalid", "hidden", "appeal_withdrawn"].includes(value)) return "badge danger";
   return "badge neutral";
 }
 
@@ -8238,21 +8921,47 @@ function adminDisplayValue(value) {
     pending_settlement: "待结算",
     recruiting: "招募中",
     in_progress: "进行中",
+    pending_confirm: "待成员确认",
     completed: "已完成",
+    settling: "结算中",
     approved: "已通过",
     rejected: "已驳回",
     fulfilled: "已履约",
     archived: "已归档",
     frozen: "已冻结",
     settled: "已结算",
+    disputed: "争议中",
     assigned: "已分配",
     handled: "已处理",
     closed: "已关闭",
     appealed: "申诉中",
+    processing: "处理中",
+    resolved: "已解决",
+    shipping: "配送中",
+    passed: "已通过",
+    blocked: "已拦截",
+    risk_flagged: "风险标记",
+    waiting_condition: "等待条件满足",
+    opened: "已开启",
     failed: "失败",
+    accepted: "已接受",
+    appeal_withdrawn: "申诉已撤回",
     done: "已完成",
+    deleted: "已注销",
     invalid: "无效",
     hidden: "已隐藏",
+    none: "暂无记录",
+    normal: "正常",
+    ok: "正常",
+    read: "已读",
+    unread: "未读",
+    readonly: "只读",
+    valid: "有效",
+    free_no_pay: "免费，无需支付",
+    guide_fee_placeholder: "领路服务费预留",
+    share_placeholder: "分账能力预留",
+    return_placeholder: "退回能力预留",
+    wechat_realname_not_supported: "微信实名信息不可直接获取",
     text: "文字",
     image: "图片",
     file: "文件",

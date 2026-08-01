@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const messageService = require('../../../services/message')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const EMPTY_TRADE_WARNING_DETAIL = {
   pageTitle: '',
@@ -115,10 +116,11 @@ Page({
 
       this.setData(normalizeTradeWarningDetail(detail))
     } catch (error) {
+      const errorText = toUserMessage(error && error.message, textOf(this.data, 'loadFailedText') || '交易提醒加载失败')
       this.setData(Object.assign({}, normalizeTradeWarningDetail(EMPTY_TRADE_WARNING_DETAIL), {
-        errorText: error.message || textOf(this.data, 'loadFailedText')
+        errorText
       }))
-      this.showInfo(error.message || textOf(this.data, 'loadFailedText'))
+      this.showInfo(errorText)
     }
   },
 

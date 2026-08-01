@@ -39,6 +39,17 @@ var uploadPolicies = map[string]uploadPolicy{
 			"image/webp",
 		),
 	},
+	"game_description": {
+		maxSize:     50 * mib,
+		accessLevel: "public",
+		mimeTypes: allowMIMEs(
+			"image/jpeg",
+			"image/png",
+			"image/webp",
+			"video/mp4",
+			"video/quicktime",
+		),
+	},
 	"avatar": {
 		maxSize:     5 * mib,
 		accessLevel: "private",

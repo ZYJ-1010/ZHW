@@ -202,7 +202,10 @@ function memberForMessage(item, memberMap) {
     name: safeText(item.senderName, safeText(member.name, `成员${userId}`)),
     roleText: safeText(item.senderRoleText || item.roleText, safeText(member.roleText, '成员')),
     avatarText: safeText(item.avatarText || item.senderAvatarText, safeText(member.avatarText, avatarTextFromName(member.name, userId))),
-    avatarSrc: ''
+    avatarSrc: safeText(
+      item.avatarSrc || item.avatarUrl || item.senderAvatarSrc || item.senderAvatarUrl,
+      safeText(member.avatarSrc)
+    )
   }
 }
 
@@ -245,7 +248,7 @@ function buildRoomCard(room, session, readOnly, titleText) {
     createdAtText: '',
     card: {
       assistantName: '组局助手',
-      title: `${title}IM`,
+      title: `${title}群聊`,
       subtitle: readOnly ? '本局已结束，群聊切换为只读归档' : '局内消息仅成员可见',
       guideLabel: '局状态',
       guideName: statusText,
@@ -343,8 +346,14 @@ function firstChosenFile(result = {}) {
   const file = files[0] || {}
   const path = file.tempFilePath || file.path || paths[0] || ''
   const name = file.name || file.fileName || String(path).split('/').filter(Boolean).pop() || ''
-
-  return { path, name, size: Number(file.size || 1) || 1 }
+  return {
+    path,
+    name,
+    size: Number(file.size || 1) || 1,
+    width: Number(file.width || 0) || 0,
+    height: Number(file.height || 0) || 0,
+    durationMs: 0
+  }
 }
 
 function recordedFile(result = {}) {
@@ -352,7 +361,8 @@ function recordedFile(result = {}) {
   return {
     path,
     name: path ? (path.split('/').filter(Boolean).pop() || `voice-${Date.now()}.mp3`) : '',
-    size: Number(result.fileSize || result.size || 1) || 1
+    size: Number(result.fileSize || result.size || 1) || 1,
+    durationMs: Number(result.duration || 0) || 0
   }
 }
 
@@ -383,7 +393,7 @@ function buildFailedTextMessage(content) {
 
 Page({
   data: {
-    pageTitle: '局IM',
+    pageTitle: '局内群聊',
     title: '局',
     desc: '正在加载群聊',
     memberText: '成员',
@@ -412,24 +422,35 @@ Page({
     this.shouldStickToLatest = true
     this.lastMessageScrollTop = 0
     this.socketReconnectAttempts = 0
-    this.loadRoom({ forceScroll: true }).then(() => this.startSocket())
+    this.pageVisible = false
+    this.initialRoomLoad = this.loadRoom({ forceScroll: true })
   },
 
-  onShow() {
-    if (this.hasShown) {
-      this.loadRoom()
-    }
+  async onShow() {
+    this.pageVisible = true
+    const loaded = this.hasShown
+      ? await this.loadRoom()
+      : await this.initialRoomLoad
     this.hasShown = true
-    this.startSocket()
+
+    if (!this.pageVisible) {
+      return
+    }
+
+    if (loaded) {
+      this.startSocket()
+    }
     this.startRoomRefresh()
   },
 
   onHide() {
+    this.pageVisible = false
     this.stopRoomRefresh()
     this.stopSocket()
   },
 
   onUnload() {
+    this.pageVisible = false
     this.stopRoomRefresh()
     this.stopSocket()
     if (this.audioContext) {
@@ -441,9 +462,16 @@ Page({
 
   startRoomRefresh() {
     this.stopRoomRefresh()
+    if (!this.pageVisible) {
+      return
+    }
     this.roomRefreshTimer = setInterval(() => {
       if (!this.imSocket && !this.data.loading && !this.data.sending && !this.data.uploading) {
-        this.loadRoom()
+        this.loadRoom().then((loaded) => {
+          if (loaded) {
+            this.startSocket()
+          }
+        })
       }
     }, ROOM_REFRESH_INTERVAL_MS)
   },
@@ -456,7 +484,7 @@ Page({
   },
 
   startSocket() {
-    if (!this.gameId || this.imSocket || typeof imService.connectGameSocket !== 'function') {
+    if (!this.pageVisible || !this.gameId || !this.hasLoadedRoom || this.imSocket || typeof imService.connectGameSocket !== 'function') {
       return
     }
     this.socketStopping = false
@@ -481,8 +509,8 @@ Page({
       onClose: () => {
         this.imSocket = null
         this.setData({ socketConnected: false })
-        this.startRoomRefresh()
-        if (!this.socketStopping) {
+        if (!this.socketStopping && this.pageVisible) {
+          this.startRoomRefresh()
           this.scheduleSocketReconnect()
         }
       }
@@ -494,7 +522,7 @@ Page({
   },
 
   scheduleSocketReconnect() {
-    if (this.socketReconnectTimer || this.socketStopping || !this.gameId) {
+    if (this.socketReconnectTimer || this.socketStopping || !this.pageVisible || !this.hasLoadedRoom || !this.gameId) {
       return
     }
     this.socketReconnectAttempts = Math.min((this.socketReconnectAttempts || 0) + 1, 5)
@@ -574,10 +602,10 @@ Page({
     if (!this.gameId) {
       this.setData({
         title: '局',
-        pageTitle: '局IM',
-        desc: '缺少 gameId，无法进入局 IM'
+        pageTitle: '局内群聊',
+        desc: '缺少局信息，无法进入群聊'
       })
-      return
+      return false
     }
 
     this.setData({ loading: true })
@@ -608,7 +636,7 @@ Page({
       const nextData = {
         loading: false,
         title: roomTitle,
-        pageTitle: `${roomTitle}IM`,
+        pageTitle: `${roomTitle}群聊`,
         desc: readOnly ? '本局已结束，只能查看历史消息' : '局内消息仅成员可见',
         memberText: memberCount ? `成员${memberCount}人` : '成员',
         memberPreview,
@@ -631,14 +659,16 @@ Page({
       if (shouldScrollToLatest) {
         this.shouldStickToLatest = true
       }
+      return true
     } catch (error) {
       this.setData({ loading: false })
-      toast.info(error && error.message ? error.message : '加载局 IM 失败')
+      toast.info(error && error.message ? error.message : '加载局内群聊失败')
+      return false
     }
   },
 
   onRecordStart() {
-    toast.info('松开结束录音')
+    toast.info('再次点击语音按钮结束录音')
   },
 
   onRecordStop(event) {
@@ -688,11 +718,12 @@ Page({
         }
         this.audioContext = wx.createInnerAudioContext()
         this.audioContext.src = url
+        this.audioContext.onError(() => toast.info('语音播放失败'))
         this.audioContext.play()
         return
       }
       if (messageType === 'image') {
-        wx.previewImage({ urls: [url] })
+        wx.previewImage({ urls: [url], fail: () => toast.info('图片打开失败') })
         return
       }
       wx.downloadFile({
@@ -702,10 +733,9 @@ Page({
             toast.info('文件下载失败')
             return
           }
-          const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : ''
           wx.openDocument({
             filePath: result.tempFilePath,
-            fileType: extension,
+            fileType: fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '',
             showMenu: true,
             fail: () => toast.info('当前文件暂不支持预览，请稍后重试')
           })
@@ -757,14 +787,15 @@ Page({
         messageType: 'text',
         content
       }
-      if (this.imSocket && this.imSocket.isOpen()) {
+      const sentViaSocket = Boolean(this.imSocket && this.imSocket.isOpen())
+      if (sentViaSocket) {
         await this.imSocket.sendMessage(payload)
       } else {
         await imService.sendMessage(this.gameId, payload)
       }
       this.setData({ sending: false, inputText: '' })
       this.shouldStickToLatest = true
-      if (!this.imSocket) {
+      if (!sentViaSocket) {
         await this.loadRoom({ forceScroll: true })
       }
     } catch (error) {
@@ -794,43 +825,38 @@ Page({
       toast.info('缺少局 ID')
       return
     }
-
     if (this.data.readOnly) {
       toast.info('本局已结束，只能查看历史消息')
       return
     }
-
     if (!file.path) {
       toast.info('未选择文件')
       return
     }
-
     this.setData({ uploading: true })
-
     try {
-      const fileId = await fileService.uploadSingleFile(file, {
-        bizType: 'chat_file',
-        objectId: this.gameId
-      })
-
+      const uploaded = await fileService.uploadSingleFileDetail(file, { bizType: 'chat_file', objectId: this.gameId })
+      const fileId = uploaded && uploaded.fileId
       if (!fileId) {
         throw new Error('文件上传失败')
       }
-
       const payload = {
         messageType,
         content: file.name || (messageType === 'image' ? '图片消息' : (messageType === 'voice' ? '语音消息' : '局内文件')),
-        fileId
+        fileId,
+        width: Number(uploaded.width || 0) || 0,
+        height: Number(uploaded.height || 0) || 0,
+        durationMs: Math.max(0, Math.round(Number(uploaded.durationMs || 0) || 0))
       }
-      if (this.imSocket && this.imSocket.isOpen()) {
+      const sentViaSocket = Boolean(this.imSocket && this.imSocket.isOpen())
+      if (sentViaSocket) {
         await this.imSocket.sendMessage(payload)
       } else {
         await imService.sendMessage(this.gameId, payload)
       }
-
       this.setData({ uploading: false })
       this.shouldStickToLatest = true
-      if (!this.imSocket) {
+      if (!sentViaSocket) {
         await this.loadRoom({ forceScroll: true })
       }
     } catch (error) {

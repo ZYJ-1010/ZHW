@@ -1,11 +1,11 @@
 const profileService = require('../../../../../services/profile')
 const { navigateShellRoute } = require('../../../../../utils/shell-nav')
+const { toUserMessage } = require('../../../../../utils/user-message')
 
 Page({
   data: {
     summary: [
-      { value: '0', label: '已服务' },
-      { value: '¥0', label: '本周收益' }
+      { value: '0', label: '已服务' }
     ],
     networkNodes: [],
     avatars: [],
@@ -30,7 +30,7 @@ Page({
     } catch (error) {
       console.warn('get invite network failed', error)
       this.setData({
-        loadError: error.message || '关系网络加载失败'
+        loadError: toUserMessage(error && error.message, '关系网络加载失败')
       })
     }
   },
@@ -45,7 +45,4 @@ Page({
     navigateShellRoute('/pages/profile/service-center/invite/records/index')
   },
 
-  handleIncomeTap() {
-    navigateShellRoute('/pages/profile/service-center/invite/income/index')
-  }
 })

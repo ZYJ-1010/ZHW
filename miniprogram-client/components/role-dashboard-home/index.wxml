@@ -162,7 +162,6 @@
             <text class="role-network-location-text">{{network.locationText}}</text>
           </view>
           <text wx:if="{{network.summary}}" class="role-network-count-pill">{{network.summary}}</text>
-          <text class="role-network-income-pill">{{network.income}}</text>
         </view>
 
         <view class="role-network-tags">
@@ -268,8 +267,8 @@
               </view>
             </view>
             <view class="role-session-income">
-              <text>{{item.income}}</text>
-              <text>预计收入</text>
+              <text>{{item.statusText}}</text>
+              <text>局状态</text>
             </view>
             <view class="role-session-players">
               <view wx:for="{{item.playerAvatars}}" wx:key="index" class="role-session-avatar">

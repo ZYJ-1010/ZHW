@@ -46,7 +46,7 @@
       <view class="profile-main">
         <view class="asset-card">
           <view class="asset-head">
-            <text class="asset-title">我的资产</text>
+            <text class="asset-title">成长资产</text>
             <view class="asset-more" bindtap="handleAssetAllTap">
               <text>查看全部</text>
               <text class="asset-more-arrow">›</text>
@@ -58,7 +58,7 @@
               <text class="asset-label">{{item.label}}</text>
             </view>
           </view>
-          <view class="vip-banner" bindtap="handleUpgradeTap">
+          <view wx:if="{{vipBanner && vipBanner.visible}}" class="vip-banner" bindtap="handleUpgradeTap">
             <view class="vip-left">
               <text class="vip-chip">VIP</text>
               <text class="vip-copy">{{vipBanner.text}}</text>

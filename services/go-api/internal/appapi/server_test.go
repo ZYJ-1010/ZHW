@@ -27,6 +27,7 @@ import (
 	"zhw-mini/services/go-api/internal/notifications"
 	"zhw-mini/services/go-api/internal/profiles"
 	"zhw-mini/services/go-api/internal/redemption"
+	"zhw-mini/services/go-api/internal/revenue"
 	"zhw-mini/services/go-api/internal/reviews"
 	"zhw-mini/services/go-api/internal/systemconfig"
 	"zhw-mini/services/go-api/internal/users"
@@ -187,8 +188,8 @@ func TestExpertApplyConfigReadsSystemConfigHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &resp); err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Data.SkillOptions) != 1 || resp.Data.SkillOptions[0].Name != "数据库技能" || len(resp.Data.Fields) != 1 || resp.Data.Fields[0].Key != "dbField" || len(resp.Data.Requirements) != 1 || resp.Data.Requirements[0].Title != "数据库条件" || resp.Data.UploadField.Label != "数据库证明" || resp.Data.UploadField.MaxCount != 2 || resp.Data.ServiceCount != 2 || resp.Data.PriceHint != "数据库价格提示" {
-		t.Fatalf("expected expert apply config from system config: %s", string(body))
+	if len(resp.Data.SkillOptions) != 1 || resp.Data.SkillOptions[0].Name != "数据库技能" || len(resp.Data.Fields) != 1 || resp.Data.Fields[0].Key != "dbField" || len(resp.Data.Requirements) != 1 || resp.Data.Requirements[0].Title != "数据库条件" || resp.Data.UploadField.Label != "数据库证明" || resp.Data.UploadField.MaxCount != 2 || resp.Data.ServiceCount != 0 || resp.Data.PriceHint != "" {
+		t.Fatalf("expected expert apply config with commercial fields removed: %s", string(body))
 	}
 }
 
@@ -242,8 +243,8 @@ func TestGuideApplyConfigFromSystemConfigHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &resp); err != nil {
 		t.Fatal(err)
 	}
-	if resp.Data.ApplyRoleName != "数据库领路人" || len(resp.Data.Requirements) != 1 || resp.Data.Requirements[0].Title != "数据库条件" || len(resp.Data.Fields) != 1 || resp.Data.Fields[0].Key != "dbGuideField" || resp.Data.UploadField.Label != "数据库领路证明" || resp.Data.UploadField.MaxCount != 3 || resp.Data.ServiceCount != 1 || resp.Data.PriceHint != "数据库领路价格提示" {
-		t.Fatalf("expected guide apply config from system config: %s", string(body))
+	if resp.Data.ApplyRoleName != "数据库领路人" || len(resp.Data.Requirements) != 1 || resp.Data.Requirements[0].Title != "数据库条件" || len(resp.Data.Fields) != 1 || resp.Data.Fields[0].Key != "dbGuideField" || resp.Data.UploadField.Label != "数据库领路证明" || resp.Data.UploadField.MaxCount != 3 || resp.Data.ServiceCount != 0 || resp.Data.PriceHint != "" {
+		t.Fatalf("expected guide apply config with commercial fields removed: %s", string(body))
 	}
 }
 
@@ -577,7 +578,11 @@ func TestInviteEntryBindsExistingWechatHTTP(t *testing.T) {
 	}
 	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "entry-existing-user")
-	server.profiles.GrantRole(currentUserIDForTest(t, mux, token), "guide")
+	userID := currentUserIDForTest(t, mux, token)
+	server.profiles.GrantRole(userID, "guide")
+	if _, err := authService.AdminCreateInviteCode("", userID, 1, invites.EntryTypeLink); err != nil {
+		t.Fatalf("allocate invite code: %v", err)
+	}
 
 	entryBody := postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link"}`, http.StatusOK)
 	var entry struct {
@@ -667,6 +672,7 @@ func TestAdminUserInviteRelationHTTP(t *testing.T) {
 	inviterToken := loginForTestWithCode(t, mux, "invite-rel-inviter")
 	completeIdentityForTest(t, mux, inviterToken)
 	inviterID := currentUserIDForTest(t, mux, inviterToken)
+	server.profiles.GrantRole(inviterID, "guide")
 
 	inviteeToken := loginForTestWithCode(t, mux, "invite-rel-invitee")
 	completeIdentityForTest(t, mux, inviteeToken)
@@ -715,6 +721,7 @@ func TestAdminUserInviteRelationHTTP(t *testing.T) {
 	newInviterToken := loginForTestWithCode(t, mux, "invite-rel-new-inviter")
 	completeIdentityForTest(t, mux, newInviterToken)
 	newInviterID := currentUserIDForTest(t, mux, newInviterToken)
+	server.profiles.GrantRole(newInviterID, "guide")
 	updateBody := putJSON(t, mux, "/api/admin/users/"+strconv.FormatInt(inviteeID, 10)+"/invite-relation", adminToken, `{"inviterUserId":`+strconv.FormatInt(newInviterID, 10)+`}`, http.StatusOK)
 	var updateResp struct {
 		Data struct {
@@ -969,6 +976,8 @@ func TestCreditAppealFromCreditLogHTTP(t *testing.T) {
 	if creditResp.Data.Score != 100 || !foundAppealPassed {
 		t.Fatalf("expected restored credit center record: %s", string(creditBody))
 	}
+	positiveLog := server.reviews.RestoreCredit(userID, 0, "appeal_passed", 1)
+	postJSON(t, mux, "/api/app/profile/credit-appeals", token, `{"creditLogId":`+strconv.FormatInt(positiveLog.ID, 10)+`,"content":"不应允许对加分记录发起申诉"}`, http.StatusUnprocessableEntity)
 	appealsAfterBody := getJSON(t, mux, "/api/app/reports/appeals/my", token, http.StatusOK)
 	if !strings.Contains(string(appealsAfterBody), "credit_appeal") || !strings.Contains(string(appealsAfterBody), "appeal_approved") {
 		t.Fatalf("expected handled credit appeal retained in appeal history: %s", string(appealsAfterBody))
@@ -979,7 +988,8 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	operatorToken := adminLoginForTestAs(t, mux, "operator", "admin123")
 	getAdminJSON(t, mux, "/api/admin/invite-codes", operatorToken, http.StatusForbidden)
@@ -1022,7 +1032,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if ownerSearchResp.Data.Total != 1 || len(ownerSearchResp.Data.Items) != 1 || ownerSearchResp.Data.Items[0].ID != ownerUserID || ownerSearchResp.Data.Items[0].DisplayName != ownerPlain.RealName || ownerSearchResp.Data.Items[0].RealNameMasked != ownerIdentity.RealNameMasked || ownerSearchResp.Data.Items[0].RealNameMasked == ownerPlain.RealName || ownerSearchResp.Data.Items[0].PhoneMasked == "" || !reflect.DeepEqual(ownerSearchResp.Data.Items[0].Roles, []string{"领路人"}) {
 		t.Fatalf("expected guide owner phone search result: %s", string(ownerSearchBody))
 	}
-	body := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"qrcode"}`, http.StatusOK)
+	body := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"prefix":"adm","ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"qrcode","batchCount":1}`, http.StatusOK)
 	var created struct {
 		Data struct {
 			ID        int64  `json:"id"`
@@ -1035,12 +1045,12 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Data.ID == 0 || created.Data.OwnerID != ownerUserID || created.Data.Code != "ADMINQR001" || created.Data.MaxUses != 1 || created.Data.EntryType != "qrcode" {
+	if created.Data.ID == 0 || created.Data.OwnerID != ownerUserID || created.Data.Code != "ADM000001" || created.Data.MaxUses != 1 || created.Data.EntryType != "qrcode" {
 		t.Fatalf("expected created qrcode invite code: %s", string(body))
 	}
-	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"ADMINQR001","ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
-	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"邀请码中文","ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
-	materialsBody := getAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001/materials", adminToken, http.StatusOK)
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"prefix":"A1","ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode","batchCount":1}`, http.StatusUnprocessableEntity)
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"MANUALCODE","ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode","batchCount":1}`, http.StatusUnprocessableEntity)
+	materialsBody := getAdminJSON(t, mux, "/api/admin/invite-codes/ADM000001/materials", adminToken, http.StatusOK)
 	var materialsResp struct {
 		Data struct {
 			InviteCode string `json:"inviteCode"`
@@ -1052,10 +1062,10 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(materialsBody, &materialsResp); err != nil {
 		t.Fatal(err)
 	}
-	if materialsResp.Data.InviteCode != "ADMINQR001" || materialsResp.Data.EntryType != "qrcode" || materialsResp.Data.Scene != "ADMINQR001" || !strings.Contains(materialsResp.Data.Query, "entryType=qrcode") {
+	if materialsResp.Data.InviteCode != "ADM000001" || materialsResp.Data.EntryType != "qrcode" || materialsResp.Data.Scene != "ADM000001" || !strings.Contains(materialsResp.Data.Query, "entryType=qrcode") {
 		t.Fatalf("expected invite material scene to be raw invite code: %s", string(materialsBody))
 	}
-	batchBody := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"link","batchCount":3}`, http.StatusOK)
+	batchBody := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"prefix":"lnk","ownerUserId":`+ownerUserIDJSON+`,"maxUses":99,"entryType":"link","batchCount":3}`, http.StatusOK)
 	var batchResp struct {
 		Data struct {
 			Total int `json:"total"`
@@ -1074,13 +1084,17 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if batchResp.Data.Total != 3 || len(batchResp.Data.Items) != 3 {
 		t.Fatalf("expected 3 batched invite codes: %s", string(batchBody))
 	}
-	for _, item := range batchResp.Data.Items {
-		if item.Code == "" || item.EntryType != "link" || item.MaxUses != 1 || item.OwnerID != ownerUserID || seenBatchCodes[item.Code] {
+	for index, item := range batchResp.Data.Items {
+		wantCode := "LNK" + fmt.Sprintf("%06d", index+1)
+		if item.Code != wantCode || item.EntryType != "link" || item.MaxUses != 1 || item.OwnerID != ownerUserID || seenBatchCodes[item.Code] {
 			t.Fatalf("expected unique link invite batch item: %#v in %s", item, string(batchBody))
 		}
 		seenBatchCodes[item.Code] = true
 	}
-	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"code":"MANUAL-BATCH","entryType":"poster","batchCount":2}`, http.StatusUnprocessableEntity)
+	continuedBatchBody := postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"prefix":"LNK","ownerUserId":`+ownerUserIDJSON+`,"entryType":"link","batchCount":2}`, http.StatusOK)
+	if !bytes.Contains(continuedBatchBody, []byte(`"code":"LNK000004"`)) || !bytes.Contains(continuedBatchBody, []byte(`"code":"LNK000005"`)) {
+		t.Fatalf("expected prefix serial to continue from existing invite codes: %s", string(continuedBatchBody))
+	}
 
 	listBody := getAdminJSON(t, mux, "/api/admin/invite-codes?entryType=qrcode&status=active", adminToken, http.StatusOK)
 	var listResp struct {
@@ -1095,11 +1109,11 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(listBody, &listResp); err != nil {
 		t.Fatal(err)
 	}
-	if listResp.Data.Total != 1 || listResp.Data.Items[0].Code != "ADMINQR001" {
+	if listResp.Data.Total != 1 || listResp.Data.Items[0].Code != "ADM000001" {
 		t.Fatalf("expected admin invite code list: %s", string(listBody))
 	}
 
-	postJSON(t, mux, "/api/app/auth/wechat-login", "", `{"code":"admin-invite-user","inviteCode":"ADMINQR001","entryType":"qrcode"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/auth/wechat-login", "", `{"code":"admin-invite-user","inviteCode":"ADM000001","entryType":"qrcode"}`, http.StatusOK)
 	relationsBody := getAdminJSON(t, mux, "/api/admin/invite-relations?inviterUserId="+strconv.FormatInt(created.Data.OwnerID, 10), adminToken, http.StatusOK)
 	var relationsResp struct {
 		Data struct {
@@ -1119,7 +1133,7 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 		t.Fatalf("expected invite relation list: %s", string(relationsBody))
 	}
 
-	detailBody := getAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001", adminToken, http.StatusOK)
+	detailBody := getAdminJSON(t, mux, "/api/admin/invite-codes/ADM000001", adminToken, http.StatusOK)
 	var detailResp struct {
 		Data struct {
 			InviteCode struct {
@@ -1137,13 +1151,13 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(detailBody, &detailResp); err != nil {
 		t.Fatal(err)
 	}
-	if detailResp.Data.InviteCode.Code != "ADMINQR001" || detailResp.Data.InviteCode.BoundWechatUserID == 0 || len(detailResp.Data.Relations) != 1 || detailResp.Data.BoundUser.ID == 0 {
+	if detailResp.Data.InviteCode.Code != "ADM000001" || detailResp.Data.InviteCode.BoundWechatUserID == 0 || len(detailResp.Data.Relations) != 1 || detailResp.Data.BoundUser.ID == 0 {
 		t.Fatalf("expected invite code detail with bound user and relation: %s", string(detailBody))
 	}
 
 	// 已使用的邀请码已经建立终身邀请关系，后台不得再禁用、编辑或作废。
-	postAdminJSON(t, mux, "/api/admin/invite-codes/ADMINQR001/disable", adminToken, `{}`, http.StatusUnprocessableEntity)
-	postJSON(t, mux, "/api/app/invites/precheck", "", `{"inviteCode":"ADMINQR001","entryType":"qrcode"}`, http.StatusOK)
+	postAdminJSON(t, mux, "/api/admin/invite-codes/ADM000001/disable", adminToken, `{}`, http.StatusUnprocessableEntity)
+	postJSON(t, mux, "/api/app/invites/precheck", "", `{"inviteCode":"ADM000001","entryType":"qrcode"}`, http.StatusOK)
 }
 
 func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
@@ -1210,7 +1224,7 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	if len(login.Data.User.Roles) != 2 || login.Data.User.RoleStatusMap["expert"] != "approved" || login.Data.User.RoleStatusMap["guide"] != "none" {
 		t.Fatalf("expected role snapshot in login CurrentUserDTO: %s", rec.Body.String())
 	}
-	if login.Data.User.Growth.Level != 1 || login.Data.User.Growth.CreditScore != 100 || login.Data.User.Growth.TodayCreditScore != 100 || login.Data.User.Growth.Points != 12 || login.Data.User.PointsSummary.AvailablePoints != 12 {
+	if login.Data.User.Growth.Level != 0 || login.Data.User.Growth.CreditScore != 100 || login.Data.User.Growth.TodayCreditScore != 100 || login.Data.User.Growth.Points != 12 || login.Data.User.PointsSummary.AvailablePoints != 12 {
 		t.Fatalf("expected growth and points in login CurrentUserDTO: %s", rec.Body.String())
 	}
 	if login.Data.User.Membership.Status != "none" || login.Data.User.Membership.PlanCode != "none" {
@@ -1221,10 +1235,13 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	meReq.Header.Set("Authorization", "Bearer "+login.Data.PreAuthToken)
 	meRec := httptest.NewRecorder()
 	mux.ServeHTTP(meRec, meReq)
-	if meRec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", meRec.Code, meRec.Body.String())
+	if meRec.Code != http.StatusUnauthorized {
+		t.Fatalf("pre-auth token must not access formal business routes, got %d: %s", meRec.Code, meRec.Body.String())
 	}
-	membershipBody := getJSON(t, mux, "/api/app/membership/my", login.Data.PreAuthToken, http.StatusOK)
+	getJSON(t, mux, "/api/app/identity/status", login.Data.PreAuthToken, http.StatusOK)
+	appToken := upgradePreAuthForTest(t, mux, "u1", login.Data.User.ID, login.Data.PreAuthToken)
+	getJSON(t, mux, "/api/app/users/me", appToken, http.StatusOK)
+	membershipBody := getJSON(t, mux, "/api/app/membership/my", appToken, http.StatusOK)
 	var membershipResp struct {
 		Data struct {
 			Status   string `json:"status"`
@@ -1238,21 +1255,22 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	if membershipResp.Data.Status != "none" || membershipResp.Data.PlanCode != "none" {
 		t.Fatalf("expected default membership response: %s", string(membershipBody))
 	}
-	plansBody := getJSON(t, mux, "/api/app/membership/plans", login.Data.PreAuthToken, http.StatusOK)
+	plansBody := getJSON(t, mux, "/api/app/membership/plans", appToken, http.StatusOK)
 	if !bytes.Contains(plansBody, []byte("basic")) || !bytes.Contains(plansBody, []byte("pro")) {
 		t.Fatalf("expected membership plans: %s", string(plansBody))
 	}
-	radarBody := getJSON(t, mux, "/api/app/membership/radar-config", login.Data.PreAuthToken, http.StatusOK)
+	radarBody := getJSON(t, mux, "/api/app/membership/radar-config", appToken, http.StatusOK)
 	if !bytes.Contains(radarBody, []byte(`"radarNodes"`)) || !bytes.Contains(radarBody, []byte(`"formRows"`)) {
 		t.Fatalf("expected membership radar config: %s", string(radarBody))
 	}
 
-	postJSON(t, mux, "/api/app/files/upload-token", login.Data.PreAuthToken, `{"bizType":"chat_file","objectId":1,"fileName":"a.png","mimeType":"image/png","size":128}`, http.StatusForbidden)
-	postJSON(t, mux, "/api/app/files/upload-token", login.Data.PreAuthToken, `{"bizType":"realname_material","fileName":"id-card.png","mimeType":"image/png","size":128}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/files/upload-token", login.Data.PreAuthToken, `{"bizType":"report_attachment","objectId":1,"fileName":"report.pdf","mimeType":"application/pdf","size":128}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/files/upload-token", login.Data.PreAuthToken, `{"bizType":"game_application","objectId":1,"fileName":"case.pdf","mimeType":"application/pdf","size":128}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/files/upload-token", login.Data.PreAuthToken, `{"bizType":"realname_material","fileName":"id-card.png","mimeType":"image/png","size":128}`, http.StatusUnauthorized)
+	postJSON(t, mux, "/api/app/files/upload-token", appToken, `{"bizType":"chat_file","objectId":1,"fileName":"a.png","mimeType":"image/png","size":128}`, http.StatusForbidden)
+	postJSON(t, mux, "/api/app/files/upload-token", appToken, `{"bizType":"realname_material","fileName":"id-card.png","mimeType":"image/png","size":128}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/files/upload-token", appToken, `{"bizType":"report_attachment","objectId":1,"fileName":"report.pdf","mimeType":"application/pdf","size":128}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/files/upload-token", appToken, `{"bizType":"game_application","objectId":1,"fileName":"case.pdf","mimeType":"application/pdf","size":128}`, http.StatusOK)
 
-	uploadBody := postJSON(t, mux, "/api/app/files/upload-token", login.Data.PreAuthToken, `{"bizType":"avatar","fileName":"avatar.png","mimeType":"image/png","size":128}`, http.StatusOK)
+	uploadBody := postJSON(t, mux, "/api/app/files/upload-token", appToken, `{"bizType":"avatar","fileName":"avatar.png","mimeType":"image/png","size":128}`, http.StatusOK)
 	var uploadResp struct {
 		Data struct {
 			File struct {
@@ -1267,8 +1285,8 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 		t.Fatalf("expected avatar file id: %s", string(uploadBody))
 	}
 
-	putJSON(t, mux, "/api/app/users/me/profile", login.Data.PreAuthToken, `{"nickname":"Alice","avatarFileId":`+strconv.FormatInt(uploadResp.Data.File.ID, 10)+`}`, http.StatusUnprocessableEntity)
-	updateBody := putJSON(t, mux, "/api/app/users/me/profile", login.Data.PreAuthToken, `{"nickname":"Alice"}`, http.StatusOK)
+	putJSON(t, mux, "/api/app/users/me/profile", appToken, `{"nickname":"Alice","avatarFileId":`+strconv.FormatInt(uploadResp.Data.File.ID, 10)+`}`, http.StatusUnprocessableEntity)
+	updateBody := putJSON(t, mux, "/api/app/users/me/profile", appToken, `{"nickname":"Alice"}`, http.StatusOK)
 	var updated struct {
 		Data struct {
 			Nickname     string `json:"nickname"`
@@ -1284,15 +1302,15 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	}
 
 	otherToken := loginForTestWithCode(t, mux, "avatar-other")
-	completeIdentityForTest(t, mux, login.Data.PreAuthToken)
-	formalToken := issueFormalTokenForTest(t, mux, login.Data.PreAuthToken)
+	completeIdentityForTest(t, mux, appToken)
+	formalToken := issueFormalTokenForTest(t, mux, appToken)
 	putJSON(t, mux, "/api/app/users/me/profile", otherToken, `{"nickname":"Bob","avatarFileId":1}`, http.StatusUnprocessableEntity)
 	avatarDownloadPath := "/api/app/files/" + strconv.FormatInt(uploadResp.Data.File.ID, 10) + "/download-url"
 	getJSON(t, mux, avatarDownloadPath, formalToken, http.StatusOK)
 	getJSON(t, mux, avatarDownloadPath, otherToken, http.StatusForbidden)
 
 	meReq = httptest.NewRequest(http.MethodGet, "/api/app/users/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+login.Data.PreAuthToken)
+	meReq.Header.Set("Authorization", "Bearer "+formalToken)
 	meRec = httptest.NewRecorder()
 	mux.ServeHTTP(meRec, meReq)
 	if meRec.Code != http.StatusOK {
@@ -1324,12 +1342,12 @@ func TestWechatLoginAndCurrentUserHTTP(t *testing.T) {
 	if _, err := server.membership.Grant(1, "basic", nil); err != nil {
 		t.Fatal(err)
 	}
-	memberBody := getJSON(t, mux, "/api/app/membership/my", login.Data.PreAuthToken, http.StatusOK)
+	memberBody := getJSON(t, mux, "/api/app/membership/my", formalToken, http.StatusOK)
 	if !bytes.Contains(memberBody, []byte(`"status":"active"`)) || !bytes.Contains(memberBody, []byte(`"planCode":"basic"`)) {
 		t.Fatalf("expected active membership after grant: %s", string(memberBody))
 	}
 	meReq = httptest.NewRequest(http.MethodGet, "/api/app/users/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+login.Data.PreAuthToken)
+	meReq.Header.Set("Authorization", "Bearer "+formalToken)
 	meRec = httptest.NewRecorder()
 	mux.ServeHTTP(meRec, meReq)
 	if !bytes.Contains(meRec.Body.Bytes(), []byte(`"membership"`)) || !bytes.Contains(meRec.Body.Bytes(), []byte(`"planCode":"basic"`)) {
@@ -1418,10 +1436,12 @@ func TestProductionFileUploadRequiresConfiguredStorageURLs(t *testing.T) {
 	identityService := identity.NewService()
 	server := newTestAppServer(authService, identityService)
 	server.Configure(config.Config{AppEnv: "production"})
+	const callbackSecret = "storage-test-faceid-callback-secret"
+	server.UseFaceIDCallbackVerifier(callbackSecret, true)
 	server.Register(mux)
 
 	token := loginForTest(t, mux)
-	completeIdentityForTest(t, mux, token)
+	completeIdentityForTestWithCallbackSecret(t, mux, token, callbackSecret)
 	postJSON(t, mux, "/api/app/files/upload-token", token, `{"bizType":"avatar","fileName":"avatar.png","mimeType":"image/png","size":128}`, http.StatusServiceUnavailable)
 }
 
@@ -1437,10 +1457,12 @@ func TestProductionFileUploadUsesConfiguredStorageURLs(t *testing.T) {
 			DownloadBaseURL: "https://download.example.com/private",
 		},
 	})
+	const callbackSecret = "storage-test-faceid-callback-secret"
+	server.UseFaceIDCallbackVerifier(callbackSecret, true)
 	server.Register(mux)
 
 	token := loginForTest(t, mux)
-	completeIdentityForTest(t, mux, token)
+	completeIdentityForTestWithCallbackSecret(t, mux, token, callbackSecret)
 	body := postJSON(t, mux, "/api/app/files/upload-token", token, `{"bizType":"avatar","fileName":"avatar.png","mimeType":"image/png","size":128}`, http.StatusOK)
 	var resp struct {
 		Data struct {
@@ -1609,7 +1631,8 @@ func TestAdminBatchReviewIdentityVerificationsHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	tokenA := loginForTestWithCode(t, mux, "identity-batch-a")
 	tokenB := loginForTestWithCode(t, mux, "identity-batch-b")
@@ -1617,7 +1640,14 @@ func TestAdminBatchReviewIdentityVerificationsHTTP(t *testing.T) {
 	userA := currentUserIDForTest(t, mux, tokenA)
 	userB := currentUserIDForTest(t, mux, tokenB)
 	userC := currentUserIDForTest(t, mux, tokenC)
-	for _, userID := range []int64{userA, userB, userC} {
+	for index, userID := range []int64{userA, userB, userC} {
+		phone := "13800138" + strconv.Itoa(100+index)
+		if _, err := identityService.BindPhone(userID, phone); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := identityService.VerifySMSCode(userID, "000000"); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := identityService.SubmitManualRealname(userID, "测试用户", "110101199001011234"); err != nil {
 			t.Fatal(err)
 		}
@@ -1666,12 +1696,17 @@ func TestRestartRealnameResetsIdentityAndExposesPhoneFullHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 	token := loginForTestWithCode(t, mux, "restart-realname")
 	completeIdentityForTest(t, mux, token)
 	userID := currentUserIDForTest(t, mux, token)
 	if !identityService.IsVerified(userID) {
 		t.Fatal("expected identity to start verified")
+	}
+	beforeRestart, ok := authService.CurrentUser(token)
+	if !ok || beforeRestart.PhoneMasked == "" {
+		t.Fatalf("expected an existing verified phone before restart: %+v", beforeRestart)
 	}
 
 	restartBody := postJSON(t, mux, "/api/app/identity/realname/restart", token, `{"phone":"13900139011"}`, http.StatusOK)
@@ -1691,8 +1726,8 @@ func TestRestartRealnameResetsIdentityAndExposesPhoneFullHTTP(t *testing.T) {
 		t.Fatal("expected restart realname to clear verified identity")
 	}
 	user, ok := authService.CurrentUser(token)
-	if !ok || user.RealnameStatus != "phone_bound" || user.PhoneMasked != "139****9011" {
-		t.Fatalf("expected user realname status and phone to be reset: %+v", user)
+	if !ok || user.RealnameStatus != "phone_bound" || user.PhoneMasked != beforeRestart.PhoneMasked {
+		t.Fatalf("unverified replacement phone must not overwrite the formal login phone: %+v", user)
 	}
 
 	adminToken := adminLoginForTest(t, mux)
@@ -1711,6 +1746,12 @@ func TestRestartRealnameResetsIdentityAndExposesPhoneFullHTTP(t *testing.T) {
 		t.Fatalf("expected admin identity detail to expose restarted full phone: %s", string(detailBody))
 	}
 
+	postJSON(t, mux, "/api/app/sms/send-code", token, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/verify-code", token, `{"code":"000000"}`, http.StatusOK)
+	user, ok = authService.CurrentUser(token)
+	if !ok || user.PhoneMasked != "139****9011" {
+		t.Fatalf("verified replacement phone must become the formal login phone: %+v", user)
+	}
 	submitBody := postJSON(t, mux, "/api/app/identity/phone/verify", token, `{"realName":"Restart User","idCard":"110101199001011235"}`, http.StatusOK)
 	var submitResp struct {
 		Data struct {
@@ -1888,6 +1929,63 @@ func TestFaceIDResultAliasCompletesIdentity(t *testing.T) {
 	}
 	if result.Data.Status != "verified" {
 		t.Fatalf("expected verified via result alias: %s", string(resultBody))
+	}
+}
+
+func TestProductionFaceIDUsesSignedCallbackWithoutUserToken(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Configure(config.Config{AppEnv: "production", FaceID: config.FaceIDConfig{HTTPEndpoint: "https://faceid.gateway.test"}})
+	const callbackSecret = "faceid-prod-32-random-bytes-value"
+	server.UseFaceIDCallbackVerifier(callbackSecret, true)
+	server.Register(mux)
+	token := loginForTestWithCode(t, mux, "face-production-callback")
+
+	postJSON(t, mux, "/api/app/identity/phone/bind", token, `{"phone":"13800138040"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/send-code", token, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/verify-code", token, `{"code":"000000"}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/identity/phone/verify", token, `{"realName":"User","idCard":"110101199001011234"}`, http.StatusOK)
+	var submitted struct {
+		Data struct {
+			UserID int64 `json:"userId"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &submitted); err != nil {
+		t.Fatal(err)
+	}
+	adminToken := adminLoginForTest(t, mux)
+	postAdminJSON(t, mux, "/api/admin/identity-verifications/"+strconv.FormatInt(submitted.Data.UserID, 10)+"/review", adminToken, `{"approve":true}`, http.StatusOK)
+	faceBody := postJSON(t, mux, "/api/app/identity/faceid/detect-auth", token, `{}`, http.StatusOK)
+	var face struct {
+		Data struct {
+			FaceToken string `json:"faceToken"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(faceBody, &face); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, mux, "/api/app/identity/faceid/result", token, `{"faceToken":"`+face.Data.FaceToken+`"}`, http.StatusForbidden)
+
+	payload := []byte(`{"faceToken":"` + face.Data.FaceToken + `"}`)
+	callback := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/app/identity/faceid/callback", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-FaceID-Signature", "sha256="+faceIDCallbackTestSignature(callbackSecret, payload))
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := callback(); rec.Code != http.StatusOK {
+		t.Fatalf("signed provider callback without user token failed: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := callback(); rec.Code != http.StatusOK {
+		t.Fatalf("provider callback retry must be idempotent: %d %s", rec.Code, rec.Body.String())
+	}
+	me := getJSON(t, mux, "/api/app/users/me", token, http.StatusOK)
+	if !bytes.Contains(me, []byte(`"realnameStatus":"verified"`)) {
+		t.Fatalf("faceid callback did not synchronize user status: %s", string(me))
 	}
 }
 
@@ -2119,14 +2217,24 @@ func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 	if err := json.Unmarshal(configBody, &config); err != nil {
 		t.Fatal(err)
 	}
-	if len(config.Data.PrimaryCategories) != 4 || config.Data.DefaultPrimaryCategory == "" || config.Data.DefaultSecondaryCategory == "" {
+	if len(config.Data.PrimaryCategories) != 4 || config.Data.DefaultPrimaryCategory == "" || config.Data.DefaultSecondaryCategory != "" {
 		t.Fatalf("unexpected category config: %s", string(configBody))
 	}
-	if config.Data.CreateForm.Capacity.Min != 5 || config.Data.CreateForm.Capacity.Max != 8 || len(config.Data.CreateForm.ParticipationModes) == 0 || len(config.Data.CreateForm.FeeTypes) == 0 {
+	for _, category := range config.Data.PrimaryCategories {
+		if len(category.Children) != 0 {
+			t.Fatalf("secondary categories must not be exposed in phase one: %s", string(configBody))
+		}
+	}
+	if config.Data.CreateForm.Capacity.Min != 5 || config.Data.CreateForm.Capacity.Max != 8 || len(config.Data.CreateForm.ParticipationModes) == 0 || len(config.Data.CreateForm.FeeTypes) != 0 {
 		t.Fatalf("expected create form config for mini program: %s", string(configBody))
 	}
-	if len(config.Data.SortOptions) != 4 || len(config.Data.EventActions) != 4 {
+	if len(config.Data.SortOptions) != 4 || len(config.Data.EventActions) != 3 {
 		t.Fatalf("expected hall sort and event action config: %s", string(configBody))
+	}
+	for _, action := range config.Data.EventActions {
+		if action == "引荐" || action == "邀请（站内）" || action == "站内邀请" {
+			t.Fatalf("expected a single share action without legacy invite actions: %s", string(configBody))
+		}
 	}
 	for _, option := range config.Data.SortOptions {
 		if option.Key == "comprehensive" || option.SortKey == "" {
@@ -2145,7 +2253,7 @@ func TestGameCategoryConfigAndCreateCategoryFieldsHTTP(t *testing.T) {
 	if err := json.Unmarshal(body, &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Data.PrimaryCategory != "task" || created.Data.SecondaryCategory != "project" || created.Data.Type != "free" {
+	if created.Data.PrimaryCategory != "task" || created.Data.SecondaryCategory != "" || created.Data.Type != "free" {
 		t.Fatalf("expected category fields in create response: %s", string(body))
 	}
 }
@@ -2177,7 +2285,6 @@ func TestAdminGameCategoryConfigFeedsAppHTTP(t *testing.T) {
 	identityService := identity.NewService()
 	newTestAppServer(authService, identityService).Register(mux)
 	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
-	appToken := loginForTest(t, mux)
 
 	payload := `{
 		"primaryCategories":[
@@ -2193,32 +2300,7 @@ func TestAdminGameCategoryConfigFeedsAppHTTP(t *testing.T) {
 		"defaultType":"free",
 		"version":"admin-test"
 	}`
-	putJSON(t, mux, "/api/admin/games/category-config", adminToken, payload, http.StatusOK)
-
-	body := getJSON(t, mux, "/api/app/games/category-config", appToken, http.StatusOK)
-	var got struct {
-		Data struct {
-			PrimaryCategories []struct {
-				Key      string `json:"key"`
-				Name     string `json:"name"`
-				Children []struct {
-					Key string `json:"key"`
-				} `json:"children"`
-			} `json:"primaryCategories"`
-			DefaultPrimaryCategory   string `json:"defaultPrimaryCategory"`
-			DefaultSecondaryCategory string `json:"defaultSecondaryCategory"`
-			Version                  string `json:"version"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.Data.Version != "2026-07-20-category-v2" || got.Data.DefaultPrimaryCategory != "task" || len(got.Data.PrimaryCategories) != 4 {
-		t.Fatalf("expected legacy category config to upgrade to the four fixed primary categories: %s", string(body))
-	}
-	if got.Data.PrimaryCategories[0].Key != "social" || got.Data.PrimaryCategories[1].Key != "task" || got.Data.PrimaryCategories[2].Key != "explore" || got.Data.PrimaryCategories[3].Key != "growth" {
-		t.Fatalf("expected social/task/explore/growth category tree: %s", string(body))
-	}
+	putJSON(t, mux, "/api/admin/games/category-config", adminToken, payload, http.StatusUnprocessableEntity)
 
 	invalidPayload := `{
 		"primaryCategories":[
@@ -2233,6 +2315,44 @@ func TestAdminGameCategoryConfigFeedsAppHTTP(t *testing.T) {
 		"defaultType":"unknown_paid"
 	}`
 	putJSON(t, mux, "/api/admin/games/category-config", adminToken, invalidPayload, http.StatusUnprocessableEntity)
+
+	hiddenCategoryConfig := defaultGameCategoryConfig()
+	hiddenCategoryConfig.PrimaryCategories[0].Visible = false
+	if _, err := normalizeGameCategoryConfig(hiddenCategoryConfig); err == nil {
+		t.Fatal("expected hidden primary category to be rejected")
+	}
+}
+
+func TestGameShareComponentConfiguration(t *testing.T) {
+	config := defaultGameCategoryConfig()
+	config.ShareComponent = gameShareComponentConfigDTO{
+		Enabled:        true,
+		Variant:        "icon_button",
+		Label:          "转发",
+		EnableInternal: true,
+		EnableWechat:   false,
+	}
+	config.EventActions = []string{"邀请（站内）", "引荐", "转发", "关注", "打招呼"}
+
+	normalized, err := normalizeGameCategoryConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if normalized.ShareComponent.Variant != "icon_button" || normalized.ShareComponent.Label != "转发" || normalized.ShareComponent.EnableWechat {
+		t.Fatalf("share component configuration was not preserved: %+v", normalized.ShareComponent)
+	}
+	if got, want := normalized.EventActions, []string{"转发", "关注", "打招呼"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected one share action with legacy invites removed, got %#v", got)
+	}
+
+	config.ShareComponent = gameShareComponentConfigDTO{Enabled: true, Label: "分享"}
+	if _, err := normalizeGameCategoryConfig(config); err == nil {
+		t.Fatal("expected enabled sharing without a channel to be rejected")
+	}
+
+	if got := normalizeGameShareComponentConfig(gameShareComponentConfigDTO{}); got != defaultGameCategoryConfig().ShareComponent {
+		t.Fatalf("expected a missing legacy share component to use defaults: %+v", got)
+	}
 }
 
 func TestAdminGrowthRewardRulesSaveAndReadBack(t *testing.T) {
@@ -2245,10 +2365,8 @@ func TestAdminGrowthRewardRulesSaveAndReadBack(t *testing.T) {
 
 	payload := `{
 		"completedGameExperience": 36,
-		"completedGamePoints": 18,
 		"submittedReviewExperience": 12,
 		"receivedReviewExperience": 16,
-		"submittedReviewPoints": 6,
 		"experiencePerLevel": 80,
 		"initialLevel": 2,
 		"creditScoreCap": 160
@@ -2271,6 +2389,152 @@ func TestAdminGrowthRewardRulesSaveAndReadBack(t *testing.T) {
 		t.Fatalf("expected runtime rewards to use saved config, got %#v", runtimeRules)
 	}
 	putJSON(t, mux, "/api/admin/growth/reward-rules", adminToken, `{"completedGameExperience":0}`, http.StatusUnprocessableEntity)
+}
+
+func TestAdminThreeRoleGrowthConfigsHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
+	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
+
+	levels := getJSON(t, mux, "/api/admin/growth/role-level-config", adminToken, http.StatusOK)
+	if !bytes.Contains(levels, []byte(`"roleCode":"player"`)) || !bytes.Contains(levels, []byte(`"minExperience":1000`)) {
+		t.Fatalf("expected default player level ladder: %s", string(levels))
+	}
+	metrics := getJSON(t, mux, "/api/admin/growth/role-metric-config", adminToken, http.StatusOK)
+	if !bytes.Contains(metrics, []byte(`"roleCode":"expert"`)) || !bytes.Contains(metrics, []byte("新人交付")) {
+		t.Fatalf("expected Chinese expert metric config: %s", string(metrics))
+	}
+	restrictions := getJSON(t, mux, "/api/admin/credit/restriction-config", adminToken, http.StatusOK)
+	if !bytes.Contains(restrictions, []byte(`"createRestrictedBelow":60`)) || !bytes.Contains(restrictions, []byte(`"frozenBelow":20`)) {
+		t.Fatalf("expected default credit restrictions: %s", string(restrictions))
+	}
+
+	recalculated := putJSON(t, mux, "/api/admin/credit/restriction-config", adminToken, `{"initialScore":100,"scoreCap":100,"createRestrictedBelow":60,"joinRestrictedBelow":40,"frozenBelow":20,"version":"test-v1"}`, http.StatusOK)
+	if !bytes.Contains(recalculated, []byte(`"state":"已完成"`)) || !bytes.Contains(recalculated, []byte("信用限制更新")) {
+		t.Fatalf("expected visible role-growth recalculation result, got %s", string(recalculated))
+	}
+	putJSON(t, mux, "/api/admin/credit/restriction-config", adminToken, `{"initialScore":100,"scoreCap":100,"createRestrictedBelow":40,"joinRestrictedBelow":60,"frozenBelow":20}`, http.StatusUnprocessableEntity)
+	putJSON(t, mux, "/api/admin/credit/restriction-config", adminToken, `{"initialScore":99,"scoreCap":100,"createRestrictedBelow":60,"joinRestrictedBelow":40,"frozenBelow":20}`, http.StatusUnprocessableEntity)
+
+	for experience, wantLevel := range map[int]int{0: 0, 100: 1, 299: 1, 300: 2, 1000: 4} {
+		if got := server.playerLevelForExperience(experience); got != wantLevel {
+			t.Fatalf("expected %d experience to resolve to Lv%d, got Lv%d", experience, wantLevel, got)
+		}
+	}
+	config := server.currentRoleLevelConfig()
+	for i := range config.Items {
+		if config.Items[i].RoleCode == "player" && config.Items[i].LevelNo == 1 {
+			config.Items[i].MinExperience = 150
+		}
+	}
+	if err := server.systemConfig.Set(roleLevelConfigKey, config); err != nil {
+		t.Fatal(err)
+	}
+	if got := server.playerLevelForExperience(100); got != 0 {
+		t.Fatalf("expected updated ladder to take effect immediately, got Lv%d", got)
+	}
+	nextExperience, remaining, progress := server.playerLevelProgress(100, 0)
+	if nextExperience != 150 || remaining != 50 || progress != 67 {
+		t.Fatalf("expected home progress to use configured 150 threshold, got next=%d remaining=%d progress=%d", nextExperience, remaining, progress)
+	}
+	profile := server.reviews.AwardTaskReward(987001, "ladder_runtime_test", 0, 100)
+	if profile.Level != 0 {
+		t.Fatalf("expected growth profile to use updated ladder, got Lv%d", profile.Level)
+	}
+
+	creditUserID := int64(987002)
+	for i := 0; i < 5; i++ {
+		server.reviews.DeductCredit(creditUserID, 0, "test_credit_rule")
+	}
+	if allowed, _ := server.canUseCreditAction(creditUserID, "create_game"); allowed {
+		t.Fatal("expected credit below 60 to block game creation")
+	}
+	if allowed, _ := server.canUseCreditAction(creditUserID, "join_game"); !allowed {
+		t.Fatal("expected credit at 50 to allow game applications")
+	}
+	for i := 0; i < 2; i++ {
+		server.reviews.DeductCredit(creditUserID, 0, "test_credit_rule")
+	}
+	if allowed, _ := server.canUseCreditAction(creditUserID, "join_game"); allowed {
+		t.Fatal("expected credit below 40 to block game applications")
+	}
+	for i := 0; i < 2; i++ {
+		server.reviews.DeductCredit(creditUserID, 0, "test_credit_rule")
+	}
+	if allowed, _ := server.canUseCreditAction(creditUserID, "create_game"); allowed {
+		t.Fatal("expected credit below 20 to enter frozen state")
+	}
+}
+
+func TestRoleLevelConfigRejectsOutOfOrderThresholds(t *testing.T) {
+	config := defaultRoleLevelConfig()
+	for index := range config.Items {
+		if config.Items[index].RoleCode == "player" && config.Items[index].LevelNo == 2 {
+			config.Items[index].MinExperience = 100
+		}
+	}
+	if _, err := normalizeRoleLevelConfig(config); err == nil {
+		t.Fatal("expected duplicate player experience threshold to be rejected")
+	}
+
+	config = defaultRoleLevelConfig()
+	for index := range config.Items {
+		if config.Items[index].RoleCode == "guide" && config.Items[index].LevelNo == 2 {
+			config.Items[index].MinDirectCompletedInvitees = 1
+		}
+	}
+	if _, err := normalizeRoleLevelConfig(config); err == nil {
+		t.Fatal("expected guide invitation threshold regression to be rejected")
+	}
+
+	for _, role := range []string{"player", "expert", "guide"} {
+		config = defaultRoleLevelConfig()
+		for index := range config.Items {
+			if config.Items[index].RoleCode == role && config.Items[index].LevelNo == 0 {
+				config.Items[index].Enabled = false
+			}
+		}
+		if _, err := normalizeRoleLevelConfig(config); err == nil {
+			t.Fatalf("expected disabled %s base level to be rejected", role)
+		}
+	}
+}
+
+func TestRoleMetricConfigRejectsEnabledMetricWithoutTarget(t *testing.T) {
+	config := defaultRoleMetricConfig()
+	config.Items[0].TargetValue = 0
+	if _, err := normalizeRoleMetricConfig(config); err == nil {
+		t.Fatal("expected enabled metric with zero target to be rejected")
+	}
+
+	config = defaultRoleMetricConfig()
+	config.Items[0].RawWeight = 0
+	if _, err := normalizeRoleMetricConfig(config); err == nil {
+		t.Fatal("expected enabled metric with zero weight to be rejected")
+	}
+}
+
+func TestRoleGrowthProfilesUseConfiguredLadders(t *testing.T) {
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	server := newTestAppServer(authService, identity.NewService())
+	profiles := server.roleGrowthProfilesForUser(910001, reviews.GrowthProfile{UserID: 910001, Experience: 300, CreditScore: 100})
+	if len(profiles) != 3 {
+		t.Fatalf("expected three role profiles, got %+v", profiles)
+	}
+	if profiles[0].RoleCode != "player" || profiles[0].LevelNo != 2 || profiles[0].LevelTitle != "Lv2 稳定参与" {
+		t.Fatalf("expected player ladder from configured thresholds, got %+v", profiles[0])
+	}
+	if profiles[1].RoleCode != "expert" || profiles[1].Active || profiles[1].LevelTitle != "身份未开通" {
+		t.Fatalf("expected inactive expert profile to be explicit, got %+v", profiles[1])
+	}
+	server.profiles.GrantRole(910001, "expert")
+	profiles = server.roleGrowthProfilesForUser(910001, reviews.GrowthProfile{UserID: 910001, Experience: 300, CreditScore: 100})
+	if !profiles[1].Active || profiles[1].LevelNo != 0 || len(profiles[1].Metrics) == 0 {
+		t.Fatalf("expected active expert profile with real metric slots, got %+v", profiles[1])
+	}
 }
 
 func TestAdminExpertSkillDisplayConfigHTTP(t *testing.T) {
@@ -2462,7 +2726,7 @@ func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 		"roleComparison":{
 			"title":"测试角色权益",
 			"roles":[{"key":"player","name":"玩家","level":"Lv.1+"}],
-			"benefits":[{"name":"测试权益","player":"✓","leader":"—","expert":"✓"}],
+			"benefits":[{"name":"测试权益","player":"✓","guide":"—","expert":"✓"}],
 			"primary":"申请角色"
 		},
 		"version":"role-benefit-test"
@@ -2482,8 +2746,24 @@ func TestAdminGameRuleConfigsFeedAppHTTP(t *testing.T) {
 	if comparison["title"] != "测试角色权益" {
 		t.Fatalf("expected role comparison title from admin update: %s", string(roleBenefitBody))
 	}
+	roles, _ := comparison["roles"].([]interface{})
+	if len(roles) != 1 {
+		t.Fatalf("expected role comparison role entry: %s", string(roleBenefitBody))
+	}
+	playerRole, _ := roles[0].(map[string]interface{})
+	if playerRole["level"] != "Lv0 新玩家" {
+		t.Fatalf("expected configured player level label, got %v", playerRole["level"])
+	}
+	benefits, _ := comparison["benefits"].([]interface{})
+	if len(benefits) != 1 {
+		t.Fatalf("expected role comparison benefit entry: %s", string(roleBenefitBody))
+	}
+	benefit, _ := benefits[0].(map[string]interface{})
+	if benefit["guide"] != "—" {
+		t.Fatalf("expected standard guide benefit field, got %v", benefit["guide"])
+	}
 
-	putJSON(t, mux, "/api/admin/games/audit-config", adminToken, `{"requireManualAuditTypes":["unknown"],"batchAuditMaxCount":20}`, http.StatusUnprocessableEntity)
+	putJSON(t, mux, "/api/admin/games/audit-config", adminToken, `{"requireManualAuditTypes":["unknown"],"batchAuditMaxCount":20}`, http.StatusOK)
 	putJSON(t, mux, "/api/admin/games/condition-rule-config", adminToken, `{"enabled":true,"ruleItems":[]}`, http.StatusUnprocessableEntity)
 	putJSON(t, mux, "/api/admin/roles/benefit-config", adminToken, `{"permissionPrompts":{}}`, http.StatusUnprocessableEntity)
 }
@@ -2789,6 +3069,50 @@ func TestAdminAuditGameApprovesPendingGame(t *testing.T) {
 	}
 }
 
+func TestAdminAuditGameRejectsWithRequiredRemarkAndNotifiesCreator(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	creatorToken := loginForTestWithCode(t, mux, "admin-audit-game-reject")
+	completeIdentityForTest(t, mux, creatorToken)
+
+	body := postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"需要补充信息的局","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	var created struct {
+		Data struct {
+			ID int64 `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.Data.ID == 0 {
+		t.Fatalf("expected pending game id: %s", string(body))
+	}
+
+	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
+	path := "/api/admin/games/" + strconv.FormatInt(created.Data.ID, 10) + "/audit"
+	postAdminJSON(t, mux, path, adminToken, `{"approve":false}`, http.StatusUnprocessableEntity)
+	rejectBody := postAdminJSON(t, mux, path, adminToken, `{"approve":false,"remark":"请补充局介绍与活动须知"}`, http.StatusOK)
+	var rejected struct {
+		Data struct {
+			Status       string `json:"status"`
+			RejectReason string `json:"rejectReason"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rejectBody, &rejected); err != nil {
+		t.Fatal(err)
+	}
+	if rejected.Data.Status != "rejected" || rejected.Data.RejectReason != "请补充局介绍与活动须知" {
+		t.Fatalf("expected rejected game with stored remark: %s", string(rejectBody))
+	}
+
+	noticeBody := getJSON(t, mux, "/api/app/notifications", creatorToken, http.StatusOK)
+	if !bytes.Contains(noticeBody, []byte(`"notifyType":"game_rejected"`)) || !bytes.Contains(noticeBody, []byte("请补充局介绍与活动须知")) {
+		t.Fatalf("expected rejection notice containing the remark: %s", string(noticeBody))
+	}
+}
+
 func TestAdminBatchAuditGames(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
@@ -2847,7 +3171,7 @@ func TestAdminBatchAuditGames(t *testing.T) {
 	}
 }
 
-func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
+func TestAdminCreateGameForcesFreeTypeWhileAppCreateStaysFreeOnly(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
@@ -2877,8 +3201,8 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(body, &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Data.ID == 0 || created.Data.CreatorUserID != 1 || created.Data.MainGuideUserID != 0 || created.Data.GameType != "condition" || created.Data.GameSource != "admin" || created.Data.Status != "recruiting" || created.Data.CurrentPlayers != 1 {
-		t.Fatalf("unexpected admin created condition game: %s", string(body))
+	if created.Data.ID == 0 || created.Data.CreatorUserID != 1 || created.Data.MainGuideUserID != 0 || created.Data.GameType != "free" || created.Data.GameSource != "admin" || created.Data.Status != "recruiting" || created.Data.CurrentPlayers != 1 {
+		t.Fatalf("unexpected admin created free game: %s", string(body))
 	}
 	detailBody := getAdminJSONWithPermission(t, mux, "/api/admin/games/"+strconv.FormatInt(created.Data.ID, 10), "game:read", http.StatusOK)
 	var detail struct {
@@ -2907,8 +3231,8 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(standardBody, &standard); err != nil {
 		t.Fatal(err)
 	}
-	if standard.Data.GameType != "standard" || standard.Data.GameSource != "admin" {
-		t.Fatalf("unexpected admin created standard game: %s", string(standardBody))
+	if standard.Data.GameType != "free" || standard.Data.GameSource != "admin" {
+		t.Fatalf("unexpected admin created free game: %s", string(standardBody))
 	}
 
 	for _, gameType := range []string{"public_welfare", "aa", "crowdfund", "deposit"} {
@@ -2923,12 +3247,12 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 		if err := json.Unmarshal(extraBody, &extra); err != nil {
 			t.Fatal(err)
 		}
-		if extra.Data.GameType != gameType || extra.Data.GameSource != "admin" || extra.Data.Status != "recruiting" {
-			t.Fatalf("unexpected admin created %s game: %s", gameType, string(extraBody))
+		if extra.Data.GameType != "free" || extra.Data.GameSource != "admin" || extra.Data.Status != "recruiting" {
+			t.Fatalf("unexpected admin created free game from %s request: %s", gameType, string(extraBody))
 		}
 	}
 
-	adminListBody := getAdminJSONWithPermission(t, mux, "/api/admin/games?gameType=condition&keyword=condition", "game:read", http.StatusOK)
+	adminListBody := getAdminJSONWithPermission(t, mux, "/api/admin/games?gameType=free&keyword=condition", "game:read", http.StatusOK)
 	var adminListResp struct {
 		Data struct {
 			Total    int    `json:"total"`
@@ -2943,7 +3267,7 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(adminListBody, &adminListResp); err != nil {
 		t.Fatal(err)
 	}
-	if adminListResp.Data.Total != 1 || adminListResp.Data.GameType != "condition" || adminListResp.Data.Keyword != "condition" || adminListResp.Data.Items[0].ID != created.Data.ID {
+	if adminListResp.Data.Total != 1 || adminListResp.Data.GameType != "free" || adminListResp.Data.Keyword != "condition" || adminListResp.Data.Items[0].ID != created.Data.ID {
 		t.Fatalf("expected filtered admin game list: %s", string(adminListBody))
 	}
 
@@ -2963,7 +3287,7 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(adminDetailBody, &adminDetailResp); err != nil {
 		t.Fatal(err)
 	}
-	if adminDetailResp.Data.Game.ID != created.Data.ID || adminDetailResp.Data.Game.GameType != "condition" || len(adminDetailResp.Data.MemberIDs) != 1 {
+	if adminDetailResp.Data.Game.ID != created.Data.ID || adminDetailResp.Data.Game.GameType != "free" || len(adminDetailResp.Data.MemberIDs) != 1 {
 		t.Fatalf("expected admin game detail chain: %s", string(adminDetailBody))
 	}
 
@@ -2981,14 +3305,14 @@ func TestAdminCreateConditionGameWhileAppCreateStaysFreeOnly(t *testing.T) {
 	if err := json.Unmarshal(listBody, &listResp); err != nil {
 		t.Fatal(err)
 	}
-	foundCondition := false
+	foundFreeGame := false
 	for _, item := range listResp.Data.Items {
-		if item.ID == created.Data.ID && item.GameType == "condition" && item.GameSource == "admin" && item.Status == "recruiting" {
-			foundCondition = true
+		if item.ID == created.Data.ID && item.GameType == "free" && item.GameSource == "admin" && item.Status == "recruiting" {
+			foundFreeGame = true
 		}
 	}
-	if !foundCondition {
-		t.Fatalf("expected app list to show admin condition game: %s", string(listBody))
+	if !foundFreeGame {
+		t.Fatalf("expected app list to show admin free game: %s", string(listBody))
 	}
 }
 
@@ -3294,7 +3618,7 @@ func TestGameApplicationAndManualStartFlow(t *testing.T) {
 	if err := json.Unmarshal(detailBody, &detailResp); err != nil {
 		t.Fatal(err)
 	}
-	if detailResp.Data.ID != 1 || detailResp.Data.MyRelation.Role != "member" || !detailResp.Data.MyRelation.IsMember || !detailResp.Data.MyRelation.CanEnterIM || !detailResp.Data.MyRelation.CanConfirm {
+	if detailResp.Data.ID != 1 || detailResp.Data.MyRelation.Role != "member" || !detailResp.Data.MyRelation.IsMember || !detailResp.Data.MyRelation.CanEnterIM || detailResp.Data.MyRelation.CanConfirm {
 		t.Fatalf("expected member relation in game detail: %s", string(detailBody))
 	}
 	if detailResp.Data.DetailDisplay.Organizer.UserID <= 0 || detailResp.Data.DetailDisplay.Organizer.Name == "" || detailResp.Data.DetailDisplay.Organizer.Role == "" || detailResp.Data.DetailDisplay.Organizer.RoleLabel == "" {
@@ -3499,7 +3823,8 @@ func TestGameInvitationRespondCreatesApplication(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	creatorToken := loginForTestWithCode(t, mux, "invite-creator")
 	completeIdentityForTest(t, mux, creatorToken)
@@ -3507,6 +3832,7 @@ func TestGameInvitationRespondCreatesApplication(t *testing.T) {
 	completeIdentityForTest(t, mux, inviteeToken)
 	outsiderToken := loginForTestWithCode(t, mux, "invite-outsider")
 	completeIdentityForTest(t, mux, outsiderToken)
+	server.profiles.GrantRole(1, "guide")
 
 	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"invite game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
@@ -3589,12 +3915,14 @@ func TestNotificationInvitationRequiresDetailPageResponseHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	creatorToken := loginForTestWithCode(t, mux, "notice-invite-creator")
 	completeIdentityForTest(t, mux, creatorToken)
 	inviteeToken := loginForTestWithCode(t, mux, "notice-invitee")
 	completeIdentityForTest(t, mux, inviteeToken)
+	server.profiles.GrantRole(1, "guide")
 
 	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"notice invite game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
@@ -3666,6 +3994,9 @@ func TestNotificationInvitationRequiresDetailPageResponseHTTP(t *testing.T) {
 	messageMyConfigBody := getJSON(t, mux, "/api/app/messages/my-config", inviteeToken, http.StatusOK)
 	if !strings.Contains(string(messageMyConfigBody), `"quickActions"`) || !strings.Contains(string(messageMyConfigBody), `"messageText"`) || !strings.Contains(string(messageMyConfigBody), `"justNowText"`) {
 		t.Fatalf("expected message my page config: %s", string(messageMyConfigBody))
+	}
+	if want := `"onlineText":"在线` + strconv.Itoa(authService.ActiveAppSessionCount()) + `人"`; !strings.Contains(string(messageMyConfigBody), want) {
+		t.Fatalf("expected message page and home to share live online count %s: %s", want, string(messageMyConfigBody))
 	}
 
 	detailBody := postJSON(t, mux, "/api/app/notifications/"+strconv.FormatInt(invitationNoticeID, 10)+"/actions", inviteeToken, `{"action":"detail"}`, http.StatusOK)
@@ -3996,6 +4327,7 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	expertToken := loginForTestWithCode(t, mux, "invite-aggregate-expert")
 	completeIdentityForTest(t, mux, expertToken)
 
+	server.profiles.GrantRole(1, "guide")
 	server.profiles.GrantRole(3, "expert")
 	if _, err := server.profiles.UpdateExpertSkill(3, profiles.ExpertSkillRequest{
 		SkillTree:   []string{"product", "strategy"},
@@ -4108,7 +4440,11 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	referralBody := getJSON(t, mux, "/api/app/game-invites/referral-records", creatorToken, http.StatusOK)
 	var referralResp struct {
 		Data struct {
-			Total      int `json:"total"`
+			Total   int `json:"total"`
+			Summary struct {
+				Label      string `json:"label"`
+				AmountText string `json:"amountText"`
+			} `json:"summary"`
 			PageConfig struct {
 				PageTitle string            `json:"pageTitle"`
 				Texts     map[string]string `json:"texts"`
@@ -4118,10 +4454,11 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 				Count int    `json:"count"`
 			} `json:"tabs"`
 			Records []struct {
-				InvitationID int64  `json:"invitationId"`
-				GameID       int64  `json:"gameId"`
-				State        string `json:"state"`
-				Actions      []struct {
+				InvitationID   int64  `json:"invitationId"`
+				GameID         int64  `json:"gameId"`
+				State          string `json:"state"`
+				SettlementText string `json:"settlementText"`
+				Actions        []struct {
 					Key string `json:"key"`
 				} `json:"actions"`
 			} `json:"records"`
@@ -4132,6 +4469,9 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	}
 	if referralResp.Data.Total != 1 || len(referralResp.Data.Records) != 1 || referralResp.Data.Records[0].InvitationID != inviteResp.Data.Invitation.ID || referralResp.Data.Records[0].GameID != 1 || referralResp.Data.Records[0].State != "processing" || len(referralResp.Data.Records[0].Actions) != 2 {
 		t.Fatalf("expected referral record from invitation: %s", string(referralBody))
+	}
+	if referralResp.Data.Summary.Label != "本月引荐进展" || referralResp.Data.Summary.AmountText != "1 局" || referralResp.Data.Records[0].SettlementText != "免费局，不涉及资金结算" {
+		t.Fatalf("referral records must not expose phase-two revenue data: %s", string(referralBody))
 	}
 	if referralResp.Data.PageConfig.PageTitle == "" || referralResp.Data.PageConfig.Texts["emptyText"] == "" || len(referralResp.Data.Tabs) == 0 {
 		t.Fatalf("expected referral records page config: %s", string(referralBody))
@@ -4182,19 +4522,19 @@ func TestGameInviteAggregatesHTTP(t *testing.T) {
 	if err := json.Unmarshal(successDetailBody, &successDetailResp); err != nil {
 		t.Fatal(err)
 	}
-	if successDetailResp.Data.Viewer.UserID != 1 || successDetailResp.Data.Viewer.Role != "member" || successDetailResp.Data.Group.GameID != 1 || successDetailResp.Data.Group.RoomID == 0 {
-		t.Fatalf("expected success detail viewer and group: %s", string(successDetailBody))
+	if successDetailResp.Data.Viewer.UserID != 1 || successDetailResp.Data.Viewer.Role != "member" || successDetailResp.Data.Group.GameID != 1 || successDetailResp.Data.Group.RoomID != 0 {
+		t.Fatalf("expected pre-start success detail without an IM room: %s", string(successDetailBody))
 	}
 	if len(successDetailResp.Data.Participants) != 1 || successDetailResp.Data.Participants[0].UserID != 1 || successDetailResp.Data.Participants[0].RoleLabel != "玩家" {
 		t.Fatalf("expected success detail participants: %s", string(successDetailBody))
 	}
-	if successDetailResp.Data.Fund.Status != "free_no_pay" || successDetailResp.Data.Fund.AmountText == "" || len(successDetailResp.Data.NextSteps) != 3 || successDetailResp.Data.NextSteps[1].Action != "contact_player" {
-		t.Fatalf("expected success detail fund and next steps: %s", string(successDetailBody))
+	if successDetailResp.Data.Fund.Status != "free_no_pay" || successDetailResp.Data.Fund.AmountText != "" || len(successDetailResp.Data.NextSteps) != 3 || successDetailResp.Data.NextSteps[1].Action != "contact_player" {
+		t.Fatalf("expected free-game success detail and next steps: %s", string(successDetailBody))
 	}
 	if successDetailResp.Data.DeliveryProof.MaxCount != 4 || successDetailResp.Data.DeliveryProof.EmptyText == "" || successDetailResp.Data.DeliveryProof.SelectedTemplate == "" || successDetailResp.Data.DeliveryProof.TimelinePrefill == "" {
 		t.Fatalf("expected delivery proof config: %s", string(successDetailBody))
 	}
-	if successDetailResp.Data.DeliveryPage.Paid.PageTitle == "" || len(successDetailResp.Data.DeliveryPage.Paid.ConfirmItems) != 3 || len(successDetailResp.Data.DeliveryPage.QuickActions) != 3 {
+	if successDetailResp.Data.DeliveryPage.Paid.PageTitle != "确认本局完成" || len(successDetailResp.Data.DeliveryPage.Paid.ConfirmItems) != 3 || len(successDetailResp.Data.DeliveryPage.QuickActions) != 2 {
 		t.Fatalf("expected delivery page config: %s", string(successDetailBody))
 	}
 
@@ -4296,6 +4636,7 @@ func TestGuideProgressNotificationCountdownAndDetailsHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, guideToken)
 	expertToken := loginForTestWithCode(t, mux, "guide-progress-notification-expert")
 	completeIdentityForTest(t, mux, expertToken)
+	server.profiles.GrantRole(1, "guide")
 	server.profiles.GrantRole(2, "expert")
 
 	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"进度详情测试局","gameType":"free","cityName":"杭州","address":"西湖","startTime":"2026-07-15T14:00:00+08:00","endTime":"2026-07-15T15:30:00+08:00","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
@@ -4344,6 +4685,7 @@ func TestCurrentGameInviteKeepsOriginalGameAndNotifiesInviteesHTTP(t *testing.T)
 
 	creatorToken := loginForTestWithCode(t, mux, "current-game-invite-creator")
 	completeIdentityForTest(t, mux, creatorToken)
+	server.profiles.GrantRole(1, "guide")
 	playerToken := loginForTestWithCode(t, mux, "current-game-invite-player")
 	completeIdentityForTest(t, mux, playerToken)
 	expertToken := loginForTestWithCode(t, mux, "current-game-invite-expert")
@@ -4395,12 +4737,12 @@ func TestCurrentGameInviteKeepsOriginalGameAndNotifiesInviteesHTTP(t *testing.T)
 
 	playerResponse := postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(invitationByUser[2], 10)+"/respond", playerToken, `{"accept":true}`, http.StatusOK)
 	expertResponse := postJSON(t, mux, "/api/app/game-invitations/"+strconv.FormatInt(invitationByUser[3], 10)+"/respond", expertToken, `{"accept":true}`, http.StatusOK)
-	if !strings.Contains(string(playerResponse), `"status":"approved"`) || !strings.Contains(string(expertResponse), `"status":"approved"`) {
-		t.Fatalf("expected accepted grouped invitations to join directly: player=%s expert=%s", string(playerResponse), string(expertResponse))
+	if !strings.Contains(string(playerResponse), `"status":"pending"`) || !strings.Contains(string(expertResponse), `"status":"pending"`) {
+		t.Fatalf("expected accepted grouped invitations to await organizer approval: player=%s expert=%s", string(playerResponse), string(expertResponse))
 	}
 	detail := getJSON(t, mux, "/api/app/games/1", creatorToken, http.StatusOK)
-	if !strings.Contains(string(detail), `"currentPlayers":3`) {
-		t.Fatalf("expected original game to contain creator, player, and expert: %s", string(detail))
+	if !strings.Contains(string(detail), `"currentPlayers":1`) {
+		t.Fatalf("pending invitations must not consume game seats: %s", string(detail))
 	}
 }
 
@@ -4419,6 +4761,7 @@ func TestGuideProgressRejectedPlayerAndExpertUsesBackendPayload(t *testing.T) {
 	completeIdentityForTest(t, mux, expertToken)
 	outsiderToken := loginForTestWithCode(t, mux, "guide-progress-rejected-outsider")
 	completeIdentityForTest(t, mux, outsiderToken)
+	server.profiles.GrantRole(1, "guide")
 	server.profiles.GrantRole(3, "expert")
 
 	postJSON(t, mux, "/api/app/games", guideToken, `{"title":"backend rejected progress","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
@@ -4572,6 +4915,7 @@ func TestManagedGameActionTextsHTTP(t *testing.T) {
 	completeIdentityForTest(t, mux, creatorToken)
 	guideToken := loginForTestWithCode(t, mux, "managed-game-action-texts-guide")
 	completeIdentityForTest(t, mux, guideToken)
+	server.profiles.GrantRole(1, "guide")
 	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"action text game","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
 	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
 	inviteBody := postJSON(t, mux, "/api/app/games/1/guide-invitations", creatorToken, `{"targetUserId":2,"message":"lead action text game"}`, http.StatusOK)
@@ -4616,7 +4960,7 @@ func TestManagedGameActionTextsHTTP(t *testing.T) {
 		t.Fatalf("expected one managed order: %s", string(body))
 	}
 	order := response.Data.Orders[0]
-	if order.PrimaryActionText != "提前结束交付" || order.SecondaryActionText != "取消并赔付" || order.PlayerActionText != "联系玩家" || order.GuideActionText != "联系领路人" {
+	if order.PrimaryActionText != "确认本局完成" || order.SecondaryActionText != "申请取消" || order.PlayerActionText != "联系局内玩家" || order.GuideActionText != "联系局内领路人" {
 		t.Fatalf("unexpected managed order action texts: %s", string(body))
 	}
 }
@@ -4662,7 +5006,7 @@ func TestPlayerGameActionTextsHTTP(t *testing.T) {
 		t.Fatalf("expected one player order: %s", string(body))
 	}
 	order := response.Data.Orders[0]
-	if order.PrimaryActionText != "暂无行家" || order.SecondaryActionText != "申请取消" || order.NoticeText != "本局暂未分配行家，无法联系行家。" {
+	if order.PrimaryActionText != "查看局内沟通" || order.SecondaryActionText != "申请取消" || order.NoticeText != "本局开始后可在局内群聊沟通。" {
 		t.Fatalf("unexpected player order action texts: %s", string(body))
 	}
 }
@@ -4671,7 +5015,8 @@ func TestSystemProfileAvatarUsesOwnedFileAndReturnsURL(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	token := loginForTestWithCode(t, mux, "system-profile-avatar")
 	userID := currentUserIDForTest(t, mux, token)
@@ -5113,8 +5458,16 @@ func TestProfileSystemManagementHTTP(t *testing.T) {
 	if err := json.Unmarshal(settingsBody, &settingsResp); err != nil {
 		t.Fatal(err)
 	}
-	if len(settingsResp.Data.Sections) != 1 || len(settingsResp.Data.Sections[0].Rows) != 1 || settingsResp.Data.Sections[0].Rows[0].Enabled {
-		t.Fatalf("expected saved profile settings, got: %s", string(settingsBody))
+	gamePushSaved := false
+	for _, section := range settingsResp.Data.Sections {
+		for _, row := range section.Rows {
+			if row.ID == "gamePush" {
+				gamePushSaved = !row.Enabled
+			}
+		}
+	}
+	if !gamePushSaved {
+		t.Fatalf("expected saved game notification setting while preserving other sections, got: %s", string(settingsBody))
 	}
 
 	agreementsBody := getJSON(t, mux, "/api/app/profile/agreements", token, http.StatusOK)
@@ -5200,10 +5553,12 @@ func TestInvitedMainGuideCanStartAndManageProgressHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	creatorToken := loginForTestWithCode(t, mux, "main-guide-creator")
 	completeIdentityForTest(t, mux, creatorToken)
+	server.profiles.GrantRole(1, "guide")
 	guideToken := loginForTestWithCode(t, mux, "main-guide")
 	completeIdentityForTest(t, mux, guideToken)
 	memberTokens := []string{
@@ -5468,10 +5823,12 @@ func TestIMFlow(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
-	newTestAppServer(authService, identityService).Register(mux)
+	server := newTestAppServer(authService, identityService)
+	server.Register(mux)
 
 	creatorToken := loginForTestWithCode(t, mux, "im-creator")
 	completeIdentityForTest(t, mux, creatorToken)
+	creatorID := currentUserIDForTest(t, mux, creatorToken)
 	playerToken := loginForTestWithCode(t, mux, "im-player")
 	completeIdentityForTest(t, mux, playerToken)
 
@@ -5481,6 +5838,16 @@ func TestIMFlow(t *testing.T) {
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
 	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "im-flow", 3)
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
+	for i := 0; i < 3; i++ {
+		server.notices.Create(notifications.CreateRequest{
+			UserID:     creatorID,
+			NotifyType: "friend_message",
+			Title:      "旧私聊消息",
+			Content:    "用于验证局内消息排序",
+			BizType:    "private_chat",
+			BizID:      int64(i + 10),
+		})
+	}
 
 	postJSON(t, mux, "/api/app/games/1/chat/messages", playerToken, `{"messageType":"text","content":"hello"}`, http.StatusOK)
 	creatorIMNotices := getJSON(t, mux, "/api/app/notifications?type=im_message", creatorToken, http.StatusOK)
@@ -5519,8 +5886,43 @@ func TestIMFlow(t *testing.T) {
 			break
 		}
 	}
-	if len(friendCards) != 1 || friendCards[0].Title != "IM gameIM" || friendCards[0].RouteKey != "im_room" || !friendCards[0].Unread || friendCountText != "1/1" {
+	foundUnreadIMCard := false
+	for _, card := range friendCards {
+		if card.Title == "IM gameIM" && card.RouteKey == "im_room" && card.Unread {
+			foundUnreadIMCard = true
+			break
+		}
+	}
+	if len(friendCards) != 3 || !foundUnreadIMCard || friendCountText != "4/4" {
 		t.Fatalf("expected one aggregated IM room card in friend section: %s", string(creatorMessageCenter))
+	}
+	var creatorIMNotificationList struct {
+		Data struct {
+			Items []struct {
+				ID         int64  `json:"id"`
+				NotifyType string `json:"notifyType"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(creatorIMNotices, &creatorIMNotificationList); err != nil {
+		t.Fatal(err)
+	}
+	var creatorIMNotificationID int64
+	for _, item := range creatorIMNotificationList.Data.Items {
+		if item.NotifyType == "im_message" {
+			creatorIMNotificationID = item.ID
+			break
+		}
+	}
+	if creatorIMNotificationID <= 0 {
+		t.Fatalf("expected IM notification id: %s", string(creatorIMNotices))
+	}
+	// 从局详情等入口直接打开 IM 房间时，也必须清除同一局的未读消息，
+	// 不能只依赖消息中心列表页手动标记已读。
+	getJSON(t, mux, "/api/app/games/1/chat-room", creatorToken, http.StatusOK)
+	creatorUnreadCenter := getJSON(t, mux, "/api/app/messages/center?tab=unread", creatorToken, http.StatusOK)
+	if strings.Contains(string(creatorUnreadCenter), `"title":"IM gameIM"`) {
+		t.Fatalf("read IM room must not remain on unread tab: %s", string(creatorUnreadCenter))
 	}
 	playerIMNotices := getJSON(t, mux, "/api/app/notifications?type=im_message", playerToken, http.StatusOK)
 	if countNotificationsByType(t, playerIMNotices, "im_message") != 0 {
@@ -5788,6 +6190,113 @@ func TestIMFlow(t *testing.T) {
 	if webhookRec.Code != http.StatusOK {
 		t.Fatalf("expected webhook 200, got %d: %s", webhookRec.Code, webhookRec.Body.String())
 	}
+}
+
+func TestAppCreateGameRequiresSelectedLocation(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	newTestAppServer(authService, identity.NewService()).Register(mux)
+	token := loginForTestWithCode(t, mux, "create-location-required")
+	completeIdentityForTest(t, mux, token)
+
+	body := postJSON(t, mux, "/api/app/games", token, `{
+"title":"未选择地址的局","gameType":"free","primaryCategory":"social","type":"free",
+"minPlayers":5,"maxPlayers":6,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00",
+"signupStartAt":"2026-07-31 10:00","signupEndAt":"2026-08-01 09:00",
+"introduction":"局介绍","highlights":"局亮点","description":"局描述","completionRules":["完成"],"allowedRoles":["player"],
+"coverImage":"mock://game-cover.jpg",
+"address":"","longitude":0,"latitude":0
+}`, http.StatusUnprocessableEntity)
+	if !bytes.Contains(body, []byte("请先选择组局地址")) {
+		t.Fatalf("expected required-location error, got %s", string(body))
+	}
+}
+
+func TestAppCreateGameRequiresCover(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	newTestAppServer(authService, identity.NewService()).Register(mux)
+	token := loginForTestWithCode(t, mux, "create-cover-required")
+	completeIdentityForTest(t, mux, token)
+
+	body := postJSON(t, mux, "/api/app/games", token, `{
+"title":"未上传封面的局","gameType":"free","primaryCategory":"social","type":"free",
+"minPlayers":5,"maxPlayers":6,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00",
+"signupStartAt":"2026-07-31 10:00","signupEndAt":"2026-08-01 09:00",
+"introduction":"局介绍","highlights":"局亮点","description":"局描述","completionRules":["完成"],"allowedRoles":["player"],
+"address":"杭州市西湖区测试地点","longitude":120.15,"latitude":30.27
+}`, http.StatusUnprocessableEntity)
+	if !bytes.Contains(body, []byte("请先上传局封面")) {
+		t.Fatalf("expected required-cover error, got %s", string(body))
+	}
+}
+
+func TestAppApplyGameEnforcesAgreementAndRequestFormat(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	creatorToken := loginForTestWithCode(t, mux, "apply-agreement-creator")
+	completeIdentityForTest(t, mux, creatorToken)
+	playerToken := loginForTestWithCode(t, mux, "apply-agreement-player")
+	completeIdentityForTest(t, mux, playerToken)
+
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"申请协议校验局","gameType":"free","minPlayers":5,"maxPlayers":6,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{`, http.StatusBadRequest)
+	agreementBody := postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"我有相关经验，愿意按时参与本局活动。","agreed":false}`, http.StatusUnprocessableEntity)
+	if !bytes.Contains(agreementBody, []byte("请先阅读并同意入局申请须知")) {
+		t.Fatalf("expected agreement validation error, got %s", string(agreementBody))
+	}
+}
+
+func TestGameCoverDownloadIsScopedToUploader(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	server.files.UsePublicBaseURLs("https://upload.example.test", "https://download.example.test")
+	server.Register(mux)
+
+	ownerToken := loginForTestWithCode(t, mux, "game-cover-owner")
+	outsiderToken := loginForTestWithCode(t, mux, "game-cover-outsider")
+	completeIdentityForTest(t, mux, ownerToken)
+	completeIdentityForTest(t, mux, outsiderToken)
+	uploadBody := postJSON(t, mux, "/api/app/files/upload-token", ownerToken, `{"bizType":"game_cover","objectId":0,"fileName":"cover.jpg","mimeType":"image/jpeg","size":128}`, http.StatusOK)
+	var uploadResp struct {
+		Data struct {
+			File struct {
+				ID int64 `json:"fileId"`
+			} `json:"file"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(uploadBody, &uploadResp); err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/app/files/" + strconv.FormatInt(uploadResp.Data.File.ID, 10) + "/download-url"
+	getJSON(t, mux, path, ownerToken, http.StatusOK)
+	getJSON(t, mux, path, outsiderToken, http.StatusForbidden)
+}
+
+func TestAdminGameAuditRejectsMalformedRequest(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	postAdminJSONWithPermission(t, mux, "/api/admin/games/1/audit", "game:update_status", `{`, http.StatusBadRequest)
+}
+
+func TestIMMutationEndpointsRejectMalformedRequest(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	token := loginForTestWithCode(t, mux, "im-malformed-request")
+	completeIdentityForTest(t, mux, token)
+	postJSON(t, mux, "/api/app/chat/rooms/1/archive", token, `{`, http.StatusBadRequest)
+	adminToken := adminLoginForTest(t, mux)
+	postAdminJSON(t, mux, "/api/admin/im/rooms/1/archive", adminToken, `{`, http.StatusBadRequest)
+	postAdminJSON(t, mux, "/api/admin/im/messages/1/hide", adminToken, `{`, http.StatusBadRequest)
 }
 
 func TestIMMessageDTOIncludesShanghaiDisplayTime(t *testing.T) {
@@ -6241,7 +6750,7 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if err := json.Unmarshal(growthAfterConfirmBody, &growthAfterConfirmResp); err != nil {
 		t.Fatal(err)
 	}
-	if growthAfterConfirmResp.Data.Profile.Experience != 10 || !hasFootprintAction(growthAfterConfirmResp.Data.Footprints, "completed_game") {
+	if growthAfterConfirmResp.Data.Profile.Experience != 100 || !hasFootprintAction(growthAfterConfirmResp.Data.Footprints, "completed_game") {
 		t.Fatalf("expected completed game growth after service confirm: %s", string(growthAfterConfirmBody))
 	}
 	creatorNoticesAfterConfirmBody := getJSON(t, mux, "/api/app/notifications", creatorToken, http.StatusOK)
@@ -6264,7 +6773,7 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if err := json.Unmarshal(growthAfterDuplicateConfirmBody, &growthAfterDuplicateConfirmResp); err != nil {
 		t.Fatal(err)
 	}
-	if growthAfterDuplicateConfirmResp.Data.Profile.Experience != 10 {
+	if growthAfterDuplicateConfirmResp.Data.Profile.Experience != 100 {
 		t.Fatalf("expected completed game growth to be idempotent: %s", string(growthAfterDuplicateConfirmBody))
 	}
 	creatorNoticesAfterDuplicateBody := getJSON(t, mux, "/api/app/notifications", creatorToken, http.StatusOK)
@@ -6308,14 +6817,21 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if len(playerManageResp.Data.Items) != 1 || playerManageResp.Data.Items[0].GameID != 1 || playerManageResp.Data.Items[0].ExpertID != 0 || playerManageResp.Data.Items[0].StatusType != "complete" || playerManageResp.Data.Items[0].ReviewStatus != "pending" || !playerManageResp.Data.Items[0].CanReview || playerManageResp.Data.Summary.CompleteCount != 1 {
 		t.Fatalf("expected player manage service order to expose review target: %s", string(playerManageBody))
 	}
-	if playerManageResp.Data.Items[0].ContactExpertRoute != "" || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "/pages/game/player-cancel/index") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "freeCancel=1") || !strings.Contains(playerManageResp.Data.Items[0].PlayerCancelRoute, "warningTitle=") || !strings.Contains(playerManageResp.Data.Items[0].ReviewRoute, "/pages/game/review/index") {
+	if playerManageResp.Data.Items[0].ContactExpertRoute != "" || playerManageResp.Data.Items[0].PlayerCancelRoute != "/pages/game/player-cancel/index?gameId=1" || !strings.Contains(playerManageResp.Data.Items[0].ReviewRoute, "/pages/game/review/index") {
 		t.Fatalf("expected player manage action routes: %s", string(playerManageBody))
 	}
 	if playerManageResp.Data.Items[0].Actions.ContactExpertRoute != "" || playerManageResp.Data.Items[0].Actions.PlayerCancelRoute == "" || playerManageResp.Data.Items[0].Actions.ReviewRoute == "" {
 		t.Fatalf("expected player manage actions payload: %s", string(playerManageBody))
 	}
-	if playerManageResp.Data.PageConfig.PageTitle == "" || len(playerManageResp.Data.PageConfig.CategoryTabs) != 3 {
+	if playerManageResp.Data.PageConfig.PageTitle == "" || len(playerManageResp.Data.PageConfig.CategoryTabs) != 4 {
 		t.Fatalf("expected my games page config: %s", string(playerManageBody))
+	}
+	categoryTabs := map[string]string{}
+	for _, tab := range playerManageResp.Data.PageConfig.CategoryTabs {
+		categoryTabs[tab.Key] = tab.Text
+	}
+	if categoryTabs["joined"] == "" || categoryTabs["created"] == "" || categoryTabs["created"] == "我受邀的" || categoryTabs["invited"] == "" || categoryTabs["favorite"] == "" {
+		t.Fatalf("expected independent joined, created, invited and favorite tabs: %s", string(playerManageBody))
 	}
 	managedBody := getJSON(t, mux, "/api/app/games/my/manage", creatorToken, http.StatusOK)
 	var managedResp struct {
@@ -6350,10 +6866,10 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if err := json.Unmarshal(managedBody, &managedResp); err != nil {
 		t.Fatal(err)
 	}
-	if len(managedResp.Data.Items) != 0 {
-		t.Fatalf("expected player-role creator to stay out of expert managed orders: %s", string(managedBody))
+	if len(managedResp.Data.Items) != 1 || managedResp.Data.Items[0].GameID != 1 {
+		t.Fatalf("expected creator game to have an independent management record: %s", string(managedBody))
 	}
-	if len(managedResp.Data.PageConfig.StatusTabs) != 5 {
+	if len(managedResp.Data.PageConfig.StatusTabs) != 6 {
 		t.Fatalf("expected my games status tabs config: %s", string(managedBody))
 	}
 
@@ -6419,29 +6935,23 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 				AvailablePoints int `json:"availablePoints"`
 			} `json:"profile"`
 			Reward struct {
-				Points       int `json:"points"`
-				BeforePoints int `json:"beforePoints"`
-				AfterPoints  int `json:"afterPoints"`
-				LogID        int `json:"logId"`
+				Experience int `json:"experience"`
 			} `json:"reward"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(reviewBody, &reviewResp); err != nil {
 		t.Fatal(err)
 	}
-	if reviewResp.Data.Profile.Experience == 0 || reviewResp.Data.Profile.AvailablePoints == 0 {
-		t.Fatalf("expected growth and points after review: %s", string(reviewBody))
+	if reviewResp.Data.Profile.Experience == 0 || reviewResp.Data.Profile.AvailablePoints != 0 {
+		t.Fatalf("expected growth only after review: %s", string(reviewBody))
 	}
-	if reviewResp.Data.Reward.Points != reviews.SubmittedReviewPoints || reviewResp.Data.Reward.AfterPoints-reviewResp.Data.Reward.BeforePoints != reviews.SubmittedReviewPoints || reviewResp.Data.Reward.LogID == 0 {
-		t.Fatalf("expected response reward to match persisted point change: %s", string(reviewBody))
-	}
-	if reviewResp.Data.Profile.AvailablePoints != reviewResp.Data.Reward.AfterPoints {
-		t.Fatalf("expected review reward to be credited exactly once: %s", string(reviewBody))
+	if reviewResp.Data.Reward.Experience == 0 {
+		t.Fatalf("expected response to report the experience reward: %s", string(reviewBody))
 	}
 	if len(reviewResp.Data.Review.Tags) != 2 || reviewResp.Data.Review.AgainIntent != "yes" || reviewResp.Data.Review.NPSScore == nil || *reviewResp.Data.Review.NPSScore != 9 {
 		t.Fatalf("expected review tags and again intent: %s", string(reviewBody))
 	}
-	managedAfterFirstReviewBody := getJSON(t, mux, "/api/app/games/player/manage", creatorToken, http.StatusOK)
+	managedAfterFirstReviewBody := getJSON(t, mux, "/api/app/games/my/manage", creatorToken, http.StatusOK)
 	var managedAfterFirstReviewResp struct {
 		Data struct {
 			Items []struct {
@@ -6573,7 +7083,7 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 		}
 		postJSON(t, mux, "/api/app/reviews", creatorToken, fmt.Sprintf(`{"gameId":1,"targetUserId":%d,"targetRole":"member","score":5,"npsScore":9}`, todo.TargetUserID), http.StatusOK)
 	}
-	managedAfterReviewBody := getJSON(t, mux, "/api/app/games/player/manage", creatorToken, http.StatusOK)
+	managedAfterReviewBody := getJSON(t, mux, "/api/app/games/my/manage", creatorToken, http.StatusOK)
 	var managedAfterReviewResp struct {
 		Data struct {
 			Items []struct {
@@ -6834,6 +7344,9 @@ func TestServiceConfirmAndReviewFlow(t *testing.T) {
 	if adminUserRec.Code != http.StatusOK {
 		t.Fatalf("expected admin user trace 200, got %d: %s", adminUserRec.Code, adminUserRec.Body.String())
 	}
+	if !bytes.Contains(adminUserRec.Body.Bytes(), []byte(`"roleProfiles"`)) || !bytes.Contains(adminUserRec.Body.Bytes(), []byte(`"roleCode":"player"`)) {
+		t.Fatalf("expected admin user trace to include three-role growth profiles: %s", adminUserRec.Body.String())
+	}
 	adminGameReq := httptest.NewRequest(http.MethodGet, "/api/admin/games/1/review-trace", nil)
 	adminGameReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	adminGameRec := httptest.NewRecorder()
@@ -6863,7 +7376,7 @@ func TestPlayerCancelRequestRequiresPlayerMemberAndNotifiesCreator(t *testing.T)
 	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "player-cancel-extra", 3)
 	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
 
-	payload := `{"reasonKey":"need_changed","reasonText":"schedule changed","compensationRate":0,"payAmountText":"免费"}`
+	payload := `{"reasonKey":"schedule_conflict","reasonText":"schedule changed","compensationRate":0,"payAmountText":"免费"}`
 	postJSON(t, mux, "/api/app/games/1/player-cancel", outsiderToken, payload, http.StatusForbidden)
 	body := postJSON(t, mux, "/api/app/games/1/player-cancel", playerToken, payload, http.StatusOK)
 	var resp struct {
@@ -6886,7 +7399,7 @@ func TestPlayerCancelRequestRequiresPlayerMemberAndNotifiesCreator(t *testing.T)
 	if err := json.Unmarshal(body, &resp); err != nil {
 		t.Fatal(err)
 	}
-	if resp.Data.Status != "exited" || resp.Data.Game.Status == "canceled" || resp.Data.Credit.Reason != "player_cancel_service" || resp.Data.Credit.ChangeValue != -3 || resp.Data.CancelRequest.GameID != 1 || resp.Data.CancelRequest.ReasonKey != "need_changed" || resp.Data.CancelRequest.CompensationRate != 0 {
+	if resp.Data.Status != "exited" || resp.Data.Game.Status == "canceled" || resp.Data.Credit.Reason != "player_cancel_service" || resp.Data.Credit.ChangeValue != -3 || resp.Data.CancelRequest.GameID != 1 || resp.Data.CancelRequest.ReasonKey != "schedule_conflict" || resp.Data.CancelRequest.CompensationRate != 0 {
 		t.Fatalf("expected player to exit without canceling whole game: %s", string(body))
 	}
 
@@ -7042,6 +7555,83 @@ func TestProfitTemplateConfigFeedsAppHTTP(t *testing.T) {
 	}
 	if got.Data.Deposit.RuleText != "后台规则" || got.Data.Deposit.NoticeText != "后台提示" {
 		t.Fatalf("expected nested deposit config: %s", string(body))
+	}
+}
+
+func TestAdminRevenuePointsRewardConfigSaveAndReadBack(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	adminToken := adminLoginForTest(t, mux)
+
+	putJSON(t, mux, "/api/admin/revenue/points-reward-config", adminToken, `{"enabled":true,"pointsPerRevenueBps":1250,"maxPointsPerSettlement":88}`, http.StatusOK)
+	body := getJSON(t, mux, "/api/admin/revenue/points-reward-config", adminToken, http.StatusOK)
+	var got struct {
+		Data struct {
+			Config revenuePointsRewardConfigDTO `json:"config"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Data.Config.Enabled || got.Data.Config.PointsPerRevenueBPS != 1250 || got.Data.Config.MaxPointsPerSettlement != 88 {
+		t.Fatalf("expected saved revenue points reward config, got %s", string(body))
+	}
+	putJSON(t, mux, "/api/admin/revenue/points-reward-config", adminToken, `{"enabled":true,"pointsPerRevenueBps":10001}`, http.StatusUnprocessableEntity)
+}
+
+func TestRevenueSettlementPointsRemainDisabledForPhaseOneFreeGames(t *testing.T) {
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	server := newTestAppServer(authService, identityService)
+	gameService := server.games.(*games.Service)
+	freeGame, err := gameService.CreateFromAdmin(games.CreateRequest{
+		CreatorUserID: 1,
+		Title:         "免费测试局",
+		GameType:      "standard",
+		Price:         100,
+		MinPlayers:    5,
+		MaxPlayers:    8,
+		SignupStartAt: "2026-07-20 10:00",
+		SignupEndAt:   "2026-07-31 18:00",
+		StartAt:       "2026-08-01 10:00",
+		EndAt:         "2026-08-01 12:00",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := revenue.Record{GameID: freeGame.ID, Items: []revenue.Item{
+		{UserID: 1, Role: "creator", AmountCent: 6000},
+		{UserID: 1, Role: "expert", AmountCent: 4000},
+		{Role: "platform", AmountCent: 1000},
+	}}
+	rewards := server.awardRevenueSettlementPoints(record, revenue.Settlement{ID: 1})
+	if len(rewards) != 0 {
+		t.Fatalf("phase-one free games must not produce settlement points, got %+v", rewards)
+	}
+	if account := server.points.Summary(1); account.AvailablePoints != 0 {
+		t.Fatalf("phase-one settlement must not change points, got %+v", account)
+	}
+	if repeated := server.awardRevenueSettlementPoints(record, revenue.Settlement{ID: 1}); len(repeated) != 0 {
+		t.Fatalf("phase-one settlement must remain disabled, got %+v", repeated)
+	}
+	secondFreeGame, err := gameService.CreateFromAdmin(games.CreateRequest{
+		CreatorUserID: 2,
+		Title:         "免费测试局",
+		GameType:      "free",
+		MinPlayers:    5,
+		MaxPlayers:    8,
+		SignupStartAt: "2026-07-20 10:00",
+		SignupEndAt:   "2026-08-01 18:00",
+		StartAt:       "2026-08-02 10:00",
+		EndAt:         "2026-08-02 12:00",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rewards := server.awardRevenueSettlementPoints(revenue.Record{GameID: secondFreeGame.ID, Items: []revenue.Item{{UserID: 2, AmountCent: 10000}}}, revenue.Settlement{ID: 2}); len(rewards) != 0 {
+		t.Fatalf("free games must not produce points, got %+v", rewards)
 	}
 }
 
@@ -8505,8 +9095,12 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 	var recordsResp struct {
 		Data struct {
 			Records []struct {
-				ID        string `json:"id"`
-				StatusKey string `json:"statusKey"`
+				ID               string `json:"id"`
+				StatusKey        string `json:"statusKey"`
+				InviterName      string `json:"inviterName"`
+				InviterRoleLabel string `json:"inviterRoleLabel"`
+				InviteeName      string `json:"inviteeName"`
+				InviteeRoleLabel string `json:"inviteeRoleLabel"`
 			} `json:"records"`
 			Filters []struct {
 				Key string `json:"key"`
@@ -8519,26 +9113,13 @@ func TestProfileInviteCenterHTTP(t *testing.T) {
 	if len(recordsResp.Data.Records) != 1 || recordsResp.Data.Records[0].ID == "" || len(recordsResp.Data.Filters) == 0 {
 		t.Fatalf("expected invite records payload: %s", string(recordsBody))
 	}
+	if recordsResp.Data.Records[0].InviterName == "" || recordsResp.Data.Records[0].InviterRoleLabel != "领路人" || recordsResp.Data.Records[0].InviteeName == "" || recordsResp.Data.Records[0].InviteeRoleLabel != "受邀成员" {
+		t.Fatalf("expected inviter and invitee labels in invite records: %s", string(recordsBody))
+	}
 
 	getJSON(t, mux, "/api/app/profile/service-center/invite/ranking?period=week&type=inviteCount", creatorToken, http.StatusNotFound)
 
-	incomeBody := getJSON(t, mux, "/api/app/profile/service-center/invite/income", creatorToken, http.StatusOK)
-	var incomeResp struct {
-		Data struct {
-			TrendSeries []struct {
-				Month string `json:"month"`
-			} `json:"trendSeries"`
-			Metrics []struct {
-				Label string `json:"label"`
-			} `json:"metrics"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(incomeBody, &incomeResp); err != nil {
-		t.Fatal(err)
-	}
-	if len(incomeResp.Data.TrendSeries) == 0 || len(incomeResp.Data.Metrics) == 0 {
-		t.Fatalf("expected invite income payload: %s", string(incomeBody))
-	}
+	getJSON(t, mux, "/api/app/profile/service-center/invite/income", creatorToken, http.StatusNotFound)
 
 	memberBody := getJSON(t, mux, "/api/app/profile/service-center/invite/member-detail?memberId="+strconv.FormatInt(memberID, 10), creatorToken, http.StatusOK)
 	var memberResp struct {
@@ -8600,6 +9181,9 @@ func TestProfileHomeHTTP(t *testing.T) {
 					Enabled bool   `json:"enabled"`
 				} `json:"items"`
 			} `json:"serviceSections"`
+			VIPBanner struct {
+				Visible bool `json:"visible"`
+			} `json:"vipBanner"`
 			Summary CurrentUserSummaryDTO `json:"summary"`
 		} `json:"data"`
 	}
@@ -8609,8 +9193,14 @@ func TestProfileHomeHTTP(t *testing.T) {
 	if homeResp.Data.User.Nickname == "" || homeResp.Data.User.RoleLevel == "" || homeResp.Data.User.AvatarText == "" {
 		t.Fatalf("expected profile home user block: %s", string(homeBody))
 	}
+	if homeResp.Data.User.RoleLevel != "Lv0 新玩家" {
+		t.Fatalf("expected profile home to use configured player ladder, got %q", homeResp.Data.User.RoleLevel)
+	}
 	if homeResp.Data.User.MemberStatus == "none" && homeResp.Data.User.MemberLevel != "" {
 		t.Fatalf("unsubscribed user must not display a member level: %s", string(homeBody))
+	}
+	if homeResp.Data.VIPBanner.Visible {
+		t.Fatalf("phase one profile must not expose a membership upsell: %s", string(homeBody))
 	}
 	for _, section := range homeResp.Data.ServiceSections {
 		for _, item := range section.Items {
@@ -8644,6 +9234,27 @@ func TestCountInProgressUserGamesIncludesCreatedAndJoinedWithoutDuplicates(t *te
 	})
 	if got != 1 {
 		t.Fatalf("expected 1 unique in-progress game, got %d", got)
+	}
+}
+
+func TestProfileHomeShowsCurrentRoleGrowthLevel(t *testing.T) {
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	server := newTestAppServer(authService, identity.NewService())
+	userID := int64(910001)
+	user := users.User{ID: userID, Nickname: "行家用户"}
+	server.profiles.GrantRole(userID, "expert")
+	server.profiles.GrantRole(userID, "guide")
+
+	payload := server.buildProfileHomePayload(userID, user, CurrentUserDTO{
+		User:   user,
+		Growth: GrowthDTO{ExperienceValue: 300, CreditScore: 100},
+	}, 0, "expert")
+	profileUser, ok := payload["user"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("profile user payload missing: %+v", payload["user"])
+	}
+	if roleLevel := profileUser["roleLevel"]; roleLevel != "0 星行家" {
+		t.Fatalf("profile home should honor the selected expert role even when guide is also active: got %v", roleLevel)
 	}
 }
 
@@ -8700,14 +9311,14 @@ func TestProfileAssetsHTTP(t *testing.T) {
 	if resp.Data.Overview.Value == "" || len(resp.Data.AssetStats) != 3 || len(resp.Data.OrderStatuses) != 5 || len(resp.Data.FAQLinks) == 0 {
 		t.Fatalf("expected profile assets aggregate: %s", string(body))
 	}
-	if !strings.Contains(resp.Data.Overview.Label, "未启用") || resp.Data.ConfigVersion == "" {
+	if resp.Data.Overview.Label != "积分资产" || resp.Data.ConfigVersion == "" {
 		t.Fatalf("expected profile asset manage config fields: %s", string(body))
 	}
 	if len(resp.Data.RecentOrders) != 1 || resp.Data.BankCards.SummaryText == "" {
 		t.Fatalf("expected recent orders and bank card state: %s", string(body))
 	}
-	if resp.Data.OrderStatuses[1].Key != "processing" || resp.Data.OrderStatuses[1].Count != 1 || resp.Data.OrderStatuses[1].Route == "" {
-		t.Fatalf("expected processing order status count and route: %s", string(body))
+	if resp.Data.OrderStatuses[0].Key != "pending" || resp.Data.OrderStatuses[0].Count != 1 || resp.Data.OrderStatuses[0].Route == "" {
+		t.Fatalf("expected pending redemption order status count and route: %s", string(body))
 	}
 }
 
@@ -9584,7 +10195,6 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 
 	detailReq := httptest.NewRequest(http.MethodGet, "/api/admin/reports/1", nil)
 	detailReq.Header.Set("Authorization", "Bearer "+adminToken)
-	detailReq.Header.Set("X-Admin-ID", "99")
 	detailRec := httptest.NewRecorder()
 	mux.ServeHTTP(detailRec, detailReq)
 	if detailRec.Code != http.StatusOK {
@@ -9645,7 +10255,6 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	}
 
 	disputeReq := httptest.NewRequest(http.MethodGet, "/api/admin/im/rooms/1/dispute-messages", nil)
-	disputeReq.Header.Set("X-Admin-ID", "99")
 	disputeReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	disputeReq.Header.Set("X-Request-ID", "req-dispute-1")
 	disputeRec := httptest.NewRecorder()
@@ -9709,8 +10318,8 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	if err := json.Unmarshal(assignBody, &assignResp); err != nil {
 		t.Fatal(err)
 	}
-	if assignResp.Data.Status != "assigned" || assignResp.Data.HandlerAdminID != 99 {
-		t.Fatalf("expected assigned report: %s", string(assignBody))
+	if assignResp.Data.Status != "appealed" || assignResp.Data.HandlerAdminID != 99 {
+		t.Fatalf("expected appealed report assigned without losing appeal state: %s", string(assignBody))
 	}
 	handleBody := postAdminJSON(t, mux, "/api/admin/reports/1/handle", adminToken, `{"adminId":99,"result":"confirmed and rewarded","outcome":"confirmed","rewardPoints":20,"creditDeduct":10}`, http.StatusOK)
 	var handleResp struct {
@@ -9757,6 +10366,32 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	}
 	if targetCreditResp.Data.Score != 90 || len(targetCreditResp.Data.Records) == 0 || targetCreditResp.Data.Records[0].Reason != "report_confirmed" {
 		t.Fatalf("expected target credit deduction from report handling: %s", string(targetCreditBody))
+	}
+
+	postAdminJSON(t, mux, "/api/admin/reports/1/handle", adminToken, `{"adminId":99,"result":"confirmed and rewarded","outcome":"confirmed","rewardPoints":20,"creditDeduct":10}`, http.StatusOK)
+	retriedPointsBody := getJSON(t, mux, "/api/app/points/summary", playerToken, http.StatusOK)
+	var retriedPointsResp struct {
+		Data struct {
+			AvailablePoints int `json:"availablePoints"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(retriedPointsBody, &retriedPointsResp); err != nil {
+		t.Fatal(err)
+	}
+	if retriedPointsResp.Data.AvailablePoints != reporterPointsResp.Data.AvailablePoints {
+		t.Fatalf("repeated report handling must not grant points twice: before=%d after=%d", reporterPointsResp.Data.AvailablePoints, retriedPointsResp.Data.AvailablePoints)
+	}
+	retriedCreditBody := getJSON(t, mux, "/api/app/profile/credit-center", creatorToken, http.StatusOK)
+	var retriedCreditResp struct {
+		Data struct {
+			Score int `json:"score"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(retriedCreditBody, &retriedCreditResp); err != nil {
+		t.Fatal(err)
+	}
+	if retriedCreditResp.Data.Score != targetCreditResp.Data.Score {
+		t.Fatalf("repeated report handling must not deduct credit twice: before=%d after=%d", targetCreditResp.Data.Score, retriedCreditResp.Data.Score)
 	}
 
 	noticesAfterHandleReq := httptest.NewRequest(http.MethodGet, "/api/app/notifications", nil)
@@ -9838,7 +10473,7 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	if err := json.Unmarshal(operationRec.Body.Bytes(), &operationResp); err != nil {
 		t.Fatal(err)
 	}
-	if !hasOperationLog(operationResp.Data.Items, "im:message:view_dispute", "im_room", "1", 99) {
+	if !hasOperationLog(operationResp.Data.Items, "im:message:view_dispute", "im_room", "1", 1) {
 		t.Fatalf("expected dispute view operation log: %s", operationRec.Body.String())
 	}
 	if !hasOperationLog(operationResp.Data.Items, "report:handle", "report", "1", 0) {
@@ -9847,11 +10482,11 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	if !hasOperationLog(operationResp.Data.Items, "report:assign", "report", "1", 0) {
 		t.Fatalf("expected report assign operation log: %s", operationRec.Body.String())
 	}
-	if !hasOperationLog(operationResp.Data.Items, "report:view_detail", "report", "1", 99) {
+	if !hasOperationLog(operationResp.Data.Items, "report:view_detail", "report", "1", 1) {
 		t.Fatalf("expected report detail operation log: %s", operationRec.Body.String())
 	}
 
-	filteredOperationReq := httptest.NewRequest(http.MethodGet, "/api/admin/operation-logs?action=report&targetType=report&targetId=1&adminUserId=99", nil)
+	filteredOperationReq := httptest.NewRequest(http.MethodGet, "/api/admin/operation-logs?action=report&targetType=report&targetId=1&adminUserId=1", nil)
 	filteredOperationReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	filteredOperationRec := httptest.NewRecorder()
 	mux.ServeHTTP(filteredOperationRec, filteredOperationReq)
@@ -9872,8 +10507,8 @@ func TestReportFreezesRevenueAndCanBeHandled(t *testing.T) {
 	if err := json.Unmarshal(filteredOperationRec.Body.Bytes(), &filteredOperationResp); err != nil {
 		t.Fatal(err)
 	}
-	if filteredOperationResp.Data.Total != 1 || !hasOperationLog(filteredOperationResp.Data.Items, "report:view_detail", "report", "1", 99) {
-		t.Fatalf("expected filtered report operation log for admin 99: %s", filteredOperationRec.Body.String())
+	if filteredOperationResp.Data.Total != 4 || !hasOperationLog(filteredOperationResp.Data.Items, "report:view_detail", "report", "1", 1) || !hasOperationLog(filteredOperationResp.Data.Items, "report:handle", "report", "1", 1) {
+		t.Fatalf("expected filtered report operation logs for authenticated admin: %s", filteredOperationRec.Body.String())
 	}
 }
 
@@ -10158,6 +10793,9 @@ func TestLocationAndNearbyGamesFlow(t *testing.T) {
 	if invalidSourceRec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected invalid source 422, got %d: %s", invalidSourceRec.Code, invalidSourceRec.Body.String())
 	}
+	if !bytes.Contains(invalidSourceRec.Body.Bytes(), []byte("定位来源参数错误")) {
+		t.Fatalf("expected localized invalid-source message, got %s", invalidSourceRec.Body.String())
+	}
 	otherToken := loginForTestWithCode(t, mux, "loc-user-2")
 	completeIdentityForTest(t, mux, otherToken)
 	otherRecentReq := httptest.NewRequest(http.MethodGet, "/api/app/locations/my-recent", nil)
@@ -10206,6 +10844,9 @@ func TestLocationAndNearbyGamesFlow(t *testing.T) {
 	if invalidCoordinateRec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected invalid coordinate 422, got %d: %s", invalidCoordinateRec.Code, invalidCoordinateRec.Body.String())
 	}
+	if !bytes.Contains(invalidCoordinateRec.Body.Bytes(), []byte("定位坐标参数错误")) {
+		t.Fatalf("expected localized invalid-coordinate message, got %s", invalidCoordinateRec.Body.String())
+	}
 
 	noSavedLocationToken := loginForTestWithCode(t, mux, "loc-user-query-only")
 	completeIdentityForTest(t, mux, noSavedLocationToken)
@@ -10249,6 +10890,70 @@ func TestLocationAndNearbyGamesFlow(t *testing.T) {
 	}
 }
 
+func TestAdminPendingCountsOnlyIncludesActionableQueues(t *testing.T) {
+	mux := http.NewServeMux()
+	server := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+	if _, err := server.games.Create(1, games.CreateRequest{
+		Title:      "待审核组局",
+		GameType:   "free",
+		MinPlayers: 5,
+		MaxPlayers: 8,
+		StartAt:    "2026-08-01 10:00",
+		EndAt:      "2026-08-01 12:00",
+	}); err != nil {
+		t.Fatalf("create pending game: %v", err)
+	}
+	server.Register(mux)
+
+	decodeCounts := func(body []byte) map[string]int {
+		t.Helper()
+		var response struct {
+			Data struct {
+				Counts map[string]int `json:"counts"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &response); err != nil {
+			t.Fatal(err)
+		}
+		return response.Data.Counts
+	}
+
+	gameManagerCounts := decodeCounts(getAdminJSON(t, mux, "/api/admin/pending-counts", adminLoginForTestAs(t, mux, "game_manager", "admin123"), http.StatusOK))
+	if gameManagerCounts["games"] != 1 {
+		t.Fatalf("game manager should receive the game-audit reminder, got %#v", gameManagerCounts)
+	}
+
+	operatorCounts := decodeCounts(getAdminJSON(t, mux, "/api/admin/pending-counts", adminLoginForTestAs(t, mux, "operator", "admin123"), http.StatusOK))
+	if operatorCounts["games"] != 0 || operatorCounts["gameApplications"] != 0 {
+		t.Fatalf("read-only game operator must not receive inaccessible game reminders, got %#v", operatorCounts)
+	}
+}
+
+func TestAdminDashboardReturnsAggregateMetricsWithoutRawModulePermissions(t *testing.T) {
+	mux := http.NewServeMux()
+	server := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+	server.Register(mux)
+	loginForTestWithCode(t, mux, "dashboard-user")
+
+	body := getAdminJSON(t, mux, "/api/admin/dashboard", adminLoginForTestAs(t, mux, "data_analyst", "admin123"), http.StatusOK)
+	var response struct {
+		Data struct {
+			Summary struct {
+				RegisteredUserCount int `json:"registeredUserCount"`
+			} `json:"summary"`
+			Distributions struct {
+				UserStatuses map[string]int `json:"userStatuses"`
+			} `json:"distributions"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Data.Summary.RegisteredUserCount == 0 || response.Data.Distributions.UserStatuses == nil {
+		t.Fatalf("dashboard aggregate metrics missing: %s", string(body))
+	}
+}
+
 func TestLocationFallbackHTTP(t *testing.T) {
 	t.Run("优先返回用户已保存的位置城市", func(t *testing.T) {
 		mux := http.NewServeMux()
@@ -10282,7 +10987,8 @@ func TestLocationFallbackHTTP(t *testing.T) {
 		token := loginForTestWithCode(t, mux, "location-fallback-ip")
 
 		req := httptest.NewRequest(http.MethodGet, "/api/app/locations/fallback", nil)
-		req.RemoteAddr = "203.0.113.8:19000"
+		req.RemoteAddr = "10.0.0.9:19000"
+		req.Header.Set("X-Forwarded-For", "203.0.113.8, 10.0.0.9")
 		req.Header.Set("Authorization", "Bearer "+token)
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
@@ -10441,7 +11147,7 @@ func TestAppHomeAndConnectionNetworkPayloadHTTP(t *testing.T) {
 	if err := json.Unmarshal(configuredHomeBody, &configuredHomeResp); err != nil {
 		t.Fatal(err)
 	}
-	if configuredHomeResp.Data.Hero.OnlineText != "0人在线" {
+	if configuredHomeResp.Data.Hero.OnlineText != strconv.Itoa(authService.ActiveAppSessionCount())+"人在线" {
 		t.Fatalf("expected configured home online text, got %q in %s", configuredHomeResp.Data.Hero.OnlineText, string(configuredHomeBody))
 	}
 	adminToken := adminLoginForTestAs(t, mux, "admin", "admin123")
@@ -10468,7 +11174,7 @@ func TestAppHomeAndConnectionNetworkPayloadHTTP(t *testing.T) {
 	if err := json.Unmarshal(adminConfiguredHomeBody, &adminConfiguredHomeResp); err != nil {
 		t.Fatal(err)
 	}
-	if adminConfiguredHomeResp.Data.Hero.OnlineText != "0人在线" {
+	if adminConfiguredHomeResp.Data.Hero.OnlineText != strconv.Itoa(authService.ActiveAppSessionCount())+"人在线" {
 		t.Fatalf("expected admin-configured home online text, got %q in %s", adminConfiguredHomeResp.Data.Hero.OnlineText, string(adminConfiguredHomeBody))
 	}
 
@@ -10524,14 +11230,14 @@ func TestHomeExpertSkillStylesComeFromBackend(t *testing.T) {
 	}
 
 	items := server.homeExpertSkills(1)
-	if len(items) != 3 {
-		t.Fatalf("expected three expert skill nodes, got %d", len(items))
+	if len(items) != 2 {
+		t.Fatalf("expected configured expert skill nodes only, got %d", len(items))
 	}
-	if items[0]["tone"] != "cyan" || items[0]["nodeStyle"] == "" || items[0]["locked"] != false {
+	if items[0]["tone"] == "" || items[0]["locked"] != false {
 		t.Fatalf("expected backend-driven first skill style: %#v", items[0])
 	}
-	if items[2]["tone"] != "purple" || items[2]["nodeStyle"] == "" || items[2]["locked"] != true {
-		t.Fatalf("expected backend-driven locked skill style metadata: %#v", items[2])
+	if items[1]["tone"] == "" || items[1]["locked"] != false {
+		t.Fatalf("expected backend-driven second skill style metadata: %#v", items[1])
 	}
 }
 
@@ -10575,10 +11281,8 @@ func TestTencentMapProxyHTTP(t *testing.T) {
 		t.Fatalf("unexpected reverse geocode response/request: body=%s req=%+v", string(reverseBody), provider.reverseReq)
 	}
 
-	routeBody := getJSON(t, mux, "/api/app/map/route?fromLongitude=120.15&fromLatitude=30.27&toLongitude=120.16&toLatitude=30.28&mode=walking", token, http.StatusOK)
-	if !bytes.Contains(routeBody, []byte(`"distanceMeter":1500`)) || provider.routeReq.Mode != "walking" {
-		t.Fatalf("unexpected route response/request: body=%s req=%+v", string(routeBody), provider.routeReq)
-	}
+	// 地图路线属于二期，路由没有注册，不能被小程序入口访问。
+	getJSON(t, mux, "/api/app/map/route?fromLongitude=120.15&fromLatitude=30.27&toLongitude=120.16&toLatitude=30.28&mode=walking", token, http.StatusNotFound)
 
 	getJSON(t, mux, "/api/app/map/search?keyword=bad", token, http.StatusUnprocessableEntity)
 	getJSON(t, mux, "/api/app/map/reverse-geocode?longitude=bad&latitude=30.2741", token, http.StatusUnprocessableEntity)
@@ -10613,7 +11317,7 @@ func TestTencentMapProviderRateLimitHTTP(t *testing.T) {
 	}
 }
 
-func TestMapMyCityConfigFeedsAppHTTP(t *testing.T) {
+func TestMapMyCityConfigIsNotExposedInPhaseOneHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
@@ -10630,16 +11334,7 @@ func TestMapMyCityConfigFeedsAppHTTP(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "map-my-city-user")
 	completeIdentityForTest(t, mux, token)
 
-	body := getJSON(t, mux, "/api/app/map/my-city", token, http.StatusOK)
-	var resp struct {
-		Data mapMyCityConfigDTO `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp.Data.ProfileName != "测试城市档案" || resp.Data.JourneyDesc != "通过 2 个局，认识了 6 位朋友" || len(resp.Data.StoryGroups) == 0 || len(resp.Data.TagEmojis) == 0 {
-		t.Fatalf("unexpected my city config: %s", string(body))
-	}
+	getJSON(t, mux, "/api/app/map/my-city", token, http.StatusNotFound)
 }
 
 func TestMapIndexConfigFeedsAppHTTP(t *testing.T) {
@@ -10672,7 +11367,7 @@ func TestMapIndexConfigFeedsAppHTTP(t *testing.T) {
 	}
 }
 
-func TestMapPlayPagesConfigFeedsAppHTTP(t *testing.T) {
+func TestMapPlayPagesAreNotExposedInPhaseOneHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
@@ -10690,34 +11385,13 @@ func TestMapPlayPagesConfigFeedsAppHTTP(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "map-play-pages-user")
 	completeIdentityForTest(t, mux, token)
 
-	body := getJSON(t, mux, "/api/app/map/play-pages?pageKey=blind-route", token, http.StatusOK)
-	var resp struct {
-		Data struct {
-			Title        string                   `json:"title"`
-			Description  string                   `json:"description"`
-			SectionTitle string                   `json:"sectionTitle"`
-			Cards        []map[string]interface{} `json:"cards"`
-			RecentRoutes []map[string]interface{} `json:"recentRoutes"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp.Data.Title != "测试盲盒" || resp.Data.Description == "" || resp.Data.SectionTitle == "" || len(resp.Data.Cards) == 0 || len(resp.Data.RecentRoutes) == 0 {
-		t.Fatalf("unexpected map play page config: %s", string(body))
-	}
-
+	getJSON(t, mux, "/api/app/map/play-pages?pageKey=blind-route", token, http.StatusNotFound)
 	for _, pageKey := range []string{"city-atlas", "footprint-heatmap", "friend-city", "real-checkin"} {
-		pageBody := getJSON(t, mux, "/api/app/map/play-pages?pageKey="+pageKey, token, http.StatusOK)
-		if !bytes.Contains(pageBody, []byte(`"data"`)) {
-			t.Fatalf("expected map play page %s config: %s", pageKey, string(pageBody))
-		}
+		getJSON(t, mux, "/api/app/map/play-pages?pageKey="+pageKey, token, http.StatusNotFound)
 	}
-
-	getJSON(t, mux, "/api/app/map/play-pages?pageKey=missing", token, http.StatusNotFound)
 }
 
-func TestMapCheckinSubmit(t *testing.T) {
+func TestMapCheckinIsNotExposedInPhaseOne(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
@@ -10726,13 +11400,10 @@ func TestMapCheckinSubmit(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "map-checkin-user")
 	completeIdentityForTest(t, mux, token)
 
-	postJSON(t, mux, "/api/app/map/checkins", token, `{"pointId":"bund-night","story":"今天外滩夜色很好，适合留下城市足迹。","fileIds":[1]}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/map/checkins", token, `{"story":"缺少对象","fileIds":[1]}`, http.StatusUnprocessableEntity)
-	postJSON(t, mux, "/api/app/map/checkins", token, `{"pointId":"bund-night","story":"","fileIds":[1]}`, http.StatusUnprocessableEntity)
-	postJSON(t, mux, "/api/app/map/checkins", token, `{"pointId":"bund-night","story":"缺少照片","fileIds":[]}`, http.StatusUnprocessableEntity)
+	postJSON(t, mux, "/api/app/map/checkins", token, `{"pointId":"bund-night","story":"今天外滩夜色很好，适合留下城市足迹。","fileIds":[1]}`, http.StatusNotFound)
 }
 
-func TestMapPlayActionsHTTP(t *testing.T) {
+func TestMapPlayActionsAreNotExposedInPhaseOneHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	identityService := identity.NewService()
@@ -10741,35 +11412,8 @@ func TestMapPlayActionsHTTP(t *testing.T) {
 	token := loginForTestWithCode(t, mux, "map-play-actions-user")
 	completeIdentityForTest(t, mux, token)
 
-	routeBody := postJSON(t, mux, "/api/app/map/blind-routes", token, `{"cardId":"walk","title":"城市漫步盲盒"}`, http.StatusOK)
-	var routeResp struct {
-		Data struct {
-			ID     int64  `json:"id"`
-			Status string `json:"status"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(routeBody, &routeResp); err != nil {
-		t.Fatal(err)
-	}
-	if routeResp.Data.ID == 0 || routeResp.Data.Status != "opened" {
-		t.Fatalf("expected opened blind route: %s", string(routeBody))
-	}
-	postJSON(t, mux, "/api/app/map/blind-routes/"+strconv.FormatInt(routeResp.Data.ID, 10)+"/complete", token, `{}`, http.StatusOK)
-	postJSON(t, mux, "/api/app/map/blind-routes", token, `{"cardId":"","title":""}`, http.StatusUnprocessableEntity)
-
-	challengeBody := postJSON(t, mux, "/api/app/map/challenges", token, `{"title":"城市挑战","total":3}`, http.StatusOK)
-	var challengeResp struct {
-		Data struct {
-			ID         int64  `json:"id"`
-			StatusText string `json:"statusText"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(challengeBody, &challengeResp); err != nil {
-		t.Fatal(err)
-	}
-	if challengeResp.Data.ID == 0 || challengeResp.Data.StatusText != "进行中" {
-		t.Fatalf("expected challenge: %s", string(challengeBody))
-	}
+	postJSON(t, mux, "/api/app/map/blind-routes", token, `{"cardId":"walk","title":"城市漫步盲盒"}`, http.StatusNotFound)
+	postJSON(t, mux, "/api/app/map/challenges", token, `{"title":"城市挑战","total":3}`, http.StatusNotFound)
 }
 
 func TestMapProxyRequiresConfiguredProvider(t *testing.T) {
@@ -10824,7 +11468,6 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 	}
 
 	createReq := httptest.NewRequest(http.MethodPost, "/api/admin/reports/export", bytes.NewBufferString(`{"templateCode":"reports_default","filters":{"status":"pending"}}`))
-	createReq.Header.Set("X-Admin-ID", "88")
 	createReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	createRec := httptest.NewRecorder()
 	mux.ServeHTTP(createRec, createReq)
@@ -10845,7 +11488,6 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 	}
 
 	runnerReq := httptest.NewRequest(http.MethodPost, "/api/internal/reports/export-runner", bytes.NewBufferString(`{}`))
-	runnerReq.Header.Set("X-Admin-ID", "88")
 	runnerReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	runnerRec := httptest.NewRecorder()
 	mux.ServeHTTP(runnerRec, runnerReq)
@@ -10871,7 +11513,7 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 		t.Fatalf("expected generated export file: %s", runnerRec.Body.String())
 	}
 
-	filteredTasksReq := httptest.NewRequest(http.MethodGet, "/api/admin/export-tasks?status=done&templateCode=reports_default&exportType=reports&createdBy=88", nil)
+	filteredTasksReq := httptest.NewRequest(http.MethodGet, "/api/admin/export-tasks?status=done&templateCode=reports_default&exportType=reports&createdBy=1", nil)
 	filteredTasksReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	filteredTasksRec := httptest.NewRecorder()
 	mux.ServeHTTP(filteredTasksRec, filteredTasksReq)
@@ -10893,12 +11535,11 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 	if err := json.Unmarshal(filteredTasksRec.Body.Bytes(), &filteredTasksResp); err != nil {
 		t.Fatal(err)
 	}
-	if filteredTasksResp.Data.Total != 1 || len(filteredTasksResp.Data.Items) != 1 || filteredTasksResp.Data.Items[0].CreatedBy != 88 {
+	if filteredTasksResp.Data.Total != 1 || len(filteredTasksResp.Data.Items) != 1 || filteredTasksResp.Data.Items[0].CreatedBy != 1 {
 		t.Fatalf("expected filtered export task by status/template/type/createdBy: %s", filteredTasksRec.Body.String())
 	}
 
 	downloadReq := httptest.NewRequest(http.MethodGet, "/api/admin/export-tasks/1/download-url", nil)
-	downloadReq.Header.Set("X-Admin-ID", "88")
 	downloadReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	downloadRec := httptest.NewRecorder()
 	mux.ServeHTTP(downloadRec, downloadReq)
@@ -10918,7 +11559,6 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 		t.Fatalf("expected export download url: %s", downloadRec.Body.String())
 	}
 	downloadContentReq := httptest.NewRequest(http.MethodGet, "/api/admin/export-tasks/1/download", nil)
-	downloadContentReq.Header.Set("X-Admin-ID", "88")
 	downloadContentReq.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	downloadContentRec := httptest.NewRecorder()
 	mux.ServeHTTP(downloadContentRec, downloadContentReq)
@@ -11037,13 +11677,13 @@ func TestExportTaskFlowRequiresPermissionAndGeneratesDownloadURL(t *testing.T) {
 	if err := json.Unmarshal(logRec.Body.Bytes(), &logResp); err != nil {
 		t.Fatal(err)
 	}
-	if !hasOperationLog(logResp.Data.Items, "export:create", "export_task", "1", 88) {
+	if !hasOperationLog(logResp.Data.Items, "export:create", "export_task", "1", 1) {
 		t.Fatalf("expected export create operation log: %s", logRec.Body.String())
 	}
-	if !hasOperationLog(logResp.Data.Items, "export:run", "export_task", "1", 88) {
+	if !hasOperationLog(logResp.Data.Items, "export:run", "export_task", "1", 1) {
 		t.Fatalf("expected export run operation log: %s", logRec.Body.String())
 	}
-	if !hasOperationLog(logResp.Data.Items, "export:download_url", "export_task", "1", 88) {
+	if !hasOperationLog(logResp.Data.Items, "export:download_url", "export_task", "1", 1) {
 		t.Fatalf("expected export download operation log: %s", logRec.Body.String())
 	}
 }
@@ -11117,10 +11757,10 @@ func TestAdminLoginPermissionsAndTokenPermission(t *testing.T) {
 	if err := json.Unmarshal(operatorBody, &operatorResp); err != nil {
 		t.Fatal(err)
 	}
-	if !hasMenuCode(operatorResp.Data.Menus, "games") || !hasMenuCode(operatorResp.Data.Menus, "reports") || !hasMenuCode(operatorResp.Data.Menus, "system") || !hasMenuCode(operatorResp.Data.Menus, "delivery") || !hasMenuCode(operatorResp.Data.Menus, "logs") {
-		t.Fatalf("expected operator menus for games/reports/system/delivery/logs: %s", string(operatorBody))
+	if !hasMenuCode(operatorResp.Data.Menus, "dashboard") || !hasMenuCode(operatorResp.Data.Menus, "games") || !hasMenuCode(operatorResp.Data.Menus, "reports") || !hasMenuCode(operatorResp.Data.Menus, "system") || !hasMenuCode(operatorResp.Data.Menus, "delivery") || !hasMenuCode(operatorResp.Data.Menus, "logs") {
+		t.Fatalf("expected operator menus for dashboard/games/reports/system/delivery/logs: %s", string(operatorBody))
 	}
-	for _, forbidden := range []string{"dashboard", "admins", "revenue"} {
+	for _, forbidden := range []string{"admins", "revenue"} {
 		if hasMenuCode(operatorResp.Data.Menus, forbidden) {
 			t.Fatalf("operator must not see menu %s: %s", forbidden, string(operatorBody))
 		}
@@ -11342,6 +11982,69 @@ func TestAdminAccountMutationUpdatesRBAC(t *testing.T) {
 	postJSON(t, mux, "/api/admin/auth/login", "", `{"username":"finance_ops","password":"admin123"}`, http.StatusForbidden)
 }
 
+func TestAdminApplicationReviewStateMachineHTTP(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+
+	submitBody := postJSON(t, mux, "/api/admin/auth/applications", "", `{"name":"财务申请人","contact":"finance@example.com","desiredRole":"finance_manager","reason":"负责结算"}`, http.StatusOK)
+	var submitResp struct {
+		Data struct {
+			ID     int64  `json:"id"`
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(submitBody, &submitResp); err != nil {
+		t.Fatal(err)
+	}
+	if submitResp.Data.ID == 0 || submitResp.Data.Status != "pending" {
+		t.Fatalf("expected persisted pending application: %s", string(submitBody))
+	}
+
+	operatorToken := adminLoginForTestAs(t, mux, "operator", "admin123")
+	reviewPath := "/api/admin/admin-applications/" + strconv.FormatInt(submitResp.Data.ID, 10) + "/review"
+	postAdminJSON(t, mux, reviewPath, operatorToken, `{"action":"reject","remark":"无权限"}`, http.StatusForbidden)
+
+	adminToken := adminLoginForTest(t, mux)
+	reviewBody := postAdminJSON(t, mux, reviewPath, adminToken, `{"action":"approve","remark":"资料核验通过","username":"finance_from_apply","password":"admin123"}`, http.StatusOK)
+	var reviewResp struct {
+		Data struct {
+			Status              string `json:"status"`
+			ReviewRemark        string `json:"reviewRemark"`
+			ReviewedBy          int64  `json:"reviewedBy"`
+			ReviewedAt          string `json:"reviewedAt"`
+			LinkedAdminUserID   int64  `json:"linkedAdminUserId"`
+			LinkedAdminUsername string `json:"linkedAdminUsername"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(reviewBody, &reviewResp); err != nil {
+		t.Fatal(err)
+	}
+	if reviewResp.Data.Status != "approved" || reviewResp.Data.ReviewRemark != "资料核验通过" || reviewResp.Data.ReviewedBy != 1 || reviewResp.Data.ReviewedAt == "" || reviewResp.Data.LinkedAdminUserID == 0 || reviewResp.Data.LinkedAdminUsername != "finance_from_apply" {
+		t.Fatalf("expected complete approval payload: %s", string(reviewBody))
+	}
+	adminLoginForTestAs(t, mux, "finance_from_apply", "admin123")
+	postAdminJSON(t, mux, reviewPath, adminToken, `{"action":"close","remark":"重复处理"}`, http.StatusConflict)
+
+	rejectSubmitBody := postJSON(t, mux, "/api/admin/auth/applications", "", `{"name":"客服申请人","contact":"customer@example.com","desiredRole":"customer_manager"}`, http.StatusOK)
+	if err := json.Unmarshal(rejectSubmitBody, &submitResp); err != nil {
+		t.Fatal(err)
+	}
+	rejectPath := "/api/admin/admin-applications/" + strconv.FormatInt(submitResp.Data.ID, 10) + "/review"
+	postAdminJSON(t, mux, rejectPath, adminToken, `{"action":"reject"}`, http.StatusUnprocessableEntity)
+	postAdminJSON(t, mux, rejectPath, adminToken, `{"action":"reject","remark":"申请材料不完整"}`, http.StatusOK)
+
+	listBody := getAdminJSON(t, mux, "/api/admin/admin-applications", adminToken, http.StatusOK)
+	if !strings.Contains(string(listBody), `"status":"approved"`) || !strings.Contains(string(listBody), `"status":"rejected"`) {
+		t.Fatalf("expected reviewed statuses in list: %s", string(listBody))
+	}
+	logBody := getAdminJSON(t, mux, "/api/admin/operation-logs", adminToken, http.StatusOK)
+	if !strings.Contains(string(logBody), `"action":"admin_application:approve"`) || !strings.Contains(string(logBody), `"action":"admin_application:reject"`) {
+		t.Fatalf("expected application review operation logs: %s", string(logBody))
+	}
+}
+
 func TestAdminRolePermissionBoundariesHTTP(t *testing.T) {
 	mux := http.NewServeMux()
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
@@ -11404,6 +12107,9 @@ func loginForTestWithCodeAndInvite(t *testing.T, mux *http.ServeMux, code string
 		Data struct {
 			Token        string `json:"token"`
 			PreAuthToken string `json:"preAuthToken"`
+			User         struct {
+				ID int64 `json:"id"`
+			} `json:"user"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &login); err != nil {
@@ -11415,7 +12121,28 @@ func loginForTestWithCodeAndInvite(t *testing.T, mux *http.ServeMux, code string
 	if login.Data.PreAuthToken == "" {
 		t.Fatalf("expected login token: %s", rec.Body.String())
 	}
-	return login.Data.PreAuthToken
+	return upgradePreAuthForTest(t, mux, code, login.Data.User.ID, login.Data.PreAuthToken)
+}
+
+func upgradePreAuthForTest(t *testing.T, mux *http.ServeMux, code string, userID int64, preAuthToken string) string {
+	t.Helper()
+	phone := fmt.Sprintf("137%08d", userID%100000000)
+	postJSON(t, mux, "/api/app/identity/phone/bind", preAuthToken, `{"phone":"`+phone+`"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/send-code", preAuthToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/verify-code", preAuthToken, `{"code":"000000"}`, http.StatusOK)
+	body := postJSON(t, mux, "/api/app/auth/wechat-login", "", `{"code":"`+code+`"}`, http.StatusOK)
+	var login struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &login); err != nil {
+		t.Fatal(err)
+	}
+	if login.Data.Token == "" {
+		t.Fatalf("expected formal app token after verified phone binding: %s", string(body))
+	}
+	return login.Data.Token
 }
 
 func adminLoginForTest(t *testing.T, mux *http.ServeMux) string {
@@ -11461,6 +12188,10 @@ func getAdminJSON(t *testing.T, mux *http.ServeMux, path string, adminToken stri
 }
 
 func completeIdentityForTest(t *testing.T, mux *http.ServeMux, token string) {
+	completeIdentityForTestWithCallbackSecret(t, mux, token, "")
+}
+
+func completeIdentityForTestWithCallbackSecret(t *testing.T, mux *http.ServeMux, token string, callbackSecret string) {
 	t.Helper()
 	identityPhoneSeq++
 	phone := fmt.Sprintf("138%08d", identityPhoneSeq)
@@ -11490,7 +12221,19 @@ func completeIdentityForTest(t *testing.T, mux *http.ServeMux, token string) {
 	if err := json.Unmarshal(faceResp, &face); err != nil {
 		t.Fatal(err)
 	}
-	postJSON(t, mux, "/api/app/identity/faceid/callback", token, `{"faceToken":"`+face.Data.FaceToken+`"}`, http.StatusOK)
+	payload := []byte(`{"faceToken":"` + face.Data.FaceToken + `"}`)
+	if callbackSecret == "" {
+		postJSON(t, mux, "/api/app/identity/faceid/callback", token, string(payload), http.StatusOK)
+		return
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/app/identity/faceid/callback", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-FaceID-Signature", "sha256="+faceIDCallbackTestSignature(callbackSecret, payload))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("signed faceid callback expected %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+	}
 }
 
 func approveExtraMembersForHTTP(t *testing.T, mux *http.ServeMux, creatorToken string, gameID int64, prefix string, count int) []string {
@@ -11553,6 +12296,8 @@ func currentUserIDForTest(t *testing.T, mux *http.ServeMux, token string) int64 
 
 func postJSON(t *testing.T, mux *http.ServeMux, path string, token string, body string, expected int) []byte {
 	t.Helper()
+	body = completeGameCreateBodyForTest(path, body, expected)
+	body = completeApplicationBodyForTest(path, body, expected)
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -11565,6 +12310,8 @@ func postJSON(t *testing.T, mux *http.ServeMux, path string, token string, body 
 
 func postJSONWithIdempotencyKey(t *testing.T, mux *http.ServeMux, path string, token string, key string, body string, expected int) []byte {
 	t.Helper()
+	body = completeGameCreateBodyForTest(path, body, expected)
+	body = completeApplicationBodyForTest(path, body, expected)
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Idempotency-Key", key)
@@ -11576,8 +12323,145 @@ func postJSONWithIdempotencyKey(t *testing.T, mux *http.ServeMux, path string, t
 	return rec.Body.Bytes()
 }
 
+// The production default requires the application agreement. Existing
+// lifecycle fixtures focus on later review states, so they inherit that
+// default unless a test intentionally asserts agreement validation.
+func completeApplicationBodyForTest(path string, body string, expected int) string {
+	if !strings.HasPrefix(path, "/api/app/games/") || !strings.HasSuffix(path, "/applications") || expected != http.StatusOK && expected != http.StatusForbidden {
+		return body
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
+		return body
+	}
+	if _, ok := payload["agreed"]; !ok {
+		payload["agreed"] = true
+	}
+	if reason, _ := payload["reason"].(string); len([]rune(strings.TrimSpace(reason))) < 5 {
+		payload["reason"] = "测试报名自我介绍"
+	}
+	completed, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return string(completed)
+}
+
+// Most integration tests exercise later game lifecycle steps and intentionally
+// keep their create payloads short. Keep those fixtures valid now that the
+// app creation boundary requires the same mandatory overview and signup
+// fields as the real mini-program form. Tests that assert a validation error
+// are left untouched.
+func completeGameCreateBodyForTest(path string, body string, expected int) string {
+	if path != "/api/app/games" || expected != http.StatusOK {
+		return body
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
+		return body
+	}
+	if _, ok := payload["introduction"]; !ok {
+		payload["introduction"] = "测试局介绍"
+	}
+	if _, ok := payload["highlights"]; !ok {
+		payload["highlights"] = "测试亮点"
+	}
+	if _, ok := payload["description"]; !ok {
+		payload["description"] = "测试局描述"
+	}
+	if _, hasCoverImage := payload["coverImage"]; !hasCoverImage {
+		if _, hasCoverFileID := payload["coverFileId"]; !hasCoverFileID {
+			payload["coverImage"] = "mock://game-cover.jpg"
+		}
+	}
+	if _, ok := payload["cityCode"]; !ok {
+		payload["cityCode"] = "330100"
+	}
+	if _, ok := payload["cityName"]; !ok {
+		payload["cityName"] = "杭州"
+	}
+	if _, ok := payload["address"]; !ok {
+		payload["address"] = "杭州市西湖区测试地点"
+	}
+	if _, ok := payload["longitude"]; !ok {
+		payload["longitude"] = 120.15
+	}
+	if _, ok := payload["latitude"]; !ok {
+		payload["latitude"] = 30.27
+	}
+	startAt, _ := payload["startAt"].(string)
+	if start, ok := parseAppGameTimeForTest(startAt); ok {
+		_, hasSignupStart := payload["signupStartAt"]
+		_, hasSignupEnd := payload["signupEndAt"]
+		if hasSignupStart || hasSignupEnd {
+			completed, err := json.Marshal(payload)
+			if err != nil {
+				return body
+			}
+			return string(completed)
+		}
+		location := time.FixedZone("Asia/Shanghai", 8*60*60)
+		now := time.Now().In(location)
+		// Lifecycle tests must remain valid regardless of the calendar date.
+		// Retain explicitly supplied future game times, but make the signup
+		// interval active while the test is running. Historical fixtures are
+		// shifted forward together with their end time.
+		if !start.After(now.Add(time.Hour)) {
+			start = now.Add(48 * time.Hour).Truncate(time.Minute)
+			payload["startAt"] = start.Format("2006-01-02 15:04")
+			payload["endAt"] = start.Add(2 * time.Hour).Format("2006-01-02 15:04")
+		}
+		if _, exists := payload["signupStartAt"]; !exists {
+			payload["signupStartAt"] = now.Add(-time.Hour).Format("2006-01-02 15:04")
+		}
+		if _, exists := payload["signupEndAt"]; !exists {
+			payload["signupEndAt"] = start.Add(-time.Hour).Format("2006-01-02 15:04")
+		}
+	}
+	completed, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return string(completed)
+}
+
+func completeAdminGameCreateBodyForTest(path string, body string, expected int) string {
+	if !strings.HasPrefix(path, "/api/admin/games") || path != "/api/admin/games" && path != "/api/admin/games/" || expected != http.StatusOK {
+		return body
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
+		return body
+	}
+	if _, ok := payload["address"]; !ok {
+		payload["address"] = "杭州市西湖区后台测试地点"
+	}
+	if _, ok := payload["longitude"]; !ok {
+		payload["longitude"] = 120.15
+	}
+	if _, ok := payload["latitude"]; !ok {
+		payload["latitude"] = 30.27
+	}
+	completed, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return string(completed)
+}
+
+func parseAppGameTimeForTest(value string) (time.Time, bool) {
+	for _, layout := range []string{"2006-01-02 15:04", time.RFC3339} {
+		parsed, err := time.ParseInLocation(layout, value, time.FixedZone("Asia/Shanghai", 8*60*60))
+		if err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
+}
+
 func postAdminJSON(t *testing.T, mux *http.ServeMux, path string, adminToken string, body string, expected int) []byte {
 	t.Helper()
+	body = completeAdminGameCreateBodyForTest(path, body, expected)
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	rec := httptest.NewRecorder()
@@ -11590,6 +12474,7 @@ func postAdminJSON(t *testing.T, mux *http.ServeMux, path string, adminToken str
 
 func postAdminJSONWithPermission(t *testing.T, mux *http.ServeMux, path string, permission string, body string, expected int) []byte {
 	t.Helper()
+	body = completeAdminGameCreateBodyForTest(path, body, expected)
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 	req.Header.Set("Authorization", "Bearer "+adminLoginForTest(t, mux))
 	rec := httptest.NewRecorder()

@@ -28,6 +28,20 @@ func TestHomeGameCategoryTextUsesPrimaryCategory(t *testing.T) {
 	}
 }
 
+func TestMyGamesCategoryTabsKeepCreatedManagementSeparate(t *testing.T) {
+	tabs := normalizeMyGamesCategoryTabs([]interface{}{
+		map[string]interface{}{"key": "joined", "text": "我参与的"},
+		map[string]interface{}{"key": "created", "text": "我受邀的"},
+	})
+	got := map[string]string{}
+	for _, tab := range tabs {
+		got[tab["key"].(string)] = tab["text"].(string)
+	}
+	if len(tabs) != 4 || got["joined"] == "" || got["created"] != "我发起/管理的" || got["invited"] == "" || got["favorite"] == "" {
+		t.Fatalf("expected independent category tabs, got %+v", tabs)
+	}
+}
+
 func TestCollaborationProgressForCanceledGameIsTerminal(t *testing.T) {
 	progress := collaborationProgress(games.Game{Status: "canceled"})
 	if progress["percent"] != 0 || progress["title"] != "组局已取消" {

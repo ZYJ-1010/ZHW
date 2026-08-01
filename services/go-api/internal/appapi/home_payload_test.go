@@ -17,7 +17,7 @@ func TestHomeRoleNetworkAlwaysReturnsConfiguredItems(t *testing.T) {
 		identity.NewService(),
 	)
 
-	network := server.homeRoleNetwork(10003, nil, 0, 0)
+	network := server.homeRoleNetwork(10003, nil)
 	items, ok := network["items"].([]map[string]interface{})
 	if !ok || len(items) < 2 {
 		t.Fatalf("expected guide industry fallback and all-items entry, got %#v", network["items"])

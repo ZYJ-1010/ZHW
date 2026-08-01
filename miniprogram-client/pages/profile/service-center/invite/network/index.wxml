@@ -44,9 +44,6 @@
         <view class="network-stat stat-served">
           <text>{{summary[0].label}}</text><text class="stat-cyan"> {{summary[0].value}}</text>
         </view>
-        <view class="network-stat stat-income">
-          <text>{{summary[1].label}}</text><text class="stat-cyan"> {{summary[1].value}}</text>
-        </view>
       </view>
       <view class="invite-member-summary">
         <view class="avatar-stack">
@@ -60,7 +57,6 @@
       </view>
       <view class="network-actions">
         <text class="primary-btn" bindtap="handleManageTap">管理我的邀约</text>
-        <text class="secondary-btn" bindtap="handleIncomeTap">查看分润</text>
       </view>
     </view>
 
@@ -74,10 +70,6 @@
           <text class="pill">一级成员</text>
         </view>
         <text class="member-desc">{{item.desc}}</text>
-      </view>
-      <view class="member-income">
-          <text>{{item.direct}}</text>
-          <text class="team-label">{{item.team}}</text>
       </view>
         <text class="arrow">›</text>
       </view>

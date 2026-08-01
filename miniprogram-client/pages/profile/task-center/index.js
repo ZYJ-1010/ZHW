@@ -15,13 +15,26 @@ function completedOf(item = {}) {
 
 function rewardOf(item = {}) {
   if (item.rewardText) return String(item.rewardText)
+  const rewardParts = []
+  const rewardExperience = Number(item.rewardExperience)
+  const rewardPoints = Number(item.rewardPoints)
+
+  if (Number.isFinite(rewardExperience) && rewardExperience > 0) {
+    rewardParts.push(`+${rewardExperience} 经验值`)
+  }
+  if (Number.isFinite(rewardPoints) && rewardPoints > 0) {
+    rewardParts.push(`+${rewardPoints} 积分`)
+  }
+  if (rewardParts.length) return rewardParts.join(' · ')
+
   const value = item.reward || item.points || item.experience || item.xp
   if (value == null || value === '') return ''
   return /^[-+]?\d+(\.\d+)?$/.test(String(value)) ? `+${value} 经验值` : String(value)
 }
 
-function normalizeTask(item = {}, index = 0) {
+function normalizeTask(item = {}, index = 0, highlightedCode = '') {
   const completed = completedOf(item)
+  const isGuideTask = !completed && String(item.code || item.taskCode || item.id || '') === String(highlightedCode || '')
   return {
     ...item,
     id: item.id || item.code || `task-${index + 1}`,
@@ -29,8 +42,9 @@ function normalizeTask(item = {}, index = 0) {
     title: item.title || item.name || '平台任务',
     rewardText: rewardOf(item),
     completed,
+    guideTask: isGuideTask,
     statusText: item.statusText || (completed ? '已完成' : '去完成'),
-    itemClass: completed ? 'is-completed' : '',
+    itemClass: `${completed ? 'is-completed' : ''} ${isGuideTask ? 'is-guide-task' : ''}`.trim(),
     statusClass: completed ? 'completed' : 'pending'
   }
 }
@@ -84,14 +98,15 @@ Page({
     try {
       const data = await newbieService.getNewbieTasks()
       const sourceCategories = Array.isArray(data.categories) ? data.categories : []
+      const guideTaskCode = String((data.guide || {}).currentTaskCode || '')
       const newbieItems = sourceCategories.length
         ? ((sourceCategories.find((item) => item.key === 'newbie') || {}).items || [])
         : (data.items || data.tasks || data.list || [])
       const categories = {}
       sourceCategories.forEach((category) => {
-        categories[category.key] = (category.items || []).map(normalizeTask)
+        categories[category.key] = (category.items || []).map((item, index) => normalizeTask(item, index, category.key === 'newbie' ? guideTaskCode : ''))
       })
-      categories.newbie = (categories.newbie || newbieItems.map(normalizeTask))
+      categories.newbie = (categories.newbie || newbieItems.map((item, index) => normalizeTask(item, index, guideTaskCode)))
       categories.daily = categories.daily || []
       categories.activity = categories.activity || []
       const tasks = categories.newbie

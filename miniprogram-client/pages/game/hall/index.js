@@ -4,14 +4,15 @@ const locationService = require('../../../services/location')
 const locationAccess = require('../../../utils/location-access')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const HALL_SCROLL_TAP_STEP_RPX = 360
-const DEFAULT_EVENT_ACTIONS = ['分享', '关注', '引荐', '打招呼']
+const DEFAULT_EVENT_ACTIONS = ['分享', '关注', '打招呼']
 const HALL_SCROLL_HOLD_STEP_RPX = 72
 const HALL_SCROLL_HOLD_INTERVAL_MS = 80
 const HALL_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 const TYPE_FILTERS = [
-  { key: 'all', label: '类型' }
+  { key: 'all', label: '全部' }
 ]
 const ADVANCED_LOCATION_OPTIONS = [
   { key: 'all', name: '全国' }
@@ -133,17 +134,7 @@ function normalizeLocationOptions(data = {}) {
 }
 
 function gameTypeLabel(type = '') {
-  const map = {
-    free: '免费局',
-    standard: '普通局',
-    public_welfare: '公益局',
-    aa: 'AA局',
-    crowdfund: '众筹局',
-    deposit: '押金局',
-    condition: '条件局'
-  }
-
-  return map[type] || type || '组局'
+  return '免费局'
 }
 
 function formatHallDate(value) {
@@ -181,8 +172,13 @@ function normalizePlayerAvatars(game = {}) {
 function normalizeEventActions(data = {}) {
   const actions = Array.isArray(data.eventActions) ? data.eventActions.filter(Boolean) : []
 
-  // 局前大厅的四个卡片操作属于一期固定交互；配置接口短暂失败时仍须可见。
-  return actions.length ? actions : DEFAULT_EVENT_ACTIONS
+  const shareComponent = data.shareComponent || {}
+  const shareEnabled = shareComponent.enabled !== false
+  const shareLabel = shareComponent.label || '分享'
+  const normalized = actions.filter((item) => !['引荐', '邀请（站内）', '站内邀请'].includes(String(item || '').trim()))
+    .filter((item) => shareEnabled || String(item || '').trim() !== shareLabel)
+  if (shareEnabled && !normalized.includes(shareLabel)) normalized.unshift(shareLabel)
+  return normalized.length ? normalized : (shareEnabled ? ['分享', '关注', '打招呼'] : ['关注', '打招呼'])
 }
 
 function normalizeSortOptions(data = {}) {
@@ -196,7 +192,7 @@ function normalizeSortOptions(data = {}) {
   })).filter((item) => item.key && item.name && item.key !== 'comprehensive' && item.sortKey)
 }
 
-function normalizeHallGame(game = {}, eventActions = []) {
+function normalizeHallGame(game = {}, eventActions = [], shareComponent = {}) {
   const currentPlayers = Number(game.currentPlayers || 0)
   const maxPlayers = Number(game.maxPlayers || 8)
   const gameType = String(game.gameType || game.type || 'free')
@@ -220,7 +216,7 @@ function normalizeHallGame(game = {}, eventActions = []) {
     creditScore: 0,
     coverSrc: game.coverImage || game.coverUrl || game.coverSrc || 'https://static.haowan.net.cn/miniprogram/components/game-card/assets/game-cover-default.png',
     tag: game.primaryCategoryText || game.secondaryCategoryText || typeText,
-    price: gameType === 'free' ? '0元/人' : '',
+    price: '',
     title: game.title || '未命名组局',
     official: Boolean(game.official || game.isOfficial || game.featured || game.isFeatured),
     location: locationParts.join(' · '),
@@ -230,11 +226,13 @@ function normalizeHallGame(game = {}, eventActions = []) {
       : (currentPlayers >= maxPlayers || game.status === 'full' ? '已满员' : '招募中'),
     joinedText: `${currentPlayers}位玩家已入局`,
     playerAvatars: normalizePlayerAvatars(game),
-    actions: eventActions
+    actions: eventActions,
+    shareActionLabel: shareComponent.label || '分享',
+    shareComponentVariant: shareComponent.variant === 'icon_button' ? 'icon_button' : 'channel_sheet'
   }
 }
 
-function normalizeHallGames(data = {}, eventActions = []) {
+function normalizeHallGames(data = {}, eventActions = [], shareComponent = {}) {
   const source = Array.isArray(data.items)
     ? data.items
     : Array.isArray(data.games)
@@ -243,7 +241,7 @@ function normalizeHallGames(data = {}, eventActions = []) {
         ? data
         : []
 
-  return source.map((item) => normalizeHallGame(item, eventActions)).filter((item) => item.id)
+  return source.map((item) => normalizeHallGame(item, eventActions, shareComponent)).filter((item) => item.id)
 }
 
 function getSortOptionByState(sortKey, sortOrder, sortOptions = SORT_OPTIONS) {
@@ -463,6 +461,7 @@ Page({
     activeFilter: 'all',
     activeTypeFilter: 'all',
     eventActions: DEFAULT_EVENT_ACTIONS,
+    shareComponent: { enabled: true, variant: 'channel_sheet', label: '分享' },
     activeLocationScope: 'all',
     nearbyRadiusMeters: 1000,
     locationGuideVisible: false,
@@ -506,6 +505,11 @@ Page({
       const locationOptions = normalizeLocationOptions(data)
       const sortOptions = normalizeSortOptions(data)
       const eventActions = normalizeEventActions(data)
+      const shareComponent = {
+        enabled: data.shareComponent && data.shareComponent.enabled === false ? false : true,
+        variant: data.shareComponent && data.shareComponent.variant === 'icon_button' ? 'icon_button' : 'channel_sheet',
+        label: String(data.shareComponent && data.shareComponent.label || '分享').trim() || '分享'
+      }
       const nextData = {}
 
       if (categories) {
@@ -533,12 +537,15 @@ Page({
       if (eventActions.length) {
         nextData.eventActions = eventActions
       }
+      nextData.shareComponent = shareComponent
 
       if (Object.keys(nextData).length) {
         this.setData(nextData)
         this.setData({
           eventsList: (this.data.eventsList || []).map((item) => Object.assign({}, item, {
-            actions: eventActions.length ? eventActions : item.actions
+            actions: eventActions.length ? eventActions : item.actions,
+            shareActionLabel: shareComponent.label,
+            shareComponentVariant: shareComponent.variant
           }))
         })
         this.updateDisplayEvents({})
@@ -551,7 +558,7 @@ Page({
 
     try {
       const data = await gameService.getGameList()
-      const events = normalizeHallGames(data, this.data.eventActions)
+      const events = normalizeHallGames(data, this.data.eventActions, this.data.shareComponent)
 
       this.setData({
         loading: false,
@@ -635,7 +642,7 @@ Page({
         longitude: location.longitude,
         radiusMeters: this.data.nearbyRadiusMeters
       })
-      const events = normalizeHallGames(data, this.data.eventActions)
+      const events = normalizeHallGames(data, this.data.eventActions, this.data.shareComponent)
       this.setData({
         loading: false,
         locationGuideVisible: false,
@@ -646,7 +653,7 @@ Page({
       })
       this.updateDisplayEvents({})
     } catch (error) {
-      this.setData({ loading: false, locationStatusText: error.message || '附近局加载失败' })
+      this.setData({ loading: false, locationStatusText: toUserMessage(error && error.message, '附近局加载失败') })
       toast.info(error.message || '附近局加载失败')
     }
   },
@@ -663,7 +670,7 @@ Page({
       const fallback = await locationAccess.getFallbackLocation()
       if (fallback.cityCode) {
         const data = await gameService.getSameCityGames({ cityCode: fallback.cityCode })
-        const events = normalizeHallGames(data, this.data.eventActions)
+        const events = normalizeHallGames(data, this.data.eventActions, this.data.shareComponent)
         this.setData({ loading: false, locationGuideVisible: false, locationStatusText: `${fallback.cityName || '同城'}推荐`, eventsList: events, sortKey: 'time', sortOrder: 'desc' })
         this.updateDisplayEvents({})
         return
@@ -885,7 +892,7 @@ Page({
       return
     }
 
-    if (action === '分享') {
+    if (action === 'share' || action === this.data.shareComponent.label) {
       navigateShellRoute(`${ROUTES.gameShare}?id=${gameId}`, {
         currentRoute: ROUTES.gameHall,
         reuseExisting: false

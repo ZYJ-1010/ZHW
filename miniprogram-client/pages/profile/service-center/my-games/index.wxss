@@ -281,13 +281,13 @@ page {
   white-space: nowrap;
 }
 
-.service-row {
+.game-row {
   display: flex;
   align-items: center;
   margin-top: 28rpx;
 }
 
-.service-avatar {
+.game-avatar {
   flex: none;
   display: flex;
   align-items: center;
@@ -301,26 +301,26 @@ page {
   line-height: 42rpx;
 }
 
-.service-avatar.active {
+.game-avatar.active {
   background: linear-gradient(135deg, #60a5fa 0%, #1683f8 100%);
 }
 
-.service-avatar.complete {
+.game-avatar.complete {
   background: linear-gradient(135deg, #34d399 0%, #059669 100%);
 }
 
-.service-avatar.canceled,
-.service-avatar.overdue {
+.game-avatar.canceled,
+.game-avatar.overdue {
   background: #9ca3af;
 }
 
-.service-copy {
+.game-copy {
   flex: 1;
   min-width: 0;
   margin-left: 22rpx;
 }
 
-.service-title {
+.game-title {
   display: block;
   overflow: hidden;
   color: #1f2937;
@@ -331,11 +331,11 @@ page {
   white-space: nowrap;
 }
 
-.service-title.muted {
+.game-title.muted {
   color: #4b5563;
 }
 
-.service-line {
+.game-line {
   display: block;
   overflow: hidden;
   margin-top: 4rpx;
@@ -346,46 +346,7 @@ page {
   white-space: nowrap;
 }
 
-.amount-block {
-  flex: none;
-  display: flex;
-  align-items: flex-end;
-  flex-direction: column;
-  width: 112rpx;
-  margin-left: 14rpx;
-}
-
-.amount-text {
-  color: #f97316;
-  font-size: 28rpx;
-  font-weight: 700;
-  line-height: 38rpx;
-  white-space: nowrap;
-}
-
-.amount-text.complete {
-  color: #1f2937;
-}
-
-.amount-text.canceled,
-.amount-text.overdue {
-  color: #9ca3af;
-}
-
-.fund-status {
-  display: block;
-  margin-top: 4rpx;
-  color: #9ca3af;
-  font-size: 22rpx;
-  line-height: 30rpx;
-  white-space: nowrap;
-}
-
-.fund-status.complete {
-  color: #059669;
-}
-
-.delivery-row {
+.schedule-row {
   display: flex;
   align-items: center;
   min-height: 40rpx;
@@ -425,7 +386,7 @@ page {
   content: '';
 }
 
-.delivery-text {
+.schedule-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;

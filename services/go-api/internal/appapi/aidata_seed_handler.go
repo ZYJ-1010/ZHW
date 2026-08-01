@@ -30,7 +30,7 @@ type aiDataSeedResult struct {
 func (s *Server) adminAIDataAcceptanceFixture(w http.ResponseWriter, r *http.Request) {
 	result, err := s.seedAIDataAcceptanceFixture()
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "ai data acceptance fixture failed: "+err.Error())
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "生成 AI 数据验收样例失败")
 		return
 	}
 	s.recordOperation(r, "ai_data:seed_acceptance_fixture", "ai_data", "acceptance", map[string]interface{}{
@@ -45,7 +45,10 @@ func (s *Server) adminAIDataAcceptanceFixture(w http.ResponseWriter, r *http.Req
 
 func (s *Server) seedAIDataAcceptanceFixture() (aiDataSeedResult, error) {
 	result := aiDataSeedResult{}
-	snapshot := s.aiDataSnapshot()
+	snapshot, err := s.aiDataSnapshot()
+	if err != nil {
+		return result, err
+	}
 	if snapshot.AcceptanceReady {
 		result.AcceptanceSnapshot = snapshot
 		return result, nil
@@ -79,7 +82,10 @@ func (s *Server) seedAIDataAcceptanceFixture() (aiDataSeedResult, error) {
 		}
 	}
 
-	result.BehaviorLogsAdded = s.ensureAcceptanceBehaviorLogs(seedUsers, seedGames)
+	result.BehaviorLogsAdded, err = s.ensureAcceptanceBehaviorLogs(seedUsers, seedGames)
+	if err != nil {
+		return result, err
+	}
 	favoritesAdded, err := s.ensureAcceptanceFavorites(seedUsers, seedGames)
 	if err != nil {
 		return result, err
@@ -90,25 +96,63 @@ func (s *Server) seedAIDataAcceptanceFixture() (aiDataSeedResult, error) {
 		return result, err
 	}
 	result.ReviewsAdded = reviewsAdded
-	result.IMMessagesAdded = s.ensureAcceptanceIMMessages(seedUsers, seedGames[0].ID)
-	s.ensureAcceptanceProfiles(seedUsers)
+	result.IMMessagesAdded, err = s.ensureAcceptanceIMMessages(seedUsers, seedGames[0].ID)
+	if err != nil {
+		return result, err
+	}
+	if err := s.ensureAcceptanceProfiles(seedUsers); err != nil {
+		return result, err
+	}
 
-	result.AcceptanceSnapshot = s.aiDataSnapshot()
+	result.AcceptanceSnapshot, err = s.aiDataSnapshot()
+	if err != nil {
+		return result, err
+	}
 	return result, nil
 }
 
-func (s *Server) aiDataSnapshot() aidata.Snapshot {
+func (s *Server) aiDataSnapshot() (aidata.Snapshot, error) {
+	behaviorLogs, err := s.audit.BehaviorLogsStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取行为日志失败: %w", err)
+	}
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取组局数据失败: %w", err)
+	}
+	favorites, err := s.games.AllFavoritesStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取收藏数据失败: %w", err)
+	}
+	reviewItems, err := s.reviews.AllReviewsStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取评价数据失败: %w", err)
+	}
+	footprints, err := s.reviews.AllFootprintsStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取成长足迹失败: %w", err)
+	}
+	connectionItems, err := s.connections.AllStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取关系数据失败: %w", err)
+	}
+	expertSkills, err := s.profiles.AllExpertSkillsStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取行家技能失败: %w", err)
+	}
+	guideResources, err := s.profiles.AllGuideResourcesStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取领路人资源失败: %w", err)
+	}
+	imMessages, err := s.im.AllMessagesStrict()
+	if err != nil {
+		return aidata.Snapshot{}, fmt.Errorf("读取聊天数据失败: %w", err)
+	}
 	return s.aidata.Snapshot(aidata.SnapshotInput{
-		BehaviorLogs:   s.audit.BehaviorLogs(),
-		Games:          s.games.List(),
-		Favorites:      s.games.AllFavorites(),
-		Reviews:        s.reviews.AllReviews(),
-		Footprints:     s.reviews.AllFootprints(),
-		Connections:    s.connections.All(),
-		ExpertSkills:   s.profiles.AllExpertSkills(),
-		GuideResources: s.profiles.AllGuideResources(),
-		IMMessages:     s.im.AllMessages(),
-	})
+		BehaviorLogs: behaviorLogs, Games: gameItems, Favorites: favorites, Reviews: reviewItems,
+		Footprints: footprints, Connections: connectionItems, ExpertSkills: expertSkills,
+		GuideResources: guideResources, IMMessages: imMessages,
+	}), nil
 }
 
 func (s *Server) ensureSeedIdentity(userID int64) (bool, error) {
@@ -143,7 +187,10 @@ func (s *Server) ensureSeedIdentity(userID int64) (bool, error) {
 }
 
 func (s *Server) ensureAcceptanceGames(creatorUserID int64) ([]games.Game, int, error) {
-	seedGames := s.acceptanceGames()
+	seedGames, err := s.acceptanceGames()
+	if err != nil {
+		return nil, 0, err
+	}
 	created := 0
 	for len(seedGames) < 3 {
 		game, err := s.games.Create(creatorUserID, games.CreateRequest{
@@ -169,14 +216,18 @@ func (s *Server) ensureAcceptanceGames(creatorUserID int64) ([]games.Game, int, 
 	return seedGames[:3], created, nil
 }
 
-func (s *Server) acceptanceGames() []games.Game {
+func (s *Server) acceptanceGames() ([]games.Game, error) {
+	gamesList, err := s.games.ListStrict()
+	if err != nil {
+		return nil, err
+	}
 	items := make([]games.Game, 0, 3)
-	for _, item := range s.games.List() {
+	for _, item := range gamesList {
 		if strings.HasPrefix(item.Title, "E5 AI acceptance game ") {
 			items = append(items, item)
 		}
 	}
-	return items
+	return items, nil
 }
 
 func (s *Server) ensureAcceptanceGameReady(gameID int64, seedUsers []int64) error {
@@ -221,16 +272,24 @@ func (s *Server) ensureAcceptanceGameReady(gameID int64, seedUsers []int64) erro
 		}
 	}
 	if game.Status == "pending_review" {
-		s.reviews.MarkGameReviewable(gameID)
-		s.createCoGameConnections(gameID)
+		if err = s.reviews.MarkGameReviewableStrict(gameID); err != nil {
+			return err
+		}
+		if err = s.createCoGameConnections(gameID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (s *Server) ensureAcceptanceBehaviorLogs(seedUsers []int64, seedGames []games.Game) int {
+func (s *Server) ensureAcceptanceBehaviorLogs(seedUsers []int64, seedGames []games.Game) (int, error) {
 	added := 0
-	for len(s.audit.BehaviorLogs()) < 20 {
-		index := len(s.audit.BehaviorLogs()) + added
+	logs, err := s.audit.BehaviorLogsStrict()
+	if err != nil {
+		return 0, err
+	}
+	for len(logs)+added < 20 {
+		index := len(logs) + added
 		userID := seedUsers[index%len(seedUsers)]
 		game := seedGames[index%len(seedGames)]
 		s.audit.RecordBehavior(audit.BehaviorRequest{
@@ -244,21 +303,29 @@ func (s *Server) ensureAcceptanceBehaviorLogs(seedUsers []int64, seedGames []gam
 		})
 		added++
 	}
-	return added
+	return added, nil
 }
 
 func (s *Server) ensureAcceptanceFavorites(seedUsers []int64, seedGames []games.Game) (int, error) {
 	added := 0
 	for _, userID := range seedUsers {
 		for _, game := range seedGames {
-			if len(s.games.AllFavorites()) >= 5 {
+			favorites, err := s.games.AllFavoritesStrict()
+			if err != nil {
+				return added, err
+			}
+			if len(favorites) >= 5 {
 				return added, nil
 			}
-			before := len(s.games.AllFavorites())
+			before := len(favorites)
 			if _, err := s.games.FavoriteGame(userID, game.ID); err != nil {
 				return added, err
 			}
-			if len(s.games.AllFavorites()) > before {
+			favorites, err = s.games.AllFavoritesStrict()
+			if err != nil {
+				return added, err
+			}
+			if len(favorites) > before {
 				added++
 			}
 		}
@@ -277,10 +344,14 @@ func (s *Server) ensureAcceptanceReviews(seedUsers []int64, seedGames []games.Ga
 	}
 	for _, game := range seedGames {
 		for _, pair := range pairs {
-			if len(s.reviews.AllReviews()) >= 5 {
+			reviewItems, err := s.reviews.AllReviewsStrict()
+			if err != nil {
+				return added, err
+			}
+			if len(reviewItems) >= 5 {
 				return added, nil
 			}
-			_, _, err := s.reviews.Submit(pair[0], reviews.SubmitRequest{
+			_, _, err = s.reviews.Submit(pair[0], reviews.SubmitRequest{
 				GameID:       game.ID,
 				TargetUserID: pair[1],
 				TargetRole:   "member",
@@ -301,9 +372,13 @@ func (s *Server) ensureAcceptanceReviews(seedUsers []int64, seedGames []games.Ga
 	return added, nil
 }
 
-func (s *Server) ensureAcceptanceIMMessages(seedUsers []int64, gameID int64) int {
-	if len(s.im.AllMessages()) > 0 {
-		return 0
+func (s *Server) ensureAcceptanceIMMessages(seedUsers []int64, gameID int64) (int, error) {
+	messages, err := s.im.AllMessagesStrict()
+	if err != nil {
+		return 0, err
+	}
+	if len(messages) > 0 {
+		return 0, nil
 	}
 	added := 0
 	for _, userID := range seedUsers {
@@ -311,20 +386,29 @@ func (s *Server) ensureAcceptanceIMMessages(seedUsers []int64, gameID int64) int
 			added++
 		}
 	}
-	return added
+	return added, nil
 }
 
-func (s *Server) ensureAcceptanceProfiles(seedUsers []int64) {
-	s.profiles.GrantRole(seedUsers[0], "expert")
-	_, _ = s.profiles.UpdateExpertSkill(seedUsers[0], profiles.ExpertSkillRequest{
+func (s *Server) ensureAcceptanceProfiles(seedUsers []int64) error {
+	if err := s.profiles.GrantRoleStrict(seedUsers[0], "expert"); err != nil {
+		return err
+	}
+	if _, err := s.profiles.UpdateExpertSkill(seedUsers[0], profiles.ExpertSkillRequest{
 		SkillTree:   []string{"boardgame"},
 		ServiceTags: []string{"host"},
-	})
-	s.profiles.GrantRole(seedUsers[1], "guide")
-	_, _ = s.profiles.UpdateGuideResource(seedUsers[1], profiles.GuideResourceRequest{
+	}); err != nil {
+		return err
+	}
+	if err := s.profiles.GrantRoleStrict(seedUsers[1], "guide"); err != nil {
+		return err
+	}
+	if _, err := s.profiles.UpdateGuideResource(seedUsers[1], profiles.GuideResourceRequest{
 		ResourceTags:    []string{"venue"},
 		IndustryTags:    []string{"entertainment"},
 		CityCodes:       []string{"110100"},
 		ConnectionScale: "100-500",
-	})
+	}); err != nil {
+		return err
+	}
+	return nil
 }

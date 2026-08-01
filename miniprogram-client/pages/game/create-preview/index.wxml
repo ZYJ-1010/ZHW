@@ -18,7 +18,6 @@
           <view class="event-meta-row">
             <view class="event-meta-list">
               <view class="event-meta-item"><text>{{preview.type}}</text></view>
-              <view class="event-meta-item"><text>{{preview.fee}}</text></view>
             </view>
           </view>
           <view class="stats-row preview-stats-row">
@@ -29,6 +28,13 @@
 
         <view wx:if="{{preview.tags.length}}" class="tag-row">
           <view wx:for="{{preview.tags}}" wx:key="*this" class="tag-pill blue">{{item}}</view>
+        </view>
+
+        <view wx:if="{{preview.allowedRoleLabels.length}}" class="role-access-card">
+          <text class="role-access-label">本局开放身份</text>
+          <view class="role-access-list">
+            <text wx:for="{{preview.allowedRoleLabels}}" wx:key="*this" class="role-access-pill">{{item}}</text>
+          </view>
         </view>
 
         <view class="detail-section">
@@ -49,10 +55,12 @@
         <view class="detail-section">
           <text class="section-title">局详情</text>
           <view class="plain-card compact-text-card"><text>{{preview.description}}</text></view>
-          <view wx:if="{{preview.images.length}}" class="detail-image-grid">
-            <image wx:for="{{preview.images}}" wx:key="*this" class="detail-image" src="{{item}}" mode="aspectFill" />
+          <view wx:if="{{preview.media.length}}" class="detail-image-grid">
+            <block wx:for="{{preview.media}}" wx:key="id">
+              <image wx:if="{{item.type === 'image'}}" class="detail-image" src="{{item.src}}" mode="aspectFill" />
+              <video wx:if="{{item.type === 'video'}}" class="detail-image preview-detail-video" src="{{item.src}}" controls object-fit="cover"></video>
+            </block>
           </view>
-          <text wx:if="{{preview.videoCount}}" class="preview-media-note">已选择 {{preview.videoCount}} 个视频</text>
         </view>
 
         <view class="detail-section">
@@ -75,5 +83,5 @@
     </view>
   </scroll-view>
 
-  <view class="bottom-action-bar without-tools"><view class="enroll-button preview-publish-button" bindtap="publish">发布</view></view>
+  <view class="bottom-action-bar without-tools"><view class="enroll-button preview-publish-button {{publishing ? 'disabled' : ''}}" bindtap="publish">{{publishing ? '发布中' : '发布'}}</view></view>
 </view>

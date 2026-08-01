@@ -1,5 +1,10 @@
 const request = require('../request')
 
+function idempotencyOptions(key) {
+  const normalized = String(key || '').trim()
+  return normalized ? { header: { 'Idempotency-Key': normalized } } : {}
+}
+
 function getGames(params) {
   return request.get('/api/app/games', params)
 }
@@ -40,8 +45,8 @@ function createGuideFollowUp(gameId, data) {
   return request.post(`/api/app/games/${gameId}/guide-follow-ups`, data)
 }
 
-function createGame(data) {
-  return request.post('/api/app/games', data)
+function createGame(data, idempotencyKey) {
+  return request.post('/api/app/games', data, idempotencyOptions(idempotencyKey))
 }
 
 function getGameDrafts() {
@@ -52,16 +57,16 @@ function getGameDraft(draftId) {
   return request.get(`/api/app/game-drafts/${draftId}`)
 }
 
-function createGameDraft(data) {
-  return request.post('/api/app/game-drafts', data)
+function createGameDraft(data, idempotencyKey) {
+  return request.post('/api/app/game-drafts', data, idempotencyOptions(idempotencyKey))
 }
 
-function updateGameDraft(draftId, data) {
-  return request.put(`/api/app/game-drafts/${draftId}`, data)
+function updateGameDraft(draftId, data, idempotencyKey) {
+  return request.put(`/api/app/game-drafts/${draftId}`, data, idempotencyOptions(idempotencyKey))
 }
 
-function deleteGameDraft(draftId) {
-  return request.del(`/api/app/game-drafts/${draftId}`)
+function deleteGameDraft(draftId, idempotencyKey) {
+  return request.del(`/api/app/game-drafts/${draftId}`, undefined, idempotencyOptions(idempotencyKey))
 }
 
 function startGame(gameId) {

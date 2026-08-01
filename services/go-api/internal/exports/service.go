@@ -165,10 +165,13 @@ func (s *Service) Create(adminID int64, req CreateRequest) (Task, error) {
 }
 
 func (s *Service) Tasks() []Task {
+	items, _ := s.TasksStrict()
+	return items
+}
+
+func (s *Service) TasksStrict() ([]Task, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListTasks(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListTasks(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -176,7 +179,7 @@ func (s *Service) Tasks() []Task {
 	for _, task := range s.tasks {
 		result = append(result, task)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Get(taskID int64) (Task, error) {
@@ -204,14 +207,23 @@ func (s *Service) RunPending(limit int, createFile func(task Task, template Temp
 		limit = 20
 	}
 	results := make([]RunResult, 0)
-	for _, task := range s.pendingTasks(limit) {
+	pending, err := s.pendingTasks(limit)
+	if err != nil {
+		return nil, err
+	}
+	for _, task := range pending {
 		template, _ := s.templateByCode(task.TemplateCode)
 		fileID, storageKey, err := createFile(task, template)
 		if err != nil {
-			s.markFailed(task.ID, err.Error())
+			if markErr := s.markFailed(task.ID, err.Error()); markErr != nil {
+				return nil, fmt.Errorf("标记导出任务失败: %w", markErr)
+			}
 			continue
 		}
-		updated := s.markDone(task.ID, fileID)
+		updated, err := s.markDone(task.ID, fileID)
+		if err != nil {
+			return nil, fmt.Errorf("标记导出任务完成失败: %w", err)
+		}
 		results = append(results, RunResult{
 			Task:        updated,
 			FileName:    template.FileName,
@@ -270,11 +282,11 @@ func (s *Service) FileContent(fileID int64) ([]byte, error) {
 	return append([]byte(nil), content...), nil
 }
 
-func (s *Service) pendingTasks(limit int) []Task {
+func (s *Service) pendingTasks(limit int) ([]Task, error) {
 	if s.repo != nil {
 		items, err := s.repo.ListTasks(context.Background())
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		result := make([]Task, 0, limit)
 		for _, task := range items {
@@ -285,7 +297,7 @@ func (s *Service) pendingTasks(limit int) []Task {
 				}
 			}
 		}
-		return result
+		return result, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -298,14 +310,14 @@ func (s *Service) pendingTasks(limit int) []Task {
 			}
 		}
 	}
-	return result
+	return result, nil
 }
 
-func (s *Service) markDone(taskID int64, fileID int64) Task {
+func (s *Service) markDone(taskID int64, fileID int64) (Task, error) {
 	if s.repo != nil {
 		task, err := s.Get(taskID)
 		if err != nil {
-			return Task{}
+			return Task{}, err
 		}
 		task.Status = "done"
 		task.FileID = fileID
@@ -313,9 +325,9 @@ func (s *Service) markDone(taskID int64, fileID int64) Task {
 		task.FinishedAt = time.Now().Format(time.RFC3339)
 		saved, err := s.repo.UpdateTask(context.Background(), task)
 		if err != nil {
-			return Task{}
+			return Task{}, err
 		}
-		return saved
+		return saved, nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -324,20 +336,20 @@ func (s *Service) markDone(taskID int64, fileID int64) Task {
 	task.FileID = fileID
 	task.FinishedAt = time.Now().Format(time.RFC3339)
 	s.tasks[taskID] = task
-	return task
+	return task, nil
 }
 
-func (s *Service) markFailed(taskID int64, reason string) {
+func (s *Service) markFailed(taskID int64, reason string) error {
 	if s.repo != nil {
 		task, err := s.Get(taskID)
 		if err != nil {
-			return
+			return err
 		}
 		task.Status = "failed"
 		task.FailReason = reason
 		task.FinishedAt = time.Now().Format(time.RFC3339)
-		_, _ = s.repo.UpdateTask(context.Background(), task)
-		return
+		_, err = s.repo.UpdateTask(context.Background(), task)
+		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -346,6 +358,7 @@ func (s *Service) markFailed(taskID int64, reason string) {
 	task.FailReason = reason
 	task.FinishedAt = time.Now().Format(time.RFC3339)
 	s.tasks[taskID] = task
+	return nil
 }
 
 func (s *Service) templateByRequest(req CreateRequest) (Template, bool) {

@@ -29,19 +29,34 @@ func NewServiceWithRepository(repository Repository) *Service {
 }
 
 func (s *Service) Get(key string, target interface{}) bool {
+	found, _ := s.GetStrict(key, target)
+	return found
+}
+
+func (s *Service) GetStrict(key string, target interface{}) (bool, error) {
 	if s.repository != nil {
 		value, err := s.repository.Get(context.Background(), key)
-		if err == nil {
-			return json.Unmarshal(value, target) == nil
+		if errors.Is(err, ErrNotFound) {
+			return false, nil
 		}
+		if err != nil {
+			return false, err
+		}
+		if err := json.Unmarshal(value, target); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 	s.mu.RLock()
 	value, ok := s.values[key]
 	s.mu.RUnlock()
 	if !ok {
-		return false
+		return false, nil
 	}
-	return json.Unmarshal(value, target) == nil
+	if err := json.Unmarshal(value, target); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *Service) Set(key string, value interface{}) error {

@@ -1,6 +1,9 @@
 <view class="achievement-page">
   <view class="summary-card">
-    <text class="summary-kicker">成长档案</text>
+    <view class="summary-kicker-row">
+      <text class="summary-kicker">成长档案</text>
+      <text class="summary-role">当前身份：{{activeRoleName}}</text>
+    </view>
     <view class="summary-title-row">
       <text class="summary-title">{{levelName}}</text>
       <text wx:if="{{levelValue}}" class="summary-level">{{levelValue}}</text>
@@ -8,7 +11,7 @@
     <view class="summary-grid">
       <view class="summary-item">
         <text class="summary-value">{{xpText}}</text>
-        <text class="summary-label">经验</text>
+        <text class="summary-label">{{xpLabel}}</text>
       </view>
       <view class="summary-item">
         <text class="summary-value">{{creditText}}</text>
@@ -19,6 +22,37 @@
         <text class="summary-label">积分</text>
       </view>
     </view>
+  </view>
+
+  <view class="section-card role-growth-card">
+    <view class="section-head">
+      <text class="section-title">三角色成长</text>
+      <text class="section-count">实时计算</text>
+    </view>
+    <view wx:if="{{roleProfiles.length}}" class="role-growth-list">
+      <view wx:for="{{roleProfiles}}" wx:key="id" class="role-growth-item {{item.active ? '' : 'is-inactive'}} {{item.selected ? 'is-selected' : ''}}">
+        <view class="role-growth-head">
+          <view>
+            <text class="role-growth-name">{{item.roleName}}</text>
+            <text wx:if="{{item.selected}}" class="role-growth-current">当前</text>
+            <text class="role-growth-level">{{item.levelTitle}}</text>
+          </view>
+          <text class="role-growth-score">{{item.scoreText}}</text>
+        </view>
+        <text class="role-growth-desc">{{item.description}}</text>
+        <view wx:if="{{item.metrics.length}}" class="role-metric-list">
+          <view wx:for="{{item.metrics}}" wx:key="id" class="role-metric-item">
+            <view class="role-metric-head">
+              <text>{{item.title}}</text>
+              <text>{{item.valueText}}</text>
+            </view>
+            <view class="progress-track"><view class="progress-bar role-metric-progress" style="{{item.progressStyle}}"></view></view>
+            <text class="progress-text">达成 {{item.progressText}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:else class="empty-block">成长档案加载后将显示三类身份的数据</view>
   </view>
 
   <view class="section-card">

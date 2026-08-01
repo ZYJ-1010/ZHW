@@ -113,6 +113,10 @@ func TestGameApplicationRequiresActivePlatformRole(t *testing.T) {
 
 	guideUser, _ := authService.CurrentUser(guideToken)
 	server.profiles.GrantRole(guideUser.ID, "guide")
+	creatorUser, _ := authService.CurrentUser(creatorToken)
+	if _, err := authService.SetInviteRelationInviter(creatorUser.ID, guideUser.ID, "test_direct_guide"); err != nil {
+		t.Fatal(err)
+	}
 	body := postJSON(t, mux, "/api/app/games/1/applications", guideToken, `{"reason":"join","roleType":"guide"}`, http.StatusOK)
 	var application struct {
 		Data struct {
@@ -132,6 +136,24 @@ func TestGameApplicationRequiresActivePlatformRole(t *testing.T) {
 	if !strings.Contains(string(detailBody), `"role":"main_guide"`) {
 		t.Fatalf("expected approved guide to become main guide: %s", string(detailBody))
 	}
+}
+
+func TestGuideEscortApplicationIsUnavailable(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	server := newTestAppServer(authService, identity.NewService())
+	server.Register(mux)
+
+	creatorToken := loginForTestWithCode(t, mux, "escort-creator")
+	guideToken := loginForTestWithCode(t, mux, "escort-guide")
+	completeIdentityForTest(t, mux, creatorToken)
+	completeIdentityForTest(t, mux, guideToken)
+	guideUser, _ := authService.CurrentUser(guideToken)
+	server.profiles.GrantRole(guideUser.ID, "guide")
+
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"escort game","gameType":"free","minPlayers":5,"maxPlayers":5,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00","allowedRoles":["player"],"allowGuideEscort":true}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/applications", guideToken, `{"reason":"escort","roleType":"guide_escort"}`, http.StatusUnprocessableEntity)
 }
 
 func applyAndApproveRoleForTest(t *testing.T, mux *http.ServeMux, creatorToken string, entrantToken string, roleType string) {

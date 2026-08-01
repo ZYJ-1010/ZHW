@@ -52,6 +52,7 @@ function resolveHomeHero(home = {}) {
 function formatComparison(comparison = {}, targetRole = 'expert') {
   const roleType = normalizeRoleType(targetRole)
   const roles = Array.isArray(comparison.roles) ? comparison.roles : []
+	const benefits = Array.isArray(comparison.benefits) ? comparison.benefits : []
   const primaryText = comparison.primaryOverrideText ||
     (comparison.primaryDisabled && comparison.primaryDisabledText
       ? comparison.primaryDisabledText
@@ -60,6 +61,11 @@ function formatComparison(comparison = {}, targetRole = 'expert') {
   return {
     ...comparison,
     primary: primaryText,
+    benefits: benefits.map((benefit) => ({
+      ...benefit,
+      // 兼容历史后台配置的 leader 字段，前端展示统一使用 guide。
+      guide: benefit.guide == null ? benefit.leader : benefit.guide
+    })),
     roles: roles.map((role) => {
       const key = normalizeRoleType(role.key || role.roleType || role.name)
 

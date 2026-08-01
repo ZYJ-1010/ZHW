@@ -19,7 +19,10 @@ func (s *Server) getSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	payload := s.profiles.SystemManagementConfig(userID, "profile-info", s.defaultSystemProfileInfo(userID))
+	payload, loaded := s.loadProfileConfig(w, userID, "profile-info", s.defaultSystemProfileInfo(userID))
+	if !loaded {
+		return
+	}
 	httpx.OK(w, s.withCurrentProfileAvatar(userID, payload))
 }
 
@@ -30,7 +33,7 @@ func (s *Server) saveSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if personal, ok := objectField(payload, "personalInfo"); ok {
@@ -64,7 +67,7 @@ func (s *Server) saveSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 			}
 			if name != "" {
 				if _, err := s.auth.UpdateProfile(userID, nextName, user.AvatarURL, user.AvatarFileID); err != nil {
-					httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid profile")
+					httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "个人资料不符合要求")
 					return
 				}
 			}
@@ -75,7 +78,10 @@ func (s *Server) saveSystemProfileInfo(w http.ResponseWriter, r *http.Request) {
 	// certifications 的状态只允许由后端认证记录生成，不能接受客户端伪造。
 	payload["certifications"] = s.profileCertificationSummary(userID)
 	payload = s.withCurrentProfileAvatar(userID, payload)
-	saved := s.profiles.SaveSystemManagementConfig(userID, "profile-info", payload)
+	saved, ok := s.saveProfileConfig(w, userID, "profile-info", payload)
+	if !ok {
+		return
+	}
 	s.recordBehavior(userID, "update_system_profile_info", "profile", userID, map[string]interface{}{"sections": len(saved)})
 	httpx.OK(w, s.withCurrentProfileAvatar(userID, saved))
 }
@@ -119,16 +125,16 @@ func normalizeSystemProfilePayload(payload map[string]interface{}) map[string]in
 func (s *Server) avatarURLForOwnedFile(w http.ResponseWriter, userID int64, avatarFileID int64) (string, bool) {
 	file, err := s.files.Get(avatarFileID)
 	if err != nil || file.UploaderID != userID || file.BizType != "avatar" {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "invalid avatar file")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "头像文件无效")
 		return "", false
 	}
 	download, err := s.files.DownloadURLForFile(file)
 	if err != nil {
 		if errors.Is(err, files.ErrStorageNotConfigured) {
-			httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "storage base url not configured")
+			httpx.Error(w, http.StatusServiceUnavailable, httpx.CodeSystemError, "文件存储地址尚未配置")
 			return "", false
 		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "failed to generate avatar url")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "生成头像访问地址失败")
 		return "", false
 	}
 	return download.DownloadURL, true
@@ -207,7 +213,12 @@ func (s *Server) rejectSensitiveNickname(w http.ResponseWriter, nickname string)
 func (s *Server) adminAvatarAudits(w http.ResponseWriter, r *http.Request) {
 	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
 	items := make([]map[string]interface{}, 0)
-	for _, config := range s.profiles.SystemManagementConfigs("profile-info") {
+	configs, err := s.profiles.SystemManagementConfigsStrict("profile-info")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取头像审核列表失败，请稍后重试")
+		return
+	}
+	for _, config := range configs {
 		personal, ok := objectField(config.Value, "personalInfo")
 		if !ok {
 			continue
@@ -261,7 +272,7 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 		Remark  string `json:"remark"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	reason := strings.TrimSpace(firstNonEmpty(req.Reason, req.Remark))
@@ -269,14 +280,17 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
 		return
 	}
-	payload := s.profiles.SystemManagementConfig(userID, "profile-info", s.defaultSystemProfileInfo(userID))
+	payload, loaded := s.loadProfileConfig(w, userID, "profile-info", s.defaultSystemProfileInfo(userID))
+	if !loaded {
+		return
+	}
 	personal, ok := objectField(payload, "personalInfo")
 	if !ok {
 		personal = map[string]interface{}{}
 	}
 	pendingFileID := parseFlexibleInt64(personal["pendingAvatarFileId"])
 	if pendingFileID <= 0 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "no pending avatar")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "暂无待审核头像")
 		return
 	}
 	avatarURL, ok := s.avatarURLForOwnedFile(w, userID, pendingFileID)
@@ -286,7 +300,7 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 	if req.Approve {
 		user, _ := s.auth.UserByID(userID)
 		if _, err := s.auth.UpdateProfile(userID, user.Nickname, avatarURL, pendingFileID); err != nil {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid profile")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "个人资料不符合要求")
 			return
 		}
 		personal["avatarFileId"] = pendingFileID
@@ -306,7 +320,10 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 	delete(personal, "pendingAvatarFileId")
 	delete(personal, "pendingAvatarUrl")
 	payload["personalInfo"] = personal
-	saved := s.profiles.SaveSystemManagementConfig(userID, "profile-info", payload)
+	saved, ok := s.saveProfileConfig(w, userID, "profile-info", payload)
+	if !ok {
+		return
+	}
 	notifyTitle := "头像审核已通过"
 	notifyContent := "你的头像已通过审核，已更新为正式头像。"
 	notifyType := "avatar_review_approved"
@@ -315,7 +332,7 @@ func (s *Server) reviewAvatarAudit(w http.ResponseWriter, r *http.Request) {
 		notifyContent = "你的头像未通过审核。原因：" + reason
 		notifyType = "avatar_review_rejected"
 	}
-	s.notices.Create(notifications.CreateRequest{UserID: userID, NotifyType: notifyType, Title: notifyTitle, Content: notifyContent, BizType: "avatar_audit", BizID: userID})
+	_, _ = s.createCriticalNotification(w, "avatar_review", notifications.CreateRequest{UserID: userID, NotifyType: notifyType, Title: notifyTitle, Content: notifyContent, BizType: "avatar_audit", BizID: userID})
 	s.recordOperation(r, "avatar:review", "user", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"approve": req.Approve,
 		"fileId":  pendingFileID,
@@ -329,7 +346,11 @@ func (s *Server) getSystemSkillConfig(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.systemSkillConfig(userID))
+	config, loaded := s.loadProfileConfig(w, userID, "skill-config", s.defaultSystemSkillConfig(userID))
+	if !loaded {
+		return
+	}
+	httpx.OK(w, normalizeSystemSkillConfigForDisplay(config, s.currentExpertSkillDisplayConfig().VisibleSkillLimit))
 }
 
 func (s *Server) getSystemServiceCaseDetail(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +360,7 @@ func (s *Server) getSystemServiceCaseDetail(w http.ResponseWriter, r *http.Reque
 	}
 	caseID := serviceCaseIDFromPath(r.URL.Path)
 	if caseID == "" {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "case id required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少案例编号")
 		return
 	}
 	httpx.OK(w, s.systemServiceCaseDetail(userID, caseID))
@@ -352,10 +373,14 @@ func (s *Server) saveSystemSkillConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	existing := s.systemSkillConfig(userID)
+	existingConfig, loaded := s.loadProfileConfig(w, userID, "skill-config", s.defaultSystemSkillConfig(userID))
+	if !loaded {
+		return
+	}
+	existing := normalizeSystemSkillConfigForDisplay(existingConfig, s.currentExpertSkillDisplayConfig().VisibleSkillLimit)
 	payload = mergeObjectMap(existing, payload)
 	limit := s.currentExpertSkillDisplayConfig().VisibleSkillLimit
 	if err := validateSystemSkillConfig(payload, limit, systemSkillVisibleCount(existing)); err != nil {
@@ -363,7 +388,10 @@ func (s *Server) saveSystemSkillConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	payload = normalizeSystemSkillConfigForDisplay(payload, limit)
-	saved := s.profiles.SaveSystemManagementConfig(userID, "skill-config", payload)
+	saved, ok := s.saveProfileConfig(w, userID, "skill-config", payload)
+	if !ok {
+		return
+	}
 	s.recordBehavior(userID, "update_system_skill_config", "profile", userID, map[string]interface{}{"activeTab": saved["activeTab"]})
 	httpx.OK(w, saved)
 }
@@ -405,7 +433,7 @@ func (s *Server) submitSystemFeedback(w http.ResponseWriter, r *http.Request) {
 		Quick      bool    `json:"quick"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	req.TypeKey = strings.TrimSpace(req.TypeKey)
@@ -413,13 +441,17 @@ func (s *Server) submitSystemFeedback(w http.ResponseWriter, r *http.Request) {
 	req.Content = strings.TrimSpace(req.Content)
 	req.Contact = strings.TrimSpace(req.Contact)
 	if req.TypeKey == "" || (req.Content == "" && len(req.FileIDs) == 0) || len(req.Content) > 500 || len(req.Contact) > 80 || len(req.FileIDs) > 9 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid feedback")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "反馈内容无效")
 		return
 	}
 	if req.Content == "" {
 		req.Content = "\u9644\u4ef6\u53cd\u9988"
 	}
-	records := s.systemFeedbackRecords(userID)
+	feedbackPayload, loaded := s.loadProfileConfig(w, userID, "feedback-records", map[string]interface{}{"items": []map[string]interface{}{}})
+	if !loaded {
+		return
+	}
+	records := systemFeedbackRecordsFromPayload(feedbackPayload)
 	id := "FB" + time.Now().Format("20060102150405") + strconv.FormatInt(int64(len(records)+1), 10)
 	record := map[string]interface{}{
 		"id":          id,
@@ -438,7 +470,9 @@ func (s *Server) submitSystemFeedback(w http.ResponseWriter, r *http.Request) {
 		"images":      []interface{}{},
 	}
 	records = append([]map[string]interface{}{record}, records...)
-	s.profiles.SaveSystemManagementConfig(userID, "feedback-records", map[string]interface{}{"items": records})
+	if _, saved := s.saveProfileConfig(w, userID, "feedback-records", map[string]interface{}{"items": records}); !saved {
+		return
+	}
 	s.recordBehavior(userID, "submit_system_feedback", "feedback", 0, map[string]interface{}{"typeKey": req.TypeKey, "recordId": id})
 	successPage := s.systemFeedbackSuccessPageConfig(userID)
 	httpx.OK(w, map[string]interface{}{
@@ -521,7 +555,11 @@ func (s *Server) getSystemFeedbackRecords(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	records := s.systemFeedbackRecords(userID)
+	feedbackPayload, loaded := s.loadProfileConfig(w, userID, "feedback-records", map[string]interface{}{"items": []map[string]interface{}{}})
+	if !loaded {
+		return
+	}
+	records := systemFeedbackRecordsFromPayload(feedbackPayload)
 	activeTab := strings.TrimSpace(r.URL.Query().Get("tab"))
 	if activeTab == "" {
 		activeTab = "all"
@@ -558,9 +596,13 @@ func (s *Server) getSystemFeedbackDetail(w http.ResponseWriter, r *http.Request)
 	if !parseOK {
 		return
 	}
-	record, found := s.findSystemFeedbackRecord(userID, recordID)
+	payload, loaded := s.loadProfileConfig(w, userID, "feedback-records", map[string]interface{}{"items": []map[string]interface{}{}})
+	if !loaded {
+		return
+	}
+	record, found := findSystemFeedbackRecordInList(systemFeedbackRecordsFromPayload(payload), recordID)
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "feedback not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "反馈记录不存在")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{
@@ -583,18 +625,22 @@ func (s *Server) appendSystemFeedbackMessage(w http.ResponseWriter, r *http.Requ
 		FileIDs []int64 `json:"fileIds"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	req.Content = strings.TrimSpace(req.Content)
 	if (req.Content == "" && len(req.FileIDs) == 0) || len(req.Content) > 500 || len(req.FileIDs) > 9 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid feedback message")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "反馈留言内容无效")
 		return
 	}
 	if req.Content == "" {
 		req.Content = "\u9644\u4ef6\u8865\u5145"
 	}
-	records := s.systemFeedbackRecords(userID)
+	payload, loaded := s.loadProfileConfig(w, userID, "feedback-records", map[string]interface{}{"items": []map[string]interface{}{}})
+	if !loaded {
+		return
+	}
+	records := systemFeedbackRecordsFromPayload(payload)
 	for index, record := range records {
 		if stringField(record, "id") != recordID {
 			continue
@@ -616,18 +662,25 @@ func (s *Server) appendSystemFeedbackMessage(w http.ResponseWriter, r *http.Requ
 		record["status"] = "处理中"
 		record["statusClass"] = "processing"
 		records[index] = record
-		s.profiles.SaveSystemManagementConfig(userID, "feedback-records", map[string]interface{}{"items": records})
+		if _, saved := s.saveProfileConfig(w, userID, "feedback-records", map[string]interface{}{"items": records}); !saved {
+			return
+		}
 		s.recordBehavior(userID, "append_system_feedback_message", "feedback", 0, map[string]interface{}{"recordId": recordID})
 		httpx.OK(w, map[string]interface{}{"record": record, "message": message, "messages": messages})
 		return
 	}
-	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "feedback not found")
+	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "反馈记录不存在")
 }
 
 func (s *Server) adminSystemFeedbackRecords(w http.ResponseWriter, r *http.Request) {
 	statusClass := strings.TrimSpace(r.URL.Query().Get("statusClass"))
 	items := make([]map[string]interface{}, 0)
-	for _, config := range s.profiles.SystemManagementConfigs("feedback-records") {
+	configs, err := s.profiles.SystemManagementConfigsStrict("feedback-records")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取反馈列表失败，请稍后重试")
+		return
+	}
+	for _, config := range configs {
 		for _, record := range systemFeedbackRecordsFromPayload(config.Value) {
 			if statusClass != "" && stringField(record, "statusClass") != statusClass {
 				continue
@@ -655,21 +708,25 @@ func (s *Server) adminSystemFeedbackReply(w http.ResponseWriter, r *http.Request
 		Status  string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	req.Content = strings.TrimSpace(req.Content)
 	req.Status = strings.TrimSpace(req.Status)
 	if req.UserID <= 0 || req.Content == "" || len(req.Content) > 500 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid feedback reply")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "反馈回复内容无效")
 		return
 	}
 	status, statusClass, statusOK := normalizeFeedbackReplyStatus(req.Status)
 	if !statusOK {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid feedback status")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "反馈处理状态无效")
 		return
 	}
-	records := s.systemFeedbackRecords(req.UserID)
+	feedbackPayload, loaded := s.loadProfileConfig(w, req.UserID, "feedback-records", map[string]interface{}{"items": []map[string]interface{}{}})
+	if !loaded {
+		return
+	}
+	records := systemFeedbackRecordsFromPayload(feedbackPayload)
 	for index, record := range records {
 		if stringField(record, "id") != recordID {
 			continue
@@ -690,8 +747,10 @@ func (s *Server) adminSystemFeedbackReply(w http.ResponseWriter, r *http.Request
 		record["statusClass"] = statusClass
 		record["handledAt"] = time.Now().Format(time.RFC3339)
 		records[index] = record
-		s.profiles.SaveSystemManagementConfig(req.UserID, "feedback-records", map[string]interface{}{"items": records})
-		s.notices.Create(notifications.CreateRequest{
+		if _, saved := s.saveProfileConfig(w, req.UserID, "feedback-records", map[string]interface{}{"items": records}); !saved {
+			return
+		}
+		_, _ = s.createCriticalNotification(w, "feedback_reply", notifications.CreateRequest{
 			UserID:     req.UserID,
 			NotifyType: "feedback_replied",
 			Title:      "客服已回复你的反馈",
@@ -702,7 +761,7 @@ func (s *Server) adminSystemFeedbackReply(w http.ResponseWriter, r *http.Request
 		httpx.OK(w, map[string]interface{}{"record": record, "message": message, "messages": messages})
 		return
 	}
-	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "feedback not found")
+	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "反馈记录不存在")
 }
 
 func (s *Server) getSystemBlockSettings(w http.ResponseWriter, r *http.Request) {
@@ -710,7 +769,11 @@ func (s *Server) getSystemBlockSettings(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.profiles.SystemManagementConfig(userID, "block-settings", s.defaultSystemBlockSettings(userID)))
+	settings, loaded := s.loadProfileConfig(w, userID, "block-settings", s.defaultSystemBlockSettings(userID))
+	if !loaded {
+		return
+	}
+	httpx.OK(w, settings)
 }
 
 func (s *Server) saveSystemBlockSettings(w http.ResponseWriter, r *http.Request) {
@@ -720,12 +783,19 @@ func (s *Server) saveSystemBlockSettings(w http.ResponseWriter, r *http.Request)
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	base := mergeObjectMap(s.defaultSystemBlockSettings(userID), s.profiles.SystemManagementConfig(userID, "block-settings", s.defaultSystemBlockSettings(userID)))
+	stored, loaded := s.loadProfileConfig(w, userID, "block-settings", s.defaultSystemBlockSettings(userID))
+	if !loaded {
+		return
+	}
+	base := mergeObjectMap(s.defaultSystemBlockSettings(userID), stored)
 	payload = mergeObjectMap(base, payload)
-	saved := s.profiles.SaveSystemManagementConfig(userID, "block-settings", payload)
+	saved, ok := s.saveProfileConfig(w, userID, "block-settings", payload)
+	if !ok {
+		return
+	}
 	s.recordBehavior(userID, "update_system_block_settings", "profile", userID, map[string]interface{}{"enabled": saved["enabled"]})
 	httpx.OK(w, saved)
 }
@@ -735,7 +805,10 @@ func (s *Server) getProfileSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	settings := s.profiles.SystemManagementConfig(userID, "profile-settings", s.defaultProfileSettings(userID))
+	settings, loaded := s.loadProfileConfig(w, userID, "profile-settings", s.defaultProfileSettings(userID))
+	if !loaded {
+		return
+	}
 	httpx.OK(w, s.normalizeProfileAccountSecurityRows(userID, settings))
 }
 
@@ -788,11 +861,18 @@ func (s *Server) saveProfileSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	payload = mergeObjectMap(s.defaultProfileSettings(userID), payload)
-	saved := s.profiles.SaveSystemManagementConfig(userID, "profile-settings", payload)
+	stored, loaded := s.loadProfileConfig(w, userID, "profile-settings", s.defaultProfileSettings(userID))
+	if !loaded {
+		return
+	}
+	payload = mergeProfileSettings(stored, payload)
+	saved, ok := s.saveProfileConfig(w, userID, "profile-settings", payload)
+	if !ok {
+		return
+	}
 	s.recordBehavior(userID, "update_profile_settings", "profile", userID, map[string]interface{}{"sections": len(saved)})
 	httpx.OK(w, saved)
 }
@@ -802,7 +882,11 @@ func (s *Server) listProfileAgreements(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.profileAgreementItems(userID)})
+	payload, loaded := s.loadProfileConfig(w, userID, "agreements", map[string]interface{}{"items": defaultProfileAgreements()})
+	if !loaded {
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": profileAgreementItemsFromPayload(payload)})
 }
 
 func (s *Server) getProfileAgreementDetail(w http.ResponseWriter, r *http.Request) {
@@ -811,9 +895,13 @@ func (s *Server) getProfileAgreementDetail(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	key := agreementKeyFromPath(r.URL.Path, "")
-	agreement, found := s.profileAgreementByKey(userID, key)
+	payload, loaded := s.loadProfileConfig(w, userID, "agreements", map[string]interface{}{"items": defaultProfileAgreements()})
+	if !loaded {
+		return
+	}
+	agreement, found := profileAgreementByKeyFromItems(profileAgreementItemsFromPayload(payload), key)
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "agreement not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "协议不存在")
 		return
 	}
 	httpx.OK(w, agreement)
@@ -827,7 +915,7 @@ func (s *Server) signProfileAgreement(w http.ResponseWriter, r *http.Request) {
 	key := agreementKeyFromPath(r.URL.Path, "/sign")
 	agreement, found := s.profileAgreementByKey(userID, key)
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "agreement not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "协议不存在")
 		return
 	}
 	now := time.Now().Format(time.RFC3339)
@@ -839,7 +927,11 @@ func (s *Server) signProfileAgreement(w http.ResponseWriter, r *http.Request) {
 	agreement["signedAt"] = now
 	agreement["signedVersion"] = version
 	agreement["requiresResign"] = false
-	agreements := s.profileAgreementItems(userID)
+	agreementPayload, loaded := s.loadProfileConfig(w, userID, "agreements", map[string]interface{}{"items": defaultProfileAgreements()})
+	if !loaded {
+		return
+	}
+	agreements := profileAgreementItemsFromPayload(agreementPayload)
 	for index, item := range agreements {
 		if stringField(item, "key") == key {
 			item["signed"] = true
@@ -850,7 +942,9 @@ func (s *Server) signProfileAgreement(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	s.profiles.SaveSystemManagementConfig(userID, "agreements", map[string]interface{}{"items": agreements})
+	if _, saved := s.saveProfileConfig(w, userID, "agreements", map[string]interface{}{"items": agreements}); !saved {
+		return
+	}
 	s.recordBehavior(userID, "sign_agreement", "agreement", 0, map[string]interface{}{"agreementKey": key})
 	httpx.OK(w, agreement)
 }
@@ -1160,6 +1254,10 @@ func (s *Server) defaultProfileSettings(userID int64) map[string]interface{} {
 
 func (s *Server) profileAgreementItems(userID int64) []map[string]interface{} {
 	payload := s.profiles.SystemManagementConfig(userID, "agreements", map[string]interface{}{"items": defaultProfileAgreements()})
+	return profileAgreementItemsFromPayload(payload)
+}
+
+func profileAgreementItemsFromPayload(payload map[string]interface{}) []map[string]interface{} {
 	if typed, ok := payload["items"].([]map[string]interface{}); ok && len(typed) > 0 {
 		return normalizeProfileAgreements(typed)
 	}
@@ -1177,7 +1275,11 @@ func (s *Server) profileAgreementItems(userID int64) []map[string]interface{} {
 }
 
 func (s *Server) profileAgreementByKey(userID int64, key string) (map[string]interface{}, bool) {
-	for _, item := range s.profileAgreementItems(userID) {
+	return profileAgreementByKeyFromItems(s.profileAgreementItems(userID), key)
+}
+
+func profileAgreementByKeyFromItems(items []map[string]interface{}, key string) (map[string]interface{}, bool) {
+	for _, item := range items {
 		if stringField(item, "key") == key {
 			return item, true
 		}
@@ -1338,6 +1440,81 @@ func mergeObjectMap(base map[string]interface{}, patch map[string]interface{}) m
 	for key, value := range patch {
 		result[key] = value
 	}
+	return result
+}
+
+// Settings updates usually contain one section. Preserve all other sections
+// and merge rows by ID, otherwise toggling a notification hides account
+// security settings on the next page load.
+func mergeProfileSettings(base map[string]interface{}, patch map[string]interface{}) map[string]interface{} {
+	result := mergeObjectMap(base, patch)
+	baseSections, _ := base["sections"].([]interface{})
+	patchSections, hasSections := patch["sections"].([]interface{})
+	if !hasSections {
+		return result
+	}
+	sectionsByTitle := make(map[string]map[string]interface{}, len(baseSections))
+	order := make([]string, 0, len(baseSections)+len(patchSections))
+	for _, raw := range baseSections {
+		section, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		title := stringField(section, "title")
+		if title == "" {
+			continue
+		}
+		sectionsByTitle[title] = cloneObjectMap(section)
+		order = append(order, title)
+	}
+	for _, raw := range patchSections {
+		section, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		title := stringField(section, "title")
+		if title == "" {
+			continue
+		}
+		current, exists := sectionsByTitle[title]
+		if !exists {
+			order = append(order, title)
+		}
+		merged := mergeObjectMap(current, section)
+		baseRows, _ := current["rows"].([]interface{})
+		patchRows, hasRows := section["rows"].([]interface{})
+		if hasRows {
+			rows := append([]interface{}(nil), baseRows...)
+			rowIndex := make(map[string]int, len(rows))
+			for index, rawRow := range rows {
+				if row, ok := rawRow.(map[string]interface{}); ok {
+					if id := stringField(row, "id"); id != "" {
+						rowIndex[id] = index
+					}
+				}
+			}
+			for _, rawRow := range patchRows {
+				row, ok := rawRow.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				id := stringField(row, "id")
+				if index, found := rowIndex[id]; found {
+					baseRow, _ := rows[index].(map[string]interface{})
+					rows[index] = mergeObjectMap(baseRow, row)
+					continue
+				}
+				rows = append(rows, row)
+			}
+			merged["rows"] = rows
+		}
+		sectionsByTitle[title] = merged
+	}
+	sections := make([]interface{}, 0, len(order))
+	for _, title := range order {
+		sections = append(sections, sectionsByTitle[title])
+	}
+	result["sections"] = sections
 	return result
 }
 
@@ -1667,7 +1844,11 @@ func systemFeedbackRecordsFromPayload(payload map[string]interface{}) []map[stri
 }
 
 func (s *Server) findSystemFeedbackRecord(userID int64, recordID string) (map[string]interface{}, bool) {
-	for _, record := range s.systemFeedbackRecords(userID) {
+	return findSystemFeedbackRecordInList(s.systemFeedbackRecords(userID), recordID)
+}
+
+func findSystemFeedbackRecordInList(records []map[string]interface{}, recordID string) (map[string]interface{}, bool) {
+	for _, record := range records {
 		if stringField(record, "id") == recordID {
 			return record, true
 		}
@@ -1716,7 +1897,7 @@ func feedbackRecordIDFromPath(w http.ResponseWriter, path string, suffix string)
 	text := strings.TrimSuffix(strings.TrimPrefix(path, "/api/app/profile/system-management/feedback-records/"), suffix)
 	id := strings.Trim(text, "/")
 	if id == "" {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "feedback id required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少反馈记录编号")
 		return "", false
 	}
 	return id, true
@@ -1726,7 +1907,7 @@ func adminFeedbackRecordIDFromPath(w http.ResponseWriter, path string, suffix st
 	text := strings.TrimSuffix(strings.TrimPrefix(path, "/api/admin/feedback-records/"), suffix)
 	id := strings.Trim(text, "/")
 	if id == "" {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "feedback id required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少反馈记录编号")
 		return "", false
 	}
 	return id, true

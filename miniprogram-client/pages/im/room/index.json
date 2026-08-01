@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "局 IM 群聊",
+  "navigationBarTitleText": "局内群聊",
   "navigationStyle": "custom",
   "usingComponents": {
     "home-shell": "/components/home-shell/index",

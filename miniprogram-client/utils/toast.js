@@ -1,13 +1,15 @@
+const { toUserMessage } = require('./user-message')
+
 function success(title) {
   wx.showToast({
-    title,
+    title: toUserMessage(title, '操作成功'),
     icon: 'success'
   })
 }
 
 function info(title) {
   wx.showToast({
-    title,
+    title: toUserMessage(title),
     icon: 'none'
   })
 }

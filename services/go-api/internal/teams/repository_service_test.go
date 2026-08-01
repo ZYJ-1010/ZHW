@@ -2,6 +2,7 @@ package teams
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -44,6 +45,22 @@ func TestServiceWithRepositoryPersistsTeamAndMembers(t *testing.T) {
 	if detail.RevenueSummary.TotalCent != 2000 || detail.RevenueSummary.PendingCent != 500 || detail.RevenueSummary.SettledCent != 1500 {
 		t.Fatalf("unexpected revenue summary: %+v", detail.RevenueSummary)
 	}
+}
+
+func TestAllStrictReturnsRepositoryFailure(t *testing.T) {
+	service := NewServiceWithRepository(fakeTeamRevenue{}, failingTeamRepository{newFakeTeamRepository()})
+	if _, err := service.AllStrict(); err == nil {
+		t.Fatal("expected strict team list to return repository failure")
+	}
+	if got := service.All(); len(got) != 0 {
+		t.Fatalf("compatibility list must not return process-local teams when repository is configured: %+v", got)
+	}
+}
+
+type failingTeamRepository struct{ *fakeTeamRepository }
+
+func (failingTeamRepository) ListTeams(context.Context) ([]Team, error) {
+	return nil, errors.New("repository unavailable")
 }
 
 type fakeTeamRevenue struct{}

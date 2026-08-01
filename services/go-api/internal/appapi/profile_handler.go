@@ -42,12 +42,16 @@ func (s *Server) updateExpertSkill(w http.ResponseWriter, r *http.Request) {
 	}
 	var req profiles.ExpertSkillRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	// 显性技能由后台配置统一限额。下调上限时保留存量档案，但不允许继续增加。
 	visibleLimit := s.currentExpertSkillDisplayConfig().VisibleSkillLimit
-	existing := s.profiles.AdminExpertSkill(userID)
+	existing, err := s.profiles.AdminExpertSkillStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取行家技能失败，请稍后重试")
+		return
+	}
 	if existingCount := expertExplicitSkillCount(existing.SkillTree, existing.ServiceTags); existingCount > visibleLimit {
 		visibleLimit = existingCount
 	}
@@ -83,7 +87,12 @@ func (s *Server) adminExpertSkill(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.profiles.AdminExpertSkill(userID))
+	profile, err := s.profiles.AdminExpertSkillStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取行家技能失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, profile)
 }
 
 func (s *Server) guideResource(w http.ResponseWriter, r *http.Request) {
@@ -104,18 +113,23 @@ func (s *Server) adminGuideResource(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.profiles.AdminGuideResource(userID))
+	profile, err := s.profiles.AdminGuideResourceStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取领路人资源失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, profile)
 }
 
 func (s *Server) adminProfileUsers(w http.ResponseWriter, r *http.Request) {
 	keyword := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("keyword")))
 	if keyword == "" {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "keyword required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请输入搜索关键词")
 		return
 	}
 	items, err := s.auth.AdminUsers(users.Filter{})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取用户列表失败")
 		return
 	}
 	_, allowSensitive := s.admins.HasPermission(s.adminToken(r), "profile:sensitive:read")
@@ -225,7 +239,7 @@ func (s *Server) updateGuideResource(w http.ResponseWriter, r *http.Request) {
 	}
 	var req profiles.GuideResourceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	profile, err := s.profiles.UpdateGuideResource(userID, req)
@@ -243,9 +257,12 @@ func (s *Server) expertApplyConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	config := s.currentExpertApplyConfig()
-	if eligibility, err := s.roleApplyEligibility(userID, "expert"); err == nil {
-		config = s.decorateRoleApplyConfig(config, eligibility)
+	eligibility, err := s.roleApplyEligibility(userID, "expert")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取行家申请条件失败，请稍后重试")
+		return
 	}
+	config = s.decorateRoleApplyConfig(config, eligibility)
 	httpx.OK(w, config)
 }
 
@@ -255,9 +272,12 @@ func (s *Server) guideApplyConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	config := s.currentGuideApplyConfig()
-	if eligibility, err := s.roleApplyEligibility(userID, "guide"); err == nil {
-		config = s.decorateRoleApplyConfig(config, eligibility)
+	eligibility, err := s.roleApplyEligibility(userID, "guide")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取领路人申请条件失败，请稍后重试")
+		return
 	}
+	config = s.decorateRoleApplyConfig(config, eligibility)
 	httpx.OK(w, config)
 }
 
@@ -282,7 +302,7 @@ func (s *Server) adminRoleBenefitConfig(w http.ResponseWriter, r *http.Request) 
 	case http.MethodPut:
 		var req map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid role benefit config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "角色权益配置格式不正确")
 			return
 		}
 		config, err := normalizeRoleBenefitConfig(req)
@@ -291,7 +311,7 @@ func (s *Server) adminRoleBenefitConfig(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		if err := s.systemConfig.Set(roleBenefitConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save role benefit config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存角色权益配置失败")
 			return
 		}
 		s.recordOperation(r, "role_benefit_config:update", "system_config", "role_benefit_config", map[string]interface{}{
@@ -299,30 +319,31 @@ func (s *Server) adminRoleBenefitConfig(w http.ResponseWriter, r *http.Request) 
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentRoleBenefitConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
 func (s *Server) currentExpertApplyConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(expertApplyConfigKey, &config) && len(config) > 0 {
-		return hideMembershipApplyRequirements(config)
+		return hideDiscontinuedRoleApplyFields(hideMembershipApplyRequirements(config))
 	}
-	return hideMembershipApplyRequirements(defaultExpertApplyConfig())
+	return hideDiscontinuedRoleApplyFields(hideMembershipApplyRequirements(defaultExpertApplyConfig()))
 }
 
 func (s *Server) currentGuideApplyConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(guideApplyConfigKey, &config) && len(config) > 0 {
-		return hideMembershipApplyRequirements(config)
+		return hideDiscontinuedRoleApplyFields(hideMembershipApplyRequirements(config))
 	}
-	return hideMembershipApplyRequirements(defaultGuideApplyConfig())
+	return hideDiscontinuedRoleApplyFields(hideMembershipApplyRequirements(defaultGuideApplyConfig()))
 }
 
 func hideMembershipApplyRequirements(config map[string]interface{}) map[string]interface{} {
 	if config == nil {
 		return config
 	}
+	config = cloneMap(config)
 	rawRequirements, ok := config["requirements"]
 	if !ok {
 		return config
@@ -349,6 +370,49 @@ func hideMembershipApplyRequirements(config map[string]interface{}) map[string]i
 	return config
 }
 
+// 有偿局、一对一和定制服务属于二期。旧配置中的报价字段不能重新下发到
+// 角色申请页，避免已取消的商业化能力被历史数据意外重新打开。
+func hideDiscontinuedRoleApplyFields(config map[string]interface{}) map[string]interface{} {
+	config = cloneMap(config)
+	delete(config, "serviceCount")
+	delete(config, "serviceBlocks")
+	delete(config, "priceHint")
+	if rules, ok := config["validationRules"].(map[string]interface{}); ok {
+		delete(rules, "money")
+		delete(rules, "serviceName")
+		config["validationRules"] = rules
+	}
+	for _, key := range []string{"perks", "benefits"} {
+		items, ok := config[key].([]interface{})
+		if !ok {
+			continue
+		}
+		filtered := make([]interface{}, 0, len(items))
+		for _, raw := range items {
+			item, isItem := raw.(map[string]interface{})
+			if !isItem {
+				continue
+			}
+			text := strings.TrimSpace(fmt.Sprint(firstNonNil(item["text"], item["title"], item["desc"], item["description"])))
+			if strings.Contains(text, "有偿") || strings.Contains(text, "收入") || strings.Contains(text, "收益") || strings.Contains(text, "服务费") {
+				continue
+			}
+			filtered = append(filtered, item)
+		}
+		config[key] = filtered
+	}
+	return config
+}
+
+func firstNonNil(values ...interface{}) interface{} {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return ""
+}
+
 func isMembershipApplyRequirement(title interface{}) bool {
 	return strings.Contains(strings.TrimSpace(fmt.Sprint(title)), "会员等级")
 }
@@ -362,29 +426,103 @@ func (s *Server) currentRoleStatusPageConfig() map[string]interface{} {
 }
 
 func (s *Server) currentRoleApplicationPageConfig() map[string]interface{} {
-	var config map[string]interface{}
-	if s.systemConfig != nil && s.systemConfig.Get(roleApplicationPageConfigKey, &config) && len(config) > 0 {
-		return config
-	}
+	// 一期不以会员或付费作为角色申请条件，避免历史配置重新展示付费文案。
 	return defaultRoleApplicationPageConfig()
 }
 
 func (s *Server) currentRoleBenefitConfig() map[string]interface{} {
 	var config map[string]interface{}
 	if s.systemConfig != nil && s.systemConfig.Get(roleBenefitConfigKey, &config) && len(config) > 0 {
-		return config
+		if normalized, err := normalizeRoleBenefitConfig(config); err == nil {
+			return s.withRoleBenefitLevelLabels(normalized)
+		}
 	}
-	return defaultRoleBenefitConfig()
+	return s.withRoleBenefitLevelLabels(defaultRoleBenefitConfig())
 }
 
 func normalizeRoleBenefitConfig(req map[string]interface{}) (map[string]interface{}, error) {
 	if len(req) == 0 {
-		return nil, errors.New("role benefit config required")
+		return nil, errors.New("角色权益配置不能为空")
 	}
-	if _, ok := req["roleComparison"].(map[string]interface{}); !ok {
-		return nil, errors.New("roleComparison required")
+	config := cloneMap(req)
+	comparison, ok := config["roleComparison"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("请填写角色权益对比配置")
 	}
-	return req, nil
+
+	// 早期原型使用 leader，正式角色编码统一为 guide。保留旧字段兼容，
+	// 但所有下发配置都补齐 guide，避免领路人权益列在新版小程序中为空。
+	if benefits, ok := comparison["benefits"].([]interface{}); ok {
+		for _, raw := range benefits {
+			benefit, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if _, exists := benefit["guide"]; !exists {
+				if legacy, hasLegacy := benefit["leader"]; hasLegacy {
+					benefit["guide"] = legacy
+				}
+			}
+		}
+		comparison["benefits"] = benefits
+	}
+	config["roleComparison"] = comparison
+	return config, nil
+}
+
+func (s *Server) withRoleBenefitLevelLabels(config map[string]interface{}) map[string]interface{} {
+	config = cloneMap(config)
+	comparison, ok := config["roleComparison"].(map[string]interface{})
+	if !ok {
+		return config
+	}
+	if benefits, ok := comparison["benefits"].([]interface{}); ok {
+		filtered := make([]interface{}, 0, len(benefits))
+		for _, raw := range benefits {
+			benefit, isBenefit := raw.(map[string]interface{})
+			if !isBenefit {
+				continue
+			}
+			name := strings.TrimSpace(fmt.Sprint(benefit["name"]))
+			if strings.Contains(name, "路线") || strings.Contains(name, "分润") || strings.Contains(name, "收益") || strings.Contains(name, "服务交易") {
+				continue
+			}
+			filtered = append(filtered, benefit)
+		}
+		comparison["benefits"] = filtered
+	}
+	roles, ok := comparison["roles"].([]interface{})
+	if !ok {
+		return config
+	}
+	for _, raw := range roles {
+		role, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		role["level"] = s.roleBenefitLevelLabel(strings.TrimSpace(fmt.Sprint(role["key"])))
+	}
+	comparison["roles"] = roles
+	config["roleComparison"] = comparison
+	return config
+}
+
+func (s *Server) roleBenefitLevelLabel(roleCode string) string {
+	levels := s.currentRoleLevelConfig().Items
+	var selected *roleLevelRuleDTO
+	for index := range levels {
+		item := &levels[index]
+		if item.RoleCode != roleCode || !item.Enabled {
+			continue
+		}
+		if selected == nil || item.LevelNo < selected.LevelNo {
+			selected = item
+		}
+	}
+	if selected != nil && strings.TrimSpace(selected.Title) != "" {
+		return selected.Title
+	}
+	return map[string]string{"player": "玩家等级", "guide": "领路人等级", "expert": "行家星级"}[roleCode]
 }
 
 func defaultRoleBenefitConfig() map[string]interface{} {
@@ -411,18 +549,17 @@ func defaultRoleBenefitConfig() map[string]interface{} {
 			"title":     "角色权益对比",
 			"subtitle":  "选择适合你的角色，开启不同玩法",
 			"roles": []map[string]interface{}{
-				{"key": "player", "name": "玩家", "level": "Lv.1+", "active": true},
-				{"key": "guide", "name": "领路人", "level": "Lv.5+", "active": false},
-				{"key": "expert", "name": "行家", "level": "Lv.20+", "active": false},
+				{"key": "player", "name": "玩家", "active": true},
+				{"key": "guide", "name": "领路人", "active": false},
+				{"key": "expert", "name": "行家", "active": false},
 			},
 			"benefits": []map[string]interface{}{
-				{"name": "发起组局", "player": "✓", "leader": "—", "expert": "✓"},
-				{"name": "加入组局", "player": "✓", "leader": "✓", "expert": "✓"},
-				{"name": "创建路线", "player": "✓", "leader": "—", "expert": "✓"},
-				{"name": "分润收益", "player": "—", "leader": "基础会员40%", "expert": "高级会员40%"},
-				{"name": "服务交易", "player": "—", "leader": "—", "expert": "✓"},
-				{"name": "数据看板", "player": "—", "leader": "✓", "expert": "✓"},
-				{"name": "信用背书", "player": "—", "leader": "✓", "expert": "✓"},
+				{"name": "发起组局", "player": "✓", "guide": "✓", "expert": "✓"},
+				{"name": "加入组局", "player": "✓", "guide": "✓", "expert": "✓"},
+				{"name": "管理自己发起的局", "player": "✓", "guide": "✓", "expert": "✓"},
+				{"name": "邀请用户", "player": "—", "guide": "✓", "expert": "✓"},
+				{"name": "关系网络", "player": "—", "guide": "✓", "expert": "—"},
+				{"name": "等级与信用", "player": "✓", "guide": "✓", "expert": "✓"},
 			},
 			"primary": "立即申请角色",
 		},
@@ -437,7 +574,6 @@ func defaultRoleApplicationPageConfig() map[string]interface{} {
 			"loadingText":        "加载中...",
 			"loadFailedText":     "角色申请加载失败",
 			"conditionLabel":     "条件达成",
-			"paymentLabel":       "付费状态",
 			"pendingButtonText":  "已进入审核",
 			"submittingText":     "提交中...",
 			"submitButtonText":   "提交申请",
@@ -496,20 +632,16 @@ func defaultExpertApplyConfig() map[string]interface{} {
 		},
 		"perksTitle": "行家特权",
 		"perks": []map[string]interface{}{
-			{"icon": "Y", "text": "有权益的行家可发起有偿局并可获得相应收入"},
+			{"icon": "Y", "text": "开通行家身份后可使用行家主页和组局管理能力"},
 			{"icon": "*", "text": "专属行家标识与优先推荐位"},
-			{"icon": "D", "text": "数据看板：查看服务数据与收益分析"},
+			{"icon": "D", "text": "数据看板：查看组局与评价数据"},
 		},
 		"validationRules": map[string]interface{}{
 			"skillTags":   map[string]interface{}{"minLength": 2, "maxLength": 30},
 			"intro":       map[string]interface{}{"minLength": 50, "maxLength": 300},
-			"serviceName": map[string]interface{}{"minLength": 2, "maxLength": 20},
 			"customSkill": map[string]interface{}{"minLength": 2, "maxLength": 8},
-			"money":       map[string]interface{}{"integerMaxLength": 8, "decimalMaxLength": 2},
 		},
-		"yearOptions":  yearOptions,
-		"serviceCount": 3,
-		"priceHint":    "平台将收取 10% 服务费",
+		"yearOptions": yearOptions,
 	}
 }
 
@@ -551,18 +683,9 @@ func defaultGuideApplyConfig() map[string]interface{} {
 			"acceptTypes": []string{"JPG", "PNG", "PDF"},
 			"maxCount":    5,
 		},
-		"serviceCount": 3,
-		"serviceBlocks": []map[string]interface{}{
-			{"id": "guide-service-1", "title": "\u4e1a\u52a1"},
-			{"id": "guide-service-2", "title": "\u4e1a\u52a1"},
-			{"id": "guide-service-3", "title": "\u4e1a\u52a1"},
-		},
 		"validationRules": map[string]interface{}{
-			"guidePlan":   map[string]interface{}{"minLength": 50, "maxLength": 300},
-			"serviceName": map[string]interface{}{"minLength": 2, "maxLength": 20},
-			"money":       map[string]interface{}{"integerMaxLength": 8, "decimalMaxLength": 2},
+			"guidePlan": map[string]interface{}{"minLength": 50, "maxLength": 300},
 		},
-		"priceHint":   "\u5e73\u53f0\u5c06\u6536\u53d6 10% \u670d\u52a1\u8d39",
 		"primaryText": "\u63d0\u4ea4\u9886\u8def\u4eba\u7533\u8bf7",
 		"helperText":  "\u5ba1\u6838\u9884\u8ba1 1-3 \u4e2a\u5de5\u4f5c\u65e5",
 	}
@@ -622,7 +745,7 @@ func (s *Server) submitRoleApplication(w http.ResponseWriter, r *http.Request) {
 	}
 	var req profiles.SubmitRoleApplicationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if err := s.validateRoleApplicationEligibility(userID, req.RoleCode, req.AbilityDescription); err != nil {
@@ -633,7 +756,11 @@ func (s *Server) submitRoleApplication(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	eligibility, _ := s.roleApplyEligibility(userID, req.RoleCode)
+	eligibility, err := s.roleApplyEligibility(userID, req.RoleCode)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取申请资格失败，请稍后重试")
+		return
+	}
 	req.EligibilitySnapshot = roleEligibilitySnapshot(eligibility)
 	app, err := s.profiles.SubmitRoleApplication(userID, req)
 	if err != nil {
@@ -654,11 +781,20 @@ func (s *Server) myRoles(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	snapshot := s.profiles.RoleSnapshot(userID)
+	snapshot, err := s.profiles.RoleSnapshotStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取身份状态失败，请稍后重试")
+		return
+	}
+	applications, err := s.profiles.RoleApplicationsByUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取身份申请记录失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, map[string]interface{}{
 		"roles":              snapshot.Roles,
 		"roleStatusMap":      snapshot.RoleStatusMap,
-		"applications":       s.profiles.RoleApplicationsByUser(userID),
+		"applications":       applications,
 		"guideQualification": qualification,
 	})
 }
@@ -673,7 +809,12 @@ func (s *Server) guideQualificationMe(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"qualification": qualification, "rules": s.profiles.GuideQualificationRules()})
+	rules, err := s.profiles.GuideQualificationRulesStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取领路人资格规则失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"qualification": qualification, "rules": rules})
 }
 
 func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
@@ -687,7 +828,7 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 		ProofFileIDs       []int64 `json:"proofFileIds"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if err := s.validateRoleApplicationEligibility(userID, "guide", req.AbilityDescription); err != nil {
@@ -698,7 +839,11 @@ func (s *Server) applyGuide(w http.ResponseWriter, r *http.Request) {
 		writeProfileError(w, err)
 		return
 	}
-	eligibility, _ := s.roleApplyEligibility(userID, "guide")
+	eligibility, err := s.roleApplyEligibility(userID, "guide")
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取申请资格失败，请稍后重试")
+		return
+	}
 	app, err := s.profiles.SubmitRoleApplication(userID, profiles.SubmitRoleApplicationRequest{RoleCode: "guide", Reason: req.Reason, AbilityDescription: req.AbilityDescription, ProofFileIDs: req.ProofFileIDs, EligibilitySnapshot: roleEligibilitySnapshot(eligibility)})
 	if err != nil {
 		writeProfileError(w, err)
@@ -750,14 +895,23 @@ func (s *Server) myRoleApplications(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	applications, err := s.profiles.RoleApplicationsByUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取身份申请记录失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, map[string]interface{}{
-		"items":      s.profiles.RoleApplicationsByUser(userID),
+		"items":      applications,
 		"pageConfig": s.currentRoleApplicationPageConfig(),
 	})
 }
 
 func (s *Server) adminRoleApplications(w http.ResponseWriter, r *http.Request) {
-	applications := s.profiles.AllRoleApplications()
+	applications, err := s.profiles.AllRoleApplicationsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取身份申请审核列表失败，请稍后重试")
+		return
+	}
 	codeByID := map[int64]string{}
 	if codes, err := s.auth.AdminInviteCodes(invites.CodeFilter{}); err == nil {
 		for _, code := range codes {
@@ -803,7 +957,12 @@ func (s *Server) adminRoleApplicationPayload(application profiles.RoleApplicatio
 }
 
 func (s *Server) adminGuideQualificationRules(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.profiles.GuideQualificationRules()})
+	items, err := s.profiles.GuideQualificationRulesStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取领路人资格规则失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) routeAdminGuideQualificationRulePut(w http.ResponseWriter, r *http.Request) {
@@ -813,7 +972,7 @@ func (s *Server) routeAdminGuideQualificationRulePut(w http.ResponseWriter, r *h
 	}
 	var req profiles.UpdateGuideQualificationRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	rule, err := s.profiles.UpdateGuideQualificationRule(ruleID, req)
@@ -863,12 +1022,25 @@ func (s *Server) reviewRoleApplication(w http.ResponseWriter, r *http.Request) {
 	}
 	var req profiles.ReviewRoleApplicationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if req.Approve {
-		for _, item := range s.profiles.AllRoleApplications() {
-			if item.ID == applicationID && !s.identity.IsRealnameVerified(item.UserID) {
+		applications, err := s.profiles.AllRoleApplicationsStrict()
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取身份申请记录失败，无法执行通过操作")
+			return
+		}
+		for _, item := range applications {
+			if item.ID != applicationID {
+				continue
+			}
+			verified, verifyErr := s.identity.IsRealnameVerifiedStrict(item.UserID)
+			if verifyErr != nil {
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，无法执行通过操作")
+				return
+			}
+			if !verified {
 				httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "必须先完成个人实名认证，才能开通角色身份")
 				return
 			}
@@ -894,7 +1066,7 @@ func (s *Server) reviewRoleApplication(w http.ResponseWriter, r *http.Request) {
 		}
 		notifyType = "role_application_rejected"
 	}
-	s.notices.Create(notifications.CreateRequest{UserID: app.UserID, NotifyType: notifyType, Title: notifyTitle, Content: notifyContent, BizType: "role_application", BizID: app.ID})
+	_, _ = s.createCriticalNotification(w, "role_application_reviewed", notifications.CreateRequest{UserID: app.UserID, NotifyType: notifyType, Title: notifyTitle, Content: notifyContent, BizType: "role_application", BizID: app.ID})
 	s.recordOperation(r, "role_application:review", "role_application", strconv.FormatInt(app.ID, 10), map[string]interface{}{"roleCode": app.RoleCode, "status": app.Status, "remark": req.Remark})
 	httpx.OK(w, app)
 }
@@ -902,7 +1074,7 @@ func (s *Server) reviewRoleApplication(w http.ResponseWriter, r *http.Request) {
 func (s *Server) adminGuideQualification(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("userId")), 10, 64)
 	if err != nil || userID <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid userId")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "用户编号无效")
 		return
 	}
 	qualification, err := s.profiles.GuideQualification(userID)
@@ -920,7 +1092,7 @@ func (s *Server) updateGuideQualification(w http.ResponseWriter, r *http.Request
 		PaymentMet   *bool `json:"paymentMet"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	qualification, err := s.profiles.UpdateGuideQualification(req.UserID, profiles.UpdateGuideQualificationRequest{ConditionMet: req.ConditionMet, PaymentMet: req.PaymentMet})
@@ -936,7 +1108,7 @@ func profileUserIDFromPath(w http.ResponseWriter, path string, prefix string, su
 	idText := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
 	id, err := strconv.ParseInt(strings.Trim(idText, "/"), 10, 64)
 	if err != nil || id <= 0 {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "user id invalid")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "用户编号无效")
 		return 0, false
 	}
 	return id, true
@@ -947,28 +1119,28 @@ func writeProfileError(w http.ResponseWriter, err error) {
 	case roleApplicationRequirementsErrorIs(err):
 		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, err.Error())
 	case errors.Is(err, profiles.ErrExpertForbidden):
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "not expert")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "当前用户不是行家")
 	case errors.Is(err, profiles.ErrGuideForbidden):
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "not guide")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "当前用户不是领路人")
 	case errors.Is(err, profiles.ErrInvalidProfile):
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid profile")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "资料内容不符合要求")
 	case errors.Is(err, profiles.ErrInvalidRoleApplication):
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid role application")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "角色申请信息不符合要求")
 	case errors.Is(err, profiles.ErrDuplicateRoleApplication):
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "duplicate role application")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "该角色已有待处理申请")
 	case errors.Is(err, profiles.ErrRoleAlreadyActive):
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "role already active")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "该角色已开通")
 	case errors.Is(err, profiles.ErrRoleApplicationCooldown):
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "role application reapply cooldown")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "请在冷却期结束后再提交申请")
 	case errors.Is(err, profiles.ErrRoleApplicationNotFound):
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "role application not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "未找到角色申请记录")
 	case errors.Is(err, profiles.ErrRoleApplicationReviewed):
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "role application already reviewed")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "该角色申请已处理")
 	case errors.Is(err, profiles.ErrWaitingGuideCondition):
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "waiting_condition")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "领路人申请条件暂未满足")
 	case errors.Is(err, profiles.ErrWaitingGuidePayment):
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "waiting_payment")
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "领路人申请条件暂未满足")
 	default:
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "profile operation failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "资料操作失败")
 	}
 }

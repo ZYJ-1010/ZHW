@@ -2,6 +2,7 @@ const { getLegacyWhiteFrameLayoutStyles } = require('../../../utils/adaptive-she
 const gameService = require('../../../services/game')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const CONTENT_TOP_RPX = 160
 const CONTENT_WIDTH_RPX = 750
@@ -101,22 +102,6 @@ function normalizeBooleanFlag(value) {
   return Boolean(value)
 }
 
-function getRewardClass(record = {}) {
-  if (record.rewardClass) {
-    return record.rewardClass
-  }
-
-  if (record.state === 'completed') {
-    return 'green'
-  }
-
-  if (record.state === 'canceled') {
-    return 'gray'
-  }
-
-  return 'orange'
-}
-
 function getStateIcon(state) {
   const icons = {
     processing: `${ASSET_BASE}/status-processing-dot.svg`,
@@ -198,8 +183,7 @@ function normalizeRecord(record = {}, pageConfig = {}) {
     matchIcon: firstDefined(record.matchIcon, getMatchIcon(state)),
     expertUserId,
     playerUserId,
-    reviewTargetUserId,
-    rewardClass: getRewardClass(record)
+    reviewTargetUserId
   }
   const actionList = Array.isArray(record.actions) ? record.actions : (record.actionList || [])
 
@@ -237,7 +221,10 @@ function normalizeRecord(record = {}, pageConfig = {}) {
   }
 }
 
-function formatMoney(value, fallback, prefix = '') {
+function formatSummaryAmount(value, fallback, prefix = '') {
+  if (fallback) {
+    return fallback
+  }
   if (typeof value === 'number') {
     return `${prefix}${value.toLocaleString()}`
   }
@@ -316,10 +303,10 @@ Page({
       const summary = data.summary ? {
         ...this.data.summary,
         ...data.summary,
-        amount: formatMoney(
+        amount: formatSummaryAmount(
           data.summary.amount,
           data.summary.amountText || this.data.summary.amount,
-          textOf(pageConfig, 'rewardPrefix')
+          ''
         )
       } : this.data.summary
 
@@ -341,7 +328,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        errorText: error.message || textOf(this.data.pageConfig, 'loadFailedText')
+        errorText: toUserMessage(error && error.message, textOf(this.data.pageConfig, 'loadFailedText') || '引荐记录加载失败')
       })
     }
   },

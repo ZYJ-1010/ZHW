@@ -98,36 +98,6 @@
                     <text wx:if="{{guideApplyErrors.uploadFiles}}" class="home-expert-error">{{guideApplyErrors.uploadFiles}}</text>
                   </view>
 
-                  <view wx:for="{{currentHomePreview.serviceBlocks}}" wx:for-item="serviceBlock" wx:for-index="serviceIndex" wx:key="id" class="home-expert-service-block {{serviceIndex === 0 ? 'first' : ''}}">
-                    <view class="home-expert-service-title">
-                      <text>{{serviceBlock.title}}</text>
-                      <input
-                        class="home-expert-service-name-input {{guideApplyServiceErrors[serviceIndex].name ? 'error' : ''}}"
-                        value="{{guideApplyForm.services[serviceIndex].name}}"
-                        maxlength="{{expertApplyServiceNameMaxLength}}"
-                        data-index="{{serviceIndex}}"
-                        bindinput="onGuideApplyServiceNameInput"
-                      />
-                      <text class="required">*</text>
-                    </view>
-                    <text wx:if="{{guideApplyServiceErrors[serviceIndex].name}}" class="home-expert-error service-name">{{guideApplyServiceErrors[serviceIndex].name}}</text>
-
-                    <view class="home-expert-service-field">
-                      <view class="home-expert-field-label service"><text>服务定价（元/小时）</text><text class="required">*</text></view>
-                      <view class="home-expert-input price {{guideApplyServiceErrors[serviceIndex].price ? 'error' : ''}}">
-                        <input class="home-expert-input-control" value="{{guideApplyForm.services[serviceIndex].price}}" type="digit" maxlength="11" placeholder="请输入金额" data-index="{{serviceIndex}}" data-field="price" bindinput="onGuideApplyMoneyInput" />
-                      </view>
-                      <text wx:if="{{guideApplyServiceErrors[serviceIndex].price}}" class="home-expert-error">{{guideApplyServiceErrors[serviceIndex].price}}</text>
-                    </view>
-                    <view class="home-expert-service-field">
-                      <view class="home-expert-field-label service"><text>服务成本</text></view>
-                      <view class="home-expert-input price {{guideApplyServiceErrors[serviceIndex].cost ? 'error' : ''}}">
-                        <input class="home-expert-input-control" value="{{guideApplyForm.services[serviceIndex].cost}}" type="digit" maxlength="11" placeholder="请输入金额" data-index="{{serviceIndex}}" data-field="cost" bindinput="onGuideApplyMoneyInput" />
-                      </view>
-                      <text wx:if="{{guideApplyServiceErrors[serviceIndex].cost}}" class="home-expert-error">{{guideApplyServiceErrors[serviceIndex].cost}}</text>
-                    </view>
-                  </view>
-                  <text class="home-expert-field-helper price">{{currentHomePreview.priceHint}}</text>
                 </view>
               </block>
 
@@ -245,63 +215,6 @@
                   <text wx:if="{{expertApplyErrors.uploadFiles}}" class="home-expert-error">{{expertApplyErrors.uploadFiles}}</text>
                 </view>
 
-                <view wx:for="{{currentHomePreview.serviceBlocks}}" wx:for-item="serviceBlock" wx:for-index="serviceIndex" wx:key="id" class="home-expert-service-block {{serviceIndex === 0 ? 'first' : ''}}">
-                  <view class="home-expert-service-title">
-                    <text>{{serviceBlock.title}}</text>
-                    <input
-                      class="home-expert-service-name-input {{expertApplyServiceErrors[serviceIndex].name ? 'error' : ''}}"
-                      value="{{expertApplyForm.services[serviceIndex].name}}"
-                      maxlength="{{expertApplyServiceNameMaxLength}}"
-                      data-index="{{serviceIndex}}"
-                      bindinput="onExpertApplyServiceNameInput"
-                      catchtap="stopExpertApplyTap"
-                    />
-                    <text class="required">*</text>
-                  </view>
-                  <text wx:if="{{expertApplyServiceErrors[serviceIndex].name}}" class="home-expert-error service-name">{{expertApplyServiceErrors[serviceIndex].name}}</text>
-
-                  <view class="home-expert-service-field">
-                    <view class="home-expert-field-label service">
-                      <text>服务定价（元/小时）</text>
-                      <text class="required">*</text>
-                    </view>
-                    <view class="home-expert-input price {{expertApplyServiceErrors[serviceIndex].price ? 'error' : ''}}" catchtap="stopExpertApplyTap">
-                      <input
-                        class="home-expert-input-control"
-                        value="{{expertApplyForm.services[serviceIndex].price}}"
-                        type="digit"
-                        maxlength="11"
-                        placeholder="请输入金额"
-                        placeholder-class="home-expert-placeholder"
-                        data-index="{{serviceIndex}}"
-                        data-field="price"
-                        bindinput="onExpertApplyMoneyInput"
-                      />
-                    </view>
-                    <text wx:if="{{expertApplyServiceErrors[serviceIndex].price}}" class="home-expert-error">{{expertApplyServiceErrors[serviceIndex].price}}</text>
-                  </view>
-
-                  <view class="home-expert-service-field">
-                    <view class="home-expert-field-label service">
-                      <text>服务成本</text>
-                    </view>
-                    <view class="home-expert-input price {{expertApplyServiceErrors[serviceIndex].cost ? 'error' : ''}}" catchtap="stopExpertApplyTap">
-                      <input
-                        class="home-expert-input-control"
-                        value="{{expertApplyForm.services[serviceIndex].cost}}"
-                        type="digit"
-                        maxlength="11"
-                        placeholder="请输入金额"
-                        placeholder-class="home-expert-placeholder"
-                        data-index="{{serviceIndex}}"
-                        data-field="cost"
-                        bindinput="onExpertApplyMoneyInput"
-                      />
-                    </view>
-                    <text wx:if="{{expertApplyServiceErrors[serviceIndex].cost}}" class="home-expert-error">{{expertApplyServiceErrors[serviceIndex].cost}}</text>
-                  </view>
-                </view>
-                <text class="home-expert-field-helper price">{{currentHomePreview.priceHint}}</text>
               </view>
               </block>
             </block>

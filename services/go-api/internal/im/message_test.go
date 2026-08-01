@@ -63,7 +63,7 @@ func TestGroupIMSendUsesSensitiveWordDictionary(t *testing.T) {
 }
 
 func TestVoiceMessageUsesFileAttachment(t *testing.T) {
-	state := &readonlyGameState{members: []int64{1, 2}}
+	state := &readonlyGameState{members: []int64{1, 2}, roomReady: true}
 	service := NewService(state)
 	message, err := service.Send(1, 99, SendRequest{MessageType: "voice", Content: "voice.mp3", FileID: 7})
 	if err != nil {

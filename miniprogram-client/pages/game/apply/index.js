@@ -3,7 +3,7 @@ const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-n
 const gameService = require('../../../services/game')
 const fileService = require('../../../services/file')
 const profileService = require('../../../services/profile')
-const { getActiveRole } = require('../../../utils/active-role')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const APPLY_SCROLL_TAP_STEP_RPX = 360
 const APPLY_SCROLL_HOLD_STEP_RPX = 72
@@ -23,6 +23,7 @@ const EMPTY_APPLICATION_CONFIG = {
   maxIntroLength: 0,
   maxMessageLength: 0,
   searchEnabled: false,
+  subscribeTemplateIds: [],
   texts: {}
 }
 
@@ -62,6 +63,11 @@ Page({
     eligibilityLoading: true,
     eligibilityReady: false,
     eligibilityError: '',
+    eligibilityBlocked: false,
+    eligibilityBlockReason: '',
+    isGameFull: false,
+    applyRoleOptions: [],
+    selectedRole: '',
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -87,7 +93,17 @@ Page({
 
   onLoad(options = {}) {
     const gameId = options.gameId || options.id || ''
-    this.setData({ gameId, eligibilityLoading: true, eligibilityReady: false, eligibilityError: '' })
+    this.setData({
+      gameId,
+      eligibilityLoading: true,
+      eligibilityReady: false,
+      eligibilityError: '',
+      eligibilityBlocked: false,
+      eligibilityBlockReason: '',
+      isGameFull: false,
+      applyRoleOptions: [],
+      selectedRole: ''
+    })
     this.loadApplicationConfig()
     this.loadWechatInfo()
     this.loadApplicationEligibility(gameId)
@@ -104,18 +120,44 @@ Page({
       if (!relation || !Object.prototype.hasOwnProperty.call(relation, 'canApply')) {
         throw new Error('后端未返回入局申请资格')
       }
+      const applyRoleOptions = Array.isArray(relation.applyRoleOptions) ? relation.applyRoleOptions : []
+      const selectedRole = (applyRoleOptions.find((item) => item && item.enabled) || {}).key || ''
       if (relation.canApply !== true) {
         const action = detail.detailDisplay && detail.detailDisplay.primaryAction || {}
-        throw new Error(
+        const reason =
           relation.applyDisabledReason ||
           action.disabledReason ||
           action.text ||
           '当前账号不具备本局申请资格'
-        )
+        const isGameFull = /满员/.test(String(reason)) || detail.status === 'full'
+        this.setData({
+          eligibilityLoading: false,
+          eligibilityReady: false,
+          eligibilityError: '',
+          eligibilityBlocked: true,
+          eligibilityBlockReason: isGameFull ? '该局已满员，无法继续报名' : reason,
+          isGameFull,
+          applyRoleOptions,
+          selectedRole
+        })
+        return
       }
-      this.setData({ eligibilityLoading: false, eligibilityReady: true, eligibilityError: '' })
+      this.setData({
+        eligibilityLoading: false,
+        eligibilityReady: true,
+        eligibilityError: '',
+        eligibilityBlocked: false,
+        eligibilityBlockReason: '',
+        isGameFull: false,
+        applyRoleOptions,
+        selectedRole
+      })
     } catch (error) {
-      this.setData({ eligibilityLoading: false, eligibilityReady: false, eligibilityError: error.message || '后端返回申请资格失败' })
+      this.setData({
+        eligibilityLoading: false,
+        eligibilityReady: false,
+        eligibilityError: toUserMessage(error && error.message, '申请资格加载失败')
+      })
     }
   },
 
@@ -130,6 +172,16 @@ Page({
     } catch (error) {
       this.showInfo(error.message || this.textOf('loadFailedText'))
     }
+  },
+
+  onSelectRole(event) {
+    const role = String(event.currentTarget.dataset.key || '').trim()
+    const option = (this.data.applyRoleOptions || []).find((item) => item && item.key === role)
+    if (!option || !option.enabled) {
+      this.showInfo(option && option.disabledReason ? option.disabledReason : '当前身份不可申请入局')
+      return
+    }
+    this.setData({ selectedRole: role })
   },
 
   async loadWechatInfo() {
@@ -320,7 +372,7 @@ Page({
 
   async onSubmit() {
     if (!this.data.eligibilityReady) {
-      this.showInfo(this.data.eligibilityError || '后端尚未确认申请资格')
+      this.showInfo(this.data.eligibilityBlockReason || this.data.eligibilityError || '后端尚未确认申请资格')
       return
     }
     const intro = String(this.data.form.intro || '').trim()
@@ -351,23 +403,25 @@ Page({
       return
     }
 
-    if (this.data.submitting) {
+    if (this.submitInFlight || this.data.submitting) {
       return
     }
 
+    this.submitInFlight = true
     this.setData({ submitting: true })
-    wx.showLoading({
-      title: this.textOf('submittingText'),
-      mask: true
-    })
 
     try {
+      await this.requestApplicationResultSubscription()
+      wx.showLoading({
+        title: this.textOf('submittingText'),
+        mask: true
+      })
       const fileIds = await this.uploadApplicationFiles()
       await gameService.applyGame(this.data.gameId, {
         reason: this.buildApplyReason(),
         fileIds,
         agreed: this.data.form.agreed,
-        roleType: getActiveRole()
+        roleType: this.data.selectedRole || 'player'
       })
       this.showInfo(this.textOf('submitSuccessText'))
       setTimeout(() => {
@@ -376,10 +430,48 @@ Page({
         })
       }, 500)
     } catch (error) {
-      this.showInfo(error.message || this.textOf('submitFailedText'))
+      const message = error.message || this.textOf('submitFailedText')
+      if (/人数已满|已满员/.test(String(message))) {
+        this.setData({
+          eligibilityReady: false,
+          eligibilityBlocked: true,
+          eligibilityBlockReason: '该局已满员，无法继续报名',
+          isGameFull: true
+        })
+        this.showInfo('该局已满员，无法继续报名')
+      } else {
+        this.showInfo(message)
+      }
     } finally {
       wx.hideLoading()
+      this.submitInFlight = false
       this.setData({ submitting: false })
+    }
+  },
+
+  async requestApplicationResultSubscription() {
+    const templateIds = Array.from(new Set(
+      (this.data.applicationConfig && this.data.applicationConfig.subscribeTemplateIds || [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    ))
+    if (!templateIds.length || typeof wx === 'undefined' || typeof wx.requestSubscribeMessage !== 'function') {
+      return
+    }
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        wx.requestSubscribeMessage({
+          tmplIds: templateIds,
+          success: resolve,
+          fail: reject
+        })
+      })
+      if (!templateIds.some((id) => result && result[id] === 'accept')) {
+        this.showInfo(this.textOf('subscribeDeclinedText'))
+      }
+    } catch (error) {
+      // 授权失败或用户关闭授权框不影响报名；审核结果仍会进入消息中心和“我的局”。
     }
   },
 

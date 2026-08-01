@@ -86,28 +86,28 @@
       </view>
     </scroll-view>
 
-    <view wx:if="{{gameInfo.hasData}}" class="bottom-action-bar">
-      <button class="share-main-button" hover-class="none" bindtap="onOpenShare">分享给朋友</button>
+    <view wx:if="{{gameInfo.hasData && shareComponent.enabled}}" class="bottom-action-bar">
+      <button class="share-main-button" hover-class="none" bindtap="onOpenShare">{{shareComponent.label}}</button>
     </view>
 
     <view wx:if="{{showShareWindow}}" class="share-mask" bindtap="onCloseShare" catchtouchmove="onPreventTouch">
       <view class="share-sheet" catchtap="onPreventBubble">
         <view class="share-sheet-handle"></view>
-        <text class="share-sheet-title">分享给朋友</text>
+        <text class="share-sheet-title">{{shareComponent.label}}方式</text>
 
         <view class="share-options">
-          <button class="share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
+          <button wx:if="{{shareComponent.enableWechat}}" class="share-option" open-type="share" hover-class="none" bindtap="onNativeShareTap">
             <view class="share-option-icon wechat">
               <image class="share-option-image" src="https://static.haowan.net.cn/miniprogram/pages/game/share/assets/share-wechat.png" mode="aspectFit" />
             </view>
             <text class="share-option-label">微信好友</text>
           </button>
 
-          <button class="share-option" hover-class="none" bindtap="onShareDirect">
+          <button wx:if="{{shareComponent.enableInternal}}" class="share-option" hover-class="none" bindtap="onShareDirect">
             <view class="share-option-icon direct">
               <image class="share-option-image" src="/pages/game/share/assets/share-private-message.png" mode="aspectFit" />
             </view>
-            <text class="share-option-label">私信好友</text>
+            <text class="share-option-label">站内分享</text>
           </button>
         </view>
 

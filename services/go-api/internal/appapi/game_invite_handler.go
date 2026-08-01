@@ -250,12 +250,7 @@ func invitationGameSchedule(game games.Game) (string, string) {
 func (s *Server) currentGameInviteConfig() gameInviteConfigDTO {
 	var stored gameInviteConfigDTO
 	if s.systemConfig != nil && s.systemConfig.Get(gameInviteConfigKey, &stored) {
-		config := normalizeGameInviteConfig(stored)
-		rules := s.currentOperationRules().Invite
-		if rules.TimeoutMinutes > 0 {
-			config.InvitationTimeoutMinutes = rules.TimeoutMinutes
-		}
-		return config
+		return normalizeGameInviteConfig(stored)
 	}
 	config := defaultGameInviteConfig()
 	config.InvitationTimeoutMinutes = s.currentOperationRules().Invite.TimeoutMinutes
@@ -342,8 +337,8 @@ func defaultReplayQuickActions() []replayQuickActionDTO {
 			ID:       "same-friends",
 			Theme:    "green",
 			IconText: "\U0001f46b",
-			Title:    "\u540c\u5c40\u597d\u53cb\u518d\u73a9\u4e00\u5c40",
-			Desc:     "\u7acb\u5373\u9080\u8bf7\u4e0a\u4e00\u5c40\u6210\u5458",
+			Title:    "\u540c\u5c40\u5f00\u5c40",
+			Desc:     "\u9080\u8bf7\u4e0a\u4e00\u5c40\u6210\u5458\u518d\u6b21\u7ec4\u5c40",
 			Route:    "confirm",
 			Order:    10,
 			Visible:  true,
@@ -352,8 +347,8 @@ func defaultReplayQuickActions() []replayQuickActionDTO {
 			ID:       "smart-match",
 			Theme:    "blue",
 			IconText: "\U0001f916",
-			Title:    "\u7cfb\u7edf\u63a8\u8350\u9002\u914d\u7ec4\u5c40",
-			Desc:     "\u6839\u636e\u4f60\u7684\u504f\u597d\u8fd4\u56de\u9ad8\u5339\u914d\u5ea6\u5019\u9009\u5c40",
+			Title:    "\u7cfb\u7edf\u81ea\u914d",
+			Desc:     "\u6839\u636e\u4f60\u7684\u504f\u597d\u63a8\u8350\u9002\u914d\u7ec4\u5c40",
 			Route:    "system_recommend",
 			Order:    20,
 			Visible:  true,
@@ -362,8 +357,8 @@ func defaultReplayQuickActions() []replayQuickActionDTO {
 			ID:       "create-new",
 			Theme:    "pink",
 			IconType: "plus",
-			Title:    "\u73a9\u5bb6\u521b\u5efa\u65b0\u5c40",
-			Desc:     "\u81ea\u5b9a\u4e49\u9700\u6c42\uff0c\u5f00\u542f\u5168\u65b0\u7ec4\u5c40",
+			Title:    "\u73a9\u5bb6\u521b\u5efa",
+			Desc:     "\u81ea\u884c\u521b\u5efa\u4e00\u573a\u5168\u65b0\u7684\u5c40",
 			Route:    "create",
 			Order:    30,
 			Visible:  true,
@@ -422,6 +417,9 @@ func normalizeReplayQuickActions(items []replayQuickActionDTO) []replayQuickActi
 		result = append(result, fallback)
 		seenRoutes[fallback.Route] = true
 	}
+	sort.SliceStable(result, func(i, j int) bool {
+		return result[i].Order < result[j].Order
+	})
 	if len(result) > 3 {
 		result = result[:3]
 	}
@@ -518,12 +516,28 @@ func (s *Server) gameInvitePermission(w http.ResponseWriter, r *http.Request) {
 		writeGameError(w, err)
 		return
 	}
-	allowed := game.CreatorUserID == userID || (game.MainGuideUserID > 0 && game.MainGuideUserID == userID)
-	reason := ""
-	if !allowed {
-		reason = "\u4ec5\u5c40\u521b\u5efa\u8005\u6216\u4e3b\u9886\u8def\u4eba\u53ef\u53d1\u8d77\u5f15\u8350"
-	}
+	allowed, reason := s.currentGameInvitePermission(userID, game)
 	httpx.OK(w, map[string]interface{}{"allowed": allowed, "reason": reason, "gameId": gameID})
+}
+
+// currentGameInvitePermission is shared by the permission preflight and both
+// current-game invitation endpoints. Keeping one decision path prevents the
+// client from being told it may invite only for the create request to reject
+// the same operator afterwards.
+func (s *Server) currentGameInvitePermission(userID int64, game games.Game) (bool, string) {
+	if !s.userCanGenerateInvitations(userID) {
+		return false, "仅已开通行家或领路人身份的局创建者、主领路人可发起引荐"
+	}
+	if game.CreatorUserID != userID && (game.MainGuideUserID <= 0 || game.MainGuideUserID != userID) {
+		return false, "仅局创建者或主领路人可发起引荐"
+	}
+	if game.Status != games.StatusRecruiting {
+		return false, "当前局不在招募中，暂不能发起引荐"
+	}
+	if allowed, message := s.canUseCreditAction(userID, "invite_game"); !allowed {
+		return false, message
+	}
+	return true, ""
 }
 
 func (s *Server) gameInvitePlayers(w http.ResponseWriter, r *http.Request) {
@@ -629,10 +643,7 @@ func (s *Server) currentGameSystemRecommendationsConfig() gameSystemRecommendati
 }
 
 func (s *Server) currentGameReferralRecordsConfig() map[string]interface{} {
-	var config map[string]interface{}
-	if s.systemConfig != nil && s.systemConfig.Get(gameReferralRecordsConfigKey, &config) && len(config) > 0 {
-		return config
-	}
+	// 一期仅记录引荐进展，不展示或计算分润收益；忽略历史运营配置中的资金字段。
 	return defaultGameReferralRecordsConfig()
 }
 
@@ -640,13 +651,12 @@ func defaultGameReferralRecordsConfig() map[string]interface{} {
 	return map[string]interface{}{
 		"pageTitle": "我的引荐记录",
 		"summary": map[string]interface{}{
-			"label":      "本月引荐收益",
-			"background": "linear-gradient(135deg, #ffb347 0%, #ff7b00 100%)",
-			"iconSrc":    "/pages/game/referral-record/assets/wallet.png",
+			"label":      "本月引荐进展",
+			"background": "linear-gradient(135deg, #4a7afa 0%, #295af2 100%)",
 			"statTemplates": map[string]string{
-				"success":    "成功 {count}单",
-				"processing": "进行中 {count}单",
-				"review":     "待评价 {count}单",
+				"success":    "已完成 {count} 局",
+				"processing": "进行中 {count} 局",
+				"review":     "待评价 {count} 局",
 			},
 		},
 		"tabs": []map[string]string{
@@ -672,7 +682,7 @@ func defaultGameReferralRecordsConfig() map[string]interface{} {
 			"remindServiceFallback": "引荐服务",
 			"remindSuccessText":     "已提醒交付",
 			"remindFailedText":      "提醒交付失败",
-			"rewardPrefix":          "¥",
+			"noSettlementText":      "免费局，不涉及资金结算",
 		},
 	}
 }
@@ -816,6 +826,10 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
+	if allowed, message := s.canUseCreditAction(userID, "create_game"); !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
+		return
+	}
 	if !s.userCanGenerateInvitations(userID) {
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成再玩一局邀请")
 		return
@@ -842,7 +856,7 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 		Overrides games.ReplayGameOverrides `json:"overrides"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if s.rejectSensitiveGameContent(w,
@@ -858,7 +872,7 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 	}
 	sourceGameID := parseFlexibleInt64(req.SourceGameID)
 	if sourceGameID <= 0 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "source game required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择来源局")
 		return
 	}
 	sourceGame, err := s.games.Get(sourceGameID)
@@ -946,7 +960,7 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 		if content == "" {
 			content = "你收到了一条组局引荐邀请"
 		}
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "replay_game_invitation", notifications.CreateRequest{
 			UserID:     invitation.TargetUserID,
 			NotifyType: "game_invitation",
 			Title:      "组局引荐",
@@ -963,7 +977,7 @@ func (s *Server) createReplayGameInvite(w http.ResponseWriter, r *http.Request) 
 	if result.PrimaryInvitationID > 0 {
 		content := "已发起组局引荐，请关注玩家和行家的确认及审核进度"
 		page := "pages/game/guide-progress-detail/index?invitationId=" + strconv.FormatInt(result.PrimaryInvitationID, 10) + "&gameId=" + strconv.FormatInt(result.ReplayGameID, 10)
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "replay_game_invitation", notifications.CreateRequest{
 			UserID:     userID,
 			NotifyType: "game_invitation",
 			Title:      "组局动态",
@@ -998,10 +1012,6 @@ func (s *Server) createCurrentGameInvite(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	if !s.userCanGenerateInvitations(userID) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成组局邀请")
-		return
-	}
 	var req struct {
 		SourceGameID     interface{} `json:"sourceGameId"`
 		ExpertUserID     interface{} `json:"expertUserId"`
@@ -1015,12 +1025,21 @@ func (s *Server) createCurrentGameInvite(w http.ResponseWriter, r *http.Request)
 		ExpectedTime     string      `json:"expectedTime"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	gameID := parseFlexibleInt64(req.SourceGameID)
 	if gameID <= 0 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "game required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择组局")
+		return
+	}
+	game, err := s.games.Get(gameID)
+	if err != nil {
+		writeGameError(w, err)
+		return
+	}
+	if allowed, message := s.currentGameInvitePermission(userID, game); !allowed {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, message)
 		return
 	}
 	appendUnique := func(values []int64, id int64) []int64 {
@@ -1044,7 +1063,7 @@ func (s *Server) createCurrentGameInvite(w http.ResponseWriter, r *http.Request)
 		playerUserIDs = appendUnique(playerUserIDs, id)
 	}
 	if len(playerUserIDs) == 0 || len(expertUserIDs) == 0 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "player and expert required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择玩家和行家")
 		return
 	}
 
@@ -1074,7 +1093,7 @@ func (s *Server) createCurrentGameInvite(w http.ResponseWriter, r *http.Request)
 		if content == "" {
 			content = "\u4f60\u6536\u5230\u4e86\u4e00\u6761\u7ec4\u5c40\u5f15\u8350\u9080\u8bf7"
 		}
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "game_invitation_created", notifications.CreateRequest{
 			UserID:     invitation.TargetUserID,
 			NotifyType: "game_invitation",
 			Title:      "\u7ec4\u5c40\u5f15\u8350",
@@ -1122,8 +1141,15 @@ func (s *Server) userCanGenerateInvitations(userID int64) bool {
 	if userID <= 0 || s.profiles == nil {
 		return false
 	}
-	roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
-	return roles["expert"] == "approved" || roles["expert"] == "active" || roles["guide"] == "approved" || roles["guide"] == "active"
+	return s.userHasActiveRole(userID, "expert") || s.userHasActiveRole(userID, "guide")
+}
+
+func (s *Server) userHasActiveRole(userID int64, roleCode string) bool {
+	if userID <= 0 || s.profiles == nil {
+		return false
+	}
+	status := s.profiles.RoleSnapshot(userID).RoleStatusMap[roleCode]
+	return status == "approved" || status == "active"
 }
 
 // platform_official is a backend-only inviter. It deliberately does not pass
@@ -1148,14 +1174,14 @@ func (s *Server) createGameInviteReminder(w http.ResponseWriter, r *http.Request
 		Message      string      `json:"message"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	invitationID := parseFlexibleInt64(req.InvitationID)
 	gameID := parseFlexibleInt64(req.GameID)
 	invitation := s.findInviteForReminder(userID, invitationID, gameID)
 	if invitation.ID == 0 {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "invitation not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请记录不存在")
 		return
 	}
 	targetUserID := invitation.TargetUserID
@@ -1163,7 +1189,7 @@ func (s *Server) createGameInviteReminder(w http.ResponseWriter, r *http.Request
 		targetUserID = invitation.InviterID
 	}
 	if targetUserID <= 0 || targetUserID == userID {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid reminder target")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "提醒对象无效")
 		return
 	}
 	message := strings.TrimSpace(req.Message)
@@ -1173,7 +1199,7 @@ func (s *Server) createGameInviteReminder(w http.ResponseWriter, r *http.Request
 	if len(message) > 300 {
 		message = message[:300]
 	}
-	notice := s.notices.Create(notifications.CreateRequest{
+	notice, _ := s.createCriticalNotification(w, "game_invitation_remind", notifications.CreateRequest{
 		UserID:     targetUserID,
 		NotifyType: "game_invitation_remind",
 		Title:      "\u7ec4\u5c40\u786e\u8ba4\u63d0\u9192",
@@ -1233,7 +1259,7 @@ func (s *Server) gameInviteGuideProgress(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	if filterInvitationID > 0 && !matchedInvitation {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "invitation not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请记录不存在")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{
@@ -1258,13 +1284,9 @@ func (s *Server) gameInviteReferralRecords(w http.ResponseWriter, r *http.Reques
 		records = append(records, s.referralRecordItem(invitation, referralConfigTexts(pageConfig)))
 	}
 	counts := map[string]int{"processing": 0, "completed": 0, "canceled": 0}
-	totalReward := 0
 	for _, record := range records {
 		state, _ := record["state"].(string)
 		counts[state]++
-		if reward, ok := record["reward"].(int); ok {
-			totalReward += reward
-		}
 	}
 	allRecords := records
 	records, page, pageSize, total := paginateRoleItems(r, allRecords, "state")
@@ -1282,7 +1304,8 @@ func (s *Server) gameInviteReferralRecords(w http.ResponseWriter, r *http.Reques
 	httpx.OK(w, map[string]interface{}{
 		"summary": map[string]interface{}{
 			"label":      stringFromMap(summaryConfig, "label"),
-			"amount":     totalReward,
+			"amount":     len(allRecords),
+			"amountText": strconv.Itoa(len(allRecords)) + " 局",
 			"background": stringFromMap(summaryConfig, "background"),
 			"iconSrc":    stringFromMap(summaryConfig, "iconSrc"),
 			"stats": []map[string]interface{}{
@@ -1310,12 +1333,12 @@ func (s *Server) gameInviteCancelDetail(w http.ResponseWriter, r *http.Request) 
 	if notificationID := strings.TrimSpace(r.URL.Query().Get("notificationId")); notificationID != "" {
 		notice, found := s.findNotificationForUser(userID, notificationID)
 		if !found || !isServiceCancelNotification(notice.NotifyType) {
-			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "cancel notification not found")
+			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "取消通知不存在")
 			return
 		}
 		detail, found := s.serviceCancelNotificationDetail(notice)
 		if !found {
-			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "canceled game not found")
+			httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "已取消的组局不存在")
 			return
 		}
 		httpx.OK(w, detail)
@@ -1323,7 +1346,7 @@ func (s *Server) gameInviteCancelDetail(w http.ResponseWriter, r *http.Request) 
 	}
 	invitation := s.findInviteForCancelDetail(userID, r)
 	if invitation.ID == 0 {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "invitation not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请记录不存在")
 		return
 	}
 	game, _ := s.games.Get(invitation.GameID)
@@ -1693,7 +1716,7 @@ func (s *Server) invitationProgressItem(invitation games.Invitation, viewerID in
 			{"key": "location", "label": "\u5730\u70b9", "value": firstNonEmpty(locationText, "\u672a\u8bbe\u7f6e"), "actionText": "\u5730\u56fe\u4f4d\u7f6e", "iconSrc": "/pages/game/detail/assets/icon-location.png", "iconClass": "place"},
 		},
 		"confirmRows": []map[string]interface{}{
-			{"label": "\u6d3b\u52a8\u7c7b\u578b", "value": activityType}, {"label": "\u670d\u52a1\u65f6\u957f", "value": firstNonEmpty(durationText, "\u672a\u8bbe\u7f6e")}, {"label": "\u5ba2\u6237\u9884\u7b97", "value": budgetText},
+			{"label": "局分类", "value": homeGameCategoryText(game)}, {"label": "活动时长", "value": firstNonEmpty(durationText, "未设置")}, {"label": "参与人数", "value": gameMemberCountText(game)},
 		},
 		"noticeBullets": []string{"\u8bf7\u786e\u8ba4\u7ec4\u5c40\u4fe1\u606f\u540e\u518d\u505a\u51b3\u5b9a", "\u786e\u8ba4\u540e\u5c06\u6309\u5bf9\u5e94\u8eab\u4efd\u52a0\u5165\u672c\u5c40"},
 	}
@@ -1993,7 +2016,7 @@ func (s *Server) invitationReviewStatus(invitation games.Invitation) string {
 	}
 }
 
-func (s *Server) createInvitationReviewNotification(invitation games.Invitation, application games.Application) {
+func (s *Server) createInvitationReviewNotification(w http.ResponseWriter, invitation games.Invitation, application games.Application) {
 	if invitation.InviterID <= 0 || application.ID <= 0 {
 		return
 	}
@@ -2002,7 +2025,7 @@ func (s *Server) createInvitationReviewNotification(invitation games.Invitation,
 		roleLabel = "行家"
 	}
 	name := s.inGameDisplayName(invitation.TargetUserID, roleLabel)
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "invitation_review_pending", notifications.CreateRequest{
 		UserID:     invitation.InviterID,
 		NotifyType: "game_application",
 		Title:      "邀请已接受，待你审核",
@@ -2013,25 +2036,25 @@ func (s *Server) createInvitationReviewNotification(invitation games.Invitation,
 	})
 }
 
-func (s *Server) createGameInvitationSuccessNotificationsForApplication(application games.Application) {
+func (s *Server) createGameInvitationSuccessNotificationsForApplication(w http.ResponseWriter, application games.Application) {
 	if application.ID <= 0 || application.UserID <= 0 {
 		return
 	}
 	for _, invitation := range s.games.InvitationsForUser(application.UserID) {
 		if invitation.ApplicationID == application.ID {
-			s.createGameInvitationSuccessNotifications(invitation)
+			s.createGameInvitationSuccessNotifications(w, invitation)
 			return
 		}
 	}
 }
 
-func (s *Server) createPairedInvitationProgressNotification(invitation games.Invitation) {
+func (s *Server) createPairedInvitationProgressNotification(w http.ResponseWriter, invitation games.Invitation) {
 	if strings.TrimSpace(invitation.InviteGroupID) == "" || invitation.GameID <= 0 || invitation.TargetUserID <= 0 {
 		return
 	}
 	role := guideProgressInvitationRole(invitation.Role)
 	if role == "player" {
-		s.createExpertConfirmationReadyNotification(invitation)
+		s.createExpertConfirmationReadyNotification(w, invitation)
 	}
 	game, err := s.games.Get(invitation.GameID)
 	if err != nil || game.CreatorUserID <= 0 || game.CreatorUserID == invitation.InviterID {
@@ -2050,7 +2073,7 @@ func (s *Server) createPairedInvitationProgressNotification(invitation games.Inv
 	}
 	targetName := s.inGameDisplayName(invitation.TargetUserID, roleLabel)
 	content := targetName + "已接受领路人的邀请，等待发起人或行家最终审核。"
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "invitation_progress", notifications.CreateRequest{
 		UserID:     game.CreatorUserID,
 		NotifyType: "game_invitation_progress",
 		Title:      title,
@@ -2065,7 +2088,7 @@ func (s *Server) createPairedInvitationProgressNotification(invitation games.Inv
 	})
 }
 
-func (s *Server) createExpertConfirmationReadyNotification(playerInvitation games.Invitation) {
+func (s *Server) createExpertConfirmationReadyNotification(w http.ResponseWriter, playerInvitation games.Invitation) {
 	expertInvitation, ok := s.guideProgressInvitationForRole(playerInvitation, "expert")
 	if !ok || expertInvitation.ID <= 0 || expertInvitation.TargetUserID <= 0 || expertInvitation.Status != "pending" {
 		return
@@ -2078,7 +2101,7 @@ func (s *Server) createExpertConfirmationReadyNotification(playerInvitation game
 	}
 	playerName := s.inGameDisplayName(playerInvitation.TargetUserID, "玩家")
 	page := "pages/game/audit-detail/index?invitationId=" + strconv.FormatInt(expertInvitation.ID, 10) + "&gameId=" + strconv.FormatInt(expertInvitation.GameID, 10)
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "expert_confirmation_ready", notifications.CreateRequest{
 		UserID:     expertInvitation.TargetUserID,
 		NotifyType: "game_invitation_progress",
 		Title:      title,
@@ -2099,7 +2122,7 @@ func (s *Server) hasInvitationSuccessNotification(userID int64, invitationID int
 	return false
 }
 
-func (s *Server) createGameReadyToStartNotification(game games.Game) {
+func (s *Server) createGameReadyToStartNotification(w http.ResponseWriter, game games.Game) {
 	if game.ID <= 0 || game.CreatorUserID <= 0 || game.MaxPlayers <= 0 ||
 		game.Status != "full" || game.CurrentPlayers < game.MaxPlayers ||
 		!s.gameInvitationGroupSucceeded(game) {
@@ -2115,7 +2138,7 @@ func (s *Server) createGameReadyToStartNotification(game games.Game) {
 	if gameTitle := strings.TrimSpace(game.Title); gameTitle != "" {
 		content = "《" + gameTitle + "》玩家和行家均已确认，现在可以开局。"
 	}
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "game_ready_to_start", notifications.CreateRequest{
 		UserID:     game.CreatorUserID,
 		NotifyType: "game_ready_to_start",
 		Title:      title,
@@ -2142,13 +2165,13 @@ func (s *Server) gameInvitationGroupSucceeded(game games.Game) bool {
 	return false
 }
 
-func (s *Server) createGameInvitationSuccessNotifications(invitation games.Invitation) {
+func (s *Server) createGameInvitationSuccessNotifications(w http.ResponseWriter, invitation games.Invitation) {
 	_, expertInvitation, allConfirmed := s.invitationConfirmedParties(invitation)
 	if !allConfirmed {
 		return
 	}
 	game, _ := s.games.Get(invitation.GameID)
-	s.createGameReadyToStartNotification(game)
+	s.createGameReadyToStartNotification(w, game)
 	content := "组局成功，玩家和行家申请均已审核通过，接下来可进入组局详情安排后续事项。"
 	if strings.TrimSpace(game.Title) != "" {
 		content = "「" + strings.TrimSpace(game.Title) + "」" + content
@@ -2166,7 +2189,7 @@ func (s *Server) createGameInvitationSuccessNotifications(invitation games.Invit
 			continue
 		}
 		page, _ := gameInvitationSuccessRoute(invitation.GameID, recipient.role)
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "game_invitation_succeeded", notifications.CreateRequest{
 			UserID:     recipient.userID,
 			NotifyType: "game_invitation_success",
 			Title:      "组局成功",
@@ -2485,7 +2508,6 @@ func (s *Server) referralRecordItem(invitation games.Invitation, texts map[strin
 	state := "processing"
 	stateText := "\u670d\u52a1\u8fdb\u884c\u4e2d"
 	stateClass := "blue"
-	rewardClass := "orange"
 	actions := []map[string]interface{}{
 		{"key": "remind", "text": texts["remindActionText"], "theme": "primary"},
 		{"key": "chat", "text": texts["chatActionText"], "theme": "plain"},
@@ -2494,22 +2516,16 @@ func (s *Server) referralRecordItem(invitation games.Invitation, texts map[strin
 		state = "completed"
 		stateText = "\u5df2\u5b8c\u6210"
 		stateClass = "green"
-		rewardClass = "green"
 		actions = []map[string]interface{}{{"key": "review", "text": texts["reviewActionText"], "theme": "highlight"}}
 	}
 	if invitation.Status == "rejected" || game.Status == "canceled" || game.Status == "cancelled" {
 		state = "canceled"
 		stateText = "\u5df2\u53d6\u6d88"
 		stateClass = "gray"
-		rewardClass = "gray"
 		actions = nil
 	}
 	targetName := s.inGameDisplayName(invitation.TargetUserID, "\u73a9\u5bb6")
 	inviterName := s.inGameDisplayName(invitation.InviterID, "\u884c\u5bb6")
-	reward := 0
-	if state != "canceled" {
-		reward = int(successFundAmount(game) / 1000)
-	}
 	return map[string]interface{}{
 		"id":               "REF-" + strconv.FormatInt(invitation.ID, 10),
 		"referralId":       invitation.ID,
@@ -2524,8 +2540,7 @@ func (s *Server) referralRecordItem(invitation games.Invitation, texts map[strin
 		"expert":           map[string]interface{}{"id": invitation.InviterID, "userId": invitation.InviterID, "name": inviterName, "avatarText": avatarTextForName(inviterName, invitation.InviterID), "avatarClass": "blue"},
 		"player":           map[string]interface{}{"id": invitation.TargetUserID, "userId": invitation.TargetUserID, "name": targetName, "avatarText": avatarTextForName(targetName, invitation.TargetUserID), "avatarClass": "pink"},
 		"serviceTitle":     game.Title,
-		"reward":           reward,
-		"rewardClass":      rewardClass,
+		"settlementText":   texts["noSettlementText"],
 		"noticeText":       referralNoticeText(state, invitation),
 		"reviewStatus":     referralReviewStatus(state),
 		"reviewActionText": texts["reviewActionText"],

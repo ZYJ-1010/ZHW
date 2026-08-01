@@ -24,10 +24,10 @@
 
       <view wx:if="{{!item.compact}}" class="invite-card-relation">
         <view class="invite-card-person">
-          <text class="invite-card-avatar expert">{{item.expertAvatar}}</text>
+          <text class="invite-card-avatar expert">{{item.inviterAvatar}}</text>
           <view class="invite-card-person-copy">
-            <text class="invite-card-person-name">{{item.expert}}</text>
-            <text class="invite-card-role expert">行家</text>
+            <text class="invite-card-person-name">{{item.inviterName}}</text>
+            <text class="invite-card-role expert">{{item.inviterRoleLabel}}</text>
           </view>
         </view>
         <view class="invite-card-me">
@@ -37,18 +37,18 @@
           <text>我</text>
         </view>
         <view class="invite-card-person right">
-          <text class="invite-card-avatar player">{{item.playerAvatar}}</text>
+          <text class="invite-card-avatar player">{{item.inviteeAvatar}}</text>
           <view class="invite-card-person-copy">
-            <text class="invite-card-person-name">{{item.player}}</text>
-            <text class="invite-card-role player">玩家</text>
+            <text class="invite-card-person-name">{{item.inviteeName}}</text>
+            <text class="invite-card-role player">{{item.inviteeRoleLabel}}</text>
           </view>
         </view>
       </view>
 
       <view wx:else class="invite-card-compact-person">
-        <text class="invite-card-avatar muted">{{item.expertAvatar}}</text>
+        <text class="invite-card-avatar muted">{{item.inviteeAvatar}}</text>
         <view class="invite-card-person-copy">
-          <text class="invite-card-person-name">{{item.expert}}</text>
+          <text class="invite-card-person-name">{{item.inviteeName}}</text>
           <text class="invite-card-role muted">{{item.status}}</text>
         </view>
       </view>
@@ -56,10 +56,8 @@
       <view class="invite-card-bottom">
         <view class="invite-card-summary">
           <text class="invite-card-title">{{item.title}}</text>
-          <text wx:if="{{item.budget}}" class="invite-card-budget">{{item.budget}}</text>
         </view>
-        <text wx:if="{{item.income}}" class="invite-card-income">{{item.income}}</text>
-        <view wx:else class="invite-card-arrow"></view>
+        <view class="invite-card-arrow"></view>
       </view>
 
       <text wx:if="{{item.warning}}" class="timeout-note">{{item.warning}}</text>

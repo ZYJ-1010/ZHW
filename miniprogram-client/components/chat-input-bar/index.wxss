@@ -2,9 +2,9 @@
   display: flex;
   align-items: center;
   width: 100%;
-  height: 124rpx;
-  padding: 22rpx 18rpx calc(10rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid #d1d5db;
+  height: 108rpx;
+  padding: 18rpx 18rpx calc(10rpx + env(safe-area-inset-bottom));
+  border-top: 0;
   box-sizing: border-box;
   background: #f7f7f7;
 }
@@ -16,7 +16,7 @@
   margin: 0 12rpx;
   padding: 0 18rpx;
   border: 1rpx solid #d1d5db;
-  border-radius: 16rpx;
+  border-radius: 8rpx;
   box-sizing: border-box;
   background: #ffffff;
   color: #111827;
@@ -58,7 +58,7 @@
   width: 86rpx;
   flex-basis: 86rpx;
   border-radius: 999rpx;
-  background: #22c55e;
+  background: #07c160;
 }
 
 .send-label {
@@ -69,10 +69,11 @@
 }
 
 .input-tool.active,
-.input-tool.recording {
+.input-tool.send.disabled {
   border-radius: 50%;
   background: #e5e7eb;
 }
+
 
 .chat-panel {
   width: 100%;

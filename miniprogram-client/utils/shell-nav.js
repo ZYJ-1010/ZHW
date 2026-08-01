@@ -15,6 +15,30 @@ const DEFAULT_ROUTE_MAP = {
 
 let forwardRoute = ''
 
+// 地图城市探索与元宇宙均为二期能力。一期页面的入口都通过本导航工具
+// 跳转，在这里集中拦截，避免遗漏某个旧页面入口而重新打开未交付页面。
+function deferredFeatureMessage(route) {
+  const path = String(route || '').replace(/^\/+/, '').split('?')[0]
+
+  if (path === ROUTES.map || path.indexOf('pages/map/') === 0) {
+    return '地图功能暂未开放'
+  }
+
+  if (path === ROUTES.metaverse || path.indexOf('pages/metaverse/') === 0) {
+    return '元宇宙功能暂未开放'
+  }
+
+  return ''
+}
+
+function showDeferredFeatureMessage(message) {
+  if (!message || typeof wx === 'undefined' || typeof wx.showToast !== 'function') {
+    return
+  }
+
+  wx.showToast({ title: message, icon: 'none' })
+}
+
 function normalizeRoute(route) {
   return route ? `/${String(route).replace(/^\/+/, '')}` : ''
 }
@@ -169,6 +193,12 @@ function navigateShellRoute(route, options = {}) {
     return false
   }
 
+  const deferredMessage = deferredFeatureMessage(route)
+  if (deferredMessage) {
+    showDeferredFeatureMessage(deferredMessage)
+    return false
+  }
+
   const currentRoute = options.currentRoute || getCurrentRoute()
 
   if (options.reuseExisting !== false) {
@@ -233,5 +263,6 @@ module.exports = {
   navigateShellKey,
   navigateShellRoute,
   normalizeRoute,
-  routeForShellKey
+  routeForShellKey,
+  deferredFeatureMessage
 }

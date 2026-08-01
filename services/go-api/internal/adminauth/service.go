@@ -15,12 +15,16 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid admin credentials")
-	ErrAdminDisabled      = errors.New("admin disabled")
-	ErrInvalidToken       = errors.New("invalid admin token")
-	ErrAdminNotFound      = errors.New("admin not found")
-	ErrAdminExists        = errors.New("admin exists")
-	ErrInvalidAdminInput  = errors.New("invalid admin input")
+	ErrInvalidCredentials   = errors.New("invalid admin credentials")
+	ErrAdminDisabled        = errors.New("admin disabled")
+	ErrInvalidToken         = errors.New("invalid admin token")
+	ErrAdminNotFound        = errors.New("admin not found")
+	ErrAdminExists          = errors.New("admin exists")
+	ErrInvalidAdminInput    = errors.New("invalid admin input")
+	ErrApplicationNotFound  = errors.New("admin application not found")
+	ErrApplicationProcessed = errors.New("admin application already processed")
+	ErrAdminSelfMutation    = errors.New("admin cannot change own roles or status")
+	ErrLastSuperAdmin       = errors.New("last active super admin must be preserved")
 )
 
 type AdminUser struct {
@@ -40,13 +44,20 @@ type AdminUserSummary struct {
 }
 
 type AdminApplication struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Contact     string `json:"contact"`
-	DesiredRole string `json:"desiredRole"`
-	Reason      string `json:"reason"`
-	Status      string `json:"status"`
-	CreatedAt   string `json:"createdAt"`
+	ID                  int64  `json:"id"`
+	Name                string `json:"name"`
+	Contact             string `json:"contact"`
+	DesiredRole         string `json:"desiredRole"`
+	Reason              string `json:"reason"`
+	Status              string `json:"status"`
+	ReviewRemark        string `json:"reviewRemark,omitempty"`
+	ReviewedBy          int64  `json:"reviewedBy,omitempty"`
+	ReviewerUsername    string `json:"reviewerUsername,omitempty"`
+	ReviewedAt          string `json:"reviewedAt,omitempty"`
+	LinkedAdminUserID   int64  `json:"linkedAdminUserId,omitempty"`
+	LinkedAdminUsername string `json:"linkedAdminUsername,omitempty"`
+	CreatedAt           string `json:"createdAt"`
+	UpdatedAt           string `json:"updatedAt"`
 }
 
 type RoleSummary struct {
@@ -104,6 +115,22 @@ type SubmitAdminApplicationRequest struct {
 	Reason      string `json:"reason"`
 }
 
+type ReviewAdminApplicationRequest struct {
+	Action      string `json:"action"`
+	Remark      string `json:"remark"`
+	AdminUserID int64  `json:"adminUserId"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+}
+
+type AdminApplicationReview struct {
+	Status            string
+	Remark            string
+	ReviewerID        int64
+	LinkedAdminUserID int64
+	NewAccount        *StoredAdminAccount
+}
+
 type PermissionNode struct {
 	Code     string           `json:"code"`
 	Name     string           `json:"name"`
@@ -139,6 +166,9 @@ type Repository interface {
 	ListAccounts(ctx context.Context) ([]StoredAdminAccount, error)
 	CreateAccount(ctx context.Context, account StoredAdminAccount) (StoredAdminAccount, error)
 	UpdateAccount(ctx context.Context, account StoredAdminAccount) (StoredAdminAccount, error)
+	CreateApplication(ctx context.Context, application AdminApplication) (AdminApplication, error)
+	ListApplications(ctx context.Context) ([]AdminApplication, error)
+	ReviewApplication(ctx context.Context, id int64, review AdminApplicationReview) (AdminApplication, error)
 	RoleSummaries(ctx context.Context) ([]RoleSummary, error)
 	PermissionCatalog(ctx context.Context) ([]PermissionSummary, error)
 }
@@ -279,19 +309,6 @@ func (s *Service) Permissions(token string) (PermissionTree, error) {
 		Buttons:     permissions,
 		Apis:        permissions,
 	}, nil
-	return PermissionTree{
-		AdminUser:   user,
-		Roles:       append([]string(nil), session.Roles...),
-		Permissions: permissions,
-		Menus: []PermissionNode{
-			{Code: "dashboard", Name: "数据看板", Type: "menu"},
-			{Code: "reports", Name: "举报申诉", Type: "menu"},
-			{Code: "exports", Name: "导出中心", Type: "menu"},
-			{Code: "operation_logs", Name: "操作日志", Type: "menu"},
-		},
-		Buttons: permissions,
-		Apis:    permissions,
-	}, nil
 }
 
 func effectivePermissions(roles []string, permissions []string) []string {
@@ -360,23 +377,31 @@ func (s *Service) SubmitAdminApplication(req SubmitAdminApplicationRequest) (Adm
 	if err != nil || len(roles) != 1 || roles[0] == "super_admin" {
 		return AdminApplication{}, ErrInvalidAdminInput
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	now := time.Now().Format(time.RFC3339)
 	item := AdminApplication{
-		ID:          s.nextApplicationID,
 		Name:        name,
 		Contact:     contact,
 		DesiredRole: roles[0],
 		Reason:      reason,
 		Status:      "pending",
-		CreatedAt:   time.Now().Format(time.RFC3339),
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
+	if s.repository != nil {
+		return s.repository.CreateApplication(context.Background(), item)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item.ID = s.nextApplicationID
 	s.nextApplicationID++
 	s.applications[item.ID] = item
 	return item, nil
 }
 
 func (s *Service) AdminApplications() ([]AdminApplication, error) {
+	if s.repository != nil {
+		return s.repository.ListApplications(context.Background())
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	items := make([]AdminApplication, 0, len(s.applications))
@@ -389,9 +414,150 @@ func (s *Service) AdminApplications() ([]AdminApplication, error) {
 	return items, nil
 }
 
+func (s *Service) ReviewAdminApplication(id int64, reviewerID int64, req ReviewAdminApplicationRequest) (AdminApplication, error) {
+	if id <= 0 || reviewerID <= 0 {
+		return AdminApplication{}, ErrInvalidAdminInput
+	}
+	status, err := normalizeApplicationAction(req.Action)
+	if err != nil {
+		return AdminApplication{}, err
+	}
+	remark := strings.TrimSpace(req.Remark)
+	if len([]rune(remark)) > 500 || ((status == "rejected" || status == "closed") && remark == "") {
+		return AdminApplication{}, ErrInvalidAdminInput
+	}
+
+	review := AdminApplicationReview{Status: status, Remark: remark, ReviewerID: reviewerID}
+	if status == "approved" {
+		username := strings.TrimSpace(req.Username)
+		password := strings.TrimSpace(req.Password)
+		hasExistingAccount := req.AdminUserID > 0
+		hasNewAccount := username != "" || password != ""
+		if hasExistingAccount == hasNewAccount {
+			return AdminApplication{}, ErrInvalidAdminInput
+		}
+		if hasExistingAccount {
+			if req.AdminUserID == reviewerID {
+				return AdminApplication{}, ErrAdminSelfMutation
+			}
+			account, found, findErr := s.accountByID(context.Background(), req.AdminUserID)
+			if findErr != nil {
+				return AdminApplication{}, findErr
+			}
+			if !found {
+				return AdminApplication{}, ErrAdminNotFound
+			}
+			if account.user.Status != "active" {
+				return AdminApplication{}, ErrAdminDisabled
+			}
+			review.LinkedAdminUserID = req.AdminUserID
+		} else {
+			if username == "" || !validAdminPassword(req.Password) || len([]rune(username)) > 64 || strings.ContainsAny(username, " \t\r\n") {
+				return AdminApplication{}, ErrInvalidAdminInput
+			}
+			passwordHash, hashErr := hashPassword(req.Password)
+			if hashErr != nil {
+				return AdminApplication{}, hashErr
+			}
+			review.NewAccount = &StoredAdminAccount{
+				User:         AdminUser{Username: username, Status: "active"},
+				PasswordHash: passwordHash,
+			}
+		}
+	} else if req.AdminUserID > 0 || strings.TrimSpace(req.Username) != "" || strings.TrimSpace(req.Password) != "" {
+		return AdminApplication{}, ErrInvalidAdminInput
+	}
+
+	if s.repository != nil {
+		item, reviewErr := s.repository.ReviewApplication(context.Background(), id, review)
+		if reviewErr != nil {
+			return AdminApplication{}, reviewErr
+		}
+		if item.LinkedAdminUserID > 0 {
+			s.mu.Lock()
+			s.expireSessionsForAdminLocked(item.LinkedAdminUserID)
+			s.mu.Unlock()
+		}
+		return item, nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item, ok := s.applications[id]
+	if !ok {
+		return AdminApplication{}, ErrApplicationNotFound
+	}
+	if item.Status != "pending" {
+		return AdminApplication{}, ErrApplicationProcessed
+	}
+	if status == "approved" {
+		linkedID, linkedUsername, reviewErr := s.applyApplicationAccountLocked(item.DesiredRole, review)
+		if reviewErr != nil {
+			return AdminApplication{}, reviewErr
+		}
+		item.LinkedAdminUserID = linkedID
+		item.LinkedAdminUsername = linkedUsername
+		s.expireSessionsForAdminLocked(linkedID)
+	}
+	now := time.Now().Format(time.RFC3339)
+	item.Status = status
+	item.ReviewRemark = remark
+	item.ReviewedBy = reviewerID
+	for _, account := range s.accounts {
+		if account.user.ID == reviewerID {
+			item.ReviewerUsername = account.user.Username
+			break
+		}
+	}
+	item.ReviewedAt = now
+	item.UpdatedAt = now
+	s.applications[id] = item
+	return item, nil
+}
+
+func (s *Service) applyApplicationAccountLocked(desiredRole string, review AdminApplicationReview) (int64, string, error) {
+	if review.LinkedAdminUserID > 0 {
+		for username, account := range s.accounts {
+			if account.user.ID != review.LinkedAdminUserID {
+				continue
+			}
+			account.user.Roles = uniqueSortedStrings(append(account.user.Roles, desiredRole))
+			account.permissions = permissionsForRoles(account.user.Roles)
+			account.permissionSet = toSet(account.permissions)
+			s.accounts[username] = account
+			return account.user.ID, username, nil
+		}
+		return 0, "", ErrAdminNotFound
+	}
+	if review.NewAccount == nil {
+		return 0, "", ErrInvalidAdminInput
+	}
+	username := review.NewAccount.User.Username
+	if _, exists := s.accounts[username]; exists {
+		return 0, "", ErrAdminExists
+	}
+	account := newAdminAccount(s.nextAdminID, username, []string{desiredRole}, review.NewAccount.PasswordHash, permissionsForRoles([]string{desiredRole}))
+	s.nextAdminID++
+	s.accounts[username] = account
+	return account.user.ID, username, nil
+}
+
+func normalizeApplicationAction(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "approve", "approved":
+		return "approved", nil
+	case "reject", "rejected":
+		return "rejected", nil
+	case "close", "closed":
+		return "closed", nil
+	default:
+		return "", ErrInvalidAdminInput
+	}
+}
+
 func (s *Service) CreateAdminUser(req CreateAdminUserRequest) (AdminUserSummary, error) {
 	username := strings.TrimSpace(req.Username)
-	if username == "" || strings.ContainsAny(username, " \t\r\n") || strings.TrimSpace(req.Password) == "" {
+	if username == "" || strings.ContainsAny(username, " \t\r\n") || !validAdminPassword(req.Password) {
 		return AdminUserSummary{}, ErrInvalidAdminInput
 	}
 	roles, err := normalizeRoles(req.Roles)
@@ -434,6 +600,10 @@ func (s *Service) CreateAdminUser(req CreateAdminUserRequest) (AdminUserSummary,
 }
 
 func (s *Service) UpdateAdminUser(id int64, req UpdateAdminUserRequest) (AdminUserSummary, error) {
+	return s.UpdateAdminUserByActor(0, id, req)
+}
+
+func (s *Service) UpdateAdminUserByActor(actorID int64, id int64, req UpdateAdminUserRequest) (AdminUserSummary, error) {
 	if id <= 0 {
 		return AdminUserSummary{}, ErrInvalidAdminInput
 	}
@@ -453,6 +623,9 @@ func (s *Service) UpdateAdminUser(id int64, req UpdateAdminUserRequest) (AdminUs
 		if !ok {
 			return AdminUserSummary{}, ErrAdminNotFound
 		}
+		if actorID == id && (current.User.Status != status || !sameAdminRoles(current.User.Roles, roles)) {
+			return AdminUserSummary{}, ErrAdminSelfMutation
+		}
 		current.User.Roles = roles
 		current.User.Status = status
 		current.Permissions = permissionsForRoles(roles)
@@ -471,6 +644,13 @@ func (s *Service) UpdateAdminUser(id int64, req UpdateAdminUserRequest) (AdminUs
 		if account.user.ID != id {
 			continue
 		}
+		if actorID == id && (account.user.Status != status || !sameAdminRoles(account.user.Roles, roles)) {
+			return AdminUserSummary{}, ErrAdminSelfMutation
+		}
+		if account.user.Status == "active" && containsRole(account.user.Roles, "super_admin") &&
+			(status != "active" || !containsRole(roles, "super_admin")) && s.activeSuperAdminCountLocked() <= 1 {
+			return AdminUserSummary{}, ErrLastSuperAdmin
+		}
 		account.user.Roles = roles
 		account.user.Status = status
 		account.permissions = permissionsForRoles(roles)
@@ -480,6 +660,35 @@ func (s *Service) UpdateAdminUser(id int64, req UpdateAdminUserRequest) (AdminUs
 		return summaryFromAccount(account), nil
 	}
 	return AdminUserSummary{}, ErrAdminNotFound
+}
+
+func (s *Service) activeSuperAdminCountLocked() int {
+	count := 0
+	for _, account := range s.accounts {
+		if account.user.Status == "active" && containsRole(account.user.Roles, "super_admin") {
+			count++
+		}
+	}
+	return count
+}
+
+func sameAdminRoles(left []string, right []string) bool {
+	left = uniqueSortedStrings(left)
+	right = uniqueSortedStrings(right)
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func validAdminPassword(value string) bool {
+	length := len([]rune(value))
+	return length >= 8 && length <= 128 && strings.TrimSpace(value) != ""
 }
 
 func (s *Service) Roles() ([]RoleSummary, error) {
@@ -530,7 +739,11 @@ func menuNodesForPermissions(permissions []string) []PermissionNode {
 		name        string
 		permissions []string
 	}{
-		{code: "dashboard", name: "数据看板", permissions: []string{"analytics:funnel:view", "analytics:retention:view", "analytics:timeline:view"}},
+		{code: "dashboard", name: "数据看板", permissions: []string{
+			"analytics:funnel:view", "analytics:retention:view", "analytics:timeline:view", "user:view", "game:read",
+			"identity:read", "role:view", "report:view", "redemption:manage", "invite_code:read", "feedback:view",
+			"notification:wechat:view", "admin_user:view",
+		}},
 		{code: "users", name: "用户管理", permissions: []string{"user:view"}},
 		{code: "invites", name: "邀请管理", permissions: []string{"invite_code:read", "invite_code:manage"}},
 		{code: "games", name: "组局管理", permissions: []string{"game:read"}},

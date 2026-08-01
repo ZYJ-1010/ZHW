@@ -15,9 +15,22 @@
         <image class="achievement-crown" src="/pages/profile/footprint/achievements/assets/icon-crown.png" mode="aspectFit"></image>
       </view>
       <text class="achievement-level">{{levelTitle}}</text>
+      <text class="achievement-role">当前身份：{{activeRoleName}}</text>
       <text class="achievement-level-tip">{{levelTip}}</text>
       <view class="achievement-progress">
         <view class="achievement-progress-fill" style="width: {{progress}}%;"></view>
+      </view>
+    </view>
+
+    <view wx:if="{{roleGrowth.length}}" class="role-growth-strip">
+      <view wx:for="{{roleGrowth}}" wx:key="id" class="role-growth-tile {{item.active ? '' : 'is-inactive'}} {{item.selected ? 'is-selected' : ''}}">
+        <view class="role-growth-tile-head">
+          <text class="role-growth-tile-name">{{item.roleName}}</text>
+          <text wx:if="{{item.selected}}" class="role-growth-tile-current">当前</text>
+          <text class="role-growth-tile-score">{{item.scoreText}}</text>
+        </view>
+        <text class="role-growth-tile-level">{{item.levelTitle}}</text>
+        <text class="role-growth-tile-desc">{{item.description}}</text>
       </view>
     </view>
 

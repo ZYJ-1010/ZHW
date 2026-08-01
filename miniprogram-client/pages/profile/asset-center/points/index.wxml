@@ -40,7 +40,6 @@
         </view>
         <view class="rule-limit-row">
           <view class="rule-limit"><text class="limit-mark">!</text><text>不可提现</text></view>
-          <view class="rule-limit"><text class="limit-mark">!</text><text>不可支付付费局</text></view>
         </view>
       </view>
 

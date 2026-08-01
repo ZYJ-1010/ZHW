@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -187,6 +188,9 @@ func TestServiceUsesRepositoryWhenConfigured(t *testing.T) {
 	if !repo.saved || notification.ID != 9 || notification.WechatTaskID != 7 {
 		t.Fatalf("expected repository create, saved=%v notification=%+v", repo.saved, notification)
 	}
+	if len(service.notifications) != 1 || service.notifications[9].ID != 9 || len(service.wechatTasks) != 1 || service.wechatTasks[7].ID != 7 {
+		t.Fatalf("expected repository IDs to replace temporary in-memory IDs, notifications=%+v tasks=%+v", service.notifications, service.wechatTasks)
+	}
 	if items := service.List(2); !repo.listed || len(items) != 1 || items[0].ID != 8 {
 		t.Fatalf("expected repository list, listed=%v items=%+v", repo.listed, items)
 	}
@@ -212,6 +216,64 @@ func TestServiceUsesRepositoryWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestCreatePersistedReportsRepositoryFailureAndKeepsFallback(t *testing.T) {
+	persistErr := errors.New("database unavailable")
+	repo := &fakeNotificationRepository{
+		notifications: map[int64]Notification{},
+		tasks:         map[int64]WechatTask{},
+		saveErr:       persistErr,
+		listErr:       persistErr,
+	}
+	service := NewServiceWithRepository(repo)
+
+	notification, err := service.CreatePersisted(CreateRequest{
+		UserID: 2, NotifyType: "application_approved", Title: "入局申请已通过", NeedWechat: true,
+	})
+	if !errors.Is(err, ErrNotificationPersist) {
+		t.Fatalf("expected persistence error, got %v", err)
+	}
+	if notification.ID == 0 || notification.WechatTaskID == 0 {
+		t.Fatalf("expected in-memory fallback notification and task, got %+v", notification)
+	}
+	items := service.List(2)
+	if len(items) != 1 || items[0].ID != notification.ID {
+		t.Fatalf("expected fallback notification to remain readable while repository is unavailable, got %+v", items)
+	}
+}
+
+func TestStrictNotificationListDoesNotReturnProcessFallbackOnRepositoryFailure(t *testing.T) {
+	persistErr := errors.New("database unavailable")
+	repo := &fakeNotificationRepository{
+		notifications: map[int64]Notification{},
+		tasks:         map[int64]WechatTask{},
+		saveErr:       persistErr,
+		listErr:       persistErr,
+	}
+	service := NewServiceWithRepository(repo)
+	_, _ = service.CreatePersisted(CreateRequest{UserID: 2, NotifyType: "report_created", Title: "举报已提交"})
+
+	items, err := service.ListStrict(2)
+	if !errors.Is(err, persistErr) || items != nil {
+		t.Fatalf("expected strict repository error without local fallback, items=%+v err=%v", items, err)
+	}
+}
+
+func TestStrictWechatBatchDoesNotSendProcessFallbackTasksOnRepositoryFailure(t *testing.T) {
+	listErr := errors.New("task database unavailable")
+	repo := &fakeNotificationRepository{
+		notifications: map[int64]Notification{},
+		tasks:         map[int64]WechatTask{},
+		taskListErr:   listErr,
+	}
+	service := NewServiceWithRepository(repo)
+	service.wechatTasks[1] = WechatTask{ID: 1, UserID: 2, Status: "pending", TemplateID: "local-template"}
+
+	result, err := service.SendPendingWechatTasksStrict(20)
+	if !errors.Is(err, listErr) || result.Sent != 0 || result.Failed != 0 {
+		t.Fatalf("expected strict task read failure without sending local tasks, result=%+v err=%v", result, err)
+	}
+}
+
 type recordingWechatSender struct {
 	called bool
 	req    WechatSubscribeSendRequest
@@ -233,10 +295,16 @@ type fakeNotificationRepository struct {
 	listedTemplates bool
 	updated         bool
 	markedSent      bool
+	saveErr         error
+	listErr         error
+	taskListErr     error
 }
 
 func (r *fakeNotificationRepository) SaveNotification(ctx context.Context, notification Notification, task *WechatTask) (Notification, error) {
 	r.saved = true
+	if r.saveErr != nil {
+		return Notification{}, r.saveErr
+	}
 	notification.ID = 9
 	if task != nil {
 		notification.WechatTaskID = 7
@@ -250,6 +318,9 @@ func (r *fakeNotificationRepository) SaveNotification(ctx context.Context, notif
 
 func (r *fakeNotificationRepository) ListNotifications(ctx context.Context, userID int64) ([]Notification, error) {
 	r.listed = true
+	if r.listErr != nil {
+		return nil, r.listErr
+	}
 	return []Notification{r.notifications[8]}, nil
 }
 
@@ -266,6 +337,9 @@ func (r *fakeNotificationRepository) UpdateNotification(ctx context.Context, not
 
 func (r *fakeNotificationRepository) ListWechatTasks(ctx context.Context) ([]WechatTask, error) {
 	r.listedTasks = true
+	if r.taskListErr != nil {
+		return nil, r.taskListErr
+	}
 	return []WechatTask{r.tasks[6]}, nil
 }
 

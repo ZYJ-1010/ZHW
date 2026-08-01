@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 )
@@ -17,7 +18,18 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 }
 
 func (r *SQLRepository) SaveReport(ctx context.Context, report Report) (Report, error) {
-	return scanReport(r.db.QueryRowContext(ctx, `
+	if report.ReportType == "credit_appeal" {
+		return r.saveCreditAppeal(ctx, report)
+	}
+	return insertReport(ctx, r.db, report)
+}
+
+type reportQueryer interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func insertReport(ctx context.Context, queryer reportQueryer, report Report) (Report, error) {
+	return scanReport(queryer.QueryRowContext(ctx, `
 insert into reports (
   game_id, reporter_user_id, target_user_id, report_type, content, status,
   chat_message_id, file_id, review_id, credit_log_id, revenue_record_id, revenue_frozen,
@@ -27,6 +39,58 @@ returning id, game_id, reporter_user_id, target_user_id, report_type, content, s
   chat_message_id, file_id, review_id, credit_log_id, revenue_record_id, revenue_frozen,
   revenue_freeze_note, handler_admin_id, handle_result, handled_at, created_at
 `, report.GameID, report.ReporterUserID, nullInt64(report.TargetUserID), report.ReportType, nullString(report.Content), report.Status, nullInt64(report.ChatMessageID), nullInt64(report.FileID), nullInt64(report.ReviewID), nullInt64(report.CreditLogID), nullInt64(report.RevenueRecordID), report.RevenueFrozen, nullString(report.RevenueFreezeNote), nullInt64(report.HandlerAdminID), nullString(encodeHandleResult(report)), nullTimeString(report.HandledAt), report.CreatedAt))
+}
+
+func (r *SQLRepository) saveCreditAppeal(ctx context.Context, report Report) (Report, error) {
+	if report.ReporterUserID <= 0 || report.CreditLogID <= 0 {
+		return Report{}, ErrInvalidReport
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Report{}, err
+	}
+	defer tx.Rollback()
+
+	var linkedAppealID sql.NullInt64
+	err = tx.QueryRowContext(ctx, `
+select appeal_id
+from credit_logs
+where id = $1 and user_id = $2 and change_value < 0
+for update
+`, report.CreditLogID, report.ReporterUserID).Scan(&linkedAppealID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Report{}, ErrInvalidReport
+	}
+	if err != nil {
+		return Report{}, err
+	}
+	if linkedAppealID.Valid {
+		return Report{}, ErrCreditAppealExists
+	}
+
+	saved, err := insertReport(ctx, tx, report)
+	if err != nil {
+		return Report{}, err
+	}
+	result, err := tx.ExecContext(ctx, `
+update credit_logs
+set appeal_id = $2
+where id = $1 and appeal_id is null
+`, report.CreditLogID, saved.ID)
+	if err != nil {
+		return Report{}, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return Report{}, err
+	}
+	if rows != 1 {
+		return Report{}, ErrCreditAppealExists
+	}
+	if err = tx.Commit(); err != nil {
+		return Report{}, err
+	}
+	return saved, nil
 }
 
 func (r *SQLRepository) ListReports(ctx context.Context) ([]Report, error) {

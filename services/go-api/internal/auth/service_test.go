@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"zhw-mini/services/go-api/internal/identity"
 	"zhw-mini/services/go-api/internal/invites"
@@ -18,6 +19,34 @@ func (failingPhoneSMSSender) GenerateCode() string {
 
 func (failingPhoneSMSSender) Send(context.Context, identity.SMSDispatchRequest) (identity.SMSDispatchResult, error) {
 	return identity.SMSDispatchResult{}, errors.New("provider unavailable")
+}
+
+type fixedPhoneSMSSender struct{}
+
+func (fixedPhoneSMSSender) GenerateCode() string { return "654321" }
+
+func (fixedPhoneSMSSender) Send(context.Context, identity.SMSDispatchRequest) (identity.SMSDispatchResult, error) {
+	return identity.SMSDispatchResult{Provider: "test"}, nil
+}
+
+type failOnceSessionRepository struct {
+	failNext bool
+}
+
+func (r *failOnceSessionRepository) SaveSession(context.Context, Session) error {
+	if r.failNext {
+		r.failNext = false
+		return errors.New("session repository unavailable")
+	}
+	return nil
+}
+
+func (*failOnceSessionRepository) FindSessionByTokenHash(context.Context, string) (Session, bool, error) {
+	return Session{}, false, nil
+}
+
+func (*failOnceSessionRepository) RevokeUserSessions(context.Context, int64) error {
+	return nil
 }
 
 func newTestService() *Service {
@@ -58,6 +87,71 @@ func TestWechatLoginCreatesUserWithValidInvite(t *testing.T) {
 	}
 	if resp.EntryType != "qrcode" || resp.AuthPageMode != "register" {
 		t.Fatalf("expected qrcode register mode, got %+v", resp)
+	}
+}
+
+func TestCurrentUserRejectsPreAuthSession(t *testing.T) {
+	service := newTestService()
+	login, err := service.WechatLogin(WechatLoginRequest{Code: "preauth-scope", InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := service.CurrentUser(login.PreAuthToken); ok {
+		t.Fatal("pre-auth session must not be accepted as a formal app session")
+	}
+	if user, ok := service.CurrentIdentityUser(login.PreAuthToken); !ok || user.ID != login.User.ID {
+		t.Fatalf("identity scope must accept pre-auth session, user=%+v ok=%v", user, ok)
+	}
+}
+
+func TestBoundWechatRequiresVerifiedPhoneBinding(t *testing.T) {
+	service := newTestService()
+	login, err := service.WechatLogin(WechatLoginRequest{Code: "phone-verifier", InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.BindPhoneAuth(login.User.ID, "13900139021"); err != nil {
+		t.Fatal(err)
+	}
+	verified := false
+	service.SetPhoneBindingVerifier(func(userID int64) bool {
+		return userID == login.User.ID && verified
+	})
+	unverified, err := service.WechatLogin(WechatLoginRequest{Code: "phone-verifier"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unverified.Token != "" || unverified.PreAuthToken == "" || !unverified.RequiresIdentityBinding {
+		t.Fatalf("unverified phone must remain in pre-auth flow: %+v", unverified)
+	}
+	verified = true
+	formal, err := service.WechatLogin(WechatLoginRequest{Code: "phone-verifier"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if formal.Token == "" || formal.PreAuthToken != "" || formal.RequiresIdentityBinding {
+		t.Fatalf("verified phone must receive formal app session: %+v", formal)
+	}
+}
+
+func TestPhoneRegistrationNotifiesInviteRelationListener(t *testing.T) {
+	service := newTestService()
+	invite, err := service.IssueInviteEntry(42, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var notified invites.Relation
+	service.SetInviteRelationListener(func(relation invites.Relation) {
+		notified = relation
+	})
+	registered, err := service.PhoneLogin(PhoneLoginRequest{
+		Phone: "13900139022", Code: temporaryPhoneCode, InviteCode: invite.Code, EntryType: invites.EntryTypeQRCode,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if notified.InviterUserID != 42 || notified.InviteeUserID != registered.User.ID || notified.InviteCodeID != invite.ID {
+		t.Fatalf("phone registration must emit the bound relation, got %+v", notified)
 	}
 }
 
@@ -111,6 +205,24 @@ func TestPhoneLoginValidatesCodeAndInvite(t *testing.T) {
 	}
 }
 
+func TestPhoneRegistrationDoesNotConsumeCodeBeforeInviteValidation(t *testing.T) {
+	service := newTestService()
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), "13800138009", "register"); err != nil {
+		t.Fatalf("send phone code: %v", err)
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13800138009", Code: "654321"}); !errors.Is(err, ErrInviteRequired) {
+		t.Fatalf("missing invite error = %v, want ErrInviteRequired", err)
+	}
+	invite, err := service.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue invite: %v", err)
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13800138009", Code: "654321", InviteCode: invite.Code, EntryType: invites.EntryTypeQRCode}); err != nil {
+		t.Fatalf("same SMS code should remain usable after invite validation failure: %v", err)
+	}
+}
+
 func TestSendPhoneCodeDoesNotThrottleAfterProviderFailure(t *testing.T) {
 	service := newTestService()
 	service.UsePhoneSMSSender(failingPhoneSMSSender{})
@@ -120,6 +232,158 @@ func TestSendPhoneCodeDoesNotThrottleAfterProviderFailure(t *testing.T) {
 	}
 	if _, err := service.SendPhoneCode(context.Background(), "13800138000", "login"); !errors.Is(err, ErrPhoneCodeSendFailed) {
 		t.Fatalf("retry after failed send error = %v, want ErrPhoneCodeSendFailed instead of rate limit", err)
+	}
+}
+
+func TestResetPasswordByPhoneConsumesCodeAndReplacesPassword(t *testing.T) {
+	service := newTestService()
+	invite, err := service.IssueInviteEntry(0, invites.EntryTypeQRCode)
+	if err != nil {
+		t.Fatalf("issue invite: %v", err)
+	}
+	registered, err := service.PhoneLogin(PhoneLoginRequest{
+		Phone:      "13800138008",
+		Code:       temporaryPhoneCode,
+		InviteCode: invite.Code,
+		EntryType:  invites.EntryTypeQRCode,
+	})
+	if err != nil {
+		t.Fatalf("register phone account: %v", err)
+	}
+	if _, err := service.SetPassword(registered.User.ID, "OldPass123"); err != nil {
+		t.Fatalf("set initial password: %v", err)
+	}
+
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), "13800138008", "password_reset"); err != nil {
+		t.Fatalf("send reset code: %v", err)
+	}
+	if _, err := service.ResetPasswordByPhone("13800138008", "654321", "short"); !errors.Is(err, ErrPasswordInvalid) {
+		t.Fatalf("invalid password error = %v, want ErrPasswordInvalid", err)
+	}
+	if _, err := service.ResetPasswordByPhone("13800138008", "654321", "NewPass456"); err != nil {
+		t.Fatalf("reset password: %v", err)
+	}
+	if _, err := service.PasswordLogin(PasswordLoginRequest{Phone: "13800138008", Password: "OldPass123"}); !errors.Is(err, ErrPasswordInvalid) {
+		t.Fatalf("old password error = %v, want ErrPasswordInvalid", err)
+	}
+	if _, err := service.PasswordLogin(PasswordLoginRequest{Phone: "13800138008", Password: "NewPass456"}); err != nil {
+		t.Fatalf("new password login: %v", err)
+	}
+	if _, err := service.ResetPasswordByPhone("13800138008", "654321", "OtherPass789"); !errors.Is(err, ErrPhoneCodeInvalid) {
+		t.Fatalf("reused reset code error = %v, want ErrPhoneCodeInvalid", err)
+	}
+}
+
+func TestLoginCodeCannotResetPassword(t *testing.T) {
+	service := newTestService()
+	phone := "13800138051"
+	registered, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: temporaryPhoneCode, InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SetPassword(registered.User.ID, "OldPass123"); err != nil {
+		t.Fatal(err)
+	}
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), phone, "login"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ResetPasswordByPhone(phone, "654321", "NewPass456"); !errors.Is(err, ErrPhoneCodeInvalid) {
+		t.Fatalf("login code must not reset password, got %v", err)
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: "654321"}); err != nil {
+		t.Fatalf("cross-scene rejection must not consume the login code: %v", err)
+	}
+}
+
+func TestPasswordResetCodeCannotLogin(t *testing.T) {
+	service := newTestService()
+	phone := "13800138052"
+	registered, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: temporaryPhoneCode, InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SetPassword(registered.User.ID, "OldPass123"); err != nil {
+		t.Fatal(err)
+	}
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), phone, "password_reset"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: "654321"}); !errors.Is(err, ErrPhoneCodeInvalid) {
+		t.Fatalf("password-reset code must not log in, got %v", err)
+	}
+	if _, err := service.ResetPasswordByPhone(phone, "654321", "NewPass456"); err != nil {
+		t.Fatalf("cross-scene rejection must not consume the reset code: %v", err)
+	}
+}
+
+func TestGenericPhoneCodeVerificationRejectsPasswordResetScene(t *testing.T) {
+	service := newTestService()
+	phone := "13800138055"
+	registered, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: temporaryPhoneCode, InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SetPassword(registered.User.ID, "OldPass123"); err != nil {
+		t.Fatal(err)
+	}
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), phone, "password_reset"); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.VerifyPhoneCode(phone, "654321"); !errors.Is(err, ErrPhoneCodeInvalid) {
+		t.Fatalf("generic verification must reject password-reset code, got %v", err)
+	}
+	if _, err := service.ResetPasswordByPhone(phone, "654321", "NewPass456"); err != nil {
+		t.Fatalf("generic rejection must not consume password-reset code: %v", err)
+	}
+}
+
+func TestPhoneLoginRestoresCodeAfterDownstreamFailure(t *testing.T) {
+	service := newTestService()
+	phone := "13800138053"
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: temporaryPhoneCode, InviteCode: "TEST2026"}); err != nil {
+		t.Fatal(err)
+	}
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), phone, "login"); err != nil {
+		t.Fatal(err)
+	}
+	service.tokens.repo = &failOnceSessionRepository{failNext: true}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: "654321"}); err == nil {
+		t.Fatal("expected downstream session persistence failure")
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: "654321"}); err != nil {
+		t.Fatalf("same code must be retryable after downstream failure: %v", err)
+	}
+}
+
+func TestPhoneCodeExpiresAfterFiveWrongAttempts(t *testing.T) {
+	service := newTestService()
+	phone := "13800138054"
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: temporaryPhoneCode, InviteCode: "TEST2026"}); err != nil {
+		t.Fatal(err)
+	}
+	service.UsePhoneSMSSender(fixedPhoneSMSSender{})
+	if _, err := service.SendPhoneCode(context.Background(), phone, "login"); err != nil {
+		t.Fatal(err)
+	}
+	for attempt := 1; attempt <= phoneCodeMaxFailures; attempt++ {
+		if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: "111111"}); !errors.Is(err, ErrPhoneCodeInvalid) {
+			t.Fatalf("wrong attempt %d error = %v", attempt, err)
+		}
+	}
+	phoneKey := service.phoneLookupHash(phone)
+	service.phoneCodeMu.Lock()
+	_, exists := service.phoneCodes[phoneKey]
+	service.phoneCodeMu.Unlock()
+	if exists {
+		t.Fatal("code must be removed after five consecutive wrong attempts")
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: phone, Code: "654321"}); !errors.Is(err, ErrPhoneCodeInvalid) {
+		t.Fatalf("correct code must be invalid after five failures, got %v", err)
 	}
 }
 
@@ -139,6 +403,54 @@ func TestBoundPhoneCanLoginExistingWechatUserWithoutInvite(t *testing.T) {
 	}
 	if phone.User.ID != wechat.User.ID || phone.AuthPageMode != invites.AuthPageModeLogin {
 		t.Fatalf("expected existing wechat user phone login: %+v", phone)
+	}
+}
+
+func TestBindWechatDoesNotReassignExistingBinding(t *testing.T) {
+	service := newTestService()
+	first, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13900139010", Code: "000000", InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatalf("create first phone account: %v", err)
+	}
+	second, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13900139011", Code: "000000", InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatalf("create second phone account: %v", err)
+	}
+	if _, err := service.BindWechat(first.User.ID, "shared-wechat-code"); err != nil {
+		t.Fatalf("bind first wechat: %v", err)
+	}
+	if _, err := service.BindWechat(second.User.ID, "shared-wechat-code"); !errors.Is(err, ErrWechatAlreadyBound) {
+		t.Fatalf("existing wechat binding must not be reassigned, got %v", err)
+	}
+	if _, err := service.BindWechat(first.User.ID, "another-wechat-code"); !errors.Is(err, ErrWechatAlreadyBound) {
+		t.Fatalf("an account must not silently replace its bound wechat, got %v", err)
+	}
+}
+
+func TestWechatEntryPrecheckRequiresExistingAccountReauthAfterInactivity(t *testing.T) {
+	service := newTestService()
+	wechat, err := service.WechatLogin(WechatLoginRequest{Code: "reauth-user", InviteCode: "TEST2026"})
+	if err != nil {
+		t.Fatalf("wechat login failed: %v", err)
+	}
+	if _, err := service.BindPhoneAuth(wechat.User.ID, "13900139002"); err != nil {
+		t.Fatalf("bind phone auth failed: %v", err)
+	}
+	if _, err := service.PhoneLogin(PhoneLoginRequest{Phone: "13900139002", Code: "000000"}); err != nil {
+		t.Fatalf("existing phone login failed: %v", err)
+	}
+
+	fresh, err := service.WechatEntryPrecheck("reauth-user")
+	if err != nil || !fresh.BoundWechat || fresh.RequiresInvite || fresh.RequiresReauth {
+		t.Fatalf("expected a fresh existing account to continue silently, response=%+v err=%v", fresh, err)
+	}
+
+	service.tokens.mu.Lock()
+	service.tokens.loginAt[wechat.User.ID] = time.Now().Add(-61 * 24 * time.Hour)
+	service.tokens.mu.Unlock()
+	stale, err := service.WechatEntryPrecheck("reauth-user")
+	if err != nil || !stale.BoundWechat || stale.RequiresInvite || !stale.RequiresReauth {
+		t.Fatalf("expected stale account to require existing-account login, response=%+v err=%v", stale, err)
 	}
 }
 
@@ -278,7 +590,7 @@ func TestDeleteAccountReleasesLoginBindingsButExpiresOldInvite(t *testing.T) {
 	if _, err := service.BindPhoneAuth(first.User.ID, "13900139001"); err != nil {
 		t.Fatalf("bind phone: %v", err)
 	}
-	if _, ok := service.CurrentUser(first.PreAuthToken); !ok {
+	if _, ok := service.CurrentIdentityUser(first.PreAuthToken); !ok {
 		t.Fatal("expected first session to be valid before deletion")
 	}
 

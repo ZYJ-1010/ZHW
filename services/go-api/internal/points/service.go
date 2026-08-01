@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ErrInvalidPoints      = errors.New("invalid points")
-	ErrInsufficientPoints = errors.New("insufficient points")
+	ErrInvalidPoints            = errors.New("invalid points")
+	ErrInsufficientPoints       = errors.New("insufficient points")
+	ErrAtomicRepositoryRequired = errors.New("atomic points repository required")
 )
 
 type Account struct {
@@ -69,21 +70,46 @@ func NewServiceWithRepository(repo Repository) *Service {
 }
 
 func (s *Service) Summary(userID int64) Account {
+	account, err := s.SummaryStrict(userID)
+	if err == nil {
+		return account
+	}
+	return Account{UserID: userID}
+}
+
+func (s *Service) SummaryStrict(userID int64) (Account, error) {
+	if userID <= 0 {
+		return Account{}, ErrInvalidPoints
+	}
 	if s.repo != nil {
-		if account, ok, err := s.repo.GetAccount(context.Background(), userID); err == nil && ok {
-			return account
+		account, ok, err := s.repo.GetAccount(context.Background(), userID)
+		if err != nil {
+			return Account{}, err
 		}
+		if ok {
+			return account, nil
+		}
+		return Account{UserID: userID}, nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.ensureLocked(userID)
+	return s.ensureLocked(userID), nil
 }
 
 func (s *Service) Logs(userID int64) []Log {
+	items, err := s.LogsStrict(userID)
+	if err == nil {
+		return items
+	}
+	return []Log{}
+}
+
+func (s *Service) LogsStrict(userID int64) ([]Log, error) {
+	if userID <= 0 {
+		return nil, ErrInvalidPoints
+	}
 	if s.repo != nil {
-		if items, err := s.repo.ListLogsByUser(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListLogsByUser(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -93,18 +119,24 @@ func (s *Service) Logs(userID int64) []Log {
 			result = append(result, item)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) AllLogs() []Log {
+	items, err := s.AllLogsStrict()
+	if err == nil {
+		return items
+	}
+	return []Log{}
+}
+
+func (s *Service) AllLogsStrict() ([]Log, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListLogs(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListLogs(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]Log(nil), s.logs...)
+	return append([]Log(nil), s.logs...), nil
 }
 
 func (s *Service) Grant(userID int64, value int, bizType string, bizID int64, reason string) (Account, Log, error) {
@@ -181,7 +213,13 @@ func (s *Service) Expire(userID int64, cutoff time.Time) (Account, Log, error) {
 	if userID <= 0 {
 		return Account{}, Log{}, ErrInvalidPoints
 	}
-	logs := s.Logs(userID)
+	if cutoff.IsZero() {
+		return Account{}, Log{}, ErrInvalidPoints
+	}
+	logs, err := s.LogsStrict(userID)
+	if err != nil {
+		return Account{}, Log{}, err
+	}
 	eligible, expired := 0, 0
 	for _, item := range logs {
 		if item.BizType == "points_expire" && item.ChangeValue < 0 {
@@ -193,14 +231,42 @@ func (s *Service) Expire(userID int64, cutoff time.Time) (Account, Log, error) {
 		}
 	}
 	amount := eligible - expired
-	account := s.Summary(userID)
+	account, err := s.SummaryStrict(userID)
+	if err != nil {
+		return Account{}, Log{}, err
+	}
 	if amount <= 0 || account.AvailablePoints <= 0 {
 		return account, Log{}, nil
 	}
 	if amount > account.AvailablePoints {
 		amount = account.AvailablePoints
 	}
-	return s.Deduct(userID, amount, "points_expire", 0, "积分到期扣减")
+	expiryKey := int64(cutoff.UTC().Year()*10000 + int(cutoff.UTC().Month())*100 + cutoff.UTC().Day())
+	if s.repo != nil {
+		repository, ok := s.repo.(atomicRepository)
+		if !ok {
+			return Account{}, Log{}, ErrAtomicRepositoryRequired
+		}
+		updated, log, _, err := repository.ApplyChangeOnce(context.Background(), userID, -amount, "points_expire", expiryKey, "积分到期扣减")
+		return updated, log, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, item := range s.logs {
+		if item.UserID == userID && item.BizType == "points_expire" && item.BizID == expiryKey {
+			return s.ensureLocked(userID), item, nil
+		}
+	}
+	current := s.ensureLocked(userID)
+	if amount > current.AvailablePoints {
+		amount = current.AvailablePoints
+	}
+	before := current.AvailablePoints
+	current.AvailablePoints -= amount
+	current.UpdatedAt = time.Now()
+	s.accounts[userID] = current
+	log := s.appendLogLocked(userID, -amount, before, current.AvailablePoints, "points_expire", expiryKey, "积分到期扣减")
+	return current, log, nil
 }
 
 func (s *Service) ensureLocked(userID int64) Account {

@@ -114,6 +114,14 @@
       <text class="newbie-task-title">完成新手任务</text>
       <text class="newbie-task-desc">解锁更多平台权益</text>
 
+      <view wx:if="{{wechatBindPending}}" class="newbie-wechat-bind" catchtap="bindWechatFromNewbieTasks">
+        <view class="newbie-wechat-bind__copy">
+          <text class="newbie-wechat-bind__title">微信尚未绑定</text>
+          <text class="newbie-wechat-bind__desc">绑定后可直接微信快捷登录</text>
+        </view>
+        <text class="newbie-wechat-bind__action">{{isBindingWechat ? '绑定中' : '去绑定'}}</text>
+      </view>
+
       <view class="newbie-task-list">
         <view wx:if="{{isLoadingNewbieTasks && !newbieTasksLoaded}}" class="newbie-task-empty">任务加载中...</view>
         <view wx:elif="{{newbieTaskLoadFailed}}" class="newbie-task-empty">任务获取失败，请稍后再试</view>
@@ -156,6 +164,7 @@
       </view>
       <text class="invite-flow-welcome">欢迎进入真好玩~</text>
       <text class="invite-flow-access-note">{{entryFlow === 'existing' ? '已注册账号可使用短信验证码或账号密码登录。' : '仅限受邀用户和已注册账号登录。已注册账号可使用短信验证码或账号密码登录，新用户需输入有效邀请码。'}}</text>
+      <text wx:if="{{loginNotice}}" class="login-reauth-notice">{{loginNotice}}</text>
     </view>
 
     <view class="invite-flow-form">
@@ -194,6 +203,12 @@
           placeholder-class="enjoy-placeholder"
           bindinput="onInviteCodeInput"
         />
+      </view>
+
+      <view wx:if="{{entryFlow !== 'existing' && !inviteCode}}" class="invite-acquisition-guide">
+        <text class="invite-acquisition-guide__title">还没有邀请码？</text>
+        <text class="invite-acquisition-guide__copy">新用户请联系邀请你加入的行家、领路人或平台官方，获取邀请码、二维码或邀请链接后再注册。</text>
+        <text class="invite-acquisition-guide__hint">如果你已注册，可直接填写手机号和验证码登录，无需邀请码。</text>
       </view>
 
       <view class="invite-flow-primary enjoy-button enjoy-button--primary" bindtap="handleInvitePrimaryLogin">

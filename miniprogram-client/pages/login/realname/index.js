@@ -2,6 +2,7 @@ const toast = require('../../../utils/toast')
 const userService = require('../../../services/user')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
 const { ROUTES } = require('../../../config/routes')
+const { toUserMessage } = require('../../../utils/user-message')
 
 function isValidRealname(realname) {
   return /^[\u4e00-\u9fa5A-Za-z·\s]{2,20}$/.test(String(realname || '').trim())
@@ -97,7 +98,7 @@ Page({
         }
       })
     } catch (error) {
-      this.showAuthFailModal(error.message || '认证失败，请重新核对后填写')
+      this.showAuthFailModal(toUserMessage(error && error.message, '认证失败，请重新核对后填写'))
     } finally {
       this.setData({
         isCompleting: false

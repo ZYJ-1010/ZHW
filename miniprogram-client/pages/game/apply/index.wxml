@@ -24,6 +24,29 @@
         <text class="apply-subtitle">{{applicationConfig.texts.subtitle}}</text>
       </view>
 
+      <view wx:if="{{eligibilityBlocked}}" class="apply-blocked-notice">
+        <text>{{eligibilityBlockReason}}</text>
+      </view>
+
+      <view wx:if="{{applyRoleOptions.length}}" class="apply-role-card">
+        <view class="apply-role-heading">
+          <text class="apply-role-title">选择入局身份</text>
+          <text class="apply-role-hint">仅可使用本局已开放的身份申请</text>
+        </view>
+        <view class="apply-role-list">
+          <button
+            wx:for="{{applyRoleOptions}}"
+            wx:key="key"
+            class="apply-role-option {{selectedRole === item.key ? 'selected' : ''}} {{item.enabled ? '' : 'disabled'}}"
+            data-key="{{item.key}}"
+            bindtap="onSelectRole"
+          >
+            <text>{{item.label}}</text>
+            <text wx:if="{{!item.enabled}}" class="apply-role-reason">{{item.disabledReason}}</text>
+          </button>
+        </view>
+      </view>
+
       <view class="wechat-card">
         <image
           wx:if="{{wechatInfo.avatarUrl}}"
@@ -92,7 +115,7 @@
 
       <view class="action-row">
         <button class="action-button secondary" hover-class="none" bindtap="onCancel">{{applicationConfig.texts.cancelText}}</button>
-        <button class="action-button primary" hover-class="none" bindtap="onSubmit">{{applicationConfig.texts.submitText}}</button>
+        <button class="action-button primary {{eligibilityReady && !submitting ? '' : 'disabled'}}" hover-class="none" aria-disabled="{{!eligibilityReady || submitting}}" bindtap="onSubmit">{{eligibilityReady ? applicationConfig.texts.submitText : (isGameFull ? '已满员' : applicationConfig.texts.submitText)}}</button>
       </view>
     </view>
   </scroll-view>

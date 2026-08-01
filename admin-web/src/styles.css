@@ -243,13 +243,36 @@ nav button {
 }
 
 nav button[data-view].has-pending-dot::after {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-left: 6px;
-  vertical-align: middle;
+  content: attr(data-pending-count);
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  padding: 0 4px;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
+  background: #e5484d;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.pending-count-badge {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0 5px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
   background: #e5484d;
 }
 
@@ -544,6 +567,19 @@ nav button[data-view]:hover,
   min-width: 0;
 }
 
+#system-role-growth-panel .rule-editor-control {
+  grid-template-columns: repeat(4, minmax(92px, 1fr));
+  width: min(100%, 760px);
+}
+
+#system-role-growth-panel #role-growth-level-editor .rule-editor-control {
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+}
+
+#system-role-growth-panel .rule-editor-copy strong {
+  color: var(--ink-1);
+}
+
 @media (max-width: 760px) {
   .rule-editor-row {
     grid-template-columns: 1fr;
@@ -836,7 +872,8 @@ textarea {
   pointer-events: none;
 }
 
-.user-picker input[data-user-picker-input] {
+.user-picker input[data-user-picker-input],
+.user-picker input[data-invite-owner-input] {
   padding-right: 30px;
 }
 
@@ -1035,6 +1072,52 @@ tbody tr:hover {
   gap: 6px;
 }
 
+.inline-reject-table-row > td {
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+}
+
+.inline-reject-editor {
+  display: grid;
+  gap: var(--space);
+  margin-top: var(--space);
+  border: 1px solid rgba(185, 28, 28, 0.24);
+  border-radius: 6px;
+  background: #fff8f7;
+  padding: calc(var(--space) * 1.5);
+}
+
+.inline-reject-table-row .inline-reject-editor {
+  margin: var(--space);
+}
+
+.inline-reject-editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space);
+}
+
+.inline-reject-editor-head strong {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.inline-reject-editor-head span {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.inline-reject-editor textarea {
+  min-height: 76px;
+  background: var(--surface);
+}
+
+.inline-reject-editor .row-actions {
+  justify-content: flex-end;
+}
+
 .product-image-cell {
   display: flex;
   align-items: center;
@@ -1173,6 +1256,10 @@ tbody tr:hover {
 
 .detail-cell strong {
   display: block;
+  margin-top: 4px;
+}
+
+.detail-cell-content {
   margin-top: 4px;
 }
 

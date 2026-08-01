@@ -2,6 +2,7 @@ const profileService = require('../../../services/profile')
 
 const authService = require('../../../services/auth')
 const { navigateShellRoute } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const ASSET_BASE = '/pages/profile/settings/assets'
 
@@ -74,7 +75,7 @@ Page({
     } catch (error) {
       this.setData({
         sections: [],
-        loadError: error.message || '系统设置加载失败'
+        loadError: toUserMessage(error && error.message, '系统设置加载失败')
       })
       this.showToast(error.message || '系统设置加载失败')
     }
@@ -242,7 +243,7 @@ Page({
     }
 
     wx.showToast({
-      title,
+      title: toUserMessage(title),
       icon: 'none'
     })
   }

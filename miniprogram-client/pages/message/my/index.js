@@ -328,8 +328,12 @@ Page({
     this.showInfo(this.textOf('recordStartText'))
   },
 
-  onRecordStop() {
-    this.showInfo(this.textOf('recordStopText'))
+  onRecordStop(event) {
+    if (this.data.chatMode === 'private') {
+      this.showInfo('私人聊天暂时仅支持文字')
+      return
+    }
+    this.sendMediaMessage('voice', event)
   },
 
   onRecordError() {

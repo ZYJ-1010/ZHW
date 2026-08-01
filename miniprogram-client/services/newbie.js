@@ -16,7 +16,14 @@ async function completeTask(code) {
   return result.data
 }
 
+async function recordProfileGuideReminder() {
+  const result = await newbieApi.recordProfileGuideReminder()
+  if (result.code !== 0) throw new Error(result.message || '记录资料提醒失败')
+  return result.data || {}
+}
+
 module.exports = {
   getNewbieTasks,
-  completeTask
+  completeTask,
+  recordProfileGuideReminder
 }

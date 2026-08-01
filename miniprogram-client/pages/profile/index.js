@@ -3,13 +3,11 @@ const profileService = require('../../services/profile')
 const { ROUTES } = require('../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
 const { AUTH_EXPIRED_MESSAGE, goLogin, isAuthExpiredError } = require('../../utils/auth-error')
+const { getActiveRole } = require('../../utils/active-role')
+const { toUserMessage } = require('../../utils/user-message')
 
-Page({
-  data: {
-    loaded: false,
-    loadError: '',
-    loadErrorActionText: '',
-    loadErrorAuthExpired: false,
+function createEmptyProfileHomeData() {
+  return {
     onlineText: '在线',
     user: {
       nickname: '未登录',
@@ -21,20 +19,26 @@ Page({
     stats: [
       { label: '引荐数', value: '0' },
       { label: '成功数', value: '0' },
-      { label: '成交总额', value: '¥0.00' },
+      { label: '完成局数', value: '0' },
       { label: '信用度', value: '0' }
     ],
     assets: [
-      { label: '总成交额', value: '¥0.00', tone: '' },
-      { label: '可提现', value: '¥0.00', tone: 'green' },
-      { label: '待结算', value: '¥0.00', tone: 'orange' }
+      { label: '可用积分', value: '0', tone: 'green' },
+      { label: '累计经验', value: '0', tone: 'orange' },
+      { label: '信用分', value: '0', tone: '' }
     ],
-    vipBanner: {
-      text: '升级会员，认证您的角色',
-      actionText: '增购会员 >',
-      route: '/pages/profile/member/index'
-    },
+    vipBanner: null,
     serviceSections: []
+  }
+}
+
+Page({
+  data: {
+    loaded: false,
+    loadError: '',
+    loadErrorActionText: '',
+    loadErrorAuthExpired: false,
+    ...createEmptyProfileHomeData()
   },
 
   onLoad() {
@@ -49,7 +53,7 @@ Page({
 
   async loadProfileHome() {
     try {
-      const data = await profileService.getProfileHome()
+      const data = await profileService.getProfileHome({ roleType: getActiveRole() })
 
       this.setData(Object.assign({}, normalizeProfileHome(data), {
         loadError: '',
@@ -59,13 +63,13 @@ Page({
     } catch (error) {
       const authExpired = isAuthExpiredError(error)
 
-      this.setData({
+      this.setData(Object.assign({}, createEmptyProfileHomeData(), {
         loaded: true,
-        loadError: authExpired ? AUTH_EXPIRED_MESSAGE : (error.message || '个人中心加载失败'),
+        loadError: authExpired ? AUTH_EXPIRED_MESSAGE : toUserMessage(error && error.message, '个人中心加载失败'),
         loadErrorActionText: authExpired ? '去登录' : '',
         loadErrorAuthExpired: authExpired,
         serviceSections: []
-      })
+      }))
       console.warn('[profile] load home failed', error)
     }
   },
@@ -84,12 +88,15 @@ Page({
   },
 
   handleAssetAllTap() {
-    navigateShellRoute('/pages/profile/asset-center/manage/index', {
+    navigateShellRoute(`/${ROUTES.profileAssetPoints}`, {
       currentRoute: ROUTES.profile
     })
   },
 
   handleUpgradeTap() {
+    if (!this.data.vipBanner || this.data.vipBanner.visible !== true || !this.data.vipBanner.route) {
+      return
+    }
     navigateShellRoute(this.data.vipBanner.route || '/pages/profile/member/index', {
       currentRoute: ROUTES.profile
     })
@@ -120,7 +127,7 @@ Page({
 })
 
 function normalizeProfileHome(data = {}) {
-  const patch = { loaded: true }
+  const patch = Object.assign({ loaded: true }, createEmptyProfileHomeData())
 
   if (data.user) {
     patch.user = data.user
@@ -146,9 +153,7 @@ function normalizeProfileHome(data = {}) {
     patch.serviceSections = removeTaskCenterEntry(data.sections)
   }
 
-  if (data.vipBanner) {
-    patch.vipBanner = data.vipBanner
-  }
+  patch.vipBanner = data.vipBanner && data.vipBanner.visible === true ? data.vipBanner : null
 
   return patch
 }

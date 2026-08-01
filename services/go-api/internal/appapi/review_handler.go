@@ -13,28 +13,44 @@ import (
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/notifications"
-	"zhw-mini/services/go-api/internal/points"
 	"zhw-mini/services/go-api/internal/reviews"
 )
 
 type reviewService interface {
 	MarkGameReviewable(gameID int64)
+	MarkGameReviewableStrict(gameID int64) error
 	AwardCompletedGame(gameID int64) []reviews.GrowthProfile
+	AwardCompletedGameStrict(gameID int64) ([]reviews.GrowthProfile, error)
+	RecordGrowthEvent(event reviews.GrowthEvent)
 	AwardTaskReward(userID int64, taskCode string, points int, experience int) reviews.GrowthProfile
+	AwardTaskRewardStrict(userID int64, taskCode string, points int, experience int) (reviews.GrowthProfile, error)
 	Todos(userID int64) ([]reviews.Todo, error)
 	Submit(userID int64, req reviews.SubmitRequest) (reviews.Review, reviews.GrowthProfile, error)
 	SubmitWithPoints(userID int64, req reviews.SubmitRequest, rewardPoints int) (reviews.Review, reviews.GrowthProfile, error)
 	GrowthRules() reviews.GrowthRules
 	MyIntents(userID int64) []reviews.Review
+	MyIntentsStrict(userID int64) ([]reviews.Review, error)
 	AllReviews() []reviews.Review
+	AllReviewsStrict() ([]reviews.Review, error)
 	Profile(userID int64) reviews.GrowthProfile
+	ProfileStrict(userID int64) (reviews.GrowthProfile, error)
 	Footprints(userID int64) []reviews.Footprint
+	FootprintsStrict(userID int64) ([]reviews.Footprint, error)
 	AllFootprints() []reviews.Footprint
+	AllFootprintsStrict() ([]reviews.Footprint, error)
 	DeductCredit(userID int64, gameID int64, reason string) reviews.CreditLog
+	DeductCreditStrict(userID int64, gameID int64, reason string) (reviews.CreditLog, error)
+	DeductCreditOnceStrict(userID int64, gameID int64, reason string, idempotencyKey string) (reviews.CreditLog, bool, error)
 	CreditDeductionValue(reason string) int
+	CreditDeductionValueStrict(reason string) (int, error)
 	RestoreCredit(userID int64, gameID int64, reason string, amount int) reviews.CreditLog
+	RestoreCreditStrict(userID int64, gameID int64, reason string, amount int) (reviews.CreditLog, error)
+	CreditScoreStrict(userID int64) (int, error)
+	RestoreCreditForAppeal(userID int64, gameID int64, sourceCreditLogID int64, appealID int64, amount int) (reviews.CreditLog, bool, error)
 	TraceByUser(userID int64) reviews.Trace
+	TraceByUserStrict(userID int64) (reviews.Trace, error)
 	TraceByGame(gameID int64) reviews.Trace
+	TraceByGameStrict(gameID int64) (reviews.Trace, error)
 	GameReviewComplete(gameID int64) bool
 }
 
@@ -193,7 +209,7 @@ func (s *Server) adminGrowthAchievementConfig(w http.ResponseWriter, r *http.Req
 		s.recordOperation(r, "achievement_config:update", "system_config", growthAchievementConfigKey, map[string]interface{}{"catalogCount": len(config.Catalog), "lockedCount": len(config.Locked)})
 		httpx.OK(w, map[string]interface{}{"config": config})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "不支持当前请求方式")
 	}
 }
 
@@ -204,7 +220,7 @@ func (s *Server) adminReviewCompleteConfig(w http.ResponseWriter, r *http.Reques
 	case http.MethodPut:
 		var req reviewCompleteConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid review complete config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "评价完成页配置格式错误")
 			return
 		}
 		config, err := normalizeReviewCompleteConfig(req)
@@ -213,7 +229,7 @@ func (s *Server) adminReviewCompleteConfig(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		if err := s.systemConfig.Set(reviewCompleteConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save review complete config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存评价完成页配置失败")
 			return
 		}
 		s.recordOperation(r, "review_complete_config:update", "system_config", "review_complete_config", map[string]interface{}{
@@ -223,7 +239,7 @@ func (s *Server) adminReviewCompleteConfig(w http.ResponseWriter, r *http.Reques
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentReviewCompleteConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "不支持当前请求方式")
 	}
 }
 
@@ -243,7 +259,7 @@ func (s *Server) adminCreditDeductionRules(w http.ResponseWriter, r *http.Reques
 			Items []reviews.CreditDeductionRule `json:"items"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid credit deduction rules")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "信用扣分规则格式错误")
 			return
 		}
 		items, err := normalizeCreditDeductionRules(req.Items)
@@ -259,7 +275,7 @@ func (s *Server) adminCreditDeductionRules(w http.ResponseWriter, r *http.Reques
 		for _, item := range items {
 			rule, err := repo.UpsertCreditDeductionRule(r.Context(), item)
 			if err != nil {
-				httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save credit deduction rule failed")
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存信用扣分规则失败")
 				return
 			}
 			saved = append(saved, rule)
@@ -267,7 +283,7 @@ func (s *Server) adminCreditDeductionRules(w http.ResponseWriter, r *http.Reques
 		s.recordOperation(r, "credit_deduction_rule:update", "credit_deduction_rule", "batch", map[string]interface{}{"count": len(saved)})
 		httpx.OK(w, map[string]interface{}{"items": saved})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "不支持当前请求方式")
 	}
 }
 
@@ -544,7 +560,11 @@ func defaultGrowthAchievementConfig() growthAchievementConfigDTO {
 		Filters: []growthAchievementFilterDTO{
 			{Key: "all", Label: "全部", Order: 10},
 		},
-		Catalog:          []growthAchievementItemDTO{},
+		Catalog: []growthAchievementItemDTO{
+			{ID: "first_game", Code: "first_game", Title: "首局达成", Desc: "参与第一局", Category: "city", StatusText: "进行中", Order: 10, Visible: true},
+			{ID: "credit_keeper", Code: "credit_keeper", Title: "信用守护", Desc: "保持良好信用", Category: "city", StatusText: "进行中", Order: 20, Visible: true},
+			{ID: "earth", Code: "earth", Title: "地球漫游者", Desc: "探索附近组局", Category: "city", StatusText: "进行中", Order: 30, Visible: true},
+		},
 		Locked:           []growthAchievementItemDTO{},
 		Season:           growthAchievementSeasonDTO{Title: "赛季", Status: "进行中", RemainTpl: "{footprintCount} 条记录"},
 		OnlineSuffix:     defaultAchievementOnlineText,
@@ -656,16 +676,15 @@ func achievementDTOs(trace reviews.Trace, config growthAchievementConfigDTO) []g
 }
 
 func achievementDTOsForRole(trace reviews.Trace, config growthAchievementConfigDTO, role string) []growthAchievementItemDTO {
-	catalog := make(map[string]growthAchievementItemDTO)
+	visibleCatalog := make(map[string]growthAchievementItemDTO)
 	for _, item := range config.Catalog {
-		if !achievementVisibleForRole(item, role) {
-			continue
+		if achievementVisibleForRole(item, role) {
+			visibleCatalog[item.Code] = item
 		}
-		catalog[item.Code] = item
 	}
 	result := make([]growthAchievementItemDTO, 0, len(trace.Achievements))
 	for index, achievement := range trace.Achievements {
-		item, ok := catalog[achievement.Code]
+		item, ok := visibleCatalog[achievement.Code]
 		if !ok {
 			item = growthAchievementItemDTO{
 				ID:         achievement.Code,
@@ -690,6 +709,23 @@ func achievementDTOsForRole(trace reviews.Trace, config growthAchievementConfigD
 	}
 	sort.SliceStable(result, func(i, j int) bool { return result[i].Order < result[j].Order })
 	return result
+}
+
+func growthAchievementConfigForRole(config growthAchievementConfigDTO, role string) growthAchievementConfigDTO {
+	filtered := config
+	filtered.Catalog = make([]growthAchievementItemDTO, 0, len(config.Catalog))
+	for _, item := range config.Catalog {
+		if achievementVisibleForRole(item, role) {
+			filtered.Catalog = append(filtered.Catalog, item)
+		}
+	}
+	filtered.Locked = make([]growthAchievementItemDTO, 0, len(config.Locked))
+	for _, item := range config.Locked {
+		if achievementVisibleForRole(item, role) {
+			filtered.Locked = append(filtered.Locked, item)
+		}
+	}
+	return filtered
 }
 
 func achievementVisibleForRole(item growthAchievementItemDTO, role string) bool {
@@ -719,7 +755,7 @@ func defaultCreditDeductionRules() []reviews.CreditDeductionRule {
 
 func normalizeCreditDeductionRules(items []reviews.CreditDeductionRule) ([]reviews.CreditDeductionRule, error) {
 	if len(items) == 0 {
-		return nil, errors.New("rules required")
+		return nil, errors.New("请至少保留一条信用扣分规则")
 	}
 	result := make([]reviews.CreditDeductionRule, 0, len(items))
 	seen := make(map[string]bool)
@@ -727,13 +763,13 @@ func normalizeCreditDeductionRules(items []reviews.CreditDeductionRule) ([]revie
 		item.RuleCode = strings.TrimSpace(item.RuleCode)
 		item.Description = strings.TrimSpace(item.Description)
 		if item.RuleCode == "" {
-			return nil, errors.New("ruleCode required")
+			return nil, errors.New("信用扣分规则编码不能为空")
 		}
 		if seen[item.RuleCode] {
-			return nil, errors.New("duplicate ruleCode")
+			return nil, errors.New("信用扣分规则编码不能重复")
 		}
 		if item.ChangeValue >= 0 || item.ChangeValue < -100 {
-			return nil, errors.New("changeValue must be between -100 and -1")
+			return nil, errors.New("信用扣分值必须在 -100 至 -1 之间")
 		}
 		seen[item.RuleCode] = true
 		result = append(result, item)
@@ -797,12 +833,18 @@ func (s *Server) serviceConfirm(w http.ResponseWriter, r *http.Request) {
 	attemptExtra["gameStatusAfter"] = game.Status
 	s.recordBehavior(userID, "service_confirm_attempt", "game", gameID, attemptExtra)
 	if game.Status == "pending_review" && !wasReviewable {
-		s.reviews.MarkGameReviewable(gameID)
-		s.awardCompletedGameRewards(gameID)
-		s.createCoGameConnections(gameID)
-		s.createReviewRemindNotifications(gameID, userID)
+		if reviewErr := s.reviews.MarkGameReviewableStrict(gameID); reviewErr != nil {
+			markReviewPersistenceDegraded(w, "service_confirm", gameID, reviewErr)
+		}
+		if growthErr := s.awardCompletedGameRewards(gameID); growthErr != nil {
+			markGrowthPersistenceDegraded(w, "service_confirm", userID, gameID, growthErr)
+		}
+		if connectionErr := s.createCoGameConnections(gameID); connectionErr != nil {
+			markConnectionPersistenceDegraded(w, "service_confirm", userID, 0, connectionErr)
+		}
+		s.createReviewRemindNotifications(w, gameID, userID)
 	} else if game.Status == "pending_confirm" {
-		s.notifyPlayersAfterExpertConfirmation(game, userID)
+		s.notifyPlayersAfterExpertConfirmation(w, game, userID)
 	}
 	s.recordBehavior(userID, "service_confirm", "game", gameID, map[string]interface{}{
 		"gameStatus":       game.Status,
@@ -843,7 +885,7 @@ func (s *Server) normalizeDeliveryConfirmItems(game games.Game, keys []string) [
 	return result
 }
 
-func (s *Server) notifyPlayersAfterExpertConfirmation(game games.Game, confirmerUserID int64) {
+func (s *Server) notifyPlayersAfterExpertConfirmation(w http.ResponseWriter, game games.Game, confirmerUserID int64) {
 	if s.userRoleForGame(game, confirmerUserID) != "expert" {
 		return
 	}
@@ -857,7 +899,7 @@ func (s *Server) notifyPlayersAfterExpertConfirmation(game games.Game, confirmer
 		if confirmed[memberID] {
 			continue
 		}
-		s.notices.Create(notifications.CreateRequest{
+		_, _ = s.createCriticalNotification(w, "expert_completion_confirmed", notifications.CreateRequest{
 			UserID:     memberID,
 			NotifyType: "expert_completion_confirmed",
 			Title:      "行家已确认服务完成",
@@ -916,28 +958,37 @@ func (s *Server) serviceConfirmItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if game.Status == "pending_review" && !wasReviewable {
-		s.reviews.MarkGameReviewable(gameID)
-		s.awardCompletedGameRewards(gameID)
-		s.createCoGameConnections(gameID)
-		s.createReviewRemindNotifications(gameID, userID)
+		if reviewErr := s.reviews.MarkGameReviewableStrict(gameID); reviewErr != nil {
+			markReviewPersistenceDegraded(w, "service_confirm_detail", gameID, reviewErr)
+		}
+		if growthErr := s.awardCompletedGameRewards(gameID); growthErr != nil {
+			markGrowthPersistenceDegraded(w, "service_confirm_detail", userID, gameID, growthErr)
+		}
+		if connectionErr := s.createCoGameConnections(gameID); connectionErr != nil {
+			markConnectionPersistenceDegraded(w, "service_confirm_detail", userID, 0, connectionErr)
+		}
+		s.createReviewRemindNotifications(w, gameID, userID)
 	}
 	s.recordBehavior(userID, "service_confirm", "game", gameID, map[string]interface{}{"gameStatus": game.Status, "fileIds": req.FileIDs})
 	httpx.OK(w, map[string]interface{}{"confirm": confirm, "items": items, "game": game})
 }
 
-func (s *Server) createCoGameConnections(gameID int64) {
+func (s *Server) createCoGameConnections(gameID int64) error {
 	members := s.games.Members(gameID)
 	for _, userID := range members {
 		for _, connectedUserID := range members {
 			if userID == connectedUserID {
 				continue
 			}
-			s.connections.UpsertPair(userID, connectedUserID, "co_game", "co_game", gameID, 2)
+			if err := s.connections.UpsertPairStrict(userID, connectedUserID, "co_game", "co_game", gameID, 2); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
-func (s *Server) createReviewRemindNotifications(gameID int64, completionConfirmerIDs ...int64) {
+func (s *Server) createReviewRemindNotifications(w http.ResponseWriter, gameID int64, completionConfirmerIDs ...int64) {
 	game, err := s.games.Get(gameID)
 	if err != nil {
 		return
@@ -975,7 +1026,7 @@ func (s *Server) createReviewRemindNotifications(gameID int64, completionConfirm
 			if todo.GameID != gameID {
 				continue
 			}
-			s.notices.Create(notifications.CreateRequest{
+			_, _ = s.createCriticalNotification(w, "review_remind", notifications.CreateRequest{
 				UserID:      userID,
 				NotifyType:  "review_remind",
 				Title:       "服务已确认完成，请评价",
@@ -1048,35 +1099,31 @@ func (s *Server) submitReview(w http.ResponseWriter, r *http.Request) {
 	}
 	var req reviews.SubmitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	// The central points service below is the single reward writer. Passing zero
-	// here prevents the review growth service from crediting the same reward twice.
+	// A review produces growth experience only. Redeemable points are granted
+	// exclusively after a paid-game revenue settlement.
 	review, profile, err := s.reviews.SubmitWithPoints(userID, req, 0)
 	if err != nil {
 		writeReviewError(w, err)
 		return
 	}
-	rewardPoints := s.reviews.GrowthRules().SubmittedReviewPoints
 	pointsAccount := s.points.Summary(userID)
-	var pointsLog points.Log
-	if rewardPoints > 0 {
-		var err error
-		pointsAccount, pointsLog, err = s.points.Grant(userID, rewardPoints, "review_reward", review.ID, "提交评价奖励")
-		if err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "grant review points failed")
-			return
-		}
-	}
 	profile.AvailablePoints = pointsAccount.AvailablePoints
-	s.connections.UpsertPair(userID, review.TargetUserID, "co_game", "review", review.GameID, 1)
+	if connectionErr := s.connections.UpsertPairStrict(userID, review.TargetUserID, "co_game", "review", review.GameID, 1); connectionErr != nil {
+		markConnectionPersistenceDegraded(w, "submit_review", userID, review.TargetUserID, connectionErr)
+	}
 	s.recordBehavior(userID, "submit_review", "game", req.GameID, map[string]interface{}{"reviewId": review.ID, "targetUserId": review.TargetUserID})
 	var credit interface{}
 	if review.Score <= 2 {
-		log := s.reviews.DeductCredit(review.TargetUserID, review.GameID, "low_review")
-		credit = log
-		s.notices.Create(notifications.CreateRequest{
+		creditLog, creditErr := s.reviews.DeductCreditStrict(review.TargetUserID, review.GameID, "low_review")
+		if creditErr != nil {
+			markCreditPersistenceDegraded(w, "review_low_score", review.TargetUserID, review.GameID, creditErr)
+		} else {
+			credit = creditLog
+		}
+		_, _ = s.createCriticalNotification(w, "review_low_score", notifications.CreateRequest{
 			UserID:     review.TargetUserID,
 			NotifyType: "low_review_credit_deducted",
 			Title:      "收到低分评价",
@@ -1090,12 +1137,8 @@ func (s *Server) submitReview(w http.ResponseWriter, r *http.Request) {
 		"profile":       profile,
 		"credit":        credit,
 		"pointsSummary": pointsAccount,
-		"pointsLog":     pointsLog,
 		"reward": map[string]interface{}{
-			"points":       pointsLog.ChangeValue,
-			"beforePoints": pointsLog.BeforePoints,
-			"afterPoints":  pointsLog.AfterPoints,
-			"logId":        pointsLog.ID,
+			"experience": s.reviews.GrowthRules().SubmittedReviewExperience,
 		},
 	})
 }
@@ -1105,7 +1148,12 @@ func (s *Server) myReviewIntents(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.reviews.MyIntents(userID)})
+	items, err := s.reviews.MyIntentsStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取再来一局意向失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) reviewProfile(w http.ResponseWriter, r *http.Request) {
@@ -1113,24 +1161,26 @@ func (s *Server) reviewProfile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	trace := s.reviews.TraceByUser(userID)
-	achievementConfig := s.currentGrowthAchievementConfig()
-	role := "player"
-	roles := s.profiles.RoleSnapshot(userID).Roles
-	for _, candidate := range []string{"expert", "guide"} {
-		for _, current := range roles {
-			if current == candidate {
-				role = candidate
-				break
-			}
-		}
-		if role == candidate {
-			break
-		}
+	trace, err := s.reviews.TraceByUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取成长与信用数据失败，请稍后重试")
+		return
 	}
+	achievementConfig := s.currentGrowthAchievementConfig()
+	role := normalizeHomeRoleType(r.URL.Query().Get("roleType"))
+	if role == "" || (role != "player" && !s.userHasActiveRole(userID, role)) {
+		role = s.homeRoleType(userID)
+	}
+	roleGrowth := s.roleGrowthProfilesForUser(userID, trace.Profile)
+	activeRoleGrowth := homeRoleGrowthProfile(role, roleGrowth)
 	achievements := achievementDTOsForRole(trace, achievementConfig, role)
+	achievementConfig = growthAchievementConfigForRole(achievementConfig, role)
 	httpx.OK(w, map[string]interface{}{
 		"profile":           trace.Profile,
+		"activeRoleCode":    role,
+		"activeRoleName":    homeRoleName(role),
+		"activeRoleGrowth":  activeRoleGrowth,
+		"roleGrowth":        roleGrowth,
 		"footprints":        trace.Footprints,
 		"achievements":      achievements,
 		"achievementConfig": achievementConfig,
@@ -1143,67 +1193,159 @@ func (s *Server) profileCreditCenter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trace := s.reviews.TraceByUser(userID)
+	trace, err := s.reviews.TraceByUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取成长与信用数据失败，请稍后重试")
+		return
+	}
 	profile := trace.Profile
-	creditRules := s.currentOperationRules().Credit
-	levelText := creditLevelText(profile.CreditScore, creditRules.ExcellentThreshold, creditRules.RestrictedThreshold, creditRules.SuspendedThreshold)
-	operationRules := s.currentOperationRules()
-	creditNote := operationRules.Messages["creditRestricted"]
-	if creditNote == "" {
-		creditNote = "信用分低于{score}分将限制部分功能"
-	}
-	creditNote = strings.ReplaceAll(creditNote, "{score}", strconv.Itoa(operationRules.Credit.RestrictedThreshold))
-	suspendedNote := operationRules.Messages["creditSuspended"]
-	if suspendedNote == "" {
-		suspendedNote = "信用分低于{score}分将暂停服务资格"
-	}
-	suspendedNote = strings.ReplaceAll(suspendedNote, "{score}", strconv.Itoa(operationRules.Credit.SuspendedThreshold))
+	creditConfig := s.currentCreditRestrictionConfig()
+	creditState, creditStateText := creditRestrictionState(profile.CreditScore, creditConfig)
+	creditNote := "信用为永久账户，不按天重置；低于" + strconv.Itoa(creditConfig.CreateRestrictedBelow) + "分不能发局，低于" + strconv.Itoa(creditConfig.JoinRestrictedBelow) + "分不能报名或接受邀请，低于" + strconv.Itoa(creditConfig.FrozenBelow) + "分仅可查看和申诉"
 	monthlyDelta := 0
 	positiveCount := 0
 	negativeCount := 0
+	appealableCount := 0
+	firstAppealRoute := ""
+	appealsByCreditLogID := make(map[int64]creditAppealSummary)
+	appealsByID := make(map[int64]creditAppealSummary)
+	appeals, err := s.reports.AppealsStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取信用申诉记录失败，请稍后重试")
+		return
+	}
+	for _, appeal := range appeals {
+		if appeal.ReportType != "credit_appeal" || appeal.CreditLogID <= 0 {
+			continue
+		}
+		summary := creditAppealSummary{
+			ID:         appeal.ID,
+			Status:     appeal.Status,
+			Outcome:    appeal.HandleOutcome,
+			StatusText: creditAppealStatusText(appeal.Status, appeal.HandleOutcome),
+		}
+		appealsByCreditLogID[appeal.CreditLogID] = summary
+		appealsByID[appeal.ID] = summary
+	}
+	now := time.Now()
 	records := make([]map[string]interface{}, 0, len(trace.CreditLogs))
 	for _, log := range trace.CreditLogs {
-		monthlyDelta += log.ChangeValue
-		if log.ChangeValue >= 0 {
+		if log.CreatedAt.Year() == now.Year() && log.CreatedAt.Month() == now.Month() {
+			monthlyDelta += log.ChangeValue
+		}
+		if log.ChangeValue > 0 {
 			positiveCount++
-		} else {
+		} else if log.ChangeValue < 0 {
 			negativeCount++
 		}
+		appeal, appealed := appealsByCreditLogID[log.ID]
+		if !appealed && log.AppealID > 0 {
+			appeal, appealed = appealsByID[log.AppealID]
+			if !appealed {
+				appeal = creditAppealSummary{ID: log.AppealID, StatusText: "已提交申诉"}
+			}
+			appealed = true
+		}
+		canAppeal := log.ChangeValue < 0 && !appealed
+		appealRoute := ""
+		if appealed && appeal.ID > 0 {
+			appealRoute = "/pages/profile/system-management/appeal-detail/index?reportId=" + strconv.FormatInt(appeal.ID, 10)
+		} else if canAppeal {
+			appealRoute = "/pages/profile/system-management/credit-appeal/index?creditLogId=" + strconv.FormatInt(log.ID, 10)
+			appealableCount++
+			if firstAppealRoute == "" {
+				firstAppealRoute = appealRoute
+			}
+		}
 		records = append(records, map[string]interface{}{
-			"id":          log.ID,
-			"creditLogId": log.ID,
-			"title":       creditReasonTitle(log.Reason),
-			"desc":        creditReasonDesc(log),
-			"score":       signedIntText(log.ChangeValue),
-			"tone":        creditTone(log.ChangeValue),
-			"gameId":      log.GameID,
-			"appealRoute": "/pages/profile/system-management/credit-appeal/index?creditLogId=" + strconv.FormatInt(log.ID, 10),
-			"reason":      log.Reason,
-			"beforeScore": log.BeforeScore,
-			"afterScore":  log.AfterScore,
-			"createdAt":   log.CreatedAt,
+			"id":               log.ID,
+			"creditLogId":      log.ID,
+			"title":            creditReasonTitle(log.Reason),
+			"desc":             creditReasonDesc(log),
+			"score":            signedIntText(log.ChangeValue),
+			"tone":             creditTone(log.ChangeValue),
+			"gameId":           log.GameID,
+			"canAppeal":        canAppeal,
+			"appealId":         appeal.ID,
+			"appealStatus":     appeal.Status,
+			"appealStatusText": appeal.StatusText,
+			"appealRoute":      appealRoute,
+			"reason":           log.Reason,
+			"beforeScore":      log.BeforeScore,
+			"afterScore":       log.AfterScore,
+			"createdAt":        log.CreatedAt,
 		})
 	}
 
 	httpx.OK(w, map[string]interface{}{
-		"score":        profile.CreditScore,
-		"scoreLabel":   "信用分",
-		"todayScore":   profile.TodayCreditScore,
-		"level":        levelText,
+		"score":       profile.CreditScore,
+		"scoreLabel":  "信用分",
+		"todayScore":  profile.TodayCreditScore,
+		"level":       creditStateText,
+		"status":      creditState,
+		"isPermanent": true,
+		"restrictions": map[string]interface{}{
+			"createRestrictedBelow": creditConfig.CreateRestrictedBelow,
+			"joinRestrictedBelow":   creditConfig.JoinRestrictedBelow,
+			"frozenBelow":           creditConfig.FrozenBelow,
+		},
 		"monthlyDelta": signedIntText(monthlyDelta),
 		"summary": []map[string]string{
-			{"label": "信用等级", "value": levelText},
-			{"label": "奖励中心", "value": strconv.Itoa(positiveCount) + "条待查看"},
-			{"label": "惩罚中心", "value": strconv.Itoa(negativeCount) + "条记录"},
+			{"label": "当前状态", "value": creditStateText},
+			{"label": "正向记录", "value": strconv.Itoa(positiveCount) + "条"},
+			{"label": "扣分记录", "value": strconv.Itoa(negativeCount) + "条"},
 		},
 		"records": records,
 		"appealEntry": map[string]interface{}{
-			"enabled": len(records) > 0,
-			"route":   "/pages/profile/system-management/credit-appeal/index",
-			"text":    "信用申诉",
+			"enabled": appealableCount > 0,
+			"count":   appealableCount,
+			"route":   singleCreditAppealRoute(appealableCount, firstAppealRoute),
+			"text":    creditAppealEntryText(appealableCount),
 		},
-		"bottomNote": creditNote + "，" + suspendedNote + "。",
+		"bottomNote": creditNote + "。",
 	})
+}
+
+type creditAppealSummary struct {
+	ID         int64
+	Status     string
+	Outcome    string
+	StatusText string
+}
+
+func creditAppealStatusText(status string, outcome string) string {
+	switch strings.ToLower(strings.TrimSpace(outcome)) {
+	case "appeal_approved":
+		return "申诉已通过"
+	case "appeal_rejected":
+		return "申诉未通过"
+	case "processing":
+		return "申诉处理中"
+	}
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "appealed", "assigned", "pending":
+		return "申诉处理中"
+	case "appeal_withdrawn":
+		return "申诉已撤回"
+	case "handled", "closed":
+		return "申诉已处理"
+	default:
+		return "已提交申诉"
+	}
+}
+
+func creditAppealEntryText(count int) string {
+	if count <= 0 {
+		return "暂无可申诉记录"
+	}
+	return "信用申诉（" + strconv.Itoa(count) + "）"
+}
+
+func singleCreditAppealRoute(count int, route string) string {
+	if count == 1 {
+		return route
+	}
+	return ""
 }
 
 func (s *Server) myFootprints(w http.ResponseWriter, r *http.Request) {
@@ -1211,7 +1353,12 @@ func (s *Server) myFootprints(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.reviews.Footprints(userID)})
+	items, err := s.reviews.FootprintsStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取成长足迹失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func creditLevelText(score int, excellent, restricted, suspended int) string {
@@ -1239,16 +1386,23 @@ func creditReasonTitle(reason string) string {
 		return "申诉通过"
 	case "low_review":
 		return "低分评价"
+	case "player_cancel_service":
+		return "玩家取消已确认服务"
+	case "expert_cancel_service":
+		return "行家取消已确认服务"
+	case "malicious_report":
+		return "恶意举报"
 	default:
 		return "信用变更"
 	}
 }
 
 func creditReasonDesc(log reviews.CreditLog) string {
+	title := creditReasonTitle(log.Reason)
 	if log.GameID > 0 {
-		return log.Reason + " · 局ID " + strconv.FormatInt(log.GameID, 10)
+		return title + " · 局ID " + strconv.FormatInt(log.GameID, 10)
 	}
-	return log.Reason
+	return title
 }
 
 func signedIntText(value int) string {
@@ -1259,10 +1413,13 @@ func signedIntText(value int) string {
 }
 
 func creditTone(value int) string {
-	if value >= 0 {
+	if value > 0 {
 		return "plus"
 	}
-	return "minus"
+	if value < 0 {
+		return "minus"
+	}
+	return "neutral"
 }
 
 func (s *Server) adminUserGrowth(w http.ResponseWriter, r *http.Request) {
@@ -1270,7 +1427,18 @@ func (s *Server) adminUserGrowth(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.reviews.TraceByUser(userID))
+	trace, err := s.reviews.TraceByUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取成长与信用数据失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, struct {
+		reviews.Trace
+		RoleProfiles []roleGrowthProfileDTO `json:"roleProfiles"`
+	}{
+		Trace:        trace,
+		RoleProfiles: s.roleGrowthProfilesForUser(userID, trace.Profile),
+	})
 }
 
 func (s *Server) adminGameReviewTrace(w http.ResponseWriter, r *http.Request) {
@@ -1278,14 +1446,19 @@ func (s *Server) adminGameReviewTrace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.reviews.TraceByGame(gameID))
+	trace, err := s.reviews.TraceByGameStrict(gameID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取局内成长与信用轨迹失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, trace)
 }
 
 func idFromAdminPath(w http.ResponseWriter, path string, prefix string, suffix string) (int64, bool) {
 	idText := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
 	id, err := strconv.ParseInt(strings.Trim(idText, "/"), 10, 64)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid id")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "记录编号错误")
 		return 0, false
 	}
 	return id, true
@@ -1294,16 +1467,16 @@ func idFromAdminPath(w http.ResponseWriter, path string, prefix string, suffix s
 func writeReviewError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, games.ErrGameNotFound):
-		httpx.Error(w, http.StatusNotFound, 40421, "game not found")
+		httpx.Error(w, http.StatusNotFound, 40421, "组局不存在或已被删除")
 	case errors.Is(err, reviews.ErrForbidden):
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "review forbidden")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "当前账号无评价权限")
 	case errors.Is(err, reviews.ErrGameNotReviewable):
-		httpx.Error(w, http.StatusConflict, 40931, "game not reviewable")
+		httpx.Error(w, http.StatusConflict, 40931, "当前组局暂不满足评价条件")
 	case errors.Is(err, reviews.ErrDuplicateReview):
-		httpx.Error(w, http.StatusConflict, 40932, "duplicate review")
+		httpx.Error(w, http.StatusConflict, 40932, "请勿重复提交评价")
 	case errors.Is(err, reviews.ErrInvalidReview):
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid review")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "评价内容不符合要求")
 	default:
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "review operation failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "评价操作失败，请稍后重试")
 	}
 }

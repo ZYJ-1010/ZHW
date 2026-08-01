@@ -203,6 +203,17 @@
     ],
     "updatedAt": "2026-06-14T11:58:00+08:00"
   },
+  "summary": {
+    "registeredUserCount": 100,
+    "verifiedUserCount": 80,
+    "activeGameCount": 12,
+    "imRoomCount": 8
+  },
+  "distributions": {
+    "userStatuses": { "verified": 80, "pending": 5 },
+    "gameStatuses": { "pending_audit": 2, "recruiting": 7, "in_progress": 5 },
+    "gameTypes": { "free": 14 }
+  },
   "updatedAt": "2026-06-14T11:58:00+08:00"
 }
 ```

@@ -23,6 +23,20 @@ services:
     volumes:
       - zhw-redis-data:/data
 
+  migrate:
+    image: postgres:16
+    restart: "no"
+    environment:
+      POSTGRES_DB: zhw_mini
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ZHW2026
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../db:/app/db:ro
+    entrypoint: ["/bin/sh", "/app/db/migrate-prod.sh"]
+
   go-api:
     build:
       context: ../services/go-api
@@ -33,6 +47,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_started
     ports:

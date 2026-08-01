@@ -151,6 +151,11 @@ func NewServiceWithRepositories(behaviorRepo BehaviorRepository, operationRepo O
 }
 
 func (s *Service) RecordBehavior(req BehaviorRequest) BehaviorLog {
+	log, _ := s.RecordBehaviorStrict(req)
+	return log
+}
+
+func (s *Service) RecordBehaviorStrict(req BehaviorRequest) (BehaviorLog, error) {
 	eventCode := firstNonEmpty(req.EventCode, req.EventType, "unknown")
 	eventType := firstNonEmpty(req.EventType, eventCode)
 	businessType := firstNonEmpty(req.BusinessType, req.TargetType, "unknown")
@@ -168,9 +173,7 @@ func (s *Service) RecordBehavior(req BehaviorRequest) BehaviorLog {
 	if occurredAt.IsZero() {
 		occurredAt = time.Now()
 	}
-	s.mu.Lock()
 	log := BehaviorLog{
-		ID:           s.nextBehaviorID,
 		UserID:       req.UserID,
 		EventType:    eventType,
 		EventCode:    eventCode,
@@ -187,23 +190,29 @@ func (s *Service) RecordBehavior(req BehaviorRequest) BehaviorLog {
 		CreatedAt:    time.Now(),
 		OccurredAt:   occurredAt,
 	}
+	if s.behaviorRepo != nil {
+		if err := s.behaviorRepo.SaveBehavior(context.Background(), log); err != nil {
+			return BehaviorLog{}, err
+		}
+	}
+	s.mu.Lock()
+	log.ID = s.nextBehaviorID
 	s.nextBehaviorID++
 	s.behaviorLogs = append(s.behaviorLogs, log)
-	repo := s.behaviorRepo
 	s.mu.Unlock()
-	if repo != nil {
-		_ = repo.SaveBehavior(context.Background(), log)
-	}
-	return log
+	return log, nil
 }
 
 func (s *Service) RecordOperation(req OperationRequest) OperationLog {
+	log, _ := s.RecordOperationStrict(req)
+	return log
+}
+
+func (s *Service) RecordOperationStrict(req OperationRequest) (OperationLog, error) {
 	if req.Action == "" {
 		req.Action = "unknown"
 	}
-	s.mu.Lock()
 	log := OperationLog{
-		ID:          s.nextOperationID,
 		AdminUserID: req.AdminUserID,
 		Action:      req.Action,
 		TargetType:  req.TargetType,
@@ -218,32 +227,41 @@ func (s *Service) RecordOperation(req OperationRequest) OperationLog {
 	if len(log.After) == 0 {
 		log.After = append(log.After, log.Detail...)
 	}
+	if s.operationRepo != nil {
+		if err := s.operationRepo.SaveOperation(context.Background(), log); err != nil {
+			return OperationLog{}, err
+		}
+	}
+	s.mu.Lock()
+	log.ID = s.nextOperationID
 	s.nextOperationID++
 	s.operationLogs = append(s.operationLogs, log)
-	repo := s.operationRepo
 	s.mu.Unlock()
-	if repo != nil {
-		_ = repo.SaveOperation(context.Background(), log)
-	}
-	return log
+	return log, nil
 }
 
 func (s *Service) BehaviorLogs() []BehaviorLog {
+	items, _ := s.BehaviorLogsStrict()
+	return items
+}
+
+func (s *Service) BehaviorLogsStrict() ([]BehaviorLog, error) {
 	if s.behaviorRepo != nil {
-		if items, err := s.behaviorRepo.ListBehavior(context.Background()); err == nil {
-			return items
-		}
+		return s.behaviorRepo.ListBehavior(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]BehaviorLog(nil), s.behaviorLogs...)
+	return append([]BehaviorLog(nil), s.behaviorLogs...), nil
 }
 
 func (s *Service) QueryBehaviorLogs(query BehaviorQuery) []BehaviorLog {
+	items, _ := s.QueryBehaviorLogsStrict(query)
+	return items
+}
+
+func (s *Service) QueryBehaviorLogsStrict(query BehaviorQuery) ([]BehaviorLog, error) {
 	if s.behaviorRepo != nil {
-		if items, err := s.behaviorRepo.QueryBehavior(context.Background(), query); err == nil {
-			return items
-		}
+		return s.behaviorRepo.QueryBehavior(context.Background(), query)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -260,14 +278,26 @@ func (s *Service) QueryBehaviorLogs(query BehaviorQuery) []BehaviorLog {
 		}
 		result = append(result, item)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Funnel(eventCodes []string) FunnelSnapshot {
+	snapshot, _ := s.FunnelStrict(eventCodes)
+	return snapshot
+}
+
+func (s *Service) FunnelStrict(eventCodes []string) (FunnelSnapshot, error) {
+	logs, err := s.BehaviorLogsStrict()
+	if err != nil {
+		return FunnelSnapshot{}, err
+	}
+	return funnelFromLogs(logs, eventCodes), nil
+}
+
+func funnelFromLogs(logs []BehaviorLog, eventCodes []string) FunnelSnapshot {
 	if len(eventCodes) == 0 {
 		eventCodes = []string{"login", "browse_games", "view_game_detail", "apply_game", "enter_im", "send_message", "service_confirm", "submit_review", "view_income_summary"}
 	}
-	logs := s.BehaviorLogs()
 	userSets := make([]map[int64]struct{}, len(eventCodes))
 	for i := range userSets {
 		userSets[i] = make(map[int64]struct{})
@@ -303,7 +333,19 @@ func (s *Service) Funnel(eventCodes []string) FunnelSnapshot {
 }
 
 func (s *Service) Retention() RetentionSnapshot {
-	logs := s.BehaviorLogs()
+	snapshot, _ := s.RetentionStrict()
+	return snapshot
+}
+
+func (s *Service) RetentionStrict() (RetentionSnapshot, error) {
+	logs, err := s.BehaviorLogsStrict()
+	if err != nil {
+		return RetentionSnapshot{}, err
+	}
+	return retentionFromLogs(logs), nil
+}
+
+func retentionFromLogs(logs []BehaviorLog) RetentionSnapshot {
 	firstSeen := make(map[int64]time.Time)
 	activeDates := make(map[int64]map[string]struct{})
 	for _, log := range logs {
@@ -361,18 +403,30 @@ func (s *Service) Retention() RetentionSnapshot {
 }
 
 func (s *Service) Dashboard() DashboardSnapshot {
-	return DashboardSnapshot{Funnel: s.Funnel(nil), Retention: s.Retention(), UpdatedAt: time.Now()}
+	snapshot, _ := s.DashboardStrict()
+	return snapshot
+}
+
+func (s *Service) DashboardStrict() (DashboardSnapshot, error) {
+	logs, err := s.BehaviorLogsStrict()
+	if err != nil {
+		return DashboardSnapshot{}, err
+	}
+	return DashboardSnapshot{Funnel: funnelFromLogs(logs, nil), Retention: retentionFromLogs(logs), UpdatedAt: time.Now()}, nil
 }
 
 func (s *Service) OperationLogs() []OperationLog {
+	items, _ := s.OperationLogsStrict()
+	return items
+}
+
+func (s *Service) OperationLogsStrict() ([]OperationLog, error) {
 	if s.operationRepo != nil {
-		if items, err := s.operationRepo.ListOperations(context.Background()); err == nil {
-			return items
-		}
+		return s.operationRepo.ListOperations(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]OperationLog(nil), s.operationLogs...)
+	return append([]OperationLog(nil), s.operationLogs...), nil
 }
 
 func ratio(numerator int, denominator int) float64 {

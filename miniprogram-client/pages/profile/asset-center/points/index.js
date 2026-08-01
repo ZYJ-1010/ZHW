@@ -33,7 +33,7 @@ function pointBizTitle(log) {
     report_reward: '举报核实奖励',
     redemption_order: '积分商城兑换',
     redemption_refund: '兑换订单退回',
-    service_profit: '服务分润积分',
+    game_complete: '完成组局积分',
     guide_reward: '领路人引荐奖励',
     admin_adjust: '后台积分调整'
   }

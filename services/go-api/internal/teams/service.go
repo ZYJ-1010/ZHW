@@ -152,16 +152,25 @@ func (s *Service) My(userID int64) (Team, error) {
 }
 
 func (s *Service) All() []Team {
+	items, _ := s.AllStrict()
+	return items
+}
+
+// AllStrict prevents the admin list from falling back to process-local data
+// after the SQL repository has been configured.
+func (s *Service) AllStrict() ([]Team, error) {
 	if s.repo != nil {
-		if teams, err := s.repo.ListTeams(context.Background()); err == nil {
-			result := make([]Team, 0, len(teams))
-			for _, team := range teams {
-				if team.Status == "active" {
-					result = append(result, team)
-				}
-			}
-			return result
+		teamItems, err := s.repo.ListTeams(context.Background())
+		if err != nil {
+			return nil, err
 		}
+		result := make([]Team, 0, len(teamItems))
+		for _, team := range teamItems {
+			if team.Status == "active" {
+				result = append(result, team)
+			}
+		}
+		return result, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -171,7 +180,7 @@ func (s *Service) All() []Team {
 			result = append(result, team)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Detail(teamID int64) (Detail, error) {

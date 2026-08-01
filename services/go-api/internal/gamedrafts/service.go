@@ -51,7 +51,8 @@ func NewServiceWithRepository(repository Repository) *Service {
 }
 
 func (s *Service) Save(userID int64, draftID int64, title string, payload json.RawMessage) (Draft, error) {
-	if userID <= 0 || len(payload) == 0 || !json.Valid(payload) {
+	var payloadObject map[string]json.RawMessage
+	if userID <= 0 || len(payload) == 0 || json.Unmarshal(payload, &payloadObject) != nil || payloadObject == nil {
 		return Draft{}, ErrInvalid
 	}
 	title = strings.TrimSpace(title)

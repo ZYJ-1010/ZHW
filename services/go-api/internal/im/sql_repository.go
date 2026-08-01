@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type SQLRepository struct {
@@ -19,7 +21,12 @@ func (r *SQLRepository) EnsureRoom(ctx context.Context, gameID int64, memberIDs 
 	if engine == "" {
 		engine = "local"
 	}
-	room, err := scanRoom(r.db.QueryRowContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Room{}, err
+	}
+	defer tx.Rollback()
+	room, err := scanRoom(tx.QueryRowContext(ctx, `
 insert into chat_rooms (game_id, status, engine, openim_group_id, created_at)
 values ($1,'active',$2,$3,now())
 on conflict (game_id) do update set
@@ -30,17 +37,30 @@ returning id, game_id, status, engine, openim_group_id, archived_at, archive_rea
 	if err != nil {
 		return Room{}, err
 	}
+	// The room member table is a snapshot of active game members. Marking the
+	// previous snapshot inactive inside the same transaction prevents users who
+	// already left the game from continuing to receive room notifications.
+	if _, err := tx.ExecContext(ctx, `
+update chat_room_members
+set status = 'inactive'
+where room_id = $1 and status = 'active'
+`, room.ID); err != nil {
+		return Room{}, err
+	}
 	for _, memberID := range memberIDs {
 		if memberID <= 0 {
 			continue
 		}
-		if _, err := r.db.ExecContext(ctx, `
+		if _, err := tx.ExecContext(ctx, `
 insert into chat_room_members (room_id, user_id, status, created_at)
 values ($1,$2,'active',now())
 on conflict (room_id, user_id) do update set status = 'active'
 `, room.ID, memberID); err != nil {
 			return Room{}, err
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		return Room{}, err
 	}
 	room.MemberIDs, err = r.roomMembers(ctx, room.ID)
 	return room, err
@@ -113,19 +133,19 @@ func (r *SQLRepository) SaveMessage(ctx context.Context, message Message) (Messa
 	}
 	return scanMessage(r.db.QueryRowContext(ctx, `
 with inserted as (
-  insert into chat_messages (room_id, sender_user_id, message_type, content, file_id, status, created_at)
-  values ($1,$2,$3,$4,$5,$6,$7)
-  returning id, room_id, sender_user_id, message_type, content, file_id, status, created_at
+  insert into chat_messages (room_id, sender_user_id, message_type, content, file_id, status, acked_by, read_by, created_at)
+  values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+  returning id, room_id, sender_user_id, message_type, content, file_id, status, acked_by, read_by, created_at
 )
-select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.created_at
+select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.acked_by, m.read_by, m.created_at
 from inserted m
 join chat_rooms r on r.id = m.room_id
-`, message.RoomID, message.SenderID, message.Type, nullString(message.Content), nullInt64(message.FileID), message.Status, message.CreatedAt))
+`, message.RoomID, message.SenderID, message.Type, nullString(message.Content), nullInt64(message.FileID), message.Status, pq.Array(message.AckedBy), pq.Array(message.ReadBy), message.CreatedAt))
 }
 
 func (r *SQLRepository) MessageByID(ctx context.Context, roomID int64, messageID int64) (Message, bool, error) {
 	message, err := scanMessage(r.db.QueryRowContext(ctx, `
-select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.created_at
+select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.acked_by, m.read_by, m.created_at
 from chat_messages m
 join chat_rooms r on r.id = m.room_id
 where m.room_id = $1 and m.id = $2
@@ -138,7 +158,7 @@ where m.room_id = $1 and m.id = $2
 
 func (r *SQLRepository) ListMessagesByRoom(ctx context.Context, roomID int64) ([]Message, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.created_at
+select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.acked_by, m.read_by, m.created_at
 from chat_messages m
 join chat_rooms r on r.id = m.room_id
 where m.room_id = $1
@@ -153,7 +173,7 @@ order by m.created_at asc, m.id asc
 
 func (r *SQLRepository) ListMessages(ctx context.Context) ([]Message, error) {
 	rows, err := r.db.QueryContext(ctx, `
-select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.created_at
+select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.acked_by, m.read_by, m.created_at
 from chat_messages m
 join chat_rooms r on r.id = m.room_id
 order by m.created_at asc, m.id asc
@@ -169,14 +189,16 @@ func (r *SQLRepository) UpdateMessage(ctx context.Context, message Message) (Mes
 	return scanMessage(r.db.QueryRowContext(ctx, `
 with updated as (
   update chat_messages
-  set status = $2
+  set status = $2,
+      acked_by = $3,
+      read_by = $4
   where id = $1
-  returning id, room_id, sender_user_id, message_type, content, file_id, status, created_at
+  returning id, room_id, sender_user_id, message_type, content, file_id, status, acked_by, read_by, created_at
 )
-select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.created_at
+select m.id, m.room_id, r.game_id, m.sender_user_id, m.message_type, m.content, m.file_id, m.status, m.acked_by, m.read_by, m.created_at
 from updated m
 join chat_rooms r on r.id = m.room_id
-`, message.ID, message.Status))
+`, message.ID, message.Status, pq.Array(message.AckedBy), pq.Array(message.ReadBy)))
 }
 
 func (r *SQLRepository) EnsurePrivateConversation(ctx context.Context, userID int64, targetUserID int64, sourceGameID int64) (PrivateConversation, error) {
@@ -281,11 +303,15 @@ func scanMessage(row interface {
 	var message Message
 	var content sql.NullString
 	var fileID sql.NullInt64
-	if err := row.Scan(&message.ID, &message.RoomID, &message.GameID, &message.SenderID, &message.Type, &content, &fileID, &message.Status, &message.CreatedAt); err != nil {
+	var ackedBy pq.Int64Array
+	var readBy pq.Int64Array
+	if err := row.Scan(&message.ID, &message.RoomID, &message.GameID, &message.SenderID, &message.Type, &content, &fileID, &message.Status, &ackedBy, &readBy, &message.CreatedAt); err != nil {
 		return Message{}, err
 	}
 	message.Content = content.String
 	message.FileID = fileID.Int64
+	message.AckedBy = append([]int64(nil), ackedBy...)
+	message.ReadBy = append([]int64(nil), readBy...)
 	return message, nil
 }
 

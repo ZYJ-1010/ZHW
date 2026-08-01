@@ -16,7 +16,11 @@ func (s *Server) myConnections(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items := s.connections.My(userID)
+	items, err := s.connections.MyStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取关系网络失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, map[string]interface{}{
 		"items":      items,
 		"onlineText": strconv.Itoa(maxInt(1, len(items)+1)) + "\u4eba\u5728\u7ebf",
@@ -36,7 +40,12 @@ func (s *Server) myConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminConnections(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.connections.All()})
+	items, err := s.connections.AllStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取关系网络失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) adminUserConnections(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +53,12 @@ func (s *Server) adminUserConnections(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.connections.My(userID)})
+	items, err := s.connections.MyStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取用户关系网络失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) routeConnectionPost(w http.ResponseWriter, r *http.Request) {

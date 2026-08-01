@@ -64,10 +64,13 @@ func NewServiceWithRepository(repo Repository) *Service {
 }
 
 func (s *Service) Plans() []Plan {
+	plans, _ := s.PlansStrict()
+	return plans
+}
+
+func (s *Service) PlansStrict() ([]Plan, error) {
 	if s.repo != nil {
-		if plans, err := s.repo.ListPlans(context.Background()); err == nil && len(plans) > 0 {
-			return plans
-		}
+		return s.repo.ListPlans(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -75,21 +78,31 @@ func (s *Service) Plans() []Plan {
 	for _, plan := range s.plans {
 		items = append(items, plan)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) My(userID int64) Membership {
+	membership, _ := s.MyStrict(userID)
+	return membership
+}
+
+func (s *Service) MyStrict(userID int64) (Membership, error) {
 	if s.repo != nil {
-		if membership, ok, err := s.repo.GetMembership(context.Background(), userID); err == nil && ok {
-			return membership
+		membership, ok, err := s.repo.GetMembership(context.Background(), userID)
+		if err != nil {
+			return Membership{}, err
 		}
+		if ok {
+			return membership, nil
+		}
+		return Membership{UserID: userID, PlanCode: "none", PlanName: "none", Status: "none"}, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if membership, ok := s.memberships[userID]; ok {
-		return membership
+		return membership, nil
 	}
-	return Membership{UserID: userID, PlanCode: "none", PlanName: "none", Status: "none"}
+	return Membership{UserID: userID, PlanCode: "none", PlanName: "none", Status: "none"}, nil
 }
 
 func (s *Service) Grant(userID int64, planCode string, expiresAt *time.Time) (Membership, error) {
@@ -97,7 +110,10 @@ func (s *Service) Grant(userID int64, planCode string, expiresAt *time.Time) (Me
 	if userID <= 0 || planCode == "" {
 		return Membership{}, ErrInvalidMembership
 	}
-	plan, ok := s.findPlan(planCode)
+	plan, ok, err := s.findPlanStrict(planCode)
+	if err != nil {
+		return Membership{}, err
+	}
 	if !ok || plan.Status != "active" {
 		return Membership{}, ErrPlanNotFound
 	}
@@ -132,20 +148,27 @@ func (s *Service) seedDefaultPlans() {
 }
 
 func (s *Service) findPlan(code string) (Plan, bool) {
+	plan, ok, _ := s.findPlanStrict(code)
+	return plan, ok
+}
+
+func (s *Service) findPlanStrict(code string) (Plan, bool, error) {
 	if s.repo != nil {
 		plans, err := s.repo.ListPlans(context.Background())
 		if err == nil {
 			for _, plan := range plans {
 				if plan.Code == code {
-					return plan, true
+					return plan, true, nil
 				}
 			}
+			return Plan{}, false, nil
 		}
+		return Plan{}, false, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	plan, ok := s.plans[code]
-	return plan, ok
+	return plan, ok, nil
 }
 
 func (s *Service) upsertPlan(plan Plan) (Plan, error) {

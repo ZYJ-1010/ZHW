@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../config/routes')
 const messageService = require('../../services/message')
 const { navigateShellKey, navigateShellRoute } = require('../../utils/shell-nav')
+const { toUserMessage } = require('../../utils/user-message')
 
 const NAV_ITEMS = [
   { name: '我的', key: 'mine' },
@@ -284,7 +285,7 @@ Page({
         activeType: type
       }))
     } catch (error) {
-      const errorText = error && error.message ? error.message : textOf(this.data, 'loadFailedText')
+      const errorText = toUserMessage(error && error.message, textOf(this.data, 'loadFailedText') || '消息中心加载失败')
 
       this.setData({
         loading: false,

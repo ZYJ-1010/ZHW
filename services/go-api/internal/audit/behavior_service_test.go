@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -93,42 +94,97 @@ func TestOperationRepositoryIsUsedWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestStrictAuditListsDoNotUseStaleCache(t *testing.T) {
+	readErr := errors.New("audit database unavailable")
+	behaviorRepo := &fakeBehaviorRepository{readErr: readErr}
+	operationRepo := &fakeOperationRepository{readErr: readErr}
+	service := NewServiceWithRepositories(behaviorRepo, operationRepo)
+	service.behaviorLogs = []BehaviorLog{{ID: 1, EventType: "旧行为"}}
+	service.operationLogs = []OperationLog{{ID: 1, Action: "旧操作"}}
+
+	if _, err := service.BehaviorLogsStrict(); !errors.Is(err, readErr) {
+		t.Fatalf("expected behavior log read error, got %v", err)
+	}
+	if _, err := service.QueryBehaviorLogsStrict(BehaviorQuery{}); !errors.Is(err, readErr) {
+		t.Fatalf("expected behavior query error, got %v", err)
+	}
+	if _, err := service.OperationLogsStrict(); !errors.Is(err, readErr) {
+		t.Fatalf("expected operation log read error, got %v", err)
+	}
+}
+
+func TestStrictAuditWritesDoNotCreateLocalSuccessOnRepositoryFailure(t *testing.T) {
+	writeErr := errors.New("audit persistence unavailable")
+	behaviorRepo := &fakeBehaviorRepository{saveErr: writeErr}
+	operationRepo := &fakeOperationRepository{saveErr: writeErr}
+	service := NewServiceWithRepositories(behaviorRepo, operationRepo)
+
+	if _, err := service.RecordBehaviorStrict(BehaviorRequest{EventType: "login"}); !errors.Is(err, writeErr) {
+		t.Fatalf("expected behavior write error, got %v", err)
+	}
+	if _, err := service.RecordOperationStrict(OperationRequest{Action: "user:update"}); !errors.Is(err, writeErr) {
+		t.Fatalf("expected operation write error, got %v", err)
+	}
+	if len(service.behaviorLogs) != 0 || len(service.operationLogs) != 0 {
+		t.Fatalf("failed writes must not create local audit success: behavior=%+v operation=%+v", service.behaviorLogs, service.operationLogs)
+	}
+}
+
 type fakeBehaviorRepository struct {
 	saved   bool
 	listed  bool
 	queried bool
 	items   []BehaviorLog
+	readErr error
+	saveErr error
 }
 
 func (f *fakeBehaviorRepository) SaveBehavior(_ context.Context, log BehaviorLog) error {
+	if f.saveErr != nil {
+		return f.saveErr
+	}
 	f.saved = true
 	f.items = append(f.items, log)
 	return nil
 }
 
 func (f *fakeBehaviorRepository) ListBehavior(_ context.Context) ([]BehaviorLog, error) {
+	if f.readErr != nil {
+		return nil, f.readErr
+	}
 	f.listed = true
 	return f.items, nil
 }
 
 func (f *fakeBehaviorRepository) QueryBehavior(_ context.Context, _ BehaviorQuery) ([]BehaviorLog, error) {
+	if f.readErr != nil {
+		return nil, f.readErr
+	}
 	f.queried = true
 	return f.items, nil
 }
 
 type fakeOperationRepository struct {
-	saved  bool
-	listed bool
-	items  []OperationLog
+	saved   bool
+	listed  bool
+	items   []OperationLog
+	readErr error
+	saveErr error
 }
 
 func (f *fakeOperationRepository) SaveOperation(_ context.Context, log OperationLog) error {
+	if f.saveErr != nil {
+		return f.saveErr
+	}
 	f.saved = true
 	f.items = append(f.items, log)
 	return nil
 }
 
 func (f *fakeOperationRepository) ListOperations(_ context.Context) ([]OperationLog, error) {
+	if f.readErr != nil {
+		return nil, f.readErr
+	}
 	f.listed = true
 	return f.items, nil
 }

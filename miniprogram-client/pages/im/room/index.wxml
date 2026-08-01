@@ -42,50 +42,10 @@
             <view wx:if="{{item.showDateDivider}}" class="message-date-divider">
               <text>{{item.dateDividerText}}</text>
             </view>
-            <view wx:if="{{item.kind === 'system'}}" class="system-card">
-              <view class="system-card-header">
-                <text class="assistant-badge">IM</text>
-                <text class="assistant-name">{{item.card.assistantName}}</text>
-                <text wx:if="{{item.createdAtText}}" class="system-time">{{item.createdAtText}}</text>
+            <view wx:if="{{item.kind === 'system'}}" class="system-notice-wrap">
+              <view class="system-notice">
+                <text>{{item.card.title}}：{{item.card.subtitle}}</text>
               </view>
-
-              <view class="system-card-body">
-                <view class="invite-title-row">
-                  <view class="invite-icon">
-                    <image src="./assets/icon-handshake.svg" mode="aspectFit" />
-                  </view>
-                  <view class="invite-title-copy">
-                    <text class="invite-title">{{item.card.title}}</text>
-                    <text class="invite-subtitle">{{item.card.guideLabel}}：{{item.card.guideName}}</text>
-                  </view>
-                </view>
-
-                <view class="member-info-box">
-                  <text class="member-info-label">{{item.card.playerInfoLabel}}</text>
-                  <view class="member-info-row">
-                    <view class="member-avatar-card">
-                      <image wx:if="{{item.card.player.avatarSrc}}" src="{{item.card.player.avatarSrc}}" mode="aspectFill" />
-                      <text wx:else>{{item.card.player.avatarText}}</text>
-                    </view>
-                    <view class="member-copy">
-                      <text class="member-name">{{item.card.player.name}}</text>
-                      <text class="member-desc">{{item.card.player.desc}}</text>
-                    </view>
-                  </view>
-                </view>
-
-                <view class="event-detail-list">
-                  <view class="event-detail-row">
-                    <image class="detail-icon time-icon" src="./assets/icon-time.svg" mode="aspectFit" />
-                    <text>{{item.card.game.dateText}}</text>
-                  </view>
-                  <view class="event-detail-row">
-                    <image class="detail-icon location-icon" src="./assets/icon-location.svg" mode="aspectFit" />
-                    <text>{{item.card.game.location}}</text>
-                  </view>
-                </view>
-              </view>
-
               <view wx:if="{{item.card.acceptButtonText || item.card.declineButtonText}}" class="system-actions">
                 <button
                   wx:if="{{item.card.acceptButtonText}}"
@@ -130,15 +90,12 @@
                 </view>
 
                 <view wx:if="{{item.kind === 'media'}}" class="media-bubble {{item.messageType}}" data-file-id="{{item.fileId}}" data-message-type="{{item.messageType}}" data-file-name="{{item.fileName}}" bindtap="onMediaTap">
-                  <view class="media-icon">
-                    <text>{{item.messageType === 'image' ? 'IMG' : (item.messageType === 'voice' ? '♫' : 'FILE')}}</text>
-                  </view>
+                  <view class="media-icon"><text>{{item.messageType === 'image' ? '图' : (item.messageType === 'voice' ? '音' : '文')}}</text></view>
                   <view class="media-copy">
                     <text class="media-title">{{item.messageType === 'image' ? '图片消息' : (item.messageType === 'voice' ? '语音消息' : item.fileName)}}</text>
                     <text class="media-desc">{{item.fileId ? (item.messageType === 'voice' ? '点击播放' : (item.messageType === 'image' ? '点击查看' : '点击打开')) : '等待文件信息同步'}}</text>
                   </view>
                 </view>
-
                 <view wx:else class="text-bubble">
                   <text>{{item.contentText}}</text>
                 </view>
@@ -158,7 +115,7 @@
           <text>暂无消息</text>
         </view>
         <view wx:if="{{loading}}" class="empty-state">
-          <text>正在加载局 IM...</text>
+          <text>正在加载局内群聊...</text>
         </view>
       </view>
     </scroll-view>
@@ -179,10 +136,7 @@
         bindchooseimage="onChooseImage"
         bindchoosefile="onChooseFile"
       />
-
-      <view wx:if="{{uploading}}" class="upload-mask">
-        <text>文件发送中...</text>
-      </view>
+      <view wx:if="{{uploading}}" class="upload-mask"><text>文件发送中...</text></view>
     </view>
   </view>
 </home-shell>

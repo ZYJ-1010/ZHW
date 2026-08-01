@@ -157,10 +157,13 @@ func (s *Service) CreateItem(req CreateItemRequest) (Item, error) {
 }
 
 func (s *Service) Items() []Item {
+	items, _ := s.ItemsStrict()
+	return items
+}
+
+func (s *Service) ItemsStrict() ([]Item, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListItems(context.Background(), false); err == nil {
-			return items
-		}
+		return s.repo.ListItems(context.Background(), false)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -170,14 +173,17 @@ func (s *Service) Items() []Item {
 			result = append(result, item)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) AdminItems() []Item {
+	items, _ := s.AdminItemsStrict()
+	return items
+}
+
+func (s *Service) AdminItemsStrict() ([]Item, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListItems(context.Background(), true); err == nil {
-			return items
-		}
+		return s.repo.ListItems(context.Background(), true)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -185,7 +191,7 @@ func (s *Service) AdminItems() []Item {
 	for _, item := range s.items {
 		result = append(result, item)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) UpdateItem(itemID int64, req UpdateItemRequest) (Item, error) {
@@ -321,10 +327,13 @@ func (s *Service) CreateOrder(userID int64, req CreateOrderRequest) (Order, erro
 }
 
 func (s *Service) OrdersForUser(userID int64) []Order {
+	items, _ := s.OrdersForUserStrict(userID)
+	return items
+}
+
+func (s *Service) OrdersForUserStrict(userID int64) ([]Order, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListOrdersByUser(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListOrdersByUser(context.Background(), userID)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -334,7 +343,7 @@ func (s *Service) OrdersForUser(userID int64) []Order {
 			result = append(result, order)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) OrderForUser(userID int64, orderID int64) (Order, error) {
@@ -358,10 +367,13 @@ func (s *Service) OrderForUser(userID int64, orderID int64) (Order, error) {
 }
 
 func (s *Service) AdminOrders() []Order {
+	items, _ := s.AdminOrdersStrict()
+	return items
+}
+
+func (s *Service) AdminOrdersStrict() ([]Order, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListOrders(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListOrders(context.Background())
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -369,7 +381,7 @@ func (s *Service) AdminOrders() []Order {
 	for _, order := range s.orders {
 		result = append(result, order)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) CancelOrder(userID int64, orderID int64, reason string) (Order, error) {

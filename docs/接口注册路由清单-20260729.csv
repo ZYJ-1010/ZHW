@@ -1,0 +1,367 @@
+﻿service,surface,method,route_pattern,dynamic_prefix,auth_or_permission,handler,source_file,source_line
+funds-service-placeholder,资金 API,ANY,/api/funds/bills/download,否,未实现统一鉴权,SettlementController,services/funds-service/src/main/java/com/zhw/funds/settlement/SettlementController.java,19
+funds-service-placeholder,资金 API,ANY,/api/funds/payment-callback-placeholder,否,未实现统一鉴权,PaymentPlaceholderController,services/funds-service/src/main/java/com/zhw/funds/placeholder/PaymentPlaceholderController.java,16
+funds-service-placeholder,资金 API,ANY,/api/funds/payment-precreate-placeholder,否,未实现统一鉴权,PaymentPlaceholderController,services/funds-service/src/main/java/com/zhw/funds/placeholder/PaymentPlaceholderController.java,10
+funds-service-placeholder,资金 API,ANY,/api/funds/profit-sharing/orders,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,44
+funds-service-placeholder,资金 API,ANY,/api/funds/profit-sharing/receivers,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,40
+funds-service-placeholder,资金 API,ANY,/api/funds/profit-sharing/return-orders,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,48
+funds-service-placeholder,资金 API,ANY,/api/funds/revenue/generate,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,32
+funds-service-placeholder,资金 API,ANY,/api/funds/revenue/records,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,37
+funds-service-placeholder,资金 API,ANY,/api/funds/revenue/simulate,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,22
+funds-service-placeholder,资金 API,ANY,/api/funds/revenue/templates,否,未实现统一鉴权,RevenueController,services/funds-service/src/main/java/com/zhw/funds/revenue/RevenueController.java,11
+funds-service-placeholder,资金 API,ANY,/api/funds/settlements,否,未实现统一鉴权,SettlementController,services/funds-service/src/main/java/com/zhw/funds/settlement/SettlementController.java,16
+funds-service-placeholder,资金 API,ANY,/api/funds/settlements/offline,否,未实现统一鉴权,SettlementController,services/funds-service/src/main/java/com/zhw/funds/settlement/SettlementController.java,11
+funds-service-placeholder,内部 API,ANY,/api/internal/funds/reconcile-runner,否,未实现统一鉴权,SettlementController,services/funds-service/src/main/java/com/zhw/funds/settlement/SettlementController.java,23
+funds-service-placeholder,内部 API,ANY,/api/internal/pay/callback-placeholder,否,未实现统一鉴权,PaymentPlaceholderController,services/funds-service/src/main/java/com/zhw/funds/placeholder/PaymentPlaceholderController.java,21
+funds-service-placeholder,健康检查,ANY,/health,否,未实现统一鉴权,FundsApplication,services/funds-service/src/main/java/com/zhw/funds/FundsApplication.java,20
+go-api,管理后台 API,GET,/api/admin/admin-applications,否,后台权限:admin_user:view,"s.requireAdminPermission(""admin_user:view"", s.adminApplications)",services/go-api/internal/appapi/server.go,564
+go-api,管理后台 API,GET,/api/admin/admin-permissions/catalog,否,后台权限:admin_user:view,"s.requireAdminPermission(""admin_user:view"", s.adminPermissionCatalog)",services/go-api/internal/appapi/server.go,568
+go-api,管理后台 API,GET,/api/admin/admin-roles,否,后台权限:admin_user:view,"s.requireAdminPermission(""admin_user:view"", s.adminRoles)",services/go-api/internal/appapi/server.go,567
+go-api,管理后台 API,GET,/api/admin/admin-users,否,后台权限:admin_user:view,"s.requireAdminPermission(""admin_user:view"", s.adminAccountUsers)",services/go-api/internal/appapi/server.go,563
+go-api,管理后台 API,POST,/api/admin/admin-users,否,后台权限:admin_user:create,"s.requireAdminPermission(""admin_user:create"", s.createAdminAccountUser)",services/go-api/internal/appapi/server.go,565
+go-api,管理后台 API,PUT,/api/admin/admin-users/,是,后台权限:admin_user:update,"s.requireAdminPermission(""admin_user:update"", s.routeAdminAccountUserPut)",services/go-api/internal/appapi/server.go,566
+go-api,管理后台 API,POST,/api/admin/ai-data/acceptance-fixture,否,后台权限:ai:data:seed,"s.requireAdminPermission(""ai:data:seed"", s.adminAIDataAcceptanceFixture)",services/go-api/internal/appapi/server.go,676
+go-api,管理后台 API,POST,/api/admin/ai-data/im-export,否,后台权限:ai:data:export,"s.requireAdminPermission(""ai:data:export"", s.adminAIDataIMExport)",services/go-api/internal/appapi/server.go,677
+go-api,管理后台 API,GET,/api/admin/ai-data/im-export-config,否,后台权限:ai:data:read,"s.requireAdminPermission(""ai:data:read"", s.adminAIDataIMExportConfig)",services/go-api/internal/appapi/server.go,678
+go-api,管理后台 API,PUT,/api/admin/ai-data/im-export-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminAIDataIMExportConfig)",services/go-api/internal/appapi/server.go,679
+go-api,管理后台 API,GET,/api/admin/ai-data/snapshot,否,后台权限:ai:data:read,"s.requireAdminPermission(""ai:data:read"", s.adminAIDataSnapshot)",services/go-api/internal/appapi/server.go,675
+go-api,管理后台 API,GET,/api/admin/analytics/funnel,否,后台权限:analytics:funnel:view,"s.requireAdminPermission(""analytics:funnel:view"", s.adminFunnel)",services/go-api/internal/appapi/server.go,672
+go-api,管理后台 API,GET,/api/admin/analytics/retention,否,后台权限:analytics:retention:view,"s.requireAdminPermission(""analytics:retention:view"", s.adminRetention)",services/go-api/internal/appapi/server.go,673
+go-api,管理后台 API,GET,/api/admin/audits/role-applications,否,后台权限:role:view,"s.requireAdminPermission(""role:view"", s.adminRoleApplications)",services/go-api/internal/appapi/server.go,650
+go-api,管理后台 API,POST,/api/admin/audits/role-applications/,是,由处理器校验,s.routeAdminRoleApplicationPost,services/go-api/internal/appapi/server.go,651
+go-api,管理后台 API,POST,/api/admin/auth/applications,否,由处理器校验,s.submitAdminApplication,services/go-api/internal/appapi/server.go,560
+go-api,管理后台 API,POST,/api/admin/auth/login,否,由处理器校验,s.adminLogin,services/go-api/internal/appapi/server.go,559
+go-api,管理后台 API,GET,/api/admin/auth/permissions,否,由处理器校验,s.adminPermissions,services/go-api/internal/appapi/server.go,561
+go-api,管理后台 API,GET,/api/admin/avatar-audits,否,后台权限:identity:read,"s.requireAdminPermission(""identity:read"", s.adminAvatarAudits)",services/go-api/internal/appapi/server.go,641
+go-api,管理后台 API,POST,/api/admin/avatar-audits/,是,由处理器校验,s.routeAdminAvatarAuditPost,services/go-api/internal/appapi/server.go,642
+go-api,管理后台 API,GET,/api/admin/behavior-logs,否,后台权限:analytics:timeline:view,"s.requireAdminPermission(""analytics:timeline:view"", s.adminBehaviorLogs)",services/go-api/internal/appapi/server.go,680
+go-api,管理后台 API,GET,/api/admin/behavior/events,否,后台权限:data:behavior:read,"s.requireAdminPermission(""data:behavior:read"", s.adminBehaviorEvents)",services/go-api/internal/appapi/server.go,674
+go-api,管理后台 API,GET,/api/admin/connections,否,后台权限:connection:read,"s.requireAdminPermission(""connection:read"", s.adminConnections)",services/go-api/internal/appapi/server.go,625
+go-api,管理后台 API,GET,/api/admin/content-risk/logs,否,后台权限:content:risk_log:view,"s.requireAdminPermission(""content:risk_log:view"", s.adminContentRiskLogs)",services/go-api/internal/appapi/server.go,668
+go-api,管理后台 API,GET,/api/admin/credit-deduction-rules,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminCreditDeductionRules)",services/go-api/internal/appapi/server.go,620
+go-api,管理后台 API,PUT,/api/admin/credit-deduction-rules,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminCreditDeductionRules)",services/go-api/internal/appapi/server.go,621
+go-api,管理后台 API,GET,/api/admin/credit/restriction-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminCreditRestrictionConfig)",services/go-api/internal/appapi/server.go,614
+go-api,管理后台 API,PUT,/api/admin/credit/restriction-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminCreditRestrictionConfig)",services/go-api/internal/appapi/server.go,615
+go-api,管理后台 API,GET,/api/admin/dashboard,否,后台权限:analytics:funnel:view,"s.requireAdminPermission(""analytics:funnel:view"", s.adminDashboard)",services/go-api/internal/appapi/server.go,670
+go-api,管理后台 API,GET,/api/admin/delivery-documents,否,后台权限:delivery:manage,"s.requireAdminPermission(""delivery:manage"", s.adminDeliveryDocuments)",services/go-api/internal/appapi/server.go,648
+go-api,管理后台 API,POST,/api/admin/delivery-documents,否,后台权限:delivery:manage,"s.requireAdminPermission(""delivery:manage"", s.createAdminDeliveryDocument)",services/go-api/internal/appapi/server.go,649
+go-api,管理后台 API,GET,/api/admin/enterprise-certifications,否,后台权限:identity:read,"s.requireAdminPermission(""identity:read"", s.adminEnterpriseCertifications)",services/go-api/internal/appapi/server.go,643
+go-api,管理后台 API,GET,/api/admin/enterprise-certifications/,是,后台权限:identity:read,"s.requireAdminPermission(""identity:read"", s.adminEnterpriseCertificationDetail)",services/go-api/internal/appapi/server.go,644
+go-api,管理后台 API,POST,/api/admin/enterprise-certifications/,是,后台权限:identity:update,"s.requireAdminPermission(""identity:update"", s.routeAdminEnterpriseCertificationPost)",services/go-api/internal/appapi/server.go,645
+go-api,管理后台 API,GET,/api/admin/experts/,是,后台权限:profile:read,"s.requireAdminPermission(""profile:read"", s.adminExpertSkill)",services/go-api/internal/appapi/server.go,627
+go-api,管理后台 API,GET,/api/admin/experts/skill-display-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminExpertSkillDisplayConfig)",services/go-api/internal/appapi/server.go,601
+go-api,管理后台 API,PUT,/api/admin/experts/skill-display-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminExpertSkillDisplayConfig)",services/go-api/internal/appapi/server.go,602
+go-api,管理后台 API,GET,/api/admin/export-tasks,否,后台权限:report_export:create,"s.requireAdminPermission(""report_export:create"", s.adminExportTasks)",services/go-api/internal/appapi/server.go,682
+go-api,管理后台 API,GET,/api/admin/export-tasks/,是,后台权限:report_export:create,"s.requireAdminPermission(""report_export:create"", s.routeAdminExportTaskGet)",services/go-api/internal/appapi/server.go,683
+go-api,管理后台 API,GET,/api/admin/feedback-records,否,后台权限:feedback:view,"s.requireAdminPermission(""feedback:view"", s.adminSystemFeedbackRecords)",services/go-api/internal/appapi/server.go,687
+go-api,管理后台 API,POST,/api/admin/feedback-records/,是,后台权限:feedback:reply,"s.requireAdminPermission(""feedback:reply"", s.adminSystemFeedbackReply)",services/go-api/internal/appapi/server.go,693
+go-api,管理后台 API,GET,/api/admin/files/,是,由处理器校验,s.adminDownloadFileURL,services/go-api/internal/appapi/server.go,647
+go-api,管理后台 API,POST,/api/admin/files/upload-token,否,后台权限:game:create_admin,"s.requireAdminPermission(""game:create_admin"", s.adminCreateUploadToken)",services/go-api/internal/appapi/server.go,646
+go-api,管理后台 API,GET,/api/admin/game-applications,否,后台权限:game:read,"s.requireAdminPermission(""game:read"", s.adminGameApplications)",services/go-api/internal/appapi/server.go,586
+go-api,管理后台 API,POST,/api/admin/game-checkins/,是,后台权限:game:progress:manage,"s.requireAdminPermission(""game:progress:manage"", s.routeAdminGameCheckinPost)",services/go-api/internal/appapi/server.go,624
+go-api,管理后台 API,GET,/api/admin/games,否,后台权限:game:read,"s.requireAdminPermission(""game:read"", s.adminGames)",services/go-api/internal/appapi/server.go,585
+go-api,管理后台 API,POST,/api/admin/games,否,后台权限:game:create_admin,"s.requireAdminPermission(""game:create_admin"", s.adminCreateGame)",services/go-api/internal/appapi/server.go,587
+go-api,管理后台 API,GET,/api/admin/games/,是,由处理器校验,s.routeAdminGamesGet,services/go-api/internal/appapi/server.go,622
+go-api,管理后台 API,POST,/api/admin/games/,是,由处理器校验,s.routeAdminGamesPost,services/go-api/internal/appapi/server.go,623
+go-api,管理后台 API,GET,/api/admin/games/application-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGameApplicationConfig)",services/go-api/internal/appapi/server.go,593
+go-api,管理后台 API,PUT,/api/admin/games/application-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGameApplicationConfig)",services/go-api/internal/appapi/server.go,594
+go-api,管理后台 API,GET,/api/admin/games/audit-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGameAuditConfig)",services/go-api/internal/appapi/server.go,595
+go-api,管理后台 API,PUT,/api/admin/games/audit-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGameAuditConfig)",services/go-api/internal/appapi/server.go,596
+go-api,管理后台 API,POST,/api/admin/games/batch-audit,否,后台权限:game:update_status,"s.requireAdminPermission(""game:update_status"", s.adminBatchAuditGames)",services/go-api/internal/appapi/server.go,588
+go-api,管理后台 API,GET,/api/admin/games/category-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGameCategoryConfig)",services/go-api/internal/appapi/server.go,589
+go-api,管理后台 API,PUT,/api/admin/games/category-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGameCategoryConfig)",services/go-api/internal/appapi/server.go,590
+go-api,管理后台 API,GET,/api/admin/games/condition-rule-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGameConditionRuleConfig)",services/go-api/internal/appapi/server.go,597
+go-api,管理后台 API,PUT,/api/admin/games/condition-rule-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGameConditionRuleConfig)",services/go-api/internal/appapi/server.go,598
+go-api,管理后台 API,GET,/api/admin/games/create-template-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGameCreateTemplateConfig)",services/go-api/internal/appapi/server.go,591
+go-api,管理后台 API,PUT,/api/admin/games/create-template-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGameCreateTemplateConfig)",services/go-api/internal/appapi/server.go,592
+go-api,管理后台 API,GET,/api/admin/growth/achievement-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGrowthAchievementConfig)",services/go-api/internal/appapi/server.go,616
+go-api,管理后台 API,PUT,/api/admin/growth/achievement-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGrowthAchievementConfig)",services/go-api/internal/appapi/server.go,617
+go-api,管理后台 API,GET,/api/admin/growth/reward-rules,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminGrowthRewardRules)",services/go-api/internal/appapi/server.go,608
+go-api,管理后台 API,PUT,/api/admin/growth/reward-rules,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminGrowthRewardRules)",services/go-api/internal/appapi/server.go,609
+go-api,管理后台 API,GET,/api/admin/growth/role-level-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminRoleLevelConfig)",services/go-api/internal/appapi/server.go,610
+go-api,管理后台 API,PUT,/api/admin/growth/role-level-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminRoleLevelConfig)",services/go-api/internal/appapi/server.go,611
+go-api,管理后台 API,GET,/api/admin/growth/role-metric-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminRoleMetricConfig)",services/go-api/internal/appapi/server.go,612
+go-api,管理后台 API,PUT,/api/admin/growth/role-metric-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminRoleMetricConfig)",services/go-api/internal/appapi/server.go,613
+go-api,管理后台 API,GET,/api/admin/guide-qualification-rules,否,后台权限:role:view,"s.requireAdminPermission(""role:view"", s.adminGuideQualification)",services/go-api/internal/appapi/server.go,654
+go-api,管理后台 API,POST,/api/admin/guide-qualification-rules,否,后台权限:role:update,"s.requireAdminPermission(""role:update"", s.updateGuideQualification)",services/go-api/internal/appapi/server.go,655
+go-api,管理后台 API,GET,/api/admin/guides/,是,后台权限:profile:read,"s.requireAdminPermission(""profile:read"", s.adminGuideResource)",services/go-api/internal/appapi/server.go,628
+go-api,管理后台 API,GET,/api/admin/guides/qualification-rules,否,后台权限:role:view,"s.requireAdminPermission(""role:view"", s.adminGuideQualificationRules)",services/go-api/internal/appapi/server.go,652
+go-api,管理后台 API,PUT,/api/admin/guides/qualification-rules/,是,由处理器校验,s.routeAdminGuideQualificationRulePut,services/go-api/internal/appapi/server.go,653
+go-api,管理后台 API,GET,/api/admin/health,否,公开,health handler,services/go-api/cmd/server/main.go,132
+go-api,管理后台 API,GET,/api/admin/home/display-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminHomeDisplayConfig)",services/go-api/internal/appapi/server.go,604
+go-api,管理后台 API,PUT,/api/admin/home/display-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminHomeDisplayConfig)",services/go-api/internal/appapi/server.go,605
+go-api,管理后台 API,GET,/api/admin/identity-verifications,否,后台权限:identity:read,"s.requireAdminPermission(""identity:read"", s.adminIdentityVerifications)",services/go-api/internal/appapi/server.go,638
+go-api,管理后台 API,GET,/api/admin/identity-verifications/,是,后台权限:identity:read,"s.requireAdminPermission(""identity:read"", s.adminIdentityVerificationDetail)",services/go-api/internal/appapi/server.go,639
+go-api,管理后台 API,POST,/api/admin/identity-verifications/,是,由处理器校验,s.routeAdminIdentityVerificationPost,services/go-api/internal/appapi/server.go,640
+go-api,管理后台 API,POST,/api/admin/im/messages/,是,由处理器校验,s.routeAdminIMMessagePost,services/go-api/internal/appapi/server.go,663
+go-api,管理后台 API,GET,/api/admin/im/rooms,否,后台权限:im:room:read,"s.requireAdminPermission(""im:room:read"", s.adminIMRooms)",services/go-api/internal/appapi/server.go,660
+go-api,管理后台 API,GET,/api/admin/im/rooms/,是,由处理器校验,s.routeAdminIMRoomGet,services/go-api/internal/appapi/server.go,661
+go-api,管理后台 API,POST,/api/admin/im/rooms/,是,由处理器校验,s.routeAdminIMRoomPost,services/go-api/internal/appapi/server.go,662
+go-api,管理后台 API,GET,/api/admin/invite-code-config,否,后台权限:invite_code:read,"s.requireAdminPermission(""invite_code:read"", s.adminInviteCodeConfig)",services/go-api/internal/appapi/server.go,570
+go-api,管理后台 API,PUT,/api/admin/invite-code-config,否,后台权限:invite_code:manage,"s.requireAdminPermission(""invite_code:manage"", s.updateAdminInviteCodeConfig)",services/go-api/internal/appapi/server.go,571
+go-api,管理后台 API,GET,/api/admin/invite-codes,否,后台权限:invite_code:read,"s.requireAdminPermission(""invite_code:read"", s.adminInviteCodes)",services/go-api/internal/appapi/server.go,569
+go-api,管理后台 API,POST,/api/admin/invite-codes,否,后台权限:invite_code:manage,"s.requireAdminPermission(""invite_code:manage"", s.createAdminInviteCode)",services/go-api/internal/appapi/server.go,574
+go-api,管理后台 API,GET,/api/admin/invite-codes/,是,后台权限:invite_code:read,"s.requireAdminPermission(""invite_code:read"", s.adminInviteCodeDetail)",services/go-api/internal/appapi/server.go,575
+go-api,管理后台 API,POST,/api/admin/invite-codes/,是,由处理器校验,s.routeAdminInviteCodePost,services/go-api/internal/appapi/server.go,577
+go-api,管理后台 API,PUT,/api/admin/invite-codes/,是,后台权限:invite_code:manage,"s.requireAdminPermission(""invite_code:manage"", s.updateAdminInviteCode)",services/go-api/internal/appapi/server.go,576
+go-api,管理后台 API,GET,/api/admin/invite-codes/export,否,后台权限:invite_code:read,"s.requireAdminPermission(""invite_code:read"", s.exportAdminInviteCodes)",services/go-api/internal/appapi/server.go,572
+go-api,管理后台 API,GET,/api/admin/invite-owners,否,后台权限:invite_code:manage,"s.requireAdminPermission(""invite_code:manage"", s.adminInviteOwners)",services/go-api/internal/appapi/server.go,573
+go-api,管理后台 API,GET,/api/admin/invite-quota-requests,否,后台权限:invite_code:read,"s.requireAdminPermission(""invite_code:read"", s.adminInviteQuotaRequests)",services/go-api/internal/appapi/server.go,579
+go-api,管理后台 API,POST,/api/admin/invite-quota-requests/,是,后台权限:invite_code:manage,"s.requireAdminPermission(""invite_code:manage"", s.routeAdminInviteQuotaRequestPost)",services/go-api/internal/appapi/server.go,580
+go-api,管理后台 API,GET,/api/admin/invite-relations,否,后台权限:invite_code:read,"s.requireAdminPermission(""invite_code:read"", s.adminInviteRelations)",services/go-api/internal/appapi/server.go,578
+go-api,管理后台 API,GET,/api/admin/map/search,否,后台权限:game:create_admin,"s.requireAdminPermission(""game:create_admin"", s.mapSearch)",services/go-api/internal/appapi/server.go,731
+go-api,管理后台 API,GET,/api/admin/member-reports,否,后台权限:member_report:read,"s.requireAdminPermission(""member_report:read"", s.adminMemberReports)",services/go-api/internal/appapi/server.go,637
+go-api,管理后台 API,GET,/api/admin/notifications/wechat-tasks,否,后台权限:notification:wechat:view,"s.requireAdminPermission(""notification:wechat:view"", s.adminWechatSubscribeTasks)",services/go-api/internal/appapi/server.go,684
+go-api,管理后台 API,GET,/api/admin/notifications/wechat-templates,否,后台权限:notification:wechat:view,"s.requireAdminPermission(""notification:wechat:view"", s.adminWechatSubscribeTemplates)",services/go-api/internal/appapi/server.go,685
+go-api,管理后台 API,GET,/api/admin/operation-logs,否,由处理器校验,s.adminOperationLogs,services/go-api/internal/appapi/server.go,681
+go-api,管理后台 API,GET,/api/admin/operation-rules,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminOperationRules)",services/go-api/internal/appapi/server.go,618
+go-api,管理后台 API,PUT,/api/admin/operation-rules,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminOperationRules)",services/go-api/internal/appapi/server.go,619
+go-api,管理后台 API,GET,/api/admin/pending-counts,否,公开或处理器内校验,s.adminPendingCountsAuthorized,services/go-api/internal/appapi/server.go,671
+go-api,管理后台 API,GET,/api/admin/permissions/tree,否,由处理器校验,s.adminPermissions,services/go-api/internal/appapi/server.go,562
+go-api,管理后台 API,GET,/api/admin/points/logs,否,后台权限:points:read,"s.requireAdminPermission(""points:read"", s.adminPointsLogs)",services/go-api/internal/appapi/server.go,629
+go-api,管理后台 API,GET,/api/admin/profile-users,否,后台权限:profile:read,"s.requireAdminPermission(""profile:read"", s.adminProfileUsers)",services/go-api/internal/appapi/server.go,626
+go-api,管理后台 API,GET,/api/admin/redemption/items,否,后台权限:redemption:manage,"s.requireAdminPermission(""redemption:manage"", s.adminRedemptionItems)",services/go-api/internal/appapi/server.go,630
+go-api,管理后台 API,POST,/api/admin/redemption/items,否,后台权限:redemption:manage,"s.requireAdminPermission(""redemption:manage"", s.createAdminRedemptionItem)",services/go-api/internal/appapi/server.go,631
+go-api,管理后台 API,PUT,/api/admin/redemption/items/,是,后台权限:redemption:manage,"s.requireAdminPermission(""redemption:manage"", s.updateAdminRedemptionItem)",services/go-api/internal/appapi/server.go,632
+go-api,管理后台 API,GET,/api/admin/redemption/orders,否,后台权限:redemption:manage,"s.requireAdminPermission(""redemption:manage"", s.adminRedemptionOrders)",services/go-api/internal/appapi/server.go,633
+go-api,管理后台 API,POST,/api/admin/redemption/orders/,是,由处理器校验,s.routeAdminRedemptionOrderPost,services/go-api/internal/appapi/server.go,634
+go-api,管理后台 API,GET,/api/admin/reports,否,后台权限:report:view,"s.requireAdminPermission(""report:view"", s.adminReports)",services/go-api/internal/appapi/server.go,686
+go-api,管理后台 API,GET,/api/admin/reports/,是,后台权限:report:view,"s.requireAdminPermission(""report:view"", s.adminReportDetail)",services/go-api/internal/appapi/server.go,694
+go-api,管理后台 API,POST,/api/admin/reports/,是,由处理器校验,s.routeAdminReportPost,services/go-api/internal/appapi/server.go,695
+go-api,管理后台 API,POST,/api/admin/reports/batch-handle,否,公开或处理器内校验,s.batchHandleReports,services/go-api/internal/appapi/server.go,690
+go-api,管理后台 API,GET,/api/admin/reports/config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminReportConfig)",services/go-api/internal/appapi/server.go,688
+go-api,管理后台 API,PUT,/api/admin/reports/config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminReportConfig)",services/go-api/internal/appapi/server.go,689
+go-api,管理后台 API,POST,/api/admin/reports/export,否,后台权限:report_export:create,"s.requireAdminPermission(""report_export:create"", s.createExportTask)",services/go-api/internal/appapi/server.go,692
+go-api,管理后台 API,GET,/api/admin/reports/export-templates,否,后台权限:report_export:create,"s.requireAdminPermission(""report_export:create"", s.adminExportTemplates)",services/go-api/internal/appapi/server.go,691
+go-api,管理后台 API,POST,/api/admin/revenue/calculate,否,后台权限:revenue:simulate,"s.requireAdminPermission(""revenue:simulate"", s.adminRevenuePreview)",services/go-api/internal/appapi/server.go,705
+go-api,管理后台 API,GET,/api/admin/revenue/points-reward-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminRevenuePointsRewardConfig)",services/go-api/internal/appapi/server.go,700
+go-api,管理后台 API,PUT,/api/admin/revenue/points-reward-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminRevenuePointsRewardConfig)",services/go-api/internal/appapi/server.go,701
+go-api,管理后台 API,POST,/api/admin/revenue/preview,否,后台权限:revenue:simulate,"s.requireAdminPermission(""revenue:simulate"", s.adminRevenuePreview)",services/go-api/internal/appapi/server.go,704
+go-api,管理后台 API,GET,/api/admin/revenue/profit-template-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminProfitTemplateConfig)",services/go-api/internal/appapi/server.go,698
+go-api,管理后台 API,PUT,/api/admin/revenue/profit-template-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminProfitTemplateConfig)",services/go-api/internal/appapi/server.go,699
+go-api,管理后台 API,GET,/api/admin/revenue/records,否,后台权限:revenue:record:view,"s.requireAdminPermission(""revenue:record:view"", s.revenueRecords)",services/go-api/internal/appapi/server.go,707
+go-api,管理后台 API,POST,/api/admin/revenue/records/,是,公开或处理器内校验,s.routeRevenueRecordPost,services/go-api/internal/appapi/server.go,709
+go-api,管理后台 API,POST,/api/admin/revenue/records/generate,否,后台权限:revenue:generate,"s.requireAdminPermission(""revenue:generate"", s.generateRevenueRecord)",services/go-api/internal/appapi/server.go,706
+go-api,管理后台 API,GET,/api/admin/revenue/rules,否,后台权限:revenue:template:view,"s.requireAdminPermission(""revenue:template:view"", s.revenueRules)",services/go-api/internal/appapi/server.go,702
+go-api,管理后台 API,POST,/api/admin/revenue/rules,否,后台权限:revenue:template:update,"s.requireAdminPermission(""revenue:template:update"", s.upsertRevenueRule)",services/go-api/internal/appapi/server.go,703
+go-api,管理后台 API,GET,/api/admin/revenue/settlements,否,后台权限:settlement:offline:create,"s.requireAdminPermission(""settlement:offline:create"", s.revenueSettlements)",services/go-api/internal/appapi/server.go,708
+go-api,管理后台 API,GET,/api/admin/revenue/templates,否,后台权限:revenue:template:view,"s.requireAdminPermission(""revenue:template:view"", s.revenueTemplates)",services/go-api/internal/appapi/server.go,696
+go-api,管理后台 API,POST,/api/admin/revenue/templates,否,后台权限:revenue:template:update,"s.requireAdminPermission(""revenue:template:update"", s.createRevenueTemplate)",services/go-api/internal/appapi/server.go,697
+go-api,管理后台 API,GET,/api/admin/reviews/complete-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminReviewCompleteConfig)",services/go-api/internal/appapi/server.go,606
+go-api,管理后台 API,PUT,/api/admin/reviews/complete-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminReviewCompleteConfig)",services/go-api/internal/appapi/server.go,607
+go-api,管理后台 API,GET,/api/admin/roles/benefit-config,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminRoleBenefitConfig)",services/go-api/internal/appapi/server.go,599
+go-api,管理后台 API,PUT,/api/admin/roles/benefit-config,否,后台权限:system_config:update,"s.requireAdminPermission(""system_config:update"", s.adminRoleBenefitConfig)",services/go-api/internal/appapi/server.go,600
+go-api,管理后台 API,POST,/api/admin/roles/grant,否,后台权限:role:update,"s.requireAdminPermission(""role:update"", s.adminGrantRole)",services/go-api/internal/appapi/server.go,603
+go-api,管理后台 API,GET,/api/admin/sensitive-words,否,后台权限:content:sensitive_word:view,"s.requireAdminPermission(""content:sensitive_word:view"", s.adminSensitiveWords)",services/go-api/internal/appapi/server.go,664
+go-api,管理后台 API,POST,/api/admin/sensitive-words,否,后台权限:content:sensitive_word:create,"s.requireAdminPermission(""content:sensitive_word:create"", s.createAdminSensitiveWord)",services/go-api/internal/appapi/server.go,665
+go-api,管理后台 API,PUT,/api/admin/sensitive-words/,是,后台权限:content:sensitive_word:update,"s.requireAdminPermission(""content:sensitive_word:update"", s.updateAdminSensitiveWord)",services/go-api/internal/appapi/server.go,666
+go-api,管理后台 API,POST,/api/admin/sensitive-words/import,否,后台权限:content:sensitive_word:import,"s.requireAdminPermission(""content:sensitive_word:import"", s.importAdminSensitiveWords)",services/go-api/internal/appapi/server.go,667
+go-api,管理后台 API,GET,/api/admin/system/readiness,否,后台权限:system_config:read,"s.requireAdminPermission(""system_config:read"", s.adminSystemReadiness)",services/go-api/internal/appapi/server.go,669
+go-api,管理后台 API,GET,/api/admin/teams,否,后台权限:team:read,"s.requireAdminPermission(""team:read"", s.adminTeams)",services/go-api/internal/appapi/server.go,635
+go-api,管理后台 API,GET,/api/admin/teams/,是,后台权限:team:read,"s.requireAdminPermission(""team:read"", s.adminTeamDetail)",services/go-api/internal/appapi/server.go,636
+go-api,管理后台 API,GET,/api/admin/test-cases,否,后台权限:testcase:read,"s.requireAdminPermission(""testcase:read"", s.adminTestCases)",services/go-api/internal/appapi/server.go,656
+go-api,管理后台 API,POST,/api/admin/test-cases,否,后台权限:testcase:manage,"s.requireAdminPermission(""testcase:manage"", s.createAdminTestCase)",services/go-api/internal/appapi/server.go,657
+go-api,管理后台 API,GET,/api/admin/test-runs,否,后台权限:testcase:read,"s.requireAdminPermission(""testcase:read"", s.adminTestRuns)",services/go-api/internal/appapi/server.go,658
+go-api,管理后台 API,POST,/api/admin/test-runs,否,后台权限:testcase:manage,"s.requireAdminPermission(""testcase:manage"", s.createAdminTestRun)",services/go-api/internal/appapi/server.go,659
+go-api,管理后台 API,GET,/api/admin/users,否,后台权限:user:view,"s.requireAdminPermission(""user:view"", s.adminUsers)",services/go-api/internal/appapi/server.go,581
+go-api,管理后台 API,GET,/api/admin/users/,是,由处理器校验,s.routeAdminUsersGet,services/go-api/internal/appapi/server.go,584
+go-api,管理后台 API,PUT,/api/admin/users/,是,由处理器校验,s.routeAdminUsersPut,services/go-api/internal/appapi/server.go,583
+go-api,管理后台 API,GET,/api/admin/users/options,否,后台权限:game:create_admin,"s.requireAdminPermission(""game:create_admin"", s.adminUserOptions)",services/go-api/internal/appapi/server.go,582
+go-api,小程序 API,POST,/api/app/account/delete,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.deleteAccount)),services/go-api/internal/appapi/server.go,394
+go-api,小程序 API,PUT,/api/app/account/login-password,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.setLoginPassword)),services/go-api/internal/appapi/server.go,392
+go-api,小程序 API,POST,/api/app/account/wechat-bind,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.bindWechatAccount)),services/go-api/internal/appapi/server.go,391
+go-api,小程序 API,POST,/api/app/auth/issue-token-after-identity,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.issueTokenAfterIdentity)),services/go-api/internal/appapi/server.go,393
+go-api,小程序 API,POST,/api/app/auth/password-login,否,公开或处理器内校验,s.passwordLogin,services/go-api/internal/appapi/server.go,389
+go-api,小程序 API,POST,/api/app/auth/password-reset,否,公开或处理器内校验,s.resetPassword,services/go-api/internal/appapi/server.go,390
+go-api,小程序 API,POST,/api/app/auth/phone-login,否,公开或处理器内校验,s.phoneLogin,services/go-api/internal/appapi/server.go,388
+go-api,小程序 API,POST,/api/app/auth/wechat-entry-precheck,否,公开或处理器内校验,s.wechatEntryPrecheck,services/go-api/internal/appapi/server.go,387
+go-api,小程序 API,POST,/api/app/auth/wechat-login,否,公开或处理器内校验,s.wechatLogin,services/go-api/internal/appapi/server.go,386
+go-api,小程序 API,POST,/api/app/behavior/events,否,公开或处理器内校验,s.IdempotencyMiddleware(s.createBehaviorEvent),services/go-api/internal/appapi/server.go,520
+go-api,小程序 API,GET,/api/app/chat/rooms/,是,小程序登录态,s.AppAuthMiddleware(s.routeChatRoomGet),services/go-api/internal/appapi/server.go,456
+go-api,小程序 API,POST,/api/app/chat/rooms/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeChatRoomPost)),services/go-api/internal/appapi/server.go,457
+go-api,小程序 API,POST,/api/app/connections/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeConnectionPost)),services/go-api/internal/appapi/server.go,522
+go-api,小程序 API,GET,/api/app/connections/my,否,小程序登录态,s.AppAuthMiddleware(s.myConnections),services/go-api/internal/appapi/server.go,521
+go-api,小程序 API,GET,/api/app/enterprise-certification,否,小程序登录态,s.AppAuthMiddleware(s.appEnterpriseCertification),services/go-api/internal/appapi/server.go,470
+go-api,小程序 API,POST,/api/app/enterprise-certification,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.submitEnterpriseCertification)),services/go-api/internal/appapi/server.go,471
+go-api,小程序 API,GET,/api/app/experts/me/skills,否,小程序登录态,s.AppAuthMiddleware(s.expertSkill),services/go-api/internal/appapi/server.go,523
+go-api,小程序 API,POST,/api/app/experts/me/skills,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateExpertSkill)),services/go-api/internal/appapi/server.go,524
+go-api,小程序 API,PUT,/api/app/experts/me/skills,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateExpertSkill)),services/go-api/internal/appapi/server.go,525
+go-api,小程序 API,GET,/api/app/files/,是,小程序登录态,s.AppAuthMiddleware(s.downloadFileURL),services/go-api/internal/appapi/server.go,459
+go-api,小程序 API,POST,/api/app/files/upload-token,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createUploadToken)),services/go-api/internal/appapi/server.go,458
+go-api,小程序 API,GET,/api/app/footprints/my,否,小程序登录态,s.AppAuthMiddleware(s.myFootprints),services/go-api/internal/appapi/server.go,467
+go-api,小程序 API,POST,/api/app/game-applications/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeGameApplicationPost)),services/go-api/internal/appapi/server.go,724
+go-api,小程序 API,GET,/api/app/game-applications/my,否,小程序登录态,s.AppAuthMiddleware(s.myApplications),services/go-api/internal/appapi/server.go,431
+go-api,小程序 API,GET,/api/app/game-applications/received,否,小程序登录态,s.AppAuthMiddleware(s.receivedApplications),services/go-api/internal/appapi/server.go,432
+go-api,小程序 API,GET,/api/app/game-drafts,否,小程序登录态,s.AppAuthMiddleware(s.listGameDrafts),services/go-api/internal/appapi/server.go,416
+go-api,小程序 API,POST,/api/app/game-drafts,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createGameDraft)),services/go-api/internal/appapi/server.go,417
+go-api,小程序 API,DELETE,/api/app/game-drafts/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.deleteGameDraft)),services/go-api/internal/appapi/server.go,420
+go-api,小程序 API,GET,/api/app/game-drafts/,是,小程序登录态,s.AppAuthMiddleware(s.getGameDraft),services/go-api/internal/appapi/server.go,418
+go-api,小程序 API,PUT,/api/app/game-drafts/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateGameDraft)),services/go-api/internal/appapi/server.go,419
+go-api,小程序 API,POST,/api/app/game-invitations/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.respondGameInvitation)),services/go-api/internal/appapi/server.go,453
+go-api,小程序 API,POST,/api/app/game-invites/current,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createCurrentGameInvite)),services/go-api/internal/appapi/server.go,440
+go-api,小程序 API,GET,/api/app/game-invites/guide-cancel-detail,否,小程序登录态,s.AppAuthMiddleware(s.gameInviteCancelDetail),services/go-api/internal/appapi/server.go,444
+go-api,小程序 API,GET,/api/app/game-invites/guide-progress,否,小程序登录态,s.AppAuthMiddleware(s.gameInviteGuideProgress),services/go-api/internal/appapi/server.go,443
+go-api,小程序 API,GET,/api/app/game-invites/permission,否,小程序登录态,s.AppAuthMiddleware(s.gameInvitePermission),services/go-api/internal/appapi/server.go,435
+go-api,小程序 API,GET,/api/app/game-invites/player-config,否,小程序登录态,s.AppAuthMiddleware(s.gameInvitePlayerConfig),services/go-api/internal/appapi/server.go,434
+go-api,小程序 API,GET,/api/app/game-invites/players,否,小程序登录态,s.AppAuthMiddleware(s.gameInvitePlayers),services/go-api/internal/appapi/server.go,437
+go-api,小程序 API,GET,/api/app/game-invites/recent-players,否,小程序登录态,s.AppAuthMiddleware(s.gameInviteRecentPlayers),services/go-api/internal/appapi/server.go,436
+go-api,小程序 API,GET,/api/app/game-invites/referral-records,否,小程序登录态,s.AppAuthMiddleware(s.gameInviteReferralRecords),services/go-api/internal/appapi/server.go,445
+go-api,小程序 API,POST,/api/app/game-invites/reminders,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createGameInviteReminder)),services/go-api/internal/appapi/server.go,442
+go-api,小程序 API,POST,/api/app/game-invites/replay,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createReplayGameInvite)),services/go-api/internal/appapi/server.go,441
+go-api,小程序 API,GET,/api/app/game-invites/replay-context,否,小程序登录态,s.AppAuthMiddleware(s.gameInviteReplayContext),services/go-api/internal/appapi/server.go,438
+go-api,小程序 API,GET,/api/app/game-invites/system-recommendations,否,小程序登录态,s.AppAuthMiddleware(s.gameInviteSystemRecommendations),services/go-api/internal/appapi/server.go,439
+go-api,小程序 API,GET,/api/app/games,否,小程序登录态,s.AppAuthMiddleware(s.listGames),services/go-api/internal/appapi/server.go,421
+go-api,小程序 API,POST,/api/app/games,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createGame)),services/go-api/internal/appapi/server.go,415
+go-api,小程序 API,DELETE,/api/app/games/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeGameDelete)),services/go-api/internal/appapi/server.go,726
+go-api,小程序 API,GET,/api/app/games/,是,小程序登录态,s.AppAuthMiddleware(s.routeGameGet),services/go-api/internal/appapi/server.go,454
+go-api,小程序 API,POST,/api/app/games/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeGamePost)),services/go-api/internal/appapi/server.go,725
+go-api,小程序 API,PUT,/api/app/games/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeGamePut)),services/go-api/internal/appapi/server.go,455
+go-api,小程序 API,GET,/api/app/games/application-config,否,小程序登录态,s.AppAuthMiddleware(s.gameApplicationConfig),services/go-api/internal/appapi/server.go,427
+go-api,小程序 API,POST,/api/app/games/applications/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.reviewApplication)),services/go-api/internal/appapi/server.go,723
+go-api,小程序 API,GET,/api/app/games/applications/my,否,小程序登录态,s.AppAuthMiddleware(s.myApplications),services/go-api/internal/appapi/server.go,430
+go-api,小程序 API,GET,/api/app/games/cancel-config,否,小程序登录态,s.AppAuthMiddleware(s.gameCancelConfig),services/go-api/internal/appapi/server.go,429
+go-api,小程序 API,GET,/api/app/games/category-config,否,小程序登录态,s.AppAuthMiddleware(s.gameCategoryConfigHandler),services/go-api/internal/appapi/server.go,425
+go-api,小程序 API,GET,/api/app/games/city,否,小程序登录态,s.AppAuthMiddleware(s.sameCityGames),services/go-api/internal/appapi/server.go,446
+go-api,小程序 API,GET,/api/app/games/condition-rule-config,否,小程序登录态,s.AppAuthMiddleware(s.gameConditionRuleConfig),services/go-api/internal/appapi/server.go,428
+go-api,小程序 API,GET,/api/app/games/create-template-config,否,小程序登录态,s.AppAuthMiddleware(s.gameCreateTemplateConfigHandler),services/go-api/internal/appapi/server.go,426
+go-api,小程序 API,GET,/api/app/games/favorites/my,否,小程序登录态,s.AppAuthMiddleware(s.myFavoriteGames),services/go-api/internal/appapi/server.go,433
+go-api,小程序 API,POST,/api/app/games/invitations/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.respondGameInvitation)),services/go-api/internal/appapi/server.go,452
+go-api,小程序 API,GET,/api/app/games/my/manage,否,小程序登录态,s.AppAuthMiddleware(s.myManagedGames),services/go-api/internal/appapi/server.go,422
+go-api,小程序 API,GET,/api/app/games/nearby,否,小程序登录态,s.AppAuthMiddleware(s.nearbyGames),services/go-api/internal/appapi/server.go,447
+go-api,小程序 API,GET,/api/app/games/player/manage,否,小程序登录态,s.AppAuthMiddleware(s.myPlayerGames),services/go-api/internal/appapi/server.go,423
+go-api,小程序 API,GET,/api/app/games/profit-templates,否,小程序登录态,s.AppAuthMiddleware(s.appRevenueTemplates),services/go-api/internal/appapi/server.go,424
+go-api,小程序 API,GET,/api/app/growth/my,否,小程序登录态,s.AppAuthMiddleware(s.reviewProfile),services/go-api/internal/appapi/server.go,466
+go-api,小程序 API,POST,/api/app/guides/apply,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.applyGuide)),services/go-api/internal/appapi/server.go,537
+go-api,小程序 API,GET,/api/app/guides/me/resources,否,小程序登录态,s.AppAuthMiddleware(s.guideResource),services/go-api/internal/appapi/server.go,526
+go-api,小程序 API,POST,/api/app/guides/me/resources,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateGuideResource)),services/go-api/internal/appapi/server.go,527
+go-api,小程序 API,PUT,/api/app/guides/me/resources,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateGuideResource)),services/go-api/internal/appapi/server.go,528
+go-api,小程序 API,POST,/api/app/guides/payment/precreate-placeholder,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.guidePaymentPrecreatePlaceholder)),services/go-api/internal/appapi/server.go,511
+go-api,小程序 API,GET,/api/app/guides/qualification/me,否,小程序登录态,s.AppAuthMiddleware(s.guideQualificationMe),services/go-api/internal/appapi/server.go,536
+go-api,小程序 API,GET,/api/app/health,否,公开,health handler,services/go-api/cmd/server/main.go,125
+go-api,小程序 API,GET,/api/app/home,否,小程序登录态,s.AppAuthMiddleware(s.appHome),services/go-api/internal/appapi/server.go,395
+go-api,小程序 API,POST,/api/app/identity/faceid/callback,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDCallback)),services/go-api/internal/appapi/server.go,411
+go-api,小程序 API,POST,/api/app/identity/faceid/detect-auth,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.startFaceID)),services/go-api/internal/appapi/server.go,410
+go-api,小程序 API,POST,/api/app/identity/faceid/result,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDCallback)),services/go-api/internal/appapi/server.go,412
+go-api,小程序 API,POST,/api/app/identity/phone/bind,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.bindPhone)),services/go-api/internal/appapi/server.go,405
+go-api,小程序 API,POST,/api/app/identity/phone/verify,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.verifyPhone)),services/go-api/internal/appapi/server.go,408
+go-api,小程序 API,POST,/api/app/identity/realname/restart,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.restartRealname)),services/go-api/internal/appapi/server.go,409
+go-api,小程序 API,GET,/api/app/identity/status,否,小程序登录态,s.AppAuthMiddleware(s.identityStatus),services/go-api/internal/appapi/server.go,413
+go-api,小程序 API,GET,/api/app/im/ws,否,公开或处理器内校验,s.imSocket,services/go-api/internal/appapi/server.go,414
+go-api,小程序 API,GET,/api/app/income/account,否,小程序登录态,s.AppAuthMiddleware(s.incomeAccount),services/go-api/internal/appapi/server.go,501
+go-api,小程序 API,GET,/api/app/income/logs,否,小程序登录态,s.AppAuthMiddleware(s.incomeLogs),services/go-api/internal/appapi/server.go,503
+go-api,小程序 API,GET,/api/app/income/summary,否,小程序登录态,s.AppAuthMiddleware(s.incomeSummary),services/go-api/internal/appapi/server.go,502
+go-api,小程序 API,GET,/api/app/incomes/account,否,小程序登录态,s.AppAuthMiddleware(s.incomeAccount),services/go-api/internal/appapi/server.go,498
+go-api,小程序 API,GET,/api/app/incomes/logs,否,小程序登录态,s.AppAuthMiddleware(s.incomeLogs),services/go-api/internal/appapi/server.go,500
+go-api,小程序 API,GET,/api/app/incomes/summary,否,小程序登录态,s.AppAuthMiddleware(s.incomeSummary),services/go-api/internal/appapi/server.go,499
+go-api,小程序 API,POST,/api/app/invites/entries,否,小程序登录态,s.AppAuthMiddleware(s.createInviteEntry),services/go-api/internal/appapi/server.go,385
+go-api,小程序 API,POST,/api/app/invites/precheck,否,公开或处理器内校验,s.invitePrecheck,services/go-api/internal/appapi/server.go,384
+go-api,小程序 API,POST,/api/app/locations/current,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveCurrentLocation)),services/go-api/internal/appapi/server.go,727
+go-api,小程序 API,GET,/api/app/locations/fallback,否,小程序登录态,s.AppAuthMiddleware(s.locationFallback),services/go-api/internal/appapi/server.go,730
+go-api,小程序 API,POST,/api/app/locations/manual,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveManualLocation)),services/go-api/internal/appapi/server.go,728
+go-api,小程序 API,GET,/api/app/locations/my-recent,否,小程序登录态,s.AppAuthMiddleware(s.myRecentLocations),services/go-api/internal/appapi/server.go,729
+go-api,小程序 API,GET,/api/app/map/geocode,否,小程序登录态,s.AppAuthMiddleware(s.mapGeocode),services/go-api/internal/appapi/server.go,449
+go-api,小程序 API,GET,/api/app/map/index-config,否,小程序登录态,s.AppAuthMiddleware(s.mapIndexConfig),services/go-api/internal/appapi/server.go,451
+go-api,小程序 API,GET,/api/app/map/reverse-geocode,否,小程序登录态,s.AppAuthMiddleware(s.mapReverseGeocode),services/go-api/internal/appapi/server.go,450
+go-api,小程序 API,GET,/api/app/map/search,否,小程序登录态,s.AppAuthMiddleware(s.mapSearch),services/go-api/internal/appapi/server.go,448
+go-api,小程序 API,GET,/api/app/member-reports/me,否,小程序登录态,s.AppAuthMiddleware(s.memberReportMe),services/go-api/internal/appapi/server.go,538
+go-api,小程序 API,GET,/api/app/membership/my,否,小程序登录态,s.AppAuthMiddleware(s.membershipMy),services/go-api/internal/appapi/server.go,508
+go-api,小程序 API,GET,/api/app/membership/plans,否,小程序登录态,s.AppAuthMiddleware(s.membershipPlans),services/go-api/internal/appapi/server.go,505
+go-api,小程序 API,GET,/api/app/membership/radar-config,否,小程序登录态,s.AppAuthMiddleware(s.membershipRadarConfig),services/go-api/internal/appapi/server.go,506
+go-api,小程序 API,POST,/api/app/membership/radar/actions,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.membershipRadarAction)),services/go-api/internal/appapi/server.go,507
+go-api,小程序 API,GET,/api/app/messages/center,否,小程序登录态,s.AppAuthMiddleware(s.myNotifications),services/go-api/internal/appapi/server.go,543
+go-api,小程序 API,GET,/api/app/messages/my-config,否,小程序登录态,s.AppAuthMiddleware(s.messageMyConfig),services/go-api/internal/appapi/server.go,544
+go-api,小程序 API,GET,/api/app/messages/system-notification,否,小程序登录态,s.AppAuthMiddleware(s.systemNotificationDetail),services/go-api/internal/appapi/server.go,549
+go-api,小程序 API,POST,/api/app/messages/system-notification/feedback,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.submitSystemNotificationFeedback)),services/go-api/internal/appapi/server.go,550
+go-api,小程序 API,GET,/api/app/messages/trade-warning,否,小程序登录态,s.AppAuthMiddleware(s.tradeWarningDetail),services/go-api/internal/appapi/server.go,547
+go-api,小程序 API,POST,/api/app/messages/trade-warning/actions,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.handleTradeWarningAction)),services/go-api/internal/appapi/server.go,548
+go-api,小程序 API,GET,/api/app/newbie-tasks,否,小程序登录态,s.AppAuthMiddleware(s.newbieTasks),services/go-api/internal/appapi/server.go,396
+go-api,小程序 API,POST,/api/app/newbie-tasks/,是,小程序登录态,s.AppAuthMiddleware(s.completeTask),services/go-api/internal/appapi/server.go,398
+go-api,小程序 API,POST,/api/app/newbie-tasks/guide-profile-reminder,否,小程序登录态,s.AppAuthMiddleware(s.recordProfileGuideReminder),services/go-api/internal/appapi/server.go,397
+go-api,小程序 API,GET,/api/app/notifications,否,小程序登录态,s.AppAuthMiddleware(s.myNotifications),services/go-api/internal/appapi/server.go,542
+go-api,小程序 API,POST,/api/app/notifications/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeNotificationPost)),services/go-api/internal/appapi/server.go,551
+go-api,小程序 API,GET,/api/app/orders/,是,小程序登录态,s.AppAuthMiddleware(s.appOrderDetail),services/go-api/internal/appapi/server.go,509
+go-api,小程序 API,POST,/api/app/payment/precreate-placeholder,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.paymentPrecreatePlaceholder)),services/go-api/internal/appapi/server.go,510
+go-api,小程序 API,GET,/api/app/points/logs,否,小程序登录态,s.AppAuthMiddleware(s.pointsLogs),services/go-api/internal/appapi/server.go,513
+go-api,小程序 API,GET,/api/app/points/summary,否,小程序登录态,s.AppAuthMiddleware(s.pointsSummary),services/go-api/internal/appapi/server.go,512
+go-api,小程序 API,GET,/api/app/private-chat/messages,否,小程序登录态,s.AppAuthMiddleware(s.privateChatMessages),services/go-api/internal/appapi/server.go,545
+go-api,小程序 API,POST,/api/app/private-chat/messages,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.sendPrivateChatMessage)),services/go-api/internal/appapi/server.go,546
+go-api,小程序 API,GET,/api/app/profile/agreements,否,小程序登录态,s.AppAuthMiddleware(s.listProfileAgreements),services/go-api/internal/appapi/server.go,484
+go-api,小程序 API,GET,/api/app/profile/agreements/,是,小程序登录态,s.AppAuthMiddleware(s.routeProfileAgreementGet),services/go-api/internal/appapi/server.go,485
+go-api,小程序 API,POST,/api/app/profile/agreements/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeProfileAgreementPost)),services/go-api/internal/appapi/server.go,486
+go-api,小程序 API,GET,/api/app/profile/assets,否,小程序登录态,s.AppAuthMiddleware(s.profileAssets),services/go-api/internal/appapi/server.go,402
+go-api,小程序 API,POST,/api/app/profile/credit-appeals,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createCreditAppeal)),services/go-api/internal/appapi/server.go,555
+go-api,小程序 API,GET,/api/app/profile/credit-center,否,小程序登录态,s.AppAuthMiddleware(s.profileCreditCenter),services/go-api/internal/appapi/server.go,403
+go-api,小程序 API,GET,/api/app/profile/home,否,小程序登录态,s.AppAuthMiddleware(s.profileHome),services/go-api/internal/appapi/server.go,401
+go-api,小程序 API,GET,/api/app/profile/points/orders/,是,小程序登录态,s.AppAuthMiddleware(s.redemptionOrderLogistics),services/go-api/internal/appapi/server.go,519
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/codes,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteCodes),services/go-api/internal/appapi/server.go,491
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/income,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteIncome),services/go-api/internal/appapi/server.go,496
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/member-detail,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteMemberDetail),services/go-api/internal/appapi/server.go,497
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/network,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteNetwork),services/go-api/internal/appapi/server.go,493
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/overview,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteOverview),services/go-api/internal/appapi/server.go,490
+go-api,小程序 API,POST,/api/app/profile/service-center/invite/quota-requests,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteQuotaRequest),services/go-api/internal/appapi/server.go,492
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/ranking,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteRanking),services/go-api/internal/appapi/server.go,495
+go-api,小程序 API,GET,/api/app/profile/service-center/invite/records,否,小程序登录态,s.AppAuthMiddleware(s.profileInviteRecords),services/go-api/internal/appapi/server.go,494
+go-api,小程序 API,GET,/api/app/profile/service-center/reviews,否,小程序登录态,s.AppAuthMiddleware(s.profileReviewList),services/go-api/internal/appapi/server.go,487
+go-api,小程序 API,GET,/api/app/profile/service-center/reviews/,是,小程序登录态,s.AppAuthMiddleware(s.profileReviewDetail),services/go-api/internal/appapi/server.go,488
+go-api,小程序 API,POST,/api/app/profile/service-center/reviews/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeProfileReviewPost)),services/go-api/internal/appapi/server.go,489
+go-api,小程序 API,GET,/api/app/profile/settings,否,小程序登录态,s.AppAuthMiddleware(s.getProfileSettings),services/go-api/internal/appapi/server.go,482
+go-api,小程序 API,PUT,/api/app/profile/settings,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveProfileSettings)),services/go-api/internal/appapi/server.go,483
+go-api,小程序 API,GET,/api/app/profile/system-management/block-settings,否,小程序登录态,s.AppAuthMiddleware(s.getSystemBlockSettings),services/go-api/internal/appapi/server.go,480
+go-api,小程序 API,PUT,/api/app/profile/system-management/block-settings,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveSystemBlockSettings)),services/go-api/internal/appapi/server.go,481
+go-api,小程序 API,GET,/api/app/profile/system-management/feedback,否,小程序登录态,s.AppAuthMiddleware(s.getSystemFeedbackHome),services/go-api/internal/appapi/server.go,475
+go-api,小程序 API,POST,/api/app/profile/system-management/feedback,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.submitSystemFeedback)),services/go-api/internal/appapi/server.go,476
+go-api,小程序 API,GET,/api/app/profile/system-management/feedback-records,否,小程序登录态,s.AppAuthMiddleware(s.getSystemFeedbackRecords),services/go-api/internal/appapi/server.go,477
+go-api,小程序 API,GET,/api/app/profile/system-management/feedback-records/,是,小程序登录态,s.AppAuthMiddleware(s.getSystemFeedbackDetail),services/go-api/internal/appapi/server.go,478
+go-api,小程序 API,POST,/api/app/profile/system-management/feedback-records/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.appendSystemFeedbackMessage)),services/go-api/internal/appapi/server.go,479
+go-api,小程序 API,GET,/api/app/profile/system-management/profile-info,否,小程序登录态,s.AppAuthMiddleware(s.getSystemProfileInfo),services/go-api/internal/appapi/server.go,468
+go-api,小程序 API,PUT,/api/app/profile/system-management/profile-info,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveSystemProfileInfo)),services/go-api/internal/appapi/server.go,469
+go-api,小程序 API,GET,/api/app/profile/system-management/service-cases/,是,小程序登录态,s.AppAuthMiddleware(s.getSystemServiceCaseDetail),services/go-api/internal/appapi/server.go,473
+go-api,小程序 API,GET,/api/app/profile/system-management/skill-config,否,小程序登录态,s.AppAuthMiddleware(s.getSystemSkillConfig),services/go-api/internal/appapi/server.go,472
+go-api,小程序 API,PUT,/api/app/profile/system-management/skill-config,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.saveSystemSkillConfig)),services/go-api/internal/appapi/server.go,474
+go-api,小程序 API,GET,/api/app/redemption/items,否,小程序登录态,s.AppAuthMiddleware(s.redemptionItems),services/go-api/internal/appapi/server.go,514
+go-api,小程序 API,POST,/api/app/redemption/orders,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createRedemptionOrder)),services/go-api/internal/appapi/server.go,515
+go-api,小程序 API,GET,/api/app/redemption/orders/,是,小程序登录态,s.AppAuthMiddleware(s.redemptionOrderDetail),services/go-api/internal/appapi/server.go,517
+go-api,小程序 API,POST,/api/app/redemption/orders/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeRedemptionOrderPost)),services/go-api/internal/appapi/server.go,518
+go-api,小程序 API,GET,/api/app/redemption/orders/my,否,小程序登录态,s.AppAuthMiddleware(s.myRedemptionOrders),services/go-api/internal/appapi/server.go,516
+go-api,小程序 API,POST,/api/app/reports,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createReport)),services/go-api/internal/appapi/server.go,557
+go-api,小程序 API,GET,/api/app/reports/,是,小程序登录态,s.AppAuthMiddleware(s.myReportDetail),services/go-api/internal/appapi/server.go,556
+go-api,小程序 API,POST,/api/app/reports/,是,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.routeAppReportPost)),services/go-api/internal/appapi/server.go,558
+go-api,小程序 API,GET,/api/app/reports/appeals/my,否,小程序登录态,s.AppAuthMiddleware(s.myAppeals),services/go-api/internal/appapi/server.go,554
+go-api,小程序 API,GET,/api/app/reports/config,否,小程序登录态,s.AppAuthMiddleware(s.reportConfig),services/go-api/internal/appapi/server.go,552
+go-api,小程序 API,GET,/api/app/reports/my,否,小程序登录态,s.AppAuthMiddleware(s.myReports),services/go-api/internal/appapi/server.go,553
+go-api,小程序 API,POST,/api/app/revenues/simulate,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.appRevenueSimulate)),services/go-api/internal/appapi/server.go,504
+go-api,小程序 API,POST,/api/app/reviews,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.submitReview)),services/go-api/internal/appapi/server.go,463
+go-api,小程序 API,GET,/api/app/reviews/available,否,小程序登录态,s.AppAuthMiddleware(s.reviewTodos),services/go-api/internal/appapi/server.go,461
+go-api,小程序 API,GET,/api/app/reviews/complete-config,否,小程序登录态,s.AppAuthMiddleware(s.reviewCompleteConfig),services/go-api/internal/appapi/server.go,462
+go-api,小程序 API,GET,/api/app/reviews/my-intents,否,小程序登录态,s.AppAuthMiddleware(s.myReviewIntents),services/go-api/internal/appapi/server.go,464
+go-api,小程序 API,GET,/api/app/reviews/todos,否,小程序登录态,s.AppAuthMiddleware(s.reviewTodos),services/go-api/internal/appapi/server.go,460
+go-api,小程序 API,POST,/api/app/role-applications,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.submitRoleApplication)),services/go-api/internal/appapi/server.go,534
+go-api,小程序 API,GET,/api/app/role-applications/benefit-config,否,小程序登录态,s.AppAuthMiddleware(s.roleBenefitConfig),services/go-api/internal/appapi/server.go,533
+go-api,小程序 API,GET,/api/app/role-applications/expert/config,否,小程序登录态,s.AppAuthMiddleware(s.expertApplyConfig),services/go-api/internal/appapi/server.go,530
+go-api,小程序 API,GET,/api/app/role-applications/guide/config,否,小程序登录态,s.AppAuthMiddleware(s.guideApplyConfig),services/go-api/internal/appapi/server.go,531
+go-api,小程序 API,GET,/api/app/role-applications/my,否,小程序登录态,s.AppAuthMiddleware(s.myRoleApplications),services/go-api/internal/appapi/server.go,535
+go-api,小程序 API,GET,/api/app/role-applications/status-config,否,小程序登录态,s.AppAuthMiddleware(s.roleStatusPageConfig),services/go-api/internal/appapi/server.go,532
+go-api,小程序 API,GET,/api/app/roles/my,否,小程序登录态,s.AppAuthMiddleware(s.myRoles),services/go-api/internal/appapi/server.go,529
+go-api,小程序 API,POST,/api/app/sms/send-code,否,公开或处理器内校验,s.sendSMSCode,services/go-api/internal/appapi/server.go,406
+go-api,小程序 API,POST,/api/app/sms/verify-code,否,公开或处理器内校验,s.verifySMSCode,services/go-api/internal/appapi/server.go,407
+go-api,小程序 API,GET,/api/app/teams/my,否,小程序登录态,s.AppAuthMiddleware(s.myTeam),services/go-api/internal/appapi/server.go,539
+go-api,小程序 API,GET,/api/app/teams/my/members,否,小程序登录态,s.AppAuthMiddleware(s.myTeamMembers),services/go-api/internal/appapi/server.go,540
+go-api,小程序 API,GET,/api/app/teams/my/revenue-summary,否,小程序登录态,s.AppAuthMiddleware(s.myTeamRevenueSummary),services/go-api/internal/appapi/server.go,541
+go-api,小程序 API,GET,/api/app/users/me,否,小程序登录态,s.AppAuthMiddleware(s.currentUser),services/go-api/internal/appapi/server.go,399
+go-api,小程序 API,GET,/api/app/users/me/growth,否,小程序登录态,s.AppAuthMiddleware(s.reviewProfile),services/go-api/internal/appapi/server.go,465
+go-api,小程序 API,PUT,/api/app/users/me/profile,否,小程序登录态,s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateCurrentUserProfile)),services/go-api/internal/appapi/server.go,404
+go-api,小程序 API,GET,/api/app/users/me/summary,否,小程序登录态,s.AppAuthMiddleware(s.currentUserSummary),services/go-api/internal/appapi/server.go,400
+go-api,资金 API,POST,/api/funds/profit-sharing/orders,否,公开或处理器内校验,s.profitSharingOrderPlaceholder,services/go-api/internal/appapi/server.go,715
+go-api,资金 API,GET,/api/funds/profit-sharing/orders/,是,公开或处理器内校验,s.profitSharingOrderQueryPlaceholder,services/go-api/internal/appapi/server.go,716
+go-api,资金 API,POST,/api/funds/profit-sharing/return-orders,否,公开或处理器内校验,s.profitSharingReturnPlaceholder,services/go-api/internal/appapi/server.go,717
+go-api,内部 API,POST,/api/internal/ai/content-risk/check-placeholder,否,内部调用,s.aiContentRiskPlaceholder,services/go-api/internal/appapi/server.go,713
+go-api,内部 API,POST,/api/internal/im/archive-expired-rooms,否,内部调用,s.archiveExpiredIMRooms,services/go-api/internal/appapi/server.go,711
+go-api,内部 API,POST,/api/internal/im/retry-failed-rooms,否,内部调用,s.retryFailedIMRooms,services/go-api/internal/appapi/server.go,712
+go-api,内部 API,POST,/api/internal/jobs/points-expire,否,内部调用,s.runPointsExpireJob,services/go-api/internal/appapi/server.go,721
+go-api,内部 API,POST,/api/internal/jobs/progress-feedback-remind,否,内部调用,s.runProgressFeedbackRemindJob,services/go-api/internal/appapi/server.go,720
+go-api,内部 API,POST,/api/internal/jobs/review-remind,否,内部调用,s.runReviewRemindJob,services/go-api/internal/appapi/server.go,719
+go-api,内部 API,POST,/api/internal/notifications/wechat-tasks/,是,内部调用,s.routeWechatTaskPost,services/go-api/internal/appapi/server.go,718
+go-api,内部 API,POST,/api/internal/openim/webhooks,否,内部调用,s.openIMWebhook,services/go-api/internal/appapi/server.go,710
+go-api,内部 API,POST,/api/internal/pay/callback-placeholder,否,内部调用,s.paymentCallbackPlaceholder,services/go-api/internal/appapi/server.go,714
+go-api,内部 API,POST,/api/internal/reports/export-runner,否,后台权限:report_export:create,"s.requireAdminPermission(""report_export:create"", s.runExportTasks)",services/go-api/internal/appapi/server.go,722
+go-api,健康检查,GET,/health,否,公开,health handler,services/go-api/cmd/server/main.go,118

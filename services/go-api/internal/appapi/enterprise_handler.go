@@ -109,7 +109,7 @@ func (s *Server) routeAdminEnterpriseCertificationPost(w http.ResponseWriter, r 
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "企业认证审核参数错误")
 		return
 	}
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "enterprise_certification_review", notifications.CreateRequest{
 		UserID: userID, NotifyType: "enterprise_certification_reviewed", Title: "企业认证审核结果",
 		Content: map[bool]string{true: "企业认证已通过", false: "企业认证未通过：" + item.RejectReason}[item.Status == "approved"],
 		BizType: "enterprise_certification", BizID: item.ID,

@@ -2,6 +2,7 @@ package reports
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -9,16 +10,37 @@ import (
 )
 
 type fakeFreezer struct {
-	called bool
-	gameID int64
-	reason string
+	called        bool
+	gameID        int64
+	reason        string
+	frozen        bool
+	restoreCalled bool
+	restoreReason string
+	restoreErr    error
 }
 
 func (f *fakeFreezer) FreezeByGame(gameID int64, reason string) (revenue.Record, bool, error) {
 	f.called = true
 	f.gameID = gameID
 	f.reason = reason
+	if f.frozen {
+		return revenue.Record{ID: 3, GameID: gameID, Status: "frozen"}, false, nil
+	}
+	f.frozen = true
 	return revenue.Record{ID: 3, GameID: gameID, Status: "frozen"}, true, nil
+}
+
+func (f *fakeFreezer) RestoreFrozenByGame(gameID int64, reason string) (revenue.Record, bool, error) {
+	f.restoreCalled = true
+	f.restoreReason = reason
+	if f.restoreErr != nil {
+		return revenue.Record{}, false, f.restoreErr
+	}
+	if !f.frozen {
+		return revenue.Record{ID: 3, GameID: gameID, Status: "pending_settlement"}, false, nil
+	}
+	f.frozen = false
+	return revenue.Record{ID: 3, GameID: gameID, Status: "pending_settlement"}, true, nil
 }
 
 func TestCreateReportStoresEvidenceAndFreezesRevenue(t *testing.T) {
@@ -47,6 +69,46 @@ func TestCreateReportStoresEvidenceAndFreezesRevenue(t *testing.T) {
 	}
 	if report.ChatMessageID != 20 || report.FileID != 30 || report.ReviewID != 40 || report.RevenueRecordID != 50 {
 		t.Fatalf("expected evidence ids stored, got %+v", report)
+	}
+}
+
+func TestCreateReportRestoresNewFreezeWhenRepositorySaveFails(t *testing.T) {
+	freezer := &fakeFreezer{}
+	repoErr := errors.New("save report failed")
+	repo := &fakeReportRepository{items: map[int64]Report{}, saveErr: repoErr}
+	service := NewServiceWithRepository(freezer, repo)
+
+	_, err := service.Create(2, CreateRequest{GameID: 10, ReportType: "service_dispute", Content: "dispute"})
+	if !errors.Is(err, repoErr) {
+		t.Fatalf("expected repository error, got %v", err)
+	}
+	if !freezer.restoreCalled || freezer.restoreReason != "report_create_rollback" || freezer.frozen {
+		t.Fatalf("expected newly frozen revenue restored, freezer=%+v", freezer)
+	}
+}
+
+func TestCreateReportReturnsRollbackErrorWhenRevenueRestoreFails(t *testing.T) {
+	rollbackErr := errors.New("restore revenue failed")
+	freezer := &fakeFreezer{restoreErr: rollbackErr}
+	repo := &fakeReportRepository{items: map[int64]Report{}, saveErr: errors.New("save report failed")}
+	service := NewServiceWithRepository(freezer, repo)
+
+	_, err := service.Create(2, CreateRequest{GameID: 10, ReportType: "service_dispute", Content: "dispute"})
+	if !errors.Is(err, ErrRevenueRollback) || !errors.Is(err, rollbackErr) {
+		t.Fatalf("expected identifiable rollback failure, got %v", err)
+	}
+}
+
+func TestCreateReportDoesNotRestorePreexistingFreezeWhenSaveFails(t *testing.T) {
+	freezer := &fakeFreezer{frozen: true}
+	repo := &fakeReportRepository{items: map[int64]Report{}, saveErr: errors.New("save report failed")}
+	service := NewServiceWithRepository(freezer, repo)
+
+	if _, err := service.Create(2, CreateRequest{GameID: 10, ReportType: "service_dispute", Content: "dispute"}); err == nil {
+		t.Fatal("expected repository error")
+	}
+	if freezer.restoreCalled || !freezer.frozen {
+		t.Fatalf("expected preexisting freeze preserved, freezer=%+v", freezer)
 	}
 }
 
@@ -98,6 +160,54 @@ func TestAppealStoresStructuredFileIDs(t *testing.T) {
 	}
 	if appealed.Status != "appealed" || appealed.HandleResult != "not true" || appealed.FileID != 30 || len(appealed.AppealFileIDs) != 2 || appealed.AppealFileIDs[1] != 31 {
 		t.Fatalf("expected structured appeal files, got %+v", appealed)
+	}
+}
+
+func TestAssignAppealedReportPreservesAppealEvidence(t *testing.T) {
+	service := NewService(nil)
+	report, err := service.Create(2, CreateRequest{GameID: 10, TargetUserID: 1, ReportType: "service_dispute", Content: "dispute"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	appealed, err := service.Appeal(1, report.ID, AppealRequest{Content: "appeal evidence", FileIDs: []int64{30, 31}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assigned, err := service.Assign(report.ID, AssignRequest{AdminID: 88, HandlerAdminID: 99})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if assigned.Status != "appealed" || assigned.HandlerAdminID != 99 || assigned.HandleResult != appealed.HandleResult || assigned.HandledAt != appealed.HandledAt || len(assigned.AppealFileIDs) != 2 {
+		t.Fatalf("expected assignment to preserve appeal state and evidence, got %+v", assigned)
+	}
+}
+
+func TestAssignTerminalReportIsRejected(t *testing.T) {
+	service := NewService(nil)
+	report, err := service.Create(2, CreateRequest{GameID: 10, ReportType: "service_dispute", Content: "dispute"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.Handle(report.ID, HandleRequest{AdminID: 88, Result: "done"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.Assign(report.ID, AssignRequest{AdminID: 88, HandlerAdminID: 99}); err != ErrInvalidReport {
+		t.Fatalf("expected handled report assignment rejected, got %v", err)
+	}
+}
+
+func TestCreditAppealCanOnlyBeSubmittedOncePerCreditLog(t *testing.T) {
+	service := NewService(nil)
+	request := CreditAppealRequest{GameID: 10, CreditLogID: 88, Content: "申请复核"}
+	first, err := service.CreateCreditAppeal(2, request)
+	if err != nil || first.ReportType != "credit_appeal" {
+		t.Fatalf("expected first credit appeal accepted, report=%+v err=%v", first, err)
+	}
+	if _, err := service.CreateCreditAppeal(2, request); err != ErrCreditAppealExists {
+		t.Fatalf("expected duplicate credit appeal rejected, got %v", err)
+	}
+	if _, err := service.CreateCreditAppeal(3, request); err != nil {
+		t.Fatalf("expected uniqueness to include the user, got %v", err)
 	}
 }
 
@@ -153,6 +263,23 @@ func TestServiceUsesRepositoryWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestStrictReportListsDoNotFallbackToProcessMemory(t *testing.T) {
+	repoErr := errors.New("report database unavailable")
+	repo := &fakeReportRepository{items: map[int64]Report{}, listErr: repoErr}
+	service := NewServiceWithRepository(nil, repo)
+	service.reports[1] = Report{ID: 1, ReporterUserID: 2, ReportType: "service_dispute"}
+
+	if items, err := service.MyStrict(2); !errors.Is(err, repoErr) || items != nil {
+		t.Fatalf("expected user list database error without memory fallback, items=%+v err=%v", items, err)
+	}
+	if items, err := service.ListStrict(); !errors.Is(err, repoErr) || items != nil {
+		t.Fatalf("expected admin list database error without memory fallback, items=%+v err=%v", items, err)
+	}
+	if items, err := service.AppealsStrict(2); !errors.Is(err, repoErr) || items != nil {
+		t.Fatalf("expected appeal list database error without memory fallback, items=%+v err=%v", items, err)
+	}
+}
+
 type fakeReportRepository struct {
 	items        map[int64]Report
 	saved        bool
@@ -160,10 +287,15 @@ type fakeReportRepository struct {
 	listedByUser bool
 	found        bool
 	updated      bool
+	saveErr      error
+	listErr      error
 }
 
 func (r *fakeReportRepository) SaveReport(ctx context.Context, report Report) (Report, error) {
 	r.saved = true
+	if r.saveErr != nil {
+		return Report{}, r.saveErr
+	}
 	report.ID = 10
 	if report.CreatedAt.IsZero() {
 		report.CreatedAt = time.Now()
@@ -174,11 +306,17 @@ func (r *fakeReportRepository) SaveReport(ctx context.Context, report Report) (R
 
 func (r *fakeReportRepository) ListReports(ctx context.Context) ([]Report, error) {
 	r.listed = true
+	if r.listErr != nil {
+		return nil, r.listErr
+	}
 	return []Report{r.items[9]}, nil
 }
 
 func (r *fakeReportRepository) ListReportsByUser(ctx context.Context, userID int64) ([]Report, error) {
 	r.listedByUser = true
+	if r.listErr != nil {
+		return nil, r.listErr
+	}
 	return []Report{r.items[9]}, nil
 }
 

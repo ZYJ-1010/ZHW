@@ -827,6 +827,18 @@
   line-height: 34rpx;
 }
 
+.login-reauth-notice {
+  display: block;
+  margin-top: 18rpx;
+  padding: 14rpx 18rpx;
+  border: 1rpx solid rgba(109, 221, 255, 0.45);
+  border-radius: 14rpx;
+  color: #bfefff;
+  background: rgba(24, 91, 126, 0.24);
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
 .invite-flow-form {
   position: absolute;
   top: 420rpx;
@@ -941,6 +953,42 @@
   font-size: 20rpx;
   line-height: 28rpx;
   text-align: center;
+}
+
+.invite-acquisition-guide {
+  margin: 18rpx 0 6rpx;
+  padding: 20rpx 22rpx;
+  border: 1rpx solid rgba(123, 211, 255, 0.42);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: rgba(34, 94, 137, 0.16);
+}
+
+.invite-acquisition-guide__title,
+.invite-acquisition-guide__copy,
+.invite-acquisition-guide__hint {
+  display: block;
+}
+
+.invite-acquisition-guide__title {
+  color: #dff8ff;
+  font-size: 25rpx;
+  font-weight: 600;
+  line-height: 34rpx;
+}
+
+.invite-acquisition-guide__copy {
+  margin-top: 7rpx;
+  color: #b7d9e8;
+  font-size: 22rpx;
+  line-height: 33rpx;
+}
+
+.invite-acquisition-guide__hint {
+  margin-top: 7rpx;
+  color: #7fd8ff;
+  font-size: 21rpx;
+  line-height: 31rpx;
 }
 
 .invite-flow-agreement {
@@ -1366,9 +1414,52 @@
   line-height: 28rpx;
 }
 
+.newbie-wechat-bind {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 72rpx;
+  margin-top: 20rpx;
+  padding: 12rpx 18rpx;
+  border: 1rpx solid #eadfff;
+  border-radius: 16rpx;
+  box-sizing: border-box;
+  background: #faf7ff;
+}
+
+.newbie-wechat-bind__copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.newbie-wechat-bind__title {
+  color: #3a2b5e;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 30rpx;
+}
+
+.newbie-wechat-bind__desc {
+  margin-top: 2rpx;
+  color: #877a9d;
+  font-size: 18rpx;
+  line-height: 26rpx;
+}
+
+.newbie-wechat-bind__action {
+  flex: 0 0 auto;
+  margin-left: 16rpx;
+  color: #8954df;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 30rpx;
+}
+
 .newbie-task-list {
   width: 100%;
-  margin-top: 36rpx;
+  margin-top: 28rpx;
 }
 
 .newbie-task-empty {

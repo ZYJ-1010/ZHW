@@ -97,14 +97,22 @@ where id = $1
 func (r *SQLRepository) UpdateNotification(ctx context.Context, notification Notification) (Notification, error) {
 	return scanNotification(r.db.QueryRowContext(ctx, `
 update notifications set
-  status = $2,
-  read_at = $3,
-  wechat_state = $4,
-  wechat_task_id = $5
+	notify_type = $2,
+	title = $3,
+	content = $4,
+	biz_type = $5,
+	biz_id = $6,
+	status = $7,
+	need_wechat = $8,
+	wechat_state = $9,
+	wechat_template_id = $10,
+	wechat_task_id = $11,
+	created_at = $12,
+	read_at = $13
 where id = $1
 returning id, user_id, notify_type, title, content, biz_type, biz_id, status,
   need_wechat, wechat_state, wechat_template_id, wechat_task_id, created_at, read_at
-`, notification.ID, notification.Status, nullTimeString(notification.ReadAt), nullString(notification.WechatState), nullInt64(notification.WechatTaskID)))
+`, notification.ID, notification.NotifyType, notification.Title, nullString(notification.Content), nullString(notification.BizType), nullInt64(notification.BizID), notification.Status, notification.NeedWechat, nullString(notification.WechatState), nullString(notification.WechatTemplateID), nullInt64(notification.WechatTaskID), notification.CreatedAt, nullTimeString(notification.ReadAt)))
 }
 
 func (r *SQLRepository) ListWechatTasks(ctx context.Context) ([]WechatTask, error) {

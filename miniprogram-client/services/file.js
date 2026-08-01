@@ -95,7 +95,10 @@ function normalizeUploadFile(file, index) {
     path,
     fileName,
     mimeType: file && file.mimeType || '',
-    size: Number(file && file.size || 1) || 1
+    size: Number(file && file.size || 1) || 1,
+    width: Number(file && file.width || 0) || 0,
+    height: Number(file && file.height || 0) || 0,
+    durationMs: Number(file && file.durationMs || 0) || 0
   }
 }
 
@@ -172,9 +175,36 @@ async function uploadEvidenceImages(paths = [], options = {}) {
   return fileIds.filter(Boolean)
 }
 
+async function uploadSingleFileDetail(path, options = {}) {
+  const uploadFile = normalizeUploadFile(path, 0)
+  if (!uploadFile.path) {
+    return null
+  }
+  const result = await fileApi.createUploadToken({
+    bizType: options.bizType || 'report_attachment',
+    objectId: Number(options.objectId || 0) || 0,
+    fileName: uploadFile.fileName,
+    mimeType: uploadFile.mimeType || guessMimeType(uploadFile.fileName),
+    size: uploadFile.size
+  })
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取上传凭证失败')
+  }
+  const upload = result.data && result.data.upload ? result.data.upload : {}
+  const file = result.data && result.data.file ? result.data.file : {}
+  await uploadToSignedURL(uploadFile.path, upload)
+  return {
+    fileId: Number(upload.fileId || file.fileId || 0) || 0,
+    fileName: uploadFile.fileName,
+    width: uploadFile.width,
+    height: uploadFile.height,
+    durationMs: uploadFile.durationMs
+  }
+}
+
 async function uploadSingleFile(path, options = {}) {
-  const ids = await uploadEvidenceImages([path], options)
-  return ids[0] || 0
+  const detail = await uploadSingleFileDetail(path, options)
+  return detail && detail.fileId || 0
 }
 
 async function getDownloadURL(fileId) {
@@ -193,5 +223,6 @@ async function getDownloadURL(fileId) {
 module.exports = {
   uploadEvidenceImages,
   uploadSingleFile,
+  uploadSingleFileDetail,
   getDownloadURL
 }

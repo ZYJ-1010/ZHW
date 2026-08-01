@@ -1,4 +1,4 @@
-<profile-white-shell title="个人中心" background="#ffffff">
+<profile-white-shell title="信用中心" background="#ffffff">
   <view class="profile-page is-white">
     <text class="credit-heading">信用中心</text>
 
@@ -7,10 +7,11 @@
       <view class="credit-score-row">
         <text class="credit-score-number">{{score}}</text>
         <view class="credit-score-badges">
-          <text class="profile-status green">{{level}}</text>
+          <text class="profile-status {{statusTone}}">{{level}}</text>
           <text class="profile-status">{{monthlyDelta}} 本月</text>
         </view>
       </view>
+      <text class="credit-account-tip">{{accountTip}}</text>
     </view>
 
     <view class="credit-summary-grid">
@@ -23,7 +24,7 @@
     <view class="profile-section">
       <view class="profile-section-head">
         <text class="profile-section-title">信用明细</text>
-        <text class="profile-section-action" bindtap="handleAppealTap">{{appealEntry.text}}</text>
+        <text class="profile-section-action {{appealEntry.enabled ? '' : 'disabled'}}" bindtap="handleAppealTap">{{appealEntry.text}}</text>
       </view>
       <view class="profile-list-card">
         <view wx:if="{{!records.length}}" class="credit-empty">暂无信用变更记录</view>
@@ -34,11 +35,14 @@
           data-report-id="{{item.reportId}}"
           data-credit-log-id="{{item.creditLogId}}"
           data-appeal-route="{{item.appealRoute}}"
+          data-can-appeal="{{item.canAppeal}}"
           bindtap="handleRecordTap"
         >
           <view>
             <text class="profile-row-title">{{item.title}}</text>
             <text class="profile-muted">{{item.desc}}</text>
+            <text wx:if="{{item.appealStatusText}}" class="credit-appeal-status">{{item.appealStatusText}}</text>
+            <text wx:elif="{{item.canAppeal}}" class="credit-appeal-status can-appeal">可申诉</text>
           </view>
           <text class="credit-score-change {{item.tone}}">{{item.score}}</text>
         </view>

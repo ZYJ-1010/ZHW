@@ -853,36 +853,33 @@ function buildMockInviteOverview() {
     metrics: [
       { value: '5', label: '总邀约数', trend: '▲', tone: 'up' },
       { value: '3', label: '成功转化', trend: '▲', tone: 'up' },
-      { value: '60%', label: '转化率', trend: '▲', tone: 'up' },
-      { value: '¥12.58', label: '分润收益', trend: '▲', tone: 'up' }
+      { value: '60%', label: '转化率', trend: '▲', tone: 'up' }
     ],
     actions: [
       { key: 'share_card', icon: '🔗', label: '分享邀请码', inviteCode: 'TEST2026' },
       { key: 'qrcode', icon: '▦', label: '二维码', iconClass: 'white', inviteCode: 'TEST2026' },
       { key: 'poster', icon: '▧', label: '生成海报', iconClass: 'white', inviteCode: 'TEST2026' }
     ],
-    tabs: ['数据概览', '关系网络', '邀约记录', '贡献排行', '收益明细'],
+    tabs: ['数据概览', '关系网络', '邀约记录'],
     trends: [
       { label: '本周新增邀约', value: '+5', tone: 'cyan' },
-      { label: '本周新增转化', value: '+3', tone: 'green' },
-      { label: '本周分润', value: '¥12.58', tone: 'cyan' }
+      { label: '本周新增转化', value: '+3', tone: 'green' }
     ]
   }
 }
 
 function buildMockInviteMembers() {
   return [
-    { id: 'member-001', avatar: '张', name: '张大山', desc: '邀约 8 · 转化 3 · 活跃 12天', direct: '+', team: '贡献 ¥42.60' },
-    { id: 'member-002', avatar: '李', name: '李小红', desc: '邀约 6 · 转化 2 · 活跃 9天', direct: '+', team: '贡献 ¥31.80' },
-    { id: 'member-003', avatar: '王', name: '王建国', desc: '邀约 4 · 转化 1 · 活跃 7天', direct: '+', team: '贡献 ¥25.40' }
+    { id: 'member-001', avatar: '张', name: '张大山', desc: '邀约 8 · 转化 3 · 活跃 12天', direct: '+', team: '已完成 3 局' },
+    { id: 'member-002', avatar: '李', name: '李小红', desc: '邀约 6 · 转化 2 · 活跃 9天', direct: '+', team: '已完成 2 局' },
+    { id: 'member-003', avatar: '王', name: '王建国', desc: '邀约 4 · 转化 1 · 活跃 7天', direct: '+', team: '已完成 1 局' }
   ]
 }
 
 function buildMockInviteNetwork() {
   return {
     summary: [
-      { value: '5', label: '已服务\n位玩家' },
-      { value: '¥12.58', label: '本周收益' }
+      { value: '5', label: '已连接\n位玩家' }
     ],
     networkNodes: ['1', '2', '3', '4', '5'],
     avatars: ['张', '李', '王'],
@@ -904,8 +901,8 @@ function buildMockInviteRecords(data = {}) {
       memberId: 'member-001',
       playerAvatar: '我',
       player: '我',
-      title: '邀请关系服务',
-      budget: '你的奖励：¥42.60',
+      title: '邀请关系记录',
+      budget: '',
       income: '',
       route: '/pages/profile/service-center/invite/member-detail/index?memberId=member-001'
     },
@@ -921,9 +918,9 @@ function buildMockInviteRecords(data = {}) {
       memberId: 'member-002',
       playerAvatar: '我',
       player: '我',
-      title: '邀请关系服务',
-      budget: '你的奖励：¥31.80',
-      income: '已结算',
+      title: '邀请关系记录',
+      budget: '',
+      income: '',
       route: '/pages/profile/service-center/invite/member-detail/index?memberId=member-002'
     }
   ]
@@ -966,10 +963,7 @@ function buildMockInviteRanking(data = {}) {
       { key: 'year', label: '本年' },
       { key: 'all', label: '全部' }
     ],
-    rankTypes: [
-      { key: 'inviteCount', label: '邀约数排行' },
-      { key: 'profitContribution', label: '分润贡献排行' }
-    ],
+    rankTypes: [{ key: 'inviteCount', label: '邀约数排行' }],
     members: buildMockInviteMembers().map((item, index) => ({
       id: item.id,
       rank: index + 1,
@@ -978,32 +972,13 @@ function buildMockInviteRanking(data = {}) {
       level: '一级成员',
       activeDays: 10 - index,
       inviteCount: 8 - index,
-      profitContribution: item.team.replace('贡献 ', '')
+      profitContribution: item.team
     }))
   }
 }
 
 function buildMockInviteIncome() {
-  return {
-    trendSeries: [
-      { month: '1月', amount: 120 },
-      { month: '2月', amount: 180 },
-      { month: '3月', amount: 260 },
-      { month: '4月', amount: 320 },
-      { month: '5月', amount: 480 },
-      { month: '6月', amount: 620 }
-    ],
-    metrics: [
-      { label: '本月分润', value: '¥12.58', desc: '已结算收益' },
-      { label: '累计分润', value: '¥42.60', desc: '含待结算收益' },
-      { label: '活跃成员', value: '5', desc: '当前关系数' },
-      { label: '产生分润局数', value: '2', desc: '累计流水' }
-    ],
-    flows: [
-      { icon: '🎯', title: '组局分润 · member', time: '06-14 20:30', amount: '+¥8.00' },
-      { icon: '🎯', title: '组局分润 · guide', time: '06-13 18:15', amount: '+¥4.58' }
-    ]
-  }
+  return { trendSeries: [], metrics: [], flows: [] }
 }
 
 function buildMockInviteMemberDetail(memberId) {
@@ -1577,7 +1552,6 @@ function defaultProfileAgreements() {
   return [
     { key: 'user-service', title: '用户服务协议', desc: '平台服务条款与规则', signed: true, signedVersion: '2026-07-01', version: '2026-07-01', tone: 'green', last: false, iconKey: 'doc', sections: defaultAgreementSections() },
     { key: 'privacy', title: '隐私政策', desc: '个人信息保护说明', signed: true, signedVersion: '2026-06-30', version: '2026-07-01', tone: 'deep-green', last: false, iconKey: 'lock', sections: defaultAgreementSections() },
-    { key: 'settlement', title: '入驻协议', desc: '服务与分润协议', signed: false, version: '2026-07-01', tone: 'orange', last: false, iconKey: 'box', sections: defaultAgreementSections() },
     { key: 'third_party_sharing', title: '第三方共享清单', desc: '第三方服务与共享场景', signed: true, signedVersion: '2026-07-01', version: '2026-07-01', tone: 'deep-green', last: false, iconKey: 'doc', sections: defaultAgreementSections() },
     { key: 'personal_info_collection', title: '信息收集清单', desc: '平台收集和使用信息的说明', signed: true, signedVersion: '2026-07-01', version: '2026-07-01', tone: 'green', last: false, iconKey: 'lock', sections: defaultAgreementSections() },
     { key: 'about', title: '关于我们', desc: '平台介绍与服务说明', signed: true, signedVersion: '2026-07-01', version: '2026-07-01', tone: 'green', last: true, iconKey: 'doc', sections: defaultAgreementSections() }
@@ -1678,7 +1652,7 @@ function buildSystemFeedbackHome() {
       { key: 'experience', label: '体验优化', iconKey: 'star' },
       { key: 'game', label: '组局相关', iconKey: 'problem' },
       { key: 'expert', label: '行家相关', iconKey: 'problem' },
-      { key: 'points', label: '积分/提现', iconKey: 'notify' },
+      { key: 'points', label: '积分相关', iconKey: 'notify' },
       { key: 'other', label: '其他', iconKey: 'alert' }
     ],
     sessions: [
@@ -2331,10 +2305,7 @@ function buildGameCategoryConfig() {
         { key: 'capacity', name: '人数满额' },
         { key: 'manual', name: '手动结束', active: true }
       ],
-      feeTypes: [
-        { key: 'free', name: '免费局' },
-        { key: 'paid', name: '收费局' }
-      ]
+      feeTypes: [{ key: 'free', name: '免费局' }]
     },
     version: '2026-06-30'
   }
@@ -2848,9 +2819,14 @@ function submitMockReview(data = {}) {
 
   return wait(ok({
     review,
+    reward: {
+      experience: 5
+    },
     profile: {
       userId: 1,
-      creditScore: 100 + mockSubmittedReviews.length
+      creditScore: 100 + mockSubmittedReviews.length,
+      experience: mockSubmittedReviews.length * 5,
+      availablePoints: 0
     }
   }))
 }
@@ -2986,13 +2962,20 @@ function buildMockCreditCenter() {
   return {
     score: 95,
     scoreLabel: '信用分',
-    todayScore: 100,
-    level: '优秀',
+    todayScore: 95,
+    level: '正常',
+    status: 'normal',
+    isPermanent: true,
+    restrictions: {
+      createRestrictedBelow: 60,
+      joinRestrictedBelow: 40,
+      frozenBelow: 20
+    },
     monthlyDelta: '+0',
     summary: [
-      { label: '信用等级', value: '优秀' },
-      { label: '奖励中心', value: '0条待查看' },
-      { label: '惩罚中心', value: `${records.filter((item) => item.tone === 'minus').length}条记录` }
+      { label: '当前状态', value: '正常' },
+      { label: '正向记录', value: '0条' },
+      { label: '扣分记录', value: `${records.filter((item) => item.tone === 'minus').length}条` }
     ],
     records,
     appealEntry: {
@@ -3002,7 +2985,7 @@ function buildMockCreditCenter() {
         : (records[0] && records[0].creditLogId ? `/pages/profile/system-management/credit-appeal/index?creditLogId=${records[0].creditLogId}` : '/pages/profile/system-management/credit-appeal/index'),
       text: '信用申诉'
     },
-    bottomNote: '信用分低于80分将限制部分功能，低于60分将暂停服务资格。'
+    bottomNote: '信用为永久账户。低于60分不能发局，低于40分不能报名或接受邀请，低于20分仅可查看和申诉。'
   }
 }
 
@@ -3137,14 +3120,14 @@ function handleRequest(options) {
     }
   }
 
-  if (method === 'POST' && url === '/api/app/users/me/realname-auth') {
+  if (method === 'POST' && (url === '/api/app/users/me/realname-auth' || url === '/api/app/identity/faceid/detect-auth')) {
     return wait(ok({
       url: '/pages/login/realname/index',
       provider: 'mock'
     }))
   }
 
-  if (method === 'POST' && url === '/api/app/users/me/realname-auth/submit') {
+  if (method === 'POST' && (url === '/api/app/users/me/realname-auth/submit' || url === '/api/app/identity/phone/verify')) {
     return submitRealnameAuth(options.data || {})
   }
 
@@ -3344,7 +3327,7 @@ function handleRequest(options) {
     return wait(ok({
       profile: {
         userId: mockCurrentUser.id,
-        level: 5,
+        level: 2,
         experience: 350,
         creditScore: 100,
         todayCreditScore: 100,
@@ -3353,6 +3336,18 @@ function handleRequest(options) {
         achievements: [],
         updatedAt: '2026-06-30T10:00:00+08:00'
       },
+      roleGrowth: [
+        {
+          roleCode: 'player', roleName: '玩家', active: true, levelNo: 2, levelTitle: 'Lv2 稳定参与', score: 350, scoreLabel: '累计经验', description: '距离下一等级还差 250 经验',
+          metrics: [{ metricCode: 'experience', title: '累计经验', rawValue: 350, targetValue: 600, score: 58, unit: '经验' }]
+        },
+        {
+          roleCode: 'expert', roleName: '行家', active: false, levelNo: 0, levelTitle: '身份未开通', score: 0, scoreLabel: '综合得分', description: '开通行家身份后，将按真实业务记录计算等级。', metrics: []
+        },
+        {
+          roleCode: 'guide', roleName: '领路人', active: false, levelNo: 0, levelTitle: '身份未开通', score: 0, scoreLabel: '综合得分', description: '开通领路人身份后，将按真实业务记录计算等级。', metrics: []
+        }
+      ],
       footprints: [
         { userId: mockCurrentUser.id, gameId: 1, action: 'completed_game', createdAt: '2026-06-30T10:00:00+08:00' },
         { userId: mockCurrentUser.id, gameId: 1, action: 'submitted_review', createdAt: '2026-06-30T10:05:00+08:00' }
@@ -3989,7 +3984,7 @@ function handleRequest(options) {
           { title: '发起引荐', desc: '你向双方发送了组局邀请', time: '03-21 10:23' },
           { title: '玩家确认', desc: '李娜确认参加组局', time: '03-21 11:05' },
           { title: '行家确认', desc: '王强确认参加组局', time: '03-21 14:30' },
-          { title: '组局成功！', desc: '双方已建立连接，进入交付阶段', time: '03-21 14:30', active: true }
+          { title: '组局成功！', desc: '成员已确认参加，等待本局按计划开始', time: '03-21 14:30', active: true }
         ],
         party: {
           confirmedText: '',
@@ -4000,9 +3995,8 @@ function handleRequest(options) {
           expert: { id: 'expert', name: '王强', avatarText: 'WA', role: '行家', avatarClass: 'blue', state: '已确认', stateClass: 'confirmed' }
         },
         followUps: [
-          { key: 'schedule', title: '查看组局日程', desc: '查看该局详情与交付进度', iconSrc: './assets/follow-schedule.png', iconClass: 'schedule', theme: 'blue', target: { type: 'game_detail', gameId } },
-          { key: 'feedback', title: '询问双方反馈', desc: '进入三方群了解交流情况', iconSrc: './assets/follow-feedback.png', iconClass: 'feedback', theme: 'purple', reward: '+20积分', target: { type: 'im_room', gameId, prefill: '我来跟进一下本次组局双方反馈。' } },
-          { key: 'deal', title: '促成交易', desc: '记录或跟进双方合作意向', iconSrc: './assets/follow-deal.png', iconClass: 'deal', theme: 'orange', reward: '+100积分', target: { type: 'referral_record', gameId } }
+          { key: 'schedule', title: '查看局详情', desc: '查看本局时间、地点和协作进度', iconSrc: './assets/follow-schedule.png', iconClass: 'schedule', theme: 'blue', target: { type: 'game_detail', gameId } },
+          { key: 'feedback', title: '查看局内沟通', desc: '本局开始后可进入局内群聊跟进情况', iconSrc: './assets/follow-feedback.png', iconClass: 'feedback', theme: 'purple', target: { type: 'im_room', gameId, prefill: '我来跟进一下本局成员反馈。' } }
         ]
       }))
     }
@@ -4010,8 +4004,7 @@ function handleRequest(options) {
       const action = String(options.data && options.data.action || '').trim()
       const targetMap = {
         schedule: { type: 'game_detail', gameId },
-        feedback: { type: 'im_room', gameId, prefill: '我来跟进一下本次组局双方反馈。' },
-        deal: { type: 'referral_record', gameId }
+        feedback: { type: 'im_room', gameId, prefill: '我来跟进一下本局成员反馈。' }
       }
 
       if (!targetMap[action]) {

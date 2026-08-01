@@ -39,3 +39,17 @@ func TestDraftsAreScopedToCreatorAndPersistInService(t *testing.T) {
 		t.Fatalf("expected deleted draft missing, got %v", err)
 	}
 }
+
+func TestDraftPayloadMustBeJSONObject(t *testing.T) {
+	service := NewService()
+	for _, payload := range []json.RawMessage{
+		json.RawMessage(`null`),
+		json.RawMessage(`[]`),
+		json.RawMessage(`"text"`),
+		json.RawMessage(`1`),
+	} {
+		if _, err := service.Save(101, 0, "异常草稿", payload); err != ErrInvalid {
+			t.Fatalf("payload %s: expected ErrInvalid, got %v", payload, err)
+		}
+	}
+}

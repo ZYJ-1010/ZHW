@@ -79,7 +79,8 @@ function markAuthExpired() {
 function goLogin(currentRoute = '') {
   markAuthExpired()
 
-  navigateShellRoute(`${ROUTES.login}?reason=expired`, {
+  const returnTo = currentRoute ? `&returnTo=${encodeURIComponent(currentRoute)}` : ''
+  navigateShellRoute(`${ROUTES.login}?flow=existing&reason=expired${returnTo}`, {
     currentRoute,
     reuseExisting: false
   })

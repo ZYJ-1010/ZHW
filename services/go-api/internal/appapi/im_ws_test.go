@@ -71,6 +71,7 @@ func TestIMWebSocketFlow(t *testing.T) {
 	if err := json.Unmarshal(uploadBody, &uploadResp); err != nil {
 		t.Fatal(err)
 	}
+
 	writeClientWSJSON(t, conn, map[string]interface{}{
 		"type":    "send_message",
 		"payload": map[string]interface{}{"messageType": "image", "fileId": uploadResp.Data.Upload.FileID, "content": "a.png"},
@@ -104,6 +105,40 @@ func TestIMWebSocketFlow(t *testing.T) {
 	}
 }
 
+func TestHTTPMessageBroadcastsToConnectedRoomClients(t *testing.T) {
+	mux := http.NewServeMux()
+	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
+	identityService := identity.NewService()
+	newTestAppServer(authService, identityService).Register(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	creatorToken := loginForTestWithCode(t, mux, "im-http-broadcast-creator")
+	completeIdentityForTest(t, mux, creatorToken)
+	playerToken := loginForTestWithCode(t, mux, "im-http-broadcast-player")
+	completeIdentityForTest(t, mux, playerToken)
+
+	postJSON(t, mux, "/api/app/games", creatorToken, `{"title":"HTTP 实时广播局","gameType":"free","minPlayers":5,"maxPlayers":8,"startAt":"2026-08-01 10:00","endAt":"2026-08-01 12:00"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/approve-local", creatorToken, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/1/applications", playerToken, `{"reason":"申请加入"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
+	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "im-http-broadcast", 3)
+	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
+
+	conn, reader := openIMWebSocket(t, server, playerToken, 1, http.StatusSwitchingProtocols)
+	defer conn.Close()
+	if connected := readWSJSON(t, reader); connected.Type != "connected" {
+		t.Fatalf("expected connected frame, got %+v", connected)
+	}
+
+	postJSON(t, mux, "/api/app/games/1/chat/messages", creatorToken, `{"messageType":"text","content":"HTTP 发送也应实时到达"}`, http.StatusOK)
+	message := readWSJSON(t, reader)
+	data := marshalMap(t, message.Data)
+	if message.Type != "message" || data["content"] != "HTTP 发送也应实时到达" {
+		t.Fatalf("expected HTTP message broadcast, got %+v", message)
+	}
+}
+
 func TestWebSocketVoiceFileOwnershipValidation(t *testing.T) {
 	authService := auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore())
 	app := newTestAppServer(authService, identity.NewService())
@@ -111,11 +146,20 @@ func TestWebSocketVoiceFileOwnershipValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := app.validateChatMessageFileForSocket(im.SendRequest{MessageType: "voice", FileID: file.ID}, 1); err != nil {
+	voiceRequest := im.SendRequest{MessageType: "voice", FileID: file.ID}
+	if err := app.prepareChatMessageFileForSocket(&voiceRequest, 1); err != nil {
 		t.Fatalf("voice file belonging to game was rejected: %v", err)
 	}
-	if err := app.validateChatMessageFileForSocket(im.SendRequest{MessageType: "voice", FileID: file.ID}, 2); err != im.ErrForbidden {
+	if voiceRequest.Attachment == nil || voiceRequest.Attachment.FileName != "voice.amr" {
+		t.Fatalf("voice attachment was not prepared: %+v", voiceRequest.Attachment)
+	}
+	wrongGameRequest := im.SendRequest{MessageType: "voice", FileID: file.ID}
+	if err := app.prepareChatMessageFileForSocket(&wrongGameRequest, 2); err != im.ErrForbidden {
 		t.Fatalf("voice file from another game error = %v, want forbidden", err)
+	}
+	wrongTypeRequest := im.SendRequest{MessageType: "image", FileID: file.ID}
+	if err := app.prepareChatMessageFileForSocket(&wrongTypeRequest, 1); err != im.ErrInvalidImageFile {
+		t.Fatalf("voice file sent as image error = %v, want invalid image file", err)
 	}
 }
 
@@ -139,18 +183,12 @@ func TestManualStartPersistsBroadcastsAndNotifiesMembers(t *testing.T) {
 	postJSON(t, mux, "/api/app/games/applications/1/review", creatorToken, `{"approve":true}`, http.StatusOK)
 	approveExtraMembersForHTTP(t, mux, creatorToken, 1, "manual-start", 3)
 
-	app.im.EnsureRoom(1)
+	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
+	// IM 仅在手动开局后创建；开局前不应存在可连接的聊天室。
 	conn, reader := openIMWebSocket(t, server, playerToken, 1, http.StatusSwitchingProtocols)
 	defer conn.Close()
 	if connected := readWSJSON(t, reader); connected.Type != "connected" {
-		t.Fatalf("expected connected frame, got %+v", connected)
-	}
-
-	postJSON(t, mux, "/api/app/games/1/manual-start", creatorToken, `{}`, http.StatusOK)
-	frame := readWSJSON(t, reader)
-	messageData := marshalMap(t, frame.Data)
-	if frame.Type != "message" || messageData["content"] != "《开局通知测试》局开始了" {
-		t.Fatalf("expected manual-start websocket message, got %+v", frame)
+		t.Fatalf("expected connected frame after manual start, got %+v", connected)
 	}
 
 	historyBody := getJSON(t, mux, "/api/app/games/1/chat/messages", playerToken, http.StatusOK)
@@ -199,9 +237,10 @@ func TestManualStartPersistsBroadcastsAndNotifiesMembers(t *testing.T) {
 }
 
 type wsTestFrame struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
-	Code int         `json:"code"`
+	Type    string      `json:"type"`
+	Data    interface{} `json:"data"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
 }
 
 func openIMWebSocket(t *testing.T, server *httptest.Server, token string, gameID int64, expectedStatus int) (net.Conn, *bufio.Reader) {

@@ -11,13 +11,16 @@ import (
 )
 
 var (
-	ErrReportNotFound = errors.New("report not found")
-	ErrForbidden      = errors.New("forbidden")
-	ErrInvalidReport  = errors.New("invalid report")
+	ErrReportNotFound     = errors.New("report not found")
+	ErrForbidden          = errors.New("forbidden")
+	ErrInvalidReport      = errors.New("invalid report")
+	ErrCreditAppealExists = errors.New("credit appeal already exists")
+	ErrRevenueRollback    = errors.New("report revenue freeze rollback failed")
 )
 
 type RevenueFreezer interface {
 	FreezeByGame(gameID int64, reason string) (revenue.Record, bool, error)
+	RestoreFrozenByGame(gameID int64, reason string) (revenue.Record, bool, error)
 }
 
 type Repository interface {
@@ -52,6 +55,7 @@ type Report struct {
 	CreditChange       int       `json:"creditChange,omitempty"`
 	CreditTargetUserID int64     `json:"creditTargetUserId,omitempty"`
 	AppealFileIDs      []int64   `json:"appealFileIds,omitempty"`
+	CanAppeal          bool      `json:"canAppeal,omitempty"`
 }
 
 type CreateRequest struct {
@@ -153,6 +157,11 @@ func (s *Service) Create(userID int64, req CreateRequest) (Report, error) {
 	if s.repo != nil {
 		saved, err := s.repo.SaveReport(context.Background(), report)
 		if err != nil {
+			if report.RevenueFrozen && s.freezer != nil {
+				if _, _, rollbackErr := s.freezer.RestoreFrozenByGame(req.GameID, "report_create_rollback"); rollbackErr != nil {
+					return Report{}, errors.Join(err, ErrRevenueRollback, rollbackErr)
+				}
+			}
 			return Report{}, err
 		}
 		report = saved
@@ -170,6 +179,24 @@ func (s *Service) CreateCreditAppeal(userID int64, req CreditAppealRequest) (Rep
 	if len(req.FileIDs) > 9 {
 		return Report{}, ErrInvalidReport
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, existing := range s.reports {
+		if existing.ReporterUserID == userID && existing.ReportType == "credit_appeal" && existing.CreditLogID == req.CreditLogID {
+			return Report{}, ErrCreditAppealExists
+		}
+	}
+	if s.repo != nil {
+		items, err := s.repo.ListReportsByUser(context.Background(), userID)
+		if err != nil {
+			return Report{}, err
+		}
+		for _, existing := range items {
+			if existing.ReportType == "credit_appeal" && existing.CreditLogID == req.CreditLogID {
+				return Report{}, ErrCreditAppealExists
+			}
+		}
+	}
 	report := Report{
 		ID:             s.nextID,
 		GameID:         req.GameID,
@@ -185,32 +212,26 @@ func (s *Service) CreateCreditAppeal(userID int64, req CreditAppealRequest) (Rep
 		AppealFileIDs:  req.FileIDs,
 		CreatedAt:      time.Now(),
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.nextID++
 	if s.repo != nil {
 		saved, err := s.repo.SaveReport(context.Background(), report)
 		if err != nil {
 			return Report{}, err
 		}
 		report = saved
-		report.Status = "appealed"
-		report.HandleResult = req.Content
-		report.HandleOutcome = "processing"
-		report.AppealFileIDs = req.FileIDs
-		if updated, err := s.repo.UpdateReport(context.Background(), report); err == nil {
-			report = updated
-		}
 	}
+	s.nextID++
 	s.reports[report.ID] = report
 	return report, nil
 }
 
 func (s *Service) My(userID int64) []Report {
+	items, _ := s.MyStrict(userID)
+	return items
+}
+
+func (s *Service) MyStrict(userID int64) ([]Report, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListReportsByUser(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListReportsByUser(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -220,18 +241,26 @@ func (s *Service) My(userID int64) []Report {
 			result = append(result, report)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Appeals(userID int64) []Report {
-	items := s.List()
+	items, _ := s.AppealsStrict(userID)
+	return items
+}
+
+func (s *Service) AppealsStrict(userID int64) ([]Report, error) {
+	items, err := s.ListStrict()
+	if err != nil {
+		return nil, err
+	}
 	result := make([]Report, 0)
 	for _, report := range items {
 		if report.TargetUserID == userID && isUserAppeal(report) {
 			result = append(result, report)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func isUserAppeal(report Report) bool {
@@ -242,10 +271,13 @@ func isUserAppeal(report Report) bool {
 }
 
 func (s *Service) List() []Report {
+	items, _ := s.ListStrict()
+	return items
+}
+
+func (s *Service) ListStrict() ([]Report, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListReports(context.Background()); err == nil {
-			return items
-		}
+		return s.repo.ListReports(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -253,7 +285,7 @@ func (s *Service) List() []Report {
 	for _, report := range s.reports {
 		result = append(result, report)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Get(reportID int64) (Report, error) {
@@ -285,10 +317,13 @@ func (s *Service) Assign(reportID int64, req AssignRequest) (Report, error) {
 		if err != nil {
 			return Report{}, err
 		}
-		report.Status = "assigned"
+		if report.Status == "handled" || report.Status == "closed" {
+			return Report{}, ErrInvalidReport
+		}
+		if report.Status != "appealed" && report.Status != "appeal_withdrawn" {
+			report.Status = "assigned"
+		}
 		report.HandlerAdminID = req.HandlerAdminID
-		report.HandleResult = ""
-		report.HandledAt = ""
 		updated, err := s.repo.UpdateReport(context.Background(), report)
 		if err != nil {
 			return Report{}, err
@@ -304,10 +339,13 @@ func (s *Service) Assign(reportID int64, req AssignRequest) (Report, error) {
 	if !ok {
 		return Report{}, ErrReportNotFound
 	}
-	report.Status = "assigned"
+	if report.Status == "handled" || report.Status == "closed" {
+		return Report{}, ErrInvalidReport
+	}
+	if report.Status != "appealed" && report.Status != "appeal_withdrawn" {
+		report.Status = "assigned"
+	}
 	report.HandlerAdminID = req.HandlerAdminID
-	report.HandleResult = ""
-	report.HandledAt = ""
 	s.reports[reportID] = report
 	return report, nil
 }

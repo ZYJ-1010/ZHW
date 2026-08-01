@@ -3,6 +3,7 @@ package appapi
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,8 +61,18 @@ func (s *Server) saveGameDraft(w http.ResponseWriter, r *http.Request, draftID i
 		return
 	}
 	var req gameDraftSaveRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "草稿内容格式错误")
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "草稿内容格式错误")
+		return
+	}
+	var payloadObject map[string]json.RawMessage
+	if len(req.Payload) == 0 || json.Unmarshal(req.Payload, &payloadObject) != nil || payloadObject == nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "草稿内容格式错误")
 		return
 	}
 	if s.rejectSensitiveGameContent(w, req.Title) || s.rejectSensitiveDraftPayload(w, req.Payload) {

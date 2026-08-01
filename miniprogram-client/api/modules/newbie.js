@@ -8,7 +8,12 @@ function completeTask(code) {
   return request.post(`/api/app/newbie-tasks/${encodeURIComponent(code)}/complete`, {})
 }
 
+function recordProfileGuideReminder() {
+  return request.post('/api/app/newbie-tasks/guide-profile-reminder', {})
+}
+
 module.exports = {
   getNewbieTasks,
-  completeTask
+  completeTask,
+  recordProfileGuideReminder
 }

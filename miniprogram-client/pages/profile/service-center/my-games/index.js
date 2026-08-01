@@ -13,6 +13,12 @@ const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = 1620
 
 const EMPTY_GAME_CARDS = []
+const DEFAULT_CATEGORY_TABS = [
+  { key: 'joined', text: '我参与的' },
+  { key: 'created', text: '我发起/管理的' },
+  { key: 'invited', text: '我受邀的' },
+  { key: 'favorite', text: '我收藏的' }
+]
 const EMPTY_PAGE_CONFIG = {
   pageTitle: '',
   emptyText: '',
@@ -101,7 +107,11 @@ Page({
     ...buildDisplayState(INITIAL_CATEGORY_KEY, INITIAL_STATUS_KEY)
   },
 
-  onLoad() {
+  onLoad(options = {}) {
+    const requestedCategory = String(options.category || '').trim()
+    if (DEFAULT_CATEGORY_TABS.some((item) => item.key === requestedCategory)) {
+      this.setData({ activeCategoryKey: requestedCategory })
+    }
     this.loadMyGames()
   },
 
@@ -190,7 +200,10 @@ Page({
       const [playerData, managedData, favoriteData] = await Promise.all([
         gameService.getPlayerGameManage(),
         gameService.getGameManage(),
-        gameService.getMyFavoriteGames()
+        gameService.getMyFavoriteGames().catch((error) => {
+          console.warn('[profile-my-games] favorite list load failed', error)
+          return {}
+        })
       ])
       const cards = normalizeMyGameCards(playerData, managedData, favoriteData)
       const pageConfig = normalizeMyGamesPageConfig(playerData.pageConfig || favoriteData.pageConfig)
@@ -255,17 +268,34 @@ function normalizeMyGamesPageConfig(config = {}) {
   return {
     ...EMPTY_PAGE_CONFIG,
     ...config,
-    categoryTabs: Array.isArray(config.categoryTabs) ? config.categoryTabs : EMPTY_PAGE_CONFIG.categoryTabs,
+    categoryTabs: normalizeCategoryTabs(config.categoryTabs),
     statusTabs
   }
 }
 
+function normalizeCategoryTabs(tabs) {
+  const configured = new Map(
+    (Array.isArray(tabs) ? tabs : [])
+      .filter((item) => item && DEFAULT_CATEGORY_TABS.some((defaultItem) => defaultItem.key === item.key))
+      .map((item) => [item.key, item])
+  )
+
+  return DEFAULT_CATEGORY_TABS.map((fallback) => {
+    const item = configured.get(fallback.key) || {}
+    const text = String(item.text || '').trim()
+    return {
+      ...item,
+      key: fallback.key,
+      // 旧版错误把 created 显示为“我受邀的”，必须恢复独立管理入口。
+      text: text && !(fallback.key === 'created' && text === '我受邀的') ? text : fallback.text
+    }
+  })
+}
+
 function normalizeMyGameCards(playerData, managedData, favoriteData) {
   const playerOrders = normalizeOrders(playerData).map((item, index) => normalizeGameCard(item, item.category || 'joined', index))
-  const joinedGameIds = new Set(playerOrders.map((item) => String(item.gameId || '')).filter(Boolean))
   const managedOrders = normalizeOrders(managedData)
     .map((item, index) => normalizeGameCard(item, 'created', index))
-    .filter((item) => !item.gameId || !joinedGameIds.has(String(item.gameId)))
   const favoriteOrders = normalizeOrders(favoriteData).map((item, index) => normalizeGameCard(item, 'favorite', index))
 
   return playerOrders.concat(managedOrders, favoriteOrders)
@@ -290,12 +320,16 @@ function normalizeOrders(data) {
 function normalizeGameCard(raw = {}, category, index) {
   const source = raw.game || raw
   const statusType = normalizeStatusType(raw.statusType || raw.status || raw.statusKey || source.status)
-  const name = raw.expertName || raw.playerName || raw.name || (raw.expert && raw.expert.name) || (raw.player && raw.player.name) || '用户'
-  const guideName = raw.guideName || (raw.guide && raw.guide.name) || ''
-  const amountText = raw.amountText || raw.serviceAmountText || raw.fundAmountText || formatAmount(raw.amount || raw.fundAmount || raw.amountCent)
   const title = raw.serviceTitle || raw.title || raw.gameTitle || source.title || '未命名组局'
   const gameId = raw.gameId || source.gameId || source.id || ''
   const canReview = Boolean(raw.canReview || raw.canReviewBoth)
+  const currentPlayers = numberOf(firstDefined(raw.currentPlayers, source.currentPlayers), 0)
+  const maxPlayers = numberOf(firstDefined(raw.maxPlayers, source.maxPlayers), 0)
+  const memberText = raw.memberText || (maxPlayers > 0 ? `${currentPlayers}/${maxPlayers} 人` : `${currentPlayers} 人已加入`)
+  const categoryText = raw.categoryText || source.primaryCategoryText || categoryTextByKey(source.primaryCategory)
+  const locationText = raw.addressText || source.address || source.cityName || ''
+  const creatorName = raw.creatorName || source.creatorName || ''
+  const viewerRoleText = raw.viewerRoleText || (category === 'created' ? '管理者' : category === 'invited' ? '受邀用户' : '参与者')
 
   return {
     id: raw.id || raw.serviceOrderId || raw.ref || (gameId ? `${category}-${gameId}` : `my-game-${category}-${index}`),
@@ -305,17 +339,36 @@ function normalizeGameCard(raw = {}, category, index) {
     statusText: raw.statusText || statusTextByType(statusType),
     ref: raw.ref || raw.serviceOrderId || raw.orderNo || raw.id || (gameId ? `GAME-${gameId}` : ''),
     timeText: formatTimeText(raw.startedAt || raw.createdAt || raw.timeText || source.createdAt),
-    avatar: raw.avatar || raw.avatarText || getAvatarText(name),
+    avatar: raw.avatar || raw.avatarText || getAvatarText(title),
     title,
-    expertName: raw.expertName || (category === 'joined' ? name : ''),
-    guideName,
-    amount: amountText,
-    fundStatus: raw.fundStatus || raw.resultText || statusTextByType(statusType),
-    deliveryText: raw.deliveryText || buildDeliveryText(raw),
-    canExpand: statusType === 'active',
+    categoryText: categoryText || '组局',
+    memberText,
+    locationText,
+    creatorName,
+    viewerRoleText,
+    scheduleText: buildGameScheduleText(raw, source),
     reason: raw.reason || raw.cancelReason || '',
+    reasonLabel: raw.reasonLabel || '取消原因',
     actions: buildCardActions(raw, gameId, canReview)
   }
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '')
+}
+
+function numberOf(value, fallback = 0) {
+  const result = Number(value)
+  return Number.isFinite(result) ? result : fallback
+}
+
+function categoryTextByKey(value) {
+  return ({
+    social: '社交局',
+    task: '任务局',
+    explore: '探索局',
+    growth: '成长局'
+  })[String(value || '').trim()] || ''
 }
 
 function normalizeStatusType(status) {
@@ -357,6 +410,7 @@ function statusTextByType(statusType) {
 
 function buildCardActions(raw, gameId, canReview) {
   const actions = []
+  const gameStatus = String(raw && raw.game && raw.game.status || raw.status || '').trim().toLowerCase()
 
   actions.push({
     type: 'detail',
@@ -373,11 +427,11 @@ function buildCardActions(raw, gameId, canReview) {
     })
   }
 
-  if (raw.statusType === 'complete' || raw.status === 'completed') {
+  if (gameStatus === 'completed') {
     actions.push({
-      type: 'buy',
-      text: '再次购买',
-      route: gameId ? `/pages/game/detail/index?gameId=${encodeURIComponent(gameId)}` : '/pages/game/hall/index'
+      type: 'playAgain',
+      text: '再来一局',
+      route: gameId ? `/${ROUTES.gamePlayAgain}?gameId=${encodeURIComponent(gameId)}` : ''
     })
   }
 
@@ -401,7 +455,11 @@ function buildActionRoute(type, card) {
     return `/${ROUTES.gameReview}?gameId=${encodeURIComponent(card.gameId)}`
   }
 
-  if ((type === 'buy' || type === 'detail') && card.gameId) {
+  if (type === 'playAgain' && card.gameId) {
+    return `/${ROUTES.gamePlayAgain}?gameId=${encodeURIComponent(card.gameId)}`
+  }
+
+  if (type === 'detail' && card.gameId) {
     return buildGameDetailRoute(card.gameId)
   }
 
@@ -412,23 +470,9 @@ function buildActionRoute(type, card) {
   return ''
 }
 
-function buildDeliveryText(raw) {
-  if (raw.expectedDeliveryAt) {
-    return `预计交付：${formatDateText(raw.expectedDeliveryAt)}`
-  }
-
-  return raw.noticeText || ''
-}
-
-function formatAmount(value) {
-  if (typeof value === 'number') {
-    if (value > 10000) {
-      return `¥${Math.round(value / 100)}`
-    }
-    return `¥${value}`
-  }
-
-  return value || ''
+function buildGameScheduleText(raw, source) {
+  const startAt = firstDefined(raw.startAt, source.startAt, raw.startedAt)
+  return startAt ? `开始时间：${formatDateText(startAt)}` : ''
 }
 
 function formatTimeText(value) {

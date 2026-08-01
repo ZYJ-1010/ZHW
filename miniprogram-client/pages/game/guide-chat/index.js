@@ -197,8 +197,8 @@ Page({
     this.showInfo('开始录音')
   },
 
-  onRecordStop() {
-    this.showInfo('当前支持文字、图片和文件消息')
+  onRecordStop(event) {
+    this.sendMediaMessage('voice', event)
   },
 
   onRecordError() {

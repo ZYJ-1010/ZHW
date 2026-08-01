@@ -10,6 +10,16 @@ async function getIndexConfig(params) {
   return result.data
 }
 
+async function reverseGeocode(params) {
+  const result = await mapApi.reverseGeocode(params || {})
+
+  if (result.code !== 0) {
+    throw new Error(result.message || '获取地点城市信息失败')
+  }
+
+  return result.data
+}
+
 async function getMyCity(params) {
   const result = await mapApi.getMyCity(params || {})
 
@@ -81,5 +91,6 @@ module.exports = {
   getIndexConfig,
   getMyCity,
   getPlayPage,
+  reverseGeocode,
   submitCheckin
 }

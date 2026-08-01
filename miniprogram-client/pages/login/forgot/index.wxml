@@ -63,7 +63,7 @@
           class="field-input enjoy-input enjoy-input--large"
           value="{{password}}"
           password
-          maxlength="20"
+          maxlength="64"
           placeholder="请输入新密码"
           placeholder-class="enjoy-placeholder"
           bindinput="onPasswordInput"
@@ -76,14 +76,14 @@
         <view class="strength-bar {{password.length >= 14 ? 'active' : ''}}"></view>
       </view>
 
-      <text class="password-tip">仅支持字母和数字，长度8-20位</text>
+      <text class="password-tip">仅支持字母和数字，长度8-64位</text>
 
       <view class="forgot-field confirm-field enjoy-field enjoy-field--large">
         <input
           class="field-input enjoy-input enjoy-input--large"
           value="{{confirmPassword}}"
           password
-          maxlength="20"
+          maxlength="64"
           placeholder="请再次输入新密码"
           placeholder-class="enjoy-placeholder"
           bindinput="onConfirmPasswordInput"

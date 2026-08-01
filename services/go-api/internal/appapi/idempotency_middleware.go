@@ -11,8 +11,9 @@ import (
 )
 
 type idempotencyStore struct {
-	mu      sync.RWMutex
-	records map[string]idempotencyRecord
+	mu       sync.Mutex
+	records  map[string]idempotencyRecord
+	inflight map[string]chan struct{}
 }
 
 type idempotencyRecord struct {
@@ -28,7 +29,10 @@ type idempotencyResponseWriter struct {
 }
 
 func newIdempotencyStore() *idempotencyStore {
-	return &idempotencyStore{records: make(map[string]idempotencyRecord)}
+	return &idempotencyStore{
+		records:  make(map[string]idempotencyRecord),
+		inflight: make(map[string]chan struct{}),
+	}
 }
 
 func (s *Server) IdempotencyMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -42,27 +46,45 @@ func (s *Server) IdempotencyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if len(key) > 128 {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "idempotency key too long")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "幂等请求标识过长")
 			return
 		}
 		userID, _ := appUserIDFromRequest(r)
 		cacheKey := idempotencyCacheKey(userID, r.Method, r.URL.EscapedPath(), key)
-		if record, ok := s.idempotency.get(cacheKey); ok {
-			copyHeader(w.Header(), record.header)
-			w.WriteHeader(record.status)
-			_, _ = w.Write(record.body)
-			return
+		for {
+			if record, wait, execute := s.idempotency.begin(cacheKey); !execute {
+				if wait == nil {
+					replayIdempotencyRecord(w, record)
+					return
+				}
+				select {
+				case <-wait:
+					continue
+				case <-r.Context().Done():
+					return
+				}
+			}
+			break
 		}
 		recorder := &idempotencyResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		var record *idempotencyRecord
+		defer func() { s.idempotency.finish(cacheKey, record) }()
 		next(recorder, r)
 		if recorder.status >= 200 && recorder.status < 300 {
-			s.idempotency.set(cacheKey, idempotencyRecord{
+			saved := idempotencyRecord{
 				status: recorder.status,
 				header: cloneHeader(w.Header()),
 				body:   append([]byte(nil), recorder.body.Bytes()...),
-			})
+			}
+			record = &saved
 		}
 	}
+}
+
+func replayIdempotencyRecord(w http.ResponseWriter, record idempotencyRecord) {
+	copyHeader(w.Header(), record.header)
+	w.WriteHeader(record.status)
+	_, _ = w.Write(record.body)
 }
 
 func (w *idempotencyResponseWriter) WriteHeader(status int) {
@@ -75,17 +97,30 @@ func (w *idempotencyResponseWriter) Write(body []byte) (int, error) {
 	return w.ResponseWriter.Write(body)
 }
 
-func (s *idempotencyStore) get(key string) (idempotencyRecord, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	record, ok := s.records[key]
-	return record, ok
-}
-
-func (s *idempotencyStore) set(key string, record idempotencyRecord) {
+func (s *idempotencyStore) begin(key string) (idempotencyRecord, <-chan struct{}, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.records[key] = record
+	if record, ok := s.records[key]; ok {
+		return record, nil, false
+	}
+	if wait, ok := s.inflight[key]; ok {
+		return idempotencyRecord{}, wait, false
+	}
+	s.inflight[key] = make(chan struct{})
+	return idempotencyRecord{}, nil, true
+}
+
+func (s *idempotencyStore) finish(key string, record *idempotencyRecord) {
+	s.mu.Lock()
+	if record != nil {
+		s.records[key] = *record
+	}
+	wait := s.inflight[key]
+	delete(s.inflight, key)
+	if wait != nil {
+		close(wait)
+	}
+	s.mu.Unlock()
 }
 
 func isWriteMethod(method string) bool {

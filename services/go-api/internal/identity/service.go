@@ -38,11 +38,14 @@ var (
 	ErrFaceIDStartFailed    = errors.New("faceid start failed")
 	ErrRecordNotFound       = errors.New("identity record not found")
 	ErrReviewReasonRequired = errors.New("review reason required")
+	ErrReviewStateInvalid   = errors.New("identity review state invalid")
 )
 
 const (
 	smsResendInterval = 30 * time.Second
 	smsDailyLimit     = 5
+	smsMaxFailures    = 5
+	strongSMSScene    = "strong_identity"
 	temporarySMSCode  = "000000"
 )
 
@@ -78,6 +81,7 @@ type Record struct {
 	FaceVerified              bool   `json:"faceVerified"`
 	WechatRealnameConsistency string `json:"wechatRealnameConsistency"`
 	FailureReason             string `json:"failureReason,omitempty"`
+	CreatedAt                 string `json:"createdAt"`
 	UpdatedAt                 string `json:"updatedAt"`
 }
 
@@ -94,14 +98,19 @@ type InGameIdentity struct {
 }
 
 type Service struct {
-	mu            sync.RWMutex
-	records       map[int64]Record
-	smsCodes      map[int64]smsCodeState
-	faceTokens    map[int64]string
-	repo          Repository
-	smsSender     SMSSender
-	faceIDStarter FaceIDStarter
-	dataKey       [32]byte
+	mu                  sync.RWMutex
+	records             map[int64]Record
+	smsCodes            map[int64]smsCodeState
+	faceTokens          map[int64]string
+	completedFaceTokens map[string]int64
+	repo                Repository
+	smsSender           SMSSender
+	faceIDStarter       FaceIDStarter
+	dataKey             [32]byte
+}
+
+type faceIDCompletionRepository interface {
+	CompleteFaceIDSession(ctx context.Context, tokenHash string, expectedUserID int64, completedAt time.Time) (Record, bool, error)
 }
 
 type smsCodeState struct {
@@ -109,6 +118,7 @@ type smsCodeState struct {
 	sentAt   time.Time
 	dayKey   string
 	dayCount int
+	sending  bool
 }
 
 func NewService() *Service {
@@ -117,12 +127,13 @@ func NewService() *Service {
 
 func NewServiceWithRepository(repo Repository) *Service {
 	service := &Service{
-		records:       make(map[int64]Record),
-		smsCodes:      make(map[int64]smsCodeState),
-		faceTokens:    make(map[int64]string),
-		repo:          repo,
-		smsSender:     LocalSMSSender{},
-		faceIDStarter: LocalFaceIDStarter{},
+		records:             make(map[int64]Record),
+		smsCodes:            make(map[int64]smsCodeState),
+		faceTokens:          make(map[int64]string),
+		completedFaceTokens: make(map[string]int64),
+		repo:                repo,
+		smsSender:           LocalSMSSender{},
+		faceIDStarter:       LocalFaceIDStarter{},
 	}
 	service.UseDataEncryptionKey("local-development-only")
 	return service
@@ -147,10 +158,13 @@ func (s *Service) UseFaceIDStarter(starter FaceIDStarter) {
 }
 
 func (s *Service) Ensure(userID int64) Record {
-	s.mu.Lock()
-	record := s.ensureLocked(userID)
-	s.mu.Unlock()
-	_ = s.persistRecord(record)
+	record, created, err := s.loadRecord(userID)
+	if err != nil {
+		return Record{}
+	}
+	if created {
+		_ = s.persistRecord(record)
+	}
 	return record
 }
 
@@ -166,15 +180,32 @@ func (s *Service) BindPhone(userID int64, phone string) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	record := s.ensureLocked(userID)
+	samePhone, err := s.recordPhoneMatches(record, phone)
+	if err != nil {
+		return Record{}, err
+	}
+	if samePhone {
+		return record, nil
+	}
 	record.PhoneMasked = maskPhone(phone)
 	record.PhoneEncrypted = phoneEncrypted
+	record.SMSVerified = false
+	record.PhoneVerified = false
+	record.FaceVerified = false
 	record.Status = StatusPhoneBound
+	record.FailureReason = ""
 	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		return Record{}, err
+	}
 	s.records[userID] = record
-	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	return record, nil
 }
 
 func (s *Service) RestartRealname(userID int64, phone string) (Record, error) {
@@ -189,7 +220,11 @@ func (s *Service) RestartRealname(userID int64, phone string) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	record := s.ensureLocked(userID)
 	record.PhoneMasked = maskPhone(phone)
 	record.PhoneEncrypted = phoneEncrypted
@@ -199,17 +234,67 @@ func (s *Service) RestartRealname(userID int64, phone string) (Record, error) {
 	record.Status = StatusPhoneBound
 	record.FailureReason = ""
 	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		return Record{}, err
+	}
 	s.records[userID] = record
-	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	return record, nil
+}
+
+// SyncPhoneLoginVerification records a phone code already verified by the
+// phone-login service. Logging in with the same phone must not downgrade an
+// approved identity or overwrite its persisted real-name material.
+func (s *Service) SyncPhoneLoginVerification(userID int64, phone string) (Record, error) {
+	phone = strings.TrimSpace(phone)
+	if !validMainlandPhone(phone) {
+		return Record{}, ErrPhoneInvalid
+	}
+	phoneEncrypted, err := s.encryptIdentitySecret(phone)
+	if err != nil {
+		return Record{}, err
+	}
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	record := s.ensureLocked(userID)
+	samePhone, err := s.recordPhoneMatches(record, phone)
+	if err != nil {
+		return Record{}, err
+	}
+	if !samePhone {
+		record.PhoneMasked = maskPhone(phone)
+		record.PhoneEncrypted = phoneEncrypted
+		record.PhoneVerified = false
+		record.FaceVerified = false
+		record.FailureReason = ""
+	}
+	record.SMSVerified = true
+	if !samePhone || record.Status == StatusWechatLoggedIn || record.Status == StatusPhoneBound || record.Status == "" {
+		record.Status = StatusSMSVerified
+	}
+	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		return Record{}, err
+	}
+	s.records[userID] = record
+	return record, nil
 }
 
 func (s *Service) SendSMSCode(userID int64) (SMSDispatchResult, error) {
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return SMSDispatchResult{}, err
+	}
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
 	nowTime := time.Now()
 	dayKey := nowTime.Format("20060102")
 	state := s.smsCodes[userID]
+	if state.sending {
+		s.mu.Unlock()
+		return SMSDispatchResult{}, ErrSMSRateLimited
+	}
 	if !state.sentAt.IsZero() && nowTime.Sub(state.sentAt) < smsResendInterval {
 		s.mu.Unlock()
 		return SMSDispatchResult{}, ErrSMSRateLimited
@@ -222,78 +307,145 @@ func (s *Service) SendSMSCode(userID int64) (SMSDispatchResult, error) {
 		s.mu.Unlock()
 		return SMSDispatchResult{}, ErrSMSDailyLimited
 	}
-	state.code = s.smsSender.GenerateCode()
-	state.sentAt = nowTime
-	state.dayCount++
-	s.smsCodes[userID] = state
+	previousState := state
+	code := s.smsSender.GenerateCode()
+	inFlightState := state
+	inFlightState.code = code
+	inFlightState.sending = true
+	s.smsCodes[userID] = inFlightState
 	s.mu.Unlock()
 	plainIdentity, err := s.RevealRecord(record)
 	if err != nil || !validMainlandPhone(plainIdentity.Phone) {
+		s.restoreSMSCodeStateAfterFailure(userID, code, previousState)
 		return SMSDispatchResult{}, ErrPhoneInvalid
 	}
 	result, err := s.smsSender.Send(context.Background(), SMSDispatchRequest{
 		UserID:      userID,
 		Phone:       plainIdentity.Phone,
 		PhoneMasked: record.PhoneMasked,
-		Scene:       "strong_identity",
-		Code:        state.code,
-		ExpiresAt:   state.sentAt.Add(5 * time.Minute),
+		Scene:       strongSMSScene,
+		Code:        code,
+		ExpiresAt:   nowTime.Add(5 * time.Minute),
 	})
 	if err != nil {
+		s.restoreSMSCodeStateAfterFailure(userID, code, previousState)
 		return SMSDispatchResult{}, err
 	}
 	if s.repo != nil {
 		err := s.repo.SaveSMSCode(context.Background(), SMSCodeRecord{
 			UserID:      userID,
-			Scene:       "strong_identity",
+			Scene:       strongSMSScene,
 			PhoneMasked: record.PhoneMasked,
-			CodeHash:    hashValue(state.code),
-			SentAt:      state.sentAt,
-			ExpiresAt:   state.sentAt.Add(5 * time.Minute),
+			CodeHash:    hashValue(code),
+			SentAt:      nowTime,
+			ExpiresAt:   nowTime.Add(5 * time.Minute),
 		})
 		if err != nil {
+			s.restoreSMSCodeStateAfterFailure(userID, code, previousState)
 			return SMSDispatchResult{}, err
 		}
 	}
+	s.mu.Lock()
+	confirmedState := previousState
+	if confirmedState.dayKey != dayKey {
+		confirmedState.dayKey = dayKey
+		confirmedState.dayCount = 0
+	}
+	confirmedState.code = code
+	confirmedState.sentAt = nowTime
+	confirmedState.dayCount++
+	confirmedState.sending = false
+	s.smsCodes[userID] = confirmedState
+	s.mu.Unlock()
 	return result, nil
+}
+
+func (s *Service) restoreSMSCodeStateAfterFailure(userID int64, code string, previous smsCodeState) {
+	s.mu.Lock()
+	current, found := s.smsCodes[userID]
+	if found && current.sending && current.code == code {
+		if previous.code == "" && previous.sentAt.IsZero() && previous.dayCount == 0 {
+			delete(s.smsCodes, userID)
+		} else {
+			s.smsCodes[userID] = previous
+		}
+	}
+	s.mu.Unlock()
 }
 
 func (s *Service) VerifySMSCode(userID int64, code string) (Record, error) {
 	code = strings.TrimSpace(code)
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
+	if s.repo != nil {
+		record, verified, err := s.repo.VerifyAndConsumeSMSCode(
+			context.Background(), userID, strongSMSScene, hashValue(code), time.Now(), smsMaxFailures,
+		)
+		if err != nil {
+			return Record{}, err
+		}
+		if !verified {
+			return Record{}, ErrCodeInvalid
+		}
+		s.mu.Lock()
+		delete(s.smsCodes, userID)
+		s.records[userID] = record
+		s.mu.Unlock()
+		return record, nil
+	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	allowTemporaryCode := false
 	if sender, ok := s.smsSender.(interface{ AllowsTemporaryCode() bool }); ok {
 		allowTemporaryCode = sender.AllowsTemporaryCode()
 	}
-	if s.smsCodes[userID].code != code && !(allowTemporaryCode && code == temporarySMSCode) {
-		s.mu.Unlock()
+	state, found := s.smsCodes[userID]
+	temporaryBypass := allowTemporaryCode && code == temporarySMSCode
+	if !temporaryBypass && (!found || state.sending || state.sentAt.IsZero() || time.Since(state.sentAt) > 5*time.Minute || state.code != code) {
 		return Record{}, ErrCodeInvalid
 	}
 	record := s.ensureLocked(userID)
 	record.SMSVerified = true
-	record.Status = StatusSMSVerified
+	if record.Status == StatusWechatLoggedIn || record.Status == StatusPhoneBound || record.Status == "" {
+		record.Status = StatusSMSVerified
+	}
 	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		return Record{}, err
+	}
+	delete(s.smsCodes, userID)
 	s.records[userID] = record
-	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	return record, nil
 }
 
 // MarkSMSVerified records a successful code validation already performed by
 // the unauthenticated phone-login flow for the same user.
 func (s *Service) MarkSMSVerified(userID int64) (Record, error) {
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	record := s.ensureLocked(userID)
 	record.SMSVerified = true
-	record.Status = StatusSMSVerified
+	if record.Status == StatusWechatLoggedIn || record.Status == StatusPhoneBound || record.Status == "" {
+		record.Status = StatusSMSVerified
+	}
 	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		return Record{}, err
+	}
 	s.records[userID] = record
-	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	return record, nil
 }
 
 func (s *Service) VerifyPhone(userID int64, realName string, idCard string) (Record, error) {
 	realName = strings.TrimSpace(realName)
 	idCard = strings.ToUpper(strings.TrimSpace(idCard))
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
 	if !record.SMSVerified {
@@ -326,9 +478,13 @@ func (s *Service) VerifyPhone(userID int64, realName string, idCard string) (Rec
 	record.PhoneVerified = true
 	record.Status = StatusPhoneVerified
 	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		s.mu.Unlock()
+		return Record{}, err
+	}
 	s.records[userID] = record
 	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	return record, nil
 }
 
 func (s *Service) SubmitManualRealname(userID int64, realName string, idCard string) (Record, error) {
@@ -351,8 +507,15 @@ func (s *Service) SubmitManualRealname(userID int64, realName string, idCard str
 	if err != nil {
 		return Record{}, err
 	}
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return Record{}, err
+	}
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
+	if !record.SMSVerified || strings.TrimSpace(record.PhoneEncrypted) == "" {
+		s.mu.Unlock()
+		return Record{}, ErrCodeInvalid
+	}
 	record.RealNameMasked = maskRealName(realName)
 	record.RealNameCiphertext = ciphertext
 	record.RealNameInitials = RealNameInitials(realName)
@@ -363,9 +526,13 @@ func (s *Service) SubmitManualRealname(userID int64, realName string, idCard str
 	record.Status = StatusPendingManualReview
 	record.FailureReason = ""
 	record.UpdatedAt = now()
+	if err := s.persistRecord(record); err != nil {
+		s.mu.Unlock()
+		return Record{}, err
+	}
 	s.records[userID] = record
 	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	return record, nil
 }
 
 func (s *Service) ReviewManualRealname(userID int64, approve bool, reason string) (Record, error) {
@@ -373,27 +540,17 @@ func (s *Service) ReviewManualRealname(userID int64, approve bool, reason string
 	if !approve && reason == "" {
 		return Record{}, ErrReviewReasonRequired
 	}
-	s.mu.Lock()
-	record, ok := s.records[userID]
-	if !ok && s.repo != nil {
-		s.mu.Unlock()
-		saved, found, err := s.repo.FindRecord(context.Background(), userID)
-		if err != nil {
-			return Record{}, err
-		}
-		if !found {
-			return Record{}, ErrRecordNotFound
-		}
-		s.mu.Lock()
-		record = saved
-		ok = true
+	record, created, err := s.loadRecord(userID)
+	if err != nil {
+		return Record{}, err
 	}
-	if !ok {
-		s.mu.Unlock()
+	if created {
 		return Record{}, ErrRecordNotFound
 	}
+	if record.Status != StatusPendingManualReview {
+		return Record{}, ErrReviewStateInvalid
+	}
 	if strings.TrimSpace(record.RealNameMasked) == "" || strings.TrimSpace(record.IDCardMasked) == "" {
-		s.mu.Unlock()
 		return Record{}, ErrRealnameRequired
 	}
 	if approve {
@@ -405,9 +562,41 @@ func (s *Service) ReviewManualRealname(userID int64, approve bool, reason string
 		record.FailureReason = reason
 	}
 	record.UpdatedAt = now()
-	s.records[userID] = record
-	s.mu.Unlock()
-	return record, s.persistRecord(record)
+	if s.repo != nil {
+		updated, ok, err := s.repo.UpdateRecordIfStatus(context.Background(), record, StatusPendingManualReview)
+		if err != nil {
+			return Record{}, err
+		}
+		if !ok {
+			if current, found, findErr := s.repo.FindRecord(context.Background(), userID); findErr == nil && found {
+				s.mu.Lock()
+				s.records[userID] = current
+				s.mu.Unlock()
+			}
+			return Record{}, ErrReviewStateInvalid
+		}
+		s.mu.Lock()
+		s.records[userID] = updated
+		s.mu.Unlock()
+		return updated, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current, ok := s.records[userID]
+	if !ok {
+		return Record{}, ErrRecordNotFound
+	}
+	if current.Status != StatusPendingManualReview {
+		return Record{}, ErrReviewStateInvalid
+	}
+	// Re-apply the decision to the latest in-memory record while holding the
+	// lock so two local reviewers cannot both complete the same request.
+	current.Status = record.Status
+	current.PhoneVerified = record.PhoneVerified
+	current.FailureReason = record.FailureReason
+	current.UpdatedAt = record.UpdatedAt
+	s.records[userID] = current
+	return current, nil
 }
 
 func (s *Service) InGameIdentity(userID int64) (InGameIdentity, bool) {
@@ -525,6 +714,9 @@ func RealNameInitials(name string) string {
 }
 
 func (s *Service) StartFaceID(userID int64) (string, error) {
+	if _, _, err := s.loadRecord(userID); err != nil {
+		return "", err
+	}
 	s.mu.Lock()
 	record := s.ensureLocked(userID)
 	if !record.PhoneVerified {
@@ -546,13 +738,9 @@ func (s *Service) StartFaceID(userID int64) (string, error) {
 	if token == "" {
 		return "", ErrFaceIDStartFailed
 	}
-	s.mu.Lock()
-	record = s.ensureLocked(userID)
-	s.faceTokens[userID] = token
+	previous := record
 	record.Status = StatusFaceIDProcessing
 	record.UpdatedAt = now()
-	s.records[userID] = record
-	s.mu.Unlock()
 	if err := s.persistRecord(record); err != nil {
 		return "", err
 	}
@@ -564,24 +752,83 @@ func (s *Service) StartFaceID(userID int64) (string, error) {
 			CreatedAt:     time.Now(),
 		})
 		if err != nil {
+			_ = s.persistRecord(previous)
 			return "", err
 		}
 	}
+	s.mu.Lock()
+	delete(s.completedFaceTokens, hashValue(token))
+	s.faceTokens[userID] = token
+	s.records[userID] = record
+	s.mu.Unlock()
 	return token, nil
 }
 
 func (s *Service) CompleteFaceID(userID int64, token string) (Record, error) {
+	return s.completeFaceID(userID, token)
+}
+
+// CompleteFaceIDCallback resolves the user from the server-issued token. It is
+// used only by the signed provider callback, which does not carry a user login
+// token.
+func (s *Service) CompleteFaceIDCallback(token string) (Record, error) {
+	return s.completeFaceID(0, token)
+}
+
+func (s *Service) completeFaceID(expectedUserID int64, token string) (Record, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return Record{}, ErrFaceIDNotStarted
+	}
+	if repository, ok := s.repo.(faceIDCompletionRepository); ok {
+		record, completed, err := repository.CompleteFaceIDSession(context.Background(), hashValue(token), expectedUserID, time.Now())
+		if err != nil {
+			return Record{}, err
+		}
+		if !completed {
+			return Record{}, ErrFaceIDNotStarted
+		}
+		s.mu.Lock()
+		s.records[record.UserID] = record
+		s.completedFaceTokens[hashValue(token)] = record.UserID
+		if s.faceTokens[record.UserID] == token {
+			delete(s.faceTokens, record.UserID)
+		}
+		s.mu.Unlock()
+		return record, nil
+	}
+
 	s.mu.Lock()
-	if s.faceTokens[userID] == "" || s.faceTokens[userID] != strings.TrimSpace(token) {
+	if completedUserID, completed := s.completedFaceTokens[hashValue(token)]; completed && (expectedUserID <= 0 || expectedUserID == completedUserID) {
+		record := s.records[completedUserID]
+		s.mu.Unlock()
+		if record.UserID == 0 {
+			return s.Status(completedUserID), nil
+		}
+		return record, nil
+	}
+	userID := expectedUserID
+	if userID <= 0 {
+		for candidateUserID, candidateToken := range s.faceTokens {
+			if candidateToken == token {
+				userID = candidateUserID
+				break
+			}
+		}
+	}
+	if userID <= 0 || s.faceTokens[userID] == "" || s.faceTokens[userID] != token {
 		s.mu.Unlock()
 		return Record{}, ErrFaceIDNotStarted
 	}
 	record := s.ensureLocked(userID)
+	if record.Status != StatusFaceIDProcessing {
+		s.mu.Unlock()
+		return Record{}, ErrFaceIDNotStarted
+	}
 	record.FaceVerified = true
 	record.WechatRealnameConsistency = "not_supported"
 	record.Status = StatusVerified
 	record.UpdatedAt = now()
-	s.records[userID] = record
 	s.mu.Unlock()
 	if err := s.persistRecord(record); err != nil {
 		return Record{}, err
@@ -599,33 +846,44 @@ func (s *Service) CompleteFaceID(userID int64, token string) (Record, error) {
 			return Record{}, err
 		}
 	}
+	s.mu.Lock()
+	s.records[userID] = record
+	s.completedFaceTokens[hashValue(token)] = userID
+	delete(s.faceTokens, userID)
+	s.mu.Unlock()
 	return record, nil
 }
 
 func (s *Service) Status(userID int64) Record {
-	s.mu.RLock()
-	record, ok := s.records[userID]
-	s.mu.RUnlock()
-	if ok {
-		return record
+	record, _ := s.StatusStrict(userID)
+	return record
+}
+
+func (s *Service) StatusStrict(userID int64) (Record, error) {
+	record, created, err := s.loadRecord(userID)
+	if err != nil {
+		return Record{}, err
 	}
-	if s.repo != nil {
-		record, ok, err := s.repo.FindRecord(context.Background(), userID)
-		if err == nil && ok {
-			s.mu.Lock()
-			s.records[userID] = record
-			s.mu.Unlock()
-			return record
+	if created {
+		if err := s.persistRecord(record); err != nil {
+			return Record{}, err
 		}
 	}
-	return s.Ensure(userID)
+	return record, nil
 }
 
 func (s *Service) AllRecords() []Record {
+	items, _ := s.AllRecordsStrict()
+	return items
+}
+
+func (s *Service) AllRecordsStrict() ([]Record, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListRecords(context.Background()); err == nil {
-			return items
+		items, err := s.repo.ListRecords(context.Background())
+		if err != nil {
+			return nil, err
 		}
+		return items, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -633,35 +891,114 @@ func (s *Service) AllRecords() []Record {
 	for _, record := range s.records {
 		items = append(items, record)
 	}
-	return items
+	return items, nil
 }
 
 func (s *Service) IsVerified(userID int64) bool {
-	record := s.Status(userID)
-	return record.PhoneVerified || record.FaceVerified || record.Status == StatusVerified
+	verified, _ := s.IsVerifiedStrict(userID)
+	return verified
+}
+
+func (s *Service) IsVerifiedStrict(userID int64) (bool, error) {
+	record, err := s.StatusStrict(userID)
+	if err != nil {
+		return false, err
+	}
+	return record.PhoneVerified || record.FaceVerified || record.Status == StatusVerified, nil
 }
 
 // IsRealnameVerified is stricter than IsVerified. Phone verification is enough
 // for account security, but role grants require an approved personal identity.
 func (s *Service) IsRealnameVerified(userID int64) bool {
-	record := s.Status(userID)
+	verified, _ := s.IsRealnameVerifiedStrict(userID)
+	return verified
+}
+
+func (s *Service) IsRealnameVerifiedStrict(userID int64) (bool, error) {
+	record, err := s.StatusStrict(userID)
+	if err != nil {
+		return false, err
+	}
 	return record.Status == StatusVerified &&
 		strings.TrimSpace(record.RealNameCiphertext) != "" &&
-		strings.TrimSpace(record.IDCardCiphertext) != ""
+		strings.TrimSpace(record.IDCardCiphertext) != "", nil
+}
+
+func (s *Service) IsPhoneLoginVerified(userID int64) bool {
+	verified, _ := s.IsPhoneLoginVerifiedStrict(userID)
+	return verified
+}
+
+func (s *Service) IsPhoneLoginVerifiedStrict(userID int64) (bool, error) {
+	record, err := s.StatusStrict(userID)
+	if err != nil {
+		return false, err
+	}
+	return record.SMSVerified && strings.TrimSpace(record.PhoneEncrypted) != "", nil
+}
+
+// loadRecord hydrates the process cache before any mutation. Without this
+// step, the first write after a process restart would build a blank record and
+// overwrite persisted real-name fields through the repository upsert.
+func (s *Service) loadRecord(userID int64) (Record, bool, error) {
+	s.mu.RLock()
+	record, ok := s.records[userID]
+	s.mu.RUnlock()
+	if ok {
+		return record, false, nil
+	}
+	var saved Record
+	found := false
+	if s.repo != nil {
+		var err error
+		saved, found, err = s.repo.FindRecord(context.Background(), userID)
+		if err != nil {
+			return Record{}, false, err
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if current, exists := s.records[userID]; exists {
+		return current, false, nil
+	}
+	if found {
+		s.records[userID] = saved
+		return saved, false, nil
+	}
+	record = newIdentityRecord(userID)
+	s.records[userID] = record
+	return record, true, nil
+}
+
+func (s *Service) recordPhoneMatches(record Record, phone string) (bool, error) {
+	if strings.TrimSpace(record.PhoneEncrypted) == "" {
+		return false, nil
+	}
+	stored, err := s.decryptIdentitySecret(record.PhoneEncrypted)
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(stored) == strings.TrimSpace(phone), nil
 }
 
 func (s *Service) ensureLocked(userID int64) Record {
 	if record, ok := s.records[userID]; ok {
 		return record
 	}
-	record := Record{
+	record := newIdentityRecord(userID)
+	s.records[userID] = record
+	return record
+}
+
+func newIdentityRecord(userID int64) Record {
+	createdAt := now()
+	return Record{
 		UserID:                    userID,
 		Status:                    StatusWechatLoggedIn,
 		WechatRealnameConsistency: "pending",
-		UpdatedAt:                 now(),
+		CreatedAt:                 createdAt,
+		UpdatedAt:                 createdAt,
 	}
-	s.records[userID] = record
-	return record
 }
 
 func maskPhone(phone string) string {

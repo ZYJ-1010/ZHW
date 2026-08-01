@@ -2,8 +2,10 @@ package games
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +15,7 @@ var (
 	ErrRealnameRequired        = errors.New("realname required")
 	ErrInvalidGameInput        = errors.New("invalid game input")
 	ErrInvalidGameType         = errors.New("invalid game type")
+	ErrRoleNotAllowed          = errors.New("requested role is not allowed for this game")
 	ErrInvalidPlayers          = errors.New("invalid players")
 	ErrDailyLimit              = errors.New("daily limit reached")
 	ErrGameNotFound            = errors.New("game not found")
@@ -60,7 +63,7 @@ type IdentityChecker interface {
 	IsVerified(userID int64) bool
 }
 
-// RoomEnsurer is notified after a game becomes full so the IM layer can
+// RoomEnsurer is notified after a game actually starts so the IM layer can
 // create (or reconcile) the single room for that game. It is intentionally a
 // small interface to keep the games package independent from the IM package.
 type RoomEnsurer interface {
@@ -68,47 +71,63 @@ type RoomEnsurer interface {
 }
 
 type Game struct {
-	ID                    int64     `json:"id"`
-	CreatorUserID         int64     `json:"creatorUserId"`
-	MainGuideUserID       int64     `json:"mainGuideUserId,omitempty"`
-	Title                 string    `json:"title"`
-	GameType              string    `json:"gameType"`
-	CoverImage            string    `json:"coverImage,omitempty"`
-	Description           string    `json:"description,omitempty"`
-	Highlights            string    `json:"highlights,omitempty"`
-	Notice                string    `json:"notice,omitempty"`
-	Audience              string    `json:"audience,omitempty"`
-	Participation         string    `json:"participation,omitempty"`
-	Price                 float64   `json:"price,omitempty"`
-	ProfitTemplate        string    `json:"profitTemplate,omitempty"`
-	StartAt               string    `json:"startAt,omitempty"`
-	EndAt                 string    `json:"endAt,omitempty"`
-	SignupStartAt         string    `json:"signupStartAt,omitempty"`
-	SignupEndAt           string    `json:"signupEndAt,omitempty"`
-	Tags                  []string  `json:"tags,omitempty"`
-	CompletionRules       []string  `json:"completionRules,omitempty"`
-	PrimaryCategory       string    `json:"primaryCategory,omitempty"`
-	PrimaryCategoryText   string    `json:"primaryCategoryText,omitempty"`
-	SecondaryCategory     string    `json:"secondaryCategory,omitempty"`
-	SecondaryCategoryText string    `json:"secondaryCategoryText,omitempty"`
-	Type                  string    `json:"type,omitempty"`
-	GameSource            string    `json:"gameSource"`
-	Status                string    `json:"status"`
-	RejectReason          string    `json:"rejectReason,omitempty"`
-	StartReason           string    `json:"startReason,omitempty"`
-	StartedByUserID       int64     `json:"startedByUserId,omitempty"`
-	StartedAt             string    `json:"startedAt,omitempty"`
-	MinPlayers            int       `json:"minPlayers"`
-	MaxPlayers            int       `json:"maxPlayers"`
-	CurrentPlayers        int       `json:"currentPlayers"`
-	CityCode              string    `json:"cityCode,omitempty"`
-	CityName              string    `json:"cityName,omitempty"`
-	Address               string    `json:"address,omitempty"`
-	Longitude             float64   `json:"longitude,omitempty"`
-	Latitude              float64   `json:"latitude,omitempty"`
-	DistanceMeter         float64   `json:"distanceMeter,omitempty"`
-	DistanceLabel         string    `json:"distanceLabel,omitempty"`
-	CreatedAt             time.Time `json:"createdAt"`
+	ID                    int64              `json:"id"`
+	CreatorUserID         int64              `json:"creatorUserId"`
+	MainGuideUserID       int64              `json:"mainGuideUserId,omitempty"`
+	Title                 string             `json:"title"`
+	GameType              string             `json:"gameType"`
+	CoverImage            string             `json:"coverImage,omitempty"`
+	Introduction          string             `json:"introduction,omitempty"`
+	Description           string             `json:"description,omitempty"`
+	DescriptionMedia      []DescriptionMedia `json:"descriptionMedia,omitempty"`
+	Highlights            string             `json:"highlights,omitempty"`
+	Notice                string             `json:"notice,omitempty"`
+	Audience              string             `json:"audience,omitempty"`
+	Participation         string             `json:"participation,omitempty"`
+	Price                 float64            `json:"price,omitempty"`
+	ProfitTemplate        string             `json:"profitTemplate,omitempty"`
+	StartAt               string             `json:"startAt,omitempty"`
+	EndAt                 string             `json:"endAt,omitempty"`
+	SignupStartAt         string             `json:"signupStartAt,omitempty"`
+	SignupEndAt           string             `json:"signupEndAt,omitempty"`
+	Tags                  []string           `json:"tags,omitempty"`
+	CompletionRules       []string           `json:"completionRules,omitempty"`
+	AllowedRoles          []string           `json:"allowedRoles,omitempty"`
+	AllowGuideEscort      bool               `json:"allowGuideEscort"`
+	DistributionMethod    string             `json:"distributionMethod,omitempty"`
+	PaymentStatus         string             `json:"paymentStatus,omitempty"`
+	PrimaryCategory       string             `json:"primaryCategory,omitempty"`
+	PrimaryCategoryText   string             `json:"primaryCategoryText,omitempty"`
+	SecondaryCategory     string             `json:"secondaryCategory,omitempty"`
+	SecondaryCategoryText string             `json:"secondaryCategoryText,omitempty"`
+	Type                  string             `json:"type,omitempty"`
+	GameSource            string             `json:"gameSource"`
+	Status                string             `json:"status"`
+	RejectReason          string             `json:"rejectReason,omitempty"`
+	StartReason           string             `json:"startReason,omitempty"`
+	StartedByUserID       int64              `json:"startedByUserId,omitempty"`
+	StartedAt             string             `json:"startedAt,omitempty"`
+	MinPlayers            int                `json:"minPlayers"`
+	MaxPlayers            int                `json:"maxPlayers"`
+	CurrentPlayers        int                `json:"currentPlayers"`
+	CityCode              string             `json:"cityCode,omitempty"`
+	CityName              string             `json:"cityName,omitempty"`
+	Address               string             `json:"address,omitempty"`
+	Longitude             float64            `json:"longitude,omitempty"`
+	Latitude              float64            `json:"latitude,omitempty"`
+	DistanceMeter         float64            `json:"distanceMeter,omitempty"`
+	DistanceLabel         string             `json:"distanceLabel,omitempty"`
+	CreatedAt             time.Time          `json:"createdAt"`
+}
+
+// DescriptionMedia is stored with a platform file ID and its resolved public
+// address. The file ID remains the source of truth for audit and future URL
+// refreshes; the address allows the game detail page to render directly.
+type DescriptionMedia struct {
+	FileID   int64  `json:"fileId"`
+	Type     string `json:"type"`
+	URL      string `json:"url,omitempty"`
+	Duration int    `json:"duration,omitempty"`
 }
 
 type Application struct {
@@ -179,8 +198,9 @@ type ExitResult struct {
 // games repository commits the credit ledger together with membership and
 // capacity changes.
 type ExitCreditMutation struct {
-	ChangeValue int
-	Reason      string
+	ChangeValue  int
+	Reason       string
+	InitialScore int
 }
 
 type ExitCreditResult struct {
@@ -234,6 +254,13 @@ func (s *Service) ExitWithCreditMutation(userID int64, gameID int64, memberStatu
 	s.games[gameID] = result.Game
 	s.mu.Unlock()
 	return result, nil
+}
+
+// SupportsExitWithCreditMutation distinguishes the SQL transaction path from
+// the in-memory/legacy fallback, which uses ExitWithCredit with compensation.
+func (s *Service) SupportsExitWithCreditMutation() bool {
+	_, ok := s.repo.(exitCreditAtomicRepository)
+	return ok
 }
 
 // RestoreMemberAfterExit compensates a failed credit-link step. It is used by
@@ -420,6 +447,30 @@ type approvalGameRepository interface {
 	UpdateGameAfterApproval(ctx context.Context, game Game, expectedCurrentPlayers int) (Game, error)
 }
 
+type gameCreatorRepository interface {
+	CreateGameWithCreator(ctx context.Context, game Game, creatorRole string) (Game, error)
+}
+
+// gameCreatorWithFreeOrderRepository is the production creation boundary for
+// an app-created free game. The game, mandatory creator membership and its
+// no-pay order placeholder must commit together, otherwise a failed follow-up
+// order write would leave a real game behind while the client sees a failure.
+type gameCreatorWithFreeOrderRepository interface {
+	CreateGameWithCreatorAndFreeOrder(ctx context.Context, game Game, creatorRole string) (Game, error)
+}
+
+// applicationApprovalRepository persists a successful application review as
+// one unit. Approving an application changes three business records at once:
+// the game capacity/status, the member list and the application status. The
+// SQL implementation must never leave only some of them updated.
+type applicationApprovalRepository interface {
+	ApproveApplication(ctx context.Context, game Game, expectedCurrentPlayers int, application Application, memberRole string, statusLog *StatusLog) (Game, Application, error)
+}
+
+type invitationAcceptanceRepository interface {
+	AcceptInvitation(ctx context.Context, invitation Invitation, application Application) (Invitation, Application, error)
+}
+
 type exitAtomicRepository interface {
 	ExitGame(ctx context.Context, gameID int64, userID int64, memberStatus string, reason string) (Game, error)
 }
@@ -432,6 +483,14 @@ type memberRoleRepository interface {
 	ListMemberRoles(ctx context.Context, gameID int64) ([]MemberRole, error)
 }
 
+type userStatsRepository interface {
+	StatsForUser(ctx context.Context, userID int64) (UserStats, error)
+}
+
+type userParticipationTimeRepository interface {
+	ParticipatedBetween(ctx context.Context, userID int64, start time.Time, end time.Time) (bool, error)
+}
+
 type invitationListRepository interface {
 	ListInvitationsForUser(ctx context.Context, userID int64) ([]Invitation, error)
 }
@@ -441,6 +500,8 @@ type applicationReviewerRepository interface {
 }
 
 type ProgressRepository interface {
+	CreateProgressFeedback(ctx context.Context, feedback ProgressFeedback) (ProgressFeedback, error)
+	ListProgressFeedbacks(ctx context.Context, gameID int64) ([]ProgressFeedback, error)
 	CreateMilestone(ctx context.Context, milestone Milestone) (Milestone, error)
 	UpdateMilestone(ctx context.Context, milestone Milestone) (Milestone, error)
 	ListMilestones(ctx context.Context, gameID int64) ([]Milestone, error)
@@ -488,37 +549,43 @@ type MemberRole struct {
 }
 
 type CreateRequest struct {
-	Title                 string   `json:"title"`
-	GameType              string   `json:"gameType"`
-	CoverFileID           int64    `json:"coverFileId,omitempty"`
-	CoverImage            string   `json:"coverImage"`
-	Description           string   `json:"description"`
-	Highlights            string   `json:"highlights"`
-	Notice                string   `json:"notice"`
-	Audience              string   `json:"audience"`
-	Participation         string   `json:"participation"`
-	Price                 float64  `json:"price"`
-	ProfitTemplate        string   `json:"profitTemplate"`
-	StartAt               string   `json:"startAt"`
-	EndAt                 string   `json:"endAt"`
-	SignupStartAt         string   `json:"signupStartAt"`
-	SignupEndAt           string   `json:"signupEndAt"`
-	Tags                  []string `json:"tags"`
-	CompletionRules       []string `json:"completionRules"`
-	PrimaryCategory       string   `json:"primaryCategory"`
-	PrimaryCategoryText   string   `json:"primaryCategoryText"`
-	SecondaryCategory     string   `json:"secondaryCategory"`
-	SecondaryCategoryText string   `json:"secondaryCategoryText"`
-	Type                  string   `json:"type"`
-	CreatorUserID         int64    `json:"creatorUserId,omitempty"`
-	MainGuideUserID       int64    `json:"mainGuideUserId,omitempty"`
-	MinPlayers            int      `json:"minPlayers"`
-	MaxPlayers            int      `json:"maxPlayers"`
-	CityCode              string   `json:"cityCode"`
-	CityName              string   `json:"cityName"`
-	Address               string   `json:"address"`
-	Longitude             float64  `json:"longitude"`
-	Latitude              float64  `json:"latitude"`
+	Title                 string             `json:"title"`
+	GameType              string             `json:"gameType"`
+	CoverFileID           int64              `json:"coverFileId,omitempty"`
+	CoverImage            string             `json:"coverImage"`
+	Introduction          string             `json:"introduction"`
+	Description           string             `json:"description"`
+	DescriptionMedia      []DescriptionMedia `json:"descriptionMedia"`
+	Highlights            string             `json:"highlights"`
+	Notice                string             `json:"notice"`
+	Audience              string             `json:"audience"`
+	Participation         string             `json:"participation"`
+	Price                 float64            `json:"price"`
+	ProfitTemplate        string             `json:"profitTemplate"`
+	StartAt               string             `json:"startAt"`
+	EndAt                 string             `json:"endAt"`
+	SignupStartAt         string             `json:"signupStartAt"`
+	SignupEndAt           string             `json:"signupEndAt"`
+	Tags                  []string           `json:"tags"`
+	CompletionRules       []string           `json:"completionRules"`
+	AllowedRoles          []string           `json:"allowedRoles"`
+	AllowGuideEscort      bool               `json:"allowGuideEscort"`
+	DistributionMethod    string             `json:"distributionMethod"`
+	PaymentStatus         string             `json:"paymentStatus"`
+	PrimaryCategory       string             `json:"primaryCategory"`
+	PrimaryCategoryText   string             `json:"primaryCategoryText"`
+	SecondaryCategory     string             `json:"secondaryCategory"`
+	SecondaryCategoryText string             `json:"secondaryCategoryText"`
+	Type                  string             `json:"type"`
+	CreatorUserID         int64              `json:"creatorUserId,omitempty"`
+	MainGuideUserID       int64              `json:"mainGuideUserId,omitempty"`
+	MinPlayers            int                `json:"minPlayers"`
+	MaxPlayers            int                `json:"maxPlayers"`
+	CityCode              string             `json:"cityCode"`
+	CityName              string             `json:"cityName"`
+	Address               string             `json:"address"`
+	Longitude             float64            `json:"longitude"`
+	Latitude              float64            `json:"latitude"`
 }
 
 type InvitationRequest struct {
@@ -548,6 +615,8 @@ func normalizeApplicationRole(role string) string {
 		return "expert"
 	case "guide", "leader", "main_guide":
 		return "guide"
+	case "guide_escort", "guide-escort", "escort", "observer":
+		return "guide_escort"
 	default:
 		return "player"
 	}
@@ -559,6 +628,8 @@ func normalizeMemberRole(role string) string {
 		return "expert"
 	case "guide":
 		return "guide"
+	case "guide_escort":
+		return "guide_escort"
 	default:
 		return "member"
 	}
@@ -569,6 +640,50 @@ func gameEntryRole(game Game, requestedRole string) string {
 		return "member"
 	}
 	return normalizeMemberRole(requestedRole)
+}
+
+// normalizedAllowedRoles keeps the stored rule set predictable. Existing
+// games predate this field, so their prior three-role admission behaviour is
+// retained until an organizer creates a newly configured game.
+func normalizedAllowedRoles(values []string) []string {
+	result := make([]string, 0, 3)
+	seen := make(map[string]bool, 3)
+	for _, value := range values {
+		role := normalizeApplicationRole(value)
+		if seen[role] {
+			continue
+		}
+		seen[role] = true
+		result = append(result, role)
+	}
+	if len(result) == 0 {
+		return []string{"player", "expert", "guide"}
+	}
+	return result
+}
+
+func GameAllowsRole(game Game, role string) bool {
+	role = normalizeApplicationRole(role)
+	if role == "guide_escort" {
+		// 一期已取消直属领路人护航。保留旧角色值仅用于读取历史记录，
+		// 不再允许通过任何新申请或邀请进入局内。
+		return false
+	}
+	for _, allowed := range normalizedAllowedRoles(game.AllowedRoles) {
+		if allowed == role {
+			return true
+		}
+	}
+	return false
+}
+
+func AllowedRolesForGame(game Game) []string {
+	return append([]string(nil), normalizedAllowedRoles(game.AllowedRoles)...)
+}
+
+// 护航领路人是观察者，不占用局的玩家席位；普通领路人仍按普通成员规则计数。
+func RoleOccupiesSeat(game Game, role string) bool {
+	return normalizeApplicationRole(role) != "guide_escort"
 }
 
 func normalizeInvitationRole(role string) string {
@@ -697,23 +812,57 @@ func (s *Service) UseRoomEnsurer(ensurer RoomEnsurer) {
 	s.roomEnsurer = ensurer
 }
 
-func (s *Service) transitionStatusLocked(game *Game, next string, operatorID int64, reason string) error {
+func (s *Service) transitionStatusLocked(game *Game, next string, operatorID int64, reason string) (*StatusLog, error) {
 	if !validStatusTransition(game.Status, next) {
-		return ErrInvalidStatusTransition
+		return nil, ErrInvalidStatusTransition
 	}
 	if game.Status == next {
-		return nil
+		return nil, nil
 	}
 	log := StatusLog{ID: s.nextStatusLogID, GameID: game.ID, FromStatus: game.Status, ToStatus: next, OperatorID: operatorID, Reason: reason, CreatedAt: time.Now()}
-	s.nextStatusLogID++
-	s.statusLogs = append(s.statusLogs, log)
 	game.Status = next
-	if repository, ok := s.repo.(statusLogRepository); ok {
-		if saved, err := repository.SaveStatusLog(context.Background(), log); err == nil {
-			log = saved
+	return &log, nil
+}
+
+func (s *Service) persistStatusTransitionLocked(game Game, statusLog *StatusLog) (Game, error) {
+	if s.repo != nil {
+		if statusLog != nil {
+			if repository, ok := s.repo.(statusTransitionRepository); ok {
+				savedGame, savedLog, err := repository.UpdateGameWithStatusLog(context.Background(), game, *statusLog)
+				if err != nil {
+					return Game{}, err
+				}
+				game = savedGame
+				if savedLog.ID > 0 {
+					*statusLog = savedLog
+				}
+			} else {
+				savedGame, err := s.repo.UpdateGame(context.Background(), game)
+				if err != nil {
+					return Game{}, err
+				}
+				game = savedGame
+				if repository, ok := s.repo.(statusLogRepository); ok {
+					savedLog, err := repository.SaveStatusLog(context.Background(), *statusLog)
+					if err != nil {
+						return Game{}, err
+					}
+					*statusLog = savedLog
+				}
+			}
+		} else {
+			savedGame, err := s.repo.UpdateGame(context.Background(), game)
+			if err != nil {
+				return Game{}, err
+			}
+			game = savedGame
 		}
 	}
-	return nil
+	if statusLog != nil {
+		s.nextStatusLogID++
+		s.statusLogs = append(s.statusLogs, *statusLog)
+	}
+	return game, nil
 }
 
 func (s *Service) StatusLogs(gameID int64) []StatusLog {
@@ -753,19 +902,37 @@ func (s *Service) Create(userID int64, req CreateRequest) (Game, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.createdTodayLocked(userID) >= s.dailyCreateLimit {
+	createdToday, err := s.createdTodayLocked(userID)
+	if err != nil {
+		return Game{}, err
+	}
+	if createdToday >= s.dailyCreateLimit {
 		return Game{}, ErrDailyLimit
 	}
 
 	game := newGameFromRequest(s.nextID, userID, req, "free", "app", "pending_audit")
 	if s.repo != nil {
-		saved, err := s.repo.CreateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, err
-		}
-		game = saved
-		if err := s.repo.AddMember(context.Background(), game.ID, userID, "member"); err != nil {
-			return Game{}, err
+		if atomicRepo, ok := s.repo.(gameCreatorWithFreeOrderRepository); ok {
+			saved, err := atomicRepo.CreateGameWithCreatorAndFreeOrder(context.Background(), game, "member")
+			if err != nil {
+				return Game{}, err
+			}
+			game = saved
+		} else if atomicRepo, ok := s.repo.(gameCreatorRepository); ok {
+			saved, err := atomicRepo.CreateGameWithCreator(context.Background(), game, "member")
+			if err != nil {
+				return Game{}, err
+			}
+			game = saved
+		} else {
+			saved, err := s.repo.CreateGame(context.Background(), game)
+			if err != nil {
+				return Game{}, err
+			}
+			game = saved
+			if err := s.repo.AddMember(context.Background(), game.ID, userID, "member"); err != nil {
+				return Game{}, err
+			}
 		}
 	}
 	s.nextID++
@@ -777,6 +944,15 @@ func (s *Service) Create(userID int64, req CreateRequest) (Game, error) {
 
 func (s *Service) CreateFromAdmin(req CreateRequest) (Game, error) {
 	req = normalizeCreateRequest(req)
+	req.AllowedRoles = []string{"player"}
+	req.AllowGuideEscort = false
+	// 一期无收费、押金、分润或支付能力；后台接口同样不能绕过此限制。
+	req.GameType = "free"
+	req.Type = "free"
+	req.Price = 0
+	req.ProfitTemplate = ""
+	req.DistributionMethod = "none"
+	req.PaymentStatus = "not_required"
 	if req.CreatorUserID <= 0 {
 		return Game{}, ErrInvalidGameInput
 	}
@@ -784,13 +960,7 @@ func (s *Service) CreateFromAdmin(req CreateRequest) (Game, error) {
 	if req.MainGuideUserID > 0 {
 		return Game{}, ErrInvalidGameInput
 	}
-	gameType := req.GameType
-	if gameType == "" {
-		gameType = "free"
-	}
-	if !validAdminGameType(gameType) {
-		return Game{}, ErrInvalidGameType
-	}
+	gameType := "free"
 	if err := s.validateCreateRequest(req); err != nil {
 		return Game{}, err
 	}
@@ -803,13 +973,21 @@ func (s *Service) CreateFromAdmin(req CreateRequest) (Game, error) {
 
 	game := newGameFromRequest(s.nextID, req.CreatorUserID, req, gameType, "admin", "recruiting")
 	if s.repo != nil {
-		saved, err := s.repo.CreateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, err
-		}
-		game = saved
-		if err := s.repo.AddMember(context.Background(), game.ID, req.CreatorUserID, "member"); err != nil {
-			return Game{}, err
+		if atomicRepo, ok := s.repo.(gameCreatorRepository); ok {
+			saved, err := atomicRepo.CreateGameWithCreator(context.Background(), game, "member")
+			if err != nil {
+				return Game{}, err
+			}
+			game = saved
+		} else {
+			saved, err := s.repo.CreateGame(context.Background(), game)
+			if err != nil {
+				return Game{}, err
+			}
+			game = saved
+			if err := s.repo.AddMember(context.Background(), game.ID, req.CreatorUserID, "member"); err != nil {
+				return Game{}, err
+			}
 		}
 	}
 	s.nextID++
@@ -823,12 +1001,22 @@ func normalizeCreateRequest(req CreateRequest) CreateRequest {
 	req.Title = strings.TrimSpace(req.Title)
 	req.GameType = strings.TrimSpace(req.GameType)
 	req.CoverImage = strings.TrimSpace(req.CoverImage)
+	req.Introduction = strings.TrimSpace(req.Introduction)
 	req.Description = strings.TrimSpace(req.Description)
+	req.DescriptionMedia = normalizeDescriptionMedia(req.DescriptionMedia)
 	req.Highlights = strings.TrimSpace(req.Highlights)
 	req.Notice = strings.TrimSpace(req.Notice)
 	req.Audience = strings.TrimSpace(req.Audience)
 	req.Participation = strings.TrimSpace(req.Participation)
 	req.ProfitTemplate = strings.TrimSpace(req.ProfitTemplate)
+	req.DistributionMethod = strings.TrimSpace(req.DistributionMethod)
+	req.PaymentStatus = strings.TrimSpace(req.PaymentStatus)
+	if req.DistributionMethod == "" {
+		req.DistributionMethod = "none"
+	}
+	if req.PaymentStatus == "" {
+		req.PaymentStatus = "not_required"
+	}
 	req.StartAt = strings.TrimSpace(req.StartAt)
 	req.EndAt = strings.TrimSpace(req.EndAt)
 	req.SignupStartAt = strings.TrimSpace(req.SignupStartAt)
@@ -837,6 +1025,9 @@ func normalizeCreateRequest(req CreateRequest) CreateRequest {
 	// 防止绕过小程序直接提交过多标签。
 	req.Tags = cleanStringList(req.Tags, 4)
 	req.CompletionRules = cleanStringList(req.CompletionRules, 20)
+	if req.AllowedRoles != nil {
+		req.AllowedRoles = normalizedAllowedRoles(req.AllowedRoles)
+	}
 	req.PrimaryCategory = strings.TrimSpace(req.PrimaryCategory)
 	req.PrimaryCategoryText = strings.TrimSpace(req.PrimaryCategoryText)
 	req.SecondaryCategory = strings.TrimSpace(req.SecondaryCategory)
@@ -865,12 +1056,58 @@ func validAppGameTimeRange(startText string, endText string) bool {
 	return hasStart && hasEnd && endAt.After(startAt)
 }
 
+func normalizeDescriptionMedia(items []DescriptionMedia) []DescriptionMedia {
+	result := make([]DescriptionMedia, 0, len(items))
+	seen := make(map[int64]bool, len(items))
+	for _, item := range items {
+		item.Type = strings.ToLower(strings.TrimSpace(item.Type))
+		item.URL = strings.TrimSpace(item.URL)
+		if item.FileID <= 0 || seen[item.FileID] {
+			continue
+		}
+		seen[item.FileID] = true
+		result = append(result, item)
+	}
+	return result
+}
+
+func validDescriptionMedia(items []DescriptionMedia) bool {
+	if len(items) > 10 {
+		return false
+	}
+	imageCount, videoCount := 0, 0
+	for _, item := range items {
+		if item.FileID <= 0 {
+			return false
+		}
+		switch item.Type {
+		case "image":
+			imageCount++
+		case "video":
+			videoCount++
+			if item.Duration < 0 || item.Duration > 60 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return imageCount <= 9 && videoCount <= 1
+}
+
 func validAdminSignupTimeRange(signupStartText string, signupEndText string, gameStartText string) bool {
 	signupStartAt, hasSignupStart := parseAppGameTime(signupStartText)
 	signupEndAt, hasSignupEnd := parseAppGameTime(signupEndText)
 	gameStartAt, hasGameStart := parseAppGameTime(gameStartText)
 	return hasSignupStart && hasSignupEnd && hasGameStart &&
 		signupEndAt.After(signupStartAt) && !signupEndAt.After(gameStartAt)
+}
+
+// ValidSignupTimeRange is used by the app HTTP boundary as well as the
+// administrative creation flow. A signup window must be complete, ordered,
+// and finish before the game begins.
+func ValidSignupTimeRange(signupStartText string, signupEndText string, gameStartText string) bool {
+	return validAdminSignupTimeRange(signupStartText, signupEndText, gameStartText)
 }
 
 func CanApplyWithinSignupWindow(game Game, now time.Time) bool {
@@ -917,13 +1154,19 @@ func validateCreateRequestWithLimits(req CreateRequest, minPlayers, maxPlayers i
 	if len(req.PrimaryCategory) > 32 || len(req.PrimaryCategoryText) > 32 || len(req.SecondaryCategory) > 32 || len(req.SecondaryCategoryText) > 32 || len(req.Type) > 32 {
 		return ErrInvalidGameInput
 	}
-	if len(req.CoverImage) > 500 || len(req.Description) > 1000 || len(req.Highlights) > 500 || len(req.Notice) > 500 || len(req.Audience) > 200 || len(req.Participation) > 64 || len(req.ProfitTemplate) > 64 {
+	if len(req.CoverImage) > 500 || len(req.Introduction) > 200 || len(req.Description) > 1000 || len(req.Highlights) > 500 || len(req.Notice) > 500 || len(req.Audience) > 200 || len(req.Participation) > 64 || len(req.ProfitTemplate) > 64 || len(req.DistributionMethod) > 32 || len(req.PaymentStatus) > 32 {
 		return ErrInvalidGameInput
 	}
 	if len(req.StartAt) > 32 || len(req.EndAt) > 32 || len(req.SignupStartAt) > 32 || len(req.SignupEndAt) > 32 {
 		return ErrInvalidGameInput
 	}
-	if req.Price < 0 || len(req.Tags) > 3 || len(req.CompletionRules) > 20 {
+	if req.Price < 0 || len(req.Tags) > 3 || len(req.CompletionRules) > 20 || len(req.AllowedRoles) > 3 {
+		return ErrInvalidGameInput
+	}
+	if !validDescriptionMedia(req.DescriptionMedia) {
+		return ErrInvalidGameInput
+	}
+	if req.GameType == "free" && (req.DistributionMethod != "none" || req.PaymentStatus != "not_required") {
 		return ErrInvalidGameInput
 	}
 	if req.MainGuideUserID < 0 {
@@ -974,7 +1217,9 @@ func newGameFromRequest(id int64, creatorUserID int64, req CreateRequest, gameTy
 		Title:                 req.Title,
 		GameType:              gameType,
 		CoverImage:            req.CoverImage,
+		Introduction:          req.Introduction,
 		Description:           req.Description,
+		DescriptionMedia:      append([]DescriptionMedia(nil), req.DescriptionMedia...),
 		Highlights:            req.Highlights,
 		Notice:                req.Notice,
 		Audience:              req.Audience,
@@ -987,6 +1232,10 @@ func newGameFromRequest(id int64, creatorUserID int64, req CreateRequest, gameTy
 		SignupEndAt:           req.SignupEndAt,
 		Tags:                  append([]string(nil), req.Tags...),
 		CompletionRules:       append([]string(nil), req.CompletionRules...),
+		AllowedRoles:          append([]string(nil), req.AllowedRoles...),
+		AllowGuideEscort:      req.AllowGuideEscort,
+		DistributionMethod:    req.DistributionMethod,
+		PaymentStatus:         req.PaymentStatus,
 		PrimaryCategory:       req.PrimaryCategory,
 		PrimaryCategoryText:   req.PrimaryCategoryText,
 		SecondaryCategory:     req.SecondaryCategory,
@@ -1083,10 +1332,18 @@ func validAgainIntent(value string) bool {
 }
 
 func (s *Service) List() []Game {
+	items, _ := s.ListStrict()
+	return items
+}
+
+func (s *Service) ListStrict() ([]Game, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListGames(context.Background()); err == nil {
-			return items
+		items, err := s.repo.ListGames(context.Background())
+		if err != nil {
+			return nil, err
 		}
+		sortGamesNewestFirst(items)
+		return items, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -1094,30 +1351,27 @@ func (s *Service) List() []Game {
 	for _, game := range s.games {
 		result = append(result, game)
 	}
-	return result
+	sortGamesNewestFirst(result)
+	return result, nil
 }
 
 func (s *Service) SameCity(cityCode string) []Game {
-	if s.repo != nil {
-		if items, err := s.repo.ListGames(context.Background()); err == nil {
-			result := make([]Game, 0)
-			for _, game := range items {
-				if game.CityCode == cityCode {
-					result = append(result, game)
-				}
-			}
-			return result
-		}
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	result := make([]Game, 0)
-	for _, game := range s.games {
+	for _, game := range s.List() {
 		if game.CityCode == cityCode {
 			result = append(result, game)
 		}
 	}
 	return result
+}
+
+func sortGamesNewestFirst(items []Game) {
+	sort.SliceStable(items, func(i, j int) bool {
+		if !items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].CreatedAt.After(items[j].CreatedAt)
+		}
+		return items[i].ID > items[j].ID
+	})
 }
 
 func (s *Service) ApproveGame(gameID int64) (Game, error) {
@@ -1130,16 +1384,14 @@ func (s *Service) ApproveGame(gameID int64) (Game, error) {
 	if !ok {
 		return Game{}, ErrGameNotFound
 	}
-	if err := s.transitionStatusLocked(&game, StatusRecruiting, 0, "admin approved game"); err != nil {
+	statusLog, err := s.transitionStatusLocked(&game, StatusRecruiting, 0, "admin approved game")
+	if err != nil {
 		return Game{}, err
 	}
 	game.RejectReason = ""
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, err
-		}
-		game = saved
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return Game{}, err
 	}
 	s.games[gameID] = game
 	return game, nil
@@ -1159,16 +1411,14 @@ func (s *Service) RejectGame(gameID int64, reason string) (Game, error) {
 	if !ok {
 		return Game{}, ErrGameNotFound
 	}
-	if err := s.transitionStatusLocked(&game, StatusRejected, 0, reason); err != nil {
+	statusLog, err := s.transitionStatusLocked(&game, StatusRejected, 0, reason)
+	if err != nil {
 		return Game{}, err
 	}
 	game.RejectReason = reason
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, err
-		}
-		game = saved
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return Game{}, err
 	}
 	s.games[gameID] = game
 	return game, nil
@@ -1195,8 +1445,12 @@ func (s *Service) Apply(userID int64, gameID int64, req ApplyRequest) (Applicati
 	if game.Status != "recruiting" {
 		return Application{}, ErrGameNotRecruiting
 	}
+	entryRole := gameEntryRole(game, requestedRole)
+	if !GameAllowsRole(game, entryRole) {
+		return Application{}, ErrRoleNotAllowed
+	}
 	// 满员校验必须在服务层完成，避免绕过 HTTP handler 直接调用 API 时超额报名。
-	if game.CurrentPlayers >= game.MaxPlayers {
+	if RoleOccupiesSeat(game, entryRole) && game.CurrentPlayers >= game.MaxPlayers {
 		return Application{}, ErrFull
 	}
 	if err := signupWindowError(game, time.Now()); err != nil {
@@ -1223,7 +1477,7 @@ func (s *Service) Apply(userID int64, gameID int64, req ApplyRequest) (Applicati
 		ID:        s.nextApplicationID,
 		GameID:    gameID,
 		UserID:    userID,
-		Role:      gameEntryRole(game, requestedRole),
+		Role:      entryRole,
 		Status:    "pending",
 		Reason:    req.Reason,
 		FileIDs:   append([]int64(nil), req.FileIDs...),
@@ -1278,6 +1532,9 @@ func (s *Service) CreateInvitation(inviterID int64, gameID int64, req Invitation
 	role = gameEntryRole(game, role)
 	if game.Status != "recruiting" {
 		return Invitation{}, ErrGameNotRecruiting
+	}
+	if !GameAllowsRole(game, role) {
+		return Invitation{}, ErrRoleNotAllowed
 	}
 	if !canInviteGuide(game, inviterID) {
 		return Invitation{}, ErrForbidden
@@ -1375,13 +1632,17 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 	if game.Status != "recruiting" {
 		return Invitation{}, Application{}, ErrGameNotRecruiting
 	}
+	requestedRole := normalizeInvitationRole(invitation.Role)
+	if !GameAllowsRole(game, requestedRole) {
+		return Invitation{}, Application{}, ErrRoleNotAllowed
+	}
 	if err := signupWindowError(game, time.Now()); err != nil {
 		return Invitation{}, Application{}, err
 	}
 	if s.memberLocked(invitation.GameID, userID) {
 		return Invitation{}, Application{}, ErrAlreadyMember
 	}
-	if game.CurrentPlayers >= game.MaxPlayers {
+	if RoleOccupiesSeat(game, requestedRole) && game.CurrentPlayers >= game.MaxPlayers {
 		return Invitation{}, Application{}, ErrFull
 	}
 	for _, app := range s.applications {
@@ -1402,7 +1663,7 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 		ID:        s.nextApplicationID,
 		GameID:    invitation.GameID,
 		UserID:    userID,
-		Role:      normalizeInvitationRole(invitation.Role),
+		Role:      requestedRole,
 		Status:    "pending",
 		Reason:    req.Reason,
 		CreatedAt: time.Now(),
@@ -1410,26 +1671,33 @@ func (s *Service) RespondInvitation(userID int64, invitationID int64, req Invita
 	if app.Reason == "" {
 		app.Reason = "accepted_invitation"
 	}
+	invitation.Status = "accepted"
+	invitation.RespondedAt = time.Now().Format(time.RFC3339)
 	if s.repo != nil {
-		saved, err := s.repo.CreateApplication(context.Background(), app)
-		if err != nil {
-			return Invitation{}, Application{}, err
+		if atomicRepo, ok := s.repo.(invitationAcceptanceRepository); ok {
+			savedInvitation, savedApp, err := atomicRepo.AcceptInvitation(context.Background(), invitation, app)
+			if err != nil {
+				return Invitation{}, Application{}, err
+			}
+			invitation, app = savedInvitation, savedApp
+		} else {
+			savedApp, err := s.repo.CreateApplication(context.Background(), app)
+			if err != nil {
+				return Invitation{}, Application{}, err
+			}
+			app = savedApp
+			invitation.ApplicationID = app.ID
+			savedInvitation, err := s.repo.UpdateInvitation(context.Background(), invitation)
+			if err != nil {
+				return Invitation{}, Application{}, err
+			}
+			invitation = savedInvitation
 		}
-		app = saved
+	} else {
+		invitation.ApplicationID = app.ID
 	}
 	s.nextApplicationID++
 	s.applications[app.ID] = app
-
-	invitation.Status = "accepted"
-	invitation.ApplicationID = app.ID
-	invitation.RespondedAt = time.Now().Format(time.RFC3339)
-	if s.repo != nil {
-		saved, err := s.repo.UpdateInvitation(context.Background(), invitation)
-		if err != nil {
-			return Invitation{}, Application{}, err
-		}
-		invitation = saved
-	}
 	s.invitations[invitation.ID] = invitation
 	return invitation, app, nil
 }
@@ -1481,19 +1749,15 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 	if game.CreatorUserID != operatorUserID && game.MainGuideUserID != operatorUserID {
 		return Application{}, ErrForbidden
 	}
-	if game.Status != "recruiting" {
-		return Application{}, ErrGameNotRecruiting
-	}
 	if approve {
-		if game.CurrentPlayers >= game.MaxPlayers {
+		if game.Status != StatusRecruiting {
+			return Application{}, ErrGameNotRecruiting
+		}
+		if RoleOccupiesSeat(game, app.Role) && game.CurrentPlayers >= game.MaxPlayers {
 			return Application{}, ErrFull
 		}
 		previousPlayers := game.CurrentPlayers
 		app.Status = "approved"
-		if s.members[game.ID] == nil {
-			s.members[game.ID] = make(map[int64]bool)
-		}
-		s.members[game.ID][app.UserID] = true
 		memberRole := gameEntryRole(game, app.Role)
 		if memberRole == "main_guide" && game.MainGuideUserID == 0 {
 			game.MainGuideUserID = app.UserID
@@ -1504,58 +1768,94 @@ func (s *Service) ReviewApplicationWithReason(operatorUserID int64, applicationI
 			game.MainGuideUserID = app.UserID
 			memberRole = "main_guide"
 		}
+		if RoleOccupiesSeat(game, app.Role) {
+			game.CurrentPlayers++
+		}
+		var statusLog *StatusLog
+		if RoleOccupiesSeat(game, app.Role) && game.CurrentPlayers >= game.MaxPlayers {
+			// 满员仅停止继续报名，不能代替发起人开始局。IM 也只能在
+			// 手动开局后创建，避免成员在局前就进入聊天室。
+			if !validStatusTransition(game.Status, StatusFull) {
+				return Application{}, ErrInvalidStatusTransition
+			}
+			statusLog = &StatusLog{
+				ID:         s.nextStatusLogID,
+				GameID:     game.ID,
+				FromStatus: game.Status,
+				ToStatus:   StatusFull,
+				OperatorID: operatorUserID,
+				Reason:     "达到人数上限，停止招募",
+				CreatedAt:  time.Now(),
+			}
+			game.Status = StatusFull
+		}
+		if s.repo != nil {
+			if atomicRepo, ok := s.repo.(applicationApprovalRepository); ok {
+				savedGame, savedApp, updateErr := atomicRepo.ApproveApplication(context.Background(), game, previousPlayers, app, memberRole, statusLog)
+				if updateErr != nil {
+					if errors.Is(updateErr, sql.ErrNoRows) {
+						return Application{}, ErrFull
+					}
+					return Application{}, updateErr
+				}
+				game, app = savedGame, savedApp
+			} else {
+				if legacyAtomicRepo, ok := s.repo.(approvalGameRepository); ok {
+					saved, updateErr := legacyAtomicRepo.UpdateGameAfterApproval(context.Background(), game, previousPlayers)
+					if updateErr != nil {
+						if errors.Is(updateErr, sql.ErrNoRows) {
+							return Application{}, ErrFull
+						}
+						return Application{}, updateErr
+					}
+					game = saved
+				} else if saved, updateErr := s.repo.UpdateGame(context.Background(), game); updateErr != nil {
+					return Application{}, updateErr
+				} else {
+					game = saved
+				}
+				if err := s.repo.AddMember(context.Background(), game.ID, app.UserID, memberRole); err != nil {
+					return Application{}, err
+				}
+				if saved, err := s.repo.UpdateApplication(context.Background(), app); err != nil {
+					return Application{}, err
+				} else {
+					app = saved
+				}
+				if statusLog != nil {
+					if repository, ok := s.repo.(statusLogRepository); ok {
+						if saved, err := repository.SaveStatusLog(context.Background(), *statusLog); err == nil {
+							*statusLog = saved
+						}
+					}
+				}
+			}
+		}
+		if s.members[game.ID] == nil {
+			s.members[game.ID] = make(map[int64]bool)
+		}
+		s.members[game.ID][app.UserID] = true
 		if s.memberRoles[game.ID] == nil {
 			s.memberRoles[game.ID] = make(map[int64]string)
 		}
 		s.memberRoles[game.ID][app.UserID] = memberRole
-		game.CurrentPlayers++
-		if game.CurrentPlayers >= game.MaxPlayers {
-			if err := s.transitionStatusLocked(&game, StatusInProgress, 0, "达到人数上限自动开局"); err != nil {
-				return Application{}, err
-			}
-			game.StartReason = "达到人数上限自动开局"
-			game.StartedByUserID = 0
-			game.StartedAt = time.Now().Format(time.RFC3339)
-		}
 		s.games[game.ID] = game
-		if s.repo != nil {
-			if atomicRepo, ok := s.repo.(approvalGameRepository); ok {
-				saved, updateErr := atomicRepo.UpdateGameAfterApproval(context.Background(), game, previousPlayers)
-				if updateErr != nil {
-					return Application{}, ErrFull
-				}
-				game = saved
-			} else if saved, updateErr := s.repo.UpdateGame(context.Background(), game); updateErr != nil {
-				return Application{}, updateErr
-			} else {
-				game = saved
-			}
-			if err := s.repo.AddMember(context.Background(), game.ID, app.UserID, memberRole); err != nil {
-				return Application{}, err
-			}
+		if statusLog != nil {
+			s.nextStatusLogID++
+			s.statusLogs = append(s.statusLogs, *statusLog)
 		}
 	} else {
 		app.Status = "rejected"
 		app.RejectReason = rejectReason
 	}
-	if s.repo != nil {
+	if s.repo != nil && !approve {
 		if saved, err := s.repo.UpdateApplication(context.Background(), app); err != nil {
 			return Application{}, err
 		} else {
 			app = saved
 		}
-		if !approve {
-			if saved, err := s.repo.UpdateGame(context.Background(), game); err != nil {
-				return Application{}, err
-			} else {
-				game = saved
-			}
-		}
 	}
 	s.applications[app.ID] = app
-	if approve && (game.Status == "full" || game.Status == "in_progress") {
-		ensureRoomGameID = game.ID
-	}
 	return app, nil
 }
 
@@ -1601,7 +1901,15 @@ func (s *Service) ManualStartWithReason(userID int64, gameID int64, startReason 
 		return Game{}, ErrInvalidGameInput
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	var ensureRoomGameID int64
+	roomEnsurer := s.roomEnsurer
+	// IM 服务会回读局成员，不能在持有 games 锁时调用，避免跨服务死锁。
+	defer func() {
+		s.mu.Unlock()
+		if ensureRoomGameID > 0 && roomEnsurer != nil {
+			roomEnsurer.EnsureRoom(ensureRoomGameID)
+		}
+	}()
 	game, ok, err := s.gameLocked(gameID)
 	if err != nil {
 		return Game{}, err
@@ -1618,20 +1926,19 @@ func (s *Service) ManualStartWithReason(userID int64, gameID int64, startReason 
 	if game.CurrentPlayers < game.MinPlayers {
 		return Game{}, ErrGameNotStartable
 	}
-	if err := s.transitionStatusLocked(&game, StatusInProgress, userID, startReason); err != nil {
+	statusLog, err := s.transitionStatusLocked(&game, StatusInProgress, userID, startReason)
+	if err != nil {
 		return Game{}, err
 	}
 	game.StartReason = startReason
 	game.StartedByUserID = userID
 	game.StartedAt = time.Now().Format(time.RFC3339)
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, err
-		}
-		game = saved
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return Game{}, err
 	}
 	s.games[gameID] = game
+	ensureRoomGameID = game.ID
 	return game, nil
 }
 
@@ -1660,21 +1967,18 @@ func (s *Service) RequestCompletion(userID int64, gameID int64) (Game, error) {
 	if err != nil {
 		return Game{}, err
 	}
+	var statusLog *StatusLog
 	if game.GameSource == "admin" || len(expertIDs) == 0 {
-		if err := s.transitionStatusLocked(&game, StatusPendingReview, userID, "专家确认完成"); err != nil {
-			return Game{}, err
-		}
+		statusLog, err = s.transitionStatusLocked(&game, StatusPendingReview, userID, "专家确认完成")
 	} else {
-		if err := s.transitionStatusLocked(&game, StatusPendingConfirm, userID, "等待成员确认"); err != nil {
-			return Game{}, err
-		}
+		statusLog, err = s.transitionStatusLocked(&game, StatusPendingConfirm, userID, "等待成员确认")
 	}
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, err
-		}
-		game = saved
+	if err != nil {
+		return Game{}, err
+	}
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return Game{}, err
 	}
 	s.games[gameID] = game
 	return game, nil
@@ -1792,17 +2096,17 @@ func (s *Service) ConfirmService(userID int64, gameID int64, note string, fileID
 	confirm.ConfirmedBy = confirmedBy
 	allExpertsConfirmed := allConfirmationUsersConfirmed(expertIDs, s.confirmItems[gameID])
 	allPlayersConfirmed := allConfirmationUsersConfirmed(playerIDs, s.confirmItems[gameID])
+	var statusLog *StatusLog
 	if len(playerIDs) > 0 && allExpertsConfirmed && allPlayersConfirmed {
 		confirm.Status = "completed"
 		confirm.CompletedAt = time.Now().Format(time.RFC3339)
-		if err := s.transitionStatusLocked(&game, StatusPendingReview, userID, "服务确认完成"); err != nil {
-			return ServiceConfirm{}, nil, Game{}, err
-		}
+		statusLog, err = s.transitionStatusLocked(&game, StatusPendingReview, userID, "服务确认完成")
 	} else {
 		confirm.Status = "pending"
-		if err := s.transitionStatusLocked(&game, StatusPendingConfirm, userID, "进入服务确认"); err != nil {
-			return ServiceConfirm{}, nil, Game{}, err
-		}
+		statusLog, err = s.transitionStatusLocked(&game, StatusPendingConfirm, userID, "进入服务确认")
+	}
+	if err != nil {
+		return ServiceConfirm{}, nil, Game{}, err
 	}
 	if s.confirmRepo != nil {
 		saved, err := s.confirmRepo.SaveConfirm(context.Background(), confirm)
@@ -1811,12 +2115,9 @@ func (s *Service) ConfirmService(userID int64, gameID int64, note string, fileID
 		}
 		confirm = saved
 	}
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
-		if err != nil {
-			return ServiceConfirm{}, nil, Game{}, err
-		}
-		game = saved
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return ServiceConfirm{}, nil, Game{}, err
 	}
 	s.confirms[gameID] = confirm
 	s.games[gameID] = game
@@ -1843,7 +2144,8 @@ func (s *Service) ResolveNoExpertPendingConfirm(gameID int64) (Game, bool, error
 	if len(expertIDs) > 0 {
 		return game, false, nil
 	}
-	if err := s.transitionStatusLocked(&game, StatusPendingReview, 0, "确认完成"); err != nil {
+	statusLog, err := s.transitionStatusLocked(&game, StatusPendingReview, 0, "确认完成")
+	if err != nil {
 		return Game{}, false, err
 	}
 	if confirm, ok := s.confirms[gameID]; ok {
@@ -1860,12 +2162,9 @@ func (s *Service) ResolveNoExpertPendingConfirm(gameID int64) (Game, bool, error
 		}
 		s.confirms[gameID] = confirm
 	}
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
-		if err != nil {
-			return Game{}, false, err
-		}
-		game = saved
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return Game{}, false, err
 	}
 	s.games[gameID] = game
 	return game, true, nil
@@ -2022,10 +2321,13 @@ func (s *Service) ServiceConfirmForGame(gameID int64) (ServiceConfirm, []Service
 }
 
 func (s *Service) Members(gameID int64) []int64 {
+	items, _ := s.MembersStrict(gameID)
+	return items
+}
+
+func (s *Service) MembersStrict(gameID int64) ([]int64, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListMembers(context.Background(), gameID); err == nil {
-			return items
-		}
+		return s.repo.ListMembers(context.Background(), gameID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -2033,16 +2335,19 @@ func (s *Service) Members(gameID int64) []int64 {
 	for userID := range s.members[gameID] {
 		result = append(result, userID)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) MemberRoles(gameID int64) []MemberRole {
 	if s.repo != nil {
 		if repo, ok := s.repo.(memberRoleRepository); ok {
-			if items, err := repo.ListMemberRoles(context.Background(), gameID); err == nil {
-				return items
+			items, err := repo.ListMemberRoles(context.Background(), gameID)
+			if err != nil {
+				return []MemberRole{}
 			}
+			return items
 		}
+		return []MemberRole{}
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -2069,19 +2374,26 @@ func (s *Service) MemberRoles(gameID int64) []MemberRole {
 }
 
 func (s *Service) IsMember(gameID int64, userID int64) bool {
+	ok, _ := s.IsMemberStrict(gameID, userID)
+	return ok
+}
+
+func (s *Service) IsMemberStrict(gameID int64, userID int64) (bool, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListMembers(context.Background(), gameID); err == nil {
-			for _, item := range items {
-				if item == userID {
-					return true
-				}
-			}
-			return false
+		items, err := s.repo.ListMembers(context.Background(), gameID)
+		if err != nil {
+			return false, err
 		}
+		for _, item := range items {
+			if item == userID {
+				return true, nil
+			}
+		}
+		return false, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.members[gameID][userID]
+	return s.members[gameID][userID], nil
 }
 
 func (s *Service) IsIMReadOnly(gameID int64) bool {
@@ -2106,7 +2418,7 @@ func (s *Service) IsIMRoomReady(gameID int64) bool {
 		return false
 	}
 	switch game.Status {
-	case "full", "in_progress", "pending_confirm", "pending_review", "completed":
+	case "in_progress", "pending_confirm", "pending_review", "completed":
 		return true
 	default:
 		return false
@@ -2320,42 +2632,43 @@ func (s *Service) CancelService(gameID int64, reason string) (Game, error) {
 		return Game{}, ErrGameNotConfirmable
 	}
 
-	memberIDs := make([]int64, 0)
-	if s.repo != nil {
-		items, err := s.repo.ListMembers(context.Background(), gameID)
-		if err != nil {
-			return Game{}, err
-		}
-		memberIDs = append(memberIDs, items...)
-	} else {
-		for memberID := range s.members[gameID] {
-			memberIDs = append(memberIDs, memberID)
-		}
-	}
-
-	if s.repo != nil {
-		for _, memberID := range memberIDs {
-			if err := s.repo.DeleteMember(context.Background(), gameID, memberID, "canceled", reason); err != nil {
-				return Game{}, err
-			}
-		}
-	}
-	for _, memberID := range memberIDs {
-		delete(s.members[gameID], memberID)
-	}
-
-	if err := s.transitionStatusLocked(&game, StatusCancelled, 0, reason); err != nil {
+	statusLog, err := s.transitionStatusLocked(&game, StatusCancelled, 0, reason)
+	if err != nil {
 		return Game{}, err
 	}
 	game.CurrentPlayers = 0
-	if s.repo != nil {
-		saved, err := s.repo.UpdateGame(context.Background(), game)
+	if repository, ok := s.repo.(cancelGameTransitionRepository); ok {
+		savedGame, savedLog, err := repository.CancelGameWithStatusLog(context.Background(), game, reason, *statusLog)
 		if err != nil {
 			return Game{}, err
 		}
-		game = saved
+		game = savedGame
+		if savedLog.ID > 0 {
+			*statusLog = savedLog
+		}
+		s.nextStatusLogID++
+		s.statusLogs = append(s.statusLogs, *statusLog)
+	} else {
+		memberIDs := make([]int64, 0)
+		if s.repo != nil {
+			items, err := s.repo.ListMembers(context.Background(), gameID)
+			if err != nil {
+				return Game{}, err
+			}
+			memberIDs = append(memberIDs, items...)
+			for _, memberID := range memberIDs {
+				if err := s.repo.DeleteMember(context.Background(), gameID, memberID, "canceled", reason); err != nil {
+					return Game{}, err
+				}
+			}
+		}
+		game, err = s.persistStatusTransitionLocked(game, statusLog)
+		if err != nil {
+			return Game{}, err
+		}
 	}
 	s.games[gameID] = game
+	delete(s.members, gameID)
 	// 取消后的协作页不应继续读取进程内的旧进度，历史里程碑/打卡仍由
 	// progress repository 保留供后台审计。
 	delete(s.progressFeedbacks, gameID)
@@ -2384,6 +2697,13 @@ func (s *Service) AddProgressFeedback(userID int64, gameID int64, req ProgressFe
 		return ProgressFeedback{}, ErrGameNotStartable
 	}
 	items := s.progressFeedbacks[gameID]
+	if s.progressRepo != nil {
+		persisted, err := s.progressRepo.ListProgressFeedbacks(context.Background(), gameID)
+		if err != nil {
+			return ProgressFeedback{}, err
+		}
+		items = persisted
+	}
 	if len(items) > 0 && req.Progress < items[len(items)-1].Progress {
 		return ProgressFeedback{}, ErrInvalidProgress
 	}
@@ -2396,7 +2716,15 @@ func (s *Service) AddProgressFeedback(userID int64, gameID int64, req ProgressFe
 		FileIDs:   append([]int64(nil), req.FileIDs...),
 		CreatedAt: time.Now(),
 	}
-	s.nextProgressID++
+	if s.progressRepo != nil {
+		saved, err := s.progressRepo.CreateProgressFeedback(context.Background(), feedback)
+		if err != nil {
+			return ProgressFeedback{}, err
+		}
+		feedback = saved
+	} else {
+		s.nextProgressID++
+	}
 	s.progressFeedbacks[gameID] = append(items, feedback)
 	return feedback, nil
 }
@@ -2409,6 +2737,15 @@ func (s *Service) ProgressFeedbacks(userID int64, gameID int64) ([]ProgressFeedb
 	}
 	if !s.members[gameID][userID] {
 		return nil, ErrForbidden
+	}
+	if s.progressRepo != nil {
+		items, err := s.progressRepo.ListProgressFeedbacks(context.Background(), gameID)
+		if err != nil {
+			return nil, err
+		}
+		result := make([]ProgressFeedback, len(items))
+		copy(result, items)
+		return result, nil
 	}
 	items := s.progressFeedbacks[gameID]
 	result := make([]ProgressFeedback, len(items))
@@ -2865,7 +3202,11 @@ func (s *Service) CreateReplayGame(userID int64, sourceGameID int64, req ReplayG
 	if !canInviteGuide(source, userID) {
 		return ReplayGameResult{}, ErrForbidden
 	}
-	if s.createdTodayLocked(userID) >= s.dailyCreateLimit {
+	createdToday, err := s.createdTodayLocked(userID)
+	if err != nil {
+		return ReplayGameResult{}, err
+	}
+	if createdToday >= s.dailyCreateLimit {
 		return ReplayGameResult{}, ErrDailyLimit
 	}
 
@@ -3112,10 +3453,17 @@ func (s *Service) UnfavoriteGame(userID int64, gameID int64) error {
 }
 
 func (s *Service) FavoriteGames(userID int64) []Favorite {
+	items, _ := s.FavoriteGamesStrict(userID)
+	return items
+}
+
+func (s *Service) FavoriteGamesStrict(userID int64) ([]Favorite, error) {
 	if s.favoriteRepo != nil {
-		if items, err := s.favoriteRepo.ListFavoritesByUser(context.Background(), userID); err == nil {
-			return s.hydrateFavorites(items)
+		items, err := s.favoriteRepo.ListFavoritesByUser(context.Background(), userID)
+		if err != nil {
+			return nil, err
 		}
+		return s.hydrateFavorites(items), nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -3129,7 +3477,7 @@ func (s *Service) FavoriteGames(userID int64) []Favorite {
 		result = append(result, favorite)
 	}
 	sortFavorites(result)
-	return result
+	return result, nil
 }
 
 func (s *Service) FavoritesForUser(userID int64) []Favorite {
@@ -3137,10 +3485,13 @@ func (s *Service) FavoritesForUser(userID int64) []Favorite {
 }
 
 func (s *Service) AllFavorites() []Favorite {
+	items, _ := s.AllFavoritesStrict()
+	return items
+}
+
+func (s *Service) AllFavoritesStrict() ([]Favorite, error) {
 	if s.favoriteRepo != nil {
-		if items, err := s.favoriteRepo.ListAllFavorites(context.Background()); err == nil {
-			return items
-		}
+		return s.favoriteRepo.ListAllFavorites(context.Background())
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -3151,7 +3502,7 @@ func (s *Service) AllFavorites() []Favorite {
 		}
 	}
 	sortFavorites(result)
-	return result
+	return result, nil
 }
 
 func (s *Service) hydrateFavorites(items []Favorite) []Favorite {
@@ -3171,6 +3522,14 @@ func (s *Service) hydrateFavorites(items []Favorite) []Favorite {
 }
 
 func (s *Service) StatsForUser(userID int64) UserStats {
+	stats, _ := s.StatsForUserStrict(userID)
+	return stats
+}
+
+func (s *Service) StatsForUserStrict(userID int64) (UserStats, error) {
+	if repository, ok := s.repo.(userStatsRepository); ok {
+		return repository.StatsForUser(context.Background(), userID)
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	stats := UserStats{UserID: userID}
@@ -3180,11 +3539,52 @@ func (s *Service) StatsForUser(userID int64) UserStats {
 		}
 		stats.Participated++
 		status := s.games[gameID].Status
-		if status == "pending_review" || status == "completed" {
+		if statusCountsAsCompleted(status) {
 			stats.Completed++
 		}
 	}
-	return stats
+	return stats, nil
+}
+
+// ParticipatedBetween reports whether the user joined any game during the
+// requested time window. PostgreSQL uses the membership's joined_at timestamp;
+// the in-memory fallback can only infer this from games created in the same
+// process and is retained for local tests.
+func (s *Service) ParticipatedBetween(userID int64, start time.Time, end time.Time) bool {
+	participated, _ := s.ParticipatedBetweenStrict(userID, start, end)
+	return participated
+}
+
+// ParticipatedBetweenStrict distinguishes a failed membership-time query from
+// a user who did not join a game in the requested window.
+func (s *Service) ParticipatedBetweenStrict(userID int64, start time.Time, end time.Time) (bool, error) {
+	if userID <= 0 || start.IsZero() || end.IsZero() || !end.After(start) {
+		return false, nil
+	}
+	if repository, ok := s.repo.(userParticipationTimeRepository); ok {
+		participated, err := repository.ParticipatedBetween(context.Background(), userID, start, end)
+		if err != nil {
+			return false, err
+		}
+		return participated, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for gameID, game := range s.games {
+		if !game.CreatedAt.Before(start) && game.CreatedAt.Before(end) && s.members[gameID] != nil && s.members[gameID][userID] {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func statusCountsAsCompleted(status string) bool {
+	switch status {
+	case StatusPendingReview, StatusCompleted, StatusSettling, StatusClosed:
+		return true
+	default:
+		return false
+	}
 }
 
 func exitReason(status string) string {
@@ -3214,10 +3614,13 @@ func ExitMemberStatusForGame(status string) string {
 }
 
 func (s *Service) ApplicationsForUser(userID int64) []Application {
+	items, _ := s.ApplicationsForUserStrict(userID)
+	return items
+}
+
+func (s *Service) ApplicationsForUserStrict(userID int64) ([]Application, error) {
 	if s.repo != nil {
-		if items, err := s.repo.ListApplicationsByUser(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListApplicationsByUser(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -3227,19 +3630,20 @@ func (s *Service) ApplicationsForUser(userID int64) []Application {
 			result = append(result, app)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) ApplicationsForCreator(userID int64) []Application {
+	items, _ := s.ApplicationsForCreatorStrict(userID)
+	return items
+}
+
+func (s *Service) ApplicationsForCreatorStrict(userID int64) ([]Application, error) {
 	if repository, ok := s.repo.(applicationReviewerRepository); ok {
-		if items, err := repository.ListApplicationsForReviewer(context.Background(), userID); err == nil {
-			return items
-		}
+		return repository.ListApplicationsForReviewer(context.Background(), userID)
 	}
 	if s.repo != nil {
-		if items, err := s.repo.ListApplicationsForCreator(context.Background(), userID); err == nil {
-			return items
-		}
+		return s.repo.ListApplicationsForCreator(context.Background(), userID)
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -3250,14 +3654,19 @@ func (s *Service) ApplicationsForCreator(userID int64) []Application {
 			result = append(result, app)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) InvitationsForUser(userID int64) []Invitation {
 	if repo, ok := s.repo.(invitationListRepository); ok {
-		if items, err := repo.ListInvitationsForUser(context.Background(), userID); err == nil {
-			return items
+		items, err := repo.ListInvitationsForUser(context.Background(), userID)
+		if err != nil {
+			return []Invitation{}
 		}
+		return items
+	}
+	if s.repo != nil {
+		return []Invitation{}
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -3272,9 +3681,12 @@ func (s *Service) InvitationsForUser(userID int64) []Invitation {
 
 func (s *Service) Get(id int64) (Game, error) {
 	if s.repo != nil {
-		if game, err := s.repo.GetGame(context.Background(), id); err == nil {
-			return game, nil
+		game, err := s.repo.GetGame(context.Background(), id)
+		if err != nil {
+			return Game{}, err
 		}
+		game.AllowedRoles = normalizedAllowedRoles(game.AllowedRoles)
+		return game, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -3282,58 +3694,73 @@ func (s *Service) Get(id int64) (Game, error) {
 	if !ok {
 		return Game{}, ErrGameNotFound
 	}
+	game.AllowedRoles = normalizedAllowedRoles(game.AllowedRoles)
 	return game, nil
 }
 
 func (s *Service) gameLocked(gameID int64) (Game, bool, error) {
-	game, ok := s.games[gameID]
-	if ok {
+	if s.repo != nil {
+		game, err := s.repo.GetGame(context.Background(), gameID)
+		if err != nil {
+			if errors.Is(err, ErrGameNotFound) {
+				return Game{}, false, nil
+			}
+			return Game{}, false, err
+		}
+		game.AllowedRoles = normalizedAllowedRoles(game.AllowedRoles)
+		if err := s.loadMembersLocked(game.ID); err != nil {
+			return Game{}, false, err
+		}
+		s.games[game.ID] = game
 		return game, true, nil
 	}
-	if s.repo == nil {
+	game, ok := s.games[gameID]
+	if !ok {
 		return Game{}, false, nil
 	}
-	game, err := s.repo.GetGame(context.Background(), gameID)
-	if err != nil {
-		if errors.Is(err, ErrGameNotFound) {
-			return Game{}, false, nil
-		}
-		return Game{}, false, err
-	}
-	s.games[game.ID] = game
-	s.loadMembersLocked(game.ID)
+	game.AllowedRoles = normalizedAllowedRoles(game.AllowedRoles)
 	return game, true, nil
 }
 
 func (s *Service) memberLocked(gameID int64, userID int64) bool {
-	if s.members[gameID] != nil && s.members[gameID][userID] {
-		return true
+	if s.repo != nil {
+		items, err := s.repo.ListMembers(context.Background(), gameID)
+		if err != nil {
+			return false
+		}
+		members := make(map[int64]bool, len(items))
+		for _, item := range items {
+			members[item] = true
+		}
+		s.members[gameID] = members
+		return members[userID]
 	}
-	s.loadMembersLocked(gameID)
 	return s.members[gameID] != nil && s.members[gameID][userID]
 }
 
-func (s *Service) loadMembersLocked(gameID int64) {
+func (s *Service) loadMembersLocked(gameID int64) error {
 	if s.repo == nil {
-		return
+		return nil
 	}
 	items, err := s.repo.ListMembers(context.Background(), gameID)
 	if err != nil {
-		return
+		return err
 	}
-	if s.members[gameID] == nil {
-		s.members[gameID] = make(map[int64]bool)
-	}
+	members := make(map[int64]bool, len(items))
 	for _, userID := range items {
-		s.members[gameID][userID] = true
+		members[userID] = true
 	}
+	s.members[gameID] = members
+	return nil
 }
 
-func (s *Service) createdTodayLocked(userID int64) int {
+func (s *Service) createdTodayLocked(userID int64) (int, error) {
 	if s.repo != nil {
-		if count, err := s.repo.CountGamesCreatedToday(context.Background(), userID, time.Now()); err == nil {
-			return count
+		count, err := s.repo.CountGamesCreatedToday(context.Background(), userID, time.Now())
+		if err != nil {
+			return 0, err
 		}
+		return count, nil
 	}
 	count := 0
 	now := time.Now()
@@ -3342,7 +3769,7 @@ func (s *Service) createdTodayLocked(userID int64) int {
 			count++
 		}
 	}
-	return count
+	return count, nil
 }
 
 func sameDay(a time.Time, b time.Time) bool {

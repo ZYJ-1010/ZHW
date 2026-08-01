@@ -352,6 +352,46 @@ page {
   color: #8b5cf6;
 }
 
+.role-access-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin: 0 28rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 20rpx;
+  background: #f8fafc;
+}
+
+.role-access-label {
+  flex: none;
+  color: #64748b;
+  font-size: 24rpx;
+}
+
+.role-access-list {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.role-access-pill {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  color: #0f766e;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  background: #ccfbf1;
+}
+
+.role-escort-note {
+  flex: none;
+  color: #c2410c;
+  font-size: 21rpx;
+}
+
 .detail-section {
   margin-top: 28rpx;
 }
@@ -606,6 +646,15 @@ page {
   grid-template-columns: 1fr 1fr;
   gap: 16rpx;
   margin-top: 28rpx;
+}
+
+.detail-description {
+  display: block;
+  margin-bottom: 24rpx;
+  color: #374151;
+  font-size: 26rpx;
+  line-height: 42rpx;
+  white-space: pre-wrap;
 }
 
 .detail-image {

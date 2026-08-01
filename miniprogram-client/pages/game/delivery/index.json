@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "确认服务完成",
+  "navigationBarTitleText": "确认本局完成",
   "usingComponents": {
     "timeline-list": "/components/timeline-list/index"
   }

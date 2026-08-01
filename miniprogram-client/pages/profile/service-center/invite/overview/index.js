@@ -1,11 +1,11 @@
 const profileService = require('../../../../../services/profile')
 const { navigateShellRoute } = require('../../../../../utils/shell-nav')
+const { toUserMessage } = require('../../../../../utils/user-message')
 
 const INVITE_TABS = [
   { key: 'overview', label: '数据概览', route: '' },
   { key: 'network', label: '关系网络', route: '/pages/profile/service-center/invite/network/index' },
-  { key: 'records', label: '邀约记录', route: '/pages/profile/service-center/invite/records/index' },
-  { key: 'income', label: '收益明细', route: '/pages/profile/service-center/invite/income/index' }
+  { key: 'records', label: '邀约记录', route: '/pages/profile/service-center/invite/records/index' }
 ]
 
 const INVITE_ACTIONS = [
@@ -25,8 +25,7 @@ Page({
     metrics: [
       { value: '0', label: '总邀约数', trend: '', tone: 'up' },
       { value: '0', label: '成功转化', trend: '', tone: 'up' },
-      { value: '0%', label: '转化率', trend: '', tone: 'up' },
-      { value: '¥0', label: '分润收益', trend: '', tone: 'up' }
+      { value: '0%', label: '转化率', trend: '', tone: 'up' }
     ],
     actions: [],
     tabs: INVITE_TABS,
@@ -52,7 +51,7 @@ Page({
     } catch (error) {
       console.warn('get invite overview failed', error)
       this.setData({
-        loadError: error.message || '邀请概览加载失败'
+        loadError: toUserMessage(error && error.message, '邀请概览加载失败')
       })
     }
   },

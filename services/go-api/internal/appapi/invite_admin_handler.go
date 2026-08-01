@@ -7,6 +7,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -33,10 +34,10 @@ func (s *Server) adminInviteCodes(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, invites.ErrInvalidEntryType) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid entry type")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请码入口类型不正确")
 			return
 		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite codes failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码列表失败")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
@@ -55,7 +56,7 @@ func (s *Server) adminInviteOwners(w http.ResponseWriter, r *http.Request) {
 	_, allowSensitive := s.admins.HasPermission(s.adminToken(r), "identity:sensitive:read")
 	usersList, err := s.auth.AdminUsers(users.Filter{Status: "active"})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list invite owners failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取可选邀请人失败")
 		return
 	}
 
@@ -141,18 +142,21 @@ func identityRecordMatchesInviteOwnerKeyword(record identity.Record, keyword str
 
 func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Code        string `json:"code"`
+		Prefix      string `json:"prefix"`
 		OwnerUserID int64  `json:"ownerUserId"`
 		EntryType   string `json:"entryType"`
 		BatchCount  int    `json:"batchCount"`
 		ExpiresAt   string `json:"expiresAt"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	req.Code = strings.TrimSpace(req.Code)
-	config := s.inviteCodeConfig()
+	config, err := s.inviteCodeConfigStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请码配置失败，请稍后重试")
+		return
+	}
 	var expiresAt time.Time
 	if strings.TrimSpace(req.ExpiresAt) != "" {
 		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
@@ -165,113 +169,100 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		expiresAt = time.Now().AddDate(0, 0, config.DefaultValidDays)
 	}
 	if req.OwnerUserID <= 0 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "owner user id required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请选择邀请人")
 		return
 	}
 	if _, found := s.auth.UserByID(req.OwnerUserID); !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "owner user not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请人不存在")
 		return
 	}
 	if !s.userCanOwnAdminInviteCodes(req.OwnerUserID) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人，请更换用户 ID")
 		return
 	}
-	if req.BatchCount < 0 || req.BatchCount > config.MaxBatchCount {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch count")
+	if req.BatchCount < 1 || req.BatchCount > config.MaxBatchCount {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "生成数量不正确")
 		return
 	}
-	if req.Code != "" {
-		if !validManualInviteCode(req.Code) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid invite code format")
-			return
-		}
-		if existing, found, err := s.adminInviteByCode(req.Code); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite codes failed")
-			return
-		} else if found && existing.ID > 0 {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invite code already exists")
-			return
-		}
+	prefix, ok := normalizeInviteCodePrefix(req.Prefix)
+	if !ok {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请码前缀必须为三位英文字母")
+		return
 	}
 	const maxUses = 1
-	if req.BatchCount > 1 {
-		if req.Code != "" {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "batch code must be auto generated")
-			return
-		}
-		items := make([]invites.InviteCode, 0, req.BatchCount)
-		for i := 0; i < req.BatchCount; i++ {
-			invite, err := s.auth.AdminCreateInviteCode("", req.OwnerUserID, maxUses, req.EntryType)
-			if err != nil {
-				if errors.Is(err, invites.ErrInvalidEntryType) {
-					httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid entry type")
-					return
-				}
-				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "create invite code failed")
-				return
-			}
-			if !expiresAt.IsZero() {
-				invite, err = s.auth.AdminUpdateUnusedInviteCode(invite.Code, req.OwnerUserID, req.EntryType, expiresAt)
-				if err != nil {
-					httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "设置邀请码有效期失败")
-					return
-				}
-			}
-			items = append(items, invite)
-		}
-		s.recordOperation(r, "invite_code:batch_create", "invite_code", "", map[string]interface{}{
-			"entryType":   req.EntryType,
-			"batchCount":  req.BatchCount,
-			"ownerUserId": req.OwnerUserID,
-		})
-		httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
-		return
-	}
-	invite, err := s.auth.AdminCreateInviteCode(req.Code, req.OwnerUserID, maxUses, req.EntryType)
+	startSerial, err := s.nextInviteCodeSerial(prefix)
 	if err != nil {
-		if errors.Is(err, invites.ErrInvalidEntryType) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid entry type")
-			return
-		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "create invite code failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请码流水失败")
 		return
 	}
-	if !expiresAt.IsZero() {
-		invite, err = s.auth.AdminUpdateUnusedInviteCode(invite.Code, req.OwnerUserID, req.EntryType, expiresAt)
-		if err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "设置邀请码有效期失败")
+	if startSerial+req.BatchCount-1 > 999999 {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "该邀请码前缀的六位流水号已用尽，请更换前缀")
+		return
+	}
+	codes := make([]string, 0, req.BatchCount)
+	for offset := 0; offset < req.BatchCount; offset++ {
+		codes = append(codes, prefix+fmt.Sprintf("%06d", startSerial+offset))
+	}
+	items, createErr := s.auth.AdminCreateInviteCodes(codes, req.OwnerUserID, maxUses, req.EntryType, expiresAt)
+	if createErr != nil {
+		if errors.Is(createErr, invites.ErrInvalidEntryType) {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请码入口类型不正确")
 			return
 		}
+		if errors.Is(createErr, invites.ErrInviteCodeExists) {
+			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "邀请码流水已变化，请刷新后重新生成")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "生成邀请码失败")
+		return
 	}
-	s.recordOperation(r, "invite_code:create", "invite_code", strconv.FormatInt(invite.ID, 10), map[string]interface{}{
-		"code":        invite.Code,
-		"entryType":   invite.EntryType,
-		"ownerUserId": invite.OwnerID,
+	action := "invite_code:batch_create"
+	if req.BatchCount == 1 {
+		action = "invite_code:create"
+	}
+	s.recordOperation(r, action, "invite_code", "", map[string]interface{}{
+		"prefix":      prefix,
+		"entryType":   req.EntryType,
+		"batchCount":  req.BatchCount,
+		"ownerUserId": req.OwnerUserID,
 	})
-	httpx.OK(w, invite)
+	if req.BatchCount == 1 {
+		httpx.OK(w, items[0])
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
 }
 
-func validManualInviteCode(code string) bool {
-	code = strings.TrimSpace(code)
-	if len(code) < 4 || len(code) > 32 {
-		return false
+func normalizeInviteCodePrefix(value string) (string, bool) {
+	prefix := strings.ToUpper(strings.TrimSpace(value))
+	if len(prefix) != 3 {
+		return "", false
 	}
-	for _, ch := range code {
-		if ch >= 'A' && ch <= 'Z' {
-			continue
+	for _, ch := range prefix {
+		if ch < 'A' || ch > 'Z' {
+			return "", false
 		}
-		if ch >= 'a' && ch <= 'z' {
-			continue
-		}
-		if ch >= '0' && ch <= '9' {
-			continue
-		}
-		if ch == '_' || ch == '-' {
-			continue
-		}
-		return false
 	}
-	return true
+	return prefix, true
+}
+
+func (s *Server) nextInviteCodeSerial(prefix string) (int, error) {
+	items, err := s.auth.AdminInviteCodes(invites.CodeFilter{})
+	if err != nil {
+		return 0, err
+	}
+	next := 1
+	for _, item := range items {
+		code := strings.ToUpper(strings.TrimSpace(item.Code))
+		if !strings.HasPrefix(code, prefix) || len(code) != len(prefix)+6 {
+			continue
+		}
+		serial, parseErr := strconv.Atoi(code[len(prefix):])
+		if parseErr == nil && serial >= next {
+			next = serial + 1
+		}
+	}
+	return next, nil
 }
 
 func (s *Server) adminInviteCodeDetail(w http.ResponseWriter, r *http.Request) {
@@ -284,21 +275,21 @@ func (s *Server) adminInviteCodeDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if code == "" || strings.Contains(code, "/") {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invite code required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少邀请码")
 		return
 	}
 	invite, found, err := s.adminInviteByCode(code)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite codes failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码列表失败")
 		return
 	}
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "invite code not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请码不存在")
 		return
 	}
 	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{InviteCodeID: invite.ID})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite relations failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码绑定关系失败")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{
@@ -325,16 +316,16 @@ func (s *Server) adminInviteByCode(code string) (invites.InviteCode, bool, error
 
 func (s *Server) adminInviteCodeMaterials(w http.ResponseWriter, r *http.Request, code string) {
 	if code == "" || strings.Contains(code, "/") {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invite code required")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "缺少邀请码")
 		return
 	}
 	invite, found, err := s.adminInviteByCode(code)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite codes failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码列表失败")
 		return
 	}
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "invite code not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请码不存在")
 		return
 	}
 	materials := s.inviteMaterialBase(invite)
@@ -759,7 +750,7 @@ func (s *Server) adminInviteRelations(w http.ResponseWriter, r *http.Request) {
 		InviteCodeID:  inviteCodeID,
 	})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "list invite relations failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "获取邀请码绑定关系失败")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{"items": items, "total": len(items)})
@@ -797,36 +788,69 @@ func (s *Server) routeAdminInviteQuotaRequestPost(w http.ResponseWriter, r *http
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
 		return
 	}
+	entryType := strings.TrimSpace(req.EntryType)
+	if entryType == "" {
+		entryType = invites.EntryTypeLink
+	}
+	if _, valid := invites.ParseEntryType(entryType); !valid {
+		// 先校验生成参数，再改变加量申请状态；否则错误的入口类型会把
+		// 申请提前标为“已通过”，但实际没有生成任何邀请码。
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请码入口类型不正确")
+		return
+	}
 	status := "rejected"
 	if req.Approve {
 		status = "approved"
 	}
-	request, err := s.auth.ReviewInviteQuotaRequest(id, status, strings.TrimSpace(req.Reason), parseInt64Header(r, "X-Admin-ID"))
-	if err != nil {
-		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "加量申请不存在或已处理")
-		return
-	}
+	adminID := parseInt64Header(r, "X-Admin-ID")
+	var request invites.QuotaRequest
 	items := []invites.InviteCode{}
 	if req.Approve {
-		config := s.inviteCodeConfig()
-		entryType := strings.TrimSpace(req.EntryType)
-		if entryType == "" {
-			entryType = invites.EntryTypeLink
+		pendingRequests, listErr := s.auth.InviteQuotaRequests(0, "pending")
+		if listErr != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取加量申请失败")
+			return
 		}
-		for i := 0; i < request.Quantity; i++ {
-			invite, createErr := s.auth.AdminCreateInviteCode("", request.OwnerUserID, 1, entryType)
-			if createErr != nil {
-				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "加量邀请码生成失败")
+		ownerUserID := int64(0)
+		for _, pending := range pendingRequests {
+			if pending.ID == id {
+				ownerUserID = pending.OwnerUserID
+				break
+			}
+		}
+		if ownerUserID <= 0 {
+			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "加量申请不存在或已处理")
+			return
+		}
+		if !s.userCanOwnAdminInviteCodes(ownerUserID) {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申请人的行家或领路人身份已失效，不能通过加量申请")
+			return
+		}
+		config, err := s.inviteCodeConfigStrict()
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请码配置失败，请稍后重试")
+			return
+		}
+		var expiresAt time.Time
+		if config.DefaultValidDays > 0 {
+			expiresAt = time.Now().AddDate(0, 0, config.DefaultValidDays)
+		}
+		var approveErr error
+		request, items, approveErr = s.auth.ApproveInviteQuotaRequest(id, strings.TrimSpace(req.Reason), adminID, entryType, expiresAt)
+		if approveErr != nil {
+			if errors.Is(approveErr, invites.ErrInviteCodeExists) {
+				httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "邀请码生成冲突，请重试审核")
 				return
 			}
-			if config.DefaultValidDays > 0 {
-				invite, createErr = s.auth.AdminUpdateUnusedInviteCode(invite.Code, request.OwnerUserID, entryType, time.Now().AddDate(0, 0, config.DefaultValidDays))
-				if createErr != nil {
-					httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "设置邀请码有效期失败")
-					return
-				}
-			}
-			items = append(items, invite)
+			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "加量申请不存在、已处理或生成失败")
+			return
+		}
+	} else {
+		var reviewErr error
+		request, reviewErr = s.auth.ReviewInviteQuotaRequest(id, status, strings.TrimSpace(req.Reason), adminID)
+		if reviewErr != nil {
+			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "加量申请不存在或已处理")
+			return
 		}
 	}
 	s.recordOperation(r, "invite_quota_request:"+status, "invite_quota_request", strconv.FormatInt(request.ID, 10), map[string]interface{}{"ownerUserId": request.OwnerUserID, "quantity": request.Quantity})

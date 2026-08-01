@@ -1,6 +1,7 @@
 const { ROUTES } = require('../../../config/routes')
 const messageService = require('../../../services/message')
 const { navigateShellKey } = require('../../../utils/shell-nav')
+const { toUserMessage } = require('../../../utils/user-message')
 
 const EMPTY_SYSTEM_NOTIFICATION_DETAIL = {
   pageTitle: '',
@@ -105,10 +106,11 @@ Page({
 
       this.setData(normalizeSystemNotificationDetail(detail))
     } catch (error) {
+      const errorText = toUserMessage(error && error.message, textOf(this.data, 'loadFailedText') || '系统通知加载失败')
       this.setData(Object.assign({}, normalizeSystemNotificationDetail(EMPTY_SYSTEM_NOTIFICATION_DETAIL), {
-        errorText: error.message || textOf(this.data, 'loadFailedText')
+        errorText
       }))
-      this.showInfo(error.message || textOf(this.data, 'loadFailedText'))
+      this.showInfo(errorText)
     }
   },
 

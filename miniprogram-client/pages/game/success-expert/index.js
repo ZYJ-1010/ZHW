@@ -23,17 +23,17 @@ const DEFAULT_SUCCESS_DETAIL = {
     navTitle: '组局成功',
     successHeading: '组局成功!',
     subtitleFallback: '成功详情以接口返回为准',
-    groupSectionTitle: '三方连接群',
-    onlineText: '在线',
-    chatButtonText: '进入群聊',
-    activityTitle: '活动信息',
-    fundTitle: '资金状态',
-    fundEmptyText: '暂无资金状态',
+    groupSectionTitle: '局内成员',
+    onlineText: '局内',
+    chatButtonText: '进入局内群聊',
+    activityTitle: '本局信息',
+    fundTitle: '',
+    fundEmptyText: '',
     stepsTitle: '下一步',
     stepsEmptyText: '暂无下一步动作',
     manageButtonText: '进入局管理',
     loadFailedText: LOCAL_LOAD_FAILED_TEXT,
-    chatPrefill: '我已进入三方群，准备确认后续服务安排。'
+    chatPrefill: '你好，想和大家确认一下本局安排。'
   },
   gameId: '',
   manageRoute: '',
@@ -231,6 +231,11 @@ Page({
   onEnterChatTap() {
     const gameId = this.data.gameId || this.data.group.gameId || ''
     const roomId = this.data.group.roomId || ''
+
+    if (!roomId) {
+      this.showInfo('本局尚未开始，暂不可进入局内群聊')
+      return
+    }
     const query = [
       `gameId=${encodeURIComponent(gameId)}`,
       `role=${encodeURIComponent(this.data.viewer.role || 'expert')}`
@@ -264,7 +269,7 @@ Page({
     }
 
     const gameId = this.data.gameId || this.data.group.gameId || ''
-    navigateShellRoute(`/${ROUTES.gameManage || 'pages/game/manage/index'}${gameId ? `?gameId=${encodeURIComponent(gameId)}` : ''}`)
+    navigateShellRoute(`/pages/profile/service-center/my-games/index?category=created${gameId ? `&gameId=${encodeURIComponent(gameId)}` : ''}`)
   },
 
   showInfo(title) {

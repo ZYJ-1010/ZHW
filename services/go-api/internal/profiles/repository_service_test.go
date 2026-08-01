@@ -2,6 +2,7 @@ package profiles
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -155,6 +156,81 @@ func TestRepositoryBackedProfilesRequireRolesAndPersist(t *testing.T) {
 	}
 }
 
+func TestStrictSystemManagementConfigSaveDoesNotFallbackToMemory(t *testing.T) {
+	repo := newFakeProfileRepository()
+	repo.saveSystemErr = errors.New("profile config persistence failed")
+	service := NewServiceWithRepository(repo)
+
+	if _, err := service.SaveSystemManagementConfigStrict(8, "profile-settings", map[string]interface{}{"enabled": true}); err == nil {
+		t.Fatal("expected strict profile config persistence failure")
+	}
+	if _, ok := repo.system[8]; ok {
+		t.Fatalf("failed repository save must not create process-local success state: %+v", repo.system[8])
+	}
+}
+
+func TestStrictSystemManagementConfigReadDoesNotReturnFallbackOnRepositoryFailure(t *testing.T) {
+	repo := newFakeProfileRepository()
+	repo.getSystemErr = errors.New("profile config read failed")
+	service := NewServiceWithRepository(repo)
+
+	value, err := service.SystemManagementConfigStrict(8, "profile-settings", map[string]interface{}{"enabled": true})
+	if err == nil || value != nil {
+		t.Fatalf("expected strict read failure without fallback value, value=%+v err=%v", value, err)
+	}
+}
+
+func TestStrictSystemManagementConfigListDoesNotReturnMemoryOnRepositoryFailure(t *testing.T) {
+	repo := newFakeProfileRepository()
+	repo.listSystemErr = errors.New("profile config list failed")
+	service := NewServiceWithRepository(repo)
+	service.system[8] = map[string]interface{}{"profile-info": map[string]interface{}{"personalInfo": map[string]interface{}{"avatarAuditStatus": "pending"}}}
+
+	items, err := service.SystemManagementConfigsStrict("profile-info")
+	if err == nil || items != nil {
+		t.Fatalf("expected strict list failure without process-memory fallback, items=%+v err=%v", items, err)
+	}
+}
+
+func TestStrictRoleApplicationListsDoNotReturnCacheOnRepositoryFailure(t *testing.T) {
+	repo := newFakeProfileRepository()
+	repo.listRoleErr = errors.New("role application database unavailable")
+	service := NewServiceWithRepository(repo)
+	service.apps[1] = RoleApplication{ID: 1, UserID: 8, RoleCode: "expert", Status: "pending"}
+
+	if items, err := service.RoleApplicationsByUserStrict(8); err == nil || items != nil {
+		t.Fatalf("expected strict user role application read failure, items=%+v err=%v", items, err)
+	}
+	if items, err := service.AllRoleApplicationsStrict(); err == nil || items != nil {
+		t.Fatalf("expected strict admin role application read failure, items=%+v err=%v", items, err)
+	}
+}
+
+func TestStrictRoleProfileReadsDoNotReturnStaleCache(t *testing.T) {
+	repo := newFakeProfileRepository()
+	service := NewServiceWithRepository(repo)
+	service.rules[1] = GuideQualificationRule{ID: 1, RuleCode: "旧规则"}
+	service.skills[8] = ExpertSkillProfile{UserID: 8, SkillTree: []string{"旧技能"}}
+	service.resources[9] = GuideResourceProfile{UserID: 9, ResourceTags: []string{"旧资源"}}
+	repo.profileReadErr = errors.New("profile database unavailable")
+
+	if _, err := service.GuideQualificationRulesStrict(); !errors.Is(err, repo.profileReadErr) {
+		t.Fatalf("expected qualification rule read error, got %v", err)
+	}
+	if _, err := service.AdminExpertSkillStrict(8); !errors.Is(err, repo.profileReadErr) {
+		t.Fatalf("expected expert skill read error, got %v", err)
+	}
+	if _, err := service.AllExpertSkillsStrict(); !errors.Is(err, repo.profileReadErr) {
+		t.Fatalf("expected expert skill list error, got %v", err)
+	}
+	if _, err := service.AdminGuideResourceStrict(9); !errors.Is(err, repo.profileReadErr) {
+		t.Fatalf("expected guide resource read error, got %v", err)
+	}
+	if _, err := service.AllGuideResourcesStrict(); !errors.Is(err, repo.profileReadErr) {
+		t.Fatalf("expected guide resource list error, got %v", err)
+	}
+}
+
 type fakeProfileRepository struct {
 	roles          map[int64]map[string]bool
 	apps           map[int64]RoleApplication
@@ -165,6 +241,11 @@ type fakeProfileRepository struct {
 	experts        map[int64]ExpertSkillProfile
 	resources      map[int64]GuideResourceProfile
 	system         map[int64]map[string]map[string]interface{}
+	saveSystemErr  error
+	getSystemErr   error
+	listSystemErr  error
+	listRoleErr    error
+	profileReadErr error
 }
 
 func newFakeProfileRepository() *fakeProfileRepository {
@@ -203,6 +284,9 @@ func (r *fakeProfileRepository) SaveRoleApplication(ctx context.Context, app Rol
 }
 
 func (r *fakeProfileRepository) ListRoleApplications(ctx context.Context) ([]RoleApplication, error) {
+	if r.listRoleErr != nil {
+		return nil, r.listRoleErr
+	}
 	result := make([]RoleApplication, 0, len(r.apps))
 	for _, item := range r.apps {
 		result = append(result, item)
@@ -211,6 +295,9 @@ func (r *fakeProfileRepository) ListRoleApplications(ctx context.Context) ([]Rol
 }
 
 func (r *fakeProfileRepository) ListRoleApplicationsByUser(ctx context.Context, userID int64) ([]RoleApplication, error) {
+	if r.listRoleErr != nil {
+		return nil, r.listRoleErr
+	}
 	result := make([]RoleApplication, 0)
 	for _, item := range r.apps {
 		if item.UserID == userID {
@@ -231,6 +318,9 @@ func (r *fakeProfileRepository) UpdateRoleApplication(ctx context.Context, app R
 }
 
 func (r *fakeProfileRepository) GetGuideQualification(ctx context.Context, userID int64) (GuideQualification, bool, error) {
+	if r.profileReadErr != nil {
+		return GuideQualification{}, false, r.profileReadErr
+	}
 	q, ok := r.qualifications[userID]
 	return q, ok, nil
 }
@@ -241,6 +331,9 @@ func (r *fakeProfileRepository) SaveGuideQualification(ctx context.Context, q Gu
 }
 
 func (r *fakeProfileRepository) ListGuideQualificationRules(ctx context.Context) ([]GuideQualificationRule, error) {
+	if r.profileReadErr != nil {
+		return nil, r.profileReadErr
+	}
 	if len(r.rules) == 0 {
 		_, _ = r.SaveGuideQualificationRule(ctx, GuideQualificationRule{RuleCode: "default", PaymentRequired: false, Status: "active"})
 	}
@@ -261,6 +354,9 @@ func (r *fakeProfileRepository) SaveGuideQualificationRule(ctx context.Context, 
 }
 
 func (r *fakeProfileRepository) GetExpertSkill(ctx context.Context, userID int64) (ExpertSkillProfile, bool, error) {
+	if r.profileReadErr != nil {
+		return ExpertSkillProfile{}, false, r.profileReadErr
+	}
 	profile, ok := r.experts[userID]
 	return profile, ok, nil
 }
@@ -271,6 +367,9 @@ func (r *fakeProfileRepository) SaveExpertSkill(ctx context.Context, profile Exp
 }
 
 func (r *fakeProfileRepository) ListExpertSkills(ctx context.Context) ([]ExpertSkillProfile, error) {
+	if r.profileReadErr != nil {
+		return nil, r.profileReadErr
+	}
 	result := make([]ExpertSkillProfile, 0, len(r.experts))
 	for _, item := range r.experts {
 		result = append(result, item)
@@ -279,6 +378,9 @@ func (r *fakeProfileRepository) ListExpertSkills(ctx context.Context) ([]ExpertS
 }
 
 func (r *fakeProfileRepository) GetGuideResource(ctx context.Context, userID int64) (GuideResourceProfile, bool, error) {
+	if r.profileReadErr != nil {
+		return GuideResourceProfile{}, false, r.profileReadErr
+	}
 	profile, ok := r.resources[userID]
 	return profile, ok, nil
 }
@@ -289,6 +391,9 @@ func (r *fakeProfileRepository) SaveGuideResource(ctx context.Context, profile G
 }
 
 func (r *fakeProfileRepository) ListGuideResources(ctx context.Context) ([]GuideResourceProfile, error) {
+	if r.profileReadErr != nil {
+		return nil, r.profileReadErr
+	}
 	result := make([]GuideResourceProfile, 0, len(r.resources))
 	for _, item := range r.resources {
 		result = append(result, item)
@@ -297,6 +402,9 @@ func (r *fakeProfileRepository) ListGuideResources(ctx context.Context) ([]Guide
 }
 
 func (r *fakeProfileRepository) GetSystemManagementConfig(ctx context.Context, userID int64, key string) (map[string]interface{}, bool, error) {
+	if r.getSystemErr != nil {
+		return nil, false, r.getSystemErr
+	}
 	if r.system[userID] == nil {
 		return nil, false, nil
 	}
@@ -305,6 +413,9 @@ func (r *fakeProfileRepository) GetSystemManagementConfig(ctx context.Context, u
 }
 
 func (r *fakeProfileRepository) SaveSystemManagementConfig(ctx context.Context, userID int64, key string, payload map[string]interface{}) (map[string]interface{}, error) {
+	if r.saveSystemErr != nil {
+		return nil, r.saveSystemErr
+	}
 	if r.system[userID] == nil {
 		r.system[userID] = make(map[string]map[string]interface{})
 	}
@@ -313,6 +424,9 @@ func (r *fakeProfileRepository) SaveSystemManagementConfig(ctx context.Context, 
 }
 
 func (r *fakeProfileRepository) ListSystemManagementConfigs(ctx context.Context, key string) ([]SystemManagementConfigItem, error) {
+	if r.listSystemErr != nil {
+		return nil, r.listSystemErr
+	}
 	items := make([]SystemManagementConfigItem, 0)
 	for userID, byKey := range r.system {
 		if value, ok := byKey[key]; ok {

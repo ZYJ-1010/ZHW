@@ -1,4 +1,5 @@
 const profileService = require('../../../../../services/profile')
+const { toUserMessage } = require('../../../../../utils/user-message')
 
 Page({
   data: {
@@ -11,10 +12,7 @@ Page({
       { key: 'year', label: '本年' },
       { key: 'all', label: '全部' }
     ],
-    rankTypes: [
-      { key: 'inviteCount', label: '邀约数排行' },
-      { key: 'profitContribution', label: '分润贡献排行' }
-    ],
+    rankTypes: [{ key: 'inviteCount', label: '邀约数排行' }],
     members: [],
     loadError: ''
   },
@@ -35,7 +33,7 @@ Page({
     } catch (error) {
       console.warn('get invite ranking failed', error)
       this.setData({
-        loadError: error.message || '贡献排行加载失败'
+        loadError: toUserMessage(error && error.message, '贡献排行加载失败')
       })
     }
   },

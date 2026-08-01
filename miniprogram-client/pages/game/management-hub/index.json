@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "组局管理",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "business-summary-card": "/components/business-summary-card/index"
-  }
-}

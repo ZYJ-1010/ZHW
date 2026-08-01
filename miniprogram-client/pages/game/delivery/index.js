@@ -17,7 +17,7 @@ const MORE_BUTTON_SIZE_RPX = 44
 const MORE_BUTTON_LEFT_RPX = 658
 const DEFAULT_CAPSULE_BOTTOM_RPX = 142
 const DEFAULT_FRAME_HEIGHT_RPX = DESIGN_FRAME_HEIGHT_PT * 2
-const DEFAULT_DELIVERY_MODE = 'paid'
+const DEFAULT_DELIVERY_MODE = 'free'
 
 function roundRpx(value) {
   return Math.round(value * 100) / 100
@@ -157,19 +157,12 @@ function cloneNotice(notice) {
 }
 
 function normalizeDeliveryMode(mode) {
-  return String(mode || '').toLowerCase() === 'free' ? 'free' : 'paid'
+  // 一期不开放收费局完成结算，任何旧路由参数都统一降级为免费局确认。
+  return 'free'
 }
 
 function resolveDeliveryMode(detail = {}, requestedMode = DEFAULT_DELIVERY_MODE) {
-  if (detail.deliveryMode) {
-    return normalizeDeliveryMode(detail.deliveryMode)
-  }
-
-  if (detail.fund && detail.fund.status === 'free_no_pay') {
-    return 'free'
-  }
-
-  return normalizeDeliveryMode(requestedMode)
+  return 'free'
 }
 
 function normalizeViewerRole(role) {
@@ -196,18 +189,6 @@ function normalizeDeliveryPageConfig(config = {}) {
     free: mergeModeConfig(config.free, EMPTY_DELIVERY_PAGE_CONFIG.free),
     quickActions: cloneList(config.quickActions || EMPTY_DELIVERY_PAGE_CONFIG.quickActions)
   }
-}
-
-function firstValue() {
-  const values = Array.prototype.slice.call(arguments)
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (values[index] !== undefined && values[index] !== null && values[index] !== '') {
-      return values[index]
-    }
-  }
-
-  return ''
 }
 
 function emptyActivity() {
@@ -261,7 +242,7 @@ function createDeliveryState(mode, pageConfig = EMPTY_DELIVERY_PAGE_CONFIG) {
     submitToast: config.submitToast,
     proofImages: [],
     proofFileIds: [],
-    showProofCard: deliveryMode !== 'free',
+    showProofCard: false,
     canSubmit: false,
     hasConfirmed: false,
     submitBlockText: '',
@@ -275,7 +256,6 @@ function normalizeDeliveryDetail(detail = {}, mode = DEFAULT_DELIVERY_MODE) {
   const completion = detail.completion || {}
   const viewer = detail.viewer || {}
   const group = detail.group || {}
-  const fund = detail.fund || {}
   const deliveryMode = resolveDeliveryMode(detail, mode)
   const pageState = createDeliveryState(deliveryMode, deliveryPage)
   const deliveryProof = normalizeDeliveryProof(detail.deliveryProof)
@@ -286,10 +266,7 @@ function normalizeDeliveryDetail(detail = {}, mode = DEFAULT_DELIVERY_MODE) {
   const expert = participants.find((item) => item.role === 'expert' || item.roleLabel === '行家') || participants[0] || {}
   const counterpart = roleType === 'member' ? expert : player
   const activityRows = Array.isArray(detail.activityRows) ? detail.activityRows : []
-  const amountText = firstValue(fund.amountText, fund.amount ? `¥${Number(fund.amount).toLocaleString('zh-CN')}` : '')
-  const normalizedRows = amountText
-    ? [{ label: pageState.amountRowLabel, value: amountText, strong: true }].concat(activityRows)
-    : activityRows
+  const normalizedRows = activityRows
   const timeline = Array.isArray(detail.nextSteps) ? detail.nextSteps.map((item, index) => {
     const isContactAction = String(item.action || '').indexOf('contact_') === 0
 
@@ -319,7 +296,7 @@ function normalizeDeliveryDetail(detail = {}, mode = DEFAULT_DELIVERY_MODE) {
       orderNo: group.gameId ? `GAME-${group.gameId}` : ''
     },
     activityRows: normalizedRows,
-    settlement: amountText ? { actualAmount: amountText } : {},
+    settlement: {},
     settlementRows: [],
     hasSettlement: false,
     settlementNote: '',
@@ -329,12 +306,7 @@ function normalizeDeliveryDetail(detail = {}, mode = DEFAULT_DELIVERY_MODE) {
     hasConfirmed,
     submitBlockText: completion.waitingText || '',
     deliveryProof,
-    security: fund.status === 'free_no_pay'
-      ? pageState.security
-      : {
-          title: fund.title || '',
-          desc: fund.desc || ''
-        }
+    security: pageState.security
   }
 }
 
@@ -475,7 +447,7 @@ Page({
         errorCode: error && error.code,
         errorMessage: error && error.message
       })
-      this.showInfo(error.message || '服务确认数据加载失败')
+      this.showInfo(error.message || '本局确认数据加载失败')
 
       if (String(error && error.message || '').indexOf('仅组局绑定') >= 0) {
         setTimeout(() => {
@@ -705,7 +677,7 @@ Page({
 
     if (!this.gameId) {
       this.logServiceConfirm('submit_blocked', { reason: 'missing_game_id' })
-      this.showInfo('缺少局信息，无法确认服务')
+      this.showInfo('缺少局信息，无法确认本局')
       return
     }
 

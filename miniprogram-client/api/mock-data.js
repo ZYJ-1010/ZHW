@@ -187,18 +187,14 @@ const mockGuideApplyConfig = {
     acceptTypes: ['JPG', 'PNG', 'PDF'],
     maxCount: 5
   },
-  serviceCount: 3,
-  serviceBlocks: [
-    { id: 'guide-service-1', title: '业务' },
-    { id: 'guide-service-2', title: '业务' },
-    { id: 'guide-service-3', title: '业务' }
-  ],
+  serviceCount: 0,
+  serviceBlocks: [],
   validationRules: {
     guidePlan: { minLength: 50, maxLength: 300 },
     serviceName: { minLength: 2, maxLength: 20 },
     money: { integerMaxLength: 8, decimalMaxLength: 2 }
   },
-  priceHint: '平台将收取 10% 服务费',
+  priceHint: '',
   primaryText: '提交领路人申请',
   helperText: '审核预计 1-3 个工作日'
 }
@@ -226,18 +222,16 @@ const mockRoleBenefitConfig = {
     title: '角色权益对比',
     subtitle: '选择适合你的角色，开启不同玩法',
     roles: [
-      { key: 'player', name: '玩家', level: 'Lv.1+', active: true },
-      { key: 'guide', name: '领路人', level: 'Lv.5+', active: false },
-      { key: 'expert', name: '行家', level: 'Lv.20+', active: false }
+      { key: 'player', name: '玩家', level: '等级由后台配置', active: true },
+      { key: 'guide', name: '领路人', level: '等级由后台配置', active: false },
+      { key: 'expert', name: '行家', level: '等级由后台配置', active: false }
     ],
     benefits: [
-      { name: '发起组局', player: '✓', leader: '—', expert: '✓' },
-      { name: '加入组局', player: '✓', leader: '✓', expert: '✓' },
-      { name: '创建路线', player: '✓', leader: '—', expert: '✓' },
-      { name: '分润收益', player: '—', leader: '基础会员40%', expert: '高级会员40%' },
-      { name: '服务交易', player: '—', leader: '—', expert: '✓' },
-      { name: '数据看板', player: '—', leader: '✓', expert: '✓' },
-      { name: '信用背书', player: '—', leader: '✓', expert: '✓' }
+      { name: '发起组局', player: '✓', guide: '—', expert: '✓' },
+      { name: '加入组局', player: '✓', guide: '✓', expert: '✓' },
+      { name: '发起组局', player: '✓', guide: '✓', expert: '✓' },
+      { name: '数据看板', player: '—', guide: '✓', expert: '✓' },
+      { name: '信用背书', player: '—', guide: '✓', expert: '✓' }
     ],
     primary: '立即申请角色'
   }
@@ -246,7 +240,7 @@ const mockRoleBenefitConfig = {
 const mockReferralRecordsConfig = {
   pageTitle: '我的引荐记录',
   summary: {
-    label: '本月引荐收益',
+    label: '本月引荐数据',
     background: 'linear-gradient(135deg, #ffb347 0%, #ff7b00 100%)',
     iconSrc: 'https://static.haowan.net.cn/miniprogram/pages/game/referral-record/assets/wallet.png',
     statTemplates: {
@@ -767,7 +761,7 @@ const mockRoleHomes = {
           { label: '玩家', active: false }
         ],
         items: [
-          { id: 'guide-reco-1', icon: '👑', name: '剧本杀小王', desc: '贡献¥320', tag: '查看分润' },
+          { id: 'guide-reco-1', icon: '👑', name: '剧本杀小王', desc: '已完成 3 局', tag: '查看关系' },
           { id: 'guide-reco-2', icon: '🎓', name: '大学生DM', desc: '宁大节点', tag: '管理我的连接' },
           { id: 'guide-reco-3', icon: '🔬', name: '研究员阿伟', desc: '中科院', tag: '周活跃' }
         ]
@@ -780,10 +774,10 @@ const mockRoleHomes = {
         connectedCount: 156,
         summary: '● 已连接 156 位玩家',
         actionText: '查看全部',
-        income: '本周收益 ¥1,240',
+        income: '本周新增连接 12 位',
         location: '📍 镇海区',
         items: [
-          { id: 'script-master', icon: '👑', name: '剧本杀小王', desc: '贡献¥320' },
+          { id: 'script-master', icon: '👑', name: '剧本杀小王', desc: '已完成 3 局' },
           { id: 'student-dm', icon: '🎓', name: '大学生DM', desc: '宁大节点' },
           { id: 'mama-group', icon: '👶', name: '宝妈组局', desc: '周活跃' },
           { id: 'researcher', icon: '🔬', name: '研究员阿伟', desc: '中科院' },
@@ -791,7 +785,7 @@ const mockRoleHomes = {
         ],
         buttons: [
           { text: '管理我的连接', primary: true, route: 'pages/message/index' },
-          { text: '查看分润', route: 'pages/profile/index' }
+          { text: '查看邀请记录', route: 'pages/profile/service-center/invite/records/index' }
         ]
       }
     },
@@ -836,13 +830,13 @@ const mockProfileHome = {
   stats: [
     { key: 'referrals', label: '引荐数', value: '128' },
     { key: 'successes', label: '成功数', value: '86' },
-    { key: 'dealAmount', label: '成交总额', value: '¥45K' },
-    { key: 'credit', label: '信用度', value: '98' }
+    { key: 'completedGames', label: '完成局数', value: '42' },
+    { key: 'credit', label: '信用分', value: '98' }
   ],
   assets: [
-    { key: 'totalDealAmount', label: '总成交额', value: '¥12,580' },
-    { key: 'withdrawable', label: '可提现', value: '¥3,200', tone: 'green' },
-    { key: 'pendingSettlement', label: '待结算', value: '¥800', tone: 'orange' }
+    { key: 'availablePoints', label: '可用积分', value: '260' },
+    { key: 'experience', label: '累计经验', value: '1,280' },
+    { key: 'credit', label: '信用分', value: '98', tone: 'green' }
   ],
   vipBanner: {
     text: '升级会员，认证您的角色',
@@ -878,51 +872,38 @@ const mockProfileHome = {
 
 const mockProfileAssets = {
   overview: {
-    label: '总资产（元）',
-    value: '¥4,000.00',
-    amountCent: 400000,
+    label: '积分资产',
+    value: '260 积分',
     points: 260,
-    updatedText: '实时同步分润与积分账户'
+    updatedText: '实时同步积分、订单与评价记录'
   },
   assetStats: [
-    { key: 'totalDealAmount', label: '总成交额', value: '¥12,580.00', amountCent: 1258000 },
-    { key: 'withdrawable', label: '可提现', value: '¥3,200.00', amountCent: 320000, tone: 'green' },
-    { key: 'pendingSettlement', label: '待结算', value: '¥800.00', amountCent: 80000, tone: 'yellow' }
+    { key: 'availablePoints', label: '可用积分', value: '260', tone: 'green' },
+    { key: 'orderCount', label: '兑换订单', value: '2', tone: 'yellow' },
+    { key: 'reviewTodo', label: '待评价', value: '1', tone: 'orange' }
   ],
-  quickActions: [
-    { key: 'withdraw', label: '提现', tone: 'green', iconSrc: '/pages/profile/asset-center/manage/assets/fa/download.svg', enabled: true },
-    { key: 'recharge', label: '充值', tone: 'blue', iconSrc: '/pages/profile/asset-center/manage/assets/fa/plus.svg', enabled: false, disabledReason: '一期未接真实支付充值' }
-  ],
+  quickActions: [],
   menuItems: [
-    { key: 'balance', title: '余额明细', desc: '收入支出记录', iconSrc: '/pages/profile/asset-center/manage/assets/fa/list-ul.svg', tone: 'blue' },
-    { key: 'bankCards', title: '银行卡', desc: '管理收款账户', value: '未绑定', iconSrc: '/pages/profile/asset-center/manage/assets/fa/credit-card.svg', tone: 'green' },
+    { key: 'points', title: '积分明细', desc: '查看积分获取和使用记录', iconSrc: '/pages/profile/asset-center/manage/assets/fa/list-ul.svg', tone: 'blue', route: '/pages/profile/asset-center/points/index' },
+    { key: 'mall', title: '积分商城', desc: '使用积分兑换权益', iconSrc: '/pages/profile/asset-center/manage/assets/fa/bag-shopping.svg', tone: 'green', route: '/pages/profile/asset-center/mall/index' },
     { key: 'orders', title: '我的订单', desc: '查看全部订单', iconSrc: '/pages/profile/asset-center/manage/assets/fa/bag-shopping.svg', tone: 'purple', route: '/pages/profile/asset-center/orders/index' }
   ],
   orderStatuses: [
-    { key: 'pendingPay', label: '待付款', count: 0, countText: '0', iconSrc: '/pages/profile/asset-center/manage/assets/fa/hourglass-half.svg', tone: 'blue', route: '/pages/profile/asset-center/orders/index?status=pending_pay' },
+    { key: 'pending', label: '待处理', count: 0, countText: '0', iconSrc: '/pages/profile/asset-center/manage/assets/fa/hourglass-half.svg', tone: 'blue', route: '/pages/profile/asset-center/orders/index?status=pending' },
     { key: 'processing', label: '进行中', count: 1, countText: '1', iconSrc: '/pages/profile/asset-center/manage/assets/fa/spinner.svg', tone: 'orange', route: '/pages/profile/asset-center/orders/index?status=pending' },
     { key: 'completed', label: '已完成', count: 1, countText: '1', iconSrc: '/pages/profile/asset-center/manage/assets/fa/check.svg', tone: 'green', route: '/pages/profile/asset-center/orders/index?status=fulfilled' },
-    { key: 'refund', label: '退款/售后', count: 0, countText: '0', iconSrc: '/pages/profile/asset-center/manage/assets/fa/rotate-left.svg', tone: 'red', route: '/pages/profile/asset-center/orders/index?status=canceled' },
+    { key: 'refund', label: '已取消', count: 0, countText: '0', iconSrc: '/pages/profile/asset-center/manage/assets/fa/rotate-left.svg', tone: 'red', route: '/pages/profile/asset-center/orders/index?status=canceled' },
     { key: 'review', label: '待评价', count: 1, countText: '1', iconSrc: '/pages/profile/asset-center/manage/assets/fa/star.svg', tone: 'gray', route: '/pages/profile/service-center/manage/review-manage/index' }
   ],
   recentOrders: [
-    { id: 'RDM-1', orderId: 1, title: '产品架构咨询', status: '进行中', statusTone: 'blue', time: '2026-03-20 14:30:00', amount: '800积分', route: '/pages/profile/asset-center/orders/index' },
-    { id: 'RDM-2', orderId: 2, title: 'UI设计服务', status: '已完成', statusTone: 'green', time: '2026-03-15 09:15:00', amount: '600积分', route: '/pages/profile/asset-center/orders/index' }
+    { id: 'RDM-1', orderId: 1, title: '活动纪念徽章', status: '进行中', statusTone: 'blue', time: '2026-03-20 14:30:00', amount: '800积分', route: '/pages/profile/asset-center/orders/index' },
+    { id: 'RDM-2', orderId: 2, title: '平台周边兑换', status: '已完成', statusTone: 'green', time: '2026-03-15 09:15:00', amount: '600积分', route: '/pages/profile/asset-center/orders/index' }
   ],
-  balanceRecords: [
-    { id: 'income-1', title: '分润收益', desc: 'REV-1', amount: '¥320.00', type: 'income', status: '已结算', createdAt: '2026-03-20 14:30:00' },
-    { id: 'points-1', title: '积分变动', desc: '兑换商品', amount: '-800积分', type: 'points', status: '已记录', createdAt: '2026-03-18 11:00:00' }
-  ],
-  bankCards: {
-    count: 0,
-    summaryText: '未绑定',
-    items: [],
-    canBind: true,
-    needIdentity: false
-  },
+  balanceRecords: [],
+  bankCards: { count: 0, summaryText: '一期不提供银行卡功能', items: [], canBind: false, needIdentity: false },
   faqLinks: [
-    { key: 'withdrawArrival', label: '提现多久到账？', answer: '提现需在后台财务审核后处理。' },
-    { key: 'bindBankCard', label: '如何绑定银行卡？', answer: '银行卡绑定入口已预留，正式资金通道接入后开放。' }
+    { key: 'pointsUse', label: '积分有什么用？', answer: '积分可用于积分商城兑换；具体商品以商城展示为准。' },
+    { key: 'pointsRecord', label: '如何查看积分记录？', answer: '可在积分明细中查看积分获取和使用记录。' }
   ]
 }
 
@@ -1033,7 +1014,7 @@ const mockPointsPageConfig = {
   ],
   rules: [
     {
-      text: '服务完成、举报核实、平台活动等行为可产生积分，具体比例以后台配置为准',
+      text: '完成组局、提交评价、举报核实和平台活动等行为可产生积分，具体比例以后台配置为准',
       strong: '后台规则',
       suffix: ''
     },
@@ -1045,22 +1026,22 @@ const mockPointsPageConfig = {
     {
       text: '积分仅可兑换',
       strong: '平台限定商品',
-      suffix: '，不可提现或抵扣付费局'
+      suffix: '，不可提现'
     }
   ],
   earnExample: {
     title: '可获得积分的行为',
-    subtitle: '服务分润、举报核实、活动奖励',
+    subtitle: '完成组局、举报核实、活动奖励',
     points: '+20',
     rows: [
       { label: '举报核实奖励', value: '后台确认后发放' },
-      { label: '服务分润积分', value: '按后台比例生成' }
+      { label: '完成组局奖励', value: '按后台规则发放' }
     ],
     result: '积分以后台流水为准'
   },
   roleExamples: [
-    { key: 'expert', role: '行家服务完成', amount: '按分润金额', points: '+积分', iconText: '行' },
-    { key: 'guide', role: '领路人引荐成功', amount: '按引荐收益', points: '+积分', iconText: '领' },
+    { key: 'expert', role: '行家完成组局', amount: '按后台规则', points: '+积分', iconText: '行' },
+    { key: 'guide', role: '领路人引荐成功', amount: '按后台规则', points: '+积分', iconText: '领' },
     { key: 'platform', role: '平台核实奖励', amount: '后台配置', points: '+积分', iconText: '奖' }
   ],
   filters: [
@@ -1068,7 +1049,7 @@ const mockPointsPageConfig = {
     { key: 'income', label: '收入', tone: 'income' },
     { key: 'expense', label: '支出', tone: 'expense' }
   ],
-  noteText: '积分规则、比例、有效期和兑换限制均以后端后台配置为准。积分不可提现，不可支付付费局，仅可兑换平台限定商品。',
+  noteText: '积分规则、比例、有效期和兑换限制均以后端后台配置为准。积分不可提现，仅可兑换平台限定商品。',
   version: '2026-07-01'
 }
 

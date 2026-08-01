@@ -59,11 +59,6 @@ function buildResultRows(report) {
       value: outcomeText(report.handleOutcome, report.status),
       className: report.handleOutcome === 'malicious' || report.status === 'closed' ? 'text-danger' : report.status === 'handled' ? 'text-success' : 'text-warning'
     },
-    {
-      label: '资金冻结',
-      value: report.revenueFrozen ? '已冻结相关分账' : '未冻结',
-      className: report.revenueFrozen ? 'text-danger' : ''
-    }
   ]
 
   if (report.creditChange) {
@@ -105,7 +100,8 @@ Page({
     evidenceTitle: '证据材料 (0条)',
     resultRows: [],
     resultNote: '',
-    timeline: []
+    timeline: [],
+    canAppeal: false
   },
 
   onLoad(options = {}) {
@@ -143,7 +139,8 @@ Page({
         evidenceTitle: `证据材料 (${evidence.length}条)`,
         resultRows: buildResultRows(report),
         resultNote: report.handleResult || (report.status === 'pending' ? '平台已收到举报，正在等待处理。' : statusText(report.status)),
-        timeline: buildTimeline(report)
+        timeline: buildTimeline(report),
+        canAppeal: Boolean(report.canAppeal)
       })
     } catch (error) {
       wx.showToast({

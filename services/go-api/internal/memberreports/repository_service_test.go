@@ -2,6 +2,7 @@ package memberreports
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -36,6 +37,37 @@ func TestServiceWithRepositoryBuildsMemberSnapshots(t *testing.T) {
 	if len(repo.snapshots) != 2 {
 		t.Fatalf("expected persisted personal and admin snapshots, got %d", len(repo.snapshots))
 	}
+}
+
+func TestRepositoryFailureDoesNotCreateLocalMembershipOrSnapshots(t *testing.T) {
+	service := NewServiceWithRepository(fakeMemberReportGames{}, fakeMemberReportRevenue{}, failingMemberReportRepository{})
+	if err := service.GrantMembershipStrict(10, "pro", 3); err == nil {
+		t.Fatal("expected membership persistence failure")
+	}
+	if _, err := service.Me(10); err == nil {
+		t.Fatal("membership must not appear after persistence failure")
+	}
+	if _, err := service.AdminSnapshotsStrict(); err == nil {
+		t.Fatal("expected strict report list to return repository failure")
+	}
+}
+
+type failingMemberReportRepository struct{}
+
+func (failingMemberReportRepository) SaveMembership(context.Context, Membership) (Membership, error) {
+	return Membership{}, errors.New("repository unavailable")
+}
+
+func (failingMemberReportRepository) GetMembership(context.Context, int64) (Membership, bool, error) {
+	return Membership{}, false, errors.New("repository unavailable")
+}
+
+func (failingMemberReportRepository) ListMemberships(context.Context) ([]Membership, error) {
+	return nil, errors.New("repository unavailable")
+}
+
+func (failingMemberReportRepository) SaveSnapshot(context.Context, Snapshot) (Snapshot, error) {
+	return Snapshot{}, errors.New("repository unavailable")
 }
 
 type fakeMemberReportGames struct{}

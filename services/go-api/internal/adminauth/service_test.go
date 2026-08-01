@@ -6,7 +6,9 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestVerifyPassword(t *testing.T) {
@@ -104,6 +106,184 @@ func TestSubmitAdminApplication(t *testing.T) {
 	}
 	if _, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{Name: "root", Contact: "wx", DesiredRole: "super_admin"}); !errors.Is(err, ErrInvalidAdminInput) {
 		t.Fatalf("expected super admin application to be rejected, got %v", err)
+	}
+}
+
+func TestReviewAdminApplicationCreatesAndLinksAccount(t *testing.T) {
+	service := NewService()
+	application, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{
+		Name: "财务同事", Contact: "finance@example.com", DesiredRole: "finance_manager", Reason: "负责财务结算",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewed, err := service.ReviewAdminApplication(application.ID, 1, ReviewAdminApplicationRequest{
+		Action: "approve", Remark: "资料核验通过", Username: "finance_apply", Password: "admin123",
+	})
+	if err != nil {
+		t.Fatalf("expected approval to create account: %v", err)
+	}
+	if reviewed.Status != "approved" || reviewed.ReviewedBy != 1 || reviewed.LinkedAdminUserID == 0 || reviewed.LinkedAdminUsername != "finance_apply" || reviewed.ReviewedAt == "" {
+		t.Fatalf("unexpected reviewed application: %+v", reviewed)
+	}
+	login, err := service.Login(LoginRequest{Username: "finance_apply", Password: "admin123"})
+	if err != nil {
+		t.Fatalf("expected linked account login: %v", err)
+	}
+	if !hasPermission(login.Permissions, "revenue:template:update") {
+		t.Fatalf("expected desired role permissions: %+v", login.Permissions)
+	}
+	if _, err := service.ReviewAdminApplication(application.ID, 1, ReviewAdminApplicationRequest{Action: "close", Remark: "重复处理"}); !errors.Is(err, ErrApplicationProcessed) {
+		t.Fatalf("expected processed application guard, got %v", err)
+	}
+}
+
+func TestReviewAdminApplicationCanLinkExistingAccount(t *testing.T) {
+	service := NewService()
+	application, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{
+		Name: "现有运营", Contact: "operator@example.com", DesiredRole: "finance_manager", Reason: "兼任财务",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewed, err := service.ReviewAdminApplication(application.ID, 1, ReviewAdminApplicationRequest{
+		Action: "approved", AdminUserID: 3,
+	})
+	if err != nil {
+		t.Fatalf("expected existing account link: %v", err)
+	}
+	if reviewed.LinkedAdminUserID != 3 || reviewed.LinkedAdminUsername != "operator" {
+		t.Fatalf("unexpected existing account link: %+v", reviewed)
+	}
+	login, err := service.Login(LoginRequest{Username: "operator", Password: "admin123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasPermission(login.Roles, "operation_manager") || !hasPermission(login.Roles, "finance_manager") {
+		t.Fatalf("expected original and requested roles to coexist: %+v", login.Roles)
+	}
+}
+
+func TestAdminAccountSecurityGuards(t *testing.T) {
+	service := NewService()
+	if _, err := service.CreateAdminUser(CreateAdminUserRequest{
+		Username: "short_password", Password: "1234567", Roles: []string{"customer_manager"}, Status: "active",
+	}); !errors.Is(err, ErrInvalidAdminInput) {
+		t.Fatalf("expected short password to be rejected, got %v", err)
+	}
+
+	if _, err := service.UpdateAdminUserByActor(1, 1, UpdateAdminUserRequest{Roles: []string{"customer_manager"}, Status: "active"}); !errors.Is(err, ErrAdminSelfMutation) {
+		t.Fatalf("expected self downgrade to be rejected, got %v", err)
+	}
+	if _, err := service.UpdateAdminUserByActor(2, 1, UpdateAdminUserRequest{Roles: []string{"customer_manager"}, Status: "active"}); !errors.Is(err, ErrLastSuperAdmin) {
+		t.Fatalf("expected last super admin downgrade to be rejected, got %v", err)
+	}
+
+	if _, err := service.UpdateAdminUser(3, UpdateAdminUserRequest{Roles: []string{"operation_manager"}, Status: "disabled"}); err != nil {
+		t.Fatal(err)
+	}
+	application, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{
+		Name: "禁用账号复用", Contact: "disabled@example.com", DesiredRole: "finance_manager",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ReviewAdminApplication(application.ID, 1, ReviewAdminApplicationRequest{Action: "approve", AdminUserID: 3}); !errors.Is(err, ErrAdminDisabled) {
+		t.Fatalf("expected disabled linked account to be rejected, got %v", err)
+	}
+
+	selfApplication, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{
+		Name: "审核人本人", Contact: "self@example.com", DesiredRole: "finance_manager",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ReviewAdminApplication(selfApplication.ID, 1, ReviewAdminApplicationRequest{Action: "approve", AdminUserID: 1}); !errors.Is(err, ErrAdminSelfMutation) {
+		t.Fatalf("expected reviewer self-link to be rejected, got %v", err)
+	}
+}
+
+func TestReviewAdminApplicationRejectAndCloseRequireRemark(t *testing.T) {
+	service := NewService()
+	rejected, _ := service.SubmitAdminApplication(SubmitAdminApplicationRequest{Name: "申请甲", Contact: "wx-a", DesiredRole: "customer_manager"})
+	if _, err := service.ReviewAdminApplication(rejected.ID, 1, ReviewAdminApplicationRequest{Action: "reject"}); !errors.Is(err, ErrInvalidAdminInput) {
+		t.Fatalf("expected rejection remark validation, got %v", err)
+	}
+	item, err := service.ReviewAdminApplication(rejected.ID, 1, ReviewAdminApplicationRequest{Action: "reject", Remark: "资料不完整"})
+	if err != nil || item.Status != "rejected" || item.ReviewRemark != "资料不完整" {
+		t.Fatalf("expected rejected application: item=%+v err=%v", item, err)
+	}
+	closed, _ := service.SubmitAdminApplication(SubmitAdminApplicationRequest{Name: "申请乙", Contact: "wx-b", DesiredRole: "customer_manager"})
+	item, err = service.ReviewAdminApplication(closed.ID, 1, ReviewAdminApplicationRequest{Action: "close", Remark: "申请人主动撤回"})
+	if err != nil || item.Status != "closed" {
+		t.Fatalf("expected closed application: item=%+v err=%v", item, err)
+	}
+}
+
+func TestReviewAdminApplicationOnlyProcessesOnceConcurrently(t *testing.T) {
+	service := NewService()
+	application, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{Name: "并发申请", Contact: "wx-c", DesiredRole: "customer_manager"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 8
+	var wg sync.WaitGroup
+	results := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, reviewErr := service.ReviewAdminApplication(application.ID, 1, ReviewAdminApplicationRequest{Action: "close", Remark: "并发关闭"})
+			results <- reviewErr
+		}()
+	}
+	wg.Wait()
+	close(results)
+	successes := 0
+	processed := 0
+	for result := range results {
+		switch {
+		case result == nil:
+			successes++
+		case errors.Is(result, ErrApplicationProcessed):
+			processed++
+		default:
+			t.Fatalf("unexpected concurrent result: %v", result)
+		}
+	}
+	if successes != 1 || processed != workers-1 {
+		t.Fatalf("expected one success and %d processed errors, got success=%d processed=%d", workers-1, successes, processed)
+	}
+}
+
+func TestRepositoryPersistsAdminApplications(t *testing.T) {
+	repo := newFakeAdminRepository()
+	service := NewServiceWithRepository(repo)
+	application, err := service.SubmitAdminApplication(SubmitAdminApplicationRequest{Name: "持久化申请", Contact: "wx-db", DesiredRole: "game_manager"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := NewServiceWithRepository(repo)
+	items, err := restarted.AdminApplications()
+	if err != nil || len(items) != 1 || items[0].ID != application.ID {
+		t.Fatalf("expected application after service restart: items=%+v err=%v", items, err)
+	}
+	reviewed, err := restarted.ReviewAdminApplication(application.ID, 10, ReviewAdminApplicationRequest{Action: "approve", Username: "game_apply", Password: "admin123"})
+	if err != nil || reviewed.Status != "approved" || reviewed.LinkedAdminUserID == 0 {
+		t.Fatalf("expected persistent approval: item=%+v err=%v", reviewed, err)
+	}
+}
+
+func TestAdminApplicationMigrationHasPersistentStateGuards(t *testing.T) {
+	body, err := os.ReadFile("../../../../db/migrations/000072_admin_applications.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlText := string(body)
+	for _, required := range []string{"create table if not exists admin_applications", "linked_admin_user_id", "reviewed_by", "status in ('pending', 'approved', 'rejected', 'closed')"} {
+		if !strings.Contains(sqlText, required) {
+			t.Fatalf("expected migration to contain %q", required)
+		}
 	}
 }
 
@@ -222,8 +402,10 @@ func hasPermission(values []string, want string) bool {
 }
 
 type fakeAdminRepository struct {
-	accounts map[int64]StoredAdminAccount
-	nextID   int64
+	accounts          map[int64]StoredAdminAccount
+	nextID            int64
+	applications      map[int64]AdminApplication
+	nextApplicationID int64
 }
 
 func newFakeAdminRepository() *fakeAdminRepository {
@@ -236,7 +418,9 @@ func newFakeAdminRepository() *fakeAdminRepository {
 				Permissions:  defaultPermissions(),
 			},
 		},
-		nextID: 11,
+		nextID:            11,
+		applications:      make(map[int64]AdminApplication),
+		nextApplicationID: 1,
 	}
 }
 
@@ -281,6 +465,78 @@ func (r *fakeAdminRepository) UpdateAccount(ctx context.Context, account StoredA
 	}
 	r.accounts[account.User.ID] = cloneStoredAccount(account)
 	return cloneStoredAccount(account), nil
+}
+
+func (r *fakeAdminRepository) CreateApplication(_ context.Context, application AdminApplication) (AdminApplication, error) {
+	application.ID = r.nextApplicationID
+	r.nextApplicationID++
+	if application.CreatedAt == "" {
+		application.CreatedAt = time.Now().Format(time.RFC3339)
+	}
+	if application.UpdatedAt == "" {
+		application.UpdatedAt = application.CreatedAt
+	}
+	r.applications[application.ID] = application
+	return application, nil
+}
+
+func (r *fakeAdminRepository) ListApplications(_ context.Context) ([]AdminApplication, error) {
+	items := make([]AdminApplication, 0, len(r.applications))
+	for _, application := range r.applications {
+		items = append(items, application)
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].ID > items[j].ID })
+	return items, nil
+}
+
+func (r *fakeAdminRepository) ReviewApplication(_ context.Context, id int64, review AdminApplicationReview) (AdminApplication, error) {
+	application, ok := r.applications[id]
+	if !ok {
+		return AdminApplication{}, ErrApplicationNotFound
+	}
+	if application.Status != "pending" {
+		return AdminApplication{}, ErrApplicationProcessed
+	}
+	if review.Status == "approved" {
+		linkedID := review.LinkedAdminUserID
+		if linkedID > 0 {
+			account, found := r.accounts[linkedID]
+			if !found {
+				return AdminApplication{}, ErrAdminNotFound
+			}
+			account.User.Roles = uniqueSortedStrings(append(account.User.Roles, application.DesiredRole))
+			account.Permissions = permissionsForRoles(account.User.Roles)
+			r.accounts[linkedID] = account
+			application.LinkedAdminUsername = account.User.Username
+		} else {
+			if review.NewAccount == nil {
+				return AdminApplication{}, ErrInvalidAdminInput
+			}
+			if _, found, _ := r.FindAccountByUsername(context.Background(), review.NewAccount.User.Username); found {
+				return AdminApplication{}, ErrAdminExists
+			}
+			account := cloneStoredAccount(*review.NewAccount)
+			account.User.ID = r.nextID
+			account.User.Roles = []string{application.DesiredRole}
+			account.Permissions = permissionsForRoles(account.User.Roles)
+			r.nextID++
+			r.accounts[account.User.ID] = account
+			linkedID = account.User.ID
+			application.LinkedAdminUsername = account.User.Username
+		}
+		application.LinkedAdminUserID = linkedID
+	}
+	now := time.Now().Format(time.RFC3339)
+	application.Status = review.Status
+	application.ReviewRemark = review.Remark
+	application.ReviewedBy = review.ReviewerID
+	if reviewer, found := r.accounts[review.ReviewerID]; found {
+		application.ReviewerUsername = reviewer.User.Username
+	}
+	application.ReviewedAt = now
+	application.UpdatedAt = now
+	r.applications[id] = application
+	return application, nil
 }
 
 func (r *fakeAdminRepository) RoleSummaries(ctx context.Context) ([]RoleSummary, error) {

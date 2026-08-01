@@ -43,7 +43,7 @@ OPENIM_ADMIN_USER_ID=imAdmin
 ## D5.5 当前落地映射
 
 - 文本消息：小程序调用 `POST /api/app/games/{gameId}/chat/messages` 或 `POST /api/app/chat/rooms/{roomId}/messages`；后端先做成员权限和敏感词校验，再写入本地消息记录，OpenIM 可用时同步到 OpenIM 群消息。
-- 图片/文件消息：小程序先调用 `POST /api/app/files/upload-token` 获取 `fileId`、`uploadUrl`、`storageKey`，上传完成后发送 `messageType=image/file` 并携带 `fileId`；下载时调用 `GET /api/app/files/{fileId}/download-url`，后端按局成员权限放行。
+- 图片/语音/文件消息：小程序先调用 `POST /api/app/files/upload-token` 获取 `fileId`、`uploadUrl`、`storageKey`，上传完成后发送 `messageType=image/voice/file` 并携带 `fileId`；后端校验文件所属局与媒体类型，启用 OpenIM 时映射为 OpenIM 图片、语音、文件消息，未启用时走本地消息链路。下载时调用 `GET /api/app/files/{fileId}/download-url`，后端按局成员权限放行。
 - ACK：`POST /api/app/chat/rooms/{roomId}/messages/{messageId}/ack`，服务端记录 `ackedBy`。
 - 已读：`POST /api/app/chat/rooms/{roomId}/messages/{messageId}/read`，服务端记录 `ackedBy` 和 `readBy`。
 - 归档：`POST /api/app/chat/rooms/{roomId}/archive`，局结束且无争议时可归档；有争议时后续应由举报申诉链路冻结证据。
@@ -54,6 +54,6 @@ OPENIM_ADMIN_USER_ID=imAdmin
 ## 后续二开点
 
 - 在 OpenIM Webhooks 中接入真好玩敏感词和成员权限二次校验。
-- 开启 OpenIM 对象存储能力承接图片、文件消息。
+- 使用 OpenIM 自身对象存储替代当前项目统一对象存储时，需要补充存量文件迁移和双写策略；当前媒体消息已通过项目对象存储 URL 同步至 OpenIM。
 - 将后台 IM 管理页接 OpenIM 消息检索与归档能力。
 - 生产 Nginx 需要代理 OpenIM WebSocket，并配置小程序合法 socket 域名。

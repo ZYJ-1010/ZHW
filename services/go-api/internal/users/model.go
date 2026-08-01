@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	ErrInvalidProfile   = errors.New("invalid user profile")
-	ErrPhoneAlreadyUsed = errors.New("phone already used")
+	ErrInvalidProfile    = errors.New("invalid user profile")
+	ErrPhoneAlreadyUsed  = errors.New("phone already used")
+	ErrWechatAlreadyUsed = errors.New("wechat already used")
+	ErrWechatConflict    = errors.New("wechat binding conflict")
 )
 
 type User struct {
@@ -116,8 +118,15 @@ func (s *Store) BindWechat(userID int64, openID string) (User, error) {
 	if userID <= 0 || openID == "" {
 		return User{}, ErrInvalidProfile
 	}
-	if existingID, exists := s.byOpen[openID]; exists && existingID != userID {
+	if user, found, err := s.FindByID(userID); err != nil {
+		return User{}, err
+	} else if !found {
 		return User{}, ErrInvalidProfile
+	} else if user.OpenID != "" && user.OpenID != openID {
+		return User{}, ErrWechatConflict
+	}
+	if existingID, exists := s.byOpen[openID]; exists && existingID != userID {
+		return User{}, ErrWechatAlreadyUsed
 	}
 	if s.repo != nil {
 		user, err := s.repo.BindWechat(context.Background(), userID, openID)
@@ -148,13 +157,11 @@ func (s *Store) FindByPhoneHash(phoneHash string) (User, bool, error) {
 	}
 	if s.repo != nil {
 		user, ok, err := s.repo.FindByPhoneHash(context.Background(), phoneHash)
-		if err != nil || ok {
-			if ok {
-				s.byID[user.ID] = user
-				s.byPhone[phoneHash] = user.ID
-			}
-			return user, ok, err
+		if err == nil && ok {
+			s.byID[user.ID] = user
+			s.byPhone[phoneHash] = user.ID
 		}
+		return user, ok, err
 	}
 	id, ok := s.byPhone[phoneHash]
 	if !ok {
@@ -166,9 +173,11 @@ func (s *Store) FindByPhoneHash(phoneHash string) (User, bool, error) {
 func (s *Store) FindByOpenID(openID string) (User, bool, error) {
 	if s.repo != nil {
 		user, ok, err := s.repo.FindByOpenID(context.Background(), openID)
-		if err != nil || ok {
-			return user, ok, err
+		if err == nil && ok {
+			s.byID[user.ID] = user
+			s.byOpen[openID] = user.ID
 		}
+		return user, ok, err
 	}
 	id, ok := s.byOpen[openID]
 	if !ok {
@@ -180,9 +189,13 @@ func (s *Store) FindByOpenID(openID string) (User, bool, error) {
 func (s *Store) FindByID(id int64) (User, bool, error) {
 	if s.repo != nil {
 		user, ok, err := s.repo.FindByID(context.Background(), id)
-		if err != nil || ok {
-			return user, ok, err
+		if err == nil && ok {
+			s.byID[user.ID] = user
+			if user.OpenID != "" {
+				s.byOpen[user.OpenID] = user.ID
+			}
 		}
+		return user, ok, err
 	}
 	user, ok := s.byID[id]
 	return user, ok, nil
@@ -288,6 +301,7 @@ func (s *Store) BindPhoneAuth(userID int64, phoneHash string, phoneMasked string
 		if err != nil {
 			return User{}, err
 		}
+		s.clearPhoneMappings(user.ID, phoneHash)
 		s.byID[user.ID] = user
 		s.byPhone[phoneHash] = user.ID
 		return user, nil
@@ -297,9 +311,18 @@ func (s *Store) BindPhoneAuth(userID int64, phoneHash string, phoneMasked string
 		return User{}, ErrInvalidProfile
 	}
 	user.PhoneMasked = phoneMasked
+	s.clearPhoneMappings(user.ID, phoneHash)
 	s.byID[user.ID] = user
 	s.byPhone[phoneHash] = user.ID
 	return user, nil
+}
+
+func (s *Store) clearPhoneMappings(userID int64, keepHash string) {
+	for hash, mappedUserID := range s.byPhone {
+		if mappedUserID == userID && hash != keepHash {
+			delete(s.byPhone, hash)
+		}
+	}
 }
 
 // DeleteAccount removes login identifiers and anonymizes basic profile data.

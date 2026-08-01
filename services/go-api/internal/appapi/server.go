@@ -158,7 +158,31 @@ func New(authService *auth.Service, identityService identityService, gameService
 	revenueService := revenue.NewService(reviewService)
 	pointsService := points.NewService()
 	server := &Server{auth: authService, identity: identityService, games: gameService, gameDrafts: gamedrafts.NewService(), lbs: lbsService, im: imService, reviews: reviewService, revenue: revenueService, reports: reports.NewService(revenueService), memberReports: memberreports.NewService(gameService, revenueService), membership: membership.NewService(), teams: teams.NewService(revenueService), orders: orders.NewService(), points: pointsService, redemption: redemption.NewService(pointsService), connections: connections.NewService(), profiles: profiles.NewService(), files: files.NewService(), audit: audit.NewService(), notices: notifications.NewService(), exports: exports.NewService(), admins: adminauth.NewService(), delivery: delivery.NewService(), aidata: aidata.NewService(), systemConfig: systemconfig.NewService(), tasks: tasks.NewService(), reviewReplies: make(map[int64]profileReviewReply), reviewLikes: make(map[int64]map[int64]bool), mapBlindRoutes: make(map[int64]mapBlindRouteDTO), mapChallenges: make(map[int64]mapChallengeDTO), mapProviderLastSeen: make(map[string]time.Time), nearbyDefaultRadiusMeter: 5000}
+	authService.SetPhoneBindingVerifier(identityService.IsPhoneLoginVerified)
 	reviewService.SetGrowthRulesProvider(server.systemConfig)
+	reviewService.SetGrowthRulesStrictProvider(server.systemConfig)
+	reviewService.SetLevelResolver(server.playerLevelForExperience)
+	reviewService.SetCreditAccountRulesProvider(func() (int, int) {
+		creditConfig := server.currentCreditRestrictionConfig()
+		return creditConfig.InitialScore, creditConfig.ScoreCap
+	})
+	reviewService.SetCreditAccountRulesStrictProvider(func() (int, int, error) {
+		creditConfig, err := server.currentCreditRestrictionConfigStrict()
+		if err != nil {
+			return 0, 0, err
+		}
+		return creditConfig.InitialScore, creditConfig.ScoreCap, nil
+	})
+	authService.SetInviteRelationListener(func(relation invites.Relation) {
+		if relation.InviterUserID <= 0 || relation.InviteeUserID <= 0 || !server.userHasActiveRole(relation.InviterUserID, "guide") {
+			return
+		}
+		server.reviews.RecordGrowthEvent(reviews.GrowthEvent{
+			UserID: relation.InviterUserID, RoleCode: "guide", EventCode: "direct_invite_bound",
+			IdempotencyKey: "invite_relation:" + strconv.FormatInt(relation.InviteeUserID, 10) + ":" + strconv.FormatInt(relation.InviterUserID, 10),
+			OccurredAt:     time.Now(),
+		})
+	})
 	server.bindSensitiveWordStore()
 	server.imSocketHub = newIMSocketHub(server)
 	return server
@@ -168,6 +192,7 @@ func (s *Server) Configure(cfg config.Config) {
 	s.cfg = cfg
 	s.productionMode = appAPIProductionEnv(cfg.AppEnv)
 	s.files.RequirePublicBaseURLs(s.productionMode)
+	s.auth.SetAppReauthAfterDays(s.currentOperationRules().Login.ReauthAfterDays)
 	if service, ok := s.games.(*games.Service); ok {
 		if cfg.AppLimits.DailyGameLimit > 0 {
 			service.SetDailyCreateLimit(cfg.AppLimits.DailyGameLimit)
@@ -301,6 +326,19 @@ func (s *Server) UseRepositories(behaviorRepo audit.BehaviorRepository, operatio
 	if reviewRepo != nil {
 		reviewService := reviews.NewServiceWithRepository(s.games, reviewRepo)
 		reviewService.SetGrowthRulesProvider(s.systemConfig)
+		reviewService.SetGrowthRulesStrictProvider(s.systemConfig)
+		reviewService.SetLevelResolver(s.playerLevelForExperience)
+		reviewService.SetCreditAccountRulesProvider(func() (int, int) {
+			creditConfig := s.currentCreditRestrictionConfig()
+			return creditConfig.InitialScore, creditConfig.ScoreCap
+		})
+		reviewService.SetCreditAccountRulesStrictProvider(func() (int, int, error) {
+			creditConfig, err := s.currentCreditRestrictionConfigStrict()
+			if err != nil {
+				return 0, 0, err
+			}
+			return creditConfig.InitialScore, creditConfig.ScoreCap, nil
+		})
 		s.reviews = reviewService
 		if revenueRepo != nil {
 			s.revenue = revenue.NewServiceWithRepository(s.reviews, revenueRepo)
@@ -366,12 +404,14 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/app/auth/wechat-entry-precheck", s.wechatEntryPrecheck)
 	handle("POST /api/app/auth/phone-login", s.phoneLogin)
 	handle("POST /api/app/auth/password-login", s.passwordLogin)
+	handle("POST /api/app/auth/password-reset", s.resetPassword)
 	handle("POST /api/app/account/wechat-bind", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.bindWechatAccount)))
 	handle("PUT /api/app/account/login-password", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.setLoginPassword)))
-	handle("POST /api/app/auth/issue-token-after-identity", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.issueTokenAfterIdentity)))
+	handle("POST /api/app/auth/issue-token-after-identity", s.IdentityAuthMiddleware(s.IdempotencyMiddleware(s.issueTokenAfterIdentity)))
 	handle("POST /api/app/account/delete", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.deleteAccount)))
 	handle("GET /api/app/home", s.AppAuthMiddleware(s.appHome))
 	handle("GET /api/app/newbie-tasks", s.AppAuthMiddleware(s.newbieTasks))
+	handle("POST /api/app/newbie-tasks/guide-profile-reminder", s.AppAuthMiddleware(s.recordProfileGuideReminder))
 	handle("POST /api/app/newbie-tasks/", s.AppAuthMiddleware(s.completeTask))
 	handle("GET /api/app/users/me", s.AppAuthMiddleware(s.currentUser))
 	handle("GET /api/app/users/me/summary", s.AppAuthMiddleware(s.currentUserSummary))
@@ -379,15 +419,15 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/app/profile/assets", s.AppAuthMiddleware(s.profileAssets))
 	handle("GET /api/app/profile/credit-center", s.AppAuthMiddleware(s.profileCreditCenter))
 	handle("PUT /api/app/users/me/profile", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.updateCurrentUserProfile)))
-	handle("POST /api/app/identity/phone/bind", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.bindPhone)))
+	handle("POST /api/app/identity/phone/bind", s.IdentityAuthMiddleware(s.IdempotencyMiddleware(s.bindPhone)))
 	handle("POST /api/app/sms/send-code", s.sendSMSCode)
 	handle("POST /api/app/sms/verify-code", s.verifySMSCode)
-	handle("POST /api/app/identity/phone/verify", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.verifyPhone)))
+	handle("POST /api/app/identity/phone/verify", s.IdentityAuthMiddleware(s.IdempotencyMiddleware(s.verifyPhone)))
 	handle("POST /api/app/identity/realname/restart", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.restartRealname)))
 	handle("POST /api/app/identity/faceid/detect-auth", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.startFaceID)))
-	handle("POST /api/app/identity/faceid/callback", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDCallback)))
-	handle("POST /api/app/identity/faceid/result", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDCallback)))
-	handle("GET /api/app/identity/status", s.AppAuthMiddleware(s.identityStatus))
+	handle("POST /api/app/identity/faceid/callback", s.IdempotencyMiddleware(s.faceIDCallback))
+	handle("POST /api/app/identity/faceid/result", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.faceIDResult)))
+	handle("GET /api/app/identity/status", s.IdentityAuthMiddleware(s.identityStatus))
 	handle("GET /api/app/im/ws", s.imSocket)
 	handle("POST /api/app/games", s.AppAuthMiddleware(s.IdempotencyMiddleware(s.createGame)))
 	handle("GET /api/app/game-drafts", s.AppAuthMiddleware(s.listGameDrafts))
@@ -539,6 +579,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("GET /api/admin/permissions/tree", s.adminPermissions)
 	handle("GET /api/admin/admin-users", s.requireAdminPermission("admin_user:view", s.adminAccountUsers))
 	handle("GET /api/admin/admin-applications", s.requireAdminPermission("admin_user:view", s.adminApplications))
+	handle("POST /api/admin/admin-applications/", s.requireAdminPermission("admin_user:create", s.routeAdminApplicationPost))
 	handle("POST /api/admin/admin-users", s.requireAdminPermission("admin_user:create", s.createAdminAccountUser))
 	handle("PUT /api/admin/admin-users/", s.requireAdminPermission("admin_user:update", s.routeAdminAccountUserPut))
 	handle("GET /api/admin/admin-roles", s.requireAdminPermission("admin_user:view", s.adminRoles))
@@ -584,6 +625,12 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("PUT /api/admin/reviews/complete-config", s.requireAdminPermission("system_config:update", s.adminReviewCompleteConfig))
 	handle("GET /api/admin/growth/reward-rules", s.requireAdminPermission("system_config:read", s.adminGrowthRewardRules))
 	handle("PUT /api/admin/growth/reward-rules", s.requireAdminPermission("system_config:update", s.adminGrowthRewardRules))
+	handle("GET /api/admin/growth/role-level-config", s.requireAdminPermission("system_config:read", s.adminRoleLevelConfig))
+	handle("PUT /api/admin/growth/role-level-config", s.requireAdminPermission("system_config:update", s.adminRoleLevelConfig))
+	handle("GET /api/admin/growth/role-metric-config", s.requireAdminPermission("system_config:read", s.adminRoleMetricConfig))
+	handle("PUT /api/admin/growth/role-metric-config", s.requireAdminPermission("system_config:update", s.adminRoleMetricConfig))
+	handle("GET /api/admin/credit/restriction-config", s.requireAdminPermission("system_config:read", s.adminCreditRestrictionConfig))
+	handle("PUT /api/admin/credit/restriction-config", s.requireAdminPermission("system_config:update", s.adminCreditRestrictionConfig))
 	handle("GET /api/admin/growth/achievement-config", s.requireAdminPermission("system_config:read", s.adminGrowthAchievementConfig))
 	handle("PUT /api/admin/growth/achievement-config", s.requireAdminPermission("system_config:update", s.adminGrowthAchievementConfig))
 	handle("GET /api/admin/operation-rules", s.requireAdminPermission("system_config:read", s.adminOperationRules))
@@ -638,7 +685,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/admin/sensitive-words/import", s.requireAdminPermission("content:sensitive_word:import", s.importAdminSensitiveWords))
 	handle("GET /api/admin/content-risk/logs", s.requireAdminPermission("content:risk_log:view", s.adminContentRiskLogs))
 	handle("GET /api/admin/system/readiness", s.requireAdminPermission("system_config:read", s.adminSystemReadiness))
-	handle("GET /api/admin/dashboard", s.requireAdminPermission("analytics:funnel:view", s.adminDashboard))
+	handle("GET /api/admin/dashboard", s.adminDashboardAuthorized)
 	handle("GET /api/admin/pending-counts", s.adminPendingCountsAuthorized)
 	handle("GET /api/admin/analytics/funnel", s.requireAdminPermission("analytics:funnel:view", s.adminFunnel))
 	handle("GET /api/admin/analytics/retention", s.requireAdminPermission("analytics:retention:view", s.adminRetention))
@@ -668,6 +715,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	handle("POST /api/admin/revenue/templates", s.requireAdminPermission("revenue:template:update", s.createRevenueTemplate))
 	handle("GET /api/admin/revenue/profit-template-config", s.requireAdminPermission("system_config:read", s.adminProfitTemplateConfig))
 	handle("PUT /api/admin/revenue/profit-template-config", s.requireAdminPermission("system_config:update", s.adminProfitTemplateConfig))
+	handle("GET /api/admin/revenue/points-reward-config", s.requireAdminPermission("system_config:read", s.adminRevenuePointsRewardConfig))
+	handle("PUT /api/admin/revenue/points-reward-config", s.requireAdminPermission("system_config:update", s.adminRevenuePointsRewardConfig))
 	handle("GET /api/admin/revenue/rules", s.requireAdminPermission("revenue:template:view", s.revenueRules))
 	handle("POST /api/admin/revenue/rules", s.requireAdminPermission("revenue:template:update", s.upsertRevenueRule))
 	handle("POST /api/admin/revenue/preview", s.requireAdminPermission("revenue:simulate", s.adminRevenuePreview))
@@ -881,19 +930,19 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := s.auth.AdminUsers(filter)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取用户列表失败")
 		return
 	}
 	if keyword := strings.TrimSpace(filter.Keyword); keyword != "" {
 		items, err = s.appendIdentityMatchedAdminUsers(filter, items, keyword)
 		if err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取用户列表失败")
 			return
 		}
 	}
 	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list invite relations failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取邀请关系失败")
 		return
 	}
 	relationByInvitee := make(map[int64]invites.Relation, len(relations))
@@ -979,7 +1028,7 @@ func (s *Server) adminUserOptions(w http.ResponseWriter, r *http.Request) {
 		Keyword: r.URL.Query().Get("keyword"),
 	})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "list users failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "获取用户列表失败")
 		return
 	}
 	const maxOptions = 200
@@ -1013,7 +1062,7 @@ func (s *Server) adminUserDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	user, found := s.auth.UserByID(userID)
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "user not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "用户不存在")
 		return
 	}
 	relation, _, _ := s.auth.InviteRelationForUser(userID)
@@ -1034,6 +1083,8 @@ func (s *Server) adminUserDetail(w http.ResponseWriter, r *http.Request) {
 		"favorites":      s.games.FavoritesForUser(userID),
 		"connections":    s.connections.My(userID),
 		"incomeSummary":  s.revenue.IncomeSummary(userID),
+		"pointsSummary":  s.points.Summary(userID),
+		"membership":     s.membership.My(userID),
 	})
 }
 
@@ -1046,24 +1097,24 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 		InviterUserID int64 `json:"inviterUserId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if req.InviterUserID <= 0 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "inviter user id required")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请填写邀请人用户编号")
 		return
 	}
 	if req.InviterUserID == userID {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "inviter cannot be self")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人不能是本人")
 		return
 	}
 	if _, found := s.auth.UserByID(userID); !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "user not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "用户不存在")
 		return
 	}
 	inviter, found := s.auth.UserByID(req.InviterUserID)
 	if !found {
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "inviter not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "邀请人不存在")
 		return
 	}
 	if !s.userCanOwnAdminInviteCodes(inviter.ID) {
@@ -1072,8 +1123,15 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 	}
 	relation, err := s.auth.SetInviteRelationInviter(userID, inviter.ID, "admin_manual")
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "update invite relation failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "更新邀请关系失败")
 		return
+	}
+	if s.userHasActiveRole(inviter.ID, "guide") {
+		s.reviews.RecordGrowthEvent(reviews.GrowthEvent{
+			UserID: inviter.ID, RoleCode: "guide", EventCode: "direct_invite_bound",
+			IdempotencyKey: "invite_relation:" + strconv.FormatInt(relation.InviteeUserID, 10) + ":" + strconv.FormatInt(inviter.ID, 10),
+			OccurredAt:     time.Now(),
+		})
 	}
 	s.recordOperation(r, "invite_relation:update", "user", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"userId":        userID,
@@ -1263,20 +1321,20 @@ func (s *Server) routeWechatTaskPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) invitePrecheck(w http.ResponseWriter, r *http.Request) {
 	var req auth.InvitePrecheckRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	result, err := s.auth.InvitePrecheck(req)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrInviteRequired):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code required")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "需要邀请码")
 		case errors.Is(err, auth.ErrInviteExpired):
 			httpx.Error(w, http.StatusGone, httpx.CodeInviteExpired, "邀请码已失效，请重新获取邀请码")
 		case errors.Is(err, auth.ErrInvalidInvite):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invalid invite code")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "邀请码无效，请重新获取")
 		default:
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "invite precheck failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "邀请码校验失败，请稍后重试")
 		}
 		return
 	}
@@ -1294,7 +1352,7 @@ func (s *Server) createInviteEntry(w http.ResponseWriter, r *http.Request) {
 		GameID    int64  `json:"gameId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	// 注册邀请码、二维码和海报只能由后台已授予身份且已分配邀请码的
@@ -1306,14 +1364,14 @@ func (s *Server) createInviteEntry(w http.ResponseWriter, r *http.Request) {
 	invite, err := s.auth.IssueAssignedInviteEntry(userID, req.EntryType)
 	if err != nil {
 		if errors.Is(err, invites.ErrInvalidEntryType) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid entry type")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请入口类型无效")
 			return
 		}
 		if errors.Is(err, auth.ErrInviteQuotaExceeded) {
 			httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "暂无可用邀请码，请在邀请码管理中申请增加数量")
 			return
 		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "create invite entry failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "生成邀请入口失败")
 		return
 	}
 	title := strings.TrimSpace(req.Title)
@@ -1425,7 +1483,7 @@ func (s *Server) inviteURLLink(inviteCode string, entryType string, path string)
 func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	var req auth.WechatLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 
@@ -1433,32 +1491,41 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrInviteRequired):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code required")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "需要邀请码")
 		case errors.Is(err, auth.ErrInviteExpired):
 			httpx.Error(w, http.StatusGone, httpx.CodeInviteExpired, "邀请码已失效，请重新获取邀请码")
 		case errors.Is(err, auth.ErrInvalidInvite):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invalid invite code")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "邀请码无效，请重新获取")
 		case errors.Is(err, auth.ErrInviteAlreadyBound):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code already bound")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "邀请码已绑定，请联系邀请人或管理员")
 		case errors.Is(err, auth.ErrWechatCodeInvalid):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "wechat login code invalid")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "微信登录凭证无效，请重试")
 		default:
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "login failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "登录失败，请稍后重试")
 		}
 		return
 	}
 
-	record := s.identity.Status(resp.User.ID)
+	record, err := s.identity.StatusStrict(resp.User.ID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
+		return
+	}
 	resp.IdentityBindStatus = string(record.Status)
 	// Players may use the basic invite, browse and join flows without strong
 	// identity. Only users operating an active expert/guide role are gated by
 	// real-name verification; role application endpoints still validate the
 	// requirement server-side.
-	resp.RequiresIdentityBinding = s.requiresRoleIdentity(resp.User.ID) && !s.identity.IsRealnameVerified(resp.User.ID)
+	requiresIdentity, err := s.requiresRoleIdentityStrict(resp.User.ID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取用户身份失败，请稍后重试")
+		return
+	}
+	resp.RequiresIdentityBinding = requiresIdentity && !s.identity.IsRealnameVerified(resp.User.ID)
 	if !resp.RequiresIdentityBinding {
 		session, err := s.auth.IssueAppToken(resp.User.ID)
 		if err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "login failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "登录失败，请稍后重试")
 			return
 		}
 		resp.Token = session.Token
@@ -1466,9 +1533,15 @@ func (s *Server) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	s.recordBehavior(resp.User.ID, "login", "user", resp.User.ID, map[string]interface{}{"needProfile": resp.NeedProfile})
 	if resp.InviteRelation != nil && resp.InviteRelation.InviterUserID > 0 {
-		s.connections.UpsertPair(resp.InviteRelation.InviterUserID, resp.User.ID, "invite", "invite", resp.InviteRelation.InviteCodeID, 1)
+		if connectionErr := s.connections.UpsertPairStrict(resp.InviteRelation.InviterUserID, resp.User.ID, "invite", "invite", resp.InviteRelation.InviteCodeID, 1); connectionErr != nil {
+			markConnectionPersistenceDegraded(w, "wechat_login_invite_relation", resp.InviteRelation.InviterUserID, resp.User.ID, connectionErr)
+		}
 	}
-	current := s.buildCurrentUserDTO(resp.User, record)
+	current, err := s.buildCurrentUserDTOStrict(resp.User, record)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取登录用户资料失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, appLoginResponse{
 		Token:                   resp.Token,
 		PreAuthToken:            resp.PreAuthToken,
@@ -1493,36 +1566,44 @@ func (s *Server) wechatEntryPrecheck(w http.ResponseWriter, r *http.Request) {
 		Code string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	result, err := s.auth.WechatEntryPrecheck(req.Code)
 	if err != nil {
 		if errors.Is(err, auth.ErrWechatCodeInvalid) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "wechat login code invalid")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "微信登录凭证无效，请重试")
 			return
 		}
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "wechat entry precheck failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "微信账号检测失败，请稍后重试")
 		return
 	}
 	httpx.OK(w, result)
 }
 
 func (s *Server) requiresRoleIdentity(userID int64) bool {
-	snapshot := s.profiles.RoleSnapshot(userID)
+	required, _ := s.requiresRoleIdentityStrict(userID)
+	return required
+}
+
+func (s *Server) requiresRoleIdentityStrict(userID int64) (bool, error) {
+	snapshot, err := s.profiles.RoleSnapshotStrict(userID)
+	if err != nil {
+		return false, err
+	}
 	for _, role := range []string{"expert", "guide", "main_guide"} {
 		status := snapshot.RoleStatusMap[role]
 		if status == "active" || status == "approved" {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (s *Server) phoneLogin(w http.ResponseWriter, r *http.Request) {
 	var req auth.PhoneLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 
@@ -1530,31 +1611,27 @@ func (s *Server) phoneLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrPhoneRequired), errors.Is(err, auth.ErrPhoneInvalid):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号格式不正确")
 		case errors.Is(err, auth.ErrPhoneCodeInvalid):
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid sms code")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "短信验证码错误或已失效")
 		case errors.Is(err, auth.ErrInviteRequired):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code required")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "需要邀请码")
 		case errors.Is(err, auth.ErrInviteExpired):
 			httpx.Error(w, http.StatusGone, httpx.CodeInviteExpired, "邀请码已失效，请重新获取邀请码")
 		case errors.Is(err, auth.ErrInvalidInvite):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invalid invite code")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "邀请码无效，请重新获取")
 		case errors.Is(err, auth.ErrInviteAlreadyBound):
-			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "invite code already bound")
+			httpx.Error(w, http.StatusForbidden, httpx.CodeInviteRequired, "邀请码已绑定，请联系邀请人或管理员")
 		default:
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "phone login failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "手机号登录失败，请稍后重试")
 		}
 		return
 	}
 
-	record, err := s.identity.BindPhone(resp.User.ID, req.Phone)
+	record, err := s.identity.SyncPhoneLoginVerification(resp.User.ID, req.Phone)
 	if err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
-		return
-	}
-	record, err = s.identity.MarkSMSVerified(resp.User.ID)
-	if err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid sms code")
+		_ = s.auth.RollbackPhoneLogin(resp)
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "登录状态同步失败，请稍后重试")
 		return
 	}
 	resp.IdentityBindStatus = string(record.Status)
@@ -1564,9 +1641,15 @@ func (s *Server) phoneLogin(w http.ResponseWriter, r *http.Request) {
 		"entryType":    resp.EntryType,
 	})
 	if resp.InviteRelation != nil && resp.InviteRelation.InviterUserID > 0 {
-		s.connections.UpsertPair(resp.InviteRelation.InviterUserID, resp.User.ID, "invite", "invite", resp.InviteRelation.InviteCodeID, 1)
+		if connectionErr := s.connections.UpsertPairStrict(resp.InviteRelation.InviterUserID, resp.User.ID, "invite", "invite", resp.InviteRelation.InviteCodeID, 1); connectionErr != nil {
+			markConnectionPersistenceDegraded(w, "phone_login_invite_relation", resp.InviteRelation.InviterUserID, resp.User.ID, connectionErr)
+		}
 	}
-	current := s.buildCurrentUserDTO(resp.User, record)
+	current, err := s.buildCurrentUserDTOStrict(resp.User, record)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取登录用户资料失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, appLoginResponse{
 		Token:                   resp.Token,
 		ExpiresAt:               resp.ExpiresAt,
@@ -1589,8 +1672,17 @@ func (s *Server) currentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, _ := s.auth.CurrentUser(bearerToken(r.Header.Get("Authorization")))
-	record := s.identity.Status(userID)
-	httpx.OK(w, s.buildCurrentUserDTO(user, record))
+	record, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
+		return
+	}
+	dto, err := s.buildCurrentUserDTOStrict(user, record)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取当前用户资料失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, dto)
 }
 
 func (s *Server) currentUserSummary(w http.ResponseWriter, r *http.Request) {
@@ -1599,23 +1691,51 @@ func (s *Server) currentUserSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, _ := s.auth.CurrentUser(bearerToken(r.Header.Get("Authorization")))
-	record := s.identity.Status(userID)
+	record, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
+		return
+	}
 	todos, err := s.reviews.Todos(userID)
 	if err != nil {
 		writeReviewError(w, err)
 		return
 	}
-	unreadCount := unreadNotificationCount(s.notices.List(userID))
-	footprints := s.reviews.Footprints(userID)
+	notificationItems, err := s.notices.ListStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取未读消息失败，请稍后重试")
+		return
+	}
+	unreadCount := unreadNotificationCount(notificationItems)
+	footprints, err := s.reviews.FootprintsStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取成长足迹失败，请稍后重试")
+		return
+	}
 	if len(footprints) > 5 {
 		footprints = footprints[:5]
 	}
+	current, err := s.buildCurrentUserDTOStrict(user, record)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取当前用户资料失败，请稍后重试")
+		return
+	}
+	income, err := s.phaseOneIncomeSummaryStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取收益概览失败，请稍后重试")
+		return
+	}
+	pointSummary, err := s.points.SummaryStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取积分概览失败，请稍后重试")
+		return
+	}
 	httpx.OK(w, CurrentUserSummaryDTO{
-		User:                    s.buildCurrentUserDTO(user, record),
+		User:                    current,
 		ReviewTodoCount:         len(todos),
 		UnreadNotificationCount: unreadCount,
-		IncomeSummary:           s.revenue.IncomeSummary(userID),
-		PointsSummary:           s.points.Summary(userID),
+		IncomeSummary:           income,
+		PointsSummary:           pointSummary,
 		RecentFootprints:        footprints,
 	})
 }
@@ -1631,13 +1751,37 @@ func unreadNotificationCount(items []notifications.Notification) int {
 }
 
 func (s *Server) buildCurrentUserDTO(user users.User, record identity.Record) CurrentUserDTO {
-	snapshot := s.profiles.RoleSnapshot(user.ID)
-	growth := s.reviews.Profile(user.ID)
-	pointsSummary := s.points.Summary(user.ID)
-	membership := s.membership.My(user.ID)
+	dto, _ := s.buildCurrentUserDTOStrict(user, record)
+	return dto
+}
+
+func (s *Server) buildCurrentUserDTOStrict(user users.User, record identity.Record) (CurrentUserDTO, error) {
+	snapshot, err := s.profiles.RoleSnapshotStrict(user.ID)
+	if err != nil {
+		return CurrentUserDTO{}, err
+	}
+	growth, err := s.reviews.ProfileStrict(user.ID)
+	if err != nil {
+		return CurrentUserDTO{}, err
+	}
+	pointsSummary, err := s.points.SummaryStrict(user.ID)
+	if err != nil {
+		return CurrentUserDTO{}, err
+	}
+	membership, err := s.membership.MyStrict(user.ID)
+	if err != nil {
+		return CurrentUserDTO{}, err
+	}
 	inviteCode := ""
-	if s.userCanGenerateInvitations(user.ID) {
-		inviteCode, _ = s.auth.InviteCodeForUser(user.ID)
+	if snapshot.RoleStatusMap["expert"] == "approved" || snapshot.RoleStatusMap["guide"] == "approved" {
+		inviteCode, err = s.auth.InviteCodeForUser(user.ID)
+		if err != nil {
+			return CurrentUserDTO{}, err
+		}
+	}
+	incomeSummary, err := s.phaseOneIncomeSummaryStrict(user.ID)
+	if err != nil {
+		return CurrentUserDTO{}, err
 	}
 	if record.Status != "" {
 		user.RealnameStatus = string(record.Status)
@@ -1658,10 +1802,10 @@ func (s *Server) buildCurrentUserDTO(user users.User, record identity.Record) Cu
 			Points:           pointsSummary.AvailablePoints,
 		},
 		InviteCode:      inviteCode,
-		IncomeSummary:   s.revenue.IncomeSummary(user.ID),
+		IncomeSummary:   incomeSummary,
 		Points:          pointsSummary,
 		ExpertBlueBadge: s.expertBlueBadgeForUser(user.ID),
-	}
+	}, nil
 }
 
 func (s *Server) updateCurrentUserProfile(w http.ResponseWriter, r *http.Request) {
@@ -1675,7 +1819,7 @@ func (s *Server) updateCurrentUserProfile(w http.ResponseWriter, r *http.Request
 		AvatarFileID int64  `json:"avatarFileId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	req.Nickname = strings.TrimSpace(req.Nickname)
@@ -1689,7 +1833,7 @@ func (s *Server) updateCurrentUserProfile(w http.ResponseWriter, r *http.Request
 	current, _ := s.auth.UserByID(userID)
 	user, err := s.auth.UpdateProfile(userID, req.Nickname, current.AvatarURL, current.AvatarFileID)
 	if err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid profile")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "个人资料内容无效")
 		return
 	}
 	s.recordBehavior(userID, "update_user_profile", "user", userID, map[string]interface{}{"needProfile": user.Nickname == ""})

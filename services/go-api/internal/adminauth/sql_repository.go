@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"time"
 )
 
 type SQLRepository struct {
@@ -90,6 +91,35 @@ func (r *SQLRepository) UpdateAccount(ctx context.Context, account StoredAdminAc
 		return StoredAdminAccount{}, err
 	}
 	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `
+select u.id
+from admin_users u
+join admin_user_roles ur on ur.admin_user_id = u.id
+join admin_roles ar on ar.id = ur.role_id
+where u.status = 'active' and ar.role_code = 'super_admin'
+for update of u
+`)
+	if err != nil {
+		return StoredAdminAccount{}, err
+	}
+	activeSuperIDs := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if scanErr := rows.Scan(&id); scanErr != nil {
+			rows.Close()
+			return StoredAdminAccount{}, scanErr
+		}
+		activeSuperIDs = append(activeSuperIDs, id)
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		rows.Close()
+		return StoredAdminAccount{}, rowsErr
+	}
+	rows.Close()
+	targetIsLastSuper := len(activeSuperIDs) == 1 && activeSuperIDs[0] == account.User.ID
+	if targetIsLastSuper && (account.User.Status != "active" || !containsRole(account.User.Roles, "super_admin")) {
+		return StoredAdminAccount{}, ErrLastSuperAdmin
+	}
 	result, err := tx.ExecContext(ctx, `
 update admin_users
 set status = $2, updated_at = now()
@@ -119,6 +149,185 @@ where id = $1
 		return StoredAdminAccount{}, ErrAdminNotFound
 	}
 	return saved, nil
+}
+
+func (r *SQLRepository) CreateApplication(ctx context.Context, application AdminApplication) (AdminApplication, error) {
+	var id int64
+	if err := r.db.QueryRowContext(ctx, `
+insert into admin_applications (name, contact, desired_role, reason, status, created_at, updated_at)
+values ($1,$2,$3,$4,'pending',now(),now())
+returning id
+`, application.Name, application.Contact, application.DesiredRole, application.Reason).Scan(&id); err != nil {
+		return AdminApplication{}, err
+	}
+	return r.findApplicationByID(ctx, r.db, id)
+}
+
+func (r *SQLRepository) ListApplications(ctx context.Context) ([]AdminApplication, error) {
+	rows, err := r.db.QueryContext(ctx, adminApplicationSelect()+` order by a.id desc`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]AdminApplication, 0)
+	for rows.Next() {
+		item, scanErr := scanAdminApplication(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r *SQLRepository) ReviewApplication(ctx context.Context, id int64, review AdminApplicationReview) (AdminApplication, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AdminApplication{}, err
+	}
+	defer tx.Rollback()
+
+	var currentStatus string
+	var desiredRole string
+	if err := tx.QueryRowContext(ctx, `
+select status, desired_role
+from admin_applications
+where id = $1
+for update
+`, id).Scan(&currentStatus, &desiredRole); errors.Is(err, sql.ErrNoRows) {
+		return AdminApplication{}, ErrApplicationNotFound
+	} else if err != nil {
+		return AdminApplication{}, err
+	}
+	if currentStatus != "pending" {
+		return AdminApplication{}, ErrApplicationProcessed
+	}
+
+	linkedAdminUserID := review.LinkedAdminUserID
+	if review.Status == "approved" {
+		if linkedAdminUserID > 0 {
+			if err := tx.QueryRowContext(ctx, `select id from admin_users where id = $1 and status = 'active' for update`, linkedAdminUserID).Scan(&linkedAdminUserID); errors.Is(err, sql.ErrNoRows) {
+				return AdminApplication{}, ErrAdminNotFound
+			} else if err != nil {
+				return AdminApplication{}, err
+			}
+		} else {
+			if review.NewAccount == nil {
+				return AdminApplication{}, ErrInvalidAdminInput
+			}
+			if err := tx.QueryRowContext(ctx, `
+insert into admin_users (username, password_hash, status, created_at, updated_at)
+values ($1,$2,'active',now(),now())
+on conflict (username) do nothing
+returning id
+`, review.NewAccount.User.Username, review.NewAccount.PasswordHash).Scan(&linkedAdminUserID); errors.Is(err, sql.ErrNoRows) {
+				return AdminApplication{}, ErrAdminExists
+			} else if err != nil {
+				return AdminApplication{}, err
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `
+insert into admin_user_roles (admin_user_id, role_id, created_at)
+select $1, id, now()
+from admin_roles
+where role_code = $2
+on conflict do nothing
+`, linkedAdminUserID, desiredRole); err != nil {
+			return AdminApplication{}, err
+		}
+		var roleLinked bool
+		if err := tx.QueryRowContext(ctx, `
+select exists (
+  select 1
+  from admin_user_roles ur
+  join admin_roles r on r.id = ur.role_id
+  where ur.admin_user_id = $1 and r.role_code = $2
+)
+`, linkedAdminUserID, desiredRole).Scan(&roleLinked); err != nil {
+			return AdminApplication{}, err
+		}
+		if !roleLinked {
+			return AdminApplication{}, ErrInvalidAdminInput
+		}
+	} else {
+		linkedAdminUserID = 0
+	}
+
+	result, err := tx.ExecContext(ctx, `
+update admin_applications
+set status = $2,
+    review_remark = $3,
+    reviewed_by = $4,
+    reviewed_at = now(),
+    linked_admin_user_id = $5,
+    updated_at = now()
+where id = $1 and status = 'pending'
+`, id, review.Status, review.Remark, review.ReviewerID, nullAdminID(linkedAdminUserID))
+	if err != nil {
+		return AdminApplication{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return AdminApplication{}, err
+	}
+	if affected != 1 {
+		return AdminApplication{}, ErrApplicationProcessed
+	}
+	if err := tx.Commit(); err != nil {
+		return AdminApplication{}, err
+	}
+	return r.findApplicationByID(ctx, r.db, id)
+}
+
+func (r *SQLRepository) findApplicationByID(ctx context.Context, queryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, id int64) (AdminApplication, error) {
+	item, err := scanAdminApplication(queryer.QueryRowContext(ctx, adminApplicationSelect()+` where a.id = $1`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return AdminApplication{}, ErrApplicationNotFound
+	}
+	return item, err
+}
+
+func adminApplicationSelect() string {
+	return `
+select a.id, a.name, a.contact, a.desired_role, a.reason, a.status,
+       coalesce(a.review_remark, ''), coalesce(a.reviewed_by, 0),
+       coalesce(reviewer.username, ''), a.reviewed_at,
+       coalesce(a.linked_admin_user_id, 0), coalesce(linked.username, ''),
+       a.created_at, a.updated_at
+from admin_applications a
+left join admin_users reviewer on reviewer.id = a.reviewed_by
+left join admin_users linked on linked.id = a.linked_admin_user_id`
+}
+
+func scanAdminApplication(row interface {
+	Scan(dest ...any) error
+}) (AdminApplication, error) {
+	var item AdminApplication
+	var reviewedAt sql.NullTime
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := row.Scan(
+		&item.ID, &item.Name, &item.Contact, &item.DesiredRole, &item.Reason, &item.Status,
+		&item.ReviewRemark, &item.ReviewedBy, &item.ReviewerUsername, &reviewedAt,
+		&item.LinkedAdminUserID, &item.LinkedAdminUsername, &createdAt, &updatedAt,
+	); err != nil {
+		return AdminApplication{}, err
+	}
+	item.CreatedAt = createdAt.Format(time.RFC3339)
+	item.UpdatedAt = updatedAt.Format(time.RFC3339)
+	if reviewedAt.Valid {
+		item.ReviewedAt = reviewedAt.Time.Format(time.RFC3339)
+	}
+	return item, nil
+}
+
+func nullAdminID(value int64) interface{} {
+	if value <= 0 {
+		return nil
+	}
+	return value
 }
 
 func (r *SQLRepository) RoleSummaries(ctx context.Context) ([]RoleSummary, error) {

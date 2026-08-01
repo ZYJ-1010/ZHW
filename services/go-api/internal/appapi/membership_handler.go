@@ -37,11 +37,23 @@ type membershipRadarActionRequest struct {
 
 func (s *Server) membershipPlans(w http.ResponseWriter, r *http.Request) {
 	var config membershipPageConfigDTO
-	if s.systemConfig != nil && s.systemConfig.Get(membershipPageConfigKey, &config) && len(config.Items) > 0 {
-		httpx.OK(w, map[string]interface{}{"items": config.Items})
+	if s.systemConfig != nil {
+		found, err := s.systemConfig.GetStrict(membershipPageConfigKey, &config)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取会员页面配置失败，请稍后重试")
+			return
+		}
+		if found && len(config.Items) > 0 {
+			httpx.OK(w, map[string]interface{}{"items": config.Items})
+			return
+		}
+	}
+	plans, err := s.membership.PlansStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取会员方案失败，请稍后重试")
 		return
 	}
-	httpx.OK(w, map[string]interface{}{"items": s.membership.Plans()})
+	httpx.OK(w, map[string]interface{}{"items": plans})
 }
 
 func (s *Server) membershipMy(w http.ResponseWriter, r *http.Request) {
@@ -49,14 +61,26 @@ func (s *Server) membershipMy(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.membership.My(userID))
+	membershipInfo, err := s.membership.MyStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取会员信息失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, membershipInfo)
 }
 
 func (s *Server) membershipRadarConfig(w http.ResponseWriter, r *http.Request) {
 	var config membershipRadarConfigDTO
-	if s.systemConfig != nil && s.systemConfig.Get(membershipRadarConfigKey, &config) {
-		httpx.OK(w, config)
-		return
+	if s.systemConfig != nil {
+		found, err := s.systemConfig.GetStrict(membershipRadarConfigKey, &config)
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取会员雷达配置失败，请稍后重试")
+			return
+		}
+		if found {
+			httpx.OK(w, config)
+			return
+		}
 	}
 
 	httpx.OK(w, membershipRadarConfigDTO{
@@ -90,11 +114,14 @@ func (s *Server) membershipRadarAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state := s.profiles.SystemManagementConfig(userID, "membership-radar", map[string]interface{}{
+	state, loaded := s.loadProfileConfig(w, userID, "membership-radar", map[string]interface{}{
 		"savedProfile": map[string]interface{}{},
 		"lastMatch":    map[string]interface{}{},
 		"followed":     []interface{}{},
 	})
+	if !loaded {
+		return
+	}
 	payload := map[string]interface{}{
 		"action":        req.Action,
 		"targetId":      req.TargetID,
@@ -118,16 +145,22 @@ func (s *Server) membershipRadarAction(w http.ResponseWriter, r *http.Request) {
 		}
 	case "follow":
 		if req.TargetUserID > 0 && req.TargetUserID != userID {
-			s.connections.UpsertPair(userID, req.TargetUserID, "radar_follow", "membership_radar", 0, 1)
+			if err := s.connections.UpsertPairStrict(userID, req.TargetUserID, "radar_follow", "membership_radar", 0, 1); err != nil {
+				markConnectionPersistenceDegraded(w, "membership_radar_follow", userID, req.TargetUserID, err)
+			}
 		}
 		state["followed"] = appendRadarFollow(state["followed"], req.TargetID, req.TargetUserID)
 	case "profile":
 		if req.TargetUserID > 0 && req.TargetUserID != userID {
-			s.connections.UpsertPair(userID, req.TargetUserID, "radar_view", "membership_radar", 0, 0)
+			if err := s.connections.UpsertPairStrict(userID, req.TargetUserID, "radar_view", "membership_radar", 0, 0); err != nil {
+				markConnectionPersistenceDegraded(w, "membership_radar_profile", userID, req.TargetUserID, err)
+			}
 		}
 		route = radarProfileRoute(req)
 	}
-	s.profiles.SaveSystemManagementConfig(userID, "membership-radar", state)
+	if _, saved := s.saveProfileConfig(w, userID, "membership-radar", state); !saved {
+		return
+	}
 	s.recordBehavior(userID, "membership_radar_"+req.Action, "membership_radar", req.TargetUserID, payload)
 	httpx.OK(w, map[string]interface{}{
 		"action":  req.Action,

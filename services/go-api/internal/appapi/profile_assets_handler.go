@@ -8,7 +8,6 @@ import (
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/points"
 	"zhw-mini/services/go-api/internal/redemption"
-	"zhw-mini/services/go-api/internal/revenue"
 )
 
 const profileAssetManageConfigKey = "profile.asset_manage_config"
@@ -82,114 +81,100 @@ func (s *Server) profileAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders := s.redemption.OrdersForUser(userID)
-	httpx.OK(w, s.buildProfileAssetsPayload(userID, orders, len(todos)))
+	orders, err := s.redemption.OrdersForUserStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取兑换订单失败，请稍后重试")
+		return
+	}
+	pointSummary, pointLogs, loaded := s.loadPointsData(w, userID, true)
+	if !loaded {
+		return
+	}
+	httpx.OK(w, s.buildProfileAssetsPayload(userID, orders, len(todos), pointSummary, pointLogs))
 }
 
-func (s *Server) buildProfileAssetsPayload(userID int64, orders []redemption.Order, reviewTodoCount int) map[string]interface{} {
-	income := s.phaseOneIncomeSummary(userID)
-	pointSummary := s.points.Summary(userID)
-	totalAssetCent := income.SettledCent + income.PendingCent
+func (s *Server) buildProfileAssetsPayload(userID int64, orders []redemption.Order, reviewTodoCount int, pointSummary points.Account, pointLogs []points.Log) map[string]interface{} {
 	config := s.currentProfileAssetManageConfig()
-	if !s.currentOperationRules().Revenue.Enabled {
-		config.OverviewLabel = "资产（分润一期未启用）"
-		for index, item := range config.AssetStats {
-			switch item.Key {
-			case "totalDealAmount", "withdrawable", "pendingSettlement":
-				config.AssetStats[index].Label = item.Label + "（未启用）"
-			}
-		}
-		for index, item := range config.QuickActions {
-			if item.Key == "withdraw" || item.Key == "recharge" {
-				config.QuickActions[index].Enabled = false
-				config.QuickActions[index].DisabledReason = "一期未启用真实支付和分润"
-			}
-		}
-	}
-	incomeLogs := []revenue.IncomeLog{}
-	if s.currentOperationRules().Revenue.Enabled {
-		incomeLogs = s.revenue.IncomeLogs(userID, "")
-	}
 
 	return map[string]interface{}{
 		"overview": map[string]interface{}{
 			"label":       config.OverviewLabel,
-			"value":       moneyYuanText(totalAssetCent),
-			"amountCent":  totalAssetCent,
+			"value":       strconv.Itoa(pointSummary.AvailablePoints) + " 积分",
 			"points":      pointSummary.AvailablePoints,
 			"updatedText": config.OverviewUpdatedText,
 		},
-		"assetStats":     profileAssetStats(config.AssetStats, income),
-		"quickActions":   profileAssetQuickActions(config.QuickActions, income),
+		"assetStats":     profileAssetStats(config.AssetStats, pointSummary, len(orders), reviewTodoCount),
+		"quickActions":   profileAssetQuickActions(config.QuickActions),
 		"menuItems":      profileAssetMenuItems(config.MenuItems, config.BankCards, 0),
 		"orderStatuses":  profileAssetOrderStatuses(config.OrderStatuses, orders, reviewTodoCount),
 		"recentOrders":   profileAssetRecentOrders(orders, 3),
-		"balanceRecords": profileAssetBalanceRecords(incomeLogs, s.points.Logs(userID), 5),
+		"balanceRecords": profileAssetBalanceRecords(pointLogs, 5),
 		"bankCards": map[string]interface{}{
 			"count":        0,
-			"summaryText":  config.BankCards.UnboundText,
+			"summaryText":  "一期不提供银行卡功能",
 			"items":        []map[string]interface{}{},
-			"canBind":      config.BankCards.CanBind,
+			"canBind":      false,
 			"needIdentity": false,
 		},
 		"faqLinks":      profileAssetFAQLinks(config.FAQLinks),
 		"pointsSummary": pointSummary,
-		"incomeSummary": income,
 		"configVersion": config.Version,
 	}
 }
 
 func (s *Server) currentProfileAssetManageConfig() profileAssetManageConfigDTO {
-	var stored profileAssetManageConfigDTO
-	if s.systemConfig != nil && s.systemConfig.Get(profileAssetManageConfigKey, &stored) && len(stored.AssetStats) > 0 && len(stored.OrderStatuses) > 0 {
-		return stored
-	}
+	// 资金、银行卡与提现均不在一期范围。历史配置只保留在服务端兼容，
+	// 小程序统一使用积分资产视图，避免旧配置重新展示资金入口。
 	return defaultProfileAssetManageConfig()
 }
 
 func defaultProfileAssetManageConfig() profileAssetManageConfigDTO {
 	return profileAssetManageConfigDTO{
-		OverviewLabel:       "总资产（元）",
-		OverviewUpdatedText: "实时同步分润与积分账户",
+		OverviewLabel:       "积分资产",
+		OverviewUpdatedText: "实时同步积分、订单与评价记录",
 		AssetStats: []profileAssetStatConfigDTO{
-			{Key: "totalDealAmount", Label: "总成交额"},
-			{Key: "withdrawable", Label: "可提现", Tone: "green"},
-			{Key: "pendingSettlement", Label: "待结算", Tone: "yellow"},
+			{Key: "availablePoints", Label: "可用积分", Tone: "green"},
+			{Key: "orderCount", Label: "兑换订单", Tone: "yellow"},
+			{Key: "reviewTodo", Label: "待评价", Tone: "orange"},
 		},
-		QuickActions: []profileAssetActionConfigDTO{
-			{Key: "withdraw", Label: "提现", Tone: "green", IconSrc: "/pages/profile/asset-center/manage/assets/fa/download.svg"},
-			{Key: "recharge", Label: "充值", Tone: "blue", IconSrc: "/pages/profile/asset-center/manage/assets/fa/plus.svg", Enabled: false, DisabledReason: "一期未接真实支付充值"},
-		},
+		QuickActions: []profileAssetActionConfigDTO{},
 		MenuItems: []profileAssetMenuConfigDTO{
-			{Key: "balance", Title: "余额明细", Desc: "收入支出记录", IconSrc: "/pages/profile/asset-center/manage/assets/fa/list-ul.svg", Tone: "blue"},
-			{Key: "bankCards", Title: "银行卡", Desc: "管理收款账户", IconSrc: "/pages/profile/asset-center/manage/assets/fa/credit-card.svg", Tone: "green"},
+			{Key: "points", Title: "积分明细", Desc: "查看积分获取和使用记录", IconSrc: "/pages/profile/asset-center/manage/assets/fa/list-ul.svg", Tone: "blue", Route: "/pages/profile/asset-center/points/index"},
+			{Key: "mall", Title: "积分商城", Desc: "使用积分兑换权益", IconSrc: "/pages/profile/asset-center/manage/assets/fa/bag-shopping.svg", Tone: "green", Route: "/pages/profile/asset-center/mall/index"},
 			{Key: "orders", Title: "我的订单", Desc: "查看全部订单", IconSrc: "/pages/profile/asset-center/manage/assets/fa/bag-shopping.svg", Tone: "purple", Route: "/pages/profile/asset-center/orders/index"},
 		},
 		OrderStatuses: []profileAssetStatusConfigDTO{
-			{Key: "pendingPay", Label: "待付款", IconSrc: "/pages/profile/asset-center/manage/assets/fa/hourglass-half.svg", Tone: "blue", Route: "/pages/profile/asset-center/orders/index?status=pending_pay"},
+			{Key: "pending", Label: "待处理", IconSrc: "/pages/profile/asset-center/manage/assets/fa/hourglass-half.svg", Tone: "blue", Route: "/pages/profile/asset-center/orders/index?status=pending"},
 			{Key: "processing", Label: "进行中", IconSrc: "/pages/profile/asset-center/manage/assets/fa/spinner.svg", Tone: "orange", Route: "/pages/profile/asset-center/orders/index?status=pending"},
 			{Key: "completed", Label: "已完成", IconSrc: "/pages/profile/asset-center/manage/assets/fa/check.svg", Tone: "green", Route: "/pages/profile/asset-center/orders/index?status=fulfilled"},
-			{Key: "refund", Label: "退款/售后", IconSrc: "/pages/profile/asset-center/manage/assets/fa/rotate-left.svg", Tone: "red", Route: "/pages/profile/asset-center/orders/index?status=canceled"},
+			{Key: "refund", Label: "已取消", IconSrc: "/pages/profile/asset-center/manage/assets/fa/rotate-left.svg", Tone: "red", Route: "/pages/profile/asset-center/orders/index?status=canceled"},
 			{Key: "review", Label: "待评价", IconSrc: "/pages/profile/asset-center/manage/assets/fa/star.svg", Tone: "gray", Route: "/pages/profile/service-center/manage/review-manage/index"},
 		},
-		BankCards: profileAssetBankCardConfigDTO{UnboundText: "未绑定", BoundSuffix: "张", CanBind: true},
+		BankCards: profileAssetBankCardConfigDTO{UnboundText: "一期不提供银行卡功能", BoundSuffix: "张", CanBind: false},
 		FAQLinks: []profileAssetFAQConfigDTO{
-			{Key: "withdrawArrival", Label: "提现多久到账？", Answer: "提现需在后台财务审核后处理，具体到账时间以后续支付通道规则为准。"},
-			{Key: "bindBankCard", Label: "如何绑定银行卡？", Answer: "银行卡绑定入口已预留，正式资金通道接入后开放。"},
+			{Key: "pointsUse", Label: "积分有什么用？", Answer: "积分可用于积分商城兑换；具体商品以商城展示为准。"},
+			{Key: "pointsRecord", Label: "如何查看积分记录？", Answer: "可在积分明细中查看积分获取和使用记录。"},
 		},
 		Version: "2026-07-01",
 	}
 }
 
-func profileAssetStats(config []profileAssetStatConfigDTO, income revenue.IncomeSummary) []map[string]interface{} {
+func profileAssetStats(config []profileAssetStatConfigDTO, pointSummary points.Account, orderCount int, reviewTodoCount int) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, len(config))
 	for _, item := range config {
-		amountCent := profileAssetAmountByKey(item.Key, income)
+		value := 0
+		switch strings.TrimSpace(item.Key) {
+		case "availablePoints":
+			value = int(pointSummary.AvailablePoints)
+		case "orderCount":
+			value = orderCount
+		case "reviewTodo":
+			value = reviewTodoCount
+		}
 		stat := map[string]interface{}{
-			"key":        item.Key,
-			"label":      item.Label,
-			"value":      moneyYuanText(amountCent),
-			"amountCent": amountCent,
+			"key":   item.Key,
+			"label": item.Label,
+			"value": strconv.Itoa(value),
 		}
 		if strings.TrimSpace(item.Tone) != "" {
 			stat["tone"] = item.Tone
@@ -199,32 +184,15 @@ func profileAssetStats(config []profileAssetStatConfigDTO, income revenue.Income
 	return result
 }
 
-func profileAssetAmountByKey(key string, income revenue.IncomeSummary) int64 {
-	switch strings.TrimSpace(key) {
-	case "totalDealAmount":
-		return income.TotalCent
-	case "withdrawable":
-		return income.SettledCent
-	case "pendingSettlement":
-		return income.PendingCent
-	default:
-		return 0
-	}
-}
-
-func profileAssetQuickActions(config []profileAssetActionConfigDTO, income revenue.IncomeSummary) []map[string]interface{} {
+func profileAssetQuickActions(config []profileAssetActionConfigDTO) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, len(config))
 	for _, item := range config {
-		enabled := item.Enabled
-		if item.Key == "withdraw" {
-			enabled = income.SettledCent > 0
-		}
 		result = append(result, map[string]interface{}{
 			"key":            item.Key,
 			"label":          item.Label,
 			"tone":           item.Tone,
 			"iconSrc":        item.IconSrc,
-			"enabled":        enabled,
+			"enabled":        item.Enabled,
 			"disabledReason": item.DisabledReason,
 		})
 	}
@@ -259,7 +227,9 @@ func profileAssetOrderStatuses(config []profileAssetStatusConfigDTO, orders []re
 	counts := map[string]int{}
 	for _, order := range orders {
 		switch order.Status {
-		case "pending", "approved":
+		case "pending":
+			counts["pending"]++
+		case "approved":
 			counts["processing"]++
 		case "fulfilled":
 			counts["completed"]++
@@ -317,22 +287,8 @@ func profileAssetRecentOrders(orders []redemption.Order, limit int) []map[string
 	return result
 }
 
-func profileAssetBalanceRecords(incomeLogs []revenue.IncomeLog, pointLogs []points.Log, limit int) []map[string]interface{} {
+func profileAssetBalanceRecords(pointLogs []points.Log, limit int) []map[string]interface{} {
 	result := make([]map[string]interface{}, 0, limit)
-	for _, item := range incomeLogs {
-		if len(result) >= limit {
-			return result
-		}
-		result = append(result, map[string]interface{}{
-			"id":        "income-" + strconv.FormatInt(item.RecordID, 10),
-			"title":     "分润收益",
-			"desc":      item.RecordNo,
-			"amount":    moneyYuanText(item.AmountCent),
-			"type":      "income",
-			"status":    incomeStatusText(item.Status),
-			"createdAt": item.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
-	}
 	for _, item := range pointLogs {
 		if len(result) >= limit {
 			return result

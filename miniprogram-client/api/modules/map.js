@@ -18,6 +18,10 @@ function getIndexConfig(params) {
   return request.get('/api/app/map/index-config', params || {})
 }
 
+function reverseGeocode(params) {
+  return request.get('/api/app/map/reverse-geocode', params || {})
+}
+
 function getPlayPage(params) {
   return phaseTwoDisabled()
 }
@@ -45,5 +49,6 @@ module.exports = {
   getIndexConfig,
   getMyCity,
   getPlayPage,
+  reverseGeocode,
   submitCheckin
 }

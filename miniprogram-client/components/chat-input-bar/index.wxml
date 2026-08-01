@@ -21,6 +21,11 @@
   </button>
 </view>
 
+<view wx:if="{{activePanel === 'attach'}}" class="chat-panel attach-panel">
+  <button class="attach-item" hover-class="none" bindtap="handleChooseImage">图片</button>
+  <button class="attach-item" hover-class="none" bindtap="handleChooseFile">文件</button>
+</view>
+
 <view wx:if="{{activePanel === 'emoji'}}" class="chat-panel emoji-panel">
   <button
     wx:for="{{emojis}}"
@@ -32,9 +37,4 @@
   >
     {{item}}
   </button>
-</view>
-
-<view wx:if="{{activePanel === 'attach'}}" class="chat-panel attach-panel">
-  <button class="attach-item" hover-class="none" bindtap="handleChooseImage">图片</button>
-  <button class="attach-item" hover-class="none" bindtap="handleChooseFile">文件</button>
 </view>

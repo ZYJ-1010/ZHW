@@ -1,0 +1,294 @@
+﻿surface,module,identifier,title,status,source_file,notes
+微信小程序,main,pages/entry/index,真好玩,已注册,miniprogram-client/pages/entry/index.json,app.json 页面路由
+微信小程序,main,pages/home/guest/index,首页,已注册,miniprogram-client/pages/home/guest/index.json,app.json 页面路由
+微信小程序,main,pages/login/index,邀请注册,已注册,miniprogram-client/pages/login/index.json,app.json 页面路由
+微信小程序,main,pages/login/invite/index,,已注册,miniprogram-client/pages/login/invite/index.json,app.json 页面路由
+微信小程序,main,pages/login/forgot/index,,已注册,miniprogram-client/pages/login/forgot/index.json,app.json 页面路由
+微信小程序,main,pages/login/realname/index,,已注册,miniprogram-client/pages/login/realname/index.json,app.json 页面路由
+微信小程序,main,pages/home/master/index,首页母版走查,已注册,miniprogram-client/pages/home/master/index.json,app.json 页面路由
+微信小程序,main,pages/home/player/index,玩家首页,已注册,miniprogram-client/pages/home/player/index.json,app.json 页面路由
+微信小程序,main,pages/home/ranking/index,玩霸榜,已注册,miniprogram-client/pages/home/ranking/index.json,app.json 页面路由
+微信小程序,main,pages/home/expert/index,行家首页,已注册,miniprogram-client/pages/home/expert/index.json,app.json 页面路由
+微信小程序,main,pages/home/guide/index,领路人首页,已注册,miniprogram-client/pages/home/guide/index.json,app.json 页面路由
+微信小程序,main,pages/role/apply/index,角色申请,已注册,miniprogram-client/pages/role/apply/index.json,app.json 页面路由
+微信小程序,main,pages/role/flow/index,角色流程,已注册,miniprogram-client/pages/role/flow/index.json,app.json 页面路由
+微信小程序,main,pages/role/status/index,,已注册,miniprogram-client/pages/role/status/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/hall/index,组局大厅,已注册,miniprogram-client/pages/game/hall/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/hall-greet/index,组局大厅-打招呼,已注册,miniprogram-client/pages/game/hall-greet/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/create/index,,已注册,miniprogram-client/pages/game/create/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/create-drafts/index,,已注册,miniprogram-client/pages/game/create-drafts/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/create-preview/index,,已注册,miniprogram-client/pages/game/create-preview/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/detail/index,活动详情,已注册,miniprogram-client/pages/game/detail/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/participants/index,全部参与者,已注册,miniprogram-client/pages/game/participants/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/manage/index,,已注册,miniprogram-client/pages/game/manage/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/player-manage/index,,已注册,miniprogram-client/pages/game/player-manage/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/player-cancel/index,,已注册,miniprogram-client/pages/game/player-cancel/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/apply/index,申请加入,已注册,miniprogram-client/pages/game/apply/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/system-recommend/index,,已注册,miniprogram-client/pages/game/system-recommend/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/audit/index,审核,已注册,miniprogram-client/pages/game/audit/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/audit-detail/index,审核,已注册,miniprogram-client/pages/game/audit-detail/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/player-confirm/index,确认组局,已注册,miniprogram-client/pages/game/player-confirm/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/greet/index,打招呼,已注册,miniprogram-client/pages/game/greet/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/guide-chat/index,小程序通知,已注册,miniprogram-client/pages/game/guide-chat/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/guide-progress/index,组局消息,已注册,miniprogram-client/pages/game/guide-progress/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/guide-progress-detail/index,组局进度详情,已注册,miniprogram-client/pages/game/guide-progress-detail/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/guide-cancel/index,组局取消,已注册,miniprogram-client/pages/game/guide-cancel/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/expert-cancel/index,取消服务确认,已注册,miniprogram-client/pages/game/expert-cancel/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/share/index,,已注册,miniprogram-client/pages/game/share/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/invite/index,发起邀请,已注册,miniprogram-client/pages/game/invite/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/confirm/index,组局确认,已注册,miniprogram-client/pages/game/confirm/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/collaboration/index,局内协作,已注册,miniprogram-client/pages/game/collaboration/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/success-expert/index,组局成功,已注册,miniprogram-client/pages/game/success-expert/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/success-guide/index,组局成功,已注册,miniprogram-client/pages/game/success-guide/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/referral-record/index,,已注册,miniprogram-client/pages/game/referral-record/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/applications/index,入局申请,已注册,miniprogram-client/pages/game/applications/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/delivery/index,确认本局完成,已注册,miniprogram-client/pages/game/delivery/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/review/index,,已注册,miniprogram-client/pages/game/review/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/review-complete/index,评价完成,已注册,miniprogram-client/pages/game/review-complete/index.json,app.json 页面路由
+微信小程序,pages/game,pages/game/play-again/index,,已注册,miniprogram-client/pages/game/play-again/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/index,,已注册,miniprogram-client/pages/profile/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/manage/review-manage/index,,已注册,miniprogram-client/pages/profile/service-center/manage/review-manage/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/manage/review-reply/index,,已注册,miniprogram-client/pages/profile/service-center/manage/review-reply/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/match-info/index,,已注册,miniprogram-client/pages/profile/match-info/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/my-games/index,,已注册,miniprogram-client/pages/profile/service-center/my-games/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/profile-info/index,,已注册,miniprogram-client/pages/profile/system-management/profile-info/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/settings/index,,已注册,miniprogram-client/pages/profile/settings/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite-records/index,,已注册,miniprogram-client/pages/profile/service-center/invite-records/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/overview/index,,已注册,miniprogram-client/pages/profile/service-center/invite/overview/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/code-management/index,,已注册,miniprogram-client/pages/profile/service-center/invite/code-management/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/qrcode-share/index,分享邀请二维码,已注册,miniprogram-client/pages/profile/service-center/invite/qrcode-share/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/network/index,,已注册,miniprogram-client/pages/profile/service-center/invite/network/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/records/index,,已注册,miniprogram-client/pages/profile/service-center/invite/records/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/ranking/index,,已注册,miniprogram-client/pages/profile/service-center/invite/ranking/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/income/index,,已注册,miniprogram-client/pages/profile/service-center/invite/income/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/service-center/invite/member-detail/index,,已注册,miniprogram-client/pages/profile/service-center/invite/member-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/index,,已注册,miniprogram-client/pages/profile/member/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/advanced/index,,已注册,miniprogram-client/pages/profile/member/advanced/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/premium/index,,已注册,miniprogram-client/pages/profile/member/premium/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/radar/index,,已注册,miniprogram-client/pages/profile/member/radar/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/match/index,,已注册,miniprogram-client/pages/profile/member/match/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/match-info/index,,已注册,miniprogram-client/pages/profile/member/match-info/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/match-query/index,,已注册,miniprogram-client/pages/profile/member/match-query/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/member/match-result/index,,已注册,miniprogram-client/pages/profile/member/match-result/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/asset-center/manage/index,,已注册,miniprogram-client/pages/profile/asset-center/manage/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/asset-center/mall/index,,已注册,miniprogram-client/pages/profile/asset-center/mall/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/asset-center/orders/index,,已注册,miniprogram-client/pages/profile/asset-center/orders/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/asset-center/points/index,,已注册,miniprogram-client/pages/profile/asset-center/points/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/task-center/index,任务中心,已注册,miniprogram-client/pages/profile/task-center/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/agreement-detail/index,,已注册,miniprogram-client/pages/profile/system-management/agreement-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/agreement-sign/index,,已注册,miniprogram-client/pages/profile/system-management/agreement-sign/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/appeal-detail/index,,已注册,miniprogram-client/pages/profile/system-management/appeal-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/block-settings/index,,已注册,miniprogram-client/pages/profile/system-management/block-settings/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/credit-appeal/index,,已注册,miniprogram-client/pages/profile/system-management/credit-appeal/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/feedback/index,,已注册,miniprogram-client/pages/profile/system-management/feedback/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/feedback-detail/index,,已注册,miniprogram-client/pages/profile/system-management/feedback-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/feedback-records/index,,已注册,miniprogram-client/pages/profile/system-management/feedback-records/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/feedback-success/index,,已注册,miniprogram-client/pages/profile/system-management/feedback-success/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/keywords/index,,已注册,miniprogram-client/pages/profile/system-management/keywords/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/protection-mode/index,,已注册,miniprogram-client/pages/profile/system-management/protection-mode/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/renewal/index,,已注册,miniprogram-client/pages/profile/system-management/renewal/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/report-appeals/index,,已注册,miniprogram-client/pages/profile/system-management/report-appeals/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/report-center/index,,已注册,miniprogram-client/pages/profile/system-management/report-center/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/report-detail/index,,已注册,miniprogram-client/pages/profile/system-management/report-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/report-record-detail/index,,已注册,miniprogram-client/pages/profile/system-management/report-record-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/report-records/index,,已注册,miniprogram-client/pages/profile/system-management/report-records/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/scene-config/index,,已注册,miniprogram-client/pages/profile/system-management/scene-config/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/service-case-detail/index,,已注册,miniprogram-client/pages/profile/system-management/service-case-detail/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/skill-config/index,,已注册,miniprogram-client/pages/profile/system-management/skill-config/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/users/index,,已注册,miniprogram-client/pages/profile/system-management/users/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/system-management/whitelist/index,,已注册,miniprogram-client/pages/profile/system-management/whitelist/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/achievements/index,成就,已注册,miniprogram-client/pages/profile/achievements/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/footprint/achievements/index,我的成就墙,已注册,miniprogram-client/pages/profile/footprint/achievements/index.json,app.json 页面路由
+微信小程序,pages/profile,pages/profile/credit-center/index,,已注册,miniprogram-client/pages/profile/credit-center/index.json,app.json 页面路由
+微信小程序,pages/message,pages/message/index,,已注册,miniprogram-client/pages/message/index.json,app.json 页面路由
+微信小程序,pages/message,pages/message/my/index,我的消息,已注册,miniprogram-client/pages/message/my/index.json,app.json 页面路由
+微信小程序,pages/message,pages/message/trade-warning/index,,已注册,miniprogram-client/pages/message/trade-warning/index.json,app.json 页面路由
+微信小程序,pages/message,pages/message/system-detail/index,,已注册,miniprogram-client/pages/message/system-detail/index.json,app.json 页面路由
+微信小程序,pages/im,pages/im/room/index,局 IM 群聊,已注册,miniprogram-client/pages/im/room/index.json,app.json 页面路由
+微信小程序,pages/map,pages/map/index,地图,已注册,miniprogram-client/pages/map/index.json,app.json 页面路由
+微信小程序,pages/relation,pages/relation/network/index,关系网首页,已注册,miniprogram-client/pages/relation/network/index.json,app.json 页面路由
+微信小程序,pages/metaverse,pages/metaverse/home/index,,已注册,miniprogram-client/pages/metaverse/home/index.json,app.json 页面路由
+微信小程序,pages/metaverse,pages/metaverse/list/index,,已注册,miniprogram-client/pages/metaverse/list/index.json,app.json 页面路由
+微信小程序,pages/metaverse,pages/metaverse/manage/index,,已注册,miniprogram-client/pages/metaverse/manage/index.json,app.json 页面路由
+微信小程序,pages/placeholder,pages/placeholder/metaverse/index,预留,已注册,miniprogram-client/pages/placeholder/metaverse/index.json,app.json 页面路由
+微信小程序,game,pages/game/management-hub/index,,存在页面文件但未注册,miniprogram-client/pages/game/management-hub/index.wxml,不能从 app.json 正常进入
+微信小程序,game,pages/game/payment/index,,存在页面文件但未注册,miniprogram-client/pages/game/payment/index.wxml,不能从 app.json 正常进入
+微信小程序,map,pages/map/blind-route/index,,存在页面文件但未注册,miniprogram-client/pages/map/blind-route/index.wxml,不能从 app.json 正常进入
+微信小程序,map,pages/map/city-atlas/index,,存在页面文件但未注册,miniprogram-client/pages/map/city-atlas/index.wxml,不能从 app.json 正常进入
+微信小程序,map,pages/map/footprint-heatmap/index,,存在页面文件但未注册,miniprogram-client/pages/map/footprint-heatmap/index.wxml,不能从 app.json 正常进入
+微信小程序,map,pages/map/friend-city/index,,存在页面文件但未注册,miniprogram-client/pages/map/friend-city/index.wxml,不能从 app.json 正常进入
+微信小程序,map,pages/map/my-city/index,,存在页面文件但未注册,miniprogram-client/pages/map/my-city/index.wxml,不能从 app.json 正常进入
+微信小程序,map,pages/map/real-checkin/index,,存在页面文件但未注册,miniprogram-client/pages/map/real-checkin/index.wxml,不能从 app.json 正常进入
+PC 管理后台,auth,login,后台登录,已实现,admin-web/src/index.html,登录视图
+PC 管理后台,primary-view,dashboard,总览,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,users,用户管理,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,invites,邀请管理,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,games,组局管理,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,audits,角色审核,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,revenue,分润预留,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,redemption,积分兑换,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,members,会员预留,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,profiles,画像关系,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,growth,评价成长,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,reports,举报申诉,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,exports,导出中心,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,analytics,数据分析,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,delivery,通知交付,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,im,局内消息证据,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,admins,后台账号,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,system,运营规则,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,primary-view,logs,操作日志,已实现,admin-web/src/index.html,一级导航视图
+PC 管理后台,audits,audit-identities-panel,认证记录 0,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,audits,audit-enterprise-panel,企业认证,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,audits,audit-avatars-panel,头像审核,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,audits,audit-roles-panel,行家/领路人申请,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,audits,audit-role-whitelist-panel,身份白名单,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,revenue,revenue-plan-panel,方案规则,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,revenue,revenue-calc-panel,分润试算,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,revenue,revenue-records-panel,分润记录,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,revenue,revenue-settlements-panel,线下结算,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,redemption,redemption-items-panel,兑换商品,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,redemption,redemption-orders-panel,兑换订单,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,redemption,redemption-points-panel,积分流水,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,members,members-teams-panel,团队列表,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,members,members-reports-panel,会员报表,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,profiles,profiles-connections-panel,人脉关系,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,profiles,profiles-query-panel,画像查询,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,growth,growth-user-panel,用户成长,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,growth,growth-review-panel,局评价,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,exports,exports-task-panel,导出任务,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,exports,exports-create-panel,创建导出,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,analytics,analytics-behavior-panel,行为事件,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,analytics,analytics-funnel-panel,漏斗留存,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,analytics,analytics-ai-panel,智能数据,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,delivery,delivery-wechat-panel,微信通知,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,delivery,delivery-documents-panel,上线材料,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,delivery,delivery-tests-panel,验收用例,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,admins,admins-list-panel,账号角色,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,admins,admins-application-panel,账号申请,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,admins,admins-create-panel,创建账号,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-game-category-panel,局类型,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-game-create-template-panel,局模板,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-home-display-panel,首页展示,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-share-component-panel,分享组件,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-application-panel,入局规则,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-audit-panel,审核规则,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-condition-panel,条件局,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-role-benefit-panel,角色权益,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-expert-skill-panel,行家技能,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-review-complete-panel,评价完成,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-growth-rules-panel,成长积分,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-role-growth-panel,等级与信用,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-achievement-panel,成就配置,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-operation-rules-panel,运营约束,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-credit-panel,信用规则,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-profit-panel,押金规则,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-sensitive-panel,敏感词,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-risk-panel,风险日志,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,guide-rule-panel,资格规则,已实现,admin-web/src/index.html,页签/子视图
+PC 管理后台,system,system-ai-export-panel,数据留存,已实现,admin-web/src/index.html,页签/子视图
+墨刀原型,顶层,sl9w6l9vTtCZ4SBvgRtNS0,顶层 / 首页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:2484; 375x812pt
+墨刀原型,首页,rbpVJ1KqdUofMwkXx,首页 / 首页调色说明页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:368; 375x812pt
+墨刀原型,首页,rbpVJ1UKNmIoWvrPM,首页 / 玩家首页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:362; 375x812pt
+墨刀原型,首页,rbpVM1dv8dqBpYzrn,首页 / 行家首页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:348; 375x812pt
+墨刀原型,首页,rbpVM1dz7XbQDGWVu,首页 / 领路人首页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:369; 375x812pt
+墨刀原型,首页,rbpVM1e9sEPewjWyh,首页 / 无行家权限提示页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:337; 375x812pt
+墨刀原型,首页,rbpVM1eGtDn23KFRI,首页 / 无领路人权限提示页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:336; 375x812pt
+墨刀原型,首页,rbpVM1eKsOdEa6e6f,首页 / 权益对比页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:103; 375x812pt
+墨刀原型,首页,rbpVM1eOF1Y9QUqFe,首页 / 申请行家操作页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:201; 375x812pt
+墨刀原型,首页,rbpVM1eRJEVdajcJr,首页 / 申请领路人操作页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:102; 375x812pt
+墨刀原型,首页,rbpVM1eTdsXVE9nEC,首页 / 审核进度页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:70; 375x812pt
+墨刀原型,首页,rbpVM1eWSSxJPXckk,首页 / 审核通过页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:144; 375x812pt
+墨刀原型,首页,rbpVM1eZIw6iHGkf2,首页 / 审核驳回页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:66; 375x812pt
+墨刀原型,首页,rbpVM7ov9TRG0r9qv,首页 / 申请进度查看页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:87; 375x812pt
+墨刀原型,首页,rbpVM85ja9uJ0cuh8,首页 / 申请状态提示页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:360; 375x812pt
+墨刀原型,顶层,rbpVFDJKkOR1Pi9Cf,顶层 / 地图首页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:145; 375x812pt
+墨刀原型,地图首页,rbpVFhRyVQ2NHmNBL,地图首页 / 组局盲盒,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:159; 375x812pt
+墨刀原型,地图首页,rbpVFhS48kWjXc2EJ,地图首页 / 城市图鉴页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:168; 375x812pt
+墨刀原型,地图首页,rbpVFhS7WqaJ2x2hW,地图首页 / 足迹热力图页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:164; 375x812pt
+墨刀原型,地图首页,rbpVFhSBTgayJQGMn,地图首页 / 好友点亮城市页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:177; 375x812pt
+墨刀原型,地图首页,rbpVFhSE0oS6AjVr6,地图首页 / 我的城市故事页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:369; 375x812pt
+墨刀原型,地图首页,rbpVFiON3TujC3TzB,地图首页 / 实景打卡,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:138; 375x812pt
+墨刀原型,顶层,rbpVFceLYGDAsrJh7,顶层 / 元宇宙（预留）,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:83; 375x812pt
+墨刀原型,元宇宙（预留）,rbpVFUTHHS6oGHHvp,元宇宙（预留） / 元宇宙内页及管理中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:240; 375x812pt
+墨刀原型,顶层,sl9w6sosTtCZ4VRcWeu1gL,顶层 / 消息,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:750; 375x812pt
+墨刀原型,顶层,rbpVFcuW29xOmYntM,顶层 / 关系网,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:186; 375x812pt
+墨刀原型,顶层,rbpVFhgG2Zfb0ZCXF,顶层 / 局前大厅,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:708; 375x812pt
+墨刀原型,顶层,rbpVFdDimM6YDUiyN,顶层 / 组局主流程,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,组局主流程,rbpVFi5FJYvefTET2,组局主流程 / 玩家自申请入局,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:93; 375x812pt
+墨刀原型,组局主流程,rbpVFiDQ6F3BQSBzl,组局主流程 / 玩家被邀约确认页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:355; 375x812pt
+墨刀原型,组局主流程,rbpVFiES7ekWvx0Sv,组局主流程 / 组局取消页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:360; 375x812pt
+墨刀原型,组局主流程,rbpVFiEbKOtoG9qSi,组局主流程 / 组局成功页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:645; 375x812pt
+墨刀原型,组局主流程,rbpVFiFCEYIV2h96w,组局主流程 / 领路人接收页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:296; 375x812pt
+墨刀原型,组局主流程,rbpVFiFGy5KflgnSU,组局主流程 / 行家审核列表页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:109; 375x812pt
+墨刀原型,组局主流程,rbpVFiFEOMVVMkruU,组局主流程 / 行家审核详情页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:269; 375x812pt
+墨刀原型,组局主流程,rbpVFiSE9f9FsEa6n,组局主流程 / 组局支付页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:90; 375x812pt
+墨刀原型,组局主流程,rbpVG9nC9JtYtDDkB,组局主流程 / 评价页面,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:1077; 375x812pt
+墨刀原型,组局主流程,rbpVMQanua6yEuivN,组局主流程 / 评价页面 / 行家评价页面,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:175; 375x812pt
+墨刀原型,组局主流程,rbpVMQasvm9FK03g3,组局主流程 / 评价页面 / 领路人评价页面,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:178; 375x812pt
+墨刀原型,组局主流程,rbpVMQaxhZpnPmvQP,组局主流程 / 评价页面 / 玩家评价页面,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:178; 375x812pt
+墨刀原型,组局主流程,rbpVMQb0gFFZ7cKYQ,组局主流程 / 评价页面 / 评价+再玩一局意向确认页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:109; 375x812pt
+墨刀原型,组局主流程,rbpVMQbOj0Yrou7RF,组局主流程 / 评价页面 / 再玩一局推荐页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:100; 375x812pt
+墨刀原型,组局主流程,rbpVMQbS1o1vmcio5,组局主流程 / 评价页面 / 同局好友再玩一局确认页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:121; 375x812pt
+墨刀原型,组局主流程,rbpVMQbVM5V3C9lJg,组局主流程 / 评价页面 / 系统推荐适配组局页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:220; 375x812pt
+墨刀原型,组局主流程,rbpVG9nyvViQNuAgw,组局主流程 / 交付确认页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:345; 375x812pt
+墨刀原型,组局主流程,rbpVGAwrA847B8W4N,组局主流程 / 领路人发起邀请页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:477; 375x812pt
+墨刀原型,组局主流程,rbpVFiElZPe6aqwj0,组局主流程 / 交付操作页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:45; 375x812pt
+墨刀原型,组局主流程,rbpVJ1xyHBI8P3ZK6,组局主流程 / 局前大厅,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:421; 375x812pt
+墨刀原型,顶层,rbpVKh0hIsrlUvh6E,顶层 / 邀请注册,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,邀请注册,rbpVLeQ5JmcyvOq5u,邀请注册 / 新用户邀请注册登录,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:204; 375x812pt
+墨刀原型,邀请注册,rbpVLeQA1W2NFnftA,邀请注册 / 已注册用户登录,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:185; 375x812pt
+墨刀原型,邀请注册,rbpVLeQAbZ6l5DEXL,邀请注册 / 忘记密码找回,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:80; 375x812pt
+墨刀原型,顶层,sl9w79qkTtCZ4Vtka6qDNq,顶层 / 我的,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:2197; 375x812pt
+墨刀原型,我的,rbpVFiQuOriYNNHMj,我的 / 母版,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:124; 375x812pt
+墨刀原型,我的,rbpVG9tHRq5qVkIhh,我的 / 会员中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:270; 375x812pt
+墨刀原型,我的,rbpVMU5E3ygiFHXaY,我的 / 足迹中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,我的,rbpVMU5IQCNhC984V,我的 / 足迹中心 / 我的城市故事,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,我的,rbpVFhSVzsIaBGKCJ,我的 / 足迹中心 / 我的成就墙,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:178; 375x812pt
+墨刀原型,我的,rbpVMU5UyTrd75Zcf,我的 / 系统管理,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,我的,rbpVMU6C8OyV7bhvu,我的 / 系统管理 / 我的资料,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:132; 375x812pt
+墨刀原型,我的,rbpVMU6Fl6m63YHQb,我的 / 系统管理 / 信用中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:117; 375x812pt
+墨刀原型,我的,rbpVMXq8S43dKj4d6,我的 / 系统管理 / 信用中心 / 信用申诉页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:79; 375x812pt
+墨刀原型,我的,rbpVMU6JYCtR2I8hX,我的 / 系统管理 / 举报中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:83; 375x812pt
+墨刀原型,我的,rbpVMY2mnvk7IIIJW,我的 / 系统管理 / 举报中心 / 我的申诉,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:87; 375x812pt
+墨刀原型,我的,rbpVMY2tpPfv7gAZQ,我的 / 系统管理 / 举报中心 / 查看处理记录页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:136; 375x812pt
+墨刀原型,我的,rbpVMY78YLKV8YWlr,我的 / 系统管理 / 举报中心 / 举报详情页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:127; 375x812pt
+墨刀原型,我的,rbpVMY7AtsNY8fZeP,我的 / 系统管理 / 举报中心 / 申诉详情页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:117; 375x812pt
+墨刀原型,我的,rbpVMY7I0CvO79mDQ,我的 / 系统管理 / 举报中心 / 处理记录详情页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:132; 375x812pt
+墨刀原型,我的,rbpVMU6NBr8VEcb4A,我的 / 系统管理 / 签署协议,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:48; 375x812pt
+墨刀原型,我的,rbpVMXv13u5MUlrr4,我的 / 系统管理 / 签署协议 / 协议详情弹窗,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:80; 375x812pt
+墨刀原型,我的,rbpVMU6Ri5n9ABKcX,我的 / 系统管理 / 建议反馈,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:116; 375x812pt
+墨刀原型,我的,rbpVMXjpUmOEsI6XL,我的 / 系统管理 / 建议反馈 / 反馈记录,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:78; 375x812pt
+墨刀原型,我的,rbpVMXjuO4nVzI3LA,我的 / 系统管理 / 建议反馈 / 反馈详情页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:70; 375x812pt
+墨刀原型,我的,rbpVMXjxOF9BJQpdm,我的 / 系统管理 / 建议反馈 / 快捷反馈弹窗页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:45; 375x812pt
+墨刀原型,我的,rbpVMXk0BnCTlA5i5,我的 / 系统管理 / 建议反馈 / 反馈成功页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:99; 375x812pt
+墨刀原型,我的,rbpVMU6bjYrmWMsnN,我的 / 系统管理 / 系统设置,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,我的,rbpVMZhoHu6IdAPZA,我的 / 系统管理 / 系统设置 / 系统设置主页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:115; 375x812pt
+墨刀原型,我的,rbpVMW4KaaCmhratz,我的 / 系统管理 / 技能配置,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:426; 375x812pt
+墨刀原型,我的,rbpVMW4ONBLPWSD4M,我的 / 系统管理 / 屏蔽设置,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:119; 375x812pt
+墨刀原型,我的,rbpVMWlJiCV1hLtz8,我的 / 系统管理 / 屏蔽设置 / 保护模式设置页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:112; 375x812pt
+墨刀原型,我的,rbpVMWnaJFWjYvN6O,我的 / 系统管理 / 屏蔽设置 / 分场景配置页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:154; 375x812pt
+墨刀原型,我的,rbpVMWpQg8mbB5F84,我的 / 系统管理 / 屏蔽设置 / 白名单设置页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:163; 375x812pt
+墨刀原型,我的,rbpVMWqDX0w9FpNiE,我的 / 系统管理 / 屏蔽设置 / 保护期续期页,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:60; 375x812pt
+墨刀原型,我的,rbpVMXQAveYUBKCjz,我的 / 系统管理 / 屏蔽设置 / 用户屏蔽,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:250; 375x812pt
+墨刀原型,我的,rbpVMXQGKkTEygrFj,我的 / 系统管理 / 屏蔽设置 / 关键词屏蔽,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:141; 375x812pt
+墨刀原型,我的,rbpVMU5Xr6EdHTb5R,我的 / 服务中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,我的,rbpVMU4NjgyjM03AR,我的 / 服务中心 / 组局管理,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,我的,rbpVMTtamztvbQ58T,我的 / 服务中心 / 组局管理 / 评价管理,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:258; 375x812pt
+墨刀原型,我的,rbpVMU4T4W6tXN6Jg,我的 / 服务中心 / 我的邀请,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:114; 375x812pt
+墨刀原型,我的,rbpVMU4LV1EPJVPo0,我的 / 服务中心 / 我的组局,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:106; 375x812pt
+墨刀原型,我的,rbpVMU5kBrAlHZSOl,我的 / 资产中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,我的,rbpVMU4jSNOe0FVRk,我的 / 资产中心 / 资产管理,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:140; 375x812pt
+墨刀原型,我的,rbpVMU59i2Od5BKsZ,我的 / 资产中心 / 积分商城,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,我的,rbpVMU56G5BlMVxS1,我的 / 资产中心 / 我的积分,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:185; 375x812pt
+墨刀原型,我的,rbpVMU63drrcdKrXt,我的 / 资产中心 / 押金中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,我的,rbpVMU6WBoYq25Lip,我的 / 资产中心 / 开票中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,我的,rbpVMU8v45uUxpjIE,我的 / 个人中心,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:298; 375x812pt
+墨刀原型,顶层,rbpVM7tSbhQoEVKSf,顶层 / 发起组局,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:237; 375x812pt
+墨刀原型,顶层,rbpVHu7ovAlnGQ1X9,顶层 / 角色申请,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:1; 375x812pt
+墨刀原型,顶层,rbpVJTnRsWbZ2uucy,顶层 / 企业认证,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:133; 375x812pt
+墨刀原型,顶层,rbpVJTozah2XU4TEG,顶层 / 身份认证,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:1; 375x812pt
+墨刀原型,顶层,rbpVJTlrgXNR21bi,顶层 / 画布 3,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:0; 375x812pt
+墨刀原型,顶层,rbpVJQ64o9qM3Zzsh,顶层 / 画布 1,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:113; 375x812pt
+墨刀原型,顶层,rbpVMQSgWuBG846KJ,顶层 / 画布 1,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:4; 375x812pt
+墨刀原型,顶层,rbpVJTlSPnDauFkXF,顶层 / 画布 3,已归档 PT 数据,docs/prototype-pt-20260719/README.md,元素数:793; 375x812pt

@@ -392,17 +392,14 @@ Page({
 
 	this.setData({ submitting: true })
 	let submittedCount = 0
-	let rewardedPoints = 0
+	let rewardedExperience = 0
 
 	try {
 		for (const review of reviews) {
 			const { sectionId, ...payload } = review
 			const result = await reviewService.submitReview(payload)
-			const rewardPoints = Number(result && result.reward && result.reward.points)
-			const logPoints = Number(result && result.pointsLog && result.pointsLog.changeValue)
-			rewardedPoints += Number.isFinite(rewardPoints)
-				? rewardPoints
-				: (Number.isFinite(logPoints) ? logPoints : 0)
+			const experience = Number(result && result.reward && result.reward.experience)
+			rewardedExperience += Number.isFinite(experience) ? experience : 0
 			submittedCount += 1
 			const remainingSections = this.data.evaluationSections.filter((section) => section.id !== sectionId)
 			this.setData({
@@ -417,7 +414,7 @@ Page({
       })
 
       setTimeout(() => {
-        const completeRoute = `/${ROUTES.gameReviewComplete}?count=${submittedCount}&rewardPoints=${Math.max(0, rewardedPoints)}${this.options.gameId ? `&gameId=${this.options.gameId}` : ''}`
+		const completeRoute = `/${ROUTES.gameReviewComplete}?count=${submittedCount}&rewardExperience=${Math.max(0, rewardedExperience)}${this.options.gameId ? `&gameId=${this.options.gameId}` : ''}`
         wx.redirectTo({
           url: completeRoute,
           fail: () => navigateShellRoute(completeRoute)

@@ -3,6 +3,7 @@ package systemconfig
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -43,11 +44,28 @@ func TestServiceConfigurationSurvivesServiceRecreation(t *testing.T) {
 	}
 }
 
+func TestRepositoryReadFailureDoesNotUseStaleProcessConfig(t *testing.T) {
+	repository := &fakeRepository{values: map[string]json.RawMessage{}}
+	service := NewServiceWithRepository(repository)
+	if err := service.Set("operation.rules", map[string]int{"credit": 80}); err != nil {
+		t.Fatal(err)
+	}
+	repository.getErr = errors.New("configuration database unavailable")
+	var value map[string]int
+	if service.Get("operation.rules", &value) {
+		t.Fatalf("expected repository read failure, got stale config=%+v", value)
+	}
+}
+
 type fakeRepository struct {
 	values map[string]json.RawMessage
+	getErr error
 }
 
 func (r *fakeRepository) Get(ctx context.Context, key string) (json.RawMessage, error) {
+	if r.getErr != nil {
+		return nil, r.getErr
+	}
 	value, ok := r.values[key]
 	if !ok {
 		return nil, ErrNotFound

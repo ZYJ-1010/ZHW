@@ -270,7 +270,7 @@ func TestReadinessReportIncludesSafeIntegrationFields(t *testing.T) {
 	}
 
 	report := cfg.ReadinessReport()
-	if !hasReadinessStatus(report, "wechat_url_link", "ok", true) || !hasReadinessStatus(report, "tencent_map_server_key", "ok", true) {
+	if !hasReadinessStatus(report, "wechat_url_link", "ok", false) || !hasReadinessStatus(report, "tencent_map_server_key", "ok", true) {
 		t.Fatalf("expected invite url link and map proxy readiness: %+v", report.Items)
 	}
 	for _, item := range report.Items {

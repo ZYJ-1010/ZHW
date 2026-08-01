@@ -147,7 +147,7 @@ var defaultMessageMyConfig = map[string]interface{}{
 		"actionMissingText":    "\u64cd\u4f5c\u4fe1\u606f\u4e0d\u5b8c\u6574",
 		"sendFailedText":       "\u53d1\u9001\u5931\u8d25",
 		"recordStartText":      "\u5f00\u59cb\u5f55\u97f3",
-		"recordStopText":       "\u5f53\u524d\u652f\u6301\u6587\u5b57\u3001\u56fe\u7247\u548c\u6587\u4ef6\u6d88\u606f",
+		"recordStopText":       "当前支持文字、图片、语音和文件消息",
 		"recordErrorText":      "\u5f55\u97f3\u5931\u8d25",
 		"fileEntryMissingText": "\u8bf7\u4ece\u5c40\u5185\u6d88\u606f\u5165\u53e3\u53d1\u9001\u6587\u4ef6",
 		"justNowText":          "\u521a\u521a",
@@ -161,11 +161,20 @@ func (s *Server) myNotifications(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	allItems := s.notices.List(userID)
+	allItems, err := s.notices.ListStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取消息失败，请稍后重试")
+		return
+	}
 	activeBucket := r.URL.Query().Get("bucket")
 	showAll := r.URL.Query().Get("detail") == "1" || r.URL.Query().Get("showAll") == "1"
 	items := filterNotifications(allItems, r.URL.Query().Get("tab"), r.URL.Query().Get("type"), activeBucket)
-	httpx.OK(w, s.notificationCenterPayload(userID, items, allItems, r.URL.Query().Get("tab"), activeBucket, showAll))
+	onlineCount, err := s.auth.ActiveAppSessionCountStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取在线人数失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, s.notificationCenterPayload(userID, items, allItems, r.URL.Query().Get("tab"), activeBucket, showAll, onlineCount))
 }
 
 func (s *Server) markNotificationRead(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +210,18 @@ func (s *Server) messageMyConfig(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.requireUser(w, r); !ok {
 		return
 	}
-	httpx.OK(w, s.currentMessageMyConfig())
+	config := cloneMap(s.currentMessageMyConfig())
+	onlineCount := 0
+	if s.auth != nil {
+		var err error
+		onlineCount, err = s.auth.ActiveAppSessionCountStrict()
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取在线人数失败，请稍后重试")
+			return
+		}
+	}
+	config["onlineText"] = "在线" + strconv.Itoa(maxInt(0, onlineCount)) + "人"
+	httpx.OK(w, config)
 }
 
 func defaultMessageCenterPageConfig() map[string]interface{} {
@@ -216,7 +236,7 @@ func (s *Server) currentMessageCenterConfig() map[string]interface{} {
 	return defaultMessageCenterPageConfig()
 }
 
-func (s *Server) notificationCenterPayload(userID int64, items []notifications.Notification, allItems []notifications.Notification, activeTab string, activeBucket string, showAll bool) map[string]interface{} {
+func (s *Server) notificationCenterPayload(userID int64, items []notifications.Notification, allItems []notifications.Notification, activeTab string, activeBucket string, showAll bool, onlineCount int) map[string]interface{} {
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
 			return items[i].ID > items[j].ID
@@ -238,18 +258,18 @@ func (s *Server) notificationCenterPayload(userID int64, items []notifications.N
 		activeTab = "all"
 	}
 	activeBucket = strings.TrimSpace(activeBucket)
-	imCardTotal := len(s.messageCenterIMCards(userID, true, allItems))
+	imCardTotal := len(s.messageCenterIMCards(userID, true, allItems, false))
 	imUnreadRoomTotal := countUnreadIMRooms(allItems)
 	return map[string]interface{}{
 		"items":        items,
 		"pageTitle":    stringFromConfig(config, "pageTitle"),
-		"onlineText":   stringFromConfig(config, "onlineText"),
+		"onlineText":   s.homeOnlineText(countInProgressUserGames(userID, s.games.List(), s.games.IsMember), len(s.connections.My(userID)), onlineCount),
 		"activeTab":    activeTab,
 		"activeBucket": activeBucket,
 		"showAll":      showAll,
 		"quickActions": messageCenterQuickActions(config, allItems, imCardTotal, imUnreadRoomTotal),
 		"tabs":         messageCenterTabs(config, unread, trade),
-		"sections":     s.messageCenterSections(userID, config, items, allItems, activeBucket, showAll),
+		"sections":     s.messageCenterSections(userID, config, items, allItems, activeTab, activeBucket, showAll),
 		"texts":        stringMapFromConfig(config, "texts"),
 	}
 }
@@ -322,11 +342,13 @@ func messageCenterTabs(config map[string]interface{}, unread int, trade int) []m
 	return result
 }
 
-func (s *Server) messageCenterSections(userID int64, config map[string]interface{}, items []notifications.Notification, allItems []notifications.Notification, activeBucket string, showAll bool) []map[string]interface{} {
+func (s *Server) messageCenterSections(userID int64, config map[string]interface{}, items []notifications.Notification, allItems []notifications.Notification, activeTab string, activeBucket string, showAll bool) []map[string]interface{} {
 	sectionConfigs := messageCenterSectionConfigs(config)
 	result := make([]map[string]interface{}, 0, len(sectionConfigs))
-	imCards := s.messageCenterIMCards(userID, showAll, items)
-	imCardTotal := len(s.messageCenterIMCards(userID, true, allItems))
+	// “未读”页只能出现有未读消息的房间。旧实现会把所有已入局房间
+	// 都作为 IM 卡片塞进未读页，造成用户已读后仍看到会话。
+	imCards := s.messageCenterIMCards(userID, showAll, items, activeTab == "unread")
+	imCardTotal := len(s.messageCenterIMCards(userID, true, allItems, false))
 	for _, section := range sectionConfigs {
 		item := cloneMap(section)
 		bucket, _ := item["bucket"].(string)
@@ -339,20 +361,23 @@ func (s *Server) messageCenterSections(userID int64, config map[string]interface
 		item["moreText"] = "\u67e5\u770b\u5168\u90e8"
 		item["moreRoute"] = "/pages/message/index?bucket=" + url.QueryEscape(bucket) + "&detail=1"
 		unreadCount, totalCount := countMessageCenterBucket(allItems, bucket)
-		cards := s.notificationCards(items, bucket, showAll)
+		// IM 房间卡片需要与普通好友消息按同一时间线排序后再截断。
+		// 否则普通好友消息已占满三个位置时，最新的局内消息会被提前丢弃。
+		loadAllCards := showAll || bucket == "friend"
+		cards := s.notificationCards(items, bucket, loadAllCards)
 		if bucket == "friend" && len(imCards) > 0 {
 			unreadCount += countUnreadIMRooms(allItems)
 			totalCount += imCardTotal
 			cards = append(imCards, cards...)
-			if !showAll && len(cards) > 3 {
-				cards = cards[:3]
-			}
 		}
 		sort.SliceStable(cards, func(i, j int) bool {
 			left, _ := cards[i]["_sortTimestamp"].(int64)
 			right, _ := cards[j]["_sortTimestamp"].(int64)
 			return left > right
 		})
+		if !showAll && len(cards) > 3 {
+			cards = cards[:3]
+		}
 		for _, card := range cards {
 			delete(card, "_sortTimestamp")
 		}
@@ -366,7 +391,7 @@ func (s *Server) messageCenterSections(userID int64, config map[string]interface
 	return result
 }
 
-func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []notifications.Notification) []map[string]interface{} {
+func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []notifications.Notification, unreadOnly bool) []map[string]interface{} {
 	cards := make([]map[string]interface{}, 0, 2)
 	unreadRoomNotificationIDs := unreadIMRoomNotificationIDs(noticeItems)
 	for _, room := range s.im.AdminRooms() {
@@ -404,6 +429,9 @@ func (s *Server) messageCenterIMCards(userID int64, showAll bool, noticeItems []
 			}
 		}
 		notificationID := unreadRoomNotificationIDs[room.GameID]
+		if unreadOnly && notificationID <= 0 {
+			continue
+		}
 		cards = append(cards, map[string]interface{}{
 			"id":             "im-room-" + strconv.FormatInt(room.GameID, 10),
 			"routeKey":       "im_room",
@@ -567,6 +595,8 @@ func (s *Server) notificationCards(items []notifications.Notification, bucket st
 		}
 		card := map[string]interface{}{
 			"id":             item.ID,
+			"notificationId": item.ID,
+			"notifyType":     item.NotifyType,
 			"routeKey":       notificationRouteKey(item),
 			"tone":           notificationTone(item),
 			"unread":         item.Status == "unread",
@@ -863,6 +893,10 @@ func (s *Server) notificationActions(item notifications.Notification, texts map[
 			{"key": "detail", "text": text("game"), "primary": true},
 			{"key": "contact", "text": text("contact")},
 		}
+	case "application_approved", "application_rejected":
+		return []map[string]interface{}{
+			{"key": "detail", "text": text("game"), "primary": true},
+		}
 	case "report_created", "report_handled", "report_assigned", "report_closed":
 		return []map[string]interface{}{
 			{"key": "detail", "text": text("detail"), "primary": true},
@@ -977,12 +1011,12 @@ func (s *Server) handleTradeWarningAction(w http.ResponseWriter, r *http.Request
 		DeliveryMethod string `json:"deliveryMethod"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	action := strings.ToLower(strings.TrimSpace(req.Action))
 	if action != "delay" && action != "deliver" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid trade warning action")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "交易提醒操作无效")
 		return
 	}
 	warningID := strings.TrimSpace(req.WarningID)
@@ -1131,18 +1165,23 @@ func (s *Server) submitSystemNotificationFeedback(w http.ResponseWriter, r *http
 		Value     string `json:"value"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	value := strings.ToLower(strings.TrimSpace(req.Value))
 	if value != "useful" && value != "useless" {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid feedback")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "反馈选项无效")
 		return
 	}
 
-	config := s.profiles.SystemManagementConfig(userID, "system-notification-feedback", map[string]interface{}{"useful": 0, "useless": 0})
+	config, loaded := s.loadProfileConfig(w, userID, "system-notification-feedback", map[string]interface{}{"useful": 0, "useless": 0})
+	if !loaded {
+		return
+	}
 	config[value] = interfaceToInt(config[value]) + 1
-	s.profiles.SaveSystemManagementConfig(userID, "system-notification-feedback", config)
+	if _, saved := s.saveProfileConfig(w, userID, "system-notification-feedback", config); !saved {
+		return
+	}
 	feedback := systemNotificationFeedbackPayload(config)
 	s.recordBehavior(userID, "system_notification_feedback", "notification", 0, map[string]interface{}{"messageId": req.MessageID, "value": value})
 	httpx.OK(w, map[string]interface{}{
@@ -1199,7 +1238,7 @@ func (s *Server) handleNotificationAction(w http.ResponseWriter, r *http.Request
 		Reason string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	notification, err := s.notices.MarkRead(userID, notificationID)
@@ -1243,15 +1282,25 @@ func (s *Server) handleGameInvitationNotificationAction(w http.ResponseWriter, r
 		})
 		return
 	}
-	httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "please open invitation detail to respond")
+	httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "请打开邀请详情后再处理邀请")
 }
 
 func (s *Server) adminWechatSubscribeTasks(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.notices.WechatTasks()})
+	items, err := s.notices.WechatTasksStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取订阅消息任务失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) adminWechatSubscribeTemplates(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, map[string]interface{}{"items": s.notices.WechatTemplates()})
+	items, err := s.notices.WechatTemplatesStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取订阅消息模板失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, map[string]interface{}{"items": items})
 }
 
 func (s *Server) markWechatSubscribeTaskSent(w http.ResponseWriter, r *http.Request) {
@@ -1290,7 +1339,12 @@ func (s *Server) sendPendingWechatSubscribeTasks(w http.ResponseWriter, r *http.
 		Limit int `json:"limit"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	httpx.OK(w, s.notices.SendPendingWechatTasks(req.Limit))
+	result, err := s.notices.SendPendingWechatTasksStrict(req.Limit)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取待发送订阅消息失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, result)
 }
 
 func notificationIDFromPath(w http.ResponseWriter, path string) (int64, bool) {
@@ -1307,7 +1361,7 @@ func notificationIDFromActionPath(w http.ResponseWriter, path string) (int64, bo
 	text := strings.TrimSuffix(strings.TrimPrefix(path, "/api/app/notifications/"), "/actions")
 	id, err := strconv.ParseInt(strings.Trim(text, "/"), 10, 64)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "notification id invalid")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "通知编号错误")
 		return 0, false
 	}
 	return id, true
@@ -1548,7 +1602,7 @@ func writeNotificationError(w http.ResponseWriter, err error) {
 	case errors.Is(err, notifications.ErrForbidden):
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权读取该通知")
 	case errors.Is(err, notifications.ErrWechatSubscribeSend):
-		httpx.Error(w, http.StatusBadGateway, httpx.CodeSystemError, "wechat subscribe message send failed")
+		httpx.Error(w, http.StatusBadGateway, httpx.CodeSystemError, "微信订阅消息发送失败")
 	default:
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "通知操作失败")
 	}

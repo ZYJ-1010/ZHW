@@ -63,6 +63,9 @@ func TestManualRealnameSubmissionAndAdminReviewForPhaseOne(t *testing.T) {
 	newTestAppServer(authService, identityService).Register(mux)
 
 	token := loginForTestWithCode(t, mux, "manual-realname-phase-one")
+	postJSON(t, mux, "/api/app/identity/phone/bind", token, `{"phone":"13800138001"}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/send-code", token, `{}`, http.StatusOK)
+	postJSON(t, mux, "/api/app/sms/verify-code", token, `{"code":"000000"}`, http.StatusOK)
 	body := postJSON(t, mux, "/api/app/identity/phone/verify", token, `{"realName":"Test User","idCard":"110101199001011234"}`, http.StatusOK)
 	var submitResp struct {
 		Data struct {
@@ -87,12 +90,13 @@ func TestManualRealnameSubmissionAndAdminReviewForPhaseOne(t *testing.T) {
 		Data struct {
 			Status        string `json:"status"`
 			PhoneVerified bool   `json:"phoneVerified"`
+			CreatedAt     string `json:"createdAt"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(reviewBody, &reviewResp); err != nil {
 		t.Fatal(err)
 	}
-	if reviewResp.Data.Status != "verified" || !reviewResp.Data.PhoneVerified {
+	if reviewResp.Data.Status != "verified" || !reviewResp.Data.PhoneVerified || reviewResp.Data.CreatedAt == "" {
 		t.Fatalf("expected admin approval to verify identity: %s", string(reviewBody))
 	}
 	user, ok := authService.UserByID(submitResp.Data.UserID)

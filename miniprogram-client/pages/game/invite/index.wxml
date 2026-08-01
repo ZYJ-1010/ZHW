@@ -158,63 +158,6 @@
             <text class="field-help">点击图片可添加说明</text>
           </view>
 
-          <view class="form-card">
-            <view class="section-head">
-              <text class="section-index">3</text>
-              <text class="section-title">{{pricingDisplay.title || '预算与奖励'}}</text>
-            </view>
-
-            <block wx:if="{{pricingDisplay.enabled}}">
-              <view class="pricing-display-card">
-                <view wx:for="{{pricingDisplay.rows}}" wx:key="label" class="pricing-display-row">
-                  <text class="pricing-display-label">{{item.label}}</text>
-                  <text class="pricing-display-value">{{item.value}}</text>
-                </view>
-                <view wx:if="{{pricingDisplay.totalLabel || pricingDisplay.totalValue}}" class="pricing-display-total">
-                  <text class="pricing-display-total-label">{{pricingDisplay.totalLabel}}</text>
-                  <text class="pricing-display-total-value">{{pricingDisplay.totalValue}}</text>
-                </view>
-              </view>
-            </block>
-
-            <block wx:else>
-            <view class="form-field">
-              <text class="field-label">费用预算（人民币元）</text>
-              <view class="budget-input-wrap">
-                <text class="budget-prefix">¥</text>
-                <input
-                  class="form-input budget-input"
-                  type="number"
-                  value="{{form.budget}}"
-                  placeholder="请输入整数金额"
-                  placeholder-class="form-placeholder"
-                  bindinput="onBudgetInput"
-                />
-                <text class="budget-suffix">元</text>
-              </view>
-            </view>
-
-            <view class="reward-card">
-              <view class="reward-row">
-                <text class="reward-label">平台服务费 ({{reward.platformServiceRateText}})</text>
-                <text class="reward-value">¥{{reward.serviceFee}}</text>
-              </view>
-              <view class="reward-row">
-                <text class="reward-label">系统级领路人奖励（{{reward.systemGuideRewardRateText}}）</text>
-                <text class="reward-value">¥{{reward.systemReward}}</text>
-              </view>
-              <view class="reward-row">
-                <text class="reward-label strong">你的邀请奖励 ({{reward.inviteRewardRateText}})</text>
-                <text class="reward-value orange">¥{{reward.inviteReward}}</text>
-              </view>
-              <view class="reward-line"></view>
-              <view class="reward-total-row">
-                <text class="reward-total-label">行家实收</text>
-                <text class="reward-total-value">¥{{reward.expertIncome}}</text>
-              </view>
-            </view>
-            </block>
-          </view>
         </block>
 
         <block wx:else>

@@ -9,8 +9,8 @@ import (
 
 	"zhw-mini/services/go-api/internal/common/httpx"
 	"zhw-mini/services/go-api/internal/connections"
+	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/invites"
-	"zhw-mini/services/go-api/internal/revenue"
 )
 
 func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
@@ -18,20 +18,34 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items := s.connections.My(userID)
-	relations, _ := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
+	items, err := s.connections.MyStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请关系失败，请稍后重试")
+		return
+	}
+	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请记录失败，请稍后重试")
+		return
+	}
 	items = s.inviteConnections(userID, items, relations)
-	income := s.phaseOneIncomeSummary(userID)
-	revenueEnabled := s.currentOperationRules().Revenue.Enabled
+	convertedCount, err := s.countConvertedInviteesStrict(relations)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀约转化数据失败，请稍后重试")
+		return
+	}
 	inviteCode := ""
 	availableCodes := make(map[string]string)
-	if codes, err := s.auth.AdminInviteCodes(invites.CodeFilter{OwnerID: userID}); err == nil {
-		for _, item := range codes {
-			if item.Status == invites.StatusActive && item.MaxUses == 1 && item.UsedCount == 0 && item.BoundWechatUserID == 0 {
-				entryType := invites.NormalizeEntryType(item.EntryType)
-				if availableCodes[entryType] == "" {
-					availableCodes[entryType] = item.Code
-				}
+	codes, err := s.auth.AdminInviteCodes(invites.CodeFilter{OwnerID: userID})
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请码失败，请稍后重试")
+		return
+	}
+	for _, item := range codes {
+		if item.Status == invites.StatusActive && item.MaxUses == 1 && item.UsedCount == 0 && item.BoundWechatUserID == 0 {
+			entryType := invites.NormalizeEntryType(item.EntryType)
+			if availableCodes[entryType] == "" {
+				availableCodes[entryType] = item.Code
 			}
 		}
 	}
@@ -61,18 +75,71 @@ func (s *Server) profileInviteOverview(w http.ResponseWriter, r *http.Request) {
 		},
 		"metrics": []map[string]interface{}{
 			{"value": strconv.Itoa(len(relations)), "label": "总邀约数", "trend": "▲", "tone": "up"},
-			{"value": strconv.Itoa(countStrongConnections(items)), "label": "成功转化", "trend": "▲", "tone": "up"},
-			{"value": conversionRateText(countStrongConnections(items), len(relations)), "label": "转化率", "trend": "▲", "tone": "up"},
-			{"value": incomeDisplayText(revenueEnabled, income.TotalCent), "label": "分润收益", "trend": "▲", "tone": "up"},
+			{"value": strconv.Itoa(convertedCount), "label": "成功转化", "trend": "▲", "tone": "up"},
+			{"value": conversionRateText(convertedCount, len(relations)), "label": "转化率", "trend": "▲", "tone": "up"},
 		},
 		"actions": actions,
-		"tabs":    []string{"数据概览", "关系网络", "邀约记录", "收益明细"},
+		"tabs":    []string{"数据概览", "关系网络", "邀约记录"},
 		"trends": []map[string]interface{}{
-			{"label": "本周新增邀约", "value": "+" + strconv.Itoa(len(relations)), "tone": "cyan"},
-			{"label": "本周新增转化", "value": "+" + strconv.Itoa(countStrongConnections(items)), "tone": "green"},
-			{"label": "本周分润", "value": incomeDisplayText(revenueEnabled, income.SettledCent), "tone": "cyan"},
+			{"label": "累计邀约人数", "value": strconv.Itoa(len(relations)), "tone": "cyan"},
+			{"label": "累计成功转化", "value": strconv.Itoa(convertedCount), "tone": "green"},
 		},
 	})
+}
+
+func (s *Server) countConvertedInvitees(relations []invites.Relation) int {
+	count, _ := s.countConvertedInviteesStrict(relations)
+	return count
+}
+
+func (s *Server) countConvertedInviteesStrict(relations []invites.Relation) (int, error) {
+	seen := make(map[int64]bool, len(relations))
+	count := 0
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		return 0, err
+	}
+	for _, relation := range relations {
+		if relation.InviteeUserID <= 0 || seen[relation.InviteeUserID] {
+			continue
+		}
+		seen[relation.InviteeUserID] = true
+		converted, err := s.inviteeHasCompletedGameStrict(relation.InviteeUserID, gameItems)
+		if err != nil {
+			return 0, err
+		}
+		if converted {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// 邀请转化只能在局正式完成后成立。待评价仅表示局流程结束，评价、争议
+// 或结算仍可能改变结果，不能提前作为领路人的成功转化。
+func (s *Server) inviteeHasCompletedGame(userID int64) bool {
+	gameItems, err := s.games.ListStrict()
+	if err != nil {
+		return false
+	}
+	completed, _ := s.inviteeHasCompletedGameStrict(userID, gameItems)
+	return completed
+}
+
+func (s *Server) inviteeHasCompletedGameStrict(userID int64, gameItems []games.Game) (bool, error) {
+	for _, game := range gameItems {
+		if game.Status != "completed" {
+			continue
+		}
+		member, err := s.games.IsMemberStrict(game.ID, userID)
+		if err != nil {
+			return false, err
+		}
+		if member {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *Server) profileInviteCodes(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +198,12 @@ func (s *Server) profileInviteQuotaRequest(w http.ResponseWriter, r *http.Reques
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数不正确")
 		return
 	}
-	if req.Quantity > s.inviteCodeConfig().MaxRequestCount {
+	config, err := s.inviteCodeConfigStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请码配置失败，请稍后重试")
+		return
+	}
+	if req.Quantity > config.MaxRequestCount {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申请数量超过当前可申请上限")
 		return
 	}
@@ -149,14 +221,15 @@ func (s *Server) profileInviteNetwork(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items := s.inviteConnectionsForUser(userID)
-	income := s.phaseOneIncomeSummary(userID)
-	revenueEnabled := s.currentOperationRules().Revenue.Enabled
+	items, err := s.inviteConnectionsForUser(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请关系失败，请稍后重试")
+		return
+	}
 	s.recordBehavior(userID, "view_profile_invite_network", "profile_invite", userID, nil)
 	httpx.OK(w, map[string]interface{}{
 		"summary": []map[string]interface{}{
 			{"value": strconv.Itoa(len(items)), "label": "已服务"},
-			{"value": incomeDisplayText(revenueEnabled, income.SettledCent), "label": "本周收益"},
 		},
 		"networkNodes":       inviteNetworkNodes(s, items),
 		"networkNodeDetails": s.inviteNetworkNodeDetails(items),
@@ -172,8 +245,12 @@ func (s *Server) profileInviteRecords(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items := s.inviteConnectionsForUser(userID)
-	records := s.inviteRecords(items)
+	items, err := s.inviteConnectionsForUser(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请记录失败，请稍后重试")
+		return
+	}
+	records := s.inviteRecords(userID, items)
 	timeoutCount := countInviteRecordsByStatus(records, "timeout")
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	if status == "" {
@@ -207,27 +284,10 @@ func (s *Server) profileInviteRanking(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) profileInviteIncome(w http.ResponseWriter, r *http.Request) {
-	userID, ok := s.requireRoleInviteUser(w, r)
-	if !ok {
+	if _, ok := s.requireRoleInviteUser(w, r); !ok {
 		return
 	}
-	summary := s.phaseOneIncomeSummary(userID)
-	revenueEnabled := s.currentOperationRules().Revenue.Enabled
-	logs := []revenue.IncomeLog{}
-	if s.currentOperationRules().Revenue.Enabled {
-		logs = s.revenue.IncomeLogs(userID, "")
-	}
-	s.recordBehavior(userID, "view_profile_invite_income", "profile_invite", userID, nil)
-	httpx.OK(w, map[string]interface{}{
-		"trendSeries": inviteIncomeTrendSeries(logs),
-		"metrics": []map[string]interface{}{
-			{"label": "本月分润", "value": incomeDisplayText(revenueEnabled, summary.SettledCent), "desc": "已结算收益"},
-			{"label": "累计分润", "value": incomeDisplayText(revenueEnabled, summary.TotalCent), "desc": "含待结算收益"},
-			{"label": "活跃成员", "value": strconv.Itoa(len(s.inviteConnectionsForUser(userID))), "desc": "当前关系数"},
-			{"label": "产生分润局数", "value": strconv.Itoa(len(logs)), "desc": "累计流水"},
-		},
-		"flows": inviteIncomeFlows(logs),
-	})
+	httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "收益功能将在后续版本开放")
 }
 
 func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Request) {
@@ -243,8 +303,13 @@ func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Reques
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "成员 ID 错误")
 		return
 	}
+	items, err := s.inviteConnectionsForUser(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请成员失败，请稍后重试")
+		return
+	}
 	var matched connections.Connection
-	for _, item := range s.inviteConnectionsForUser(userID) {
+	for _, item := range items {
 		if item.ConnectedUserID == memberID || item.ID == memberID {
 			matched = item
 			break
@@ -270,11 +335,6 @@ func (s *Server) profileInviteMemberDetail(w http.ResponseWriter, r *http.Reques
 			{"value": strconv.Itoa(completedGameCount), "label": "完成组局"},
 			{"value": conversionRateText(completedGameCount, len(invitedGames)), "label": "完成率"},
 		},
-		"income": []map[string]interface{}{
-			{"label": "直接贡献收益", "value": "一期未启用"},
-			{"label": "团队贡献收益", "value": "一期未启用"},
-			{"label": "合计贡献", "value": "一期未启用", "highlight": true},
-		},
 		"activities": []map[string]interface{}{
 			{"icon": "🎯", "title": "邀请关系建立", "time": matched.CreatedAt.Format("01-02 15:04"), "amount": "+"},
 			{"icon": "📈", "title": "关系强度更新", "time": matched.UpdatedAt.Format("01-02 15:04"), "amount": "+"},
@@ -290,7 +350,12 @@ func (s *Server) requireRoleInviteUser(w http.ResponseWriter, r *http.Request) (
 	if !ok {
 		return 0, false
 	}
-	roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
+	snapshot, err := s.profiles.RoleSnapshotStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取邀请权限失败，请稍后重试")
+		return 0, false
+	}
+	roles := snapshot.RoleStatusMap
 	if roles["expert"] == "approved" || roles["expert"] == "active" || roles["guide"] == "approved" || roles["guide"] == "active" {
 		return userID, true
 	}
@@ -298,10 +363,16 @@ func (s *Server) requireRoleInviteUser(w http.ResponseWriter, r *http.Request) (
 	return 0, false
 }
 
-func (s *Server) inviteConnectionsForUser(userID int64) []connections.Connection {
-	items := s.connections.My(userID)
-	relations, _ := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
-	return s.inviteConnections(userID, items, relations)
+func (s *Server) inviteConnectionsForUser(userID int64) ([]connections.Connection, error) {
+	items, err := s.connections.MyStrict(userID)
+	if err != nil {
+		return nil, err
+	}
+	relations, err := s.auth.AdminInviteRelations(invites.RelationFilter{InviterUserID: userID})
+	if err != nil {
+		return nil, err
+	}
+	return s.inviteConnections(userID, items, relations), nil
 }
 
 func (s *Server) inviteConnections(userID int64, items []connections.Connection, relations []invites.Relation) []connections.Connection {
@@ -321,8 +392,9 @@ func (s *Server) inviteConnections(userID int64, items []connections.Connection,
 		if relation.InviteeUserID <= 0 || seen[relation.InviteeUserID] {
 			continue
 		}
-		now := time.Now()
-		filtered = append(filtered, connections.Connection{ID: relation.InviteeUserID, UserID: userID, ConnectedUserID: relation.InviteeUserID, RelationType: "invite", SourceType: "invite", SourceID: relation.InviteCodeID, CreatedAt: now, UpdatedAt: now})
+		// 邀请绑定关系的旧表没有绑定时间字段。不能在每次读取时伪造“现在”
+		// 作为建立时间，否则邀约记录会不断刷新，15 天超时统计永远失真。
+		filtered = append(filtered, connections.Connection{ID: relation.InviteeUserID, UserID: userID, ConnectedUserID: relation.InviteeUserID, RelationType: "invite", SourceType: "invite", SourceID: relation.InviteCodeID})
 	}
 	return filtered
 }
@@ -342,7 +414,7 @@ func countCompletedInvitedGames(items []map[string]interface{}) int {
 	count := 0
 	for _, item := range items {
 		status, _ := item["status"].(string)
-		if status == "pending_review" || status == "completed" {
+		if status == "completed" {
 			count++
 		}
 	}
@@ -360,8 +432,6 @@ func (s *Server) inviteMembers(items []connections.Connection) []map[string]inte
 			"avatar":             avatarTextForName(name, item.ConnectedUserID),
 			"name":               name,
 			"desc":               "邀约 1 · 转化 " + strconv.Itoa(completed) + " · 参与 " + strconv.Itoa(len(games)) + "局",
-			"direct":             "+",
-			"team":               s.inviteContributionText(item.ConnectedUserID),
 			"gameCount":          len(games),
 			"completedGameCount": completed,
 			"games":              games,
@@ -370,8 +440,10 @@ func (s *Server) inviteMembers(items []connections.Connection) []map[string]inte
 	return members
 }
 
-func (s *Server) inviteRecords(items []connections.Connection) []map[string]interface{} {
+func (s *Server) inviteRecords(inviterUserID int64, items []connections.Connection) []map[string]interface{} {
 	records := make([]map[string]interface{}, 0, len(items))
+	inviterName := s.displayName(inviterUserID, "我")
+	inviterRole := s.inviteRoleLabel(inviterUserID)
 	for _, item := range items {
 		name := s.displayName(item.ConnectedUserID, "成员")
 		invitedGames := s.invitedGames(item.ConnectedUserID)
@@ -382,30 +454,32 @@ func (s *Server) inviteRecords(items []connections.Connection) []map[string]inte
 			status = "completed"
 			statusText = "已完成"
 			statusClass = "green"
-		} else if time.Since(item.UpdatedAt) >= 15*24*time.Hour {
+		} else if !item.UpdatedAt.IsZero() && time.Since(item.UpdatedAt) >= 15*24*time.Hour {
 			status = "timeout"
 			statusText = "超时"
 			statusClass = "orange"
 		}
+		createdTime := inviteRecordTime(item.CreatedAt, "绑定时间待补")
+		updatedTime := inviteRecordTime(item.UpdatedAt, "状态待更新")
 		records = append(records, map[string]interface{}{
-			"role":         "referred",
-			"statusKey":    status,
-			"status":       statusText,
-			"statusClass":  statusClass,
-			"id":           "REF-" + strconv.FormatInt(item.ID, 10),
-			"time":         item.CreatedAt.Format("01-02 15:04"),
-			"expertAvatar": avatarTextForName(name, item.ConnectedUserID),
-			"expert":       name,
-			"memberId":     strconv.FormatInt(item.ConnectedUserID, 10),
-			"playerAvatar": "我",
-			"player":       "我",
-			"title":        "邀请关系服务",
-			"budget":       "你的奖励：" + s.inviteContributionText(item.ConnectedUserID),
-			"income":       incomeStatusText(status),
-			"route":        "/pages/profile/service-center/invite/member-detail/index?memberId=" + strconv.FormatInt(item.ConnectedUserID, 10),
+			"role":             "referred",
+			"statusKey":        status,
+			"status":           statusText,
+			"statusClass":      statusClass,
+			"id":               "REF-" + strconv.FormatInt(item.ID, 10),
+			"time":             createdTime,
+			"inviterAvatar":    avatarTextForName(inviterName, inviterUserID),
+			"inviterName":      inviterName,
+			"inviterRoleLabel": inviterRole,
+			"inviteeAvatar":    avatarTextForName(name, item.ConnectedUserID),
+			"inviteeName":      name,
+			"inviteeRoleLabel": "受邀成员",
+			"memberId":         strconv.FormatInt(item.ConnectedUserID, 10),
+			"title":            "邀请关系服务",
+			"route":            "/pages/profile/service-center/invite/member-detail/index?memberId=" + strconv.FormatInt(item.ConnectedUserID, 10),
 			"steps": []map[string]interface{}{
-				{"label": "邀请关系建立", "time": item.CreatedAt.Format("01-02 15:04")},
-				{"label": statusText, "time": item.UpdatedAt.Format("01-02 15:04")},
+				{"label": "邀请关系建立", "time": createdTime},
+				{"label": statusText, "time": updatedTime},
 			},
 			"actions":   []string{"查看详情"},
 			"games":     invitedGames,
@@ -415,19 +489,36 @@ func (s *Server) inviteRecords(items []connections.Connection) []map[string]inte
 	return records
 }
 
+func inviteRecordTime(value time.Time, fallback string) string {
+	if value.IsZero() {
+		return fallback
+	}
+	return value.Format("01-02 15:04")
+}
+
+func (s *Server) inviteRoleLabel(userID int64) string {
+	roles := s.profiles.RoleSnapshot(userID).RoleStatusMap
+	if roles["guide"] == "approved" || roles["guide"] == "active" {
+		return "领路人"
+	}
+	if roles["expert"] == "approved" || roles["expert"] == "active" {
+		return "行家"
+	}
+	return "邀请人"
+}
+
 func (s *Server) inviteRankingMembers(items []connections.Connection) []map[string]interface{} {
 	members := make([]map[string]interface{}, 0, len(items))
 	for index, item := range items {
 		name := s.displayName(item.ConnectedUserID, "成员")
 		members = append(members, map[string]interface{}{
-			"id":                 strconv.FormatInt(item.ConnectedUserID, 10),
-			"rank":               index + 1,
-			"avatar":             avatarTextForName(name, item.ConnectedUserID),
-			"name":               name,
-			"level":              "一级成员",
-			"activeDays":         s.invitedActiveDays(item.ConnectedUserID),
-			"inviteCount":        s.inviteCountForUser(item.ConnectedUserID),
-			"profitContribution": s.inviteContributionText(item.ConnectedUserID),
+			"id":          strconv.FormatInt(item.ConnectedUserID, 10),
+			"rank":        index + 1,
+			"avatar":      avatarTextForName(name, item.ConnectedUserID),
+			"name":        name,
+			"level":       "一级成员",
+			"activeDays":  s.invitedActiveDays(item.ConnectedUserID),
+			"inviteCount": s.inviteCountForUser(item.ConnectedUserID),
 		})
 	}
 	return members
@@ -509,13 +600,6 @@ func (s *Server) invitedActiveDays(userID int64) int {
 	return len(seen)
 }
 
-func (s *Server) inviteContributionText(userID int64) string {
-	if !s.currentOperationRules().Revenue.Enabled {
-		return "一期未启用"
-	}
-	return "按实际结算"
-}
-
 func inviteAvatarList(s *Server, items []connections.Connection) []string {
 	result := make([]string, 0, len(items))
 	for _, item := range items {
@@ -549,40 +633,6 @@ func countInviteRecordsByStatus(records []map[string]interface{}, status string)
 	return count
 }
 
-func inviteIncomeTrendSeries(logs []revenue.IncomeLog) []map[string]interface{} {
-	if len(logs) == 0 {
-		return []map[string]interface{}{{"month": time.Now().Format("1月"), "amount": int64(0)}}
-	}
-	monthly := make(map[string]int64)
-	order := make([]string, 0, len(logs))
-	for _, log := range logs {
-		month := log.CreatedAt.Format("2006-01")
-		if _, ok := monthly[month]; !ok {
-			order = append(order, month)
-		}
-		monthly[month] += log.AmountCent
-	}
-	result := make([]map[string]interface{}, 0, len(order))
-	for _, month := range order {
-		parsed, _ := time.Parse("2006-01", month)
-		result = append(result, map[string]interface{}{"month": parsed.Format("1月"), "amount": monthly[month]})
-	}
-	return result
-}
-
-func inviteIncomeFlows(logs []revenue.IncomeLog) []map[string]interface{} {
-	flows := make([]map[string]interface{}, 0, len(logs))
-	for _, log := range logs {
-		flows = append(flows, map[string]interface{}{
-			"icon":   "🎯",
-			"title":  "组局分润 · " + log.Role,
-			"time":   log.CreatedAt.Format("01-02 15:04"),
-			"amount": "+" + moneyYuanText(log.AmountCent),
-		})
-	}
-	return flows
-}
-
 func parseInviteMemberID(value string) int64 {
 	value = strings.TrimSpace(value)
 	value = strings.TrimPrefix(value, "member-")
@@ -595,24 +645,6 @@ func conversionRateText(success int, total int) string {
 		return "0%"
 	}
 	return strconv.Itoa(success*100/total) + "%"
-}
-
-func moneyYuanText(cent int64) string {
-	return "¥" + strconv.FormatFloat(float64(cent)/100, 'f', 2, 64)
-}
-
-func incomeDisplayText(enabled bool, cent int64) string {
-	if !enabled {
-		return "一期未启用"
-	}
-	return moneyYuanText(cent)
-}
-
-func incomeStatusText(status string) string {
-	if status == "completed" {
-		return "已到账"
-	}
-	return ""
 }
 
 func defaultString(value string, fallback string) string {

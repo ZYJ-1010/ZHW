@@ -7,9 +7,11 @@ import (
 
 type Repository interface {
 	SaveRecord(ctx context.Context, record Record) error
+	UpdateRecordIfStatus(ctx context.Context, record Record, expected Status) (Record, bool, error)
 	FindRecord(ctx context.Context, userID int64) (Record, bool, error)
 	ListRecords(ctx context.Context) ([]Record, error)
 	SaveSMSCode(ctx context.Context, record SMSCodeRecord) error
+	VerifyAndConsumeSMSCode(ctx context.Context, userID int64, scene string, codeHash string, verifiedAt time.Time, maxFailures int) (Record, bool, error)
 	SaveFaceIDSession(ctx context.Context, record FaceIDSessionRecord) error
 }
 

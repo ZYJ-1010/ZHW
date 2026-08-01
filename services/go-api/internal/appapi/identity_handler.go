@@ -26,16 +26,24 @@ type identityService interface {
 	SendSMSCode(userID int64) (identity.SMSDispatchResult, error)
 	VerifySMSCode(userID int64, code string) (identity.Record, error)
 	MarkSMSVerified(userID int64) (identity.Record, error)
+	SyncPhoneLoginVerification(userID int64, phone string) (identity.Record, error)
 	VerifyPhone(userID int64, realName string, idCard string) (identity.Record, error)
 	SubmitManualRealname(userID int64, realName string, idCard string) (identity.Record, error)
 	ReviewManualRealname(userID int64, approve bool, reason string) (identity.Record, error)
 	StartFaceID(userID int64) (string, error)
 	CompleteFaceID(userID int64, token string) (identity.Record, error)
+	CompleteFaceIDCallback(token string) (identity.Record, error)
 	Status(userID int64) identity.Record
+	StatusStrict(userID int64) (identity.Record, error)
 	InGameIdentity(userID int64) (identity.InGameIdentity, bool)
 	IsVerified(userID int64) bool
+	IsVerifiedStrict(userID int64) (bool, error)
 	IsRealnameVerified(userID int64) bool
+	IsRealnameVerifiedStrict(userID int64) (bool, error)
+	IsPhoneLoginVerified(userID int64) bool
+	IsPhoneLoginVerifiedStrict(userID int64) (bool, error)
 	AllRecords() []identity.Record
+	AllRecordsStrict() ([]identity.Record, error)
 	RevealRecord(record identity.Record) (identity.PlainIdentity, error)
 }
 
@@ -51,14 +59,10 @@ func (s *Server) bindPhone(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
-	if _, err := s.auth.BindPhoneAuth(userID, req.Phone); err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号已被使用或格式错误")
-		return
-	}
 	record, err := s.identity.BindPhone(userID, req.Phone)
 	if err != nil {
 		if errors.Is(err, identity.ErrPhoneInvalid) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号格式不正确")
 			return
 		}
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号不能为空")
@@ -91,21 +95,17 @@ func (s *Server) restartRealname(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := s.auth.BindPhoneAuth(userID, phone); err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号已被使用或格式错误")
-		return
-	}
 	record, err := s.identity.RestartRealname(userID, phone)
 	if err != nil {
 		if errors.Is(err, identity.ErrPhoneInvalid) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid phone")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号格式不正确")
 			return
 		}
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "手机号不能为空")
 		return
 	}
 	if _, err := s.auth.UpdateRealnameStatus(userID, string(record.Status)); err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "sync user realname status failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "实名认证状态同步失败，请稍后重试")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{
@@ -226,10 +226,14 @@ func (s *Server) verifySMSCode(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.Phone) != "" {
 		if err := s.auth.VerifyPhoneCode(req.Phone, req.Code); err != nil {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "短信验证码错误")
+			if errors.Is(err, auth.ErrPhoneCodeInvalid) || errors.Is(err, auth.ErrPhoneInvalid) {
+				httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "短信验证码错误")
+			} else {
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "验证码校验服务暂不可用，请稍后重试")
+			}
 			return
 		}
-		httpx.OK(w, map[string]string{"message": "sms code verified"})
+		httpx.OK(w, map[string]string{"message": "短信验证码校验成功"})
 		return
 	}
 	userID, ok := s.requireIdentityUser(w, r)
@@ -239,6 +243,20 @@ func (s *Server) verifySMSCode(w http.ResponseWriter, r *http.Request) {
 	record, err := s.identity.VerifySMSCode(userID, req.Code)
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "短信验证码错误")
+		return
+	}
+	plain, revealErr := s.identity.RevealRecord(record)
+	if revealErr != nil || strings.TrimSpace(plain.Phone) == "" {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "手机号绑定失败，请重新获取验证码")
+		return
+	}
+	if _, bindErr := s.auth.BindPhoneAuth(userID, plain.Phone); bindErr != nil {
+		_, rollbackErr := s.identity.RestartRealname(userID, plain.Phone)
+		if rollbackErr != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "手机号绑定状态恢复失败，请稍后重试")
+			return
+		}
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "手机号已被其他账号使用，请更换手机号")
 		return
 	}
 	httpx.OK(w, record)
@@ -268,13 +286,13 @@ func (s *Server) verifyPhone(w http.ResponseWriter, r *http.Request) {
 			message = "姓名和身份证号不能为空"
 		}
 		if errors.Is(err, identity.ErrIDCardInvalid) {
-			message = "invalid id card"
+			message = "身份证号格式不正确"
 		}
 		httpx.Error(w, status, httpx.CodeValidationError, message)
 		return
 	}
 	if _, err := s.auth.UpdateRealnameStatus(userID, string(record.Status)); err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "sync user realname status failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "实名认证状态同步失败，请稍后重试")
 		return
 	}
 	httpx.OK(w, record)
@@ -294,17 +312,13 @@ func (s *Server) startFaceID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) faceIDCallback(w http.ResponseWriter, r *http.Request) {
-	userID, ok := s.requireIdentityUser(w, r)
-	if !ok {
-		return
-	}
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	if !s.verifyFaceIDCallbackSignature(r, payload) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "invalid faceid callback signature")
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "人脸核验回调签名无效")
 		return
 	}
 	var req struct {
@@ -314,9 +328,41 @@ func (s *Server) faceIDCallback(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
+	record, err := s.identity.CompleteFaceIDCallback(req.FaceToken)
+	if err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "人脸核身流程未开始或 token 不匹配")
+		return
+	}
+	if _, err := s.auth.UpdateRealnameStatus(record.UserID, string(record.Status)); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "实名认证状态同步失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, record)
+}
+
+func (s *Server) faceIDResult(w http.ResponseWriter, r *http.Request) {
+	if s.productionMode || strings.TrimSpace(s.cfg.FaceID.HTTPEndpoint) != "" {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "请等待人脸核身服务返回结果")
+		return
+	}
+	userID, ok := s.requireIdentityUser(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		FaceToken string `json:"faceToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
+		return
+	}
 	record, err := s.identity.CompleteFaceID(userID, req.FaceToken)
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "人脸核身流程未开始或 token 不匹配")
+		return
+	}
+	if _, err := s.auth.UpdateRealnameStatus(userID, string(record.Status)); err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "实名认证状态同步失败，请稍后重试")
 		return
 	}
 	httpx.OK(w, record)
@@ -327,11 +373,17 @@ func (s *Server) identityStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, s.identity.Status(userID))
+	record, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, record)
 }
 
 func (s *Server) verifyFaceIDCallbackSignature(r *http.Request, payload []byte) bool {
-	if !s.faceIDCallbackRequireSignature && s.faceIDCallbackSecret == "" {
+	requireSignature := s.productionMode || strings.TrimSpace(s.cfg.FaceID.HTTPEndpoint) != "" || s.faceIDCallbackRequireSignature
+	if !requireSignature && s.faceIDCallbackSecret == "" {
 		return true
 	}
 	if s.faceIDCallbackSecret == "" {
@@ -357,7 +409,7 @@ func (s *Server) requireIdentityUser(w http.ResponseWriter, r *http.Request) (in
 		httpx.Error(w, http.StatusUnauthorized, httpx.CodeUnauthorized, "未登录")
 		return 0, false
 	}
-	user, ok := s.auth.CurrentUser(token)
+	user, ok := s.auth.CurrentIdentityUser(token)
 	if !ok {
 		httpx.Error(w, http.StatusUnauthorized, httpx.CodeUnauthorized, "登录已失效")
 		return 0, false
@@ -370,26 +422,40 @@ func (s *Server) issueTokenAfterIdentity(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	if !s.identity.IsRealnameVerified(userID) {
-		httpx.Error(w, http.StatusForbidden, 40341, "strong identity required")
+	verified, err := s.identity.IsRealnameVerifiedStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
+		return
+	}
+	if !verified {
+		httpx.Error(w, http.StatusForbidden, 40341, "请先完成实名认证")
 		return
 	}
 	session, err := s.auth.IssueAppToken(userID)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "issue token failed")
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "登录凭证换发失败，请稍后重试")
+		return
+	}
+	record, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证状态失败，请稍后重试")
 		return
 	}
 	httpx.OK(w, map[string]interface{}{
 		"token":              session.Token,
 		"expiresAt":          session.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
-		"identityBindStatus": string(s.identity.Status(userID).Status),
+		"identityBindStatus": string(record.Status),
 	})
 }
 
 func (s *Server) adminIdentityVerifications(w http.ResponseWriter, r *http.Request) {
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
 	userID := parseInt64Query(r, "userId")
-	items := s.identity.AllRecords()
+	items, err := s.identity.AllRecordsStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证审核列表失败，请稍后重试")
+		return
+	}
 	filtered := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
 		if status != "" && string(item.Status) != status {
@@ -408,7 +474,11 @@ func (s *Server) adminIdentityVerificationDetail(w http.ResponseWriter, r *http.
 	if !ok {
 		return
 	}
-	record := s.identity.Status(userID)
+	record, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取实名认证详情失败，请稍后重试")
+		return
+	}
 	s.recordOperation(r, "identity:verification:view", "identity_verification", strconv.FormatInt(userID, 10), map[string]interface{}{
 		"status": record.Status,
 	})
@@ -438,11 +508,11 @@ func (s *Server) reviewIdentityVerification(w http.ResponseWriter, r *http.Reque
 		Remark  string `json:"remark"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "请求参数错误")
 		return
 	}
 	reason := strings.TrimSpace(firstNonEmpty(req.Reason, req.Remark))
-	record, err := s.reviewIdentityRecord(r, userID, req.Approve, reason)
+	record, err := s.reviewIdentityRecord(w, r, userID, req.Approve, reason)
 	if err != nil {
 		writeIdentityReviewError(w, err)
 		return
@@ -489,7 +559,7 @@ func (s *Server) batchReviewIdentityVerifications(w http.ResponseWriter, r *http
 			items = append(items, identityBatchReviewResult{UserID: userID, Error: "仅待审核的实名认证记录可批量处理"})
 			continue
 		}
-		reviewed, err := s.reviewIdentityRecord(r, userID, req.Approve, reason)
+		reviewed, err := s.reviewIdentityRecord(w, r, userID, req.Approve, reason)
 		if err != nil {
 			items = append(items, identityBatchReviewResult{UserID: userID, Error: identityReviewErrorMessage(err)})
 			continue
@@ -512,7 +582,7 @@ func (s *Server) batchReviewIdentityVerifications(w http.ResponseWriter, r *http
 	})
 }
 
-func (s *Server) reviewIdentityRecord(r *http.Request, userID int64, approve bool, reason string) (identity.Record, error) {
+func (s *Server) reviewIdentityRecord(w http.ResponseWriter, r *http.Request, userID int64, approve bool, reason string) (identity.Record, error) {
 	record, err := s.identity.ReviewManualRealname(userID, approve, reason)
 	if err != nil {
 		return identity.Record{}, err
@@ -531,7 +601,7 @@ func (s *Server) reviewIdentityRecord(r *http.Request, userID int64, approve boo
 	if !approve && reason != "" {
 		content += " 原因：" + reason
 	}
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "identity_review", notifications.CreateRequest{
 		UserID:     userID,
 		NotifyType: "identity_review",
 		Title:      title,
@@ -570,6 +640,8 @@ func writeIdentityReviewError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "实名认证材料不完整")
 	case errors.Is(err, identity.ErrReviewReasonRequired):
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "驳回审核必须填写原因")
+	case errors.Is(err, identity.ErrReviewStateInvalid):
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "仅待审核的实名认证记录可处理")
 	default:
 		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "实名认证审核失败")
 	}
@@ -583,6 +655,8 @@ func identityReviewErrorMessage(err error) string {
 		return "实名认证材料不完整"
 	case errors.Is(err, identity.ErrReviewReasonRequired):
 		return "驳回审核必须填写原因"
+	case errors.Is(err, identity.ErrReviewStateInvalid):
+		return "仅待审核的实名认证记录可处理"
 	default:
 		return "实名认证审核失败"
 	}
@@ -605,6 +679,7 @@ func (s *Server) adminIdentityPayload(record identity.Record, allowSensitive boo
 		"faceVerified":              record.FaceVerified,
 		"wechatRealnameConsistency": record.WechatRealnameConsistency,
 		"failureReason":             record.FailureReason,
+		"createdAt":                 record.CreatedAt,
 		"updatedAt":                 record.UpdatedAt,
 		"idCardFullAvailable":       false,
 		"phoneFullAvailable":        false,

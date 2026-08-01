@@ -1,4 +1,5 @@
 const gameService = require('../../../../../services/game')
+const { toUserMessage } = require('../../../../../utils/user-message')
 
 const ENTRY_TYPE_MAP = {
   link: 'link',
@@ -47,6 +48,7 @@ Page({
     actionText: MODE_CONFIG.link.actionText,
     qrcodeUrl: '',
     urlLink: '',
+    urlLinkReady: false,
     errorText: ''
   },
 
@@ -76,14 +78,16 @@ Page({
         inviteCode,
         qrcodeUrl: result.wxaCodeDataUrl || '',
         urlLink: result.urlLink || path,
-        errorText: qrcodeError || result.urlLinkError || ''
+        urlLinkReady: result.urlLinkReady === true,
+        errorText: qrcodeError || (result.urlLinkReady === true ? '' : '邀请链接将在小程序正式发布后开放；当前可使用微信转发或二维码邀请好友。')
       })
     } catch (error) {
       this.setData({
         loading: false,
         inviteCode: '',
         urlLink: '',
-        errorText: error.message || '邀请物料生成失败'
+        urlLinkReady: false,
+        errorText: toUserMessage(error && error.message, '邀请物料生成失败')
       })
     }
   },
@@ -102,6 +106,10 @@ Page({
   },
 
   copyInvitePath() {
+    if (!this.data.urlLinkReady) {
+      wx.showToast({ title: '邀请链接将在小程序正式发布后开放', icon: 'none' })
+      return
+    }
     const text = this.data.urlLink || `/pages/login/invite/index?inviteCode=${encodeURIComponent(this.data.inviteCode)}&entryType=${encodeURIComponent(this.data.entryType || 'link')}`
     if (!this.data.inviteCode) {
       wx.showToast({ title: '邀请码生成中', icon: 'none' })

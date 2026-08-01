@@ -12,12 +12,14 @@ import (
 )
 
 var (
-	ErrRoomNotFound    = errors.New("room not found")
-	ErrForbidden       = errors.New("forbidden")
-	ErrSensitive       = errors.New("sensitive word hit")
-	ErrExternalIM      = errors.New("openim operation failed")
-	ErrMessageNotFound = errors.New("message not found")
-	ErrInvalidMessage  = errors.New("invalid message")
+	ErrRoomNotFound     = errors.New("room not found")
+	ErrForbidden        = errors.New("forbidden")
+	ErrSensitive        = errors.New("sensitive word hit")
+	ErrExternalIM       = errors.New("openim operation failed")
+	ErrMessageNotFound  = errors.New("message not found")
+	ErrInvalidMessage   = errors.New("invalid message")
+	ErrInvalidImageFile = errors.New("image message requires image file")
+	ErrInvalidVoiceFile = errors.New("voice message requires audio file")
 )
 
 type GameMemberChecker interface {
@@ -100,9 +102,20 @@ type PrivateMessage struct {
 }
 
 type SendRequest struct {
-	MessageType string `json:"messageType"`
-	Content     string `json:"content"`
-	FileID      int64  `json:"fileId"`
+	MessageType string             `json:"messageType"`
+	Content     string             `json:"content"`
+	FileID      int64              `json:"fileId"`
+	Width       int32              `json:"width,omitempty"`
+	Height      int32              `json:"height,omitempty"`
+	DurationMS  int64              `json:"durationMs,omitempty"`
+	Attachment  *MessageAttachment `json:"-"`
+}
+
+type MessageAttachment struct {
+	URL      string
+	FileName string
+	MimeType string
+	Size     int64
 }
 
 type Session struct {
@@ -257,8 +270,37 @@ func (s *Service) UseSensitiveWordStore(store SensitiveWordStore) error {
 }
 
 func (s *Service) EnsureRoom(gameID int64) Room {
+	room, _ := s.EnsureRoomStrict(gameID)
+	return room
+}
+
+func (s *Service) EnsureRoomStrict(gameID int64) (Room, error) {
 	if s.repo != nil {
+		// Room reads are frequent (room, session and history load in parallel).
+		// Reuse an existing room and only refresh its member snapshot; creating
+		// the same OpenIM group again can turn a healthy room into create_failed.
+		s.mu.Lock()
 		memberIDs := s.members.Members(gameID)
+		existing, found, err := s.repo.RoomByGame(context.Background(), gameID)
+		if err != nil {
+			s.mu.Unlock()
+			return Room{}, err
+		}
+		if found {
+			room, syncErr := s.repo.EnsureRoom(
+				context.Background(),
+				gameID,
+				memberIDs,
+				existing.Engine,
+				existing.OpenIMGroupID,
+			)
+			if syncErr == nil {
+				s.mu.Unlock()
+				return room, nil
+			}
+			s.mu.Unlock()
+			return Room{}, syncErr
+		}
 		engine := "local"
 		openIMGroupID := ""
 		createFailed := false
@@ -277,17 +319,25 @@ func (s *Service) EnsureRoom(gameID int64) Room {
 				room.Status = "create_failed"
 				room.Engine = engine
 				room.OpenIMGroupID = ""
-				if saved, saveErr := s.repo.SaveRoom(context.Background(), room); saveErr == nil {
-					room = saved
+				saved, saveErr := s.repo.SaveRoom(context.Background(), room)
+				if saveErr != nil {
+					s.mu.Unlock()
+					return Room{}, saveErr
 				}
+				room = saved
 			}
-			return room
+			s.mu.Unlock()
+			return room, nil
 		}
+		s.mu.Unlock()
+		return Room{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if room, ok := s.roomsByGame[gameID]; ok {
-		return room
+		room.MemberIDs = append([]int64(nil), s.members.Members(gameID)...)
+		s.roomsByGame[gameID] = room
+		return room, nil
 	}
 	memberIDs := s.members.Members(gameID)
 	engine := "local"
@@ -313,7 +363,7 @@ func (s *Service) EnsureRoom(gameID int64) Room {
 	}
 	s.nextRoomID++
 	s.roomsByGame[gameID] = room
-	return room
+	return room, nil
 }
 
 func (s *Service) RoomForGame(userID int64, gameID int64) (Room, error) {
@@ -327,12 +377,19 @@ func (s *Service) RoomForGame(userID int64, gameID int64) (Room, error) {
 		// EnsureRoom is idempotent and also synchronizes chat_room_members with
 		// the current game members. Returning a previously-created room directly
 		// left rooms created early with only their original member.
-		room := s.EnsureRoom(gameID)
+		room, err := s.EnsureRoomStrict(gameID)
+		if err != nil {
+			return Room{}, err
+		}
 		if room.Status == "create_failed" {
 			return room, ErrExternalIM
 		}
 		if s.gameReadOnly(gameID) && !roomReadOnly(room) {
-			for _, updated := range s.ReadOnlyRoomsByGameIDs([]int64{gameID}, "game_ended") {
+			updatedRooms, err := s.ReadOnlyRoomsByGameIDsStrict([]int64{gameID}, "game_ended")
+			if err != nil {
+				return Room{}, err
+			}
+			for _, updated := range updatedRooms {
 				if updated.GameID == gameID {
 					room = updated
 					break
@@ -351,7 +408,11 @@ func (s *Service) RoomForGame(userID int64, gameID int64) (Room, error) {
 		return room, ErrExternalIM
 	}
 	if s.gameReadOnly(gameID) && !roomReadOnly(room) {
-		for _, updated := range s.ReadOnlyRoomsByGameIDs([]int64{gameID}, "game_ended") {
+		updatedRooms, err := s.ReadOnlyRoomsByGameIDsStrict([]int64{gameID}, "game_ended")
+		if err != nil {
+			return Room{}, err
+		}
+		for _, updated := range updatedRooms {
 			if updated.GameID == gameID {
 				room = updated
 				break
@@ -483,8 +544,8 @@ func (s *Service) send(userID int64, gameID int64, req SendRequest, allowReadOnl
 			}
 		}
 	}
-	if s.openim != nil && room.Engine == "openim" && req.MessageType == "text" {
-		if err := s.openim.SendGroupText(context.Background(), gameID, userID, req.Content); err != nil {
+	if s.openim != nil && room.Engine == "openim" && openIMSyncableMessage(req.MessageType) {
+		if err := s.openim.SendGroupMessage(context.Background(), gameID, userID, req); err != nil {
 			return Message{}, err
 		}
 	}
@@ -723,11 +784,17 @@ func (s *Service) AdminMessagesByRoom(roomID int64) ([]Message, Room, error) {
 }
 
 func (s *Service) AdminRooms() []Room {
+	rooms, _ := s.AdminRoomsStrict()
+	return rooms
+}
+
+func (s *Service) AdminRoomsStrict() ([]Room, error) {
 	if s.repo != nil {
 		rooms, err := s.repo.ListRooms(context.Background())
-		if err == nil {
-			return rooms
+		if err != nil {
+			return nil, err
 		}
+		return rooms, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -738,7 +805,7 @@ func (s *Service) AdminRooms() []Room {
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].ID < result[j].ID
 	})
-	return result
+	return result, nil
 }
 
 func (s *Service) AdminArchiveRoom(roomID int64, reason string) (Room, error) {
@@ -790,7 +857,9 @@ func (s *Service) AdminRetryCreateRoom(roomID int64) (Room, error) {
 			target.Status = "create_failed"
 			target.Engine = "openim"
 			target.OpenIMGroupID = ""
-			_, _ = s.repo.SaveRoom(context.Background(), target)
+			if _, saveErr := s.repo.SaveRoom(context.Background(), target); saveErr != nil {
+				return Room{}, saveErr
+			}
 			return Room{}, err
 		}
 		target.Status = "active"
@@ -879,11 +948,17 @@ func (s *Service) AdminHideMessage(messageID int64, reason string) (Message, err
 }
 
 func (s *Service) AllMessages() []Message {
+	messages, _ := s.AllMessagesStrict()
+	return messages
+}
+
+func (s *Service) AllMessagesStrict() ([]Message, error) {
 	if s.repo != nil {
 		messages, err := s.repo.ListMessages(context.Background())
-		if err == nil {
-			return messages
+		if err != nil {
+			return nil, err
 		}
+		return messages, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -891,7 +966,7 @@ func (s *Service) AllMessages() []Message {
 	for _, messages := range s.messagesByRoom {
 		result = append(result, messages...)
 	}
-	return result
+	return result, nil
 }
 
 func (s *Service) Ack(userID int64, roomID int64, messageID int64) (Message, error) {
@@ -927,6 +1002,11 @@ func (s *Service) ArchiveRoom(userID int64, roomID int64, reason string) (Room, 
 }
 
 func (s *Service) ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []Room {
+	rooms, _ := s.ArchiveRoomsByGameIDsStrict(gameIDs, reason)
+	return rooms
+}
+
+func (s *Service) ArchiveRoomsByGameIDsStrict(gameIDs []int64, reason string) ([]Room, error) {
 	gameIDSet := make(map[int64]struct{}, len(gameIDs))
 	for _, gameID := range gameIDs {
 		if gameID > 0 {
@@ -934,7 +1014,7 @@ func (s *Service) ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []Room {
 		}
 	}
 	if len(gameIDSet) == 0 {
-		return nil
+		return nil, nil
 	}
 	normalizedReason, err := normalizeArchiveReason(reason)
 	if err != nil {
@@ -943,7 +1023,7 @@ func (s *Service) ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []Room {
 	if s.repo != nil {
 		rooms, err := s.repo.ListRooms(context.Background())
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		archived := make([]Room, 0)
 		now := time.Now().Format(time.RFC3339)
@@ -955,11 +1035,12 @@ func (s *Service) ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []Room {
 			room.ArchivedAt = now
 			room.ArchiveReason = normalizedReason
 			updated, err := s.repo.SaveRoom(context.Background(), room)
-			if err == nil {
-				archived = append(archived, updated)
+			if err != nil {
+				return nil, err
 			}
+			archived = append(archived, updated)
 		}
-		return archived
+		return archived, nil
 	}
 
 	s.mu.Lock()
@@ -976,10 +1057,15 @@ func (s *Service) ArchiveRoomsByGameIDs(gameIDs []int64, reason string) []Room {
 		s.roomsByGame[gameID] = room
 		archived = append(archived, room)
 	}
-	return archived
+	return archived, nil
 }
 
 func (s *Service) ReadOnlyRoomsByGameIDs(gameIDs []int64, reason string) []Room {
+	rooms, _ := s.ReadOnlyRoomsByGameIDsStrict(gameIDs, reason)
+	return rooms
+}
+
+func (s *Service) ReadOnlyRoomsByGameIDsStrict(gameIDs []int64, reason string) ([]Room, error) {
 	gameIDSet := make(map[int64]struct{}, len(gameIDs))
 	for _, gameID := range gameIDs {
 		if gameID > 0 {
@@ -987,7 +1073,7 @@ func (s *Service) ReadOnlyRoomsByGameIDs(gameIDs []int64, reason string) []Room 
 		}
 	}
 	if len(gameIDSet) == 0 {
-		return nil
+		return nil, nil
 	}
 	normalizedReason, err := normalizeArchiveReason(reason)
 	if err != nil {
@@ -996,7 +1082,7 @@ func (s *Service) ReadOnlyRoomsByGameIDs(gameIDs []int64, reason string) []Room 
 	if s.repo != nil {
 		rooms, err := s.repo.ListRooms(context.Background())
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		updatedRooms := make([]Room, 0)
 		for _, room := range rooms {
@@ -1006,11 +1092,12 @@ func (s *Service) ReadOnlyRoomsByGameIDs(gameIDs []int64, reason string) []Room 
 			room.Status = "readonly"
 			room.ArchiveReason = normalizedReason
 			updated, err := s.repo.SaveRoom(context.Background(), room)
-			if err == nil {
-				updatedRooms = append(updatedRooms, updated)
+			if err != nil {
+				return nil, err
 			}
+			updatedRooms = append(updatedRooms, updated)
 		}
-		return updatedRooms
+		return updatedRooms, nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1024,7 +1111,7 @@ func (s *Service) ReadOnlyRoomsByGameIDs(gameIDs []int64, reason string) []Room 
 		s.roomsByGame[gameID] = room
 		updatedRooms = append(updatedRooms, room)
 	}
-	return updatedRooms
+	return updatedRooms, nil
 }
 
 func (s *Service) RecordWebhook(command string, gameID int64, roomID int64, payload []byte) WebhookEvent {
@@ -1231,7 +1318,7 @@ func (s *Service) markMessage(userID int64, roomID int64, messageID int64, actio
 			message.AckedBy = appendUniqueInt64(message.AckedBy, userID)
 			message.ReadBy = appendUniqueInt64(message.ReadBy, userID)
 		}
-		return message, nil
+		return s.repo.UpdateMessage(context.Background(), message)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1335,6 +1422,10 @@ func validMessageRequest(req SendRequest) bool {
 	default:
 		return false
 	}
+}
+
+func openIMSyncableMessage(messageType string) bool {
+	return messageType == "text" || messageType == "image" || messageType == "voice" || messageType == "file"
 }
 
 func validSensitiveWordAction(value string) bool {

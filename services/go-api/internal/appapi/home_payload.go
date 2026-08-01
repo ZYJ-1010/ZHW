@@ -14,6 +14,7 @@ import (
 	"zhw-mini/services/go-api/internal/connections"
 	"zhw-mini/services/go-api/internal/games"
 	"zhw-mini/services/go-api/internal/lbs"
+	"zhw-mini/services/go-api/internal/points"
 	"zhw-mini/services/go-api/internal/reviews"
 	"zhw-mini/services/go-api/internal/users"
 )
@@ -25,7 +26,7 @@ type homeDisplayConfigDTO struct {
 	OnlineSuffix    string `json:"onlineSuffix"`
 }
 
-func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, requestedRoleType string) map[string]interface{} {
+func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, requestedRoleType string, pointSummary points.Account, unreadNotificationCountValue int, onlineCount int) (map[string]interface{}, error) {
 	if len(visibleGames) > 10 {
 		visibleGames = visibleGames[:10]
 	}
@@ -34,23 +35,43 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, re
 		roleType = s.homeRoleType(userID)
 	}
 	user, _ := s.auth.UserByID(userID)
-	currentUser := s.buildCurrentUserDTO(user, s.identity.Status(userID))
-	growth := s.reviews.Profile(userID)
+	identityRecord, err := s.identity.StatusStrict(userID)
+	if err != nil {
+		return nil, err
+	}
+	currentUser, err := s.buildCurrentUserDTOStrict(user, identityRecord)
+	if err != nil {
+		return nil, err
+	}
+	growth, err := s.reviews.ProfileStrict(userID)
+	if err != nil {
+		return nil, err
+	}
+	roleGrowthProfiles := s.roleGrowthProfilesForUser(userID, growth)
 	stats := s.games.StatsForUser(userID)
-	conns := s.connections.My(userID)
-	nearbyGames := s.homeNearbyGames(userID, visibleGames, 6)
+	conns, err := s.connections.MyStrict(userID)
+	if err != nil {
+		return nil, err
+	}
+	nearbyGames, err := s.homeNearbyGames(userID, visibleGames, 6)
+	if err != nil {
+		return nil, err
+	}
 	friendGames := s.homeFriendGames(userID, visibleGames, conns, 4)
 	recommendedGames := s.homeGameCards(visibleGames, "city", 6)
 	if len(recommendedGames) > 6 {
 		recommendedGames = recommendedGames[:6]
 	}
-	nearbySummary := s.homeNearbySummary(userID, nearbyGames, conns)
+	nearbySummary, err := s.homeNearbySummary(userID, nearbyGames, conns)
+	if err != nil {
+		return nil, err
+	}
 	rankingBoards := s.homeRankingBoards(userID, user, stats, growth, conns)
 
 	payload := map[string]interface{}{
-		"hero":               s.homeHero(userID, user, growth, len(visibleGames), len(conns), roleType),
+		"hero":               s.homeHero(userID, user, growth, len(visibleGames), len(conns), roleType, onlineCount),
 		"user":               currentUser,
-		"playerSummary":      s.homePlayerSummary(userID, user, stats, growth, roleType),
+		"playerSummary":      s.homePlayerSummary(userID, user, stats, growth, roleType, roleGrowthProfiles),
 		"nearbySummary":      nearbySummary,
 		"onlineCard":         s.homeOnlineCard(nearbySummary),
 		"nearbySection":      s.homeNearbySection(),
@@ -62,14 +83,14 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, re
 		"rankingBoards":      rankingBoards,
 		"achievementSection": s.homeAchievementSection(),
 		"achievements":       s.homeAchievements(stats, growth, nearbyGames),
-		"metaverseEntry":     s.homeMetaverseEntry(len(conns), len(visibleGames)),
-		"earth":              s.homeEarth(userID, visibleGames, nearbyGames, conns),
-		"visualization":      s.homeVisualization(userID, visibleGames, nearbyGames, conns),
+		"metaverseEntry":     s.homeMetaverseEntry(len(conns), len(visibleGames), onlineCount),
+		"earth":              s.homeEarth(userID, visibleGames, nearbyGames, conns, onlineCount),
+		"visualization":      s.homeVisualization(userID, visibleGames, nearbyGames, conns, onlineCount),
 		"games":              visibleGames,
 		"userStats":          stats,
-		"pointsSummary":      s.points.Summary(userID),
+		"pointsSummary":      pointSummary,
 		"growth":             growth,
-		"notifications":      map[string]interface{}{"unreadCount": unreadNotificationCount(s.notices.List(userID))},
+		"notifications":      map[string]interface{}{"unreadCount": unreadNotificationCountValue},
 		"expertBlueBadge":    s.expertBlueBadgeForUser(userID),
 	}
 	if roleType == "expert" {
@@ -77,9 +98,9 @@ func (s *Server) buildAppHomePayload(userID int64, visibleGames []games.Game, re
 		payload["skillDisplay"] = s.currentExpertSkillDisplayConfig()
 	}
 	if roleType == "guide" {
-		payload["network"] = s.homeRoleNetwork(userID, conns, currentUser.IncomeSummary.PendingCent, currentUser.IncomeSummary.TotalCent)
+		payload["network"] = s.homeRoleNetwork(userID, conns)
 	}
-	return payload
+	return payload, nil
 }
 
 func (s *Server) homePendingGameCards(userID int64, limit int) []map[string]interface{} {
@@ -124,9 +145,9 @@ func homeSummaryInt(summary map[string]interface{}, key string) int {
 	}
 }
 
-func (s *Server) homeHero(userID int64, user users.User, growth reviews.GrowthProfile, gameCount int, connectionCount int, roleType string) map[string]interface{} {
+func (s *Server) homeHero(userID int64, user users.User, growth reviews.GrowthProfile, gameCount int, connectionCount int, roleType string, onlineCount int) map[string]interface{} {
 	return map[string]interface{}{
-		"onlineText":  s.homeOnlineText(gameCount, connectionCount),
+		"onlineText":  s.homeOnlineText(gameCount, connectionCount, onlineCount),
 		"roleType":    roleType,
 		"roleName":    homeRoleName(roleType),
 		"currentRole": roleType,
@@ -137,15 +158,11 @@ func (s *Server) homeHero(userID int64, user users.User, growth reviews.GrowthPr
 	}
 }
 
-func (s *Server) homeOnlineText(gameCount int, connectionCount int) string {
+func (s *Server) homeOnlineText(gameCount int, connectionCount int, activeCount int) string {
 	config := s.currentHomeDisplayConfig()
 	suffix := strings.TrimSpace(config.OnlineSuffix)
 	if suffix == "" {
 		suffix = "\u4eba\u5728\u7ebf"
-	}
-	activeCount := 0
-	if s.auth != nil {
-		activeCount = s.auth.ActiveAppSessionCount()
 	}
 	return strconv.Itoa(maxInt(0, activeCount)) + suffix
 }
@@ -171,7 +188,7 @@ func (s *Server) adminHomeDisplayConfig(w http.ResponseWriter, r *http.Request) 
 	case http.MethodPut:
 		var req homeDisplayConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid home display config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "首页展示配置格式错误")
 			return
 		}
 		config, err := normalizeHomeDisplayConfig(req)
@@ -181,7 +198,7 @@ func (s *Server) adminHomeDisplayConfig(w http.ResponseWriter, r *http.Request) 
 		}
 		if s.systemConfig != nil {
 			if err := s.systemConfig.Set(homeDisplayConfigKey, config); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save home display config failed")
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存首页展示配置失败")
 				return
 			}
 		}
@@ -191,13 +208,13 @@ func (s *Server) adminHomeDisplayConfig(w http.ResponseWriter, r *http.Request) 
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentHomeDisplayConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "不支持当前请求方式")
 	}
 }
 
 func normalizeHomeDisplayConfig(req homeDisplayConfigDTO) (homeDisplayConfigDTO, error) {
 	if req.OnlineBaseCount < 0 {
-		return homeDisplayConfigDTO{}, errors.New("onlineBaseCount must be greater than or equal to 0")
+		return homeDisplayConfigDTO{}, errors.New("在线人数基础值不能小于 0")
 	}
 	config := req
 	config.OnlineSuffix = strings.TrimSpace(req.OnlineSuffix)
@@ -205,7 +222,7 @@ func normalizeHomeDisplayConfig(req homeDisplayConfigDTO) (homeDisplayConfigDTO,
 		config.OnlineSuffix = "\u4eba\u5728\u7ebf"
 	}
 	if len([]rune(config.OnlineSuffix)) > 12 {
-		return homeDisplayConfigDTO{}, errors.New("onlineSuffix too long")
+		return homeDisplayConfigDTO{}, errors.New("在线人数后缀最多 12 个字")
 	}
 	return config, nil
 }
@@ -218,11 +235,10 @@ func defaultHomeDisplayConfig() homeDisplayConfigDTO {
 }
 
 func (s *Server) homeRoleType(userID int64) string {
-	snapshot := s.profiles.RoleSnapshot(userID)
-	if snapshot.RoleStatusMap["guide"] == "approved" {
+	if s.userHasActiveRole(userID, "guide") {
 		return "guide"
 	}
-	if snapshot.RoleStatusMap["expert"] == "approved" {
+	if s.userHasActiveRole(userID, "expert") {
 		return "expert"
 	}
 	return "player"
@@ -248,16 +264,58 @@ func normalizeHomeRoleType(roleType string) string {
 	}
 }
 
-func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.UserStats, growth reviews.GrowthProfile, roleType string) map[string]interface{} {
-	nextLevelExperience := maxInt(growth.Level*100, 100)
-	expToNext := nextLevelExperience - growth.Experience
-	if expToNext < 0 {
-		expToNext = 0
+func homeRoleGrowthProfile(roleType string, profiles []roleGrowthProfileDTO) roleGrowthProfileDTO {
+	for _, item := range profiles {
+		if item.RoleCode == roleType {
+			return item
+		}
 	}
-	progress := 0
-	if nextLevelExperience > 0 {
-		progress = int(math.Round(float64(growth.Experience%100) / 100 * 100))
+	return roleGrowthProfileDTO{RoleCode: roleType, RoleName: homeRoleName(roleType)}
+}
+
+func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.UserStats, growth reviews.GrowthProfile, roleType string, profiles []roleGrowthProfileDTO) map[string]interface{} {
+	roleGrowth := homeRoleGrowthProfile(roleType, profiles)
+	roleName := homeRoleName(roleType)
+	levelTitle := strings.TrimSpace(roleGrowth.LevelTitle)
+	if levelTitle == "" {
+		levelTitle = roleName
 	}
+
+	// 玩家按累计经验升级；行家和领路人按后台配置的真实指标得分和等级
+	// 升级。首页不能再套用统一的 Lv.X / XP 口径。
+	if roleType != "player" {
+		progress := roleGrowth.Score
+		if progress < 0 {
+			progress = 0
+		}
+		if progress > 100 {
+			progress = 100
+		}
+		return map[string]interface{}{
+			"currentRole":       roleType,
+			"roleType":          roleType,
+			"roleLabel":         roleName + " · " + levelTitle,
+			"displayName":       homeDisplayName(user, s.displayName(userID, "用户")),
+			"level":             roleGrowth.LevelNo,
+			"experience":        roleGrowth.Score,
+			"xpText":            roleGrowth.ScoreLabel + " " + strconv.Itoa(roleGrowth.Score) + "分",
+			"scoreText":         strconv.Itoa(growth.CreditScore) + "信用分",
+			"nextLevelText":     roleGrowth.Description,
+			"progressPercent":   progress,
+			"joinCount":         stats.Participated,
+			"monthlyMvpCount":   len(growth.Achievements),
+			"participationRate": "--",
+			"stats": []map[string]interface{}{
+				{"value": roleGrowth.Score, "label": roleGrowth.ScoreLabel},
+				{"value": growth.CreditScore, "label": "信用分"},
+				{"value": stats.Completed, "label": "完成局数"},
+			},
+		}
+	}
+	// 玩家等级门槛由后台维护，首页必须使用同一套梯度，不能再按每级
+	// 固定 100 经验推算，否则修改配置后首页会显示错误的下一等级进度。
+	playerExperience := roleGrowth.Score
+	nextLevelExperience, expToNext, progress := s.playerLevelProgress(playerExperience, roleGrowth.LevelNo)
 	joinCount := stats.Participated
 	participationRate := "0%"
 	if joinCount > 0 {
@@ -266,14 +324,15 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 	return map[string]interface{}{
 		"currentRole":         roleType,
 		"roleType":            roleType,
-		"roleLabel":           homeRoleName(roleType) + " Lv." + strconv.Itoa(growth.Level),
+		"roleLabel":           roleName + " · " + levelTitle,
 		"displayName":         homeDisplayName(user, s.displayName(userID, "\u7528\u6237")),
-		"level":               growth.Level,
-		"experience":          growth.Experience,
-		"xpText":              strconv.Itoa(growth.Experience) + " XP",
+		"level":               roleGrowth.LevelNo,
+		"experience":          playerExperience,
+		"xpText":              strconv.Itoa(playerExperience) + "经验",
 		"scoreText":           strconv.Itoa(growth.CreditScore) + "\u4fe1\u7528\u5206",
 		"nextLevelExperience": nextLevelExperience,
 		"expToNextLevel":      expToNext,
+		"nextLevelText":       roleGrowth.Description,
 		"progressPercent":     progress,
 		"joinCount":           joinCount,
 		"monthlyMvpCount":     len(growth.Achievements),
@@ -281,9 +340,46 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 		"stats": []map[string]interface{}{
 			{"value": joinCount, "label": "\u53c2\u4e0e\u5c40\u6570"},
 			{"value": stats.Completed, "label": "\u5b8c\u6210\u5c40\u6570"},
-			{"value": growth.Experience, "label": "\u7ecf\u9a8c"},
+			{"value": playerExperience, "label": "\u7ecf\u9a8c"},
 		},
 	}
+}
+
+func (s *Server) playerLevelProgress(experience int, levelNo int) (nextExperience int, remaining int, percent int) {
+	if experience < 0 {
+		experience = 0
+	}
+	currentThreshold := 0
+	for _, item := range s.currentRoleLevelConfig().Items {
+		if item.RoleCode != "player" || !item.Enabled {
+			continue
+		}
+		if item.LevelNo == levelNo {
+			currentThreshold = item.MinExperience
+		}
+		if item.MinExperience > experience && (nextExperience == 0 || item.MinExperience < nextExperience) {
+			nextExperience = item.MinExperience
+		}
+	}
+	if nextExperience == 0 {
+		return 0, 0, 100
+	}
+	remaining = nextExperience - experience
+	if remaining < 0 {
+		remaining = 0
+	}
+	span := nextExperience - currentThreshold
+	if span <= 0 {
+		return nextExperience, remaining, 0
+	}
+	percent = int(math.Round(float64(experience-currentThreshold) / float64(span) * 100))
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	return nextExperience, remaining, percent
 }
 
 func (s *Server) homeExpertSkills(userID int64) []map[string]interface{} {
@@ -322,30 +418,20 @@ func (s *Server) homeExpertSkills(userID int64) []map[string]interface{} {
 	return items
 }
 
-func (s *Server) homeRoleNetwork(userID int64, conns []connections.Connection, pendingCent int64, totalCent int64) map[string]interface{} {
+func (s *Server) homeRoleNetwork(userID int64, conns []connections.Connection) map[string]interface{} {
 	relationCount := len(conns)
-	incomeCent := pendingCent
-	if incomeCent == 0 {
-		incomeCent = totalCent
-	}
 	items := s.homeGuideIndustryItems(userID, relationCount)
-	incomeText := "一期未启用"
-	if s.currentOperationRules().Revenue.Enabled {
-		incomeText = moneyYuanText(incomeCent)
-	}
 	return map[string]interface{}{
 		"title":        "我的关系领域",
 		"status":       "实时连接中",
 		"hubTitle":     s.displayName(userID, "领路人"),
 		"hubDesc":      "领路人",
 		"summary":      "已连接 " + strconv.Itoa(relationCount) + " 位玩家",
-		"income":       "本周收益 " + incomeText,
 		"location":     "核心区",
 		"locationText": "核心区",
 		"items":        items,
 		"buttons": []map[string]interface{}{
 			{"text": "管理我的连接", "primary": true, "route": "pages/relation/network/index"},
-			{"text": "查看分润", "primary": false, "route": "pages/profile/service-center/invite/income/index"},
 		},
 		"userId": userID,
 	}
@@ -455,14 +541,17 @@ func guideIndustryIcon(industry string) string {
 	}
 }
 
-func (s *Server) homeNearbySummary(userID int64, nearbyGames []map[string]interface{}, conns []connections.Connection) map[string]interface{} {
-	recent := s.lbs.Recent(userID, 20)
+func (s *Server) homeNearbySummary(userID int64, nearbyGames []map[string]interface{}, conns []connections.Connection) (map[string]interface{}, error) {
+	recent, err := s.lbs.RecentStrict(userID, 20)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]interface{}{
 		"nearbyGameCount": len(nearbyGames),
 		"checkedInCount":  len(recent),
 		"relationCount":   len(conns),
 		"onlineNodeCount": maxInt(1, len(nearbyGames)+len(conns)+1),
-	}
+	}, nil
 }
 
 func (s *Server) homeNearbySection() map[string]interface{} {
@@ -486,12 +575,15 @@ func (s *Server) homeFriendSection(count int) map[string]interface{} {
 	}
 }
 
-func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit int) []map[string]interface{} {
-	location, ok := s.lbs.Current(userID)
+func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit int) ([]map[string]interface{}, error) {
+	location, ok, err := s.lbs.CurrentStrict(userID)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		// 首页加载不触发设备定位。没有保存定位时只给同城/发布时间
 		// 兜底卡片，真实“附近”查询由用户点击后再发起。
-		return nil
+		return nil, nil
 	}
 	items := make([]games.Game, 0, len(visibleGames))
 	for _, game := range visibleGames {
@@ -506,7 +598,7 @@ func (s *Server) homeNearbyGames(userID int64, visibleGames []games.Game, limit 
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].DistanceMeter < items[j].DistanceMeter
 	})
-	return s.homeGameCards(items, "nearby", limit)
+	return s.homeGameCards(items, "nearby", limit), nil
 }
 
 func (s *Server) homeFriendGames(userID int64, visibleGames []games.Game, conns []connections.Connection, limit int) []map[string]interface{} {
@@ -541,27 +633,28 @@ func (s *Server) homeGameCards(items []games.Game, scope string, limit int) []ma
 	for index := 0; index < limit; index++ {
 		game := items[index]
 		cards = append(cards, map[string]interface{}{
-			"id":            game.ID,
-			"route":         "pages/game/detail/index?id=" + strconv.FormatInt(game.ID, 10),
-			"scope":         scope,
-			"title":         game.Title,
-			"typeText":      homeGameCategoryText(game),
-			"statusText":    homeGameStatusText(game.Status),
-			"coverSrc":      homeGameCover(game, index),
-			"priceText":     homeGamePriceText(game.GameType),
-			"actionText":    homeGameActionText(game.Status),
-			"cityName":      game.CityName,
-			"address":       game.Address,
-			"distanceText":  game.DistanceLabel,
-			"memberText":    strconv.Itoa(game.CurrentPlayers) + "/" + strconv.Itoa(game.MaxPlayers) + "\u4eba",
-			"timeText":      game.CreatedAt.Format("2006-01-02 15:04"),
-			"joinedCount":   game.CurrentPlayers,
-			"joinedText":    "+" + strconv.Itoa(game.CurrentPlayers) + "\u4f4d\u73a9\u5bb6\u5df2\u5165\u5c40",
-			"playerAvatars": s.gameListPlayerAvatars(game),
-			"actions":       []string{"share", "follow", "refer", "greet"},
-			"longitude":     game.Longitude,
-			"latitude":      game.Latitude,
-			"creatorUserId": game.CreatorUserID,
+			"id":             game.ID,
+			"route":          "pages/game/detail/index?id=" + strconv.FormatInt(game.ID, 10),
+			"scope":          scope,
+			"title":          game.Title,
+			"typeText":       homeGameCategoryText(game),
+			"statusText":     homeGameStatusText(game.Status),
+			"coverSrc":       homeGameCover(game, index),
+			"priceText":      homeGamePriceText(game.GameType),
+			"actionText":     homeGameActionText(game.Status),
+			"cityName":       game.CityName,
+			"address":        game.Address,
+			"distanceText":   game.DistanceLabel,
+			"memberText":     strconv.Itoa(game.CurrentPlayers) + "/" + strconv.Itoa(game.MaxPlayers) + "\u4eba",
+			"timeText":       game.CreatedAt.Format("2006-01-02 15:04"),
+			"joinedCount":    game.CurrentPlayers,
+			"joinedText":     "+" + strconv.Itoa(game.CurrentPlayers) + "\u4f4d\u73a9\u5bb6\u5df2\u5165\u5c40",
+			"playerAvatars":  s.gameListPlayerAvatars(game),
+			"actions":        s.currentGameCategoryConfig().EventActions,
+			"shareComponent": s.currentGameCategoryConfig().ShareComponent,
+			"longitude":      game.Longitude,
+			"latitude":       game.Latitude,
+			"creatorUserId":  game.CreatorUserID,
 		})
 	}
 	return cards
@@ -605,36 +698,7 @@ func homeGameCategoryText(game games.Game) string {
 }
 
 func homeGameStatusText(status string) string {
-	switch status {
-	case "pending_audit":
-		return "\u5f85\u540e\u53f0\u5ba1\u6838"
-	case "recruiting":
-		return "\u62db\u52df\u4e2d"
-	case "full":
-		return "\u5df2\u6ee1\u5458"
-	case "in_progress":
-		return "\u8fdb\u884c\u4e2d"
-	case "pending_confirm":
-		return "\u5f85\u786e\u8ba4"
-	case "pending_review":
-		return "\u5f85\u8bc4\u4ef7"
-	case "completed":
-		return "\u5df2\u5b8c\u6210"
-	case "rejected":
-		return "\u5ba1\u6838\u672a\u901a\u8fc7"
-	case "canceled", "cancelled":
-		return "\u5df2\u53d6\u6d88"
-	case "disputed":
-		return "\u4e89\u8bae\u4e2d"
-	case "settling":
-		return "\u7ed3\u7b97\u4e2d"
-	case "closed":
-		return "\u5df2\u5173\u95ed"
-	case "draft":
-		return "\u8349\u7a3f"
-	default:
-		return "\u72b6\u6001\u5904\u7406\u4e2d"
-	}
+	return games.StatusText(status)
 }
 
 func homeGamePriceText(gameType string) string {
@@ -787,6 +851,45 @@ func (s *Server) homeAchievementSection() map[string]interface{} {
 
 func (s *Server) homeAchievements(stats games.UserStats, growth reviews.GrowthProfile, nearbyGames []map[string]interface{}) []map[string]interface{} {
 	earthProgress := maxInt(0, minInt(100, len(nearbyGames)*12))
+	config := s.currentGrowthAchievementConfig()
+	configured := append(append([]growthAchievementItemDTO{}, config.Catalog...), config.Locked...)
+	if len(configured) > 0 {
+		unlockedCodes := make(map[string]bool, len(growth.Achievements))
+		for _, code := range growth.Achievements {
+			unlockedCodes[code] = true
+		}
+		items := make([]map[string]interface{}, 0, len(configured))
+		for _, item := range configured {
+			if !item.Visible {
+				continue
+			}
+			code := strings.TrimSpace(item.Code)
+			unlocked := unlockedCodes[code]
+			progress := item.ProgressPercent
+			switch code {
+			case "first_game":
+				progress = minInt(100, stats.Participated*100)
+				unlocked = unlocked || stats.Participated > 0
+			case "credit_keeper":
+				progress = minInt(100, growth.CreditScore)
+				unlocked = unlocked || growth.CreditScore >= 80
+			case "earth":
+				progress = earthProgress
+				unlocked = unlocked || earthProgress > 0
+			}
+			status := item.StatusText
+			if status == "" {
+				status = map[bool]string{true: "已解锁", false: "进行中"}[unlocked]
+			}
+			items = append(items, map[string]interface{}{
+				"id": item.ID, "title": item.Title, "status": status,
+				"unlocked": unlocked, "progressPercent": progress,
+			})
+		}
+		if len(items) > 0 {
+			return items
+		}
+	}
 	return []map[string]interface{}{
 		{"id": "first_game", "title": "\u9996\u5c40\u8fbe\u6210", "status": "\u8fdb\u5ea6" + strconv.Itoa(minInt(100, stats.Participated*100)) + "%", "unlocked": stats.Participated > 0, "progressPercent": minInt(100, stats.Participated*100)},
 		{"id": "credit_keeper", "title": "\u4fe1\u7528\u5b88\u62a4", "status": strconv.Itoa(growth.CreditScore) + "\u5206", "unlocked": growth.CreditScore >= 80},
@@ -794,16 +897,17 @@ func (s *Server) homeAchievements(stats games.UserStats, growth reviews.GrowthPr
 	}
 }
 
-func (s *Server) homeMetaverseEntry(connectionCount int, gameCount int) map[string]interface{} {
+func (s *Server) homeMetaverseEntry(connectionCount int, gameCount int, onlineCount int) map[string]interface{} {
 	return map[string]interface{}{
-		"title":       "\u8fdb\u5165\u5143\u5b87\u5b99",
-		"description": "\u57fa\u4e8e\u7ec4\u5c40\u548c\u4eba\u8109\u7684\u52a8\u6001\u5173\u7cfb\u7f51",
-		"tags":        []string{"\u5173\u7cfb\u7f51", "\u5730\u56fe\u8282\u70b9"},
-		"onlineCount": maxInt(1, connectionCount+gameCount),
+		"title":             "\u8fdb\u5165\u5143\u5b87\u5b99",
+		"description":       "\u57fa\u4e8e\u7ec4\u5c40\u548c\u4eba\u8109\u7684\u52a8\u6001\u5173\u7cfb\u7f51",
+		"tags":              []string{"\u5173\u7cfb\u7f51", "\u5730\u56fe\u8282\u70b9"},
+		"onlineCount":       maxInt(0, onlineCount),
+		"relationNodeCount": connectionCount + gameCount,
 	}
 }
 
-func (s *Server) homeEarth(userID int64, visibleGames []games.Game, nearbyGames []map[string]interface{}, conns []connections.Connection) map[string]interface{} {
+func (s *Server) homeEarth(userID int64, visibleGames []games.Game, nearbyGames []map[string]interface{}, conns []connections.Connection, onlineCount int) map[string]interface{} {
 	nodes := []map[string]interface{}{
 		{"id": "user-" + strconv.FormatInt(userID, 10), "type": "self", "label": "\u6211", "weight": 5},
 	}
@@ -840,7 +944,8 @@ func (s *Server) homeEarth(userID int64, visibleGames []games.Game, nearbyGames 
 		})
 	}
 	return map[string]interface{}{
-		"onlineCount": len(nodes),
+		"onlineCount": maxInt(0, onlineCount),
+		"nodeCount":   len(nodes),
 		"nearbyCount": len(nearbyGames),
 		"nodes":       nodes,
 		"heatPoints":  heat,
@@ -848,8 +953,8 @@ func (s *Server) homeEarth(userID int64, visibleGames []games.Game, nearbyGames 
 	}
 }
 
-func (s *Server) homeVisualization(userID int64, visibleGames []games.Game, nearbyGames []map[string]interface{}, conns []connections.Connection) map[string]interface{} {
-	earth := s.homeEarth(userID, visibleGames, nearbyGames, conns)
+func (s *Server) homeVisualization(userID int64, visibleGames []games.Game, nearbyGames []map[string]interface{}, conns []connections.Connection, onlineCount int) map[string]interface{} {
+	earth := s.homeEarth(userID, visibleGames, nearbyGames, conns, onlineCount)
 	return map[string]interface{}{
 		"earth":   earth,
 		"network": s.connectionNetworkPayload(userID, conns),

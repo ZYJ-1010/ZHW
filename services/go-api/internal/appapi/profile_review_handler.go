@@ -67,7 +67,7 @@ func (s *Server) routeProfileReviewPost(w http.ResponseWriter, r *http.Request) 
 	case strings.HasSuffix(r.URL.Path, "/actions"):
 		s.profileReviewActions(w, r)
 	default:
-		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "review action not found")
+		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "评价操作不存在")
 	}
 }
 

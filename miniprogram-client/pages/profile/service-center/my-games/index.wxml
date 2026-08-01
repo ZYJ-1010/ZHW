@@ -58,24 +58,20 @@
               <text class="card-time">{{item.timeText}}</text>
             </view>
 
-            <view class="service-row">
-              <view class="service-avatar {{item.statusType}}">{{item.avatar}}</view>
-              <view class="service-copy">
-                <text class="service-title {{item.statusType === 'canceled' ? 'muted' : ''}}">{{item.title}}</text>
-                <text class="service-line">行家：{{item.expertName}}</text>
-                <text wx:if="{{item.guideName}}" class="service-line">领路人：{{item.guideName}}</text>
-                <text wx:if="{{item.reason}}" class="service-line">取消原因：{{item.reason}}</text>
-              </view>
-              <view class="amount-block">
-                <text class="amount-text {{item.statusType}}">{{item.amount}}</text>
-                <text class="fund-status {{item.statusType}}">{{item.fundStatus}}</text>
+            <view class="game-row">
+              <view class="game-avatar {{item.statusType}}">{{item.avatar}}</view>
+              <view class="game-copy">
+                <text class="game-title {{item.statusType === 'canceled' ? 'muted' : ''}}">{{item.title}}</text>
+                <text class="game-line">{{item.categoryText}} · {{item.memberText}}</text>
+                <text wx:if="{{item.creatorName}}" class="game-line">发起人：{{item.creatorName}} · {{item.viewerRoleText}}</text>
+                <text wx:if="{{item.locationText}}" class="game-line">地点：{{item.locationText}}</text>
+                <text wx:if="{{item.reason}}" class="game-line">{{item.reasonLabel}}：{{item.reason}}</text>
               </view>
             </view>
 
-            <view wx:if="{{item.deliveryText}}" class="delivery-row">
+            <view wx:if="{{item.scheduleText}}" class="schedule-row">
               <view class="clock-icon"></view>
-              <text class="delivery-text">{{item.deliveryText}}</text>
-              <view wx:if="{{item.canExpand}}" class="chevron-down"></view>
+              <text class="schedule-text">{{item.scheduleText}}</text>
             </view>
 
             <view wx:if="{{item.actions.length}}" class="action-row">

@@ -17,19 +17,25 @@ function firstChosenFile(event) {
   const files = detail.tempFiles || detail.files || []
   const paths = detail.tempFilePaths || []
   const file = files[0] || {}
-  const path = file.tempFilePath || file.path || paths[0] || ''
+  const path = file.tempFilePath || file.path || detail.tempFilePath || detail.filePath || paths[0] || ''
   const fileName = file.name || file.fileName || fileNameFromPath(path)
 
   return {
     path,
     fileName,
-    size: Number(file.size || 1) || 1
+    size: Number(file.size || 1) || 1,
+    width: Number(file.width || 0) || 0,
+    height: Number(file.height || 0) || 0,
+    durationMs: Number(file.durationMs || detail.duration || 0) || 0
   }
 }
 
 function displayText(messageType, fileName) {
   if (messageType === 'image') {
     return '图片已发送'
+  }
+  if (messageType === 'voice') {
+    return '语音已发送'
   }
   return fileName ? `文件：${fileName}` : '文件已发送'
 }
@@ -44,11 +50,11 @@ async function sendChosenFile(gameId, event, messageType) {
     throw new Error('未选择文件')
   }
 
-  const fileIds = await fileService.uploadEvidenceImages([chosenFile.path], {
+  const uploaded = await fileService.uploadSingleFileDetail(chosenFile, {
     bizType: 'chat_file',
     objectId: normalizedGameId
   })
-  const fileId = fileIds[0]
+  const fileId = uploaded && uploaded.fileId
   if (!fileId) {
     throw new Error('文件上传失败')
   }
@@ -56,7 +62,10 @@ async function sendChosenFile(gameId, event, messageType) {
   const message = await imService.sendMessage(normalizedGameId, {
     messageType,
     content: chosenFile.fileName,
-    fileId
+    fileId,
+    width: Number(uploaded.width || 0) || 0,
+    height: Number(uploaded.height || 0) || 0,
+    durationMs: Number(uploaded.durationMs || 0) || 0
   })
 
   return {

@@ -9,6 +9,14 @@ import (
 	"zhw-mini/services/go-api/internal/users"
 )
 
+func TestRepositoryInviteStoreDoesNotCreateProductionTestCode(t *testing.T) {
+	repo := newFakeInviteRepository()
+	_ = invites.NewStoreWithRepository(repo)
+	if _, exists := repo.codes["TEST2026"]; exists {
+		t.Fatal("repository-backed invite store must not persist the local TEST2026 fixture")
+	}
+}
+
 func TestWechatLoginWithUserAndInviteRepositories(t *testing.T) {
 	userRepo := newFakeUserRepository()
 	inviteRepo := newFakeInviteRepository()
@@ -43,7 +51,7 @@ func TestWechatLoginWithUserAndInviteRepositories(t *testing.T) {
 	if inviteRepo.codes["TEST2026"].UsedCount != 1 {
 		t.Fatalf("expected no duplicate invite use, got %d", inviteRepo.codes["TEST2026"].UsedCount)
 	}
-	if current, ok := service.CurrentUser(second.PreAuthToken); !ok || current.ID != first.User.ID {
+	if current, ok := service.CurrentIdentityUser(second.PreAuthToken); !ok || current.ID != first.User.ID {
 		t.Fatalf("expected current user from repository, got %+v ok=%v", current, ok)
 	}
 }
@@ -248,6 +256,22 @@ func (r *fakeInviteRepository) UpsertCode(ctx context.Context, invite invites.In
 	}
 	r.codes[invite.Code] = invite
 	return invite, nil
+}
+
+func (r *fakeInviteRepository) CreateCodes(ctx context.Context, items []invites.InviteCode) ([]invites.InviteCode, error) {
+	for _, item := range items {
+		if _, exists := r.codes[item.Code]; exists {
+			return nil, invites.ErrInviteCodeExists
+		}
+	}
+	created := make([]invites.InviteCode, 0, len(items))
+	for _, item := range items {
+		item.ID = r.nextID
+		r.nextID++
+		r.codes[item.Code] = item
+		created = append(created, item)
+	}
+	return created, nil
 }
 
 func (r *fakeInviteRepository) CreateQuotaRequest(ctx context.Context, request invites.QuotaRequest) (invites.QuotaRequest, error) {

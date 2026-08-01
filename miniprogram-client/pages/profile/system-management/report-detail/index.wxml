@@ -69,6 +69,6 @@
 
   <view class="report-bottom-actions">
     <view class="secondary-report-button" bindtap="handleBackList">返回列表</view>
-    <view class="primary-report-button" bindtap="handleAppealTap">我要申诉</view>
+		<view wx:if="{{canAppeal}}" class="primary-report-button" bindtap="handleAppealTap">我要申诉</view>
   </view>
 </profile-white-shell>

@@ -29,6 +29,7 @@
           <text wx:if="{{item.rewardText}}" class="task-reward">{{item.rewardText}}</text>
         </view>
         <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
+        <text wx:if="{{item.guideTask}}" class="task-guide-label">当前引导</text>
       </view>
       <view wx:if="{{!tasks.length}}" class="task-empty">暂无开放任务</view>
     </view>

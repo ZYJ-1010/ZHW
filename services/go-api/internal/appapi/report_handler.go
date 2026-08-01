@@ -45,8 +45,11 @@ type reportService interface {
 	Create(userID int64, req reports.CreateRequest) (reports.Report, error)
 	CreateCreditAppeal(userID int64, req reports.CreditAppealRequest) (reports.Report, error)
 	My(userID int64) []reports.Report
+	MyStrict(userID int64) ([]reports.Report, error)
 	Appeals(userID int64) []reports.Report
+	AppealsStrict(userID int64) ([]reports.Report, error)
 	List() []reports.Report
+	ListStrict() ([]reports.Report, error)
 	Get(reportID int64) (reports.Report, error)
 	Appeal(userID int64, reportID int64, req reports.AppealRequest) (reports.Report, error)
 	WithdrawAppeal(userID int64, reportID int64) (reports.Report, error)
@@ -87,7 +90,12 @@ func (s *Server) createReport(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "被举报用户不是本局参与者")
 			return
 		}
-		for _, item := range s.reports.My(userID) {
+		items, listErr := s.reports.MyStrict(userID)
+		if listErr != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取举报记录失败，请稍后重试")
+			return
+		}
+		for _, item := range items {
 			if item.GameID == req.GameID && item.TargetUserID == req.TargetUserID && item.ReportType == req.ReportType && item.Status != "handled" && item.Status != "closed" {
 				httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "相同举报正在处理中，请勿重复提交")
 				return
@@ -103,7 +111,7 @@ func (s *Server) createReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordBehavior(userID, "submit_report", "report", report.ID, map[string]interface{}{"gameId": report.GameID, "revenueFrozen": report.RevenueFrozen})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "report_created", notifications.CreateRequest{
 		UserID:      userID,
 		NotifyType:  "report_created",
 		Title:       "举报申诉已提交",
@@ -137,9 +145,17 @@ func (s *Server) createCreditAppeal(w http.ResponseWriter, r *http.Request) {
 	if !s.validateAppealFiles(w, req.FileID, req.FileIDs) {
 		return
 	}
-	log, found := s.creditLogForUser(userID, req.CreditLogID)
+	log, found, readErr := s.creditLogForUser(userID, req.CreditLogID)
+	if readErr != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取信用记录失败，请稍后重试")
+		return
+	}
 	if !found {
 		httpx.Error(w, http.StatusNotFound, httpx.CodeNotFound, "信用记录不存在")
+		return
+	}
+	if log.ChangeValue >= 0 {
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "仅可对扣分记录提交信用申诉")
 		return
 	}
 	req.GameID = log.GameID
@@ -149,7 +165,7 @@ func (s *Server) createCreditAppeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordBehavior(userID, "submit_credit_appeal", "credit_log", log.ID, map[string]interface{}{"gameId": log.GameID, "reportId": report.ID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "credit_appeal_created", notifications.CreateRequest{
 		UserID:     userID,
 		NotifyType: "credit_appeal_submitted",
 		Title:      "信用申诉已提交",
@@ -187,14 +203,17 @@ func mergeReportAppealFiles(report reports.Report, fileID int64, fileIDs []int64
 	return report
 }
 
-func (s *Server) creditLogForUser(userID int64, creditLogID int64) (reviews.CreditLog, bool) {
-	trace := s.reviews.TraceByUser(userID)
+func (s *Server) creditLogForUser(userID int64, creditLogID int64) (reviews.CreditLog, bool, error) {
+	trace, err := s.reviews.TraceByUserStrict(userID)
+	if err != nil {
+		return reviews.CreditLog{}, false, err
+	}
 	for _, log := range trace.CreditLogs {
 		if log.ID == creditLogID {
-			return log, true
+			return log, true, nil
 		}
 	}
-	return reviews.CreditLog{}, false
+	return reviews.CreditLog{}, false, nil
 }
 
 func (s *Server) reportConfig(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +227,7 @@ func (s *Server) adminReportConfig(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		var req reportCenterConfigDTO
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid report config")
+			httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "举报中心配置参数错误")
 			return
 		}
 		config, err := normalizeReportCenterConfig(req)
@@ -217,7 +236,7 @@ func (s *Server) adminReportConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := s.systemConfig.Set(reportCenterConfigKey, config); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "save report config failed")
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeInternalError, "保存举报中心配置失败")
 			return
 		}
 		s.recordOperation(r, "system_config:update", "system_config", reportCenterConfigKey, map[string]interface{}{
@@ -227,7 +246,7 @@ func (s *Server) adminReportConfig(w http.ResponseWriter, r *http.Request) {
 		})
 		httpx.OK(w, map[string]interface{}{"config": s.currentReportCenterConfig()})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -236,7 +255,12 @@ func (s *Server) myReports(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, pagedReports(s.reports.My(userID), r))
+	items, err := s.reports.MyStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取举报记录失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, pagedReports(items, r))
 }
 
 func (s *Server) myAppeals(w http.ResponseWriter, r *http.Request) {
@@ -244,7 +268,12 @@ func (s *Server) myAppeals(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.OK(w, pagedReports(s.reports.Appeals(userID), r))
+	items, err := s.reports.AppealsStrict(userID)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取申诉记录失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, pagedReports(items, r))
 }
 
 func (s *Server) myReportDetail(w http.ResponseWriter, r *http.Request) {
@@ -265,6 +294,7 @@ func (s *Server) myReportDetail(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "无权查看举报详情")
 		return
 	}
+	report.CanAppeal = report.TargetUserID == userID && report.ReportType != "credit_appeal" && report.Status != "appealed"
 	httpx.OK(w, report)
 }
 
@@ -291,7 +321,7 @@ func (s *Server) appealReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordBehavior(userID, "submit_report_appeal", "report", report.ID, map[string]interface{}{"gameId": report.GameID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "report_appeal_created", notifications.CreateRequest{
 		UserID:      report.ReporterUserID,
 		NotifyType:  "report_assigned",
 		Title:       "举报申诉已提交",
@@ -330,7 +360,7 @@ func (s *Server) withdrawReportAppeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordBehavior(userID, "withdraw_report_appeal", "report", report.ID, map[string]interface{}{"gameId": report.GameID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "report_appeal_withdrawn", notifications.CreateRequest{
 		UserID:     report.ReporterUserID,
 		NotifyType: "report_appeal_withdrawn",
 		Title:      "举报申诉已撤回",
@@ -342,7 +372,12 @@ func (s *Server) withdrawReportAppeal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminReports(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, pagedReports(s.reports.List(), r))
+	items, err := s.reports.ListStrict()
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取举报列表失败，请稍后重试")
+		return
+	}
+	httpx.OK(w, pagedReports(items, r))
 }
 
 func (s *Server) adminReportDetail(w http.ResponseWriter, r *http.Request) {
@@ -372,29 +407,69 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.AdminID = parseInt64Header(r, "X-Admin-ID")
-	before, _ := s.reports.Get(reportID)
-	report, err := s.reports.Handle(reportID, req)
+	before, err := s.reports.Get(reportID)
 	if err != nil {
 		writeReportError(w, err)
 		return
 	}
-	if before.Status != "handled" {
-		s.applyReportHandleOutcome(&report, req)
-		if report.HandleOutcome != "" || report.RewardPoints != 0 || report.CreditChange != 0 || report.CreditTargetUserID != 0 {
-			if updated, err := s.reports.Handle(reportID, reports.HandleRequest{
-				AdminID:            report.HandlerAdminID,
-				Result:             report.HandleResult,
-				Outcome:            report.HandleOutcome,
-				RewardPoints:       report.RewardPoints,
-				CreditDeduct:       -report.CreditChange,
-				CreditTargetUserID: report.CreditTargetUserID,
-			}); err == nil {
-				report = updated
+	if before.Status == "handled" {
+		httpx.OK(w, before)
+		return
+	}
+	var restoredCredit *reviews.CreditLog
+	if before.ReportType == "credit_appeal" && strings.TrimSpace(req.Outcome) == "appeal_approved" {
+		amount := req.CreditDeduct
+		if amount <= 0 {
+			amount, err = s.creditAppealRestoreAmount(before.TargetUserID, before.CreditLogID)
+			if err != nil {
+				httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "读取原信用扣分记录失败，请稍后重试")
+				return
 			}
 		}
+		if amount <= 0 {
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "原扣分记录无可恢复分值")
+			return
+		}
+		credit, _, restoreErr := s.reviews.RestoreCreditForAppeal(before.TargetUserID, before.GameID, before.CreditLogID, before.ID, amount)
+		if restoreErr != nil {
+			writeCreditAppealRestoreError(w, restoreErr)
+			return
+		}
+		restoredCredit = &credit
+		req.CreditDeduct = credit.ChangeValue
+		req.CreditTargetUserID = before.TargetUserID
+	}
+	prepared := before
+	prepared.HandleOutcome = normalizedReportOutcome(req.Outcome)
+	if restoredCredit != nil {
+		if restoreErr := s.restoreReportRevenue(&prepared); restoreErr != nil {
+			httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "举报关联收益恢复失败，请稍后重试")
+			return
+		}
+		prepared.CreditChange = restoredCredit.ChangeValue
+		prepared.CreditTargetUserID = prepared.TargetUserID
+	} else if outcomeErr := s.applyReportHandleOutcome(&prepared, req); outcomeErr != nil {
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "举报处理结果落账失败，请稍后重试")
+		return
+	}
+	creditAmount := -prepared.CreditChange
+	if prepared.HandleOutcome == "appeal_approved" {
+		creditAmount = prepared.CreditChange
+	}
+	report, err := s.reports.Handle(reportID, reports.HandleRequest{
+		AdminID:            req.AdminID,
+		Result:             req.Result,
+		Outcome:            prepared.HandleOutcome,
+		RewardPoints:       prepared.RewardPoints,
+		CreditDeduct:       creditAmount,
+		CreditTargetUserID: prepared.CreditTargetUserID,
+	})
+	if err != nil {
+		writeReportError(w, err)
+		return
 	}
 	s.recordOperation(r, "report:handle", "report", strconv.FormatInt(reportID, 10), map[string]interface{}{"status": report.Status, "adminId": req.AdminID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "report_handled", notifications.CreateRequest{
 		UserID:      report.ReporterUserID,
 		NotifyType:  "report_handled",
 		Title:       "举报申诉已处理",
@@ -411,72 +486,101 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, report)
 }
 
-func (s *Server) applyReportHandleOutcome(report *reports.Report, req reports.HandleRequest) {
+func (s *Server) applyReportHandleOutcome(report *reports.Report, req reports.HandleRequest) error {
 	report.RewardPoints = 0
 	report.CreditChange = 0
 	report.CreditTargetUserID = 0
+	report.HandleOutcome = normalizedReportOutcome(req.Outcome)
 	if report.ReportType == "credit_appeal" {
-		s.applyCreditAppealHandleOutcome(report, req)
-		return
+		return s.applyCreditAppealHandleOutcome(report, req)
 	}
 	switch report.HandleOutcome {
 	case "confirmed":
 		if report.TargetUserID > 0 && req.CreditDeduct > 0 {
-			credit := s.reviews.DeductCredit(report.TargetUserID, report.GameID, "report_confirmed")
+			credit, _, err := s.reviews.DeductCreditOnceStrict(report.TargetUserID, report.GameID, "report_confirmed", "report_confirmed:"+strconv.FormatInt(report.ID, 10))
+			if err != nil {
+				return err
+			}
 			report.CreditChange = credit.ChangeValue
 			report.CreditTargetUserID = report.TargetUserID
 		}
 		if report.ReporterUserID > 0 && req.RewardPoints > 0 {
-			if _, log, err := s.points.Grant(report.ReporterUserID, req.RewardPoints, "report_reward", report.ID, "举报核实奖励"); err == nil {
-				report.RewardPoints = log.ChangeValue
+			_, log, _, err := s.points.GrantOnce(report.ReporterUserID, req.RewardPoints, "report_reward", report.ID, "举报核实奖励")
+			if err != nil {
+				return err
 			}
+			report.RewardPoints = log.ChangeValue
 		}
 	case "malicious":
 		if report.ReporterUserID > 0 && req.CreditDeduct > 0 {
-			credit := s.reviews.DeductCredit(report.ReporterUserID, report.GameID, "malicious_report")
+			credit, _, err := s.reviews.DeductCreditOnceStrict(report.ReporterUserID, report.GameID, "malicious_report", "malicious_report:"+strconv.FormatInt(report.ID, 10))
+			if err != nil {
+				return err
+			}
 			report.CreditChange = credit.ChangeValue
 			report.CreditTargetUserID = report.ReporterUserID
 		}
 	case "appeal_approved":
-		s.restoreReportRevenue(report)
+		return s.restoreReportRevenue(report)
 	}
+	return nil
 }
 
-func (s *Server) applyCreditAppealHandleOutcome(report *reports.Report, req reports.HandleRequest) {
-	s.restoreReportRevenue(report)
+func (s *Server) applyCreditAppealHandleOutcome(report *reports.Report, _ reports.HandleRequest) error {
+	if err := s.restoreReportRevenue(report); err != nil {
+		return err
+	}
 	report.CreditTargetUserID = report.TargetUserID
-	if report.HandleOutcome != "appeal_approved" || report.CreditLogID <= 0 || report.TargetUserID <= 0 {
-		return
-	}
-	amount := req.CreditDeduct
-	if amount <= 0 {
-		amount = s.creditAppealRestoreAmount(report.TargetUserID, report.CreditLogID)
-	}
-	if amount <= 0 {
-		return
-	}
-	credit := s.reviews.RestoreCredit(report.TargetUserID, report.GameID, "appeal_passed", amount)
-	report.CreditChange = credit.ChangeValue
+	return nil
 }
 
-func (s *Server) restoreReportRevenue(report *reports.Report) {
-	if report == nil || report.RevenueRecordID <= 0 {
-		return
+func writeCreditAppealRestoreError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, reviews.ErrCreditLogNotFound):
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "原扣分记录不存在或不可申诉")
+	case errors.Is(err, reviews.ErrCreditAppealConflict):
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "该扣分记录已关联其他申诉")
+	case errors.Is(err, reviews.ErrInvalidReview):
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "信用恢复参数错误")
+	default:
+		httpx.Error(w, http.StatusInternalServerError, httpx.CodeSystemError, "恢复信用分失败，请稍后重试")
 	}
-	if restored, changed, err := s.revenue.RestoreFrozenByGame(report.GameID, "appeal_approved"); err == nil && changed {
+}
+
+func (s *Server) restoreReportRevenue(report *reports.Report) error {
+	if report == nil || (!report.RevenueFrozen && report.RevenueRecordID <= 0) {
+		return nil
+	}
+	restored, changed, err := s.revenue.RestoreFrozenByGame(report.GameID, "appeal_approved")
+	if err != nil {
+		return err
+	}
+	if changed {
 		report.RevenueFrozen = restored.Status == "frozen"
 		report.RevenueFreezeNote = "appeal_approved"
 	}
+	return nil
 }
 
-func (s *Server) creditAppealRestoreAmount(userID int64, creditLogID int64) int {
-	trace := s.reviews.TraceByUser(userID)
+func normalizedReportOutcome(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "unconfirmed"
+	}
+	return value
+}
+
+func (s *Server) creditAppealRestoreAmount(userID int64, creditLogID int64) (int, error) {
+	trace, err := s.reviews.TraceByUserStrict(userID)
+	if err != nil {
+		return 0, err
+	}
 	for _, log := range trace.CreditLogs {
 		if log.ID == creditLogID && log.ChangeValue < 0 {
-			return -log.ChangeValue
+			return -log.ChangeValue, nil
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 func (s *Server) assignReport(w http.ResponseWriter, r *http.Request) {
@@ -496,7 +600,7 @@ func (s *Server) assignReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordOperation(r, "report:assign", "report", strconv.FormatInt(reportID, 10), map[string]interface{}{"status": report.Status, "adminId": req.AdminID, "handlerAdminId": report.HandlerAdminID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "report_assigned", notifications.CreateRequest{
 		UserID:      report.ReporterUserID,
 		NotifyType:  "report_assigned",
 		Title:       "举报申诉已分配处理人",
@@ -568,7 +672,7 @@ func (s *Server) validateAppealFiles(w http.ResponseWriter, fileID int64, fileID
 		}
 		file, err := s.files.Get(id)
 		if err != nil || file.BizType != "report_attachment" {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid appeal file")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申诉附件无效")
 			return false
 		}
 	}
@@ -598,14 +702,14 @@ func (s *Server) validateReportEvidence(w http.ResponseWriter, req reports.Creat
 			}
 		}
 		if !found {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid report chat evidence")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "举报聊天证据无效")
 			return false
 		}
 	}
 	if req.FileID > 0 {
 		file, err := s.files.Get(req.FileID)
 		if err != nil || file.ObjectID != req.GameID {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid report file evidence")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "举报文件证据无效")
 			return false
 		}
 	}
@@ -619,14 +723,14 @@ func (s *Server) validateReportEvidence(w http.ResponseWriter, req reports.Creat
 			}
 		}
 		if !found {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid report review evidence")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "举报评价证据无效")
 			return false
 		}
 	}
 	if req.RevenueRecordID > 0 {
 		record, err := s.revenue.Record(req.RevenueRecordID)
 		if err != nil || record.GameID != req.GameID {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid report revenue evidence")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "举报收益证据无效")
 			return false
 		}
 	}
@@ -647,7 +751,7 @@ func (s *Server) closeReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordOperation(r, "report:close", "report", strconv.FormatInt(reportID, 10), map[string]interface{}{"status": report.Status, "adminId": req.AdminID})
-	s.notices.Create(notifications.CreateRequest{
+	_, _ = s.createCriticalNotification(w, "report_closed", notifications.CreateRequest{
 		UserID:      report.ReporterUserID,
 		NotifyType:  "report_closed",
 		Title:       "举报申诉已关闭",
@@ -676,12 +780,12 @@ func (s *Server) batchHandleReports(w http.ResponseWriter, r *http.Request) {
 		CreditDeduct   int     `json:"creditDeduct"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "invalid batch report request")
+		httpx.Error(w, http.StatusBadRequest, httpx.CodeValidationError, "批量举报处理请求参数错误")
 		return
 	}
 	permission, ok := reportBatchActionPermission(req.Action)
 	if !ok {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid batch report action")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "批量举报处理动作无效")
 		return
 	}
 	adminID, ok := s.requireAdminPermissionID(w, r, permission)
@@ -698,7 +802,7 @@ func (s *Server) batchHandleReports(w http.ResponseWriter, r *http.Request) {
 	}
 	reportIDs := uniquePositiveIDs(req.ReportIDs)
 	if len(reportIDs) == 0 || len(reportIDs) > 100 {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "invalid report id list")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "举报编号列表错误")
 		return
 	}
 	results := make([]batchMutationResult, 0, len(reportIDs))
@@ -715,7 +819,7 @@ func (s *Server) batchHandleReports(w http.ResponseWriter, r *http.Request) {
 			success++
 			s.recordOperation(r, "report:batch_"+req.Action, "report", strconv.FormatInt(reportID, 10), map[string]interface{}{"status": report.Status, "adminId": req.AdminID})
 			if req.Action == "handle" {
-				s.notices.Create(notifications.CreateRequest{UserID: report.ReporterUserID, NotifyType: "report_handled", Title: "举报申诉已处理", Content: reportNotificationContent(report), BizType: "report", BizID: report.ID})
+				_, _ = s.createCriticalNotification(w, "report_batch_handled", notifications.CreateRequest{UserID: report.ReporterUserID, NotifyType: "report_handled", Title: "举报申诉已处理", Content: reportNotificationContent(report), BizType: "report", BizID: report.ID})
 			}
 		}
 		results = append(results, result)
@@ -799,19 +903,44 @@ func (s *Server) applyReportBatchAction(reportID int64, action string, adminID i
 		}
 		return s.reports.Assign(reportID, reports.AssignRequest{AdminID: adminID, HandlerAdminID: handlerAdminID})
 	case "handle":
-		before, _ := s.reports.Get(reportID)
-		report, err := s.reports.Handle(reportID, reports.HandleRequest{AdminID: adminID, Result: result, Outcome: outcome, RewardPoints: rewardPoints, CreditDeduct: creditDeduct})
+		before, err := s.reports.Get(reportID)
 		if err != nil {
-			return report, err
+			return reports.Report{}, err
 		}
-		if before.Status != "handled" {
-			req := reports.HandleRequest{AdminID: adminID, Result: report.HandleResult, Outcome: report.HandleOutcome, RewardPoints: rewardPoints, CreditDeduct: creditDeduct}
-			s.applyReportHandleOutcome(&report, req)
-			if updated, err := s.reports.Handle(reportID, reports.HandleRequest{AdminID: report.HandlerAdminID, Result: report.HandleResult, Outcome: report.HandleOutcome, RewardPoints: report.RewardPoints, CreditDeduct: -report.CreditChange, CreditTargetUserID: report.CreditTargetUserID}); err == nil {
-				report = updated
+		if before.Status == "handled" {
+			return before, nil
+		}
+		req := reports.HandleRequest{AdminID: adminID, Result: result, Outcome: outcome, RewardPoints: rewardPoints, CreditDeduct: creditDeduct}
+		prepared := before
+		prepared.HandleOutcome = normalizedReportOutcome(outcome)
+		if before.ReportType == "credit_appeal" && prepared.HandleOutcome == "appeal_approved" {
+			amount := creditDeduct
+			if amount <= 0 {
+				amount, err = s.creditAppealRestoreAmount(before.TargetUserID, before.CreditLogID)
+				if err != nil {
+					return reports.Report{}, err
+				}
 			}
+			if amount <= 0 {
+				return reports.Report{}, reviews.ErrCreditLogNotFound
+			}
+			credit, _, restoreErr := s.reviews.RestoreCreditForAppeal(before.TargetUserID, before.GameID, before.CreditLogID, before.ID, amount)
+			if restoreErr != nil {
+				return reports.Report{}, restoreErr
+			}
+			if restoreErr = s.restoreReportRevenue(&prepared); restoreErr != nil {
+				return reports.Report{}, restoreErr
+			}
+			prepared.CreditChange = credit.ChangeValue
+			prepared.CreditTargetUserID = before.TargetUserID
+		} else if outcomeErr := s.applyReportHandleOutcome(&prepared, req); outcomeErr != nil {
+			return reports.Report{}, outcomeErr
 		}
-		return report, nil
+		creditAmount := -prepared.CreditChange
+		if prepared.HandleOutcome == "appeal_approved" {
+			creditAmount = prepared.CreditChange
+		}
+		return s.reports.Handle(reportID, reports.HandleRequest{AdminID: adminID, Result: result, Outcome: prepared.HandleOutcome, RewardPoints: prepared.RewardPoints, CreditDeduct: creditAmount, CreditTargetUserID: prepared.CreditTargetUserID})
 	case "close":
 		return s.reports.Close(reportID, reports.HandleRequest{AdminID: adminID, Result: result})
 	default:
@@ -841,6 +970,8 @@ func reportIDFromAppPath(w http.ResponseWriter, path string, suffix string) (int
 
 func writeReportError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, reports.ErrCreditAppealExists):
+		httpx.Error(w, http.StatusConflict, httpx.CodeConflict, "该扣分记录已提交过申诉，请勿重复提交")
 	case errors.Is(err, reports.ErrInvalidReport):
 		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "举报参数错误")
 	case errors.Is(err, reports.ErrReportNotFound):

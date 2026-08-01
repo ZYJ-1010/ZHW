@@ -37,12 +37,11 @@ func (s *Server) adminGrowthRewardRules(w http.ResponseWriter, r *http.Request) 
 			"completedGameExperience":   config.CompletedGameExperience,
 			"submittedReviewExperience": config.SubmittedReviewExperience,
 			"receivedReviewExperience":  config.ReceivedReviewExperience,
-			"submittedReviewPoints":     config.SubmittedReviewPoints,
 			"experiencePerLevel":        config.ExperiencePerLevel,
 		})
 		httpx.OK(w, map[string]interface{}{"config": config})
 	default:
-		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "method not allowed")
+		httpx.Error(w, http.StatusMethodNotAllowed, httpx.CodeValidationError, "请求方式不支持")
 	}
 }
 
@@ -51,17 +50,11 @@ func normalizeGrowthRewardRules(config reviews.GrowthRules) (reviews.GrowthRules
 	if config.CompletedGameExperience <= 0 || config.CompletedGameExperience > 10000 {
 		return reviews.GrowthRules{}, &validationError{"完成组局经验必须在 1-10000 之间"}
 	}
-	if config.CompletedGamePoints < 0 || config.CompletedGamePoints > 100000 {
-		return reviews.GrowthRules{}, &validationError{"完成组局积分必须在 0-100000 之间"}
-	}
 	if config.SubmittedReviewExperience <= 0 || config.SubmittedReviewExperience > 10000 {
 		return reviews.GrowthRules{}, &validationError{"提交评价经验必须在 1-10000 之间"}
 	}
 	if config.ReceivedReviewExperience <= 0 || config.ReceivedReviewExperience > 10000 {
 		return reviews.GrowthRules{}, &validationError{"收到评价经验必须在 1-10000 之间"}
-	}
-	if config.SubmittedReviewPoints < 0 || config.SubmittedReviewPoints > 100000 {
-		return reviews.GrowthRules{}, &validationError{"提交评价积分必须在 0-100000 之间"}
 	}
 	if config.ExperiencePerLevel <= 0 || config.ExperiencePerLevel > 1000000 {
 		return reviews.GrowthRules{}, &validationError{"升级所需经验必须在 1-1000000 之间"}

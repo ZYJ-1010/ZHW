@@ -116,6 +116,16 @@ page {
   line-height: 36rpx;
 }
 
+.achievement-role {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 8rpx;
+  color: #ffdd61;
+  font-size: 23rpx;
+  line-height: 32rpx;
+}
+
 .achievement-progress {
   position: relative;
   z-index: 1;
@@ -149,6 +159,92 @@ page {
   width: 100%;
   margin-top: 34rpx;
   white-space: nowrap;
+}
+
+.role-growth-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-top: 22rpx;
+}
+
+.role-growth-tile {
+  min-width: 0;
+  padding: 18rpx 16rpx;
+  border: 2rpx solid rgba(64, 125, 148, 0.5);
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  background: rgba(16, 28, 47, 0.88);
+}
+
+.role-growth-tile.is-inactive {
+  border-color: rgba(79, 89, 112, 0.42);
+  opacity: 0.72;
+}
+
+.role-growth-tile.is-selected {
+  border-color: #ffdd61;
+  box-shadow: 0 0 18rpx rgba(255, 221, 97, 0.14);
+}
+
+.role-growth-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.role-growth-tile-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #dbf9ff;
+  font-size: 23rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-growth-tile-score {
+  flex: none;
+  width: 100%;
+  color: #ffdd61;
+  font-size: 19rpx;
+  line-height: 28rpx;
+}
+
+.role-growth-tile-current {
+  flex: none;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  color: #151515;
+  background: #ffdd61;
+  font-size: 16rpx;
+  line-height: 26rpx;
+}
+
+.role-growth-tile-level,
+.role-growth-tile-desc {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-growth-tile-level {
+  margin-top: 10rpx;
+  color: #ffffff;
+  font-size: 23rpx;
+  line-height: 32rpx;
+}
+
+.role-growth-tile-desc {
+  margin-top: 6rpx;
+  color: #8090aa;
+  font-size: 18rpx;
+  line-height: 26rpx;
 }
 
 .achievement-filter-row {

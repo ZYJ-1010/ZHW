@@ -2,6 +2,7 @@ const logger = require('./utils/logger')
 const env = require('./config/env')
 const { setActiveRole } = require('./utils/active-role')
 const { initializeAuthToken, getAuthToken, setAuthToken } = require('./utils/auth-session')
+const { toUserMessage } = require('./utils/user-message')
 const sharedModules = [
   require('./config/page-map'),
   require('./services/chat-media'),
@@ -70,6 +71,23 @@ function canApplyDevToken() {
   return isDevToolsRuntime() || env.currentMiniProgramEnv !== env.APP_ENV.RELEASE
 }
 
+function installToastMessageFormatter() {
+  if (typeof wx === 'undefined' || !wx.showToast || wx.showToast.__zhwMessageFormatted) {
+    return
+  }
+
+  const originalShowToast = wx.showToast
+  const formattedShowToast = function showToast(options = {}) {
+    const nextOptions = typeof options === 'object'
+      ? { ...options, title: toUserMessage(options.title) }
+      : options
+
+    return originalShowToast.call(wx, nextOptions)
+  }
+  formattedShowToast.__zhwMessageFormatted = true
+  wx.showToast = formattedShowToast
+}
+
 App({
   globalData: {
     userInfo: null,
@@ -77,6 +95,7 @@ App({
   },
 
   onLaunch(options = {}) {
+    installToastMessageFormatter()
     this.applyDevToken(options)
   },
 

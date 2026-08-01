@@ -26,6 +26,15 @@ function emptyGameInfo() {
   }
 }
 
+function normalizeShareComponent(source = {}) {
+  return {
+    enabled: source.enabled !== false,
+    label: String(source.label || '分享').trim() || '分享',
+    enableInternal: source.enableInternal !== false,
+    enableWechat: source.enableWechat !== false
+  }
+}
+
 function gameStatusText(status) {
   const map = {
     draft: '草稿',
@@ -86,6 +95,7 @@ Page({
     isInterested: false,
     currentJoinedCount: DEFAULT_GAME_INFO.joinedCount,
     showShareWindow: false,
+    shareComponent: normalizeShareComponent(),
     gameInfo: DEFAULT_GAME_INFO,
     shareEntry: null,
     navItems: [
@@ -126,7 +136,8 @@ Page({
 
       this.setData({
         gameInfo,
-        currentJoinedCount: gameInfo.joinedCount
+        currentJoinedCount: gameInfo.joinedCount,
+        shareComponent: normalizeShareComponent(detail.shareComponent || {})
       })
       this.ensureShareEntry(gameInfo)
     } catch (error) {
@@ -193,6 +204,10 @@ Page({
   },
 
   onOpenShare() {
+    if (!this.data.shareComponent.enabled) {
+      this.showToast('当前局暂未开放分享')
+      return
+    }
     if (!this.data.gameInfo.hasData) {
       this.showToast('组局信息加载后才可以分享')
       return

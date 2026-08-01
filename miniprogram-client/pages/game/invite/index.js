@@ -8,13 +8,6 @@ const INVITE_SCROLL_HOLD_STEP_RPX = 72
 const INVITE_SCROLL_HOLD_INTERVAL_MS = 80
 const INVITE_SCROLL_HOLD_SUPPRESS_TAP_MS = 120
 
-const EMPTY_BUDGET = ''
-const MAX_BUDGET_AMOUNT = 99999999
-const EMPTY_REWARD_RATE_CONFIG = {
-  platformServiceRate: 0,
-  systemGuideRewardRate: 0,
-  inviteRewardRate: 0
-}
 const WORK_IMAGE_MAX_COUNT = 3
 const WORK_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 const EMPTY_INVITE_PLAYER_RULE = {
@@ -31,68 +24,6 @@ const EMPTY_EXPERT = {
   roleName: '',
   desc: '',
   tags: []
-}
-
-function formatRateText(rate) {
-  return `${rate}%`
-}
-
-function normalizeRate(value, fallback) {
-  const number = Number(value)
-
-  if (!Number.isFinite(number) || number < 0) {
-    return fallback
-  }
-
-  const percent = number > 0 && number <= 1 ? number * 100 : number
-
-  return Math.min(100, Math.round(percent * 100) / 100)
-}
-
-function normalizeRewardRateConfig(config = {}) {
-  const normalized = {
-    platformServiceRate: normalizeRate(config.platformServiceRate, EMPTY_REWARD_RATE_CONFIG.platformServiceRate),
-    systemGuideRewardRate: normalizeRate(config.systemGuideRewardRate, EMPTY_REWARD_RATE_CONFIG.systemGuideRewardRate),
-    inviteRewardRate: normalizeRate(config.inviteRewardRate, EMPTY_REWARD_RATE_CONFIG.inviteRewardRate)
-  }
-  const totalRate = normalized.platformServiceRate + normalized.systemGuideRewardRate + normalized.inviteRewardRate
-
-  return totalRate <= 100 ? normalized : { ...EMPTY_REWARD_RATE_CONFIG }
-}
-
-function calculateReward(budget, rateConfig = EMPTY_REWARD_RATE_CONFIG) {
-  const amount = Number(budget) || 0
-  const rates = normalizeRewardRateConfig(rateConfig)
-  const serviceFee = Math.round((amount * rates.platformServiceRate) / 100)
-  const systemReward = Math.round((amount * rates.systemGuideRewardRate) / 100)
-  const inviteReward = Math.round((amount * rates.inviteRewardRate) / 100)
-
-  return {
-    serviceFee,
-    systemReward,
-    inviteReward,
-    expertIncome: Math.max(0, amount - serviceFee - systemReward - inviteReward),
-    platformServiceRateText: formatRateText(rates.platformServiceRate),
-    systemGuideRewardRateText: formatRateText(rates.systemGuideRewardRate),
-    inviteRewardRateText: formatRateText(rates.inviteRewardRate)
-  }
-}
-
-function normalizeBudgetInput(value, maxAmount = MAX_BUDGET_AMOUNT) {
-  const safeMaxAmount = Number.isInteger(Number(maxAmount)) && Number(maxAmount) > 0
-    ? Number(maxAmount)
-    : MAX_BUDGET_AMOUNT
-  const maxInputLength = String(safeMaxAmount).length + 1
-  const digits = String(value || '')
-    .replace(/\D/g, '')
-    .replace(/^0+(?=\d)/, '')
-    .slice(0, maxInputLength)
-
-  if (!digits) {
-    return ''
-  }
-
-  return String(Math.min(Number(digits), safeMaxAmount))
 }
 
 function getFileSource(file = {}) {
@@ -254,8 +185,6 @@ Page({
     allPlayers: [],
     playerIntroMessage: '',
     playerIntroCount: 0,
-    rewardRateConfig: EMPTY_REWARD_RATE_CONFIG,
-    reward: calculateReward(EMPTY_BUDGET, EMPTY_REWARD_RATE_CONFIG),
     navItems: [
       { name: '我的', active: false },
       { name: '元宇宙', active: false },
@@ -268,15 +197,12 @@ Page({
     expertCandidateIndex: 0,
     sourceGame: null,
     sourceGameRows: [],
-    pricingDisplay: {},
     activityTypes: EMPTY_ACTIVITY_TYPES,
     players: [],
     form: {
       title: '',
-      detail: '',
-      budget: EMPTY_BUDGET
+      detail: ''
     },
-    budgetMaxAmount: MAX_BUDGET_AMOUNT,
     workImageMaxCount: WORK_IMAGE_MAX_COUNT,
     workImages: [],
     workImageSlots: createWorkImageSlots(),
@@ -357,17 +283,6 @@ Page({
       'form.detail': value,
       detailCount: value.length
     })
-  },
-
-  onBudgetInput(event) {
-    const budget = normalizeBudgetInput(event.detail.value, this.data.budgetMaxAmount)
-
-    this.setData({
-      'form.budget': budget,
-      reward: calculateReward(budget, this.data.rewardRateConfig)
-    })
-
-    return budget
   },
 
   onPlayerSearchInput(event) {
@@ -454,13 +369,9 @@ Page({
     const defaultTitle = String(config.defaultTitle || '').trim()
     const defaultDetail = String(config.defaultDetail || '').trim()
     const intro = String(config.playerIntroTemplate || '').trim()
-    const defaultBudget = normalizeBudgetInput(config.defaultBudget || this.data.form.budget, config.budgetMaxAmount)
-    const sourceGameRows = Array.isArray(config.sourceGameRows) ? config.sourceGameRows : []
-    const pricingDisplay = config.pricingDisplay && typeof config.pricingDisplay === 'object'
-      ? config.pricingDisplay
-      : {}
+    const sourceGameRows = (Array.isArray(config.sourceGameRows) ? config.sourceGameRows : [])
+      .filter((item) => !/费用|预算|价格|分润|奖励/.test(String(item && item.label || '')))
 
-    this.applyInvitePricingConfig(config)
     this.setData({
       activityTypes,
       selectedType,
@@ -469,28 +380,11 @@ Page({
       expertCandidateIndex: 0,
       sourceGame: config.sourceGame || null,
       sourceGameRows,
-      pricingDisplay,
       playerIntroMessage: intro,
       playerIntroCount: intro.length,
       'form.title': defaultTitle,
       'form.detail': defaultDetail,
-      'form.budget': defaultBudget,
       detailCount: defaultDetail.length
-    })
-  },
-
-  applyInvitePricingConfig(config = {}) {
-    const budgetMaxAmount = Number.isInteger(Number(config.budgetMaxAmount)) && Number(config.budgetMaxAmount) > 0
-      ? Number(config.budgetMaxAmount)
-      : MAX_BUDGET_AMOUNT
-    const rewardRateConfig = normalizeRewardRateConfig(config.rewardRateConfig || config.rewardRates || config)
-    const budget = normalizeBudgetInput(this.data.form.budget, budgetMaxAmount)
-
-    this.setData({
-      budgetMaxAmount,
-      rewardRateConfig,
-      'form.budget': budget,
-      reward: calculateReward(budget, rewardRateConfig)
     })
   },
 
@@ -802,12 +696,12 @@ Page({
         serviceType: this.data.form.title || '',
         serviceDuration: this.data.sourceGame && (this.data.sourceGame.serviceDuration || this.data.sourceGame.durationText) || '',
         demandDetail: this.data.form.detail || '',
-        budgetAmountCent: Math.round((Number(this.data.form.budget) || 0) * 100),
+        budgetAmountCent: 0,
         expectedTime: this.data.sourceGame && (this.data.sourceGame.expectedTime || this.data.sourceGame.expectedTimeText) || '',
         overrides: {
           title: this.data.form.title || '',
           description: this.data.form.detail || '',
-          price: Number(this.data.form.budget) || 0,
+          price: 0,
           startAt: this.data.sourceGame && this.data.sourceGame.startAt || '',
           endAt: this.data.sourceGame && this.data.sourceGame.endAt || ''
         }

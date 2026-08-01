@@ -32,6 +32,34 @@ returning id, code, owner_user_id, status, max_uses, used_count, entry_type, exp
 `, invite.Code, nullInt64(invite.OwnerID), invite.Status, nullInt(invite.MaxUses), NormalizeEntryType(invite.EntryType), nullTime(invite.ExpiresAt)))
 }
 
+func (r *SQLRepository) CreateCodes(ctx context.Context, invites []InviteCode) ([]InviteCode, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	created := make([]InviteCode, 0, len(invites))
+	for _, invite := range invites {
+		item, err := scanInviteCode(tx.QueryRowContext(ctx, `
+insert into invite_codes (code, owner_user_id, status, max_uses, used_count, entry_type, expires_at, created_at, updated_at)
+values ($1,$2,$3,$4,0,$5,$6,now(),now())
+on conflict (code) do nothing
+returning id, code, owner_user_id, status, max_uses, used_count, entry_type, expires_at, created_at, updated_at
+`, invite.Code, nullInt64(invite.OwnerID), StatusActive, nullInt(invite.MaxUses), NormalizeEntryType(invite.EntryType), nullTime(invite.ExpiresAt)))
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrInviteCodeExists
+		}
+		if err != nil {
+			return nil, err
+		}
+		created = append(created, item)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
 func (r *SQLRepository) FindCode(ctx context.Context, code string) (InviteCode, bool, error) {
 	invite, err := scanInviteCode(r.db.QueryRowContext(ctx, `
 select id, code, owner_user_id, status, max_uses, used_count, entry_type, expires_at, created_at, updated_at
@@ -128,12 +156,14 @@ from invite_codes where id = $1 for update
 	}
 	invite = current
 
-	bound, ok, err := r.findBoundCodeTx(ctx, tx, invite.ID)
-	if err != nil {
-		return Relation{}, err
-	}
-	if ok && bound.BoundWechatUserID != inviteeUserID {
-		return Relation{}, ErrInviteAlreadyBound
+	if invite.MaxUses == 1 {
+		bound, ok, err := r.findBoundCodeTx(ctx, tx, invite.ID)
+		if err != nil {
+			return Relation{}, err
+		}
+		if ok && bound.BoundWechatUserID != inviteeUserID {
+			return Relation{}, ErrInviteAlreadyBound
+		}
 	}
 	relation, ok, err := r.relationForUserTx(ctx, tx, inviteeUserID)
 	if err != nil {
@@ -333,6 +363,61 @@ where id = $1 and status = 'pending'
 returning id, owner_user_id, quantity, reason, status, audit_reason, reviewed_by, created_at, reviewed_at
 `, id, status, auditReason, nullInt64(reviewedBy)))
 	return item, err
+}
+
+func (r *SQLRepository) ApproveQuotaRequestWithCodes(ctx context.Context, id int64, auditReason string, reviewedBy int64, items []InviteCode) (QuotaRequest, []InviteCode, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return QuotaRequest{}, nil, err
+	}
+	defer tx.Rollback()
+	request, err := scanQuotaRequest(tx.QueryRowContext(ctx, `
+select id, owner_user_id, quantity, reason, status, audit_reason, reviewed_by, created_at, reviewed_at
+from invite_quota_requests
+where id = $1
+for update
+`, id))
+	if err != nil {
+		return QuotaRequest{}, nil, err
+	}
+	if request.Status != "pending" {
+		return QuotaRequest{}, nil, errors.New("invite quota request already reviewed")
+	}
+	if request.Quantity != len(items) {
+		return QuotaRequest{}, nil, errors.New("invite quota quantity mismatch")
+	}
+	created := make([]InviteCode, 0, len(items))
+	for _, invite := range items {
+		if invite.OwnerID != request.OwnerUserID {
+			return QuotaRequest{}, nil, errors.New("invite quota owner mismatch")
+		}
+		item, insertErr := scanInviteCode(tx.QueryRowContext(ctx, `
+insert into invite_codes (code, owner_user_id, status, max_uses, used_count, entry_type, expires_at, created_at, updated_at)
+values ($1,$2,'active',1,0,$3,$4,now(),now())
+on conflict (code) do nothing
+returning id, code, owner_user_id, status, max_uses, used_count, entry_type, expires_at, created_at, updated_at
+`, invite.Code, request.OwnerUserID, NormalizeEntryType(invite.EntryType), nullTime(invite.ExpiresAt)))
+		if errors.Is(insertErr, sql.ErrNoRows) {
+			return QuotaRequest{}, nil, ErrInviteCodeExists
+		}
+		if insertErr != nil {
+			return QuotaRequest{}, nil, insertErr
+		}
+		created = append(created, item)
+	}
+	request, err = scanQuotaRequest(tx.QueryRowContext(ctx, `
+update invite_quota_requests
+set status = 'approved', audit_reason = $2, reviewed_by = $3, reviewed_at = now()
+where id = $1 and status = 'pending'
+returning id, owner_user_id, quantity, reason, status, audit_reason, reviewed_by, created_at, reviewed_at
+`, id, strings.TrimSpace(auditReason), nullInt64(reviewedBy)))
+	if err != nil {
+		return QuotaRequest{}, nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return QuotaRequest{}, nil, err
+	}
+	return request, created, nil
 }
 
 func (r *SQLRepository) relationForUserTx(ctx context.Context, q queryRower, userID int64) (Relation, bool, error) {

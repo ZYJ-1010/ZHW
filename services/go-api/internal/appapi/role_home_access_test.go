@@ -89,4 +89,40 @@ func TestAdminGrantRoleRequiresRealnameAndReconcilesGuide(t *testing.T) {
 	if err != nil || qualification.GuideOpenStatus != "opened" {
 		t.Fatalf("guide qualification not opened: %+v err=%v", qualification, err)
 	}
+
+	phoneToken := loginForTestWithCode(t, mux, "role-grant-phone-user")
+	completeIdentityForTest(t, mux, phoneToken)
+	phoneUserID := currentUserIDForTest(t, mux, phoneToken)
+	plain, revealErr := server.identity.RevealRecord(server.identity.Status(phoneUserID))
+	if revealErr != nil || plain.Phone == "" {
+		t.Fatalf("expected realname phone for whitelist import, record=%+v err=%v", server.identity.Status(phoneUserID), revealErr)
+	}
+	phoneRequest := httptest.NewRequest(http.MethodPost, "/api/admin/roles/grant", bytes.NewBufferString(`{"phoneNumbers":["`+plain.Phone+`"],"roleCode":"expert"}`))
+	phoneResponse := httptest.NewRecorder()
+	server.adminGrantRole(phoneResponse, phoneRequest)
+	if phoneResponse.Code != http.StatusOK || server.profiles.RoleSnapshot(phoneUserID).RoleStatusMap["expert"] != "approved" {
+		t.Fatalf("expected phone whitelist import to grant expert, code=%d body=%s", phoneResponse.Code, phoneResponse.Body.String())
+	}
+}
+
+func TestAdminPermissionUsesAuthenticatedAdminIDInsteadOfRequestHeader(t *testing.T) {
+	server := newTestAppServer(auth.NewService(users.NewStore(), invites.NewStore(), auth.NewTokenStore()), identity.NewService())
+	mux := http.NewServeMux()
+	server.Register(mux)
+	token := adminLoginForTest(t, mux)
+	expectedID, permitted := server.admins.HasPermission(token, "role:update")
+	if !permitted || expectedID <= 0 {
+		t.Fatalf("test administrator must have role update permission, id=%d permitted=%v", expectedID, permitted)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/roles/grant", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Admin-ID", "999999")
+	rec := httptest.NewRecorder()
+	actualID, ok := server.requireAdminPermissionID(rec, req, "role:update")
+	if !ok || actualID != expectedID {
+		t.Fatalf("expected authenticated admin id %d, got %d ok=%v", expectedID, actualID, ok)
+	}
+	if req.Header.Get("X-Admin-ID") != strconv.FormatInt(expectedID, 10) {
+		t.Fatalf("request header must be normalized to authenticated admin id, got %q", req.Header.Get("X-Admin-ID"))
+	}
 }

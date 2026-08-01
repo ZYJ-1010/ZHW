@@ -45,6 +45,7 @@ const (
 	phoneCodeResendInterval = 30 * time.Second
 	phoneCodeExpiry         = 5 * time.Minute
 	phoneCodeDailyLimit     = 5
+	phoneCodeMaxFailures    = 5
 )
 
 const (
@@ -73,6 +74,7 @@ type WechatLoginRequest struct {
 type WechatEntryPrecheckResponse struct {
 	BoundWechat    bool `json:"boundWechat"`
 	RequiresInvite bool `json:"requiresInvite"`
+	RequiresReauth bool `json:"requiresReauth"`
 }
 
 type PhoneLoginRequest struct {
@@ -96,29 +98,88 @@ type LoginResponse struct {
 	BoundWechat             bool              `json:"boundWechat"`
 	InviteBindingStatus     string            `json:"inviteBindingStatus,omitempty"`
 	InviteBindingMessage    string            `json:"inviteBindingMessage,omitempty"`
+	phoneCodeClaim          phoneCodeState
 }
 
 type phoneCodeState struct {
-	code     string
-	sentAt   time.Time
-	dayKey   string
-	dayCount int
-	sending  bool
+	code           string
+	scene          string
+	sentAt         time.Time
+	dayKey         string
+	dayCount       int
+	sending        bool
+	failedAttempts int
+	phoneKey       string
+	claimToken     string
+	repository     bool
 }
 
 type Service struct {
-	users             *users.Store
-	invites           *invites.Store
-	tokens            *TokenStore
-	resolver          WechatCodeResolver
-	phoneLookupSecret string
-	phoneSMSSender    identity.SMSSender
-	phoneCodeMu       sync.Mutex
-	phoneCodes        map[string]phoneCodeState
+	users              *users.Store
+	invites            *invites.Store
+	tokens             *TokenStore
+	resolver           WechatCodeResolver
+	phoneLookupSecret  string
+	phoneSMSSender     identity.SMSSender
+	phoneCodeRepo      PhoneCodeRepository
+	phoneCodeMu        sync.Mutex
+	phoneCodes         map[string]phoneCodeState
+	relationListenerMu sync.RWMutex
+	relationListener   func(invites.Relation)
+	phoneVerifierMu    sync.RWMutex
+	phoneVerifier      func(userID int64) bool
+}
+
+// SetInviteRelationListener lets the application layer observe newly bound
+// invitation relations without coupling authentication to growth services.
+func (s *Service) SetInviteRelationListener(listener func(invites.Relation)) {
+	s.relationListenerMu.Lock()
+	s.relationListener = listener
+	s.relationListenerMu.Unlock()
+}
+
+// SetPhoneBindingVerifier lets the application layer confirm that a stored
+// phone number has completed SMS verification. A masked phone number alone is
+// not proof of ownership because it may have been entered during onboarding.
+func (s *Service) SetPhoneBindingVerifier(verifier func(userID int64) bool) {
+	s.phoneVerifierMu.Lock()
+	s.phoneVerifier = verifier
+	s.phoneVerifierMu.Unlock()
+}
+
+func (s *Service) phoneBindingVerified(userID int64, phoneMasked string) bool {
+	if strings.TrimSpace(phoneMasked) == "" {
+		return false
+	}
+	s.phoneVerifierMu.RLock()
+	verifier := s.phoneVerifier
+	s.phoneVerifierMu.RUnlock()
+	if verifier == nil {
+		// Standalone auth-service users do not have an identity service. The
+		// application server always installs the verifier during construction.
+		return true
+	}
+	return verifier(userID)
+}
+
+func (s *Service) SetAppReauthAfterDays(days int) {
+	if s == nil || s.tokens == nil || days <= 0 {
+		return
+	}
+	s.tokens.SetAppReauthAfter(time.Duration(days) * 24 * time.Hour)
+}
+
+func (s *Service) notifyInviteRelationBound(relation invites.Relation) {
+	s.relationListenerMu.RLock()
+	listener := s.relationListener
+	s.relationListenerMu.RUnlock()
+	if listener != nil {
+		listener(relation)
+	}
 }
 
 func NewService(userStore *users.Store, inviteStore *invites.Store, tokenStore *TokenStore) *Service {
-	return &Service{
+	service := &Service{
 		users:             userStore,
 		invites:           inviteStore,
 		tokens:            tokenStore,
@@ -127,6 +188,10 @@ func NewService(userStore *users.Store, inviteStore *invites.Store, tokenStore *
 		phoneSMSSender:    identity.LocalSMSSender{},
 		phoneCodes:        make(map[string]phoneCodeState),
 	}
+	if tokenStore != nil && tokenStore.repo != nil {
+		service.phoneCodeRepo, _ = tokenStore.repo.(PhoneCodeRepository)
+	}
+	return service
 }
 
 func (s *Service) UseWechatCodeResolver(resolver WechatCodeResolver) {
@@ -155,7 +220,11 @@ func (s *Service) SendPhoneCode(ctx context.Context, phone string, scene string)
 		return identity.SMSDispatchResult{}, ErrPhoneInvalid
 	}
 	phoneKey := s.phoneLookupHash(phone)
+	scene = normalizePhoneCodeScene(scene)
 	nowTime := time.Now()
+	if s.phoneCodeRepo != nil {
+		return s.sendPhoneCodeWithRepository(ctx, phone, phoneKey, scene, nowTime)
+	}
 	s.phoneCodeMu.Lock()
 	state := s.phoneCodes[phoneKey]
 	if state.sending {
@@ -180,6 +249,7 @@ func (s *Service) SendPhoneCode(ctx context.Context, phone string, scene string)
 	previousState := state
 	inFlightState := state
 	inFlightState.code = code
+	inFlightState.scene = scene
 	inFlightState.sending = true
 	s.phoneCodes[phoneKey] = inFlightState
 	s.phoneCodeMu.Unlock()
@@ -187,7 +257,7 @@ func (s *Service) SendPhoneCode(ctx context.Context, phone string, scene string)
 	result, err := sender.Send(ctx, identity.SMSDispatchRequest{
 		Phone:       phone,
 		PhoneMasked: maskPhone(phone),
-		Scene:       strings.TrimSpace(scene),
+		Scene:       scene,
 		Code:        code,
 		ExpiresAt:   nowTime.Add(phoneCodeExpiry),
 	})
@@ -212,21 +282,95 @@ func (s *Service) SendPhoneCode(ctx context.Context, phone string, scene string)
 		confirmedState.dayCount = 0
 	}
 	confirmedState.code = code
+	confirmedState.scene = scene
 	confirmedState.sentAt = nowTime
 	confirmedState.dayCount++
 	confirmedState.sending = false
+	confirmedState.failedAttempts = 0
 	s.phoneCodes[phoneKey] = confirmedState
 	s.phoneCodeMu.Unlock()
 	return result, nil
 }
 
+func (s *Service) sendPhoneCodeWithRepository(ctx context.Context, phone string, phoneKey string, scene string, nowTime time.Time) (identity.SMSDispatchResult, error) {
+	sender := s.phoneSMSSender
+	code := sender.GenerateCode()
+	reservationToken, err := randomToken(16)
+	if err != nil {
+		return identity.SMSDispatchResult{}, err
+	}
+	dayKey := nowTime.Format("20060102")
+	err = s.phoneCodeRepo.ReservePhoneCodeSend(ctx, PhoneCodeSendReservation{
+		PhoneKey:         phoneKey,
+		PhoneMasked:      maskPhone(phone),
+		Scene:            scene,
+		CodeHash:         s.phoneCodeHash(phoneKey, scene, code),
+		ReservationToken: reservationToken,
+		StartedAt:        nowTime,
+		ExpiresAt:        nowTime.Add(phoneCodeExpiry),
+		DayKey:           dayKey,
+		ResendInterval:   phoneCodeResendInterval,
+		DailyLimit:       phoneCodeDailyLimit,
+	})
+	if err != nil {
+		return identity.SMSDispatchResult{}, err
+	}
+	result, err := sender.Send(ctx, identity.SMSDispatchRequest{
+		Phone:       phone,
+		PhoneMasked: maskPhone(phone),
+		Scene:       scene,
+		Code:        code,
+		ExpiresAt:   nowTime.Add(phoneCodeExpiry),
+	})
+	if err != nil {
+		_ = s.phoneCodeRepo.CancelPhoneCodeSend(context.Background(), phoneKey, reservationToken)
+		return identity.SMSDispatchResult{}, ErrPhoneCodeSendFailed
+	}
+	if err := s.phoneCodeRepo.ConfirmPhoneCodeSend(context.Background(), phoneKey, reservationToken, nowTime, dayKey); err != nil {
+		_ = s.phoneCodeRepo.CancelPhoneCodeSend(context.Background(), phoneKey, reservationToken)
+		return identity.SMSDispatchResult{}, ErrPhoneCodeSendFailed
+	}
+	return result, nil
+}
+
 func (s *Service) VerifyPhoneCode(phone string, code string) error {
+	_, err := s.consumePhoneCode(phone, code, map[string]bool{"login": true, "invite_register": true})
+	return err
+}
+
+func (s *Service) consumePhoneCode(phone string, code string, allowedScenes map[string]bool) (phoneCodeState, error) {
 	phone = strings.TrimSpace(phone)
 	code = strings.TrimSpace(code)
 	if !validMainlandPhone(phone) {
-		return ErrPhoneInvalid
+		return phoneCodeState{}, ErrPhoneInvalid
 	}
 	phoneKey := s.phoneLookupHash(phone)
+	if s.phoneCodeRepo != nil {
+		claimToken, err := randomToken(16)
+		if err != nil {
+			return phoneCodeState{}, err
+		}
+		candidateHashes := make(map[string]string, len(allowedScenes))
+		for scene, allowed := range allowedScenes {
+			if allowed {
+				candidateHashes[scene] = s.phoneCodeHash(phoneKey, scene, code)
+			}
+		}
+		claim, verified, err := s.phoneCodeRepo.ClaimPhoneCode(
+			context.Background(), phoneKey, candidateHashes, allowedScenes, claimToken,
+			time.Now(), phoneCodeMaxFailures, phoneCodeResendInterval,
+		)
+		if err != nil {
+			return phoneCodeState{}, err
+		}
+		if !verified {
+			return phoneCodeState{}, ErrPhoneCodeInvalid
+		}
+		return phoneCodeState{
+			scene: claim.Scene, sentAt: claim.SentAt, phoneKey: claim.PhoneKey,
+			claimToken: claim.ClaimToken, repository: true,
+		}, nil
+	}
 	s.phoneCodeMu.Lock()
 	defer s.phoneCodeMu.Unlock()
 	state, ok := s.phoneCodes[phoneKey]
@@ -234,17 +378,65 @@ func (s *Service) VerifyPhoneCode(phone string, code string) error {
 	if sender, ok := s.phoneSMSSender.(interface{ AllowsTemporaryCode() bool }); ok {
 		allowTemporaryCode = sender.AllowsTemporaryCode()
 	}
+	if ok && state.sending {
+		return phoneCodeState{}, ErrPhoneCodeInvalid
+	}
 	if !ok || state.sentAt.IsZero() || time.Since(state.sentAt) > phoneCodeExpiry {
 		if allowTemporaryCode && code == temporaryPhoneCode {
-			return nil
+			return phoneCodeState{code: code, scene: "local"}, nil
 		}
-		return ErrPhoneCodeInvalid
+		delete(s.phoneCodes, phoneKey)
+		return phoneCodeState{}, ErrPhoneCodeInvalid
+	}
+	if len(allowedScenes) > 0 && !allowedScenes[state.scene] {
+		return phoneCodeState{}, ErrPhoneCodeInvalid
 	}
 	if state.code != code && !(allowTemporaryCode && code == temporaryPhoneCode) {
-		return ErrPhoneCodeInvalid
+		state.failedAttempts++
+		if state.failedAttempts >= phoneCodeMaxFailures {
+			delete(s.phoneCodes, phoneKey)
+		} else {
+			s.phoneCodes[phoneKey] = state
+		}
+		return phoneCodeState{}, ErrPhoneCodeInvalid
 	}
 	delete(s.phoneCodes, phoneKey)
+	state.phoneKey = phoneKey
+	return state, nil
+}
+
+func (s *Service) restorePhoneCode(phone string, state phoneCodeState) {
+	_ = s.restorePhoneCodeWithError(phone, state)
+}
+
+func (s *Service) restorePhoneCodeWithError(phone string, state phoneCodeState) error {
+	if state.repository {
+		return s.phoneCodeRepo.RestorePhoneCodeClaim(context.Background(), state.phoneKey, state.claimToken)
+	}
+	if state.code == "" || state.scene == "local" {
+		return nil
+	}
+	phoneKey := state.phoneKey
+	if phoneKey == "" {
+		phoneKey = s.phoneLookupHash(strings.TrimSpace(phone))
+	}
+	s.phoneCodeMu.Lock()
+	if _, exists := s.phoneCodes[phoneKey]; !exists {
+		s.phoneCodes[phoneKey] = state
+	}
+	s.phoneCodeMu.Unlock()
 	return nil
+}
+
+func normalizePhoneCodeScene(scene string) string {
+	switch strings.ToLower(strings.TrimSpace(scene)) {
+	case "invite_register", "register":
+		return "invite_register"
+	case "password_reset":
+		return "password_reset"
+	default:
+		return "login"
+	}
 }
 
 func (s *Service) InvitePrecheck(req InvitePrecheckRequest) (invites.PrecheckResult, error) {
@@ -315,7 +507,28 @@ func (s *Service) AdminCreateInviteCode(code string, ownerID int64, maxUses int,
 	if maxUses < 0 {
 		maxUses = 0
 	}
-	return s.invites.UpsertCodeWithEntryType(code, ownerID, maxUses, entryType), nil
+	return s.invites.UpsertCodeWithEntryTypeResult(code, ownerID, maxUses, entryType)
+}
+
+func (s *Service) AdminCreateInviteCodes(codes []string, ownerID int64, maxUses int, entryType string, expiresAt time.Time) ([]invites.InviteCode, error) {
+	entryType, ok := invites.ParseEntryType(entryType)
+	if !ok || entryType == "" {
+		return nil, invites.ErrInvalidEntryType
+	}
+	if maxUses < 0 {
+		maxUses = 0
+	}
+	items := make([]invites.InviteCode, 0, len(codes))
+	for _, code := range codes {
+		items = append(items, invites.InviteCode{
+			Code:      strings.TrimSpace(code),
+			OwnerID:   ownerID,
+			MaxUses:   maxUses,
+			EntryType: entryType,
+			ExpiresAt: expiresAt,
+		})
+	}
+	return s.invites.CreateCodes(items)
 }
 
 func (s *Service) AdminInviteCodes(filter invites.CodeFilter) ([]invites.InviteCode, error) {
@@ -357,6 +570,32 @@ func (s *Service) ReviewInviteQuotaRequest(id int64, status string, auditReason 
 	return s.invites.ReviewQuotaRequest(id, status, auditReason, reviewedBy)
 }
 
+func (s *Service) ApproveInviteQuotaRequest(id int64, auditReason string, reviewedBy int64, entryType string, expiresAt time.Time) (invites.QuotaRequest, []invites.InviteCode, error) {
+	entryType, ok := invites.ParseEntryType(entryType)
+	if !ok || entryType == "" {
+		return invites.QuotaRequest{}, nil, invites.ErrInvalidEntryType
+	}
+	requests, err := s.invites.ListQuotaRequests(0, "pending")
+	if err != nil {
+		return invites.QuotaRequest{}, nil, err
+	}
+	var target invites.QuotaRequest
+	for _, request := range requests {
+		if request.ID == id {
+			target = request
+			break
+		}
+	}
+	if target.ID == 0 {
+		return invites.QuotaRequest{}, nil, errors.New("invite quota request not found or reviewed")
+	}
+	items, err := s.invites.PrepareEntryCodes(target.OwnerUserID, target.Quantity, entryType, expiresAt)
+	if err != nil {
+		return invites.QuotaRequest{}, nil, err
+	}
+	return s.invites.ApproveQuotaRequestWithCodes(id, auditReason, reviewedBy, items)
+}
+
 func (s *Service) AdminInviteRelations(filter invites.RelationFilter) ([]invites.Relation, error) {
 	return s.invites.ListRelations(filter)
 }
@@ -366,7 +605,11 @@ func (s *Service) InviteRelationForUser(userID int64) (invites.Relation, bool, e
 }
 
 func (s *Service) SetInviteRelationInviter(inviteeUserID int64, inviterUserID int64, source string) (invites.Relation, error) {
-	return s.invites.SetRelationInviter(inviteeUserID, inviterUserID, source)
+	relation, err := s.invites.SetRelationInviter(inviteeUserID, inviterUserID, source)
+	if err == nil {
+		s.notifyInviteRelationBound(relation)
+	}
+	return relation, err
 }
 
 func (s *Service) WechatEntryPrecheck(code string) (WechatEntryPrecheckResponse, error) {
@@ -378,13 +621,14 @@ func (s *Service) WechatEntryPrecheck(code string) (WechatEntryPrecheckResponse,
 	if openID == "" {
 		return WechatEntryPrecheckResponse{}, ErrWechatCodeInvalid
 	}
-	_, found, err := s.users.FindByOpenID(openID)
+	user, found, err := s.users.FindByOpenID(openID)
 	if err != nil {
 		return WechatEntryPrecheckResponse{}, err
 	}
 	return WechatEntryPrecheckResponse{
 		BoundWechat:    found,
 		RequiresInvite: !found,
+		RequiresReauth: found && s.tokens.RequiresAppReauthentication(user.ID),
 	}, nil
 }
 
@@ -460,7 +704,8 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 	}
 	if !precheck.BoundWechat || precheck.BoundUserID != user.ID {
 		invite := precheck.InviteCode
-		if _, err := s.invites.Bind(invite, user.ID, "invite_"+entryType); err != nil {
+		relation, err := s.invites.Bind(invite, user.ID, "invite_"+entryType)
+		if err != nil {
 			if errors.Is(err, invites.ErrInviteAlreadyBound) {
 				return LoginResponse{}, ErrInviteAlreadyBound
 			}
@@ -469,6 +714,7 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 			}
 			return LoginResponse{}, err
 		}
+		s.notifyInviteRelationBound(relation)
 	}
 	if existed && !precheck.BoundWechat {
 		authPageMode = invites.AuthPageModeLogin
@@ -504,24 +750,40 @@ func (s *Service) WechatLogin(req WechatLoginRequest) (LoginResponse, error) {
 }
 
 func (s *Service) boundWechatLoginResponse(user users.User, relation *invites.Relation, entryType string, bindingStatus string, bindingMessage string) (LoginResponse, error) {
-	session, err := s.tokens.IssuePreAuth(user.ID)
+	// A user who has already completed phone binding is an existing account.
+	// Reissuing a pre-auth session here would make every WeChat return look
+	// unfinished and, importantly, would not refresh the 60-day login record.
+	identityBound := s.phoneBindingVerified(user.ID, user.PhoneMasked)
+	var session Session
+	var err error
+	if identityBound {
+		session, err = s.tokens.IssueApp(user.ID)
+	} else {
+		session, err = s.tokens.IssuePreAuth(user.ID)
+	}
 	if err != nil {
 		return LoginResponse{}, err
 	}
-	return LoginResponse{
-		PreAuthToken:            session.Token,
+	response := LoginResponse{
 		ExpiresAt:               session.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
 		User:                    user,
 		InviteRelation:          relation,
 		NeedProfile:             user.Nickname == "",
-		RequiresIdentityBinding: true,
-		IdentityBindStatus:      "wechat_logged_in",
+		RequiresIdentityBinding: !identityBound,
+		IdentityBindStatus:      "sms_verified",
 		EntryType:               entryType,
 		AuthPageMode:            invites.AuthPageModeLogin,
 		BoundWechat:             true,
 		InviteBindingStatus:     bindingStatus,
 		InviteBindingMessage:    bindingMessage,
-	}, nil
+	}
+	if identityBound {
+		response.Token = session.Token
+	} else {
+		response.PreAuthToken = session.Token
+		response.IdentityBindStatus = "wechat_logged_in"
+	}
+	return response, nil
 }
 
 func (s *Service) requestInviteMatchesRelation(inviteCode string, relation invites.Relation) (bool, error) {
@@ -540,7 +802,7 @@ func entryTypeFromBindSource(source string) string {
 	return ""
 }
 
-func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
+func (s *Service) PhoneLogin(req PhoneLoginRequest) (response LoginResponse, resultErr error) {
 	phone := strings.TrimSpace(req.Phone)
 	code := strings.TrimSpace(req.Code)
 	if phone == "" {
@@ -549,10 +811,6 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 	if !validMainlandPhone(phone) {
 		return LoginResponse{}, ErrPhoneInvalid
 	}
-	if err := s.VerifyPhoneCode(phone, code); err != nil {
-		return LoginResponse{}, ErrPhoneCodeInvalid
-	}
-
 	phoneHash := s.phoneLookupHash(phone)
 	user, existed, err := s.users.FindByPhoneHash(phoneHash)
 	if err != nil {
@@ -576,6 +834,21 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 	} else if !existed {
 		return LoginResponse{}, ErrInviteRequired
 	}
+	// Registration prerequisites are checked before consuming the one-time SMS
+	// code. A missing or invalid invite must not force the user to request a new
+	// verification code.
+	consumedCode, err := s.consumePhoneCode(phone, code, map[string]bool{"login": true, "invite_register": true})
+	if err != nil {
+		if errors.Is(err, ErrPhoneCodeInvalid) || errors.Is(err, ErrPhoneInvalid) {
+			return LoginResponse{}, ErrPhoneCodeInvalid
+		}
+		return LoginResponse{}, err
+	}
+	defer func() {
+		if resultErr != nil {
+			s.restorePhoneCode(phone, consumedCode)
+		}
+	}()
 
 	if !existed {
 		user, err = s.users.CreateWithPhone(phoneHash, maskPhone(phone))
@@ -586,7 +859,11 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 	}
 
 	if strings.TrimSpace(req.InviteCode) != "" && (!precheck.BoundWechat || precheck.BoundUserID != user.ID) {
-		if _, err := s.invites.Bind(precheck.InviteCode, user.ID, "invite_"+entryType); err != nil {
+		relation, err := s.invites.Bind(precheck.InviteCode, user.ID, "invite_"+entryType)
+		if err != nil {
+			if !existed {
+				_ = s.users.DeleteAccount(user.ID)
+			}
 			if errors.Is(err, invites.ErrInviteAlreadyBound) {
 				return LoginResponse{}, ErrInviteAlreadyBound
 			}
@@ -595,6 +872,7 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 			}
 			return LoginResponse{}, err
 		}
+		s.notifyInviteRelationBound(relation)
 	}
 
 	session, err := s.tokens.IssueApp(user.ID)
@@ -621,7 +899,20 @@ func (s *Service) PhoneLogin(req PhoneLoginRequest) (LoginResponse, error) {
 		EntryType:               entryType,
 		AuthPageMode:            authPageMode,
 		BoundWechat:             user.OpenID != "",
+		phoneCodeClaim:          consumedCode,
 	}, nil
+}
+
+// RollbackPhoneLogin is used when the application layer cannot complete the
+// post-login identity synchronization. The client never received the token, so
+// the issued session is revoked and the one-time code is made retryable.
+func (s *Service) RollbackPhoneLogin(response LoginResponse) error {
+	restoreErr := s.restorePhoneCodeWithError("", response.phoneCodeClaim)
+	revokeErr := s.tokens.RevokeSession(response.Token)
+	if restoreErr != nil {
+		return restoreErr
+	}
+	return revokeErr
 }
 
 func (s *Service) BindPhoneAuth(userID int64, phone string) (users.User, error) {
@@ -644,6 +935,41 @@ func (s *Service) SetPassword(userID int64, password string) (users.User, error)
 		return users.User{}, err
 	}
 	return s.users.UpdatePasswordHash(userID, hash)
+}
+
+// ResetPasswordByPhone is deliberately a single verification-and-update
+// transaction at the service boundary.  The SMS code is consumed here, so a
+// client cannot first consume it in a "verify" step and then fail to reset the
+// password with the same code.
+func (s *Service) ResetPasswordByPhone(phone string, code string, password string) (users.User, error) {
+	phone = strings.TrimSpace(phone)
+	if !validMainlandPhone(phone) {
+		return users.User{}, ErrPhoneInvalid
+	}
+	// 先校验新密码，避免用户因一次格式输入错误就消耗短信验证码。
+	if !validLoginPassword(password) {
+		return users.User{}, ErrPasswordInvalid
+	}
+	user, found, err := s.users.FindByPhoneHash(s.phoneLookupHash(phone))
+	if err != nil {
+		return users.User{}, err
+	}
+	if !found {
+		return users.User{}, ErrPasswordInvalid
+	}
+	consumedCode, err := s.consumePhoneCode(phone, code, map[string]bool{"password_reset": true})
+	if err != nil {
+		if errors.Is(err, ErrPhoneCodeInvalid) || errors.Is(err, ErrPhoneInvalid) {
+			return users.User{}, ErrPhoneCodeInvalid
+		}
+		return users.User{}, err
+	}
+	updated, err := s.SetPassword(user.ID, password)
+	if err != nil {
+		s.restorePhoneCode(phone, consumedCode)
+		return users.User{}, err
+	}
+	return updated, nil
 }
 
 func (s *Service) HasPassword(userID int64) bool {
@@ -690,7 +1016,11 @@ func (s *Service) BindWechat(userID int64, code string) (users.User, error) {
 	} else if found && owner.ID != userID {
 		return users.User{}, ErrWechatAlreadyBound
 	}
-	return s.users.BindWechat(userID, session.OpenID)
+	user, err := s.users.BindWechat(userID, session.OpenID)
+	if errors.Is(err, users.ErrWechatAlreadyUsed) || errors.Is(err, users.ErrWechatConflict) {
+		return users.User{}, ErrWechatAlreadyBound
+	}
+	return user, err
 }
 
 func validLoginPassword(value string) bool {
@@ -779,15 +1109,40 @@ func (s *Service) DeleteAccount(userID int64) error {
 }
 
 func (s *Service) ActiveAppSessionCount() int {
+	count, _ := s.ActiveAppSessionCountStrict()
+	return count
+}
+
+func (s *Service) ActiveAppSessionCountStrict() (int, error) {
 	if s == nil || s.tokens == nil {
-		return 0
+		return 0, nil
 	}
-	return s.tokens.ActiveSessionCount(SessionKindApp)
+	return s.tokens.ActiveSessionCountStrict(SessionKindApp)
 }
 
 func (s *Service) CurrentUser(token string) (users.User, bool) {
+	return s.currentUserForSessionKinds(token, SessionKindApp)
+}
+
+// CurrentIdentityUser accepts the short-lived pre-auth session only for the
+// explicitly whitelisted onboarding and identity endpoints.
+func (s *Service) CurrentIdentityUser(token string) (users.User, bool) {
+	return s.currentUserForSessionKinds(token, SessionKindApp, SessionKindPreAuth)
+}
+
+func (s *Service) currentUserForSessionKinds(token string, kinds ...string) (users.User, bool) {
 	session, ok := s.tokens.Verify(token)
 	if !ok {
+		return users.User{}, false
+	}
+	allowed := false
+	for _, kind := range kinds {
+		if session.Kind == kind {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
 		return users.User{}, false
 	}
 	user, ok, err := s.users.FindByID(session.UserID)
@@ -860,6 +1215,12 @@ func maskPhone(phone string) string {
 func (s *Service) phoneLookupHash(phone string) string {
 	mac := hmac.New(sha256.New, []byte(s.phoneLookupSecret))
 	_, _ = mac.Write([]byte(strings.TrimSpace(phone)))
+	return fmt.Sprintf("hmac-sha256:%x", mac.Sum(nil))
+}
+
+func (s *Service) phoneCodeHash(phoneKey string, scene string, code string) string {
+	mac := hmac.New(sha256.New, []byte(s.phoneLookupSecret))
+	_, _ = mac.Write([]byte("phone-code:" + phoneKey + ":" + scene + ":" + strings.TrimSpace(code)))
 	return fmt.Sprintf("hmac-sha256:%x", mac.Sum(nil))
 }
 
