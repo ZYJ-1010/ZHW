@@ -280,6 +280,7 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 	if levelTitle == "" {
 		levelTitle = roleName
 	}
+	levelBadge, levelName := roleGrowthLevelDisplay(roleType, roleGrowth.LevelNo, levelTitle)
 
 	// 玩家按累计经验升级；行家和领路人按后台配置的真实指标得分和等级
 	// 升级。首页不能再套用统一的 Lv.X / XP 口径。
@@ -295,6 +296,8 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 			"currentRole":       roleType,
 			"roleType":          roleType,
 			"roleLabel":         roleName + " · " + levelTitle,
+			"levelBadge":        levelBadge,
+			"levelTitle":        levelName,
 			"displayName":       homeDisplayName(user, s.displayName(userID, "用户")),
 			"level":             roleGrowth.LevelNo,
 			"experience":        roleGrowth.Score,
@@ -325,6 +328,8 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 		"currentRole":         roleType,
 		"roleType":            roleType,
 		"roleLabel":           roleName + " · " + levelTitle,
+		"levelBadge":          levelBadge,
+		"levelTitle":          levelName,
 		"displayName":         homeDisplayName(user, s.displayName(userID, "\u7528\u6237")),
 		"level":               roleGrowth.LevelNo,
 		"experience":          playerExperience,
@@ -343,6 +348,31 @@ func (s *Server) homePlayerSummary(userID int64, user users.User, stats games.Us
 			{"value": playerExperience, "label": "\u7ecf\u9a8c"},
 		},
 	}
+}
+
+// roleGrowthLevelDisplay keeps the operator-configured level title as the
+// source of truth while separating the compact home-card badge from its
+// descriptive title.
+func roleGrowthLevelDisplay(roleType string, levelNo int, configuredTitle string) (string, string) {
+	title := strings.TrimSpace(configuredTitle)
+	badge := ""
+	switch roleType {
+	case "expert":
+		badge = strconv.Itoa(levelNo) + "星"
+	case "guide":
+		badge = strconv.Itoa(levelNo) + "级"
+	default:
+		badge = "Lv" + strconv.Itoa(levelNo)
+	}
+	for _, prefix := range []string{badge + " ", badge + "　", badge} {
+		if strings.HasPrefix(title, prefix) {
+			if name := strings.TrimSpace(strings.TrimPrefix(title, prefix)); name != "" {
+				return badge, name
+			}
+			break
+		}
+	}
+	return badge, title
 }
 
 func (s *Server) playerLevelProgress(experience int, levelNo int) (nextExperience int, remaining int, percent int) {

@@ -476,6 +476,9 @@ func TestCreateInviteEntryHTTP(t *testing.T) {
 	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link","title":"邀请你加入真好玩"}`, http.StatusForbidden)
 	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"poster","gameId":1}`, http.StatusForbidden)
 	ownerID := currentUserIDForTest(t, mux, token)
+	server.profiles.GrantRole(ownerID, "expert")
+	// 行家可以使用局内邀请，但不能分发用于注册的邀请码。
+	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link"}`, http.StatusForbidden)
 	server.profiles.GrantRole(ownerID, "guide")
 	// 身份生效后仍必须由后台先分配邀请码，不能由 C 端自行新增。
 	postJSON(t, mux, "/api/app/invites/entries", token, `{"entryType":"link"}`, http.StatusConflict)
@@ -1002,6 +1005,11 @@ func TestAdminInviteCodeManagementHTTP(t *testing.T) {
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":999999,"entryType":"qrcode"}`, http.StatusNotFound)
 	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"ownerUserId":`+ownerUserIDJSON+`,"entryType":"qrcode"}`, http.StatusUnprocessableEntity)
+	expertToken := loginForTestWithCode(t, mux, "admin-invite-expert")
+	completeIdentityForTest(t, mux, expertToken)
+	expertUserID := currentUserIDForTest(t, mux, expertToken)
+	postAdminJSON(t, mux, "/api/admin/roles/grant", adminToken, `{"userId":`+strconv.FormatInt(expertUserID, 10)+`,"roleCode":"expert","reason":"邀请码权限校验"}`, http.StatusOK)
+	postAdminJSON(t, mux, "/api/admin/invite-codes", adminToken, `{"prefix":"exp","ownerUserId":`+strconv.FormatInt(expertUserID, 10)+`,"entryType":"qrcode","batchCount":1}`, http.StatusUnprocessableEntity)
 	postAdminJSON(t, mux, "/api/admin/roles/grant", adminToken, `{"userId":`+ownerUserIDJSON+`,"roleCode":"guide","reason":"邀请码生成测试"}`, http.StatusOK)
 	getAdminJSON(t, mux, "/api/admin/invite-owners?keyword=User", operatorToken, http.StatusForbidden)
 	emptyOwnerSearchBody := getAdminJSON(t, mux, "/api/admin/invite-owners", adminToken, http.StatusOK)

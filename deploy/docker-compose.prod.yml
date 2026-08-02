@@ -27,6 +27,8 @@ services:
     image: postgres:16
     restart: "no"
     environment:
+      PGHOST: postgres
+      PGPASSWORD: ZHW2026
       POSTGRES_DB: zhw_mini
       POSTGRES_USER: root
       POSTGRES_PASSWORD: ZHW2026

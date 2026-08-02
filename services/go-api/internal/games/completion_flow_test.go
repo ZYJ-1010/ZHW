@@ -95,6 +95,29 @@ func TestAppGameWithoutExpertGoesDirectlyToReview(t *testing.T) {
 	}
 }
 
+func TestCompleteAfterReviewsMovesPendingReviewGameToCompleted(t *testing.T) {
+	service := newVerifiedGameService()
+	game, members := mustCreateStartedGame(t, service)
+
+	if _, err := service.RequestCompletion(members[0], game.ID); err != nil {
+		t.Fatal(err)
+	}
+	completed, changed, err := service.CompleteAfterReviews(game.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed || completed.Status != StatusCompleted {
+		t.Fatalf("completion result changed=%v game=%+v", changed, completed)
+	}
+	repeated, changed, err := service.CompleteAfterReviews(game.ID)
+	if err != nil {
+		t.Fatalf("repeated completion: %v", err)
+	}
+	if changed || repeated.Status != StatusCompleted {
+		t.Fatalf("repeated completion changed=%v game=%+v", changed, repeated)
+	}
+}
+
 func TestResolveNoExpertPendingConfirmMovesToReview(t *testing.T) {
 	service := newVerifiedGameService()
 	game, members := mustCreateStartedGame(t, service)

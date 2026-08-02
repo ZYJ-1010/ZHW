@@ -187,6 +187,18 @@ function buildOrganizer(game = {}, display = {}) {
 function normalizePrimaryAction(detailDisplay = {}, game = {}, statusText = '', relation = {}) {
   const source = detailDisplay.primaryAction || {}
   const relationReason = String(relation.applyDisabledReason || relation.ApplyDisabledReason || '').trim()
+  const applicationStatus = String(relation.applicationStatus || relation.ApplicationStatus || '').trim().toLowerCase()
+  const applicationId = Number(relation.applicationId || relation.ApplicationID || 0)
+  const isCreator = relation.isCreator === true || relation.IsCreator === true
+  const isMember = relation.isMember === true || relation.IsMember === true
+
+  if (applicationStatus === 'pending' && applicationId > 0) {
+    return { text: '申请中 · 撤回', disabled: false, action: 'withdraw_application', applicationId, route: '', confirmText: '确定撤回本次入局申请？' }
+  }
+
+  if (!isCreator && isMember && (game.status === 'recruiting' || game.status === 'full')) {
+    return { text: '退出本局', disabled: false, action: 'exit_game', route: '', confirmText: '退出后将释放本局席位，并按后台信用规则扣分，确定退出？' }
+  }
 
   if (source.text) {
     const sourceText = String(source.text)
@@ -767,6 +779,16 @@ Page({
       return
     }
 
+    if (primaryAction.action === 'withdraw_application') {
+      this.confirmWithdrawApplication(primaryAction)
+      return
+    }
+
+    if (primaryAction.action === 'exit_game') {
+      this.confirmExitGame(primaryAction)
+      return
+    }
+
     if (primaryAction.action !== 'apply') {
       if (primaryAction.route) {
         navigateShellRoute(primaryAction.route, {
@@ -798,6 +820,51 @@ Page({
         } catch (error) {
           wx.hideLoading()
           this.showInfo(error.message || '开始组局失败')
+        }
+      }
+    })
+  },
+
+  confirmWithdrawApplication(primaryAction = {}) {
+    const applicationId = Number(primaryAction.applicationId || this.data.myRelation.applicationId || 0)
+    if (!applicationId) {
+      this.showInfo('未找到可撤回的申请')
+      return
+    }
+    wx.showModal({
+      title: '撤回申请',
+      content: primaryAction.confirmText || '确定撤回本次入局申请？',
+      success: async (result) => {
+        if (!result.confirm) return
+        wx.showLoading({ title: '撤回中', mask: true })
+        try {
+          await gameService.cancelGameApplication(applicationId)
+          wx.hideLoading()
+          this.showInfo('申请已撤回')
+          await this.loadGameDetail()
+        } catch (error) {
+          wx.hideLoading()
+          this.showInfo(error.message || '撤回申请失败')
+        }
+      }
+    })
+  },
+
+  confirmExitGame(primaryAction = {}) {
+    wx.showModal({
+      title: '退出本局',
+      content: primaryAction.confirmText || '退出后将释放本局席位，并按后台信用规则扣分，确定退出？',
+      success: async (result) => {
+        if (!result.confirm) return
+        wx.showLoading({ title: '退出中', mask: true })
+        try {
+          await gameService.exitGame(this.data.gameId)
+          wx.hideLoading()
+          this.showInfo('已退出本局')
+          await this.loadGameDetail()
+        } catch (error) {
+          wx.hideLoading()
+          this.showInfo(error.message || '退出本局失败')
         }
       }
     })

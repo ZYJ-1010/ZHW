@@ -1984,6 +1984,39 @@ func (s *Service) RequestCompletion(userID int64, gameID int64) (Game, error) {
 	return game, nil
 }
 
+// CompleteAfterReviews closes the lifecycle only after the review domain has
+// confirmed that every required review has been submitted. It is intentionally
+// idempotent so a retried final review never creates duplicate status logs.
+func (s *Service) CompleteAfterReviews(gameID int64) (Game, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	game, ok, err := s.gameLocked(gameID)
+	if err != nil {
+		return Game{}, false, err
+	}
+	if !ok {
+		return Game{}, false, ErrGameNotFound
+	}
+	if game.Status == StatusCompleted {
+		return game, false, nil
+	}
+	if game.Status != StatusPendingReview {
+		return game, false, ErrGameNotConfirmable
+	}
+
+	statusLog, err := s.transitionStatusLocked(&game, StatusCompleted, 0, "全部评价完成")
+	if err != nil {
+		return Game{}, false, err
+	}
+	game, err = s.persistStatusTransitionLocked(game, statusLog)
+	if err != nil {
+		return Game{}, false, err
+	}
+	s.games[gameID] = game
+	return game, true, nil
+}
+
 func (s *Service) ConfirmService(userID int64, gameID int64, note string, fileIDs ...int64) (ServiceConfirm, []ServiceConfirmItem, Game, error) {
 	note = strings.TrimSpace(note)
 	if len(note) > 300 || !validFileIDs(fileIDs, 9) {
@@ -2560,7 +2593,7 @@ func (s *Service) Exit(userID int64, gameID int64) (ExitResult, error) {
 		}
 		s.games[gameID] = updated
 		s.mu.Unlock()
-		creditDeduct := reason == "quit_after_confirm" || reason == "quit_after_started"
+		creditDeduct := exitReasonNeedsCredit(reason)
 		return ExitResult{Game: updated, GameID: gameID, UserID: userID, Reason: reason, CreditDeduct: creditDeduct, CreditDeducted: creditDeduct, MemberStatus: memberStatus}, nil
 	}
 	s.mu.Lock()
@@ -2576,7 +2609,7 @@ func (s *Service) Exit(userID int64, gameID int64) (ExitResult, error) {
 		return ExitResult{}, ErrForbidden
 	}
 	reason := exitReason(game.Status)
-	creditDeduct := reason == "quit_after_confirm" || reason == "quit_after_started"
+	creditDeduct := exitReasonNeedsCredit(reason)
 	memberStatus := exitMemberStatus(game.Status)
 	if s.repo != nil {
 		if err := s.repo.DeleteMember(context.Background(), gameID, userID, memberStatus, reason); err != nil {
@@ -2889,6 +2922,10 @@ func (s *Service) CreateCheckin(userID int64, gameID int64, req CheckinRequest) 
 		return Checkin{}, err
 	} else if !ok {
 		return Checkin{}, ErrGameNotFound
+	}
+	game := s.games[gameID]
+	if game.Status != StatusInProgress {
+		return Checkin{}, ErrGameNotStartable
 	}
 	if !s.memberLocked(gameID, userID) {
 		return Checkin{}, ErrForbidden
@@ -3589,6 +3626,8 @@ func statusCountsAsCompleted(status string) bool {
 
 func exitReason(status string) string {
 	switch status {
+	case "recruiting", "full":
+		return "quit_after_admitted"
 	case "pending_confirm":
 		return "quit_after_confirm"
 	case "in_progress", "pending_review", "completed":
@@ -3598,8 +3637,14 @@ func exitReason(status string) string {
 	}
 }
 
+func exitReasonNeedsCredit(reason string) bool {
+	return reason == "quit_after_admitted" || reason == "quit_after_confirm" || reason == "quit_after_started"
+}
+
 func exitMemberStatus(status string) string {
 	switch exitReason(status) {
+	case "quit_after_admitted":
+		return "quit_after_admitted"
 	case "quit_after_confirm":
 		return "quit_after_confirm"
 	case "quit_after_started":

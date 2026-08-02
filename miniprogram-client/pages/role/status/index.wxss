@@ -97,7 +97,6 @@ page {
   height: 100%;
 }
 
-/* 联调版 home-other 的行家/领路人审核通过页 */
 .approved-copy-page {
   --theme: #ff7f18;
   --glow: rgba(255, 127, 24, 0.34);
@@ -138,7 +137,6 @@ page {
 .approved-copy-action-icon { font-size: 42rpx; line-height: 1; }
 .approved-copy-action-text { margin-top: 26rpx; color: #bbbcc4; font-size: 22rpx; line-height: 30rpx; }
 
-/* 母版整屏比例：在常见微信机型中完整显示礼包、三宫格和主按钮。 */
 .approved-copy-page {
   padding: 24rpx 32rpx 156rpx;
 }
@@ -864,7 +862,6 @@ page {
   box-shadow: 0 12rpx 24rpx rgba(255, 107, 61, 0.24);
 }
 
-/* 母版内容区会裁切溢出阴影，审核通过按钮需留出底部呼吸空间。 */
 .role-status-footer.approved {
   bottom: 14rpx;
   padding: 12rpx 40rpx calc(8rpx + env(safe-area-inset-bottom));

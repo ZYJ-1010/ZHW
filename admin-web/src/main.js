@@ -482,7 +482,7 @@ async function showUserDetail(id) {
       <form id="user-invite-relation-form" class="form-grid compact-grid invite-relation-form">
         <label class="user-picker-field">邀请人
           <div class="user-picker" data-invite-owner-picker>
-            <input name="inviterUserText" type="text" autocomplete="off" required value="${escapeHTML(inviterPickerValue(inviter, inviteRelation))}" placeholder="输入行家或领路人的用户 ID、手机号、昵称" data-invite-owner-input />
+            <input name="inviterUserText" type="text" autocomplete="off" required value="${escapeHTML(inviterPickerValue(inviter, inviteRelation))}" placeholder="输入领路人的用户 ID、手机号、昵称" data-invite-owner-input />
             <input name="inviterUserId" type="hidden" value="${escapeHTML(inviterPickerID(inviter, inviteRelation))}" data-invite-owner-value />
             <div class="user-picker-menu" data-invite-owner-menu></div>
           </div>
@@ -591,7 +591,7 @@ async function createInviteCode(event) {
   const batchCount = rawBatchCount;
   const ownerUserId = Number(data.ownerUserId || 0);
   if (!Number.isInteger(ownerUserId) || ownerUserId <= 0) {
-    toast("请从下拉结果中选择已生效的行家或领路人", true);
+    toast("请从下拉结果中选择已生效的领路人", true);
     return;
   }
   const payload = {
@@ -788,7 +788,7 @@ async function showInviteCodeDetail(code) {
       <form id="invite-edit-form" class="form-grid compact-grid">
         <label class="user-picker-field">邀请人（用户 ID / 手机号 / 实名姓名）
           <div class="user-picker" data-invite-owner-picker>
-            <input name="ownerUserText" type="text" autocomplete="off" required value="${escapeHTML(owner.displayName || owner.realName || owner.nickname || "")}" placeholder="输入行家或领路人的用户 ID、手机号、实名姓名" data-invite-owner-input />
+            <input name="ownerUserText" type="text" autocomplete="off" required value="${escapeHTML(owner.displayName || owner.realName || owner.nickname || "")}" placeholder="输入领路人的用户 ID、手机号、实名姓名" data-invite-owner-input />
             <input name="ownerUserId" type="hidden" value="${escapeHTML(invite.ownerUserId)}" data-invite-owner-value />
             <div class="user-picker-menu" data-invite-owner-menu></div>
           </div>
@@ -5157,6 +5157,7 @@ function renderCreditDeductionRules() {
 
 function creditRuleLabel(ruleCode) {
   return {
+    quit_after_admitted: "入局后、开局前退出",
     quit_after_confirm: "确认服务后退出",
     quit_after_started: "开局后退出",
     player_cancel_service: "玩家取消服务",
@@ -5169,6 +5170,7 @@ function creditRuleLabel(ruleCode) {
 
 function creditRuleDescription(item) {
   const description = {
+    quit_after_admitted: "成员入局后、开局前主动退出时扣除信用分。",
     quit_after_confirm: "成员确认服务后主动退出时扣除信用分。",
     quit_after_started: "局已开局后主动退出时扣除信用分。",
     player_cancel_service: "玩家取消已确认服务时扣除信用分。",
@@ -8501,7 +8503,7 @@ function bindInviteOwnerPicker(form) {
       ? items.map((item) => `<button class="user-picker-option" type="button" data-invite-owner-option data-user-id="${escapeHTML(Number(item.id) || 0)}">
           <span>${escapeHTML(inviteOwnerOptionText(item))}</span>
         </button>`).join("")
-      : '<div class="user-picker-empty">没有匹配的平台官方账号、行家或领路人</div>';
+      : '<div class="user-picker-empty">没有匹配的平台官方账号或领路人</div>';
     menu.querySelectorAll("[data-invite-owner-option]").forEach((button) => {
       button.addEventListener("mousedown", (event) => event.preventDefault());
       button.addEventListener("click", () => {

@@ -7,7 +7,6 @@
 .login-wrap {
   width: 100%;
   min-height: 100vh;
-  /* 登录原型的输入区和主按钮均为 313pt。 */
   padding: 84rpx 62rpx 42rpx;
   box-sizing: border-box;
 }
@@ -889,7 +888,6 @@
   transform: none;
 }
 
-/* 墨刀标注的文字基线与左侧占位一致；小程序 text 在 flex 行中有额外下沉，需补偿。 */
 .invite-flow-code-field .invite-flow-field-action {
   position: static;
   top: auto;

@@ -207,7 +207,7 @@
 
       <view wx:if="{{entryFlow !== 'existing' && !inviteCode}}" class="invite-acquisition-guide">
         <text class="invite-acquisition-guide__title">还没有邀请码？</text>
-        <text class="invite-acquisition-guide__copy">新用户请联系邀请你加入的行家、领路人或平台官方，获取邀请码、二维码或邀请链接后再注册。</text>
+        <text class="invite-acquisition-guide__copy">新用户请联系邀请你加入的领路人或平台官方，获取邀请码、二维码或邀请链接后再注册。</text>
         <text class="invite-acquisition-guide__hint">如果你已注册，可直接填写手机号和验证码登录，无需邀请码。</text>
       </view>
 

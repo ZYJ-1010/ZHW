@@ -182,7 +182,6 @@ page {
   position: relative;
   margin-top: 0;
   margin-bottom: 46rpx;
-  /* PT：331pt 宽卡片的内部输入区约 287pt，对应左右 44rpx 内边距。 */
   padding: 34rpx 44rpx 36rpx;
   box-sizing: border-box;
   overflow: hidden;

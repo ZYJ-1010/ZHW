@@ -688,6 +688,15 @@ Component({
           ? `距离下一级还需 ${expToNextLevel} 经验值`
           : ''
       )
+      const legacyLevelText = String(summary.roleLabel || summary.levelText || '').trim()
+        .replace(new RegExp(`^${roleName}\\s*[·•|]\\s*`), '')
+      const levelNumber = Number(summary.level)
+      const fallbackBadge = Number.isFinite(levelNumber)
+        ? (roleType === 'expert' ? `${levelNumber}星` : (roleType === 'guide' ? `${levelNumber}级` : `Lv${levelNumber}`))
+        : legacyLevelText
+      const fallbackTitle = legacyLevelText
+        .replace(new RegExp(`^${fallbackBadge}\\s*`), '')
+        .trim()
 
       return {
         roleName,
@@ -697,8 +706,8 @@ Component({
         roleEmoji: summary.roleEmoji || this.roleEmoji(roleType),
         deviceBadge: summary.deviceBadge || defaultHome.deviceBadge || (roleType === 'expert' ? '💎' : ''),
         profileName: summary.displayName || summary.profileName || '',
-        identity: summary.identity || summary.profileTitle || '',
-        levelText: summary.roleLabel || summary.levelText || '',
+        identity: summary.levelTitle || fallbackTitle || summary.identity || summary.profileTitle || '',
+        levelText: summary.levelBadge || fallbackBadge,
         xpText: experienceText,
         scoreText: summary.scoreText || '',
         progress: this.pickFirstValue(summary.progressPercent, summary.progress, 0),
@@ -1109,9 +1118,18 @@ Component({
     },
 
     formatPlayerCard(dashboard) {
+      const roleName = String(dashboard.roleName || '').trim()
+      // 首页摘要遵循原型：绿色胶囊承载“身份 + 等级”，其右侧只放后台配置的称号。
+      // 不能再把身份放进称号，否则会出现“玩家”单独显示在胶囊里的错误层级。
+      const levelText = String(dashboard.levelText || '').trim()
+      const title = String(
+        dashboard.identity || dashboard.profileTitle || dashboard.levelTitle || ''
+      ).trim()
+      const role = [roleName, levelText].filter(Boolean).join(' ')
+
       return {
-        role: dashboard.levelText || dashboard.roleName,
-        title: dashboard.identity || dashboard.profileTitle || '',
+        role,
+        title,
         name: dashboard.profileName || '',
         xp: dashboard.xpText || dashboard.scoreText || '',
         progress: this.normalizeProgress(
@@ -1581,7 +1599,6 @@ Component({
     formatRankingTitle(value) {
       const title = `${value || ''}`.trim()
 
-      // 兼容已部署接口的旧标题，展示层统一使用原型约定的周期榜单名称。
       return title === '玩霸榜' ? '本周玩霸榜' : title
     },
 

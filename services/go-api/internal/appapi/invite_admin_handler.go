@@ -48,7 +48,7 @@ func (s *Server) adminInviteCodes(w http.ResponseWriter, r *http.Request) {
 // a full phone number or real name never has to be downloaded before searching.
 func (s *Server) adminInviteOwners(w http.ResponseWriter, r *http.Request) {
 	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
-	// 邀请人选择器只能通过关键词检索，避免把全部行家和领路人一次性暴露到后台页面。
+	// 邀请人选择器只能通过关键词检索，避免把全部领路人一次性暴露到后台页面。
 	if keyword == "" {
 		httpx.OK(w, map[string]interface{}{"items": []map[string]interface{}{}, "total": 0})
 		return
@@ -177,7 +177,7 @@ func (s *Server) createAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.userCanOwnAdminInviteCodes(req.OwnerUserID) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人，请更换用户 ID")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号或已生效的领路人，请更换用户 ID")
 		return
 	}
 	if req.BatchCount < 1 || req.BatchCount > config.MaxBatchCount {
@@ -666,7 +666,7 @@ func (s *Server) updateAdminInviteCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.OwnerUserID <= 0 || !s.userCanOwnAdminInviteCodes(req.OwnerUserID) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号或已生效的领路人")
 		return
 	}
 	var expiresAt time.Time
@@ -823,7 +823,7 @@ func (s *Server) routeAdminInviteQuotaRequestPost(w http.ResponseWriter, r *http
 			return
 		}
 		if !s.userCanOwnAdminInviteCodes(ownerUserID) {
-			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申请人的行家或领路人身份已失效，不能通过加量申请")
+			httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "申请人的领路人身份已失效，不能通过加量申请")
 			return
 		}
 		config, err := s.inviteCodeConfigStrict()

@@ -3901,6 +3901,16 @@ func (s *Server) gameCollaboration(w http.ResponseWriter, r *http.Request) {
 	}
 	messages, _ := s.im.Messages(userID, game.ID)
 	feedbacks, _ := s.games.ProgressFeedbacks(userID, game.ID)
+	milestones, milestoneErr := s.games.Milestones(userID, game.ID)
+	if milestoneErr != nil {
+		writeGameError(w, milestoneErr)
+		return
+	}
+	checkins, checkinErr := s.games.Checkins(userID, game.ID)
+	if checkinErr != nil {
+		writeGameError(w, checkinErr)
+		return
+	}
 	now := time.Now()
 	httpx.OK(w, map[string]interface{}{
 		"gameId":        game.ID,
@@ -3909,6 +3919,8 @@ func (s *Server) gameCollaboration(w http.ResponseWriter, r *http.Request) {
 		"statusText":    homeGameStatusText(game.Status),
 		"dayText":       collaborationDayText(game.CreatedAt, now),
 		"progress":      collaborationProgressWithFeedback(game, feedbacks),
+		"milestones":    milestones,
+		"checkins":      s.collaborationCheckins(checkins),
 		"members":       s.collaborationMembers(userID, game),
 		"membersText":   s.collaborationMembersText(game),
 		"messages":      s.collaborationMessages(messages),
@@ -3916,6 +3928,28 @@ func (s *Server) gameCollaboration(w http.ResponseWriter, r *http.Request) {
 		"currentUserId": userID,
 		"serverTime":    now.Format(time.RFC3339),
 	})
+}
+
+// collaborationCheckins supplies the small amount of identity and time context
+// needed by the member-facing collaboration timeline. Raw check-in records are
+// still available from the dedicated endpoint and the administrative audit view.
+func (s *Server) collaborationCheckins(checkins []games.Checkin) []map[string]interface{} {
+	items := make([]map[string]interface{}, 0, len(checkins))
+	for _, checkin := range checkins {
+		items = append(items, map[string]interface{}{
+			"id":            checkin.ID,
+			"userId":        checkin.UserID,
+			"milestoneId":   checkin.MilestoneID,
+			"checkinType":   checkin.CheckinType,
+			"content":       checkin.Content,
+			"fileIds":       checkin.FileIDs,
+			"status":        checkin.Status,
+			"createdAt":     checkin.CreatedAt,
+			"userName":      s.inGameDisplayName(checkin.UserID, "成员"),
+			"createdAtText": checkin.CreatedAt.Local().Format("01-02 15:04"),
+		})
+	}
+	return items
 }
 
 func (s *Server) requestGameCompletion(w http.ResponseWriter, r *http.Request) {
@@ -4221,14 +4255,17 @@ func (s *Server) collaborationActions(game games.Game, userID int64) map[string]
 	canManage := game.CreatorUserID == userID || game.MainGuideUserID == userID
 	canManageProgress := canManage || memberRoles[userID] == "expert"
 	canEnd := canManage && game.Status == "in_progress"
+	canCheckin := s.games.IsMember(game.ID, userID) && game.Status == "in_progress"
 	return map[string]interface{}{
-		"canManageMembers":  canManage,
-		"canManageProgress": canManageProgress,
-		"canEndGame":        canEnd,
-		"completionMode":    map[bool]string{true: "direct_review", false: "ordered_confirm"}[game.GameSource == "admin"],
-		"manageRoute":       "pages/game/participants/index?gameId=" + strconv.FormatInt(game.ID, 10),
-		"endConfirmRoute":   "pages/game/collaboration/index?gameId=" + strconv.FormatInt(game.ID, 10),
-		"reviewRoute":       "pages/game/review/index?gameId=" + strconv.FormatInt(game.ID, 10),
+		"canManageMembers":    canManage,
+		"canManageProgress":   canManageProgress,
+		"canManageMilestones": canManageProgress,
+		"canCheckin":          canCheckin,
+		"canEndGame":          canEnd,
+		"completionMode":      map[bool]string{true: "direct_review", false: "ordered_confirm"}[game.GameSource == "admin"],
+		"manageRoute":         "pages/game/participants/index?gameId=" + strconv.FormatInt(game.ID, 10),
+		"endConfirmRoute":     "pages/game/collaboration/index?gameId=" + strconv.FormatInt(game.ID, 10),
+		"reviewRoute":         "pages/game/review/index?gameId=" + strconv.FormatInt(game.ID, 10),
 	}
 }
 
@@ -6059,10 +6096,13 @@ func (s *Server) exitGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func gameNeedsExitCredit(status string) bool {
-	return status == "pending_confirm" || status == "in_progress" || status == "pending_review" || status == "completed"
+	return status == "recruiting" || status == "full" || status == "pending_confirm" || status == "in_progress" || status == "pending_review" || status == "completed"
 }
 
 func exitCreditReason(status string) string {
+	if status == "recruiting" || status == "full" {
+		return "quit_after_admitted"
+	}
 	if status == "pending_confirm" {
 		return "quit_after_confirm"
 	}

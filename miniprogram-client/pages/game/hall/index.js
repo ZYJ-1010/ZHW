@@ -105,18 +105,17 @@ function normalizeAdvancedCategoryOptions(data = {}) {
   return list.length ? [{ key: 'all', name: '全部' }].concat(list) : null
 }
 
-function normalizeTypeFilters(data = {}) {
-  const source = Array.isArray(data.typeFilters) ? data.typeFilters : []
-  const list = source
-    .filter((item) => item && item.visible !== false && item.key)
-    .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))
-    .map((item) => ({
-      key: String(item.key || '').trim(),
-      label: String(item.label || item.name || item.key || '').trim()
-    }))
-    .filter((item) => item.key && item.label)
+function normalizeHallTypeFilters(data = {}) {
+  const options = normalizeAdvancedCategoryOptions(data)
 
-  return list.length ? list : null
+  if (!options) {
+    return null
+  }
+
+  return options.map((item) => ({
+    key: item.key,
+    label: item.name
+  }))
 }
 
 function normalizeLocationOptions(data = {}) {
@@ -463,7 +462,7 @@ Page({
     eventActions: DEFAULT_EVENT_ACTIONS,
     shareComponent: { enabled: true, variant: 'channel_sheet', label: '分享' },
     activeLocationScope: 'all',
-    nearbyRadiusMeters: 1000,
+    nearbyRadiusMeters: 0,
     locationGuideVisible: false,
     locationStatusText: '',
     activeCityName: '',
@@ -474,6 +473,7 @@ Page({
     sortOrder: 'asc',
     sortArrow: '▶',
     sortFilterVisible: false,
+    typeFilterVisible: false,
     sortFilterText: '排序',
     sortFilterActive: false,
     activeSortMode: '',
@@ -501,7 +501,9 @@ Page({
     gameService.getCategoryConfig().then((data) => {
       const categories = normalizeCategoryList(data)
       const advancedCategoryOptions = normalizeAdvancedCategoryOptions(data)
-      const typeFilters = normalizeTypeFilters(data)
+      // 局前大厅的“类型”筛选对应四大局类型，而不是免费/有偿等旧的 type
+      // 字段。四类数据与创建页、卡片标签共用后台 primaryCategories 配置。
+      const typeFilters = normalizeHallTypeFilters(data)
       const locationOptions = normalizeLocationOptions(data)
       const sortOptions = normalizeSortOptions(data)
       const eventActions = normalizeEventActions(data)
@@ -522,7 +524,7 @@ Page({
 
       if (typeFilters) {
         nextData.typeFilters = typeFilters
-        nextData.typeFilterText = getTypeFilterLabel(this.data.activeTypeFilter, typeFilters)
+        nextData.typeFilterText = getTypeFilterLabel(this.data.activeFilter, typeFilters)
       }
 
       if (locationOptions) {
@@ -612,15 +614,35 @@ Page({
   },
 
   toggleTimeFilter() {
+    const isTimeSort = this.data.sortKey === 'time'
+    const nextOrder = !isTimeSort
+      ? 'asc'
+      : (this.data.sortOrder === 'asc' ? 'desc' : '')
+
     this.updateDisplayEvents({
-      sortKey: 'time',
-      sortOrder: 'asc'
+      sortKey: nextOrder ? 'time' : '',
+      sortOrder: nextOrder || 'asc',
+      activeSortMode: ''
     })
   },
 
   toggleLocationFilter() {
-    const current = NEARBY_RADIUS_OPTIONS.indexOf(this.data.nearbyRadiusMeters)
-    const nearbyRadiusMeters = NEARBY_RADIUS_OPTIONS[(current + 1) % NEARBY_RADIUS_OPTIONS.length]
+    const options = [0].concat(NEARBY_RADIUS_OPTIONS)
+    const current = options.indexOf(this.data.nearbyRadiusMeters)
+    const nearbyRadiusMeters = options[(current + 1) % options.length]
+
+    if (nearbyRadiusMeters === 0) {
+      const clearsDistanceSort = this.data.sortKey === 'distance'
+      this.setData({ nearbyRadiusMeters, locationStatusText: '' })
+      this.updateDisplayEvents({
+        sortKey: clearsDistanceSort ? '' : this.data.sortKey,
+        sortOrder: clearsDistanceSort ? 'asc' : this.data.sortOrder,
+        activeSortMode: clearsDistanceSort ? '' : this.data.activeSortMode
+      })
+      this.loadGames()
+      return
+    }
+
     this.setData({ nearbyRadiusMeters })
     this.loadNearbyGames()
   },
@@ -689,10 +711,29 @@ Page({
     if (action === 'city') return this.useHallCityFallback()
   },
 
-  toggleTypeFilter() {
-    this.updateDisplayEvents({
-      activeTypeFilter: getNextTypeFilterKey(this.data.activeTypeFilter, this.data.typeFilters || TYPE_FILTERS)
-    })
+  openTypeFilter() {
+    this.setData({ typeFilterVisible: true })
+  },
+
+  closeTypeFilter() {
+    this.setData({ typeFilterVisible: false })
+  },
+
+  selectTypeFilter(event) {
+    const key = String(event.currentTarget.dataset.key || '').trim()
+    const option = (this.data.typeFilters || TYPE_FILTERS).find((item) => item.key === key)
+
+    if (!option) {
+      return
+    }
+
+    this.updateDisplayEvents({ activeFilter: option.key })
+    this.closeTypeFilter()
+  },
+
+  resetTypeFilter() {
+    this.updateDisplayEvents({ activeFilter: 'all' })
+    this.closeTypeFilter()
   },
 
   toggleSort() {
@@ -846,7 +887,7 @@ Page({
       activeLocationScope,
       activeCityName,
       selectedDate,
-      typeFilterText: getTypeFilterLabel(activeTypeFilter, this.data.typeFilters || TYPE_FILTERS),
+      typeFilterText: getTypeFilterLabel(activeFilter, this.data.typeFilters || TYPE_FILTERS),
       sortKey,
       sortOrder,
       sortArrow: sortKey ? (sortOrder === 'desc' ? '▼' : '▲') : '▶',

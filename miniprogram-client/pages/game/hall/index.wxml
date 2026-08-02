@@ -64,9 +64,18 @@
           <text>全部</text>
           <view class="filter-active-line"></view>
         </view>
-        <view class="filter-option {{sortKey === 'time' ? 'active' : ''}}" bindtap="toggleTimeFilter">时间 {{sortKey === 'time' ? sortArrow : '▼'}}</view>
-        <view class="filter-option {{sortKey === 'distance' ? 'active' : ''}}" bindtap="toggleLocationFilter">地点·{{nearbyRadiusMeters >= 1000 ? nearbyRadiusMeters / 1000 + 'km' : nearbyRadiusMeters + 'm'}} ▼</view>
-        <view class="filter-option {{activeTypeFilter !== 'all' ? 'active' : ''}}" bindtap="toggleTypeFilter">{{typeFilterText}} ▼</view>
+        <view class="filter-option {{sortKey === 'time' ? 'active' : ''}}" bindtap="toggleTimeFilter">
+          <text class="filter-option-label">时间</text>
+          <text class="filter-option-arrow">{{sortKey === 'time' ? sortArrow : '▼'}}</text>
+        </view>
+        <view class="filter-option location-filter {{nearbyRadiusMeters > 0 ? 'active' : ''}}" bindtap="toggleLocationFilter">
+          <text class="filter-option-label">{{nearbyRadiusMeters > 0 ? '地点·' + (nearbyRadiusMeters >= 1000 ? nearbyRadiusMeters / 1000 + 'km' : nearbyRadiusMeters + 'm') : '地点'}}</text>
+          <text class="filter-option-arrow">▼</text>
+        </view>
+        <view class="filter-option type-filter {{activeFilter !== 'all' ? 'active' : ''}}" bindtap="openTypeFilter">
+          <text class="filter-option-label">{{activeFilter === 'all' ? '类型' : typeFilterText}}</text>
+          <text class="filter-option-arrow">▼</text>
+        </view>
         <view class="sort-option {{sortFilterActive ? 'active' : ''}}" bindtap="openSortFilter">
           <text>{{sortFilterText}}</text>
           <text class="sort-arrow">▼</text>
@@ -114,6 +123,25 @@
       >
         <text>{{item.name}}</text>
         <text wx:if="{{activeSortMode === item.key}}" class="sort-filter-check">✓</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{typeFilterVisible}}" class="sort-filter-mask" catchtap="closeTypeFilter">
+    <view class="sort-filter-panel" catchtap="noop">
+      <view class="sort-filter-header">
+        <text class="sort-filter-title">局类型</text>
+        <text class="sort-filter-reset" bindtap="resetTypeFilter">全部</text>
+      </view>
+      <view
+        wx:for="{{typeFilters}}"
+        wx:key="key"
+        class="sort-filter-item {{activeFilter === item.key ? 'active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="selectTypeFilter"
+      >
+        <text>{{item.label}}</text>
+        <text wx:if="{{activeFilter === item.key}}" class="sort-filter-check">✓</text>
       </view>
     </view>
   </view>

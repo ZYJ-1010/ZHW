@@ -1144,6 +1144,12 @@ func (s *Server) userCanGenerateInvitations(userID int64) bool {
 	return s.userHasActiveRole(userID, "expert") || s.userHasActiveRole(userID, "guide")
 }
 
+// 注册邀请码会建立永久邀请关系。根据一期已确认规则，仅领路人可分发；
+// 行家仍保留独立的局内邀请权限。
+func (s *Server) userCanGenerateRegistrationInvitations(userID int64) bool {
+	return userID > 0 && s.profiles != nil && s.userHasActiveRole(userID, "guide")
+}
+
 func (s *Server) userHasActiveRole(userID int64, roleCode string) bool {
 	if userID <= 0 || s.profiles == nil {
 		return false
@@ -1159,7 +1165,7 @@ func (s *Server) userCanOwnAdminInviteCodes(userID int64) bool {
 	if !found {
 		return false
 	}
-	return user.IsPlatformOfficial() || s.userCanGenerateInvitations(userID)
+	return user.IsPlatformOfficial() || s.userCanGenerateRegistrationInvitations(userID)
 }
 
 func (s *Server) createGameInviteReminder(w http.ResponseWriter, r *http.Request) {

@@ -1118,7 +1118,7 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !s.userCanOwnAdminInviteCodes(inviter.ID) {
-		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号，或已生效的行家、领路人")
+		httpx.Error(w, http.StatusUnprocessableEntity, httpx.CodeValidationError, "邀请人必须是平台官方账号或已生效的领路人")
 		return
 	}
 	relation, err := s.auth.SetInviteRelationInviter(userID, inviter.ID, "admin_manual")
@@ -1151,7 +1151,7 @@ func (s *Server) adminUpdateUserInviteRelation(w http.ResponseWriter, r *http.Re
 
 func (s *Server) adminUserPayload(user users.User, relation invites.Relation) map[string]interface{} {
 	inviteCode := ""
-	if s.userCanGenerateInvitations(user.ID) {
+	if s.userCanGenerateRegistrationInvitations(user.ID) {
 		inviteCode, _ = s.auth.InviteCodeForUser(user.ID)
 	}
 	payload := map[string]interface{}{
@@ -1356,9 +1356,9 @@ func (s *Server) createInviteEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 注册邀请码、二维码和海报只能由后台已授予身份且已分配邀请码的
-	// 行家/领路人使用。gameId 只改变分享落地页，不改变邀请码权限。
-	if !s.userCanGenerateInvitations(userID) {
-		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可生成邀请入口")
+	// 领路人使用。gameId 只改变分享落地页，不改变邀请码权限。
+	if !s.userCanGenerateRegistrationInvitations(userID) {
+		httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅领路人可生成邀请入口")
 		return
 	}
 	invite, err := s.auth.IssueAssignedInviteEntry(userID, req.EntryType)

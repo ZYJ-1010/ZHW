@@ -44,7 +44,6 @@ page {
   display: block;
 }
 
-/* source: HTML 2_1143 */
 .player-hero {
   width: 380rpx;
   height: 96rpx;
@@ -731,7 +730,6 @@ page {
   bottom: -28rpx;
 }
 
-/* source: HTML 2_1715 */
 .player-summary-card {
   position: relative;
   height: 420rpx;
@@ -1027,37 +1025,49 @@ page {
 }
 
 .player-level-pill {
-  position: absolute;
-  left: 40rpx;
-  top: 38rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 160rpx;
+  flex: none;
+  min-width: 112rpx;
   height: 38rpx;
+  padding: 0 18rpx;
   border-radius: 999rpx;
   color: rgb(0, 10, 123);
   background: rgb(162, 239, 77);
   font-size: 24rpx;
   font-weight: 700;
   line-height: 32rpx;
+  white-space: nowrap;
+}
+
+.player-summary-level-row {
+  position: absolute;
+  left: 40rpx;
+  top: 38rpx;
+  right: 40rpx;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 14rpx;
 }
 
 .player-summary-copy {
   position: absolute;
   left: 44rpx;
-  top: 86rpx;
+  top: 98rpx;
   width: 276rpx;
 }
 
 .player-summary-title {
-  position: absolute;
-  left: 170rpx;
-  top: -50rpx;
+  min-width: 0;
+  flex: 1;
   color: #ffffff;
   font-size: 24rpx;
   font-weight: 700;
   line-height: 38rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1065,9 +1075,9 @@ page {
   max-width: 220rpx;
   overflow: hidden;
   color: #ffffff;
-  font-size: 36rpx;
+  font-size: 34rpx;
   font-weight: 700;
-  line-height: 64rpx;
+  line-height: 50rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1239,7 +1249,6 @@ page {
   left: 442rpx;
 }
 
-/* source: HTML 2_1870-2_1887 */
 .player-role-tags {
   position: absolute;
   left: 44rpx;
@@ -1304,7 +1313,6 @@ page {
   color: #ff6745;
 }
 
-/* source: HTML 2_1835 */
 .player-action-grid {
   position: relative;
   width: 664rpx;
@@ -1441,7 +1449,6 @@ page {
   color: rgba(34, 211, 238, 0.6);
 }
 
-/* source: HTML 2_1802 */
 .player-world-card {
   width: 660rpx;
   position: relative;
@@ -2018,7 +2025,6 @@ page {
   margin-top: 28rpx;
 }
 
-/* 行家首页：按“行家首页”画布的文字色与内容顺序单独收敛。 */
 .role-home-page.expert .role-expert-skill-panel {
   margin-top: 34rpx;
   border-color: rgba(96, 165, 250, 0.66);
@@ -2103,7 +2109,6 @@ page {
   color: #34f1f1;
 }
 
-/* 原型角色信息板：331 × 217pt。通用页面此前少了 7pt 高度。 */
 .role-home-page.expert .player-summary-card {
   height: 434rpx;
 }

@@ -166,6 +166,74 @@ async function testGameDetailRefreshShareAndGreet() {
   assert.strictEqual(entries[1].inviteCode, 'ABC001')
 }
 
+async function testGameDetailWithdrawAndExitActions() {
+  installWx()
+  const definition = capturePage('pages/game/detail/index.js', {
+    'services/game': {
+      getGameDetail: async () => ({}),
+      cancelGameApplication: async () => ({}),
+      exitGame: async () => ({})
+    },
+    'services/invite': { saveInviteContext() {} },
+    'services/user': { getCurrentUser: async () => ({ realnameStatus: 'verified' }) },
+    'utils/shell-nav': { navigateShellRoute() {} },
+    'utils/user-message': { toUserMessage: (value) => value },
+    'config/routes': { ROUTES: { gameHall: '/pages/game/hall/index', gameDetail: '/pages/game/detail/index' } }
+  })
+  const context = pageContext(definition)
+  let withdrawn = 0
+  let exited = 0
+  context.confirmWithdrawApplication = () => { withdrawn += 1 }
+  context.confirmExitGame = () => { exited += 1 }
+
+  context.setData({ primaryAction: { action: 'withdraw_application', disabled: false, applicationId: 12 } })
+  await context.onPrimaryAction()
+  assert.strictEqual(withdrawn, 1, '申请中状态必须提供撤回入口')
+
+  context.setData({ primaryAction: { action: 'exit_game', disabled: false } })
+  await context.onPrimaryAction()
+  assert.strictEqual(exited, 1, '已入局未开局状态必须提供退出入口')
+}
+
+async function testCollaborationMilestoneAndCheckinPresentation() {
+  installWx()
+  const definition = capturePage('pages/game/collaboration/index.js', {
+    'services/game': {
+      getGameCollaboration: async () => ({
+        gameId: 9,
+        title: '测试协作局',
+        statusText: '进行中',
+        milestones: [{ id: 3, title: '确认方案', status: 'pending' }],
+        checkins: [{
+          id: 4,
+          checkinType: 'progress',
+          content: '已完成现场确认',
+          userName: '成员甲',
+          createdAtText: '08-02 10:30'
+        }],
+        actions: { canManageMilestones: true, canCheckin: true }
+      }),
+      createMilestone: async () => ({}),
+      updateMilestone: async () => ({}),
+      createGameCheckin: async () => ({})
+    },
+    'utils/shell-nav': { navigateShellRoute() {} },
+    'utils/user-message': { toUserMessage: (value) => value },
+    'utils/adaptive-shell-layout': {
+      getLegacyWhiteFrameLayoutStyles: () => ({ frameStyle: '', contentStyle: '', titleStyle: '', backStyle: '', safeBottomRpx: 0 })
+    },
+    'config/routes': { ROUTES: { gameParticipants: '/pages/game/participants/index', gameDelivery: '/pages/game/delivery/index' } }
+  })
+  const context = pageContext(definition)
+  await context.loadCollaboration('9')
+
+  assert.strictEqual(context.data.milestones[0].title, '确认方案', '协作页应展示里程碑')
+  assert.strictEqual(context.data.checkins[0].userName, '成员甲', '协作页打卡应展示提交成员')
+  assert.strictEqual(context.data.checkins[0].createdAtText, '08-02 10:30', '协作页打卡应展示提交时间')
+  assert.strictEqual(context.data.actions.canManageMilestones, true)
+  assert.strictEqual(context.data.actions.canCheckin, true)
+}
+
 async function testApplySubmitLock() {
   installWx()
   let applyCalls = 0
@@ -366,6 +434,8 @@ async function testProfileClearsHiddenBannerAndExpiredAccount() {
 async function run() {
   await testInviteRecordAndMemberRoute()
   await testGameDetailRefreshShareAndGreet()
+  await testGameDetailWithdrawAndExitActions()
+  await testCollaborationMilestoneAndCheckinPresentation()
   await testApplySubmitLock()
   await testIMLoadsBeforeSocketAndKeepsAvatar()
   await testMyGamesKeepsCoreListsWhenFavoriteFails()

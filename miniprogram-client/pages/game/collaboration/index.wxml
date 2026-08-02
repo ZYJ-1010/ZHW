@@ -58,6 +58,43 @@
         </view>
 
         <view class="collab-card">
+          <text class="card-title">协作里程碑</text>
+          <view wx:if="{{actions.canManageMilestones}}" class="inline-editor">
+            <input class="inline-editor-input" value="{{milestoneTitle}}" maxlength="80" placeholder="新增一个协作节点" bindinput="onMilestoneInput" />
+            <button class="inline-editor-button" loading="{{milestoneSaving}}" disabled="{{milestoneSaving || !milestoneTitle}}" bindtap="addMilestone">添加</button>
+          </view>
+          <view wx:if="{{milestones.length}}" class="milestone-list">
+            <view wx:for="{{milestones}}" wx:key="id" class="milestone-item {{item.status}}" data-id="{{item.id}}" bindtap="toggleMilestone">
+              <view class="milestone-state">{{item.status === 'completed' ? '✓' : '○'}}</view>
+              <text class="milestone-title">{{item.title}}</text>
+              <text wx:if="{{actions.canManageMilestones}}" class="milestone-action">{{item.status === 'completed' ? '恢复' : '完成'}}</text>
+            </view>
+          </view>
+          <text wx:else class="collab-empty">暂无里程碑</text>
+        </view>
+
+        <view class="collab-card">
+          <text class="card-title">局内打卡</text>
+          <view wx:if="{{actions.canCheckin}}" class="checkin-editor">
+            <textarea class="checkin-input" value="{{checkinContent}}" maxlength="500" placeholder="记录此刻的协作进展（选填）" auto-height bindinput="onCheckinInput"></textarea>
+            <button class="checkin-submit" loading="{{checkinSaving}}" disabled="{{checkinSaving}}" bindtap="submitCheckin">提交打卡</button>
+          </view>
+          <view wx:if="{{checkins.length}}" class="checkin-list">
+            <view wx:for="{{checkins}}" wx:key="id" class="checkin-item">
+              <view class="checkin-copy">
+                <view class="checkin-meta">
+                  <text class="checkin-type">{{item.typeText}}</text>
+                  <text class="checkin-author">{{item.userName}}</text>
+                  <text wx:if="{{item.createdAtText}}" class="checkin-time">{{item.createdAtText}}</text>
+                </view>
+                <text class="checkin-content">{{item.content}}</text>
+              </view>
+            </view>
+          </view>
+          <text wx:else class="collab-empty">{{actions.canCheckin ? '还没有成员打卡' : '开局后可进行局内打卡'}}</text>
+        </view>
+
+        <view class="collab-card">
           <text class="card-title">成员</text>
           <view wx:if="{{members.length}}" class="member-list">
             <view wx:for="{{members}}" wx:key="id" class="member-item">

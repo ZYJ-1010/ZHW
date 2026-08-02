@@ -40,6 +40,12 @@ Page({
     progressInput: '',
     progressNote: '',
     progressSaving: false,
+    milestoneTitle: '',
+    milestoneSaving: false,
+    checkinContent: '',
+    checkinSaving: false,
+    milestones: [],
+    checkins: [],
     members: [],
     membersText: '',
     tasks: [],
@@ -100,6 +106,8 @@ Page({
         actions: {
           canManageMembers: false,
           canManageProgress: false,
+          canManageMilestones: false,
+          canCheckin: false,
           canEndGame: false,
           showFooter: false,
           manageText: '成员管理',
@@ -108,6 +116,65 @@ Page({
           endConfirmRoute: `${ROUTES.gameDelivery}?gameId=${gameId || ''}`
         }
       })
+    }
+  },
+
+  onMilestoneInput(event) {
+    this.setData({ milestoneTitle: String(event.detail.value || '').slice(0, 80) })
+  },
+
+  async addMilestone() {
+    const actions = this.data.actions || {}
+    const title = String(this.data.milestoneTitle || '').trim()
+    if (!actions.canManageMilestones || !title || this.data.milestoneSaving) return
+    this.setData({ milestoneSaving: true })
+    try {
+      await gameService.createMilestone(this.data.gameId, { title })
+      this.setData({ milestoneTitle: '' })
+      await this.loadCollaboration(this.data.gameId)
+    } catch (error) {
+      wx.showToast({ title: toUserMessage(error && error.message, '新增里程碑失败'), icon: 'none' })
+    } finally {
+      this.setData({ milestoneSaving: false })
+    }
+  },
+
+  async toggleMilestone(event) {
+    const actions = this.data.actions || {}
+    const milestone = (this.data.milestones || []).find((item) => String(item.id) === String(event.currentTarget.dataset.id || ''))
+    if (!actions.canManageMilestones || !milestone || this.data.milestoneSaving) return
+    const status = milestone.status === 'completed' ? 'pending' : 'completed'
+    this.setData({ milestoneSaving: true })
+    try {
+      await gameService.updateMilestone(this.data.gameId, milestone.id, { status })
+      await this.loadCollaboration(this.data.gameId)
+    } catch (error) {
+      wx.showToast({ title: toUserMessage(error && error.message, '更新里程碑失败'), icon: 'none' })
+    } finally {
+      this.setData({ milestoneSaving: false })
+    }
+  },
+
+  onCheckinInput(event) {
+    this.setData({ checkinContent: String(event.detail.value || '').slice(0, 500) })
+  },
+
+  async submitCheckin() {
+    const actions = this.data.actions || {}
+    if (!actions.canCheckin || this.data.checkinSaving) return
+    this.setData({ checkinSaving: true })
+    try {
+      await gameService.createGameCheckin(this.data.gameId, {
+        checkinType: 'progress',
+        content: String(this.data.checkinContent || '').trim()
+      })
+      this.setData({ checkinContent: '' })
+      wx.showToast({ title: '打卡已记录', icon: 'success' })
+      await this.loadCollaboration(this.data.gameId)
+    } catch (error) {
+      wx.showToast({ title: toUserMessage(error && error.message, '提交打卡失败'), icon: 'none' })
+    } finally {
+      this.setData({ checkinSaving: false })
     }
   },
 
@@ -290,12 +357,27 @@ function normalizeCollaboration(data = {}, fallbackGameId = '') {
     subtitle: [source.statusText, source.dayText].filter(Boolean).join(' · '),
     progressPercent,
     tasks,
+    milestones: Array.isArray(source.milestones) ? source.milestones.map((item, index) => ({
+      id: item.id || `milestone-${index}`,
+      title: item.title || `里程碑 ${index + 1}`,
+      status: normalizeTaskState(item.status)
+    })) : [],
+    checkins: Array.isArray(source.checkins) ? source.checkins.map((item, index) => ({
+      id: item.id || `checkin-${index}`,
+      content: item.content || '已完成局内打卡',
+      typeText: item.checkinType === 'arrival' ? '到场打卡' : (item.checkinType === 'complete' ? '完成打卡' : '进度打卡'),
+      status: item.status || 'valid',
+      userName: item.userName || item.nickname || '成员',
+      createdAtText: formatCheckinTime(item.createdAtText || item.createdAt)
+    })) : [],
     members,
     membersText,
     messages,
     actions: normalizeActions(Object.assign({
       canManageMembers: false,
       canManageProgress: false,
+      canManageMilestones: false,
+      canCheckin: false,
       canEndGame: false,
       showFooter: false,
       manageText: '成员管理',
@@ -306,10 +388,25 @@ function normalizeCollaboration(data = {}, fallbackGameId = '') {
   }
 }
 
+function formatCheckinTime(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (/^\d{2}-\d{2}\s\d{2}:\d{2}$/.test(text)) return text
+  const date = new Date(text)
+  if (Number.isNaN(date.getTime())) return ''
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${month}-${day} ${hour}:${minute}`
+}
+
 function normalizeActions(actions = {}) {
   const normalized = Object.assign({}, actions, {
     canManageMembers: Boolean(actions.canManageMembers),
     canManageProgress: Boolean(actions.canManageProgress),
+    canManageMilestones: Boolean(actions.canManageMilestones),
+    canCheckin: Boolean(actions.canCheckin),
     canEndGame: Boolean(actions.canEndGame)
   })
   normalized.showFooter = Boolean(normalized.canManageMembers || normalized.canEndGame)

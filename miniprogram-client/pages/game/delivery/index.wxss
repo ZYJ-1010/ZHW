@@ -913,7 +913,6 @@ page {
   text-align: center;
 }
 
-/* 免费局沿用参考页的独立视觉，付费局保留当前通用卡片样式。 */
 .mode-free .delivery-content,
 .mode-free .delivery-inner {
   background: #ffffff;

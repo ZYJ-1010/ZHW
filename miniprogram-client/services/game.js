@@ -112,6 +112,36 @@ async function createProgressFeedback(gameId, data) {
   return result.data
 }
 
+async function getMilestones(gameId) {
+  const result = await gameApi.getMilestones(gameId)
+  if (result.code !== 0) throw new Error(result.message || '获取里程碑失败')
+  return result.data
+}
+
+async function createMilestone(gameId, payload) {
+  const result = await gameApi.createMilestone(gameId, payload)
+  if (result.code !== 0) throw new Error(result.message || '新增里程碑失败')
+  return result.data
+}
+
+async function updateMilestone(gameId, milestoneId, payload) {
+  const result = await gameApi.updateMilestone(gameId, milestoneId, payload)
+  if (result.code !== 0) throw new Error(result.message || '更新里程碑失败')
+  return result.data
+}
+
+async function getGameCheckins(gameId) {
+  const result = await gameApi.getGameCheckins(gameId)
+  if (result.code !== 0) throw new Error(result.message || '获取局内打卡失败')
+  return result.data
+}
+
+async function createGameCheckin(gameId, payload) {
+  const result = await gameApi.createGameCheckin(gameId, payload)
+  if (result.code !== 0) throw new Error(result.message || '提交局内打卡失败')
+  return result.data
+}
+
 async function requestGameCompletion(gameId) {
   const result = await gameApi.requestGameCompletion(gameId)
 
@@ -329,6 +359,18 @@ async function applyGame(gameId, payload) {
     throw new Error(result.message || '提交报名申请失败')
   }
 
+  return result.data
+}
+
+async function cancelGameApplication(applicationId) {
+  const result = await gameApi.cancelGameApplication(applicationId)
+  if (result.code !== 0) throw new Error(result.message || '撤回申请失败')
+  return result.data
+}
+
+async function exitGame(gameId) {
+  const result = await gameApi.exitGame(gameId)
+  if (result.code !== 0) throw new Error(result.message || '退出本局失败')
   return result.data
 }
 
@@ -579,6 +621,11 @@ module.exports = {
   getGameGuideSuccessDetail,
   getGameCollaboration,
   createProgressFeedback,
+  getMilestones,
+  createMilestone,
+  updateMilestone,
+  getGameCheckins,
+  createGameCheckin,
   requestGameCompletion,
   createGuideFollowUp,
   createGame,
@@ -600,6 +647,8 @@ module.exports = {
   getApplicationConfig,
   getConditionRuleConfig,
   applyGame,
+  cancelGameApplication,
+  exitGame,
   getReceivedApplications,
   reviewGameApplication,
   createReplayInvitation,

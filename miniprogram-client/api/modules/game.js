@@ -37,6 +37,26 @@ function createProgressFeedback(gameId, data) {
   return request.post(`/api/app/games/${gameId}/progress-feedbacks`, data)
 }
 
+function getMilestones(gameId) {
+  return request.get(`/api/app/games/${gameId}/milestones`)
+}
+
+function createMilestone(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/milestones`, data)
+}
+
+function updateMilestone(gameId, milestoneId, data) {
+  return request.put(`/api/app/games/${gameId}/milestones/${milestoneId}`, data)
+}
+
+function getGameCheckins(gameId) {
+  return request.get(`/api/app/games/${gameId}/checkins`)
+}
+
+function createGameCheckin(gameId, data) {
+  return request.post(`/api/app/games/${gameId}/checkins`, data)
+}
+
 function requestGameCompletion(gameId) {
   return request.post(`/api/app/games/${gameId}/completion-request`, {})
 }
@@ -129,6 +149,14 @@ function applyGame(gameId, data) {
   return request.post(`/api/app/games/${gameId}/applications`, data)
 }
 
+function cancelGameApplication(applicationId) {
+  return request.post(`/api/app/game-applications/${applicationId}/cancel`, {})
+}
+
+function exitGame(gameId) {
+  return request.post(`/api/app/games/${gameId}/exit`, {})
+}
+
 function getReceivedApplications(params) {
   return request.get('/api/app/game-applications/received', params)
 }
@@ -218,6 +246,11 @@ module.exports = {
   getGameGuideSuccessDetail,
   getGameCollaboration,
   createProgressFeedback,
+  getMilestones,
+  createMilestone,
+  updateMilestone,
+  getGameCheckins,
+  createGameCheckin,
   requestGameCompletion,
   createGuideFollowUp,
   createGame,
@@ -241,6 +274,8 @@ module.exports = {
   getConditionRuleConfig,
   getCancelConfig,
   applyGame,
+  cancelGameApplication,
+  exitGame,
   getReceivedApplications,
   reviewGameApplication,
   respondGameInvitation,

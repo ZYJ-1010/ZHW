@@ -11,8 +11,7 @@ SQL
 for file in /app/db/migrations/*.sql; do
   version=$(basename "$file")
   applied=$(psql -At --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
-    -v version="$version" \
-    -c "select 1 from schema_migrations where version = :'version'")
+    -c "select 1 from schema_migrations where version = '$version'")
 
   if [ "$applied" = "1" ]; then
     continue
@@ -21,6 +20,5 @@ for file in /app/db/migrations/*.sql; do
   echo "applying migration: $version"
   psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f "$file"
   psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
-    -v version="$version" \
-    -c "insert into schema_migrations(version) values (:'version')"
+    -c "insert into schema_migrations(version) values ('$version')"
 done

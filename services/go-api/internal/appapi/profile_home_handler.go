@@ -187,7 +187,7 @@ func (s *Server) buildProfileHomePayloadWithPoints(userID int64, user users.User
 	}
 	persistentProfileReminder, _ := guideState["persistentProfileReminder"].(bool)
 	serviceSections := s.profileHomeSections(reviewTodoCount, reportMessageCount, len(inviteRelations), inProgressGameCount, managedGameCount, persistentProfileReminder)
-	if !s.userCanGenerateInvitations(userID) {
+	if !s.userCanGenerateRegistrationInvitations(userID) {
 		serviceSections = removeProfileHomeItem(serviceSections, "invite")
 	}
 

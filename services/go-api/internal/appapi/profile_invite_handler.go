@@ -356,10 +356,10 @@ func (s *Server) requireRoleInviteUser(w http.ResponseWriter, r *http.Request) (
 		return 0, false
 	}
 	roles := snapshot.RoleStatusMap
-	if roles["expert"] == "approved" || roles["expert"] == "active" || roles["guide"] == "approved" || roles["guide"] == "active" {
+	if roles["guide"] == "approved" || roles["guide"] == "active" {
 		return userID, true
 	}
-	httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅行家或领路人可使用邀请功能")
+	httpx.Error(w, http.StatusForbidden, httpx.CodeForbidden, "仅领路人可使用邀请功能")
 	return 0, false
 }
 

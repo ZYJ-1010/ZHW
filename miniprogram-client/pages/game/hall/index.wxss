@@ -192,13 +192,12 @@ page {
 }
 
 .filter-bar {
-  display: grid;
-  grid-template-columns: 94rpx 106rpx 106rpx 106rpx 1fr;
+  display: flex;
   align-items: center;
   width: 662rpx;
   height: 100rpx;
   margin: 16rpx auto 0;
-  padding: 0 22rpx;
+  padding: 0 18rpx;
   box-sizing: border-box;
   border: 1rpx solid rgba(0, 123, 211, 0.95);
   border-radius: 0 0 20rpx 20rpx;
@@ -212,6 +211,7 @@ page {
   align-items: flex-start;
   justify-content: center;
   height: 100rpx;
+  flex: 0 0 82rpx;
   color: #ffffff;
   font-size: 28rpx;
   font-weight: 700;
@@ -228,10 +228,38 @@ page {
 
 .filter-option,
 .sort-option {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   color: #ffffff;
   font-size: 24rpx;
   line-height: 34rpx;
   white-space: nowrap;
+}
+
+.filter-option {
+  flex: 1 1 0;
+  justify-content: center;
+  gap: 4rpx;
+}
+
+.filter-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-option-arrow {
+  flex: none;
+  font-size: 20rpx;
+}
+
+.location-filter {
+  flex-grow: 1.35;
+}
+
+.type-filter {
+  flex-grow: 0.9;
 }
 
 .filter-option.active,
@@ -240,16 +268,19 @@ page {
 }
 
 .sort-option {
-  display: flex;
-  align-items: center;
+  flex: 0 0 90rpx;
   justify-content: flex-end;
 }
 
 .sort-arrow {
   margin-left: 6rpx;
-  color: #ff3b44;
+  color: #94a3b8;
   font-size: 30rpx;
   line-height: 34rpx;
+}
+
+.sort-option.active .sort-arrow {
+  color: #ff3b44;
 }
 
 .feed-list {

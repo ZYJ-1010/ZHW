@@ -54,6 +54,10 @@ type reviewService interface {
 	GameReviewComplete(gameID int64) bool
 }
 
+type gameReviewCompletionFinalizer interface {
+	CompleteAfterReviews(gameID int64) (games.Game, bool, error)
+}
+
 type creditRuleRepository interface {
 	ListCreditDeductionRules(ctx context.Context) ([]reviews.CreditDeductionRule, error)
 	UpsertCreditDeductionRule(ctx context.Context, rule reviews.CreditDeductionRule) (reviews.CreditDeductionRule, error)
@@ -743,6 +747,7 @@ func achievementVisibleForRole(item growthAchievementItemDTO, role string) bool 
 
 func defaultCreditDeductionRules() []reviews.CreditDeductionRule {
 	return []reviews.CreditDeductionRule{
+		{RuleCode: "quit_after_admitted", ChangeValue: -10, Enabled: true, Description: "成员入局后、开局前主动退出时扣除信用分。"},
 		{RuleCode: "quit_after_confirm", ChangeValue: -10, Enabled: true, Description: "成员确认服务后主动退出时扣除信用分。"},
 		{RuleCode: "quit_after_started", ChangeValue: -10, Enabled: true, Description: "局已开局后主动退出时扣除信用分。"},
 		{RuleCode: "player_cancel_service", ChangeValue: -3, Enabled: true, Description: "玩家取消已确认服务时扣除信用分。"},
@@ -1109,6 +1114,20 @@ func (s *Server) submitReview(w http.ResponseWriter, r *http.Request) {
 		writeReviewError(w, err)
 		return
 	}
+	gameCompleted := false
+	gameCompletionPending := false
+	if s.reviews.GameReviewComplete(req.GameID) {
+		finalizer, ok := s.games.(gameReviewCompletionFinalizer)
+		if !ok {
+			gameCompletionPending = true
+		} else if _, completed, completeErr := finalizer.CompleteAfterReviews(req.GameID); completeErr != nil {
+			// 评价已经原子落库，不能因后续状态写入失败向客户端伪报“评价失败”，
+			// 否则用户重试会触发重复评价。响应明确告知状态仍待刷新即可。
+			gameCompletionPending = true
+		} else {
+			gameCompleted = completed
+		}
+	}
 	pointsAccount := s.points.Summary(userID)
 	profile.AvailablePoints = pointsAccount.AvailablePoints
 	if connectionErr := s.connections.UpsertPairStrict(userID, review.TargetUserID, "co_game", "review", review.GameID, 1); connectionErr != nil {
@@ -1133,10 +1152,12 @@ func (s *Server) submitReview(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	httpx.OK(w, map[string]interface{}{
-		"review":        review,
-		"profile":       profile,
-		"credit":        credit,
-		"pointsSummary": pointsAccount,
+		"review":                review,
+		"profile":               profile,
+		"credit":                credit,
+		"gameCompleted":         gameCompleted,
+		"gameCompletionPending": gameCompletionPending,
+		"pointsSummary":         pointsAccount,
 		"reward": map[string]interface{}{
 			"experience": s.reviews.GrowthRules().SubmittedReviewExperience,
 		},

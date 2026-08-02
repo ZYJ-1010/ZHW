@@ -49,9 +49,11 @@
           </view>
         </block>
         <block wx:elif="{{!rolePermissionPrompt.visible}}">
-          <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
-          <view class="player-summary-copy">
+          <view class="player-summary-level-row">
+            <text class="player-level-pill role-level-pill">{{playerCard.role}}</text>
             <text class="player-summary-title">{{playerCard.title}}</text>
+          </view>
+          <view class="player-summary-copy">
             <view class="player-summary-name-row">
               <text class="player-summary-name" catchtap="handlePlayerNameTap">{{playerCard.name}}</text>
               <text wx:if="{{currentRoleType === 'expert' && blueBadge.enabled}}" class="expert-blue-badge" catchtap="handleBlueBadgeTap">蓝标</text>

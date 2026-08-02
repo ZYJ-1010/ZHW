@@ -223,7 +223,7 @@ function saveResultSummary(summary) {
       wx.setStorageSync('memberRadarResultSummary', summary)
     }
   } catch (error) {
-    // Ignore local storage failures for the static prototype state.
+    // Ignore local storage failures.
   }
 }
 
@@ -505,7 +505,7 @@ Component({
             wx.setStorageSync('memberRadarMatchRequest', request)
           }
         } catch (error) {
-          // Ignore local storage failures for the static prototype state.
+          // Ignore local storage failures.
         }
 
         navigateShellRoute('/pages/profile/member/match/index')
@@ -524,7 +524,7 @@ Component({
             wx.setStorageSync('memberRadarProfileForm', this.data.formRows || PROFILE_ROWS)
           }
         } catch (error) {
-          // Ignore local storage failures for the static prototype state.
+          // Ignore local storage failures.
         }
 
         wx.showToast({
@@ -557,7 +557,7 @@ Component({
             wx.setStorageSync('memberRadarMatchRequest', request)
           }
         } catch (error) {
-          // Ignore local storage failures for the static prototype state.
+          // Ignore local storage failures.
         }
 
         navigateShellRoute('/pages/profile/member/match/index')
