@@ -67,6 +67,10 @@ Component({
         })
       }
     },
+    unreadCount: {
+      type: Number,
+      value: 0
+    },
     topbarTitle: {
       type: String,
       value: '',

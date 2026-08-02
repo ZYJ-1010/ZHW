@@ -1,5 +1,6 @@
 ﻿<home-shell
   online-text="{{onlineText}}"
+  unread-count="{{unreadCount}}"
   topbar-title=""
   nav-items="{{navItems}}"
   nav-toast-enabled="{{false}}"

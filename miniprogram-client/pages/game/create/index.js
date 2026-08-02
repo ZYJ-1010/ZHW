@@ -2,6 +2,7 @@ const toast = require('../../../utils/toast')
 const gameService = require('../../../services/game')
 const fileService = require('../../../services/file')
 const mapService = require('../../../services/map')
+const homeService = require('../../../services/home')
 const featureFlags = require('./feature-flags')
 const { ROUTES } = require('../../../config/routes')
 const { navigateShellKey, navigateShellRoute } = require('../../../utils/shell-nav')
@@ -433,6 +434,7 @@ function normalizeConditionRuleConfig(data = {}) {
 Page({
   data: {
     onlineText: '在线',
+    unreadCount: 0,
     createScrollTop: 0,
     createScrollIntoView: '',
     coverUploadEnabled: featureFlags.gameCoverUploadEnabled,
@@ -554,8 +556,26 @@ Page({
   async initializeCreatePage(draftId) {
     // 先固定分类、人数和选项配置，再恢复草稿。否则两个接口响应顺序
     // 不同时，分类默认值会覆盖草稿，或草稿标签会套用到错误的大类。
-    await this.loadCategoryConfig()
+    await Promise.all([
+      this.loadCategoryConfig(),
+      this.loadOnlineText()
+    ])
     await this.restoreRequestedDraft(draftId)
+  },
+
+  async loadOnlineText() {
+    try {
+      const home = await homeService.getHome({})
+      const hero = home && home.hero ? home.hero : {}
+      const notifications = home && home.notifications ? home.notifications : {}
+      this.setData({
+        onlineText: hero.onlineText || home.onlineText || '',
+        unreadCount: Math.max(0, Number(notifications.unreadCount || 0) || 0)
+      })
+    } catch (error) {
+      // 在线人数读取失败时由统一顶部组件降级显示 0，不使用静态演示人数。
+      this.setData({ onlineText: '', unreadCount: 0 })
+    }
   },
 
   onShow() {

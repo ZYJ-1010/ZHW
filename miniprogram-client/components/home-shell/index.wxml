@@ -42,7 +42,7 @@
     <view class="home-shell-toolbar" style="{{shellToolbarStyle}}">
       <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-search" data-key="search" bindtap="handleNavTap" src="./assets/master-search.svg" mode="aspectFit"></image>
       <image wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment" data-key="comment" bindtap="handleNavTap" src="./assets/master-comment.svg" mode="aspectFit"></image>
-      <view wx:if="{{resolvedToolbarActionsVisible}}" class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
+      <view wx:if="{{resolvedToolbarActionsVisible && unreadCount > 0}}" class="home-shell-comment-dot" data-key="comment" bindtap="handleNavTap"></view>
       <view wx:if="{{resolvedToolbarAvatarVisible}}" class="home-shell-avatar" data-key="avatar" bindtap="handleNavTap">
         <image wx:if="{{shellAvatarUrl}}" class="home-shell-avatar__image" src="{{shellAvatarUrl}}" mode="aspectFill"></image>
         <image wx:else class="home-shell-avatar__icon" src="./assets/master-avatar.svg" mode="aspectFit"></image>
