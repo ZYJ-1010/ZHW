@@ -690,10 +690,7 @@ function buildPointsSummary() {
     expiredPoints: 0,
     stats: mockPointsPageConfig.stats,
     rules: mockPointsPageConfig.rules,
-    earnExample: mockPointsPageConfig.earnExample,
-    roleExamples: mockPointsPageConfig.roleExamples,
     filters: mockPointsPageConfig.filters,
-    noteText: mockPointsPageConfig.noteText,
     version: mockPointsPageConfig.version,
     updatedAt: new Date().toISOString()
   }

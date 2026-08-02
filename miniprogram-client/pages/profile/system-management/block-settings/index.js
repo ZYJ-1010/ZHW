@@ -3,6 +3,13 @@ const profileService = require('../../../../services/profile')
 const { navigateShellRoute } = require('../../../../utils/shell-nav')
 
 const ASSET_BASE = '/pages/profile/system-management/block-settings/assets'
+const ROW_ICON_PATHS = {
+  protection: 'icon-target.svg',
+  scene: 'icon-gear.svg',
+  whitelist: 'icon-clipboard.svg',
+  users: 'icon-ban.svg',
+  keywords: 'icon-keyword.svg'
+}
 const PAGE_ROUTES = {
   protection: '/pages/profile/system-management/protection-mode/index',
   scene: '/pages/profile/system-management/scene-config/index',
@@ -106,6 +113,7 @@ Page({
 function withRoute(item) {
   return {
     ...item,
-    route: PAGE_ROUTES[item.key] || ''
+    route: PAGE_ROUTES[item.key] || '',
+    iconSrc: ROW_ICON_PATHS[item.key] ? `${ASSET_BASE}/${ROW_ICON_PATHS[item.key]}` : ''
   }
 }

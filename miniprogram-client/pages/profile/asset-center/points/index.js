@@ -1,8 +1,6 @@
 const toast = require('../../../../utils/toast')
 const profileService = require('../../../../services/profile')
 
-const ASSET_BASE = '/pages/profile/asset-center/points/assets'
-
 function formatNumber(value) {
   const number = Number(value) || 0
 
@@ -64,7 +62,7 @@ function normalizePointLog(log = {}) {
     points: `${isIncome ? '+' : ''}${formatNumber(changeValue)}`,
     changeValue,
     tone: isIncome ? 'plus' : 'minus',
-    iconText: isIncome ? '奖' : '兑',
+    iconText: isIncome ? '💰' : '🛍️',
     iconTone: isIncome ? 'green' : 'pink'
   }
 }
@@ -121,18 +119,11 @@ function normalizeFilters(filters) {
 
 Page({
   data: {
-    icons: {
-      back: `${ASSET_BASE}/icon-chevron-left.svg`,
-      more: `${ASSET_BASE}/icon-ellipsis-vertical.svg`
-    },
     loading: false,
     summary: buildSummary(),
     rules: [],
-    earnExample: {},
-    roleExamples: [],
     filters: [],
     activeFilter: 'all',
-    noteText: '',
     records: [],
     visibleRecords: []
   },
@@ -159,11 +150,8 @@ Page({
       this.setData({
         summary: buildSummary(summary, rawLogs),
         rules: Array.isArray(summary && summary.rules) ? summary.rules : [],
-        earnExample: summary && summary.earnExample || {},
-        roleExamples: Array.isArray(summary && summary.roleExamples) ? summary.roleExamples : [],
         filters,
         activeFilter,
-        noteText: summary && summary.noteText || '',
         records,
         loading: false
       })

@@ -344,6 +344,8 @@ Component({
     friendGames: [],
     friendEmptyText: '暂无朋友组局',
     skills: [],
+    skillTreeSlots: [],
+    skillTreeExtras: [],
     allSkills: [],
     skillsExpanded: false,
     skillMoreCount: 0,
@@ -807,9 +809,26 @@ Component({
       const safePreviewCount = Math.max(1, Number(previewCount) || 3)
       const skillsExpanded = Boolean(expanded) && allSkills.length > safePreviewCount
       const visibleSkills = skillsExpanded ? allSkills : allSkills.slice(0, safePreviewCount)
+      const positions = ['start', 'middle', 'top', 'bottom']
+      const skillTreeSlots = positions.map((treePosition, index) => {
+        const skill = visibleSkills[index]
+        if (skill) {
+          return Object.assign({}, skill, { treePosition })
+        }
+        return {
+          key: `locked-${treePosition}`,
+          icon: '🔒',
+          title: '待解锁',
+          tone: 'locked',
+          locked: true,
+          treePosition
+        }
+      })
       return {
         allSkills,
         skills: visibleSkills,
+        skillTreeSlots,
+        skillTreeExtras: visibleSkills.slice(4),
         skillsExpanded,
         skillMoreCount: Math.max(0, allSkills.length - safePreviewCount),
         skillPreviewCount: safePreviewCount

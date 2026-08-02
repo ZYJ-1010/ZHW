@@ -9,11 +9,6 @@
 >
   <view class="points-page">
     <view class="points-hero">
-      <view class="points-hero-bar">
-        <image class="hero-side-icon" src="{{icons.back}}" mode="aspectFit" />
-        <text class="hero-title">积分中心</text>
-        <image class="hero-side-icon more" src="{{icons.more}}" mode="aspectFit" />
-      </view>
       <view class="points-hero-main">
         <text class="points-hero-label">可用积分</text>
         <text class="points-hero-value">{{summary.available}}</text>
@@ -29,7 +24,7 @@
     <view class="points-content">
       <view class="rules-card">
         <view class="points-section-head">
-          <text class="head-icon">规</text>
+          <text class="head-icon rule-head-icon">📜</text>
           <text>积分规则</text>
         </view>
         <view class="rule-list">
@@ -44,52 +39,9 @@
       </view>
 
       <view class="points-card">
-        <view class="points-section-head dark">
-          <text class="head-icon star">星</text>
-          <text>赚积分</text>
-        </view>
-
-        <view class="earn-card">
-          <view class="earn-top">
-            <view class="earn-title-row">
-              <view class="earn-icon-wrap">
-                <text class="earn-icon">积</text>
-              </view>
-              <view class="earn-title-copy">
-                <text class="earn-title">{{earnExample.title}}</text>
-                <text class="earn-subtitle">{{earnExample.subtitle}}</text>
-              </view>
-            </view>
-            <text class="earn-points">{{earnExample.points}}</text>
-          </view>
-          <view class="earn-lines">
-            <view wx:for="{{earnExample.rows}}" wx:key="label" class="earn-line">
-              <text>{{item.label}}</text>
-              <text>{{item.value}}</text>
-            </view>
-            <text class="earn-result">{{earnExample.result}}</text>
-          </view>
-        </view>
-
-        <view class="role-example-card">
-          <text class="role-example-title">积分来源示例</text>
-          <view wx:for="{{roleExamples}}" wx:key="key" class="role-example-row">
-            <view class="role-left">
-              <text class="role-icon">{{item.iconText}}</text>
-              <text class="role-name">{{item.role}}</text>
-            </view>
-            <view class="role-right">
-              <text>{{item.amount}}</text>
-              <text class="role-points">{{item.points}}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <view class="points-card">
         <view class="history-head">
           <view class="points-section-head dark no-margin">
-            <text class="head-icon">明</text>
+            <text class="head-icon detail-head-icon">📋</text>
             <text>积分明细</text>
           </view>
           <view class="filter-tabs">
@@ -124,10 +76,6 @@
         </view>
       </view>
 
-      <view class="points-note">
-        <text class="note-icon">!</text>
-        <text class="note-text">{{noteText}}</text>
-      </view>
     </view>
   </view>
 </profile-white-shell>

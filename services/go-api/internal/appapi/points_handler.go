@@ -52,13 +52,10 @@ type pointsPageRuleDTO struct {
 }
 
 type pointsPageConfigDTO struct {
-	Stats        []pointsPageStatDTO      `json:"stats"`
-	Rules        []pointsPageRuleDTO      `json:"rules"`
-	EarnExample  map[string]interface{}   `json:"earnExample"`
-	RoleExamples []map[string]interface{} `json:"roleExamples"`
-	Filters      []map[string]string      `json:"filters"`
-	NoteText     string                   `json:"noteText"`
-	Version      string                   `json:"version"`
+	Stats   []pointsPageStatDTO `json:"stats"`
+	Rules   []pointsPageRuleDTO `json:"rules"`
+	Filters []map[string]string `json:"filters"`
+	Version string              `json:"version"`
 }
 
 type redemptionOrderPageConfigDTO struct {
@@ -131,10 +128,7 @@ func (s *Server) buildPointsSummaryPayload(account points.Account, logs []points
 		"updatedAt":         account.UpdatedAt,
 		"stats":             config.Stats,
 		"rules":             config.Rules,
-		"earnExample":       config.EarnExample,
-		"roleExamples":      config.RoleExamples,
 		"filters":           config.Filters,
-		"noteText":          config.NoteText,
 		"version":           config.Version,
 	}
 }
@@ -167,28 +161,12 @@ func defaultPointsPageConfig() pointsPageConfigDTO {
 			{Text: "积分有效期按平台规则执行，到期后由后台任务处理", Strong: "有效期规则"},
 			{Text: "积分仅可兑换", Strong: "平台限定商品", Suffix: "，不可提现或抵扣付费局"},
 		},
-		EarnExample: map[string]interface{}{
-			"title":    "可获得积分的行为",
-			"subtitle": "服务分润、举报核实、活动奖励",
-			"points":   "+20",
-			"rows": []map[string]string{
-				{"label": "举报核实奖励", "value": "后台确认后发放"},
-				{"label": "服务分润积分", "value": "按后台比例生成"},
-			},
-			"result": "积分以后台流水为准",
-		},
-		RoleExamples: []map[string]interface{}{
-			{"key": "expert", "role": "行家服务完成", "amount": "按分润金额", "points": "+积分", "iconText": "行"},
-			{"key": "guide", "role": "领路人引荐成功", "amount": "按引荐收益", "points": "+积分", "iconText": "领"},
-			{"key": "platform", "role": "平台核实奖励", "amount": "后台配置", "points": "+积分", "iconText": "奖"},
-		},
 		Filters: []map[string]string{
 			{"key": "all", "label": "全部", "tone": "all"},
 			{"key": "income", "label": "收入", "tone": "income"},
 			{"key": "expense", "label": "支出", "tone": "expense"},
 		},
-		NoteText: "积分规则、比例、有效期和兑换限制均以后端后台配置为准。积分不可提现，不可支付付费局，仅可兑换平台限定商品。",
-		Version:  "2026-07-01",
+		Version: "2026-07-01",
 	}
 }
 

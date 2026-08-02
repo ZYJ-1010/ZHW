@@ -4,7 +4,6 @@
   nav-background="#0d1117"
   title-color="#ffffff"
   title-weight="400"
-  show-back="{{false}}"
   back-background="#0d1117"
   back-border-color="transparent"
   back-icon-color="#ffffff"

@@ -194,12 +194,20 @@
           <text class="role-skill-heading">行家技能树</text>
         </view>
         <view wx:if="{{skills.length}}" class="role-skill-grid">
-          <view wx:for="{{skills}}" wx:key="key" class="role-skill-item">
+          <view class="role-skill-line left"></view>
+          <view class="role-skill-line top"></view>
+          <view class="role-skill-line bottom"></view>
+          <view wx:for="{{skillTreeSlots}}" wx:key="key" class="role-skill-node-wrap {{item.treePosition}} {{item.locked ? 'locked' : ''}}">
             <view class="role-skill-node {{item.tone}}" style="{{item.nodeStyle}}"><text>{{item.icon}}</text></view>
             <text class="role-skill-node-label">{{item.title}}</text>
           </view>
         </view>
-        <text wx:else class="role-skill-empty">暂未配置显性技能</text>
+        <view wx:if="{{skillTreeExtras.length}}" class="role-skill-extra-grid">
+          <view wx:for="{{skillTreeExtras}}" wx:key="key" class="role-skill-extra-item">
+            <text>{{item.icon}} {{item.title}}</text>
+          </view>
+        </view>
+        <text wx:if="{{!skills.length}}" class="role-skill-empty">暂未配置显性技能</text>
         <view wx:if="{{skillMoreCount}}" class="role-skill-more" bindtap="handleSkillMoreTap">{{skillsExpanded ? '收起技能' : '展开更多'}}（{{skillMoreCount}}）</view>
       </view>
 

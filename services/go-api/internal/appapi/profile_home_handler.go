@@ -293,7 +293,7 @@ func (s *Server) profileHomeSections(reviewTodoCount int, unreadCount int, conne
 		{
 			"title": "足迹中心",
 			"items": []map[string]interface{}{
-				profileHomeItem("footprints", "我的足迹", "/pages/profile/assets/i75@3x.png", "teal", "", "", "/pages/profile/footprint/achievements/index"),
+				profileHomeDisabledItem("footprints", "我的足迹", "/pages/profile/assets/i75@3x.png", "teal", "", "", "足迹功能暂未开放"),
 				profileHomeDisabledItem("cityStories", "我的城市故事", "/pages/profile/assets/i76@3x.png", "teal", "", "", "地图与城市探索将在后续版本开放"),
 				profileHomeItem("achievements", "我的成就墙", "/pages/profile/assets/i77@3x.png", "teal", "", "", "/pages/profile/footprint/achievements/index"),
 			},

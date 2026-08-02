@@ -47,7 +47,7 @@
         bindtap="handleNavigateTap"
       >
         <view class="icon-tile {{item.tone}}">
-          <text class="tile-emoji">{{item.iconText}}</text>
+          <image class="tile-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
         </view>
         <view class="row-main">
           <text class="row-title">{{item.title}}</text>
@@ -70,7 +70,7 @@
         bindtap="handleNavigateTap"
       >
         <view class="icon-tile {{item.tone}}">
-          <text class="tile-emoji">{{item.iconText}}</text>
+          <image class="tile-icon" src="{{item.iconSrc}}" mode="aspectFit"></image>
         </view>
         <view class="row-main">
           <text class="row-title">{{item.title}}</text>

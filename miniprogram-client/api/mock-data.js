@@ -1029,27 +1029,11 @@ const mockPointsPageConfig = {
       suffix: '，不可提现'
     }
   ],
-  earnExample: {
-    title: '可获得积分的行为',
-    subtitle: '完成组局、举报核实、活动奖励',
-    points: '+20',
-    rows: [
-      { label: '举报核实奖励', value: '后台确认后发放' },
-      { label: '完成组局奖励', value: '按后台规则发放' }
-    ],
-    result: '积分以后台流水为准'
-  },
-  roleExamples: [
-    { key: 'expert', role: '行家完成组局', amount: '按后台规则', points: '+积分', iconText: '行' },
-    { key: 'guide', role: '领路人引荐成功', amount: '按后台规则', points: '+积分', iconText: '领' },
-    { key: 'platform', role: '平台核实奖励', amount: '后台配置', points: '+积分', iconText: '奖' }
-  ],
   filters: [
     { key: 'all', label: '全部', tone: 'all' },
     { key: 'income', label: '收入', tone: 'income' },
     { key: 'expense', label: '支出', tone: 'expense' }
   ],
-  noteText: '积分规则、比例、有效期和兑换限制均以后端后台配置为准。积分不可提现，仅可兑换平台限定商品。',
   version: '2026-07-01'
 }
 
